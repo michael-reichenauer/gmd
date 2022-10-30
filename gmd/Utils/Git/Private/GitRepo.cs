@@ -2,9 +2,16 @@ namespace gmd.Utils.Git.Private;
 
 internal class GitRepo : IGitRepo
 {
-    public Commit[] Log(int maxCount = 30000)
+    private IGitLog log;
+
+    public GitRepo(string path)
     {
-        return new Commit[] { };
+        log = new GitLog();
+    }
+
+    public Commit[] Log(int maxCount)
+    {
+        return log.Log(maxCount);
     }
 
 }

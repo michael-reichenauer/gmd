@@ -11,7 +11,7 @@ public class GitRepoTest
     public void TestLog()
     {
         Log.Info("test");
-        IGitRepo git = new GitRepo();
+        IGitRepo git = new GitRepo("");
 
         var result = git.Log();
         Assert.AreEqual(0, result.Length);

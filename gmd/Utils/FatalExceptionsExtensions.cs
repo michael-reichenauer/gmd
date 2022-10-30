@@ -57,7 +57,7 @@ namespace System
         };
 
 
-        public static event EventHandler<FatalExceptionEventArgs> FatalException;
+        public static event EventHandler<FatalExceptionEventArgs>? FatalException;
 
 
         public static bool IsNotFatal(this Exception e)

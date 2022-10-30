@@ -55,7 +55,7 @@ internal static class Log
             List<string> batchedTexts = new List<string>();
             // Wait for texts to log
             string filePrefix = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
-            string logText = logTexts.Take();
+            string? logText = logTexts.Take();
             // Native.OutputDebugString(logText);
             batchedTexts.Add($"{filePrefix} {logText}");
 
