@@ -19,13 +19,13 @@ internal class GitLog : IGitLog
     public async Task<R<IReadOnlyList<Commit>>> GetLog(int maxCount = 30000)
     {
         var args = $"log --all --date-order -z --pretty=%H|%ai|%ci|%an|%P|%B --max-count={maxCount}";
-        R<CmdResult> r = await cmd.RunAsync("git", args);
-        if (r.IsFaulted)
+        CmdResult cmdResult = await cmd.RunAsync("git", args);
+        if (cmdResult.ExitCode != 0)
         {
-            return R.Error(r.Exception);
+            return Error.From(cmdResult.ErrorMessage);
         }
 
-        return ParseLines(r.Value.Output);
+        return ParseLines(cmdResult.OutputLines);
     }
 
     private R<IReadOnlyList<Commit>> ParseLines(IReadOnlyList<string> lines)
@@ -41,12 +41,13 @@ internal class GitLog : IGitLog
                     continue;
                 }
 
-                var r = ParseRow(row);
-                if (r.IsFaulted)
+                var commit = ParseRow(row);
+                if (commit.IsFaulted)
                 {
-                    return R.Error(r.Exception);
+                    return commit.Error;
                 }
-                commits.Add(r.Value);
+
+                commits.Add(commit.Value);
             }
         }
 
@@ -58,7 +59,7 @@ internal class GitLog : IGitLog
         var rowParts = row.Split('|');
         if (rowParts.Length < 6)
         {
-            return R.Error($"failed to parse git commit {row}");
+            return Error.From($"failed to parse git commit {row}");
         }
 
         var id = rowParts[0];

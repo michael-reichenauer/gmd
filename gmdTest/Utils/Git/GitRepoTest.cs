@@ -13,6 +13,7 @@ public class GitRepoTest
         IGitRepo git = new GitRepo("");
 
         var result = await git.GetLog();
+
         Assert.IsTrue(result.IsOk);
         Log.Info($"Count: {result.Value.Count}");
         foreach (var c in result.Value)

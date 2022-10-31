@@ -1,11 +1,43 @@
 using System;
 using System.Reflection;
-
+using System.Runtime.CompilerServices;
 
 namespace gmd.Utils;
 
 public class Error : R
 {
+    public static Error From(
+       string message,
+       [CallerMemberName] string memberName = "",
+       [CallerFilePath] string sourceFilePath = "",
+       [CallerLineNumber] int sourceLineNumber = 0) =>
+       new Error(message, memberName, sourceFilePath, sourceLineNumber);
+
+
+    public static Error From(
+        string message,
+        Exception e,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0) =>
+        new Error(message, e, memberName, sourceFilePath, sourceLineNumber);
+
+
+    public static Error From(
+           R errorResult,
+           [CallerMemberName] string memberName = "",
+           [CallerFilePath] string sourceFilePath = "",
+           [CallerLineNumber] int sourceLineNumber = 0) =>
+           errorResult.IsFaulted ?
+           new Error(errorResult.Exception, memberName, sourceFilePath, sourceLineNumber) : throw Asserter.FailFast("Was no error error");
+
+    public static Error From(
+        Exception e,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0) =>
+        new Error(e, memberName, sourceFilePath, sourceLineNumber);
+
     public Error(
         string message,
         string memberName,

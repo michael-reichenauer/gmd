@@ -10,10 +10,23 @@ internal interface ICmd
     CmdResult Start(string path, string args);
 }
 
-internal record CmdResult(
-    int ExitCode,
-    IReadOnlyList<string> Output,
-    IReadOnlyList<string> Error);
+internal class CmdResult
+{
+    public int ExitCode { get; }
+    public IReadOnlyList<string> OutputLines { get; }
+    public IReadOnlyList<string> ErrorLines { get; }
+
+    public string Output => string.Join('\n', OutputLines);
+    public string ErrorMessage => string.Join('\n', ErrorLines);
+
+    public CmdResult(int exitCode, IReadOnlyList<string> outputLines, IReadOnlyList<string> errorLines)
+    {
+        ExitCode = exitCode;
+        OutputLines = outputLines;
+        ErrorLines = errorLines;
+    }
+
+}
 
 
 internal class Cmd : ICmd
