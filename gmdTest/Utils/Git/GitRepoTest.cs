@@ -8,11 +8,16 @@ namespace gmdTest.Utils.Git;
 public class GitRepoTest
 {
     [TestMethod]
-    public void TestLog()
+    public async Task TestLog()
     {
         IGitRepo git = new GitRepo("");
 
-        var result = git.Log();
-        Assert.AreEqual(0, result.Length);
+        var result = await git.GetLog();
+        Assert.IsTrue(result.IsOk);
+        Log.Info($"Count: {result.Value.Count}");
+        foreach (var c in result.Value)
+        {
+            Log.Info($"C: {c.ToString()}");
+        }
     }
 }
