@@ -10,7 +10,6 @@ public class GitRepoTest
     [TestMethod]
     public void TestLog()
     {
-        Log.Info("test");
         IGitRepo git = new GitRepo("");
 
         var result = git.Log();

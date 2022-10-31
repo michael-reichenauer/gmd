@@ -161,15 +161,19 @@ internal static class Log
         int lineNumber)
     {
         filePath = filePath.Substring(prefixLength);
-        string text = $"{level} {filePath}:{lineNumber} {memberName}: {msg}";
+        var lines = msg.Split('\n');
+        foreach (var line in lines)
+        {
+            string text = $"{level} {filePath}:{lineNumber} {memberName}: {line}";
 
-        try
-        {
-            SendLog(text);
-        }
-        catch (Exception e) when (e.IsNotFatal())
-        {
-            SendLog("ERROR Failed to log " + e);
+            try
+            {
+                SendLog(text);
+            }
+            catch (Exception e) when (e.IsNotFatal())
+            {
+                SendLog("ERROR Failed to log " + e);
+            }
         }
     }
 

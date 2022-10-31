@@ -75,7 +75,7 @@ public class Timing
     }
 
 
-    public override string ToString() => $"Timing: {DiffMs}ms ({ElapsedMs}ms)";
+    public override string ToString() => count == 0 ? $"({ElapsedMs}ms)" : $"{DiffMs}ms ({ElapsedMs}ms)";
 
     public struct StopParameter
     {
