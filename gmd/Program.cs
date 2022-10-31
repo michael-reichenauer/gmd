@@ -1,5 +1,10 @@
 ﻿using Terminal.Gui;
 using NStack;
+using gmd.Cui;
+using gmd.Utils;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("gmdTest")]
 
 namespace gmd;
 
