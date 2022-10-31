@@ -1,10 +1,22 @@
-﻿using System.Runtime.CompilerServices;
+﻿using Terminal.Gui;
+using NStack;
 
-[assembly: InternalsVisibleTo("gmdTest")]
+namespace gmd;
 
-Console.WriteLine("What is your name?");
-var name = Console.ReadLine();
-var currentDate = DateTime.Now;
-Console.WriteLine($"{Environment.NewLine}Hello, {name}, on {currentDate:d} at {currentDate:t}!");
-Console.Write($"{Environment.NewLine}Press any key to exit...");
-Console.ReadKey(true);
+class Program
+{
+    static void Main(string[] args)
+    {
+        Application.Init();
+
+        var mainView = new MainView();
+        Application.Top.Add(mainView);
+        Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
+
+        mainView.SetData().RunInBackground();
+        // Run blocks until the user quits the application
+        Application.Run();
+        Application.Shutdown();
+    }
+}
+
