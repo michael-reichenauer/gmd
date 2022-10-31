@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using static System.Environment;
 
-namespace gmd.Utils;
+namespace gmd.Utils.Logging;
 
 internal static class Log
 {
