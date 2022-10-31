@@ -21,12 +21,23 @@ public class R
 
     public Exception Exception { get; }
 
+    public Error Error => IsFaulted ? Error.From(Exception) : throw Asserter.FailFast("Was no error error");
     public bool IsOk => Exception == NoError;
     public bool IsFaulted => Exception != NoError;
     public string Message => Exception.Message;
     public string AllMessages => string.Join(",\n", AllMessageLines());
 
-    public IEnumerable<string> AllMessageLines()
+
+    public static R<T> From<T>(T result) => R<T>.From(result);
+
+
+
+    //public static implicit operator R(Exception e) => new RError(e);
+    public static implicit operator bool(R r) => r.IsOk;
+
+    public override string ToString() => IsOk ? "OK" : $"Error: {AllMessages}\n{Exception}";
+
+    private IEnumerable<string> AllMessageLines()
     {
         yield return Message;
 
@@ -37,38 +48,6 @@ public class R
             inner = inner.InnerException;
         }
     }
-
-
-    public static R<T> From<T>(T result) => R<T>.From(result);
-
-    public static Error Error(
-        string message,
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0) =>
-        new Error(message, memberName, sourceFilePath, sourceLineNumber);
-
-
-    public static Error Error(
-        string message,
-        Exception e,
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0) =>
-        new Error(message, e, memberName, sourceFilePath, sourceLineNumber);
-
-
-    public static Error Error(
-        Exception e,
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0) =>
-        new Error(e, memberName, sourceFilePath, sourceLineNumber);
-
-    //public static implicit operator R(Exception e) => new RError(e);
-    public static implicit operator bool(R r) => r.IsOk;
-
-    public override string ToString() => IsOk ? "OK" : $"Error: {AllMessages}\n{Exception}";
 }
 
 
@@ -103,7 +82,6 @@ public class R<T> : R
     public static R<T> From(T result) => new R<T>(result);
 
     public T Value => IsOk ? storedValue : throw Asserter.FailFast(Exception.ToString());
-
 
     public bool HasValue(out T value)
     {

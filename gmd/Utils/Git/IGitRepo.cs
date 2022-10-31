@@ -14,5 +14,5 @@ public record Commit(
 
 internal interface IGitRepo
 {
-    Commit[] Log(int maxCount = 30000);
+    Task<R<IReadOnlyList<Commit>>> GetLog(int maxCount = 30000);
 }

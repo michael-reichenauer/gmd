@@ -17,9 +17,9 @@ internal class GitRepo : IGitRepo
         log = new GitLog(cmd);
     }
 
-    public Commit[] Log(int maxCount)
+    public Task<R<IReadOnlyList<Commit>>> GetLog(int maxCount)
     {
-        return log.Log(maxCount);
+        return log.GetLog(maxCount);
     }
 
 
