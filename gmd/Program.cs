@@ -6,6 +6,7 @@ using gmd.Utils;
 [assembly: InternalsVisibleTo("gmdTest")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 
+
 namespace gmd;
 
 class Program

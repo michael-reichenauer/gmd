@@ -1,20 +1,29 @@
 using gmd.Cui.TerminalGui;
-using gmd.Utils.Git.Private;
+using gmd.Utils.Git;
 using Terminal.Gui;
 
 
 namespace gmd.Cui;
 
-internal class RepoView
+interface IRepoView
 {
-    TextViewEx textView;
-    private ColorText text;
+    View View { get; }
+    Task SetDataAsync();
+}
 
+class RepoView : IRepoView
+{
+    private readonly IGitService gitService;
+
+    private TextViewEx textView;
+    private ColorText text;
 
     public View View => textView;
 
-    internal RepoView() : base()
+    RepoView(IGitService gitService) : base()
     {
+        this.gitService = gitService;
+
         text = new ColorText();
         textView = new TextViewEx(text)
         {
@@ -28,10 +37,9 @@ internal class RepoView
         };
     }
 
-
-    internal async Task SetDataAsync()
+    public async Task SetDataAsync()
     {
-        var git = new GitRepo("");
+        var git = gitService.GetRepo("");
 
         var commits = await git.GetLog();
         if (commits.IsFaulted)

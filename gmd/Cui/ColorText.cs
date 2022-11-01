@@ -5,13 +5,13 @@ using Attribute = Terminal.Gui.Attribute;
 
 namespace gmd.Cui;
 
-internal class ColorText
+class ColorText
 {
-    private readonly List<StringBuilder> lines;
-    private readonly List<List<Attribute>> colors;
+    readonly List<StringBuilder> lines;
+    readonly List<List<Attribute>> colors;
 
-    private StringBuilder currentLine;
-    private List<Attribute> currentColors;
+    StringBuilder currentLine;
+    List<Attribute> currentColors;
 
     internal ColorText()
     {

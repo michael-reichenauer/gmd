@@ -4,7 +4,7 @@ using Attribute = Terminal.Gui.Attribute;
 
 namespace gmd.Cui;
 
-internal class Colors
+class Colors
 {
     public static readonly Attribute Blue = MakeColor(Color.Blue);
     public static readonly Attribute Green = MakeColor(Color.Green);
@@ -24,12 +24,12 @@ internal class Colors
 
 
 
-    private static Attribute MakeColor(Color fg)
+    static Attribute MakeColor(Color fg)
     {
         return MakeColorFgBg(fg, Color.Black);
     }
 
-    private static Attribute MakeColorFgBg(Color fg, Color bg)
+    static Attribute MakeColorFgBg(Color fg, Color bg)
     {
         return View.Driver.MakeAttribute(fg, bg);
     }

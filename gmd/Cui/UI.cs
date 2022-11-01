@@ -3,9 +3,8 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-internal class UI
+class UI
 {
-
     internal static void Post(Action action)
     {
         Application.MainLoop.Invoke(action);

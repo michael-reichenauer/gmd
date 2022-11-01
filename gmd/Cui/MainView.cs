@@ -3,20 +3,21 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-internal interface IMainView
+interface IMainView
 {
     View View { get; }
 }
 
-internal class MainView : IMainView
+class MainView : IMainView
 {
-    private RepoView repoView;
-    private Toplevel toplevel;
+    Toplevel toplevel;
+    readonly IRepoView repoView;
 
     public View View => toplevel;
 
-    internal MainView() : base()
+    MainView(IRepoView repoView) : base()
     {
+        this.repoView = repoView;
         toplevel = new Toplevel()
         {
             X = 0,
@@ -26,14 +27,13 @@ internal class MainView : IMainView
             WantMousePositionReports = false,
         };
 
-        repoView = new RepoView();
 
         toplevel.Add(repoView.View);
 
         toplevel.Loaded += Start;
     }
 
-    private void Start()
+    void Start()
     {
         repoView.SetDataAsync().RunInBackground();
     }
