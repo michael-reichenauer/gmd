@@ -8,15 +8,15 @@ namespace gmd.Cui;
 internal class RepoView
 {
     TextViewEx textView;
-    private ColorText colorText;
+    private ColorText text;
 
 
     public View View => textView;
 
     internal RepoView() : base()
     {
-        colorText = new ColorText();
-        textView = new TextViewEx(colorText)
+        text = new ColorText();
+        textView = new TextViewEx(text)
         {
             X = 0,
             Y = 0,
@@ -43,14 +43,15 @@ internal class RepoView
         {
             foreach (var c in commits.Value)
             {
-                colorText.Magenta(" ┃ ┃");
-                colorText.Blue($" {c.Sid}");
-                colorText.White($" {c.Subject.Max(50),-50}");
-                colorText.Red($" {c.Author.Max(10),-10}");
-                colorText.EoL();
+                text.Append(" ┃ ┃", Colors.Magenta);
+                text.Append($" {c.Sid}", Colors.Blue);
+                text.Append($" {c.Subject.Max(50),-50}", Colors.White);
+                text.Append($" {c.Author.Max(10),-10}", Colors.Green);
+                text.Append($" {c.AuthorTime.ToString().Max(10),-10}", Colors.DarkGray);
+                text.EoL();
             }
 
-            textView.Text = colorText.ToString();
+            textView.Text = text.ToString();
         }
     }
 }

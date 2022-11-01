@@ -13,7 +13,7 @@ internal class TextViewEx : TextViewX
 
     protected override void SetNormalColor()
     {
-        Driver.SetAttribute(colorText.Default);
+        Driver.SetAttribute(Colors.White);
     }
 
     protected override void SetReadOnlyColor(List<System.Rune> line, int x, int row)

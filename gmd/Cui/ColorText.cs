@@ -1,6 +1,5 @@
 
 using System.Text;
-using Terminal.Gui;
 using Attribute = Terminal.Gui.Attribute;
 
 
@@ -14,15 +13,8 @@ internal class ColorText
     private StringBuilder currentLine;
     private List<Attribute> currentColors;
 
-    private Attribute magenta;
-    private Attribute blue;
-    private Attribute white;
-    private Attribute red;
-
     internal ColorText()
     {
-        InitColors();
-
         lines = new List<StringBuilder>();
         colors = new List<List<Attribute>>();
 
@@ -33,13 +25,11 @@ internal class ColorText
         colors.Add(currentColors);
     }
 
-    public Attribute Default => white;
-
-    public void Normal(string text) => Add(text, white);
-    public void White(string text) => Add(text, white);
-    public void Red(string text) => Add(text, red);
-    public void Blue(string text) => Add(text, blue);
-    public void Magenta(string text) => Add(text, magenta);
+    public void Append(string text, Attribute color)
+    {
+        currentLine.Append(text);
+        currentColors.AddRange(Enumerable.Range(0, text.Length).Select(i => color));
+    }
 
     public void EoL()
     {
@@ -56,18 +46,4 @@ internal class ColorText
     }
 
     public override string ToString() => string.Join('\n', lines.Select(sb => sb.ToString()));
-
-    private void InitColors()
-    {
-        magenta = View.Driver.MakeAttribute(Color.Magenta, Color.Black);
-        blue = View.Driver.MakeAttribute(Color.Cyan, Color.Black);
-        white = View.Driver.MakeAttribute(Color.White, Color.Black);
-        red = View.Driver.MakeAttribute(Color.Red, Color.Black);
-    }
-
-    private void Add(string text, Attribute color)
-    {
-        currentLine.Append(text);
-        currentColors.AddRange(Enumerable.Range(0, text.Length).Select(i => color));
-    }
 }
