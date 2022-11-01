@@ -5,7 +5,7 @@ namespace gmd.Cui;
 
 interface IRepoLayout
 {
-    void SetText(IReadOnlyList<Commit> commits, ColorText text);
+    void SetText(IEnumerable<Commit> commits, ColorText text);
 }
 
 class RepoLayout : IRepoLayout
@@ -14,19 +14,18 @@ class RepoLayout : IRepoLayout
     {
     }
 
-    public void SetText(IReadOnlyList<Commit> commits, ColorText text)
+    public void SetText(IEnumerable<Commit> commits, ColorText text)
     {
-        for (int i = 0; i < 100; i++)
+        text.Reset();
+
+        foreach (var c in commits)
         {
-            foreach (var c in commits)
-            {
-                text.Append(" ┃ ┃", Colors.Magenta);
-                text.Append($" {c.Sid}", Colors.Blue);
-                text.Append($" {c.Subject.Max(50),-50}", Colors.White);
-                text.Append($" {c.Author.Max(10),-10}", Colors.Green);
-                text.Append($" {c.AuthorTime.ToString().Max(10),-10}", Colors.DarkGray);
-                text.EoL();
-            }
+            text.Magenta(" ┃ ┃");
+            text.Blue($" {c.Sid}");
+            text.White($" {c.Subject.Max(50),-50}");
+            text.Green($" {c.Author.Max(10),-10}");
+            text.DarkGray($" {c.AuthorTime.ToString().Max(10),-10}");
+            text.EoL();
         }
     }
 }

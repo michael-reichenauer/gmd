@@ -33,6 +33,7 @@ class Program
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         Application.Top.WantMousePositionReports = false;
+        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
         Application.Top.Add(mainView.View);
 
