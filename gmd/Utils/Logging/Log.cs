@@ -28,6 +28,7 @@ internal static class Log
     private static int prefixLength = 0;
     private static string LogPath = "gmd.log";
 
+    static TaskCompletionSource doneTask = new TaskCompletionSource();
 
     static Log()
     {
@@ -50,39 +51,59 @@ internal static class Log
 
     private static void SendBufferedLogRows()
     {
-        while (!logTexts.IsCompleted)
+        try
         {
-            List<string> batchedTexts = new List<string>();
-            // Wait for texts to log
-            string filePrefix = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
-            string? logText = logTexts.Take();
-            // Native.OutputDebugString(logText);
-            batchedTexts.Add($"{filePrefix} {logText}");
-
-            // Check if there might be more buffered log texts, if so add them in batch
-            while (logTexts.TryTake(out logText))
+            while (!logTexts.IsCompleted)
             {
+                List<string> batchedTexts = new List<string>();
+                // Wait for texts to log
+                string filePrefix = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
+                string? logText = logTexts.Take();
                 // Native.OutputDebugString(logText);
                 batchedTexts.Add($"{filePrefix} {logText}");
-            }
 
-            try
-            {
-                WriteToFile(batchedTexts);
+                // Check if there might be more buffered log texts, if so add them in batch
+                while (logTexts.TryTake(out logText))
+                {
+                    // Native.OutputDebugString(logText);
+                    batchedTexts.Add($"{filePrefix} {logText}");
+                }
+
+                try
+                {
+                    WriteToFile(batchedTexts);
+                }
+                catch (ThreadAbortException)
+                {
+                    // The process or app-domain is closing,
+                    // Thread.ResetAbort();
+                    return;
+                }
+                catch (Exception e) when (e.IsNotFatal())
+                {
+                    // Native.OutputDebugString("ERROR Failed to log to file, " + e);
+                }
             }
-            catch (ThreadAbortException)
-            {
-                // The process or app-domain is closing,
-                // Thread.ResetAbort();
-                return;
-            }
-            catch (Exception e) when (e.IsNotFatal())
-            {
-                // Native.OutputDebugString("ERROR Failed to log to file, " + e);
-            }
+        }
+        finally
+        {
+            doneTask.SetResult();
         }
     }
 
+    public static Task CloseAsync()
+    {
+        try
+        {
+            logTexts.CompleteAdding();
+        }
+        catch
+        {
+            // buffer might already be closed in case of crashing
+        }
+
+        return doneTask.Task;
+    }
 
     public static void Usage(
         string msg,
@@ -180,7 +201,14 @@ internal static class Log
 
     private static void SendLog(string text)
     {
-        logTexts.Add(text);
+        try
+        {
+            logTexts.Add(text);
+        }
+        catch
+        {
+            // Failed to add, the buffer has been closed
+        }
     }
 
 

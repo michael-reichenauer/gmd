@@ -21,6 +21,7 @@ class Program
 
         Program program = dependencyInjection.Resolve<Program>();
         program.Run();
+        Log.CloseAsync().Wait();
     }
 
     internal Program(IMainView mainView)
@@ -46,6 +47,7 @@ class Program
     private bool HandleUIMainLoopError(Exception e)
     {
         Log.Exception(e, "Error in UI main loop");
+        Log.CloseAsync().Wait();
         return false; // End loop after error
     }
 }

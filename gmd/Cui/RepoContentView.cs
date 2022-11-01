@@ -1,10 +1,8 @@
 using gmd.Utils.Git;
 using Terminal.Gui;
-using Attribute = Terminal.Gui.Attribute;
+
 
 namespace gmd.Cui;
-
-
 
 class RepoContentView : View
 {
@@ -47,7 +45,7 @@ class RepoContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        Log.Info($"Mouse: {ev}");
+        //  Log.Info($"Mouse: {ev}");
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
             Scroll(1);
