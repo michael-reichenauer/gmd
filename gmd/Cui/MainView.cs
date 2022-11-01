@@ -3,7 +3,12 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-internal class MainView
+internal interface IMainView
+{
+    View View { get; }
+}
+
+internal class MainView : IMainView
 {
     private RepoView repoView;
     private Toplevel toplevel;
