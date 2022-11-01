@@ -1,7 +1,5 @@
 ﻿using Terminal.Gui;
-using NStack;
 using gmd.Cui;
-using gmd.Utils;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("gmdTest")]
@@ -19,11 +17,15 @@ class Program
         var mainView = new MainView();
         Application.Top.Add(mainView.View);
 
-        mainView.SetDataAsync().RunInBackground();
-
         // Run blocks until the user quits the application
-        Application.Run();
+        Application.Run(HandleUIMainLoopError);
         Application.Shutdown();
+    }
+
+    private static bool HandleUIMainLoopError(Exception e)
+    {
+        Log.Exception(e, "Error in UI main loop");
+        return false; // End loop after error
     }
 }
 

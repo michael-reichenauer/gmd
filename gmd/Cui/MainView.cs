@@ -24,10 +24,12 @@ internal class MainView
         repoView = new RepoView();
 
         toplevel.Add(repoView.View);
+
+        toplevel.Loaded += Start;
     }
 
-    internal async Task SetDataAsync()
+    private void Start()
     {
-        await repoView.SetDataAsync();
+        repoView.SetDataAsync().RunInBackground();
     }
 }
