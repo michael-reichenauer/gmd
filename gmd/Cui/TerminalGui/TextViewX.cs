@@ -47,12 +47,11 @@ using Rune = System.Rune;
 #pragma warning disable CS8601
 #pragma warning disable CS0162
 
-namespace gmd.Cui
+namespace gmd.Cui.TerminalGui
 {
 
     static class ReadOnlyCollectionExtensions
     {
-
         public static int IndexOf<T>(this IReadOnlyCollection<T> self, Func<T, bool> predicate)
         {
             int i = 0;

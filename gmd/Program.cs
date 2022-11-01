@@ -13,12 +13,14 @@ class Program
     static void Main(string[] args)
     {
         Application.Init();
+        Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
+        Application.Top.WantMousePositionReports = false;
 
         var mainView = new MainView();
-        Application.Top.Add(mainView);
-        Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
+        Application.Top.Add(mainView.View);
 
-        mainView.SetData().RunInBackground();
+        mainView.SetDataAsync().RunInBackground();
+
         // Run blocks until the user quits the application
         Application.Run();
         Application.Shutdown();

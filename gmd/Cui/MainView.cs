@@ -1,24 +1,33 @@
 using Terminal.Gui;
 
+
 namespace gmd.Cui;
 
-internal class MainView : Toplevel
+internal class MainView
 {
     private RepoView repoView;
+    private Toplevel toplevel;
+
+    public View View => toplevel;
 
     internal MainView() : base()
     {
-        X = 0;
-        Y = 0;
-        Width = Dim.Fill();
-        Height = Dim.Fill();
+        toplevel = new Toplevel()
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            WantMousePositionReports = false,
+        };
 
         repoView = new RepoView();
-        Add(repoView);
+
+        toplevel.Add(repoView.View);
     }
 
-    internal async Task SetData()
+    internal async Task SetDataAsync()
     {
-        await repoView.SetData();
+        await repoView.SetDataAsync();
     }
 }
