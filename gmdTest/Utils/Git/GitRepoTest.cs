@@ -10,9 +10,9 @@ public class GitRepoTest
     [TestMethod]
     public async Task TestLog()
     {
-        IGitRepo git = new GitRepo("");
+        IGit git = new gmd.Utils.Git.Private.Git("");
 
-        var result = await git.GetLog();
+        var result = await git.GetLogAsync();
 
         Assert.IsTrue(result.IsOk);
         Log.Info($"Count: {result.Value.Count}");

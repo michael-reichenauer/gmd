@@ -1,0 +1,60 @@
+using NStack;
+using Terminal.Gui;
+
+
+namespace gmd.Cui;
+
+class UI
+{
+    internal static void Post(Action action)
+    {
+        Application.MainLoop.Invoke(action);
+    }
+
+
+    internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)
+    {
+        return Application.MainLoop.AddTimeout(TimeSpan.FromSeconds(20), callback);
+    }
+
+    internal static void Shutdown()
+    {
+        Application.Shutdown();
+    }
+
+    internal static int InfoMessage(string title, string message, params ustring[] buttons)
+    {
+        return InfoMessage(title, message, 0, buttons);
+    }
+
+    internal static int InfoMessage(string title, string message, int defaultButton = 0, params ustring[] buttons)
+    {
+        buttons = buttons.Length == 0 ? new ustring[] { "OK" } : buttons;
+
+        var border = new Border()
+        {
+            Effect3D = false,
+            BorderStyle = BorderStyle.Rounded,
+        };
+
+        return MessageBox.Query(0, 0, title, message, defaultButton, border, buttons);
+    }
+
+    internal static int ErrorMessage(string title, string message, params ustring[] buttons)
+    {
+        return ErrorMessage(title, message, 0, buttons);
+    }
+
+    internal static int ErrorMessage(string title, string message, int defaultButton = 0, params ustring[] buttons)
+    {
+        buttons = buttons.Length == 0 ? new ustring[] { "OK" } : buttons;
+
+        var border = new Border()
+        {
+            Effect3D = false,
+            BorderStyle = BorderStyle.Rounded,
+        };
+
+        return MessageBox.ErrorQuery(0, 0, title, message, defaultButton, border, buttons);
+    }
+}

@@ -4,7 +4,7 @@ namespace gmd.Utils.Git.Private;
 
 internal interface IGitLog
 {
-    Task<R<IReadOnlyList<Commit>>> GetLog(int maxCount);
+    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount);
 }
 
 internal class GitLog : IGitLog
@@ -16,7 +16,7 @@ internal class GitLog : IGitLog
         this.cmd = cmd;
     }
 
-    public async Task<R<IReadOnlyList<Commit>>> GetLog(int maxCount = 30000)
+    public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000)
     {
         var args = $"log --all --date-order -z --pretty=%H|%ai|%ci|%an|%P|%B --max-count={maxCount}";
         CmdResult cmdResult = await cmd.RunAsync("git", args);
@@ -42,7 +42,7 @@ internal class GitLog : IGitLog
                 }
 
                 var commit = ParseRow(row);
-                if (commit.IsFaulted)
+                if (commit.IsError)
                 {
                     return commit.Error;
                 }

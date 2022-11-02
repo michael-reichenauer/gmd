@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace System
 {
-    internal class FatalExceptionEventArgs : EventArgs
+    public class FatalExceptionEventArgs : EventArgs
     {
         public string Message { get; }
 
@@ -21,7 +21,7 @@ namespace System
         }
     }
 
-    internal static class FatalExceptionsExtensions
+    public static class FatalExceptionsExtensions
     {
         private static readonly IReadOnlyList<Type> FatalTypes = new[]
         {

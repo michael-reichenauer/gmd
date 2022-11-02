@@ -59,7 +59,7 @@ public class Timing
     {
         count++;
 
-        Utils.Log.Debug(
+        Utils.Logging.Log.Debug(
             $"{count}: {message}: {this}", memberName, sourceFilePath, sourceLineNumber);
     }
 
@@ -71,7 +71,7 @@ public class Timing
     {
         count++;
 
-        Utils.Log.Debug($"At {count}: {this}", memberName, sourceFilePath, sourceLineNumber);
+        Utils.Logging.Log.Debug($"At {count}: {this}", memberName, sourceFilePath, sourceLineNumber);
     }
 
 
