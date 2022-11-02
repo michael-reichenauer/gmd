@@ -37,8 +37,6 @@ class RepoView : IRepoView
 
     public void SetRepo(Repo repo)
     {
-        var commits = repo.Commits;
-
-        contentView.ShowCommits(commits);
+        contentView.ShowCommits(repo);
     }
 }

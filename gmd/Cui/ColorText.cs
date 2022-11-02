@@ -41,6 +41,7 @@ class ColorText
     public void Gray(string text) => Add(text, Colors.Gray);
     public void Green(string text) => Add(text, Colors.Green);
     public void Yellow(string text) => Add(text, Colors.Yellow);
+    public void Black(string text) => Add(text, Colors.Black);
 
 
     public void Add(string text, Attribute color)

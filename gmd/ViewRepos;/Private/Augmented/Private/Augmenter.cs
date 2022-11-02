@@ -55,9 +55,7 @@ class Augmenter : IAugmenter
         // are used, i.w. partial commits, which should have parents, but they are unknown
         bool isPartialPossible = gitCommits.Count >= partialMax;
         bool isPartialNeeded = false;
-
-        // List<AugCommit> commits = new List<AugCommit>(gitCommits.Count);
-        // Dictionary<string, AugCommit> commitsById = new Dictionary<string, AugCommit>();
+        augRepo.Commits.Capacity = gitCommits.Count;
 
         // Iterate git commits in reverse
         for (var i = gitCommits.Count - 1; i >= 0; i--)
@@ -114,5 +112,7 @@ class Augmenter : IAugmenter
                 currentCommit.IsCurrent = true;
             }
         }
+
+        augRepo.Commits.Reverse();
     }
 }

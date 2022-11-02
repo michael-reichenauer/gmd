@@ -21,6 +21,7 @@ class Colors
     public static readonly Attribute BrightMagenta = MakeColor(Color.BrightMagenta);
     public static readonly Attribute BrightYellow = MakeColor(Color.BrightYellow);
     public static readonly Attribute White = MakeColor(Color.White);
+    public static readonly Attribute Black = MakeColor(Color.Black);
 
 
 

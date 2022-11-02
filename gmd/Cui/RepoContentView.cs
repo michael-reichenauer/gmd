@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 class RepoContentView : View
 {
-    IReadOnlyList<Commit> commits = new List<Commit>();
+    Repo? repo;
     RepoLayout repoLayout = new RepoLayout();
     ColorText text;
 
@@ -22,7 +22,7 @@ class RepoContentView : View
 
     public int Rows => Frame.Height;
     public int Length => Frame.Width;
-    public int Total => commits.Count;
+    public int Total => repo?.Commits.Count ?? 0;
 
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
@@ -74,14 +74,19 @@ class RepoContentView : View
 
     public override void Redraw(Rect bounds)
     {
+        Clear();
+        if (repo == null)
+        {
+            return;
+        }
+
         int width = bounds.Width;
         int height = bounds.Height;
 
-        int first = Math.Min(firstIndex, commits.Count);
-        int count = Math.Min(height, commits.Count - first);
+        int first = Math.Min(firstIndex, Total);
+        int count = Math.Min(height, Total - first);
 
-        Clear();
-        repoLayout.SetText(commits.Skip(first).Take(count), text);
+        repoLayout.SetText(repo, first, count, width, text);
 
         DrawCursor();
         DrawVerticalScrollbar();
@@ -94,9 +99,9 @@ class RepoContentView : View
         Driver.AddStr("┃");
     }
 
-    internal void ShowCommits(IReadOnlyList<Commit> commits)
+    internal void ShowCommits(Repo repo)
     {
-        this.commits = commits;
+        this.repo = repo;
         SetNeedsDisplay();
     }
 
@@ -142,7 +147,7 @@ class RepoContentView : View
     void Move(int move)
     {
         // Log.Info($"move {move}, current: {currentIndex}");
-        if (commits.Count == 0)
+        if (Total == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -151,12 +156,12 @@ class RepoContentView : View
 
         if (newCurrent < 0)
         {   // Reached top, wrap or stay
-            newCurrent = isMoveUpDownWrap ? commits.Count - 1 : 0;
+            newCurrent = isMoveUpDownWrap ? Total - 1 : 0;
         }
 
-        if (newCurrent >= commits.Count)
+        if (newCurrent >= Total)
         {   // Reached bottom, wrap or stay 
-            newCurrent = isMoveUpDownWrap ? 0 : commits.Count - 1;
+            newCurrent = isMoveUpDownWrap ? 0 : Total - 1;
         }
 
         if (newCurrent == currentIndex)
@@ -193,13 +198,12 @@ class RepoContentView : View
 
     (int, int) GetVerticalScrollbarIndexes()
     {
-        // return (5, 10);
-        if (commits.Count == 0 || Rows == commits.Count)
+        if (Total == 0 || Rows == Total)
         {   // No need for a scrollbar
             return (0, -1);
         }
 
-        float scrollbarFactor = (float)Rows / (float)commits.Count;
+        float scrollbarFactor = (float)Rows / (float)Total;
 
         int sbStart = (int)Math.Floor((float)firstIndex * scrollbarFactor);
         int sbSize = (int)Math.Ceiling((float)Rows * scrollbarFactor);
