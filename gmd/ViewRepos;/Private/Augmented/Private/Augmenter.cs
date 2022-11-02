@@ -6,29 +6,28 @@ namespace gmd.ViewRepos.Private.Augmented.Private;
 
 interface IAugmenter
 {
-    Task<AugRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax);
+    Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax);
 }
 
 class Augmenter : IAugmenter
 {
-    public Task<AugRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax)
+    public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax)
     {
         return Task.Run(() => GetAugRepo(gitRepo, partialMax));
 
     }
 
-    private AugRepo GetAugRepo(GitRepo gitRepo, int partialMax)
+    private WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
     {
-        var augRepo = new AugRepo();
+        var augRepo = new WorkRepo();
         SetAugBranches(augRepo, gitRepo);
         SetAugCommits(augRepo, gitRepo, partialMax);
         return augRepo;
     }
 
-
-    void SetAugBranches(AugRepo augRepo, GitRepo gitRepo)
+    void SetAugBranches(WorkRepo augRepo, GitRepo gitRepo)
     {
-        augRepo.Branches.AddRange(gitRepo.Branches.Select(b => new AugBranch(b)));
+        augRepo.Branches.AddRange(gitRepo.Branches.Select(b => new WorkBranch(b)));
 
         // Set local name of all remote branches, that have a corresponding local branch as well
         // Unset RemoteName of local branch if no corresponding remote branch (deleted on remote server)
@@ -49,8 +48,7 @@ class Augmenter : IAugmenter
         }
     }
 
-
-    void SetAugCommits(AugRepo augRepo, GitRepo gitRepo, int partialMax)
+    void SetAugCommits(WorkRepo augRepo, GitRepo gitRepo, int partialMax)
     {
         IReadOnlyList<GitCommit> gitCommits = gitRepo.Commits;
         // For repositories with a lot of commits, only the latest 'partialMax' number of commits
@@ -65,7 +63,7 @@ class Augmenter : IAugmenter
         for (var i = gitCommits.Count - 1; i >= 0; i--)
         {
             GitCommit gc = gitCommits[i];
-            AugCommit commit = new AugCommit(gc);
+            WorkCommit commit = new WorkCommit(gc);
 
             if (isPartialPossible)
             {
@@ -100,7 +98,7 @@ class Augmenter : IAugmenter
         {
             // Add a virtual/fake partial commit, which some commits will have as a parent
             string msg = "...    (more commits)";
-            AugCommit pc = new AugCommit(
+            WorkCommit pc = new WorkCommit(
                 id: Repo.PartialLogCommitID, subject: msg, message: msg,
                 author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0]);
             augRepo.Commits.Add(pc);

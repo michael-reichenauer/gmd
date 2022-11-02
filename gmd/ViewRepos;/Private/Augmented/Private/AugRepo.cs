@@ -3,14 +3,14 @@ namespace gmd.ViewRepos.Private.Augmented.Private;
 using GitCommit = gmd.Utils.Git.Commit;
 using GitBranch = gmd.Utils.Git.Branch;
 
-class AugRepo
+class WorkRepo
 {
-    internal List<AugCommit> Commits { get; } = new List<AugCommit>();
-    internal Dictionary<string, AugCommit> CommitsById { get; } = new Dictionary<string, AugCommit>();
-    internal List<AugBranch> Branches { get; } = new List<AugBranch>();
+    internal List<WorkCommit> Commits { get; } = new List<WorkCommit>();
+    internal Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
+    internal List<WorkBranch> Branches { get; } = new List<WorkBranch>();
 }
 
-internal class AugCommit
+internal class WorkCommit
 {
     // Git properties
     public string Id { get; }
@@ -34,7 +34,7 @@ internal class AugCommit
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
 
-    public AugCommit(GitCommit c)
+    public WorkCommit(GitCommit c)
     {
         Id = c.Id;
         Sid = c.Sid;
@@ -45,7 +45,7 @@ internal class AugCommit
         ParentIds = new List<string>(c.ParentIds.AsEnumerable<string>());
     }
 
-    public AugCommit(string id, string subject, string message, string author,
+    public WorkCommit(string id, string subject, string message, string author,
         DateTime authorTime, string[] parentIds)
     {
         Id = id;
@@ -58,7 +58,7 @@ internal class AugCommit
     }
 }
 
-internal class AugBranch
+internal class WorkBranch
 {
     // Git properties
     public string Name { get; }
@@ -85,7 +85,7 @@ internal class AugBranch
     public List<string> AmbiguousBranchNames { get; } = new List<string>();
 
 
-    public AugBranch(GitBranch b)
+    public WorkBranch(GitBranch b)
     {
         Name = b.Name;
         DisplayName = b.DisplayName;

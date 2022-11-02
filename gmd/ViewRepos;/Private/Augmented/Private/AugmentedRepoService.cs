@@ -67,7 +67,7 @@ class AugmentedRepoService : IAugmentedRepoService
 
     async Task<R<Repo>> GetAugmentedRepo(GitRepo gitRepo)
     {
-        AugRepo augRepo = await this.augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
+        WorkRepo augRepo = await this.augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
 
         return this.converter.ToRepo(augRepo);
     }

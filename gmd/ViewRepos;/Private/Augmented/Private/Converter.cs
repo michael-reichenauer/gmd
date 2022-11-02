@@ -4,21 +4,21 @@ namespace gmd.ViewRepos.Private.Augmented.Private;
 
 interface IConverter
 {
-    Repo ToRepo(AugRepo augRepo);
+    Repo ToRepo(WorkRepo augRepo);
 }
 
 class Converter : IConverter
 {
-    public Repo ToRepo(AugRepo augRepo)
+    public Repo ToRepo(WorkRepo workRepo)
     {
         return new Repo(
-            augRepo.Commits.Select(ToCommit).ToList(),
-            augRepo.Branches.Select(ToBranch).ToList()
+            workRepo.Commits.Select(ToCommit).ToList(),
+            workRepo.Branches.Select(ToBranch).ToList()
         );
     }
 
 
-    Commit ToCommit(AugCommit c)
+    Commit ToCommit(WorkCommit c)
     {
         return new Commit(
             Id: c.Id,
@@ -42,7 +42,7 @@ class Converter : IConverter
             IsAmbiguousTip: c.IsAmbiguousTip);
     }
 
-    Branch ToBranch(AugBranch b)
+    Branch ToBranch(WorkBranch b)
     {
         return new Branch(
             Name: b.Name,

@@ -1,15 +1,22 @@
 
 namespace gmd.ViewRepos;
 
+using AugmentedRepo = gmd.ViewRepos.Private.Augmented.Repo;
+
+
 class Repo
 {
     internal static readonly string PartialLogCommitID =
         gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
 
+    private readonly Private.Augmented.Repo repo;
+
     public Repo(
+        AugmentedRepo augRepo,
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches)
     {
+        this.repo = augRepo;
         Commits = commits;
         Branches = branches;
     }
@@ -17,6 +24,7 @@ class Repo
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyList<Branch> Branches { get; }
 }
+
 
 public record Commit(
     // Git Properties
@@ -83,5 +91,3 @@ public record Branch(
     int X,
     bool IsIn,
     bool IsOut);
-
-
