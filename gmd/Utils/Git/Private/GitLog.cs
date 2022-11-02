@@ -2,16 +2,16 @@ using gmd.Utils;
 
 namespace gmd.Utils.Git.Private;
 
-internal interface IGitLog
+internal interface ILogService
 {
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount);
 }
 
-internal class GitLog : IGitLog
+internal class LogService : ILogService
 {
     private readonly ICmd cmd;
 
-    internal GitLog(ICmd cmd)
+    internal LogService(ICmd cmd)
     {
         this.cmd = cmd;
     }

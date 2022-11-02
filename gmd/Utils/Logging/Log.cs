@@ -42,8 +42,8 @@ internal static class Log
     public static void Init(string logFilePath, [CallerFilePath] string sourceFilePath = "")
     {
         LogPath = logFilePath;
-        string rootPath = Path.GetDirectoryName(Path.GetDirectoryName(
-            Path.GetDirectoryName(sourceFilePath))) ?? "";
+        string rootPath = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(
+            Path.GetDirectoryName(sourceFilePath)))) ?? "";
         prefixLength = rootPath.Length + 1;
         File.WriteAllText(LogPath, "");
     }

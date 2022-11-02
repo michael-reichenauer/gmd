@@ -5,7 +5,9 @@ namespace gmd.Utils.Git.Private;
 
 internal class Git : IGit
 {
-    private IGitLog log;
+    private ILogService logService;
+    private IBranchService branchService;
+
     private string rootPath = "";
     private ICmd cmd;
 
@@ -14,13 +16,15 @@ internal class Git : IGit
         rootPath = WorkingTreeRoot(path).Or("");
         cmd = new Cmd(rootPath);
 
-        log = new GitLog(cmd);
+        logService = new LogService(cmd);
+        branchService = new BranchService(cmd);
     }
 
-    public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000)
-    {
-        return log.GetLogAsync(maxCount);
-    }
+    public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000) =>
+        logService.GetLogAsync(maxCount);
+
+    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync() =>
+        branchService.GetBranchesAsync();
 
 
     public static R<string> WorkingTreeRoot(string path)
@@ -54,4 +58,6 @@ internal class Git : IGit
 
         return R.NoValue;
     }
+
+
 }
