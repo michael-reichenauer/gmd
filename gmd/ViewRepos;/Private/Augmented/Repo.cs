@@ -6,6 +6,7 @@ namespace gmd.ViewRepos.Private.Augmented;
 
 class Repo
 {
+    internal static readonly string PartialLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
     public Repo(
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches)

@@ -3,6 +3,9 @@ namespace gmd.ViewRepos;
 
 class Repo
 {
+    internal static readonly string PartialLogCommitID =
+        gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
+
     public Repo(
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches)
@@ -16,6 +19,7 @@ class Repo
 }
 
 public record Commit(
+    // Git Properties
     string Id,
     string Sid,
     string Subject,
@@ -23,12 +27,12 @@ public record Commit(
     string Author,
     DateTime AuthorTime,
 
+    // Augmented properties
     string BranchName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> ChildIds,
     IReadOnlyList<Tag> Tags,
     IReadOnlyList<string> BranchTips,
-    More More,
 
     bool IsCurrent,
     bool IsUncommitted,
@@ -36,7 +40,10 @@ public record Commit(
     bool IsRemoteOnly,
     bool IsPartialLogCommit,
     bool IsAmbiguous,
-    bool IsAmbiguousTip);
+    bool IsAmbiguousTip,
+
+    // View properties
+    More More);
 
 
 
@@ -50,6 +57,7 @@ public enum More
 }
 
 public record Branch(
+    // Git Properties
     string Name,
     string DisplayName,
     string TipID,
@@ -57,7 +65,7 @@ public record Branch(
     bool IsRemote,
     string RemoteName,
 
-
+    // Augmented properties
     bool IsGitBranch,
     bool IsDetached,
     bool IsAmbiguousBranch,
@@ -68,11 +76,11 @@ public record Branch(
     int BehindCount,
     bool HasLocalOnly,
     bool HasRemoteOnly,
-
-    int X,
     string AmbiguousTipId,
     IReadOnlyList<string> AmbiguousBranchNames,
 
+    // View properties
+    int X,
     bool IsIn,
     bool IsOut);
 

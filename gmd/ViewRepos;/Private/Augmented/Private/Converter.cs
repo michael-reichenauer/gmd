@@ -21,13 +21,13 @@ class Converter : IConverter
     Commit ToCommit(AugCommit c)
     {
         return new Commit(
-            Id: c.C.Id,
-            Sid: c.C.Sid,
-            Subject: c.C.Subject,
-            Message: c.C.Message,
-            Author: c.C.Author,
-            AuthorTime: c.C.AuthorTime,
-            ParentIds: c.C.ParentIds,
+            Id: c.Id,
+            Sid: c.Sid,
+            Subject: c.Subject,
+            Message: c.Message,
+            Author: c.Author,
+            AuthorTime: c.AuthorTime,
+            ParentIds: c.ParentIds,
 
             BranchName: c.BranchName,
             ChildIds: c.ChildIds,
@@ -45,21 +45,21 @@ class Converter : IConverter
     Branch ToBranch(AugBranch b)
     {
         return new Branch(
-            Name: b.B.Name,
-            DisplayName: b.B.DisplayName,
-            TipID: b.B.TipID,
-            IsCurrent: b.B.IsCurrent,
-            IsRemote: b.B.IsRemote,
-            RemoteName: b.B.RemoteName,
+            Name: b.Name,
+            DisplayName: b.DisplayName,
+            TipID: b.TipID,
+            IsCurrent: b.IsCurrent,
+            IsRemote: b.IsRemote,
+            RemoteName: b.RemoteName,
 
             IsGitBranch: b.IsGitBranch,
-            IsDetached: b.B.IsDetached,
+            IsDetached: b.IsDetached,
             IsAmbiguousBranch: b.IsAmbiguousBranch,
             IsSetAsParent: b.IsSetAsParent,
             IsMainBranch: b.IsMainBranch,
 
-            AheadCount: b.B.AheadCount,
-            BehindCount: b.B.BehindCount,
+            AheadCount: b.AheadCount,
+            BehindCount: b.BehindCount,
             HasLocalOnly: b.HasLocalOnly,
             HasRemoteOnly: b.HasRemoteOnly,
 

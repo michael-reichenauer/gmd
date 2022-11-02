@@ -5,20 +5,21 @@ using GitBranch = gmd.Utils.Git.Branch;
 
 class AugRepo
 {
-    public AugRepo(GitRepo gitRepo)
-    {
-        Commits = gitRepo.Commits.Select(c => new AugCommit(c)).ToList();
-        Branches = gitRepo.Branches.Select(b => new AugBranch(b)).ToList();
-    }
-
-
-    internal IReadOnlyList<AugCommit> Commits { get; }
-    internal IReadOnlyList<AugBranch> Branches { get; }
+    internal List<AugCommit> Commits { get; } = new List<AugCommit>();
+    internal Dictionary<string, AugCommit> CommitsById { get; } = new Dictionary<string, AugCommit>();
+    internal List<AugBranch> Branches { get; } = new List<AugBranch>();
 }
 
 internal class AugCommit
 {
-    public readonly GitCommit C;
+    // Git properties
+    public string Id { get; }
+    public string Sid { get; }
+    public string Subject { get; }
+    public string Message { get; }
+    public string Author { get; }
+    public DateTime AuthorTime { get; }
+    public List<string> ParentIds { get; }
 
     // Augmented properties
     public string BranchName { get; set; } = "";
@@ -33,17 +34,46 @@ internal class AugCommit
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
 
-    public AugCommit(GitCommit gitCommit)
+    public AugCommit(GitCommit c)
     {
-        this.C = gitCommit;
+        Id = c.Id;
+        Sid = c.Sid;
+        Subject = c.Subject;
+        Message = c.Message;
+        Author = c.Author;
+        AuthorTime = c.AuthorTime;
+        ParentIds = new List<string>(c.ParentIds.AsEnumerable<string>());
+    }
+
+    public AugCommit(string id, string subject, string message, string author,
+        DateTime authorTime, string[] parentIds)
+    {
+        Id = id;
+        Sid = id.Substring(0, 6);
+        Subject = subject;
+        Message = message;
+        Author = author;
+        AuthorTime = authorTime;
+        ParentIds = new List<string>(parentIds.AsEnumerable<string>());
     }
 }
 
 internal class AugBranch
 {
-    public readonly GitBranch B;
+    // Git properties
+    public string Name { get; }
+    public string DisplayName { get; }
+    public string TipID { get; }
+    public bool IsCurrent { get; }
+    public bool IsRemote { get; }
+    public bool IsDetached { get; }
+    public int AheadCount { get; }
+    public int BehindCount { get; }
+    public bool IsRemoteMissing { get; }
 
     // Augmented properties
+    public string RemoteName { get; set; }
+    public string LocalName { get; set; }
     public bool IsGitBranch { get; set; }
     public bool IsAmbiguousBranch { get; set; }
     public bool IsSetAsParent { get; set; }
@@ -54,9 +84,20 @@ internal class AugBranch
     public string AmbiguousTipId { get; set; } = "";
     public List<string> AmbiguousBranchNames { get; } = new List<string>();
 
-    public AugBranch(GitBranch gitBranch)
+
+    public AugBranch(GitBranch b)
     {
-        this.B = gitBranch;
+        Name = b.Name;
+        DisplayName = b.DisplayName;
+        TipID = b.TipID;
+        IsCurrent = b.IsCurrent;
+        IsRemote = b.IsRemote;
+        IsDetached = b.IsDetached;
+        AheadCount = b.AheadCount;
+        BehindCount = b.BehindCount;
+        IsRemoteMissing = b.IsRemoteMissing;
+        RemoteName = b.RemoteName;
+        LocalName = "";
     }
 }
 

@@ -22,7 +22,7 @@ public record Branch(
     int BehindCount,
     bool IsRemoteMissing);
 
-internal interface IGit
+interface IGit
 {
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000);
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
