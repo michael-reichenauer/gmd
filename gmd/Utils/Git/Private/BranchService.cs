@@ -10,10 +10,11 @@ interface IBranchService
 
 class BranchService : IBranchService
 {
-    static readonly string regexpText =
-     @"(?im)^(\*)?\s+(\(HEAD detached at (\S+)\)|(\S+))\s+(\S+)(\s+)?(\[(\S+)(:\s)?(ahead\s(\d+))?(,\s)?(behind\s(\d+))?(gone)?\])?(\s+)?(.+)?";
     static string remotePrefix = "remotes/";
     static string originPrefix = "origin/";
+
+    static readonly string regexpText =
+     @"(?im)^(\*)?\s+(\(HEAD detached at (\S+)\)|(\S+))\s+(\S+)(\s+)?(\[(\S+)(:\s)?(ahead\s(\d+))?(,\s)?(behind\s(\d+))?(gone)?\])?(\s+)?(.+)?";
     static readonly Regex BranchesRegEx = new Regex(regexpText,
      RegexOptions.Compiled | RegexOptions.CultureInvariant |
      RegexOptions.IgnoreCase | RegexOptions.Multiline);
@@ -34,25 +35,15 @@ class BranchService : IBranchService
             return Error.From(cmdResult.ErrorMessage);
         }
 
-        return ParseLines(cmdResult.Output);
+        return ParseBranches(cmdResult.Output);
     }
 
-    private R<IReadOnlyList<Branch>> ParseLines(string output)
+    R<IReadOnlyList<Branch>> ParseBranches(string output)
     {
-        List<Branch> branches = new List<Branch>();
-
         var matches = BranchesRegEx.Matches(output);
-        foreach (Match match in matches)
-        {
-            if (!IsPointerBranch(match))
-            {
-                Branch branch = ToBranch(match);
-                branches.Add(branch);
-            }
-        }
 
-        Log.Info($"Got {branches.Count} branches");
-        return branches;
+        return matches.Where(IsNormalBranch)
+            .Select(ToBranch).ToList();
     }
 
     Branch ToBranch(Match match)
@@ -67,25 +58,28 @@ class BranchService : IBranchService
             isRemote = true;
             name = name.Substring(remotePrefix.Length);
         }
+
         if (isDetached)
         {
             name = $"({match.Groups[3].Value})";
         }
+
         string displayName = name.StartsWith(originPrefix) ?
             name.Substring(originPrefix.Length) :
             name;
 
         string tipId = match.Groups[5].Value;
         string remoteName = match.Groups[8].Value;
+
         int.TryParse(match.Groups[11].Value, out int aheadCount);
         int.TryParse(match.Groups[14].Value, out int behindCount);
         bool isRemoteMissing = match.Groups[15].Value == "gone";
-        // string message = (match.Groups[17].Value ?? "").TrimEnd('\r');
 
         return new Branch(
             name, displayName, tipId, isCurrent, isRemote, remoteName, isDetached,
             aheadCount, behindCount, isRemoteMissing);
     }
 
-    private static bool IsPointerBranch(Match match) => match.Groups[5].Value == "->";
+    // IsNormalBranch returns true if branch is normal and not a pointer branch
+    bool IsNormalBranch(Match match) => match.Groups[5].Value != "->";
 }

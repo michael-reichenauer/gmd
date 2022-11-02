@@ -1,4 +1,4 @@
-using gmd.Utils.Git;
+using gmd.ViewRepos;
 
 namespace gmd.Cui;
 

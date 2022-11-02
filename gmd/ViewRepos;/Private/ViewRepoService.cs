@@ -34,6 +34,12 @@ class ViewRepoService : IViewRepoService
 
     async Task<R<Repo>> GetViewRepoAsync(Augmented.Repo augmentedRepo)
     {
-        return new Repo(augmentedRepo.Commits);
+        return new Repo(
+            augmentedRepo.Commits.Select(c =>
+                new Commit(c.Id, c.Sid, c.ParentIds, c.Subject, c.Message,
+                    c.Author, c.AuthorTime, c.CommitTime)).ToList(),
+            augmentedRepo.Branches.Select(b =>
+                new Branch(b.Name, b.DisplayName, b.TipID, b.IsCurrent, b.IsRemote, b.RemoteName,
+                    b.IsDetached, b.AheadCount, b.BehindCount, b.IsRemoteMissing)).ToList());
     }
 }
