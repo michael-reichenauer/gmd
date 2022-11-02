@@ -6,8 +6,8 @@ internal class GitService : IGitService
     {
     }
 
-    public IGitRepo GetRepo(string path)
+    public IGit GetGit(string path)
     {
-        return new GitRepo(path);
+        return new Git(path);
     }
 }

@@ -1,4 +1,5 @@
 using gmd.Utils.Git;
+using gmd.ViewRepos;
 using Terminal.Gui;
 
 
@@ -7,7 +8,7 @@ namespace gmd.Cui;
 interface IRepoView
 {
     View View { get; }
-    Task SetDataAsync();
+    void SetRepo(ViewRepo repo);
 }
 
 class RepoView : IRepoView
@@ -34,16 +35,10 @@ class RepoView : IRepoView
         };
     }
 
-    public async Task SetDataAsync()
+    public void SetRepo(ViewRepo repo)
     {
-        var git = gitService.GetRepo("");
+        var commits = repo.Commits;
 
-        var commits = await git.GetLog();
-        if (commits.IsFaulted)
-        {
-            return;
-        }
-
-        contentView.ShowCommits(commits.Value);
+        contentView.ShowCommits(commits);
     }
 }

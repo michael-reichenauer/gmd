@@ -12,7 +12,7 @@ public record Commit(
 
 
 
-internal interface IGitRepo
+internal interface IGit
 {
-    Task<R<IReadOnlyList<Commit>>> GetLog(int maxCount = 30000);
+    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000);
 }

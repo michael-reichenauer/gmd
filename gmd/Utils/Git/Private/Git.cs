@@ -3,13 +3,13 @@ using gmd.Utils;
 
 namespace gmd.Utils.Git.Private;
 
-internal class GitRepo : IGitRepo
+internal class Git : IGit
 {
     private IGitLog log;
     private string rootPath = "";
     private ICmd cmd;
 
-    public GitRepo(string path)
+    public Git(string path)
     {
         rootPath = WorkingTreeRoot(path).Or("");
         cmd = new Cmd(rootPath);
@@ -17,9 +17,9 @@ internal class GitRepo : IGitRepo
         log = new GitLog(cmd);
     }
 
-    public Task<R<IReadOnlyList<Commit>>> GetLog(int maxCount = 30000)
+    public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000)
     {
-        return log.GetLog(maxCount);
+        return log.GetLogAsync(maxCount);
     }
 
 

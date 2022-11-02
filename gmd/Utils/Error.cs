@@ -28,7 +28,7 @@ public class Error : R
            [CallerMemberName] string memberName = "",
            [CallerFilePath] string sourceFilePath = "",
            [CallerLineNumber] int sourceLineNumber = 0) =>
-           errorResult.IsFaulted ?
+           errorResult.IsError ?
            new Error(errorResult.Exception, memberName, sourceFilePath, sourceLineNumber) : throw Asserter.FailFast("Was no error error");
 
     public static Error From(

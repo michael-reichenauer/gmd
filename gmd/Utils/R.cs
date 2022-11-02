@@ -21,9 +21,18 @@ public class R
 
     public Exception Exception { get; }
 
-    public Error Error => IsFaulted ? Error.From(Exception) : throw Asserter.FailFast("Was no error error");
-    public bool IsOk => Exception == NoError;
-    public bool IsFaulted => Exception != NoError;
+    public Error Error => IsError ? Error.From(Exception) : throw Asserter.FailFast("Was no error error");
+    public bool IsOk => !IsError;
+    protected bool isErrorChecked = false;
+    public bool IsError
+    {
+        get
+        {
+            isErrorChecked = true;
+            return Exception != NoError;
+        }
+    }
+
     public string Message => Exception.Message;
     public string AllMessages => string.Join(",\n", AllMessageLines());
 
@@ -81,7 +90,9 @@ public class R<T> : R
 
     public static R<T> From(T result) => new R<T>(result);
 
-    public T Value => IsOk ? storedValue : throw Asserter.FailFast(Exception.ToString());
+    public T Value => isErrorChecked ?
+        IsOk ? storedValue : throw Asserter.FailFast(Exception.ToString()) :
+        throw Asserter.FailFast("IsError or IsOk was never checked");
 
     public bool HasValue(out T value)
     {
@@ -97,7 +108,7 @@ public class R<T> : R
         }
     }
 
-    public T Or(T defaultValue) => IsFaulted ? defaultValue : Value;
+    public T Or(T defaultValue) => IsError ? defaultValue : Value;
 
 
     public override string ToString() => IsOk ? (storedValue?.ToString() ?? "") : base.ToString();

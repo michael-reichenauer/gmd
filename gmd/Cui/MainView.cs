@@ -1,3 +1,4 @@
+using gmd.ViewRepos;
 using Terminal.Gui;
 
 
@@ -12,13 +13,14 @@ class MainView : IMainView
 {
     Toplevel toplevel;
     readonly IRepoView repoView;
-    //readonly ScrollView scrollView;
+    private readonly IViewRepoService viewRepoService;
 
     public View View => toplevel;
 
-    MainView(IRepoView repoView) : base()
+    MainView(IRepoView repoView, IViewRepoService viewRepoService) : base()
     {
         this.repoView = repoView;
+        this.viewRepoService = viewRepoService;
         toplevel = new Toplevel()
         {
             X = 0,
@@ -28,35 +30,23 @@ class MainView : IMainView
             WantMousePositionReports = false,
         };
 
-        // scrollView = new ScrollView(new Rect(0, 0, 50, 20))
-        // {
-        //     // X = 0,
-        //     // Y = 0,
-        //     // Width = Dim.Fill(),
-        //     // Height = Dim.Fill(),
-        //     ContentSize = new Size(50, 20),
-        //     ColorScheme = Terminal.Gui.Colors.Dialog,
-        //     WantMousePositionReports = false,
-        // };
-
-        // scrollView.DrawContent += (r) =>
-        // {
-        //     Log.Info($"top level frame {toplevel.Frame}");
-        //     scrollView.Frame = toplevel.Frame;
-        //     Log.Info($"repo Content {repoView.GetContentSize()}");
-        //     scrollView.ContentSize = repoView.GetContentSize();
-        // };
-
-
-        // scrollView.Add(repoView.View);
-
         toplevel.Add(repoView.View);
 
-        toplevel.Loaded += Start;
+        toplevel.Loaded += () => OnLoaded().RunInBackground();
     }
 
-    void Start()
+
+    async Task OnLoaded()
     {
-        repoView.SetDataAsync().RunInBackground();
+        string path = "";
+        var repo = await viewRepoService.GetRepoAsync(path);
+        if (repo.IsError)
+        {
+            UI.ErrorMessage("Error", $"Failed to load repo in:\n'{path}'");
+            UI.Shutdown();
+            return;
+        }
+
+        repoView.SetRepo(repo.Value);
     }
 }
