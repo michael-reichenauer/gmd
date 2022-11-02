@@ -1,12 +1,12 @@
 
 using gmd.Utils.Git;
 
-namespace gmd.ViewRepos.Augmented;
+namespace gmd.ViewRepos.Private.Augmented;
 
 
-class AugmentedRepo
+class Repo
 {
-    public AugmentedRepo(IReadOnlyList<Commit> commits)
+    public Repo(IReadOnlyList<Commit> commits)
     {
         Commits = commits;
     }

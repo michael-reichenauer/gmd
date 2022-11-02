@@ -1,16 +1,7 @@
 
-
 using gmd.Utils.Git;
 
-namespace gmd.ViewRepos.Augmented;
-
-
-
-interface IAugmentedRepoService
-{
-    public event EventHandler RepoChange;
-    Task<R<AugmentedRepo>> GetRepoAsync(string path);
-}
+namespace gmd.ViewRepos.Private.Augmented.Private;
 
 class AugmentedRepoService : IAugmentedRepoService
 {
@@ -25,7 +16,7 @@ class AugmentedRepoService : IAugmentedRepoService
 
     public event EventHandler? RepoChange;
 
-    public async Task<R<AugmentedRepo>> GetRepoAsync(string path)
+    public async Task<R<Repo>> GetRepoAsync(string path)
     {
         var git = gitService.GetGit(path);
 
@@ -46,8 +37,8 @@ class AugmentedRepoService : IAugmentedRepoService
         handler?.Invoke(this, e);
     }
 
-    async Task<R<AugmentedRepo>> GetAugmentedRepo(GitRepo gitRepo)
+    async Task<R<Repo>> GetAugmentedRepo(GitRepo gitRepo)
     {
-        return new AugmentedRepo(gitRepo.Commits);
+        return new Repo(gitRepo.Commits);
     }
 }

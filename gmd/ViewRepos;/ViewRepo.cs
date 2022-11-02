@@ -3,9 +3,9 @@ using gmd.Utils.Git;
 
 namespace gmd.ViewRepos;
 
-class ViewRepo
+class Repo
 {
-    public ViewRepo(IReadOnlyList<Commit> commits)
+    public Repo(IReadOnlyList<Commit> commits)
     {
         Commits = commits;
     }

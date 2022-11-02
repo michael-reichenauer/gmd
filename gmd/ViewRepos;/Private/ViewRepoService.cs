@@ -1,12 +1,6 @@
-using gmd.ViewRepos.Augmented;
+using gmd.ViewRepos.Private.Augmented;
 
-namespace gmd.ViewRepos;
-
-interface IViewRepoService
-{
-    public event EventHandler RepoChange;
-    Task<R<ViewRepo>> GetRepoAsync(string path);
-}
+namespace gmd.ViewRepos.Private;
 
 
 class ViewRepoService : IViewRepoService
@@ -21,7 +15,7 @@ class ViewRepoService : IViewRepoService
     public event EventHandler? RepoChange;
 
 
-    public async Task<R<ViewRepo>> GetRepoAsync(string path)
+    public async Task<R<Repo>> GetRepoAsync(string path)
     {
         var augmentedRepo = await augmentedRepoService.GetRepoAsync(path);
         if (augmentedRepo.IsError)
@@ -38,8 +32,8 @@ class ViewRepoService : IViewRepoService
         handler?.Invoke(this, e);
     }
 
-    async Task<R<ViewRepo>> GetViewRepoAsync(AugmentedRepo augmentedRepo)
+    async Task<R<Repo>> GetViewRepoAsync(Augmented.Repo augmentedRepo)
     {
-        return new ViewRepo(augmentedRepo.Commits);
+        return new Repo(augmentedRepo.Commits);
     }
 }

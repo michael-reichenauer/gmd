@@ -8,7 +8,7 @@ namespace gmd.Cui;
 interface IRepoView
 {
     View View { get; }
-    void SetRepo(ViewRepo repo);
+    void SetRepo(Repo repo);
 }
 
 class RepoView : IRepoView
@@ -35,7 +35,7 @@ class RepoView : IRepoView
         };
     }
 
-    public void SetRepo(ViewRepo repo)
+    public void SetRepo(Repo repo)
     {
         var commits = repo.Commits;
 

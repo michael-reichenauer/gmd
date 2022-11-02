@@ -1,7 +1,7 @@
 
 using gmd.Utils.Git;
 
-namespace gmd.ViewRepos.Augmented;
+namespace gmd.ViewRepos.Private.Augmented.Private;
 
 class GitRepo
 {
