@@ -25,7 +25,8 @@ internal class LogService : ILogService
             return Error.From(cmdResult.ErrorMessage);
         }
 
-        return ParseLines(cmdResult.OutputLines);
+        // Wrap parsing in separate task thread, since it might be a lot of commits to parse
+        return await Task.Run(() => ParseLines(cmdResult.OutputLines));
     }
 
     private R<IReadOnlyList<Commit>> ParseLines(IReadOnlyList<string> lines)

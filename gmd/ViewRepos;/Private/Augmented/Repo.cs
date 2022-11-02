@@ -20,13 +20,27 @@ class Repo
 
 public record Commit(
     string Id,
-     string Sid,
-     string[] ParentIds,
-     string Subject,
-     string Message,
-     string Author,
-     DateTime AuthorTime,
-     DateTime CommitTime);
+    string Sid,
+    string Subject,
+    string Message,
+    string Author,
+    DateTime AuthorTime,
+
+    string BranchName,
+    IReadOnlyList<string> ParentIds,
+    IReadOnlyList<string> ChildIds,
+    IReadOnlyList<Tag> Tags,
+    IReadOnlyList<string> BranchTips,
+
+    bool IsCurrent,
+    bool IsUncommitted,
+    bool IsLocalOnly,
+    bool IsRemoteOnly,
+    bool IsPartialLogCommit,
+    bool IsAmbiguous,
+    bool IsAmbiguousTip);
+
+
 
 public record Branch(
     string Name,
@@ -35,7 +49,17 @@ public record Branch(
     bool IsCurrent,
     bool IsRemote,
     string RemoteName,
+
+    bool IsGitBranch,
     bool IsDetached,
+    bool IsAmbiguousBranch,
+    bool IsSetAsParent,
+    bool IsMainBranch,
+
     int AheadCount,
     int BehindCount,
-    bool IsRemoteMissing);
+    bool HasLocalOnly,
+    bool HasRemoteOnly,
+
+    string AmbiguousTipId,
+    IReadOnlyList<string> AmbiguousBranchNames);
