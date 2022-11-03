@@ -4,26 +4,53 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-class RepoContentView : View
-{
-    Repo? repo;
-    RepoLayout repoLayout = new RepoLayout();
-    ColorText text;
+public delegate void DrawContent(int width, int Height, int firstIndex, int currentIndex);
 
+class ContentView : View
+{
+    private readonly DrawContent onDrawRepoContent;
+
+    static readonly int cursorWidth = 1;
+    readonly bool isMoveUpDownWrap = false;  // Not used yet
+
+    internal readonly int ContentX = cursorWidth;
+
+    int totalRowCount = 0;
     int firstIndex = 0;
     int currentIndex = 0;
-    bool isMoveUpDownWrap = false;
 
-    internal RepoContentView()
+    internal ContentView(DrawContent onDrawRepoContent)
     {
-        text = new ColorText(this);
-
+        //repoLayout = new RepoLayout(this, contentX);
+        this.onDrawRepoContent = onDrawRepoContent;
     }
 
-    public int Rows => Frame.Height;
-    public int Length => Frame.Width;
-    public int Total => repo?.Commits.Count ?? 0;
+    int ViewHeight => Frame.Height;
+    int ViewWidth => Frame.Width;
+    int ContentWidth => Frame.Width - (cursorWidth + ContentX);
+    int ContentHeight => Frame.Height;
 
+    int TotalRows => totalRowCount;
+
+
+    internal void TriggerUpdateContent(int rowCount)
+    {
+        this.totalRowCount = rowCount;
+        if (firstIndex > rowCount)
+        {
+            firstIndex = rowCount;
+        }
+        if (currentIndex < firstIndex)
+        {
+            currentIndex = firstIndex;
+        }
+        if (currentIndex > firstIndex + ContentHeight)
+        {
+            currentIndex = firstIndex + ContentHeight;
+        }
+
+        SetNeedsDisplay();
+    }
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
@@ -75,39 +102,24 @@ class RepoContentView : View
     public override void Redraw(Rect bounds)
     {
         Clear();
-        if (repo == null)
-        {
-            return;
-        }
 
-        int width = bounds.Width;
-        int height = bounds.Height;
-
-        int first = Math.Min(firstIndex, Total);
-        int count = Math.Min(height, Total - first);
-
-        repoLayout.SetText(repo, first, count, width, text);
+        onDrawRepoContent(ContentWidth, ContentHeight, firstIndex, currentIndex);
 
         DrawCursor();
         DrawVerticalScrollbar();
     }
 
-    private void DrawCursor()
+    void DrawCursor()
     {
         Move(0, currentIndex);
         Driver.SetAttribute(Colors.White);
         Driver.AddStr("┃");
     }
 
-    internal void ShowCommits(Repo repo)
-    {
-        this.repo = repo;
-        SetNeedsDisplay();
-    }
 
     void Scroll(int scroll)
     {
-        if (Total == 0)
+        if (TotalRows == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -118,9 +130,9 @@ class RepoContentView : View
         {
             newFirst = 0;
         }
-        if (newFirst + Rows >= Total)
+        if (newFirst + ViewHeight >= TotalRows)
         {
-            newFirst = Total - Rows;
+            newFirst = TotalRows - ViewHeight;
         }
         if (newFirst == firstIndex)
         {   // No move, reached top or bottom
@@ -147,7 +159,7 @@ class RepoContentView : View
     void Move(int move)
     {
         // Log.Info($"move {move}, current: {currentIndex}");
-        if (Total == 0)
+        if (TotalRows == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -156,12 +168,12 @@ class RepoContentView : View
 
         if (newCurrent < 0)
         {   // Reached top, wrap or stay
-            newCurrent = isMoveUpDownWrap ? Total - 1 : 0;
+            newCurrent = isMoveUpDownWrap ? TotalRows - 1 : 0;
         }
 
-        if (newCurrent >= Total)
+        if (newCurrent >= TotalRows)
         {   // Reached bottom, wrap or stay 
-            newCurrent = isMoveUpDownWrap ? 0 : Total - 1;
+            newCurrent = isMoveUpDownWrap ? 0 : TotalRows - 1;
         }
 
         if (newCurrent == currentIndex)
@@ -176,9 +188,9 @@ class RepoContentView : View
             firstIndex = currentIndex;
         }
 
-        if (currentIndex >= firstIndex + Rows)
+        if (currentIndex >= firstIndex + ViewHeight)
         {  // Need to scroll view down to the new current line
-            firstIndex = currentIndex - Rows + 1;
+            firstIndex = currentIndex - ViewHeight + 1;
         }
 
         SetNeedsDisplay();
@@ -190,7 +202,7 @@ class RepoContentView : View
 
         for (int i = sbStart; i <= sbEnd; i++)
         {
-            Move(Math.Max(Length, 0), i);
+            Move(Math.Max(ViewWidth, 0), i);
             Driver.SetAttribute(Colors.Magenta);
             Driver.AddStr("┃");
         }
@@ -198,17 +210,17 @@ class RepoContentView : View
 
     (int, int) GetVerticalScrollbarIndexes()
     {
-        if (Total == 0 || Rows == Total)
+        if (TotalRows == 0 || ViewHeight == TotalRows)
         {   // No need for a scrollbar
             return (0, -1);
         }
 
-        float scrollbarFactor = (float)Rows / (float)Total;
+        float scrollbarFactor = (float)ViewHeight / (float)TotalRows;
 
         int sbStart = (int)Math.Floor((float)firstIndex * scrollbarFactor);
-        int sbSize = (int)Math.Ceiling((float)Rows * scrollbarFactor);
+        int sbSize = (int)Math.Ceiling((float)ViewHeight * scrollbarFactor);
 
-        if (sbStart + sbSize + 1 > Rows)
+        if (sbStart + sbSize + 1 > ViewHeight)
         {
             sbStart = Frame.Height - sbSize - 1;
             if (sbStart < 0)

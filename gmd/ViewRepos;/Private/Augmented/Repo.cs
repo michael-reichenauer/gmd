@@ -50,6 +50,7 @@ public record Branch(
     bool IsCurrent,
     bool IsRemote,
     string RemoteName,
+    string LocalName,
 
     bool IsGitBranch,
     bool IsDetached,

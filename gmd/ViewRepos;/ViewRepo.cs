@@ -18,11 +18,15 @@ class Repo
     {
         this.repo = augRepo;
         Commits = commits;
+        CommitById = commits.ToDictionary(c => c.Id, c => c);
         Branches = branches;
+        BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
     public IReadOnlyList<Commit> Commits { get; }
+    public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
+    public IReadOnlyDictionary<string, Branch> BranchByName { get; }
 }
 
 
@@ -72,6 +76,7 @@ public record Branch(
     bool IsCurrent,
     bool IsRemote,
     string RemoteName,
+    string LocalName,
 
     // Augmented properties
     bool IsGitBranch,

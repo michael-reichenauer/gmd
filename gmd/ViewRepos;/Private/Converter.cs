@@ -15,14 +15,19 @@ class Converter : IConverter
 {
     public Repo ToRepo(AugmentedRepo ar)
     {
+        var commits = ToCommits(ar);
+        var branches = ToBranches(ar);
+
         return new Repo(
             ar,
-            ToCommits(ar),
-            ToBranches(ar));
+            commits,
+            branches);
     }
 
     IReadOnlyList<Commit> ToCommits(AugmentedRepo augRepo) =>
        augRepo.Commits.Select(ToCommit).ToList();
+
+
 
     IReadOnlyList<Branch> ToBranches(AugmentedRepo augRepo) =>
            augRepo.Branches.Select(ToBranch).ToList();
@@ -40,13 +45,13 @@ class Converter : IConverter
         ChildIds: c.ChildIds,
         Tags: c.Tags,
         BranchTips: c.BranchTips,
-        IsCurrent: false,
-        IsUncommitted: false,
-        IsLocalOnly: false,
-        IsRemoteOnly: false,
-        IsPartialLogCommit: false,
-        IsAmbiguous: false,
-        IsAmbiguousTip: false,
+        IsCurrent: c.IsCurrent,
+        IsUncommitted: c.IsUncommitted,
+        IsLocalOnly: c.IsLocalOnly,
+        IsRemoteOnly: c.IsRemoteOnly,
+        IsPartialLogCommit: c.IsPartialLogCommit,
+        IsAmbiguous: c.IsAmbiguous,
+        IsAmbiguousTip: c.IsAmbiguousTip,
 
         More: More.None);
 
@@ -57,6 +62,7 @@ class Converter : IConverter
         IsCurrent: b.IsCurrent,
         IsRemote: b.IsRemote,
         RemoteName: b.RemoteName,
+        LocalName: b.LocalName,
 
         IsGitBranch: b.IsGitBranch,
         IsDetached: b.IsDetached,

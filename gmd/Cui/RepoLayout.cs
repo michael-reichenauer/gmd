@@ -1,66 +1,112 @@
 using gmd.ViewRepos;
+using Terminal.Gui;
 
 namespace gmd.Cui;
 
 
 interface IRepoLayout
 {
-    void SetText(Repo repo, int first, int count, int width, ColorText text);
+    void WriteRepo(Repo repo, int width, int firstCommit, int commitCount, int currentIndex);
 }
 
 class RepoLayout : IRepoLayout
 {
+    private readonly ColorText text;
+
     record Columns(int Subject, int Sid, int Author, int Time);
 
-    public RepoLayout()
+    public RepoLayout(View view, int startX)
     {
+        this.text = new ColorText(view, startX);
     }
 
-    public void SetText(Repo repo, int first, int count, int width, ColorText text)
+    public void WriteRepo(Repo repo, int width, int firstCommit, int commitCount, int currentIndex)
     {
+        var crc = repo.Commits[currentIndex];
+        var crb = repo.BranchByName[crc.BranchName];
+
         text.Reset();
-        int graphWidth = 6;
+        int graphWidth = 3;
+        int markersWidth = 3; // 1 margin to graph and then 1 current marker and 1 ahead/behind
 
-        Columns cw = ColumnWidths(width - graphWidth);
+        Columns cw = ColumnWidths(width - (graphWidth + markersWidth));
 
-        var commits = repo.Commits.Skip(first).Take(count);
+        var commits = repo.Commits.Skip(firstCommit).Take(commitCount);
         foreach (var c in commits)
         {
-            DrawGraph(text);
-            DrawSubject(text, cw, c);
-            DrawSid(text, cw, c);
-            DrawAuthor(text, cw, c);
-            DrawTime(text, cw, c);
+            WriteGraph();
+            WriteCurrentMarker(c);
+            WriteAheadBehindMarker(c);
+            WriteSubject(cw, c, crb);
+            WriteSid(cw, c);
+            WriteAuthor(cw, c);
+            WriteTime(cw, c);
             text.EoL();
         }
     }
 
-    private static void DrawGraph(ColorText text)
+
+    void WriteGraph()
     {
-        text.Magenta(" ┃ ┃");
+        text.Magenta("┃ ┃");
     }
 
-    private void DrawSubject(ColorText text, Columns cw, Commit c)
+    void WriteCurrentMarker(Commit c)
     {
-        text.White(Width(" " + c.Subject, cw.Subject));
+        if (c.IsCurrent)
+        {
+            text.White(" ●");
+            return;
+        }
+
+        text.White("  ");
     }
 
-    private void DrawSid(ColorText text, Columns cw, Commit c)
+    void WriteAheadBehindMarker(Commit c)
     {
-        text.Green(Width(" " + c.Sid, cw.Sid));
+        if (c.IsLocalOnly)
+        {
+            text.White("▲");
+            return;
+        }
+        if (c.IsRemoteOnly)
+        {
+            text.White("▼");
+            return;
+        }
+
+        text.White(" ");
     }
 
-    private void DrawAuthor(ColorText text, Columns cw, Commit c)
+    void WriteSubject(Columns cw, Commit c, Branch currentRowBranch)
     {
-        text.DarkGray(Width(" " + c.Author, cw.Author));
+        if (c.BranchName == currentRowBranch.Name ||
+            c.BranchName == currentRowBranch.LocalName ||
+            c.BranchName == currentRowBranch.RemoteName)
+        {
+            text.White(Text(c.Subject, cw.Subject));
+            return;
+        }
+
+        text.DarkGray(Text(c.Subject, cw.Subject));
     }
 
-    private void DrawTime(ColorText text, Columns cw, Commit c)
+    void WriteSid(Columns cw, Commit c)
     {
-        text.Blue(Width(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
+        text.Green(Text(" " + c.Sid, cw.Sid));
     }
 
-    string Width(string text, int width)
+    void WriteAuthor(Columns cw, Commit c)
+    {
+        text.DarkGray(Text(" " + c.Author, cw.Author));
+    }
+
+    void WriteTime(Columns cw, Commit c)
+    {
+        text.Blue(Text(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
+    }
+
+    string Text(string text, int width)
     {
         if (text.Length <= width)
         {
@@ -75,7 +121,6 @@ class RepoLayout : IRepoLayout
         int authorWidth = 15;
         int timeWidth = 15;
         int sidWidth = 7;
-        // int spaceWidth = 1;
 
         if (commitWidth < 70)
         {   // Disabled sid, author and time if very narrow view  
@@ -88,7 +133,6 @@ class RepoLayout : IRepoLayout
             sidWidth = 0;
             authorWidth = 10;
             timeWidth = 9;
-            // spaceWidth = 3;
         }
 
         int subjectWidth = commitWidth - sidWidth - authorWidth - timeWidth;

@@ -29,7 +29,7 @@ class Converter : IConverter
             AuthorTime: c.AuthorTime,
             ParentIds: c.ParentIds,
 
-            BranchName: c.BranchName,
+            BranchName: c.Branch!.Name,
             ChildIds: c.ChildIds,
             Tags: c.Tags,
             BranchTips: c.BranchTips,
@@ -51,6 +51,7 @@ class Converter : IConverter
             IsCurrent: b.IsCurrent,
             IsRemote: b.IsRemote,
             RemoteName: b.RemoteName,
+            LocalName: b.LocalName,
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,

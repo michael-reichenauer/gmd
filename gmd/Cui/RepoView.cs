@@ -8,24 +8,26 @@ namespace gmd.Cui;
 interface IRepoView
 {
     View View { get; }
-    void SetRepo(Repo repo);
+    Task<R> ShowRepoAsync(string path);
 }
 
 class RepoView : IRepoView
 {
-    private readonly IGitService gitService;
-    private readonly IRepoLayout repoLayout;
+    readonly IViewRepoService viewRepoService;
+    readonly ContentView contentView;
+    readonly IRepoLayout repoLayout;
 
-    RepoContentView contentView;
+    Repo? repo;
+    int TotalRows => repo?.Commits.Count ?? 0;
 
     public View View => contentView;
 
-    RepoView(IGitService gitService, IRepoLayout repoLayout) : base()
-    {
-        this.gitService = gitService;
-        this.repoLayout = repoLayout;
 
-        contentView = new RepoContentView()
+    internal RepoView(IViewRepoService viewRepoService) : base()
+    {
+        this.viewRepoService = viewRepoService;
+
+        contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
             Y = 0,
@@ -33,10 +35,34 @@ class RepoView : IRepoView
             Height = Dim.Fill(),
             WantMousePositionReports = false,
         };
+
+        repoLayout = new RepoLayout(contentView, contentView.ContentX);
     }
 
-    public void SetRepo(Repo repo)
+    public async Task<R> ShowRepoAsync(string path)
     {
-        contentView.ShowCommits(repo);
+        var repo = await viewRepoService.GetRepoAsync(path);
+        if (repo.IsError)
+        {
+            return repo.Error;
+        }
+
+        // Trigger content view to show repo
+        this.repo = repo.Value;
+        contentView.TriggerUpdateContent(TotalRows);
+        return R.Ok;
+    }
+
+    void onDrawRepoContent(int width, int Height, int firstIndex, int currentIndex)
+    {
+        if (repo == null)
+        {
+            return;
+        }
+
+        int firstCommit = Math.Min(firstIndex, TotalRows);
+        int commitCount = Math.Min(Height, TotalRows - firstCommit);
+
+        repoLayout.WriteRepo(repo, width, firstCommit, commitCount, currentIndex);
     }
 }
