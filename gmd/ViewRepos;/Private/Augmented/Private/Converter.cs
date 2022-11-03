@@ -53,6 +53,8 @@ class Converter : IConverter
             RemoteName: b.RemoteName,
             LocalName: b.LocalName,
 
+            ParentBranchName: b.ParentBranch?.Name ?? "",
+
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
             IsSetAsParent: b.IsSetAsParent,

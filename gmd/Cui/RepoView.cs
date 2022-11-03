@@ -9,6 +9,7 @@ interface IRepoView
 {
     View View { get; }
     Task<R> ShowRepoAsync(string path);
+    Task<R> ShowRepoAsync(string path, string[] showBranches);
 }
 
 class RepoView : IRepoView
@@ -39,9 +40,13 @@ class RepoView : IRepoView
         repoLayout = new RepoLayout(contentView, contentView.ContentX);
     }
 
-    public async Task<R> ShowRepoAsync(string path)
+    public Task<R> ShowRepoAsync(string path) =>
+        ShowRepoAsync(path, new string[0]);
+
+
+    public async Task<R> ShowRepoAsync(string path, string[] showBranches)
     {
-        var repo = await viewRepoService.GetRepoAsync(path);
+        var repo = await viewRepoService.GetRepoAsync(path, showBranches);
         if (repo.IsError)
         {
             return repo.Error;
@@ -65,4 +70,6 @@ class RepoView : IRepoView
 
         repoLayout.WriteRepo(repo, width, firstCommit, commitCount, currentIndex);
     }
+
+
 }

@@ -138,97 +138,6 @@ class Augmenter : IAugmenter
         DetermineBranchHierarchy(repo);
     }
 
-    private void DetermineBranchHierarchy(WorkRepo repo)
-    {
-        foreach (var b in repo.Branches)
-        {
-            // var bs := branchesChildren[b.BaseName()]
-            // b.IsSetAsParent = len(bs) > 0
-
-            if (b.BottomID == "")
-            {
-                // For branches with no own commits (multiple tips to same commit)
-                b.BottomID = b.TipID;
-            }
-
-            var bottom = repo.CommitsById[b.BottomID];
-            if (bottom.Branch != b)
-            {
-                // the tip does not own the tip commit, i.e. a branch pointer to another branch
-                b.ParentBranch = bottom.Branch;
-            }
-            else if (bottom.FirstParent != null)
-            {
-                b.ParentBranch = bottom.FirstParent.Branch;
-            }
-        }
-    }
-
-    private void MergeAmbiguousBranches(WorkRepo repo)
-    {
-        var ambiguousBranches = repo.Branches.Where(b => b.IsAmbiguousBranch).ToList();
-
-        foreach (var b in ambiguousBranches)
-        {
-            var tip = repo.CommitsById[b.TipID];
-
-            // Determine the parent commit this branch was created from
-            var otherId = b.BottomID;
-            var parentBranchCommit = repo.CommitsById[b.BottomID].FirstParent;
-            if (parentBranchCommit != null)
-            {
-                otherId = parentBranchCommit.Id;
-            }
-
-            // Find the tip of the ambiguous commits (and the next commit)
-            WorkCommit? ambiguousTip = null;
-            WorkCommit? ambiguousSecond = null;
-            for (var c = tip; c != null && c.Id != otherId; c = c.FirstParent)
-            {
-                if (c.Branch != b)
-                {   // Still a normal branch commit (no longer part of the ambiguous branch)
-                    continue;
-                }
-
-                // tip of the ambiguous commits
-                ambiguousTip = c;
-                ambiguousSecond = c.FirstParent;
-                c.IsAmbiguousTip = true;
-                c.IsAmbiguous = true;
-
-                // Determine the most likely branch (branch of the oldest child)
-                var oldestChild = c.Children[0];
-                List<WorkBranch> childBranches = new List<WorkBranch>();
-                foreach (var cc in c.Children)
-                {
-                    if (cc.AuthorTime > oldestChild.AuthorTime)
-                    {
-                        oldestChild = cc;
-                    }
-                    childBranches.Add(c.Branch!);
-                }
-                c.Branch = oldestChild.Branch!;
-                c.Branch.AmbiguousTipId = c.Id;
-                c.Branch.AmbiguousBranches = childBranches;
-                c.Branch.BottomID = c.Id;
-                break;
-            }
-
-            // Set the branch of the rest of the ambiguous commits to same as the tip
-            for (var c = ambiguousSecond; c != null && c.Id != otherId; c = c.FirstParent)
-            {
-                c.Branch = ambiguousTip!.Branch!;
-                c.Branch.BottomID = c.Id;
-                c.IsAmbiguous = true;
-            }
-        }
-
-        // Removing the ambiguous branches (no longer needed)
-        var bs = repo.Branches.Where(b => !b.IsAmbiguousBranch).ToList();
-        repo.Branches.Clear();
-        repo.Branches.AddRange(bs);
-    }
-
     void SetGitBranchTips(WorkRepo repo)
     {
         List<string> invalidBranches = new List<string>();
@@ -376,30 +285,143 @@ class Augmenter : IAugmenter
         return AddAmbiguousBranch(repo, c);
     }
 
-    private bool TryHasOnlyOneChild(WorkCommit c, out WorkBranch? branch)
+
+    private bool TryHasOnlyOneBranch(WorkCommit c, out WorkBranch? branch)
     {
-        if (c.Children.Count == 1 && c.MergeChildren.Count == 0)
-        {   // Commit has only one child, ensure commit has same branches
-            var child = c.Children[0];
-            if (c.Branches.Count != child.Branches.Count)
-            {
-                // Number of branches have changed
-                branch = null;
-                return false;
-            }
-
-            for (int i = 0; i < c.Branches.Count; i++)
-            {
-                if (c.Branches[i].Name != child.Branches[i].Name)
-                {
-                    branch = null;
-                    return false;
-                }
-            }
-
-            // Commit has one child commit, use that child commit branch
-            branch = child.Branch;
+        if (c.Branches.Count == 1)
+        {  // Commit only has one branch, it must have been an actual branch tip originally, use that
+            branch = c.Branches[0];
             return true;
+        }
+
+        branch = null;
+        return false;
+    }
+
+    private bool TryIsLocalRemoteBranch(WorkCommit c, out WorkBranch? branch)
+    {
+        if (c.Branches.Count == 2)
+        {
+            if (c.Branches[0].IsRemote && c.Branches[0].Name == c.Branches[1].RemoteName)
+            {   // remote and local branch, prefer remote
+                branch = c.Branches[0];
+                return true;
+            }
+            if (!c.Branches[0].IsRemote && c.Branches[0].RemoteName == c.Branches[1].Name)
+            {   // local and remote branch, prefer remote
+                branch = c.Branches[1];
+                return true;
+
+            }
+        }
+        branch = null;
+        return false;
+    }
+
+    private bool TrySameChildrenBranches(WorkCommit c, out WorkBranch? branch)
+    {
+        if (c.Branches.Count == 0 && c.Children.Count == 2 &&
+            c.Children[0].Branch == c.Children[1].Branch)
+        {   // Commit has no branch but has 2 children with same branch use that
+            branch = c.Children[0].Branch;
+            return true;
+        }
+
+        branch = null;
+        return false;
+    }
+
+    private bool TryIsMergedDeletedRemoteBranchTip(WorkRepo repo, WorkCommit c, out WorkBranch? branch)
+    {
+        if (c.Branches.Count == 0 && c.Children.Count == 0 && c.MergeChildren.Count == 1)
+        {   // Commit has no branch and no children, but has a merge child, lets check if pull merger
+            // Trying to use parsed branch name from the merge children subjects e.g. Merge branch 'a' into develop
+            string name = branchNameService.GetBranchName(c.Id);
+
+            if (name != "")
+            {   // Managed to parse a branch name
+                var mergeChildBranch = c.MergeChildren[0].Branch!;
+
+                if (name == mergeChildBranch.DisplayName)
+                {
+                    branch = mergeChildBranch;
+                    return true;
+                }
+
+                branch = AddNamedBranch(repo, c, name);
+                return true;
+
+            }
+
+            // could not parse a name from any of the merge children, use id named branch
+            branch = AddNamedBranch(repo, c, "branch");
+            return true;
+        }
+
+        branch = null;
+        return false;
+    }
+
+
+    private bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit c, out WorkBranch? branch)
+    {
+        if (c.Branches.Count == 0 && c.Children.Count == 0)
+        {   // Commit has no branch, must be a deleted branch tip merged into some branch or unusual branch
+            // Trying to use parsed branch name from one of the merge children subjects e.g. Merge branch 'a' into develop
+            string name = branchNameService.GetBranchName(c.Id);
+            if (name != "")
+            {   // Managed to parse a branch name
+                branch = AddNamedBranch(repo, c, name);
+                return true;
+            }
+
+            // could not parse a name from any of the merge children, use id named branch
+            branch = AddNamedBranch(repo, c, "branch");
+            return true;
+        }
+
+        branch = null;
+        return false;
+    }
+
+
+    private bool TryHasOneChildInDeletedBranch(WorkCommit c, out WorkBranch? branch)
+    {
+        if (c.Branches.Count == 0 && c.Children.Count == 1)
+        {   // Commit has no branch, but it has one child commit, use that child commit branch
+            branch = c.Children[0].Branch;
+            return true;
+        }
+
+        branch = null;
+        return false;
+    }
+
+    private bool TryHasOneChildWithLikelyBranch(WorkCommit c, out WorkBranch? branch)
+    {
+        if (c.Children.Count == 1 && c.Children[0].IsLikely)
+        {   // Commit has one child, which has a likely known branch, use same branch
+            branch = c.Children[0].Branch;
+            return true;
+        }
+
+        branch = null;
+        return false;
+    }
+
+    private bool TryHasMainBranch(WorkCommit c, out WorkBranch? branch)
+    {
+        if (c.Branches.Count < 1)
+        {
+            branch = null;
+            return false;
+        }
+
+        // Check if commit has one of the main branches
+        foreach (var name in DefaultBranchPriority)
+        {
+            branch = c.Branches.Find(b => b.Name == name);
+            return branch != null;
         }
 
         branch = null;
@@ -452,9 +474,9 @@ class Augmenter : IAugmenter
         return false;
     }
 
+
     private WorkBranch? TryGetBranchFromName(WorkCommit c, string name)
     {
-
         // Try find a live git branch with the name
         foreach (var b in c.Branches)
         {
@@ -480,155 +502,35 @@ class Augmenter : IAugmenter
         // Try find a branch with the display name
         return c.Branches.Find(b => b.DisplayName == name);
     }
-
-
-    private bool TryHasMainBranch(WorkCommit c, out WorkBranch? branch)
+    private bool TryHasOnlyOneChild(WorkCommit c, out WorkBranch? branch)
     {
-        if (c.Branches.Count < 1)
-        {
-            branch = null;
-            return false;
-        }
-
-        // Check if commit has one of the main branches
-        foreach (var name in DefaultBranchPriority)
-        {
-            branch = c.Branches.Find(b => b.Name == name);
-            return branch != null;
-        }
-
-        branch = null;
-        return false;
-    }
-
-    private bool TryHasOneChildWithLikelyBranch(WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.Children.Count == 1 && c.Children[0].IsLikely)
-        {   // Commit has one child, which has a likely known branch, use same branch
-            branch = c.Children[0].Branch;
-            return true;
-        }
-
-        branch = null;
-        return false;
-    }
-
-    private bool TryHasOneChildInDeletedBranch(WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.Branches.Count == 0 && c.Children.Count == 1)
-        {   // Commit has no branch, but it has one child commit, use that child commit branch
-            branch = c.Children[0].Branch;
-            return true;
-        }
-
-        branch = null;
-        return false;
-    }
-
-    private bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.Branches.Count == 0 && c.Children.Count == 0)
-        {   // Commit has no branch, must be a deleted branch tip merged into some branch or unusual branch
-            // Trying to use parsed branch name from one of the merge children subjects e.g. Merge branch 'a' into develop
-            string name = branchNameService.GetBranchName(c.Id);
-            if (name != "")
-            {   // Managed to parse a branch name
-                branch = AddNamedBranch(repo, c, name);
-                return true;
+        if (c.Children.Count == 1 && c.MergeChildren.Count == 0)
+        {   // Commit has only one child, ensure commit has same branches
+            var child = c.Children[0];
+            if (c.Branches.Count != child.Branches.Count)
+            {
+                // Number of branches have changed
+                branch = null;
+                return false;
             }
 
-            // could not parse a name from any of the merge children, use id named branch
-            branch = AddNamedBranch(repo, c, "branch");
-            return true;
-        }
-
-        branch = null;
-        return false;
-    }
-
-
-    private bool TryIsMergedDeletedRemoteBranchTip(WorkRepo repo, WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.Branches.Count == 0 && c.Children.Count == 0 && c.MergeChildren.Count == 1)
-        {   // Commit has no branch and no children, but has a merge child, lets check if pull merger
-            // Trying to use parsed branch name from the merge children subjects e.g. Merge branch 'a' into develop
-            string name = branchNameService.GetBranchName(c.Id);
-
-            if (name != "")
-            {   // Managed to parse a branch name
-                var mergeChildBranch = c.MergeChildren[0].Branch!;
-
-                if (name == mergeChildBranch.DisplayName)
+            for (int i = 0; i < c.Branches.Count; i++)
+            {
+                if (c.Branches[i].Name != child.Branches[i].Name)
                 {
-                    branch = mergeChildBranch;
-                    return true;
+                    branch = null;
+                    return false;
                 }
-
-                branch = AddNamedBranch(repo, c, name);
-                return true;
-
             }
 
-            // could not parse a name from any of the merge children, use id named branch
-            branch = AddNamedBranch(repo, c, "branch");
+            // Commit has one child commit, use that child commit branch
+            branch = child.Branch;
             return true;
         }
 
         branch = null;
         return false;
     }
-
-
-    private bool TryHasOnlyOneBranch(WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.Branches.Count == 1)
-        {  // Commit only has one branch, it must have been an actual branch tip originally, use that
-            branch = c.Branches[0];
-            return true;
-        }
-
-        branch = null;
-        return false;
-    }
-
-    private bool TryIsLocalRemoteBranch(WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.Branches.Count == 2)
-        {
-            if (c.Branches[0].IsRemote && c.Branches[0].Name == c.Branches[1].RemoteName)
-            {   // remote and local branch, prefer remote
-                branch = c.Branches[0];
-                return true;
-            }
-            if (!c.Branches[0].IsRemote && c.Branches[0].RemoteName == c.Branches[1].Name)
-            {   // local and remote branch, prefer remote
-                branch = c.Branches[1];
-                return true;
-
-            }
-        }
-        branch = null;
-        return false;
-    }
-
-    private bool TrySameChildrenBranches(WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.Branches.Count == 0 && c.Children.Count == 2 &&
-            c.Children[0].Branch == c.Children[1].Branch)
-        {   // Commit has no branch but has 2 children with same branch use that
-            branch = c.Children[0].Branch;
-            return true;
-        }
-
-        branch = null;
-        return false;
-    }
-
-
-
-
-
-
 
 
     private bool TryIsChildAmbiguousBranch(WorkCommit c, out WorkBranch? branch)
@@ -694,6 +596,102 @@ class Augmenter : IAugmenter
 
         repo.Branches.Add(branch);
         return branch;
+    }
+
+
+    private void MergeAmbiguousBranches(WorkRepo repo)
+    {
+        var ambiguousBranches = repo.Branches.Where(b => b.IsAmbiguousBranch).ToList();
+
+        foreach (var b in ambiguousBranches)
+        {
+            var tip = repo.CommitsById[b.TipID];
+
+            // Determine the parent commit this branch was created from
+            var otherId = b.BottomID;
+            var parentBranchCommit = repo.CommitsById[b.BottomID].FirstParent;
+            if (parentBranchCommit != null)
+            {
+                otherId = parentBranchCommit.Id;
+            }
+
+            // Find the tip of the ambiguous commits (and the next commit)
+            WorkCommit? ambiguousTip = null;
+            WorkCommit? ambiguousSecond = null;
+            for (var c = tip; c != null && c.Id != otherId; c = c.FirstParent)
+            {
+                if (c.Branch != b)
+                {   // Still a normal branch commit (no longer part of the ambiguous branch)
+                    continue;
+                }
+
+                // tip of the ambiguous commits
+                ambiguousTip = c;
+                ambiguousSecond = c.FirstParent;
+                c.IsAmbiguousTip = true;
+                c.IsAmbiguous = true;
+
+                // Determine the most likely branch (branch of the oldest child)
+                var oldestChild = c.Children[0];
+                List<WorkBranch> childBranches = new List<WorkBranch>();
+                foreach (var cc in c.Children)
+                {
+                    if (cc.AuthorTime > oldestChild.AuthorTime)
+                    {
+                        oldestChild = cc;
+                    }
+                    childBranches.Add(c.Branch!);
+                }
+                c.Branch = oldestChild.Branch!;
+                c.Branch.AmbiguousTipId = c.Id;
+                c.Branch.AmbiguousBranches = childBranches;
+                c.Branch.BottomID = c.Id;
+                break;
+            }
+
+            // Set the branch of the rest of the ambiguous commits to same as the tip
+            for (var c = ambiguousSecond; c != null && c.Id != otherId; c = c.FirstParent)
+            {
+                c.Branch = ambiguousTip!.Branch!;
+                c.Branch.BottomID = c.Id;
+                c.IsAmbiguous = true;
+            }
+        }
+
+        // Removing the ambiguous branches (no longer needed)
+        var bs = repo.Branches.Where(b => !b.IsAmbiguousBranch).ToList();
+        repo.Branches.Clear();
+        repo.Branches.AddRange(bs);
+    }
+
+
+    private void DetermineBranchHierarchy(WorkRepo repo)
+    {
+        foreach (var b in repo.Branches)
+        {
+            // var bs := branchesChildren[b.BaseName()]
+            // b.IsSetAsParent = len(bs) > 0
+
+            if (b.BottomID == "")
+            {
+                // For branches with no own commits (multiple tips to same commit)
+                b.BottomID = b.TipID;
+            }
+
+            var bottom = repo.CommitsById[b.BottomID];
+            if (bottom.Branch != b)
+            {
+                // the tip does not own the tip commit, i.e. a branch pointer to another branch
+                b.ParentBranch = bottom.Branch;
+            }
+            else if (bottom.FirstParent != null)
+            {
+                b.ParentBranch = bottom.FirstParent.Branch;
+            }
+        }
+
+        var rootBranch = repo.Branches.First(b => b.ParentBranch == null);
+        rootBranch.IsMainBranch = true;
     }
 }
 
