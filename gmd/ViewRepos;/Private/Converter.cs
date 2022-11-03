@@ -66,7 +66,7 @@ class Converter : IConverter
 
         IsGitBranch: b.IsGitBranch,
         IsDetached: b.IsDetached,
-        IsAmbiguousBranch: b.IsAmbiguousBranch,
+
         IsSetAsParent: b.IsSetAsParent,
         IsMainBranch: b.IsMainBranch,
 

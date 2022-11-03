@@ -81,7 +81,6 @@ public record Branch(
     // Augmented properties
     bool IsGitBranch,
     bool IsDetached,
-    bool IsAmbiguousBranch,
     bool IsSetAsParent,
     bool IsMainBranch,
 

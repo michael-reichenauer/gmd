@@ -72,13 +72,15 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        //  Log.Info($"Mouse: {ev}");
+        Log.Info($"Mouse: {ev}");
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
+            Log.Info("Scroll down");
             Scroll(1);
         }
         if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
         {
+            Log.Info("Scroll upp");
             Scroll(-1);
         }
 

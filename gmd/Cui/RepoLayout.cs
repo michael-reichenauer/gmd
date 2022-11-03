@@ -80,15 +80,16 @@ class RepoLayout : IRepoLayout
 
     void WriteSubject(Columns cw, Commit c, Branch currentRowBranch)
     {
+        string subject = $"{c.Subject,-60} ({Text(c.BranchName, 20)})";
         if (c.BranchName == currentRowBranch.Name ||
             c.BranchName == currentRowBranch.LocalName ||
             c.BranchName == currentRowBranch.RemoteName)
         {
-            text.White(Text(c.Subject, cw.Subject));
+            text.White(Text(subject, cw.Subject));
             return;
         }
 
-        text.DarkGray(Text(c.Subject, cw.Subject));
+        text.DarkGray(Text(subject, cw.Subject));
     }
 
     void WriteSid(Columns cw, Commit c)

@@ -44,6 +44,9 @@ internal class WorkCommit
     public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
     public WorkBranch? Branch { get; internal set; }
 
+    public bool IsLikely { get; internal set; }
+
+
 
     public WorkCommit(GitCommit c)
     {
@@ -68,7 +71,7 @@ internal class WorkCommit
         ParentIds = new List<string>(parentIds.AsEnumerable<string>());
     }
 
-    internal void AddToBranchesIfNotExists(params WorkBranch[] branches)
+    internal void TryAddToBranches(params WorkBranch[] branches)
     {
         foreach (var branch in branches)
         {
@@ -98,6 +101,8 @@ internal class WorkBranch
     public string LocalName { get; set; } = "";
     public string TipID { get; }
     public string BottomID { get; internal set; } = "";
+
+    public WorkBranch? ParentBranch { get; internal set; }
 
     public bool IsGitBranch { get; set; }
     public bool IsAmbiguousBranch { get; set; }

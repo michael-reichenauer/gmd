@@ -54,7 +54,6 @@ public record Branch(
 
     bool IsGitBranch,
     bool IsDetached,
-    bool IsAmbiguousBranch,
     bool IsSetAsParent,
     bool IsMainBranch,
 
