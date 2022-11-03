@@ -111,7 +111,7 @@ class ContentView : View
 
     void DrawCursor()
     {
-        Move(0, currentIndex);
+        Move(0, currentIndex - firstIndex);
         Driver.SetAttribute(Colors.White);
         Driver.AddStr("┃");
     }
@@ -139,19 +139,19 @@ class ContentView : View
             return;
         }
 
-        // int newCurrent = currentIndex + (newFirst - firstIndex);
+        int newCurrent = currentIndex + (newFirst - firstIndex);
 
-        // if (newCurrent < newFirst)
-        // {   // Need to scroll view up to the new current line
-        //     newCurrent = newFirst;
-        // }
-        // if (newCurrent >= newFirst + Rows)
-        // {   // Need to scroll view down to the new current line
-        //     newCurrent = newFirst - Rows - 1;
-        // }
+        if (newCurrent < newFirst)
+        {   // Need to scroll view up to the new current line
+            newCurrent = newFirst;
+        }
+        if (newCurrent >= newFirst + ContentHeight)
+        {   // Need to scroll view down to the new current line
+            newCurrent = newFirst - ContentHeight - 1;
+        }
 
         firstIndex = newFirst;
-        //currentIndex = newCurrent;
+        currentIndex = newCurrent;
 
         SetNeedsDisplay();
     }
