@@ -61,8 +61,20 @@ class ContentView : View
             case Key.CursorUp:
                 Move(-1);
                 return true;
+            case Key.PageUp:
+                Move(-Math.Max(0, ContentHeight - 1));
+                return true;
             case Key.CursorDown:
                 Move(1);
+                return true;
+            case Key.PageDown:
+                Move(Math.Max(0, ContentHeight - 1));
+                return true;
+            case Key.Home:
+                Move(-Math.Max(0, TotalRows));
+                return true;
+            case Key.End:
+                Move(Math.Max(0, TotalRows));
                 return true;
             default:
                 Log.Info($"Key {keyEvent}");
@@ -72,17 +84,17 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        Log.Info($"Mouse: {ev}");
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
-        {
-            Log.Info("Scroll down");
-            Scroll(1);
-        }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            Log.Info("Scroll upp");
-            Scroll(-1);
-        }
+        // Log.Info($"Mouse: {ev}");
+        // if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        // {
+        //     Log.Info("Scroll down");
+        //     Scroll(1);
+        // }
+        // if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        // {
+        //     Log.Info("Scroll upp");
+        //     Scroll(-1);
+        // }
 
         return false;
         // if (!ev.Flags.HasFlag(MouseFlags.Button1Clicked) && !ev.Flags.HasFlag(MouseFlags.Button1Pressed)
