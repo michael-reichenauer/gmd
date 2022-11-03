@@ -43,46 +43,75 @@ class ViewRepoService : IViewRepoService
 
     async Task<R<Repo>> GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
     {
-        Log.Info($"Show branches {GetBranchNamesToShow(augRepo, showBranches).AsString()}");
-        return converter.ToRepo(augRepo);
+        var branches = GetViewBranches(augRepo, showBranches);
+        var commits = GetViewCommits(augRepo, branches);
+
+        Log.Info($"Branches: {augRepo.Branches.Count} => {branches.Count}");
+        Log.Info($"Commits: {augRepo.Commits.Count} => {commits.Count}");
+
+        return new Repo(
+            augRepo,
+            converter.ToCommits(commits),
+            converter.ToBranches(branches));
     }
 
-
-    IReadOnlyList<string> GetBranchNamesToShow(Augmented.Repo repo, string[] showBranches)
+    private IReadOnlyList<Augmented.Commit> GetViewCommits(
+        Augmented.Repo repo, IReadOnlyList<Augmented.Branch> viewBranches)
     {
-        List<Augmented.Branch> branches = new List<Augmented.Branch>();
+        // Return commits, which branch does exist in branches to be viewed.
+        return repo.Commits
+            .Where(c => viewBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
+            .ToList();
+    }
+
+    IReadOnlyList<Augmented.Branch> GetViewBranches(Augmented.Repo repo, string[] showBranches)
+    {
+        var branches = showBranches
+            .Select(name => repo.Branches.FirstOrDefault(b => b.Name == name))
+            .Where(b => b != null)
+            .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
+            .ToList();       // To be able to add more
+
         if (showBranches.Length == 0)
         {   // No branches where specified, assume current branch
             var current = repo.Branches.FirstOrDefault(b => b.IsCurrent);
             if (current != null)
             {
                 branches.Add(current);
-                Ancestors(repo, current).ForEach(b => branches.Add(b));
-            }
-        }
-
-        foreach (var name in showBranches)
-        {
-            var ab = repo.Branches.FirstOrDefault(b => b.Name == name);
-            if (ab != null && !branches.Contains(ab))
-            {
-                branches.Add(ab);
-                Ancestors(repo, ab).ForEach(b => branches.Add(b));
             }
         }
 
         if (branches.Count == 0)
-        {
+        {   // Ensure that at least main branch is included 
             var main = repo.Branches.First(b => b.IsMainBranch);
             branches.Add(main);
         }
 
-        var b = branches.DistinctBy(b => b.Name).ToList();  // Remove duplicates
-        b.Sort((b1, b2) =>                      // Sort on branch hierarchy
+        // Ensure all ancestors are included
+        foreach (var b in branches.ToList())
+        {
+            Ancestors(repo, b).ForEach(bb => branches.Add(bb));
+        }
+
+        // Ensure all local branches of remote branches are included 
+        // (remote branches of local branches are ancestors and already included)
+        foreach (var b in branches.ToList())
+        {
+            if (b.IsRemote && b.LocalName != "")
+            {
+                branches.Add(repo.BranchByName[b.LocalName]);
+            }
+        }
+
+        // Remove duplicates (ToList(), since Sort works inline)
+        branches = branches.DistinctBy(b => b.Name).ToList();
+
+        // Sort on branch hierarchy
+        branches.Sort((b1, b2) =>
             IsFirstAncestorOfSecond(repo, b1, b2) ? -1 :
             IsFirstAncestorOfSecond(repo, b2, b1) ? 1 : 0);
 
-        return b.Select(b => b.Name).ToList();
+        return branches;
     }
 
     IReadOnlyList<Augmented.Branch> Ancestors(Augmented.Repo repo, Augmented.Branch branch)

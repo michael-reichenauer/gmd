@@ -1,38 +1,34 @@
-
-using AugmentedRepo = gmd.ViewRepos.Private.Augmented.Repo;
-using AugmentedBranch = gmd.ViewRepos.Private.Augmented.Branch;
-using AugmentedCommit = gmd.ViewRepos.Private.Augmented.Commit;
-
 namespace gmd.ViewRepos.Private;
 
 interface IConverter
 {
-    Repo ToRepo(AugmentedRepo augRepo);
+    IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits);
+    public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches);
 }
 
 
 class Converter : IConverter
 {
-    public Repo ToRepo(AugmentedRepo ar)
-    {
-        var commits = ToCommits(ar);
-        var branches = ToBranches(ar);
+    // public Repo ToRepo(Augmented.Repo ar)
+    // {
+    //     var commits = ToCommits(ar);
+    //     var branches = ToBranches(ar);
 
-        return new Repo(
-            ar,
-            commits,
-            branches);
-    }
+    //     return new Repo(
+    //         ar,
+    //         commits,
+    //         branches);
+    // }
 
-    IReadOnlyList<Commit> ToCommits(AugmentedRepo augRepo) =>
-       augRepo.Commits.Select(ToCommit).ToList();
+    public IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits) =>
+       commits.Select(ToCommit).ToList();
 
 
 
-    IReadOnlyList<Branch> ToBranches(AugmentedRepo augRepo) =>
-           augRepo.Branches.Select(ToBranch).ToList();
+    public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches) =>
+           branches.Select(ToBranch).ToList();
 
-    Commit ToCommit(AugmentedCommit c) => new Commit(
+    Commit ToCommit(Augmented.Commit c) => new Commit(
         Id: c.Id,
         Sid: c.Sid,
         Subject: c.Subject,
@@ -55,7 +51,7 @@ class Converter : IConverter
 
         More: More.None);
 
-    Branch ToBranch(AugmentedBranch b) => new Branch(
+    Branch ToBranch(Augmented.Branch b) => new Branch(
         Name: b.Name,
         DisplayName: b.DisplayName,
         TipID: b.TipID,
