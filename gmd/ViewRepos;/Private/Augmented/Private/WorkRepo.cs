@@ -82,6 +82,8 @@ internal class WorkCommit
             Branches.Add(branch);
         }
     }
+
+    public override string ToString() => $"{Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
 }
 
 internal class WorkBranch
@@ -137,5 +139,7 @@ internal class WorkBranch
         DisplayName = displayName;
         TipID = tipID;
     }
+
+    public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
 
