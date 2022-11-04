@@ -26,6 +26,7 @@ class Colors
     public static readonly Color None = MakeColor(Terminal.Gui.Color.Black);
     public static readonly Color Ambiguous = MakeColor(Terminal.Gui.Color.White);
 
+    internal static readonly Color[] BranchColors = { Blue, Green, Cyan, Red, Yellow };
 
 
     static Color MakeColor(Terminal.Gui.Color fg)

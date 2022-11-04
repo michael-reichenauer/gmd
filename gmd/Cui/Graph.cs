@@ -152,14 +152,18 @@ class GraphBranch
 {
     internal Branch B { get; }
 
+    internal int Index { get; set; } = 0;
     internal int X { get; set; } = 0;
     internal int TipIndex { get; set; }
     internal int BottomIndex { get; set; }
     internal GraphBranch? ParentBranch { get; set; }
     internal Color Color { get; set; }
 
-    internal GraphBranch(Branch branch)
+    internal GraphBranch(Branch branch, int index)
     {
         B = branch;
+        Index = index;
     }
+
+    public override string ToString() => $"{B}";
 }

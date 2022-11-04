@@ -55,7 +55,7 @@ class GraphService : IGraphService
 
     private void SetBranchesColor(IReadOnlyList<GraphBranch> branches)
     {
-        branches.ForEach(b => b.Color = Colors.Magenta);
+        branches.ForEach(b => b.Color = BranchColor(b));
     }
 
     void SetGraph(Graph graph, Repo repo, IReadOnlyList<GraphBranch> branches)
@@ -86,21 +86,26 @@ class GraphService : IGraphService
                 }
 
                 if (c.ParentIds.Count > 1)
-                {  // Merge commit                     Drawing         ╭ or  ╮
+                {   // Merge commit                     Drawing         ╭ or  ╮
                     DrawMerge(graph, repo, c, b);
                 }
-                // if c.More.Has(api.MoreBranchOut) { // ╯
-                // 	t.drawMoreBranchOut(repo, c) // Drawing  ╮
-                // }
+
+                if (c.ChildIds.Count > 1 &&
+                    null != c.ChildIds.FirstOrDefault(id => !repo.CommitById.ContainsKey(id)))
+                {
+                    DrawMoreBranchOut(graph, c, b); // Drawing  ╯
+                }
 
                 if (c.ParentIds.Count > 0 && repo.CommitById[c.ParentIds[0]].BranchName != c.BranchName)
                 {   // Commit parent is on other branch (i.e. commit is first/bottom commit on this branch)
                     // Draw branched from parent branch  ╯ or ╰
-                    DrawBranchFromParent(repo, c);
+                    DrawBranchFromParent(graph, repo, c, b);
                 }
             }
         }
     }
+
+
 
     // DrawOtherBranchTip draws  ─┺ in when multiple tips on same commit
     void DrawOtherBranchTip(Graph graph, Repo repo, GraphBranch b, Commit c)
@@ -155,33 +160,137 @@ class GraphService : IGraphService
         }
     }
 
-    void DrawMerge(Graph graph, Repo repo, Commit c, GraphBranch b)
+    void DrawMerge(Graph graph, Repo repo, Commit commit, GraphBranch commitBranch)
     {
-        if (repo.CommitById.TryGetValue(c.ParentIds[1], out var mergeParent))
+        if (repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent))
         {
-
+            var parentBranch = graph.BranchByName(mergeParent.BranchName);
+            // Commit is a merge commit, has 2 parents
+            if (parentBranch.Index < commitBranch.Index)
+            {   // Other branch is on the left side, merged from parent parent branch ╭
+                DrawMergeFromParentBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
+            }
+            else
+            {
+                // Other branch is on the right side, merged from child branch,       ╮
+                DrawMergeFromChildBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
+            }
         }
         else
         {
-            // Drawing a ╮
-            int x = b.X;
-            int y = c.Index;
+            // Drawing a dark  ╮
+            int x = commitBranch.X;
+            int y = commit.Index;
             Color color = Colors.DarkGray;
-
             graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color);  //   ╮     
         }
     }
 
-
-    void DrawBranchFromParent(Repo repo, Commit c)
+    void DrawMoreBranchOut(Graph graph, Commit commit, GraphBranch commitBranch)
     {
+        // Drawing a dark   ╯
+        int x = commitBranch.X;
+        int y = commit.Index;
+        Color color = Colors.DarkGray;
+        graph.SetGraphConnect(x + 1, y, Sign.BranchToRight, color);  //   ╯    
+    }
 
+    private void DrawMergeFromParentBranch(Graph graph, Repo repo,
+        Commit commit, GraphBranch commitBranch,
+        Commit mergeParent, GraphBranch parentBranch)
+    {
+        int x = commitBranch.X;
+        int y = commit.Index;
+        int x2 = parentBranch.X;
+        int y2 = mergeParent.Index;
+
+        // Other branch is on the left side, merged from parent parent branch ╭
+        Color color = commitBranch.Color;
+        if (commit.IsAmbiguous)
+        {
+            color = Colors.Ambiguous;
+        }
+
+        graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color); //     ╭
+        graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);
+        if (commitBranch != parentBranch)
+        {
+            graph.DrawVerticalLine(x, y + 1, y2, color); //             │
+        }
+        graph.SetGraphConnect(x, y2, Sign.BranchToRight, color); //   ╯
+        graph.DrawHorizontalLine(x2 + 1, x, y2, color);            // ──
+    }
+
+    private void DrawMergeFromChildBranch(Graph graph, Repo repo,
+    Commit commit, GraphBranch commitBranch,
+    Commit mergeParent, GraphBranch parentBranch)
+    {
+        // Commit is a merge commit, has 2 parents
+        int x = commitBranch.X;
+        int y = commit.Index;
+        int x2 = parentBranch.X;
+        int y2 = mergeParent.Index;
+
+        // Other branch is on the right side, merged from child branch,  ╮
+        Color color = parentBranch.Color;
+
+        if (mergeParent.IsAmbiguous)
+        {
+            color = Colors.Ambiguous;
+        }
+        graph.DrawHorizontalLine(x + 1, x2, y, color); //                 ─
+
+        if (commitBranch != parentBranch)
+        {
+            graph.SetGraphConnect(x2, y, Sign.MergeFromRight, color); //   ╮
+            graph.DrawVerticalLine(x2, y + 1, y2, color); //               │
+            graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color); //     ╰
+        }
+        else
+        {
+            graph.SetGraphBranch(x2, y2, Sign.Commit, color); //           ┣
+        }
+    }
+
+    void DrawBranchFromParent(Graph graph, Repo repo, Commit c, GraphBranch commitBranch)
+    {
+        // Commit parent is on other branch (commit is first/bottom commit on this branch)
+        // Branched from parent branch
+        int x = commitBranch.X;
+        int y = c.Index;
+        var parent = repo.CommitById[c.ParentIds[0]];
+        var parentBranch = graph.BranchByName(parent.BranchName);
+        int x2 = parentBranch.X;
+        int y2 = parent.Index;
+        Color color = commitBranch.Color;
+
+        if (c.IsAmbiguous)
+        {
+            color = Colors.Ambiguous;
+        }
+
+        if (parentBranch.Index < commitBranch.Index)
+        {   // Other branch is left side  ╭
+            graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color);
+            graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);  //      ╭
+            graph.DrawVerticalLine(x, y + 1, y2, color);              //     │
+            graph.SetGraphConnect(x, y2, Sign.BranchToRight, color); //      ╯
+            graph.DrawHorizontalLine(x2 + 1, x, y2, color);           //  ──
+        }
+        else
+        {   // (is this still valid ????)
+            // Other branch is right side, branched from some child branch ╮ 
+            // graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); // ╮
+            // graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
+            // graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color);      // ╰
+            // graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
+        }
     }
 
 
     IReadOnlyList<GraphBranch> ToGraphBranches(Repo repo)
     {
-        IReadOnlyList<GraphBranch> branches = repo.Branches.Select(b => new GraphBranch(b)).ToList();
+        IReadOnlyList<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
         Func<string, GraphBranch> branchByName = name => branches.First(b => b.B.Name == name);
 
         foreach (var b in branches)
@@ -241,5 +350,53 @@ class GraphService : IGraphService
         return (top2 >= top1 && top2 <= bottom1) ||
             (bottom2 >= top1 && bottom2 <= bottom1) ||
             (top2 <= top1 && bottom2 >= bottom1);
+    }
+
+    Color BranchColor(GraphBranch branch)
+    {
+        if (branch.ParentBranch == null)
+        {   // branch has no parent or parent is remote of this branch, lets use it
+            return BranchNameColor(branch.B.DisplayName, 0);
+        }
+
+        if (branch.B.RemoteName == branch.ParentBranch.B.Name)
+        {
+            // Parent is remote of this branch, lets use parent color
+            return BranchColor(branch.ParentBranch);
+        }
+
+        Color color = BranchNameColor(branch.B.DisplayName, 0);
+        Color parentColor = BranchNameColor(branch.ParentBranch.B.DisplayName, 0);
+
+        if (color == parentColor)
+        {   // branch got same color as parent, lets change branch color
+            color = BranchNameColor(branch.B.DisplayName, 1);
+        }
+
+        return color;
+    }
+
+    private Color BranchNameColor(string name, int addIndex)
+    {
+        if (name == "main" || name == "master")
+        {
+            return Colors.Magenta;
+        }
+
+        var branchColorId = (Hash(name) + (UInt64)addIndex) % (UInt64)Colors.BranchColors.Length;
+
+        return Colors.BranchColors[branchColorId];
+    }
+
+    // https://stackoverflow.com/questions/9545619/a-fast-hash-function-for-string-in-c-sharp
+    static UInt64 Hash(string read)
+    {
+        UInt64 hashedValue = 3074457345618258791ul;
+        for (int i = 0; i < read.Length; i++)
+        {
+            hashedValue += read[i];
+            hashedValue *= 3074457345618258799ul;
+        }
+        return hashedValue;
     }
 }

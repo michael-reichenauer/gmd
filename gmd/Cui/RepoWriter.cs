@@ -32,8 +32,7 @@ class RepoWriter : IRepoWriter
 
         Columns cw = ColumnWidths(width - (graphWidth + markersWidth));
 
-
-        for (int i = firstCommit; i < commitCount; i++)
+        for (int i = firstCommit; i < firstCommit + commitCount; i++)
         {
             var c = repo.Commits[i];
             var graphRow = graph.GetRow(i);
@@ -52,7 +51,6 @@ class RepoWriter : IRepoWriter
     void WriteGraph(GraphRow graphRow)
     {
         graphWriter.Write(graphRow);
-        //text.Magenta("┃ ┃");
     }
 
     void WriteCurrentMarker(Commit c)
