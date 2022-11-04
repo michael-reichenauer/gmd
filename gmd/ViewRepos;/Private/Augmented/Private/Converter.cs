@@ -47,7 +47,8 @@ class Converter : IConverter
         return new Branch(
             Name: b.Name,
             DisplayName: b.DisplayName,
-            TipID: b.TipID,
+            TipId: b.TipID,
+            BottomId: b.BottomID,
             IsCurrent: b.IsCurrent,
             IsRemote: b.IsRemote,
             RemoteName: b.RemoteName,

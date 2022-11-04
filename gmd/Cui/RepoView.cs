@@ -5,6 +5,9 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
+
+
+
 interface IRepoView
 {
     View View { get; }
@@ -15,18 +18,22 @@ interface IRepoView
 class RepoView : IRepoView
 {
     readonly IViewRepoService viewRepoService;
+    readonly IGraphService graphService;
     readonly ContentView contentView;
-    readonly IRepoLayout repoLayout;
+    readonly IRepoWriter repoLayout;
 
-    Repo? repo;
+    Repo? repo = null;
+    Graph? graph = null;
+
     int TotalRows => repo?.Commits.Count ?? 0;
 
     public View View => contentView;
 
 
-    internal RepoView(IViewRepoService viewRepoService) : base()
+    internal RepoView(IViewRepoService viewRepoService, IGraphService graphService) : base()
     {
         this.viewRepoService = viewRepoService;
+        this.graphService = graphService;
 
         contentView = new ContentView(onDrawRepoContent)
         {
@@ -37,7 +44,7 @@ class RepoView : IRepoView
             WantMousePositionReports = false,
         };
 
-        repoLayout = new RepoLayout(contentView, contentView.ContentX);
+        repoLayout = new RepoWriter(contentView, contentView.ContentX);
     }
 
     public Task<R> ShowRepoAsync(string path) =>
@@ -52,15 +59,18 @@ class RepoView : IRepoView
             return repo.Error;
         }
 
+        var graph = graphService.CreateGraph(repo.Value);
+
         // Trigger content view to show repo
         this.repo = repo.Value;
+        this.graph = graph;
         contentView.TriggerUpdateContent(TotalRows);
         return R.Ok;
     }
 
     void onDrawRepoContent(int width, int Height, int firstIndex, int currentIndex)
     {
-        if (repo == null)
+        if (repo == null || graph == null)
         {
             return;
         }
@@ -68,8 +78,6 @@ class RepoView : IRepoView
         int firstCommit = Math.Min(firstIndex, TotalRows);
         int commitCount = Math.Min(Height, TotalRows - firstCommit);
 
-        repoLayout.WriteRepo(repo, width, firstCommit, commitCount, currentIndex);
+        repoLayout.WriteRepo(graph, repo, width, firstCommit, commitCount, currentIndex);
     }
-
-
 }

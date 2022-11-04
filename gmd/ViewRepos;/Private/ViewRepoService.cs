@@ -43,8 +43,8 @@ class ViewRepoService : IViewRepoService
 
     async Task<R<Repo>> GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
     {
-        var branches = GetViewBranches(augRepo, showBranches);
-        var commits = GetViewCommits(augRepo, branches);
+        var branches = FilterOutViewBranches(augRepo, showBranches);
+        var commits = FilterOutViewCommits(augRepo, branches);
 
         Log.Info($"Branches: {augRepo.Branches.Count} => {branches.Count}");
         Log.Info($"Commits: {augRepo.Commits.Count} => {commits.Count}");
@@ -55,7 +55,7 @@ class ViewRepoService : IViewRepoService
             converter.ToBranches(branches));
     }
 
-    private IReadOnlyList<Augmented.Commit> GetViewCommits(
+    private IReadOnlyList<Augmented.Commit> FilterOutViewCommits(
         Augmented.Repo repo, IReadOnlyList<Augmented.Branch> viewBranches)
     {
         // Return commits, which branch does exist in branches to be viewed.
@@ -64,7 +64,7 @@ class ViewRepoService : IViewRepoService
             .ToList();
     }
 
-    IReadOnlyList<Augmented.Branch> GetViewBranches(Augmented.Repo repo, string[] showBranches)
+    IReadOnlyList<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, string[] showBranches)
     {
         var branches = showBranches
             .Select(name => repo.Branches.FirstOrDefault(b => b.Name == name))
@@ -107,11 +107,14 @@ class ViewRepoService : IViewRepoService
         branches = branches.DistinctBy(b => b.Name).ToList();
 
         // Sort on branch hierarchy
-        branches.Sort((b1, b2) =>
-            IsFirstAncestorOfSecond(repo, b1, b2) ? -1 :
-            IsFirstAncestorOfSecond(repo, b2, b1) ? 1 : 0);
-
+        branches.Sort((b1, b2) => CompareBranches(repo, b1, b2));
         return branches;
+    }
+
+    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
+    {
+        return IsFirstAncestorOfSecond(repo, b1, b2) ? -1 :
+            IsFirstAncestorOfSecond(repo, b2, b1) ? 1 : 0;
     }
 
     IReadOnlyList<Augmented.Branch> Ancestors(Augmented.Repo repo, Augmented.Branch branch)
@@ -130,20 +133,51 @@ class ViewRepoService : IViewRepoService
 
     bool IsFirstAncestorOfSecond(Augmented.Repo repo, Augmented.Branch ancestor, Augmented.Branch branch)
     {
-        var current = branch;
-
-        while (current.ParentBranchName != "")
+        if (branch == ancestor)
         {
-            var parent = repo.BranchByName[current.ParentBranchName];
-            if (parent == ancestor)
+            // Same initial branches (not ancestor)
+            return false;
+        }
+        if (branch.LocalName == ancestor.Name)
+        {
+            // Branch is remote branch of the ancestor
+            return false;
+        }
+        if (branch.RemoteName == ancestor.Name)
+        {
+            // branch is the local name of the is the remote branch of the branch
+            return true;
+        }
+
+        var current = branch;
+        while (true)
+        {
+            if (current == ancestor)
             {
+                // Current must now be one of its parents and thus is an ancestor
+                return true;
+            }
+            if (current.Name == ancestor.LocalName)
+            {
+                // Current is the local branch of the ancestor, which is an ancestor as well
+                return true;
+            }
+            if (current.Name == ancestor.RemoteName)
+            {
+                // Current is the no the remote branch of the ancestor, which is an ancestor of the
+                //  original branch
                 return true;
             }
 
-            current = parent;
-        }
+            if (current.ParentBranchName == "")
+            {
+                // Reached root (current usually is origin/main or origin/master)
+                return false;
+            }
 
-        return false;
+            // Try with parent of current
+            current = repo.BranchByName[current.ParentBranchName];
+        }
     }
 }
 

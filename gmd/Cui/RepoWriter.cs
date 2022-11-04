@@ -3,38 +3,41 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-
-interface IRepoLayout
+interface IRepoWriter
 {
-    void WriteRepo(Repo repo, int width, int firstCommit, int commitCount, int currentIndex);
+    void WriteRepo(Graph graph, Repo repo, int width, int firstCommit, int commitCount, int currentIndex);
 }
 
-class RepoLayout : IRepoLayout
+class RepoWriter : IRepoWriter
 {
     private readonly ColorText text;
+    private IGraphWriter graphWriter;
 
     record Columns(int Subject, int Sid, int Author, int Time);
 
-    public RepoLayout(View view, int startX)
+    public RepoWriter(View view, int startX)
     {
         this.text = new ColorText(view, startX);
+        graphWriter = new GraphWriter(text);
     }
 
-    public void WriteRepo(Repo repo, int width, int firstCommit, int commitCount, int currentIndex)
+    public void WriteRepo(Graph graph, Repo repo, int width, int firstCommit, int commitCount, int currentIndex)
     {
         var crc = repo.Commits[currentIndex];
         var crb = repo.BranchByName[crc.BranchName];
 
         text.Reset();
-        int graphWidth = 3;
+        int graphWidth = 3;// graph.Width;
         int markersWidth = 3; // 1 margin to graph and then 1 current marker and 1 ahead/behind
 
         Columns cw = ColumnWidths(width - (graphWidth + markersWidth));
 
-        var commits = repo.Commits.Skip(firstCommit).Take(commitCount);
-        foreach (var c in commits)
+
+        for (int i = firstCommit; i < commitCount; i++)
         {
-            WriteGraph();
+            var c = repo.Commits[i];
+            var graphRow = graph.GetRow(i);
+            WriteGraph(graphRow);
             WriteCurrentMarker(c);
             WriteAheadBehindMarker(c);
             WriteSubject(cw, c, crb);
@@ -46,9 +49,10 @@ class RepoLayout : IRepoLayout
     }
 
 
-    void WriteGraph()
+    void WriteGraph(GraphRow graphRow)
     {
-        text.Magenta("┃ ┃");
+        graphWriter.Write(graphRow);
+        //text.Magenta("┃ ┃");
     }
 
     void WriteCurrentMarker(Commit c)

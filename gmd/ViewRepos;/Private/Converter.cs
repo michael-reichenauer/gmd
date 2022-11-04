@@ -28,7 +28,7 @@ class Converter : IConverter
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches) =>
            branches.Select(ToBranch).ToList();
 
-    Commit ToCommit(Augmented.Commit c) => new Commit(
+    Commit ToCommit(Augmented.Commit c, int index) => new Commit(
         Id: c.Id,
         Sid: c.Sid,
         Subject: c.Subject,
@@ -36,6 +36,7 @@ class Converter : IConverter
         Author: c.Author,
         AuthorTime: c.AuthorTime,
 
+        Index: index,
         BranchName: c.BranchName,
         ParentIds: c.ParentIds,
         ChildIds: c.ChildIds,
@@ -54,12 +55,14 @@ class Converter : IConverter
     Branch ToBranch(Augmented.Branch b) => new Branch(
         Name: b.Name,
         DisplayName: b.DisplayName,
-        TipID: b.TipID,
+        TipId: b.TipId,
+        BottomId: b.BottomId,
         IsCurrent: b.IsCurrent,
         IsRemote: b.IsRemote,
         RemoteName: b.RemoteName,
         LocalName: b.LocalName,
 
+        ParentBranchName: b.ParentBranchName,
         IsGitBranch: b.IsGitBranch,
         IsDetached: b.IsDetached,
 

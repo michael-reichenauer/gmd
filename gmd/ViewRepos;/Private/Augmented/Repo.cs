@@ -43,14 +43,18 @@ public record Commit(
     bool IsRemoteOnly,
     bool IsPartialLogCommit,
     bool IsAmbiguous,
-    bool IsAmbiguousTip);
+    bool IsAmbiguousTip)
+{
+    public override string ToString() => $"{Sid} {Subject} ({BranchName})";
+}
 
 
 
 public record Branch(
     string Name,
     string DisplayName,
-    string TipID,
+    string TipId,
+    string BottomId,
     bool IsCurrent,
     bool IsRemote,
     string RemoteName,
@@ -69,4 +73,7 @@ public record Branch(
     bool HasRemoteOnly,
 
     string AmbiguousTipId,
-    IReadOnlyList<string> AmbiguousBranchNames);
+    IReadOnlyList<string> AmbiguousBranchNames)
+{
+    public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
+}

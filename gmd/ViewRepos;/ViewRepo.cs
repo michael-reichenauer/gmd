@@ -27,6 +27,8 @@ class Repo
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+
+    public override string ToString() => $"b:{Branches.Count}, c:{Commits.Count}";
 }
 
 
@@ -40,6 +42,7 @@ public record Commit(
     DateTime AuthorTime,
 
     // Augmented properties
+    int Index,
     string BranchName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> ChildIds,
@@ -55,7 +58,10 @@ public record Commit(
     bool IsAmbiguousTip,
 
     // View properties
-    More More);
+    More More)
+{
+    public override string ToString() => $"{Sid} {Subject} ({BranchName})";
+}
 
 
 
@@ -69,10 +75,10 @@ public enum More
 }
 
 public record Branch(
-    // Git Properties
     string Name,
     string DisplayName,
-    string TipID,
+    string TipId,
+    string BottomId,
     bool IsCurrent,
     bool IsRemote,
     string RemoteName,
@@ -84,6 +90,8 @@ public record Branch(
     bool IsSetAsParent,
     bool IsMainBranch,
 
+    string ParentBranchName,
+
     int AheadCount,
     int BehindCount,
     bool HasLocalOnly,
@@ -94,4 +102,7 @@ public record Branch(
     // View properties
     int X,
     bool IsIn,
-    bool IsOut);
+    bool IsOut)
+{
+    public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
+}

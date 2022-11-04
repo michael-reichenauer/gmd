@@ -1,36 +1,39 @@
 using Terminal.Gui;
-using Attribute = Terminal.Gui.Attribute;
+using Color = Terminal.Gui.Attribute;
 
 
 namespace gmd.Cui;
 
 class Colors
 {
-    public static readonly Attribute Blue = MakeColor(Color.Blue);
-    public static readonly Attribute Green = MakeColor(Color.Green);
-    public static readonly Attribute Cyan = MakeColor(Color.Cyan);
-    public static readonly Attribute Red = MakeColor(Color.Red);
-    public static readonly Attribute Magenta = MakeColor(Color.Magenta);
-    public static readonly Attribute Yellow = MakeColor(Color.Brown);
-    public static readonly Attribute Gray = MakeColor(Color.Gray);
-    public static readonly Attribute DarkGray = MakeColor(Color.DarkGray);
-    public static readonly Attribute BrightBlue = MakeColor(Color.BrightBlue);
-    public static readonly Attribute BrightGreen = MakeColor(Color.BrightGreen);
-    public static readonly Attribute BrightCyan = MakeColor(Color.BrightCyan);
-    public static readonly Attribute BrightRed = MakeColor(Color.BrightRed);
-    public static readonly Attribute BrightMagenta = MakeColor(Color.BrightMagenta);
-    public static readonly Attribute BrightYellow = MakeColor(Color.BrightYellow);
-    public static readonly Attribute White = MakeColor(Color.White);
-    public static readonly Attribute Black = MakeColor(Color.Black);
+    public static readonly Color Blue = MakeColor(Terminal.Gui.Color.Blue);
+    public static readonly Color Green = MakeColor(Terminal.Gui.Color.Green);
+    public static readonly Color Cyan = MakeColor(Terminal.Gui.Color.Cyan);
+    public static readonly Color Red = MakeColor(Terminal.Gui.Color.Red);
+    public static readonly Color Magenta = MakeColor(Terminal.Gui.Color.Magenta);
+    public static readonly Color Yellow = MakeColor(Terminal.Gui.Color.Brown);
+    public static readonly Color Gray = MakeColor(Terminal.Gui.Color.Gray);
+    public static readonly Color DarkGray = MakeColor(Terminal.Gui.Color.DarkGray);
+    public static readonly Color BrightBlue = MakeColor(Terminal.Gui.Color.BrightBlue);
+    public static readonly Color BrightGreen = MakeColor(Terminal.Gui.Color.BrightGreen);
+    public static readonly Color BrightCyan = MakeColor(Terminal.Gui.Color.BrightCyan);
+    public static readonly Color BrightRed = MakeColor(Terminal.Gui.Color.BrightRed);
+    public static readonly Color BrightMagenta = MakeColor(Terminal.Gui.Color.BrightMagenta);
+    public static readonly Color BrightYellow = MakeColor(Terminal.Gui.Color.BrightYellow);
+    public static readonly Color White = MakeColor(Terminal.Gui.Color.White);
+    public static readonly Color Black = MakeColor(Terminal.Gui.Color.Black);
+
+    public static readonly Color None = MakeColor(Terminal.Gui.Color.Black);
+    public static readonly Color Ambiguous = MakeColor(Terminal.Gui.Color.White);
 
 
 
-    static Attribute MakeColor(Color fg)
+    static Color MakeColor(Terminal.Gui.Color fg)
     {
-        return MakeColorFgBg(fg, Color.Black);
+        return MakeColorFgBg(fg, Terminal.Gui.Color.Black);
     }
 
-    static Attribute MakeColorFgBg(Color fg, Color bg)
+    static Color MakeColorFgBg(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
     {
         return View.Driver.MakeAttribute(fg, bg);
     }

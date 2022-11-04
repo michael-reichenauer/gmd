@@ -1,7 +1,7 @@
 
 using System.Text;
 using Terminal.Gui;
-using Attribute = Terminal.Gui.Attribute;
+using Color = Terminal.Gui.Attribute;
 
 
 namespace gmd.Cui;
@@ -44,9 +44,15 @@ class ColorText
     public void Black(string text) => Add(text, Colors.Black);
 
 
-    public void Add(string text, Attribute color)
+    public void Add(string text, Color color)
     {
         View.Driver.SetAttribute(color);
         View.Driver.AddStr(text);
+    }
+
+    public void Add(System.Rune rune, Color color)
+    {
+        View.Driver.SetAttribute(color);
+        View.Driver.AddRune(rune);
     }
 }
