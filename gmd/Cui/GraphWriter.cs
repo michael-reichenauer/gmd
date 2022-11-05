@@ -1,6 +1,5 @@
 namespace gmd.Cui;
 
-
 interface IGraphWriter
 {
     void Write(GraphRow row);

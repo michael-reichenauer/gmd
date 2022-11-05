@@ -4,11 +4,14 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-public delegate void DrawContent(int width, int Height, int firstIndex, int currentIndex);
+public delegate void DrawContentCallback(int width, int Height, int firstIndex, int currentIndex);
+public delegate void OnKeyCallback();
+
 
 class ContentView : View
 {
-    private readonly DrawContent onDrawRepoContent;
+    readonly DrawContentCallback onDrawRepoContent;
+    readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
 
     static readonly int cursorWidth = 1;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
@@ -19,10 +22,16 @@ class ContentView : View
     int firstIndex = 0;
     int currentIndex = 0;
 
-    internal ContentView(DrawContent onDrawRepoContent)
+    internal Point CurrentPoint => new Point(0, firstIndex + currentIndex);
+
+    internal ContentView(DrawContentCallback onDrawRepoContent)
     {
-        //repoLayout = new RepoLayout(this, contentX);
         this.onDrawRepoContent = onDrawRepoContent;
+    }
+
+    internal void RegisterKeyHandler(Key key, OnKeyCallback callback)
+    {
+        keys[key] = callback;
     }
 
     int ViewHeight => Frame.Height;
@@ -76,10 +85,15 @@ class ContentView : View
             case Key.End:
                 Move(Math.Max(0, TotalRows));
                 return true;
-            default:
-                Log.Info($"Key {keyEvent}");
-                return true;
         }
+
+        if (keys.TryGetValue(keyEvent.Key, out var callback))
+        {
+            callback();
+            return true;
+        }
+
+        return false;
     }
 
     public override bool MouseEvent(MouseEvent ev)

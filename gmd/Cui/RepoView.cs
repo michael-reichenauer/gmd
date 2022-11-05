@@ -6,8 +6,6 @@ using Terminal.Gui;
 namespace gmd.Cui;
 
 
-
-
 interface IRepoView
 {
     View View { get; }
@@ -19,6 +17,7 @@ class RepoView : IRepoView
 {
     readonly IViewRepoService viewRepoService;
     readonly IGraphService graphService;
+    readonly IMenuService menuService;
     readonly ContentView contentView;
     readonly IRepoWriter repoLayout;
 
@@ -30,11 +29,14 @@ class RepoView : IRepoView
     public View View => contentView;
 
 
-    internal RepoView(IViewRepoService viewRepoService, IGraphService graphService) : base()
+    internal RepoView(
+        IViewRepoService viewRepoService,
+        IGraphService graphService,
+        IMenuService menuService) : base()
     {
         this.viewRepoService = viewRepoService;
         this.graphService = graphService;
-
+        this.menuService = menuService;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
@@ -45,6 +47,13 @@ class RepoView : IRepoView
         };
 
         repoLayout = new RepoWriter(contentView, contentView.ContentX);
+
+        contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
+    }
+
+    void OnRightArrow()
+    {
+        menuService.ShowShowBranchesMenu(contentView.CurrentPoint);
     }
 
     public Task<R> ShowRepoAsync(string path) =>
