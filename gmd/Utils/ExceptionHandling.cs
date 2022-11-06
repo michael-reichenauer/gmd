@@ -63,7 +63,7 @@ internal static class ExceptionHandling
 
 
 
-    private static void HandleException(string errorType, Exception exception)
+    static void HandleException(string errorType, Exception exception)
     {
         if (hasFailed)
         {
@@ -87,7 +87,7 @@ internal static class ExceptionHandling
     }
 
 
-    public static void Shutdown(string message, Exception e)
+    static void Shutdown(string message, Exception e)
     {
         if (hasShutdown)
         {
@@ -96,8 +96,6 @@ internal static class ExceptionHandling
         }
 
         hasShutdown = true;
-
-        Log.Exception(e, message);
 
         // if (isDispatcherInitialized)
         // {

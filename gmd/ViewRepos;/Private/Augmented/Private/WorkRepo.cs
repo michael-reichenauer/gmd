@@ -34,8 +34,8 @@ internal class WorkCommit
     public bool IsCurrent { get; set; }
     public bool IsUncommitted { get; set; }
     public bool IsConflicted { get; set; }
-    public bool IsLocalOnly { get; set; }
-    public bool IsRemoteOnly { get; set; }
+    public bool IsAhead { get; set; }
+    public bool IsBehind { get; set; }
     public bool IsPartialLogCommit { get; set; }
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }

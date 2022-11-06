@@ -66,14 +66,14 @@ class RepoWriter : IRepoWriter
 
     void WriteAheadBehindMarker(Commit c)
     {
-        if (c.IsLocalOnly)
+        if (c.IsAhead)
         {
-            text.White("▲");
+            text.BrightGreen("▲");
             return;
         }
-        if (c.IsRemoteOnly)
+        if (c.IsBehind)
         {
-            text.White("▼");
+            text.BrightBlue("▼");
             return;
         }
 
@@ -91,6 +91,16 @@ class RepoWriter : IRepoWriter
         if (c.IsUncommitted)
         {
             text.BrightYellow(Text(subject, cw.Subject));
+            return;
+        }
+        if (c.IsAhead)
+        {
+            text.BrightGreen(Text(subject, cw.Subject));
+            return;
+        }
+        if (c.IsBehind)
+        {
+            text.BrightBlue(Text(subject, cw.Subject));
             return;
         }
 

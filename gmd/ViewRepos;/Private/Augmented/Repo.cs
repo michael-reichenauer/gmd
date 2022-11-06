@@ -47,8 +47,8 @@ public record Commit(
     bool IsCurrent,
     bool IsUncommitted,
     bool IsConflicted,
-    bool IsLocalOnly,
-    bool IsRemoteOnly,
+    bool IsAhead,
+    bool IsBehind,
     bool IsPartialLogCommit,
     bool IsAmbiguous,
     bool IsAmbiguousTip)
@@ -77,8 +77,8 @@ public record Branch(
 
     int AheadCount,
     int BehindCount,
-    bool HasLocalOnly,
-    bool HasRemoteOnly,
+    bool HasAheadCommits,
+    bool HasBehindCommits,
 
     string AmbiguousTipId,
     IReadOnlyList<string> AmbiguousBranchNames)

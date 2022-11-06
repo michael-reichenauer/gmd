@@ -37,8 +37,8 @@ class Converter : IConverter
             IsCurrent: c.IsCurrent,
             IsUncommitted: c.IsUncommitted,
             IsConflicted: c.IsConflicted,
-            IsLocalOnly: c.IsLocalOnly,
-            IsRemoteOnly: c.IsRemoteOnly,
+            IsAhead: c.IsAhead,
+            IsBehind: c.IsBehind,
             IsPartialLogCommit: c.IsPartialLogCommit,
             IsAmbiguous: c.IsAmbiguous,
             IsAmbiguousTip: c.IsAmbiguousTip);
@@ -65,9 +65,8 @@ class Converter : IConverter
 
             AheadCount: b.AheadCount,
             BehindCount: b.BehindCount,
-            HasLocalOnly: b.HasLocalOnly,
-            HasRemoteOnly: b.HasRemoteOnly,
-
+            HasAheadCommits: b.HasLocalOnly,
+            HasBehindCommits: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTipId,
             AmbiguousBranchNames: b.AmbiguousBranchNames);
     }

@@ -84,6 +84,9 @@ class ViewRepoService : IViewRepoService
             AdjustCurrentBranch(augRepo, branches, commits, uncommitted);
         }
 
+        SetAheadBehind(branches, commits);
+
+
         Log.Info($"Branches: {augRepo.Branches.Count} => {branches.Count}");
         Log.Info($"Commits: {augRepo.Commits.Count} => {commits.Count}");
 
@@ -94,6 +97,129 @@ class ViewRepoService : IViewRepoService
             augRepo.Status);
     }
 
+    void SetAheadBehind(List<Augmented.Branch> branches, List<Augmented.Commit> commits)
+    {
+        foreach (var b in branches.ToList())  // ToList() since SetBehind/SetAhead modifies branches
+        {
+            if (b.IsRemote && b.LocalName != "" && b.BehindCount > 0)
+            {
+                // Remote branch with ahead commits (remote only commits)
+                SetBehindCommits(b, branches, commits);
+            }
+            else if (!b.IsRemote && b.RemoteName != "" && b.AheadCount > 0)
+            {
+                // Local branch with behind commits (local only commits)
+                SetAheadCommits(b, branches, commits);
+            }
+        }
+    }
+
+    void SetBehindCommits(
+        Augmented.Branch remoteBranch,
+        List<Augmented.Branch> branches,
+        List<Augmented.Commit> commits)
+    {
+        int remoteBranchIndex = branches.FindIndex(b => b.Name == remoteBranch.Name);
+        int localBranchIndex = branches.FindIndex(b => b.Name == remoteBranch.LocalName);
+        var localBranch = branches[localBranchIndex];
+        if (localBranch.TipId == remoteBranch.TipId)
+        {
+            // Local branch tip on same commit as remote branch tip (i.e. synced)
+            return;
+        }
+
+
+        var localTip = commits.First(c => c.Id == localBranch.TipId);
+        var localBottom = commits.First(c => c.Id == localBranch.BottomId);
+        var localBase = commits.First(c => c.Id == localBottom.ParentIds[0]);
+
+        bool hasBehindCommits = false;
+        int count = 0;
+        int commitIndex = commits.FindIndex(c => c.Id == remoteBranch.TipId);
+        while (commitIndex != -1)
+        {
+            var commit = commits[commitIndex];
+            count++;
+            if (commit.BranchName != remoteBranch.Name || count > 50)
+            {   // Other branch or to many ahead commits
+                break;
+            }
+
+            if (commit.Id == localBase.Id)
+            {
+                // Reached same commit as local branch branched from (i.e. synced from this point)
+                break;
+            }
+
+            if (commit.ParentIds.Count > 1)
+            {
+                var mergeParent = commits.FirstOrDefault(c => c.Id == c.ParentIds[1]);
+                if (mergeParent != null && mergeParent.BranchName == localBranch.Name)
+                {   // Merge from local branch (into this remote branch)
+                    break;
+                }
+            }
+
+            // Commit is(behind)
+            commits[commitIndex] = commit with { IsBehind = true };
+            hasBehindCommits = true;
+
+            if (commit.ParentIds.Count == 0)
+            {   // Reach last commit
+                break;
+            }
+            commitIndex = commits.FindIndex(c => c.Id == commit.ParentIds[0]);
+        }
+
+        if (hasBehindCommits)
+        {
+            branches[remoteBranchIndex] = remoteBranch with { HasBehindCommits = true };
+            branches[localBranchIndex] = localBranch with { HasBehindCommits = true };
+        }
+    }
+
+    void SetAheadCommits(
+        Augmented.Branch localBranch,
+        List<Augmented.Branch> branches,
+        List<Augmented.Commit> commits)
+    {
+
+        int localBranchIndex = branches.FindIndex(b => b.Name == localBranch.Name);
+        int remoteBranchIndex = branches.FindIndex(b => b.Name == localBranch.RemoteName);
+        var remoteBranch = branches[remoteBranchIndex];
+        bool hasAheadCommits = false;
+        int count = 0;
+        int commitIndex = commits.FindIndex(c => c.Id == localBranch.TipId);
+        while (commitIndex != -1)
+        {
+            count++;
+            var commit = commits[commitIndex];
+
+            if (commit.BranchName != localBranch.Name || count > 50)
+            {
+                break;
+            }
+
+            if (commit.Id != Repo.UncommittedId)
+            {
+                // Commit is ahead
+                commits[commitIndex] = commit with { IsAhead = true };
+                hasAheadCommits = true;
+            }
+
+            if (commit.ParentIds.Count == 0)
+            {   // Reach last commit
+                break;
+            }
+            commitIndex = commits.FindIndex(c => c.Id == commit.ParentIds[0]);
+        }
+
+        if (hasAheadCommits)
+        {
+            branches[localBranchIndex] = localBranch with { HasAheadCommits = true };
+            branches[remoteBranchIndex] = remoteBranch with { HasAheadCommits = true };
+        }
+    }
 
     List<Augmented.Commit> FilterOutViewCommits(
         Augmented.Repo repo, IReadOnlyList<Augmented.Branch> viewBranches)
@@ -182,10 +308,8 @@ class ViewRepoService : IViewRepoService
                     Index: 0, currentBranch.Name, ParentIds: parentIds, ChildIds: new List<string>(),
                     Tags: new List<Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
-                     IsLocalOnly: false, IsRemoteOnly: false,
+                    IsAhead: false, IsBehind: false,
                     IsPartialLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false);
-
-
 
                 return true;
             }
