@@ -36,6 +36,7 @@ class AugmentedRepoService : IAugmentedRepoService
 
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
     {
+        Timing t = Timing.Start();
         var git = gitService.GetGit(path);
 
         // Start some git commands in parallel
@@ -58,10 +59,12 @@ class AugmentedRepoService : IAugmentedRepoService
             return statusTask.Result.Error;
         }
 
-        return new GitRepo(
+        var repo = new GitRepo(
             logTask.Result.Value,
             branchesTask.Result.Value,
             statusTask.Result.Value);
+        Log.Info($"{t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");
+        return repo;
     }
 
 
@@ -73,8 +76,11 @@ class AugmentedRepoService : IAugmentedRepoService
 
     async Task<R<Repo>> GetAugmentedRepo(GitRepo gitRepo)
     {
+        Timing t = Timing.Start();
         WorkRepo augRepo = await this.augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
 
-        return this.converter.ToRepo(augRepo);
+        var repo = this.converter.ToRepo(augRepo);
+        Log.Info($"{t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");
+        return repo;
     }
 }

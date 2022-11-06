@@ -44,7 +44,7 @@ internal class Cmd : ICmd
 
     public CmdResult Run(string path, string args)
     {
-        var t = Timing.StartNew();
+        var t = Timing.Start();
         try
         {
             List<string> lines = new List<string>();

@@ -5,7 +5,7 @@ namespace gmd.Cui;
 
 interface IRepoWriter
 {
-    void WriteRepo(Graph graph, Repo repo, int width, int firstCommit, int commitCount, int currentIndex);
+    void WriteRepoPage(Graph graph, Repo repo, int width, int firstCommit, int commitCount, int currentIndex);
 }
 
 class RepoWriter : IRepoWriter
@@ -21,8 +21,10 @@ class RepoWriter : IRepoWriter
         graphWriter = new GraphWriter(text);
     }
 
-    public void WriteRepo(Graph graph, Repo repo, int width, int firstCommit, int commitCount, int currentIndex)
+    public void WriteRepoPage(Graph graph, Repo repo, int width, int firstCommit, int commitCount, int currentIndex)
     {
+        var t = Timing.Start();
+
         var crc = repo.Commits[currentIndex];
         var crb = repo.BranchByName[crc.BranchName];
 
@@ -45,6 +47,7 @@ class RepoWriter : IRepoWriter
             WriteTime(cw, c);
             text.EoL();
         }
+        Log.Info($"{t}");
     }
 
 

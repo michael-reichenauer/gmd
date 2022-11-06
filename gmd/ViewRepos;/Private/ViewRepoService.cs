@@ -75,6 +75,7 @@ class ViewRepoService : IViewRepoService
 
     Repo GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
     {
+        var t = Timing.Start();
         var branches = FilterOutViewBranches(augRepo, showBranches);
 
         var commits = FilterOutViewCommits(augRepo, branches);
@@ -86,15 +87,14 @@ class ViewRepoService : IViewRepoService
 
         SetAheadBehind(branches, commits);
 
-
-        Log.Info($"Branches: {augRepo.Branches.Count} => {branches.Count}");
-        Log.Info($"Commits: {augRepo.Commits.Count} => {commits.Count}");
-
-        return new Repo(
+        var repo = new Repo(
             augRepo,
             converter.ToCommits(commits),
             converter.ToBranches(branches),
             augRepo.Status);
+
+        Log.Info($"{t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");
+        return repo;
     }
 
     void SetAheadBehind(List<Augmented.Branch> branches, List<Augmented.Commit> commits)

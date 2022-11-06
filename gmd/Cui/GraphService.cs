@@ -42,6 +42,7 @@ class GraphService : IGraphService
 {
     public Graph CreateGraph(Repo repo)
     {
+        var t = Timing.Start();
         var branches = ToGraphBranches(repo);
         SetBranchesColor(branches);
         SetBranchesXLocation(branches);
@@ -52,6 +53,7 @@ class GraphService : IGraphService
         Graph graph = new Graph(width, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
 
+        Log.Info($"{t}");
         return graph;
     }
 

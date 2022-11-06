@@ -73,6 +73,7 @@ class RepoView : IRepoView
 
     public async Task<R> ShowRepoAsync(string path, string[] showBranches)
     {
+        var t = Timing.Start();
         var repo = await viewRepoService.GetRepoAsync(path, showBranches);
         if (repo.IsError)
         {
@@ -80,6 +81,7 @@ class RepoView : IRepoView
         }
 
         ShowRepo(repo.Value);
+        Log.Info($"{t}");
         return R.Ok;
     }
 
@@ -108,6 +110,6 @@ class RepoView : IRepoView
         int firstCommit = Math.Min(firstIndex, TotalRows);
         int commitCount = Math.Min(Height, TotalRows - firstCommit);
 
-        repoLayout.WriteRepo(graph, repo, width, firstCommit, commitCount, currentIndex);
+        repoLayout.WriteRepoPage(graph, repo, width, firstCommit, commitCount, currentIndex);
     }
 }

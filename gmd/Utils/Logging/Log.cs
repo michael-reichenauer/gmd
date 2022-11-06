@@ -1,12 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using static System.Environment;
 
 namespace gmd.Utils.Logging;
@@ -187,7 +181,7 @@ internal static class Log
         string filePath,
         int lineNumber)
     {
-        filePath = filePath.Substring(prefixLength);
+        filePath = filePath.Substring(prefixLength).Replace(";", "");
         var lines = msg.Split('\n');
         foreach (var line in lines)
         {
