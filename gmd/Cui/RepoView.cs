@@ -57,14 +57,14 @@ class RepoView : IRepoView
     // Called once the repo has been set
     void RegisterKeyHandlers(Repo _)
     {
-        contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
         contentView.RegisterKeyHandler(Key.m, OnMenuKey);
+        contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
+        contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
     }
 
-
     void OnMenuKey() => menuService.ShowMainMenu(repo!, contentView.ViewWidth / 2);
-
     void OnRightArrow() => menuService.ShowShowBranchesMenu(repo!, contentView.CurrentPoint);
+    void OnLeftArrow() => menuService.ShowHideBranchesMenu(repo!, contentView.CurrentPoint);
 
 
     public Task<R> ShowRepoAsync(string path) =>

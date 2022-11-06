@@ -9,6 +9,7 @@ interface IMenuService
     void SetRepoViewer(IRepoView repoView);
     void ShowMainMenu(Repo repo, int middleX);
     void ShowShowBranchesMenu(Repo repo, Point point);
+    void ShowHideBranchesMenu(Repo repo, Point point);
 }
 
 class MenuService : IMenuService
@@ -42,7 +43,7 @@ class MenuService : IMenuService
         List<MenuItem> items = new List<MenuItem>();
         var scrollToItems = GetScrollToItems();
         var switchToItems = GetSwitchToItems();
-        var hideItems = GetHideItems();
+
         if (scrollToItems.Length > 0)
         {
             items.Add(Separator("Scroll to"));
@@ -52,11 +53,6 @@ class MenuService : IMenuService
         {
             items.Add(Separator("Switch to"));
             items.AddRange(switchToItems);
-        }
-        if (hideItems.Length > 0)
-        {
-            items.Add(Separator("Switch to"));
-            items.AddRange(hideItems);
         }
 
         if (items.Count > 0)
@@ -71,6 +67,16 @@ class MenuService : IMenuService
         menu.Show();
     }
 
+    public void ShowHideBranchesMenu(Repo repo, Point point)
+    {
+        List<MenuItem> items = new List<MenuItem>();
+
+        items.Add(Separator("Hide"));
+        items.AddRange(GetHideItems(repo));
+
+        var menu = new ContextMenu(point.X, point.Y, new MenuBarItem(items.ToArray()));
+        menu.Show();
+    }
 
 
     private MenuItem[] GetScrollToItems()
@@ -83,9 +89,16 @@ class MenuService : IMenuService
         return new MenuItem[0];
     }
 
-    private MenuItem[] GetHideItems()
+    private MenuItem[] GetHideItems(Repo repo)
     {
-        return new MenuItem[0];
+        var branches = repo.Branches
+            .Where(b => !b.IsMainBranch)
+            .DistinctBy(b => b.DisplayName)
+            .OrderBy(b => b.DisplayName);
+
+        return branches.Select(b =>
+            new MenuItem(b.DisplayName, "", () => HideBranch(repo, b.Name)))
+            .ToArray();
     }
 
 
@@ -132,6 +145,14 @@ class MenuService : IMenuService
         });
     }
 
+    void HideBranch(Repo repo, string name)
+    {
+        RunInBackground(async () =>
+        {
+            Repo newRepo = await viewRepoService.HideBranch(repo, name);
+            repoView.ShowRepo(newRepo);
+        });
+    }
 
     private void RunInBackground(Func<Task> doTask)
     {
@@ -170,7 +191,7 @@ class MenuService : IMenuService
         const int maxDivider = 20;
         text = text.Max(maxDivider - 1);
         string suffix = new string('─', maxDivider - text.Length);
-        return new MenuItem($"──{text}{suffix}", "", () => { }, () => false);
+        return new MenuItem($"── {text} {suffix}", "", () => { }, () => false);
     }
 }
 

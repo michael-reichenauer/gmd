@@ -8,5 +8,5 @@ interface IViewRepoService
 
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     Task<Repo> ShowBranch(Repo repo, string branchName);
-
+    Task<Repo> HideBranch(Repo repo, string name);
 }

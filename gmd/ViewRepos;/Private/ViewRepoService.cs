@@ -41,10 +41,30 @@ class ViewRepoService : IViewRepoService
 
     public async Task<Repo> ShowBranch(Repo repo, string branchName)
     {
-        var names = repo.Branches.Select(b => b.Name).Append(branchName).ToArray();
+        var branchNames = repo.Branches.Select(b => b.Name).Append(branchName).ToArray();
 
-        return await GetViewRepoAsync(repo.AugmentedRepo, names);
+        return await GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
+
+    public async Task<Repo> HideBranch(Repo repo, string name)
+    {
+        Log.Info($"Hide {name}");
+        var branch = repo.AugmentedRepo.BranchByName[name];
+        if (branch.RemoteName != "")
+        {
+            branch = repo.AugmentedRepo.BranchByName[branch.RemoteName];
+        }
+
+        var branchNames = repo.Branches
+            .Where(b => b.Name != branch.Name &&
+                !IsFirstAncestorOfSecond(repo.AugmentedRepo, branch, repo.AugmentedRepo.BranchByName[b.Name]))
+            .Select(b => b.Name)
+            .ToArray();
+
+        Log.Info($"Show names {branchNames}");
+        return await GetViewRepoAsync(repo.AugmentedRepo, branchNames);
+    }
+
 
     protected virtual void OnRepoChange(EventArgs e)
     {
