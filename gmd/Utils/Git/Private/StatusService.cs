@@ -100,10 +100,12 @@ class StatusService : IStatusService
 
         try
         {
-            if (File.Exists(mergeMsgPath))
+            if (!File.Exists(mergeMsgPath))
             {
-                mergeMessage = File.ReadAllText(mergeMsgPath);
+                return ("", false);
             }
+
+            mergeMessage = File.ReadAllText(mergeMsgPath);
         }
         catch (Exception)
         {
