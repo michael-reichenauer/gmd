@@ -245,6 +245,7 @@ class GraphService : IGraphService
             graph.SetGraphConnect(x2, y, Sign.MergeFromRight, color); //   ╮
             graph.DrawVerticalLine(x2, y + 1, y2, color); //               │
             graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color); //     ╰
+            graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
         }
         else
         {

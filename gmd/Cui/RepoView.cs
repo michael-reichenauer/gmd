@@ -11,6 +11,7 @@ interface IRepoView
     View View { get; }
     Task<R> ShowRepoAsync(string path);
     Task<R> ShowRepoAsync(string path, string[] showBranches);
+    void ShowRepo(Repo repo);
 }
 
 class RepoView : IRepoView
@@ -37,6 +38,8 @@ class RepoView : IRepoView
         this.viewRepoService = viewRepoService;
         this.graphService = graphService;
         this.menuService = menuService;
+        this.menuService.SetRepoViewer(this);
+
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
@@ -48,13 +51,21 @@ class RepoView : IRepoView
 
         repoLayout = new RepoWriter(contentView, contentView.ContentX);
 
-        contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
+
     }
 
-    void OnRightArrow()
+    // Called once the repo has been set
+    void RegisterKeyHandlers(Repo _)
     {
-        menuService.ShowShowBranchesMenu(contentView.CurrentPoint);
+        contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
+        contentView.RegisterKeyHandler(Key.m, OnMenuKey);
     }
+
+
+    void OnMenuKey() => menuService.ShowMainMenu(repo!, contentView.ViewWidth / 2);
+
+    void OnRightArrow() => menuService.ShowShowBranchesMenu(repo!, contentView.CurrentPoint);
+
 
     public Task<R> ShowRepoAsync(string path) =>
         ShowRepoAsync(path, new string[0]);
@@ -68,13 +79,23 @@ class RepoView : IRepoView
             return repo.Error;
         }
 
-        var graph = graphService.CreateGraph(repo.Value);
+        ShowRepo(repo.Value);
+        return R.Ok;
+    }
+
+    public void ShowRepo(Repo repo)
+    {
+        var graph = graphService.CreateGraph(repo);
+
+        if (this.repo == null)
+        {   // Register key handlers on first repo
+            RegisterKeyHandlers(repo);
+        }
 
         // Trigger content view to show repo
-        this.repo = repo.Value;
+        this.repo = repo;
         this.graph = graph;
         contentView.TriggerUpdateContent(TotalRows);
-        return R.Ok;
     }
 
     void onDrawRepoContent(int width, int Height, int firstIndex, int currentIndex)

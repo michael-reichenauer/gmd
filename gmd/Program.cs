@@ -16,6 +16,8 @@ class Program
 
     static void Main(string[] args)
     {
+        ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
+
         dependencyInjection = new DependencyInjection();
         dependencyInjection.RegisterDependencyInjectionTypes();
 

@@ -34,6 +34,17 @@ class ViewRepoService : IViewRepoService
         return await GetViewRepoAsync(augmentedRepo.Value, showBranches);
     }
 
+    public IReadOnlyList<Branch> GetAllBranches(Repo repo)
+    {
+        return converter.ToBranches(repo.AugmentedRepo.Branches);
+    }
+
+    public async Task<Repo> ShowBranch(Repo repo, string branchName)
+    {
+        var names = repo.Branches.Select(b => b.Name).Append(branchName).ToArray();
+
+        return await GetViewRepoAsync(repo.AugmentedRepo, names);
+    }
 
     protected virtual void OnRepoChange(EventArgs e)
     {
@@ -41,7 +52,7 @@ class ViewRepoService : IViewRepoService
         handler?.Invoke(this, e);
     }
 
-    async Task<R<Repo>> GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
+    async Task<Repo> GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
     {
         var branches = FilterOutViewBranches(augRepo, showBranches);
         var commits = FilterOutViewCommits(augRepo, branches);

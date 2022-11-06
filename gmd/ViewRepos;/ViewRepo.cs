@@ -28,6 +28,8 @@ class Repo
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
 
+    internal Private.Augmented.Repo AugmentedRepo => repo;
+
     public override string ToString() => $"b:{Branches.Count}, c:{Commits.Count}";
 }
 

@@ -12,13 +12,13 @@ class Converter : IConverter
     public Repo ToRepo(WorkRepo workRepo)
     {
         return new Repo(
-            workRepo.Commits.Select(ToCommit).ToList(),
+            workRepo.Commits.Select((WorkCommit c, int index) => ToCommit(c, index)).ToList(),
             workRepo.Branches.Select(ToBranch).ToList()
         );
     }
 
 
-    Commit ToCommit(WorkCommit c)
+    Commit ToCommit(WorkCommit c, int index)
     {
         return new Commit(
             Id: c.Id,
@@ -28,6 +28,7 @@ class Converter : IConverter
             Author: c.Author,
             AuthorTime: c.AuthorTime,
             ParentIds: c.ParentIds,
+            Index: index,
 
             BranchName: c.Branch!.Name,
             ChildIds: c.ChildIds,

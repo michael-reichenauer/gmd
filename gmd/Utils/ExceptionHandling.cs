@@ -18,9 +18,11 @@ internal static class ExceptionHandling
     private static bool hasFailed;
     private static bool hasShutdown;
     private static DateTime StartTime = DateTime.Now;
+    private static Action shutdown = () => { };
 
-    public static void HandleUnhandledException()
+    public static void HandleUnhandledExceptions(Action shutdownCallback)
     {
+        shutdown = shutdownCallback;
         // Add the event handler for handling non-UI thread exceptions to the event. 
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             HandleException("app domain exception", e.ExceptionObject as Exception ?? new Exception());
@@ -40,6 +42,10 @@ internal static class ExceptionHandling
         Asserter.AssertOccurred += (s, e) => HandleException("Assert failed", e.Exception);
     }
 
+    public static void OnBackgroundTaskException(Exception exception)
+    {
+        HandleException("RunInBackground error", exception);
+    }
 
     // public static void HandleDispatcherUnhandledException()
     // {
@@ -112,7 +118,8 @@ internal static class ExceptionHandling
         }
 
         Log.CloseAsync().Wait();
-        System.Environment.Exit(-1);
+
+        shutdown();
 
         // if (DateTime.Now - StartTime >= MinTimeBeforeAutoRestart)
         // {

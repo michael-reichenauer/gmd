@@ -16,12 +16,12 @@ class ContentView : View
     static readonly int cursorWidth = 1;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
 
-    internal readonly int ContentX = cursorWidth;
 
     int totalRowCount = 0;
     int firstIndex = 0;
     int currentIndex = 0;
 
+    internal readonly int ContentX = cursorWidth;
     internal Point CurrentPoint => new Point(0, firstIndex + currentIndex);
 
     internal ContentView(DrawContentCallback onDrawRepoContent)
@@ -34,9 +34,9 @@ class ContentView : View
         keys[key] = callback;
     }
 
+    internal int ContentWidth => Frame.Width - (cursorWidth + ContentX);
     int ViewHeight => Frame.Height;
-    int ViewWidth => Frame.Width;
-    int ContentWidth => Frame.Width - (cursorWidth + ContentX);
+    internal int ViewWidth => Frame.Width;
     int ContentHeight => Frame.Height;
 
     int TotalRows => totalRowCount;

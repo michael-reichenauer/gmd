@@ -35,6 +35,10 @@ class RepoWriter : IRepoWriter
         for (int i = firstCommit; i < firstCommit + commitCount; i++)
         {
             var c = repo.Commits[i];
+            if (c.Sid == "47cf25")
+            {
+
+            }
             var graphRow = graph.GetRow(i);
             WriteGraph(graphRow);
             WriteCurrentMarker(c);

@@ -9,21 +9,9 @@ interface IConverter
 
 class Converter : IConverter
 {
-    // public Repo ToRepo(Augmented.Repo ar)
-    // {
-    //     var commits = ToCommits(ar);
-    //     var branches = ToBranches(ar);
-
-    //     return new Repo(
-    //         ar,
-    //         commits,
-    //         branches);
-    // }
 
     public IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits) =>
        commits.Select(ToCommit).ToList();
-
-
 
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches) =>
            branches.Select(ToBranch).ToList();

@@ -122,6 +122,7 @@ internal class WorkBranch
         Name = b.Name;
         DisplayName = b.DisplayName;
         TipID = b.TipID;
+        IsGitBranch = true;
         IsCurrent = b.IsCurrent;
         IsRemote = b.IsRemote;
         IsDetached = b.IsDetached;

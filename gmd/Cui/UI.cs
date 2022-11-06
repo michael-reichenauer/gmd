@@ -19,7 +19,7 @@ class UI
 
     internal static void Shutdown()
     {
-        Application.Shutdown();
+        Application.RequestStop();
     }
 
     internal static int InfoMessage(string title, string message, params ustring[] buttons)
