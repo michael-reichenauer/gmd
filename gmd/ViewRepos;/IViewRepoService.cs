@@ -7,6 +7,7 @@ interface IViewRepoService
     Task<R<Repo>> GetRepoAsync(string path, string[] showBranches);
 
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
+    IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
     Repo ShowBranch(Repo repo, string branchName);
     Repo HideBranch(Repo repo, string name);
 }

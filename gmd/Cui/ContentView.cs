@@ -21,6 +21,8 @@ class ContentView : View
     int firstIndex = 0;
     int currentIndex = 0;
 
+    internal int CurrentIndex => currentIndex;
+
     internal readonly int ContentX = cursorWidth;
     internal Point CurrentPoint => new Point(0, firstIndex + currentIndex);
 
@@ -47,7 +49,7 @@ class ContentView : View
         this.totalRowCount = rowCount;
         if (firstIndex > rowCount)
         {
-            firstIndex = rowCount;
+            firstIndex = rowCount - 1;
         }
         if (currentIndex < firstIndex)
         {
@@ -55,8 +57,10 @@ class ContentView : View
         }
         if (currentIndex > firstIndex + ContentHeight)
         {
-            currentIndex = firstIndex + ContentHeight;
+            currentIndex = firstIndex + ContentHeight - 1;
         }
+        currentIndex = Math.Min(rowCount - 1, currentIndex);
+        currentIndex = Math.Max(0, currentIndex);
 
         SetNeedsDisplay();
     }

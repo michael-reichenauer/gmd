@@ -40,6 +40,34 @@ class ViewRepoService : IViewRepoService
         return converter.ToBranches(repo.AugmentedRepo.Branches);
     }
 
+    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId)
+    {
+        if (commitId == Repo.UncommittedId)
+        {
+            return new List<Branch>();
+        }
+
+        var c = repo.AugmentedRepo.CommitById[commitId];
+        var ids = c.ChildIds.Concat(c.ParentIds);
+        var branches = ids.Select(id =>
+        {
+            var cc = repo.AugmentedRepo.CommitById[id];
+
+            // Get not shown branches of either child or parent commits.
+            if (!repo.BranchByName.TryGetValue(cc.BranchName, out var branch))
+            {
+                return repo.AugmentedRepo.BranchByName[cc.BranchName];
+            }
+
+            return null;
+        })
+        .Where(b => b != null)
+        .Cast<Augmented.Branch>();
+
+        return converter.ToBranches(branches.ToList());
+    }
+
+
     public Repo ShowBranch(Repo repo, string branchName)
     {
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName).ToArray();

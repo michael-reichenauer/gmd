@@ -8,7 +8,7 @@ interface IMenuService
 {
     void SetRepoViewer(IRepoView repoView);
     void ShowMainMenu(Repo repo, int middleX);
-    void ShowShowBranchesMenu(Repo repo, Point point);
+    void ShowShowBranchesMenu(Repo repo, Point point, int currentIndex);
     void ShowHideBranchesMenu(Repo repo, Point point);
 }
 
@@ -38,11 +38,19 @@ class MenuService : IMenuService
         menu.Show();
     }
 
-    public void ShowShowBranchesMenu(Repo repo, Point point)
+    public void ShowShowBranchesMenu(Repo repo, Point point, int currentIndex)
     {
         List<MenuItem> items = new List<MenuItem>();
+        var showItems = GetShowItems(repo, currentIndex);
         var scrollToItems = GetScrollToItems();
         var switchToItems = GetSwitchToItems();
+
+
+        if (showItems.Length > 0)
+        {
+            items.Add(Separator("Show"));
+            items.AddRange(showItems);
+        }
 
         if (scrollToItems.Length > 0)
         {
@@ -77,6 +85,14 @@ class MenuService : IMenuService
         var menu = new ContextMenu(point.X, point.Y, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
+
+    private MenuItem[] GetShowItems(Repo repo, int currentIndex)
+    {
+        var selectedCommit = repo.Commits[currentIndex];
+        var branches = viewRepoService.GetCommitBranches(repo, selectedCommit.Id);
+        return ToShowBranchesItems(repo, branches);
+    }
+
 
     private MenuItem[] GetScrollToItems()
     {

@@ -44,9 +44,6 @@ public class Timing
         : $"{Elapsed.Hours}:{Elapsed.Minutes}:{Elapsed.Seconds}:{Elapsed.Milliseconds}";
 
 
-
-
-
     public TimeSpan Diff
     {
         get

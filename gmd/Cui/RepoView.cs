@@ -63,7 +63,7 @@ class RepoView : IRepoView
     }
 
     void OnMenuKey() => menuService.ShowMainMenu(repo!, contentView.ViewWidth / 2);
-    void OnRightArrow() => menuService.ShowShowBranchesMenu(repo!, contentView.CurrentPoint);
+    void OnRightArrow() => menuService.ShowShowBranchesMenu(repo!, contentView.CurrentPoint, contentView.CurrentIndex);
     void OnLeftArrow() => menuService.ShowHideBranchesMenu(repo!, contentView.CurrentPoint);
 
 
@@ -97,6 +97,7 @@ class RepoView : IRepoView
         // Trigger content view to show repo
         this.repo = repo;
         this.graph = graph;
+
         contentView.TriggerUpdateContent(TotalRows);
     }
 

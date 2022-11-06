@@ -23,8 +23,6 @@ class RepoWriter : IRepoWriter
 
     public void WriteRepoPage(Graph graph, Repo repo, int width, int firstCommit, int commitCount, int currentIndex)
     {
-        var t = Timing.Start();
-
         var crc = repo.Commits[currentIndex];
         var crb = repo.BranchByName[crc.BranchName];
 
@@ -47,7 +45,6 @@ class RepoWriter : IRepoWriter
             WriteTime(cw, c);
             text.EoL();
         }
-        Log.Info($"{t}");
     }
 
 
