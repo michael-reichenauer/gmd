@@ -11,13 +11,13 @@ class Graph
 
     internal int Width { get; private set; }
 
-    internal Graph(int width, int height, IReadOnlyList<GraphBranch> branches)
+    internal Graph(int columnCount, int height, IReadOnlyList<GraphBranch> branches)
     {
-        Width = width;
+        Width = columnCount * 2;
         rows = new GraphRow[height];
         for (int y = 0; y < height; y++)
         {
-            rows[y] = new GraphRow(width);
+            rows[y] = new GraphRow(columnCount);
         }
         this.branches = branches;
     }

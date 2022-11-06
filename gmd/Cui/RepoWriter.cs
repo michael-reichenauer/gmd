@@ -27,7 +27,7 @@ class RepoWriter : IRepoWriter
         var crb = repo.BranchByName[crc.BranchName];
 
         text.Reset();
-        int graphWidth = 3;// graph.Width;
+        int graphWidth = graph.Width;
         int markersWidth = 3; // 1 margin to graph and then 1 current marker and 1 ahead/behind
 
         Columns cw = ColumnWidths(width - (graphWidth + markersWidth));
@@ -117,6 +117,11 @@ class RepoWriter : IRepoWriter
 
     void WriteSid(Columns cw, Commit c)
     {
+        if (c.IsUncommitted)
+        {
+            text.Black(Text("       ", cw.Sid));
+            return;
+        }
         text.Green(Text(" " + c.Sid, cw.Sid));
     }
 
