@@ -78,7 +78,6 @@ class MenuService : IMenuService
         menu.Show();
     }
 
-
     private MenuItem[] GetScrollToItems()
     {
         return new MenuItem[0];
@@ -137,21 +136,14 @@ class MenuService : IMenuService
 
     void ShowBranch(Repo repo, string name)
     {
-        RunInBackground(async () =>
-        {
-            Repo newRepo = await viewRepoService.ShowBranch(repo, name);
-            repoView.ShowRepo(newRepo);
-
-        });
+        Repo newRepo = viewRepoService.ShowBranch(repo, name);
+        repoView.ShowRepo(newRepo);
     }
 
     void HideBranch(Repo repo, string name)
     {
-        RunInBackground(async () =>
-        {
-            Repo newRepo = await viewRepoService.HideBranch(repo, name);
-            repoView.ShowRepo(newRepo);
-        });
+        Repo newRepo = viewRepoService.HideBranch(repo, name);
+        repoView.ShowRepo(newRepo);
     }
 
     private void RunInBackground(Func<Task> doTask)

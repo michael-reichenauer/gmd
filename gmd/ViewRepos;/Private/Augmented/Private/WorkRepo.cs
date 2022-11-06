@@ -6,9 +6,15 @@ using GitBranch = gmd.Utils.Git.Branch;
 
 class WorkRepo
 {
+    public Status Status { get; }
     internal List<WorkCommit> Commits { get; } = new List<WorkCommit>();
     internal Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
     internal List<WorkBranch> Branches { get; } = new List<WorkBranch>();
+
+    public WorkRepo(Status status)
+    {
+        Status = status;
+    }
 }
 
 internal class WorkCommit
@@ -27,6 +33,7 @@ internal class WorkCommit
 
     public bool IsCurrent { get; set; }
     public bool IsUncommitted { get; set; }
+    public bool IsConflicted { get; set; }
     public bool IsLocalOnly { get; set; }
     public bool IsRemoteOnly { get; set; }
     public bool IsPartialLogCommit { get; set; }

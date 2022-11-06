@@ -7,6 +7,7 @@ internal class Git : IGit
 {
     private ILogService logService;
     private IBranchService branchService;
+    private IStatusService statusService;
 
     private string rootPath = "";
     private ICmd cmd;
@@ -18,14 +19,14 @@ internal class Git : IGit
 
         logService = new LogService(cmd);
         branchService = new BranchService(cmd);
+        statusService = new StatusService(cmd);
     }
 
     public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000) =>
         logService.GetLogAsync(maxCount);
 
-    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync() =>
-        branchService.GetBranchesAsync();
-
+    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync() => branchService.GetBranchesAsync();
+    public Task<R<Status>> GetStatusAsync() => statusService.GetStatusAsync();
 
     public static R<string> WorkingTreeRoot(string path)
     {
@@ -58,6 +59,4 @@ internal class Git : IGit
 
         return R.NoValue;
     }
-
-
 }

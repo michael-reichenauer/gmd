@@ -8,18 +8,23 @@ class Repo
 {
     internal static readonly string PartialLogCommitID =
         gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
+    internal static readonly string UncommittedId =
+        gmd.ViewRepos.Private.Augmented.Repo.UncommittedId;
+
 
     private readonly Private.Augmented.Repo repo;
 
     public Repo(
         AugmentedRepo augRepo,
         IReadOnlyList<Commit> commits,
-        IReadOnlyList<Branch> branches)
+        IReadOnlyList<Branch> branches,
+        Status status)
     {
         this.repo = augRepo;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
         Branches = branches;
+        Status = status;
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
@@ -27,6 +32,8 @@ class Repo
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+    public Status Status { get; }
+
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
@@ -53,6 +60,7 @@ public record Commit(
 
     bool IsCurrent,
     bool IsUncommitted,
+    bool IsConflicted,
     bool IsLocalOnly,
     bool IsRemoteOnly,
     bool IsPartialLogCommit,
@@ -107,4 +115,23 @@ public record Branch(
     bool IsOut)
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
+}
+
+
+public record Status(
+    int Modified,
+    int Added,
+    int Deleted,
+    int Conflicted,
+    bool IsMerging,
+    string MergeMessage,
+    string[] AddedFiles,
+    string[] ConflictsFiles
+)
+{
+    internal bool IsOk => ChangesCount == 0 && !IsMerging;
+
+    internal int ChangesCount => Modified + Added + Deleted + Conflicted;
+
+    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }

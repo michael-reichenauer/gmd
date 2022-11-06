@@ -7,13 +7,18 @@ namespace gmd.ViewRepos.Private.Augmented;
 class Repo
 {
     internal static readonly string PartialLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
+    internal static readonly string UncommittedId = "0000000000000000000000000000000000000000";
+
+
     public Repo(
         IReadOnlyList<Commit> commits,
-        IReadOnlyList<Branch> branches)
+        IReadOnlyList<Branch> branches,
+        Status status)
     {
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
         Branches = branches;
+        Status = status;
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
@@ -21,6 +26,7 @@ class Repo
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+    public Status Status { get; }
 }
 
 public record Commit(
@@ -40,6 +46,7 @@ public record Commit(
 
     bool IsCurrent,
     bool IsUncommitted,
+    bool IsConflicted,
     bool IsLocalOnly,
     bool IsRemoteOnly,
     bool IsPartialLogCommit,

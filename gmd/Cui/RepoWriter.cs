@@ -35,10 +35,6 @@ class RepoWriter : IRepoWriter
         for (int i = firstCommit; i < firstCommit + commitCount; i++)
         {
             var c = repo.Commits[i];
-            if (c.Sid == "47cf25")
-            {
-
-            }
             var graphRow = graph.GetRow(i);
             WriteGraph(graphRow);
             WriteCurrentMarker(c);
@@ -87,6 +83,17 @@ class RepoWriter : IRepoWriter
     void WriteSubject(Columns cw, Commit c, Branch currentRowBranch)
     {
         string subject = $"{c.Subject,-60} ({Text(c.BranchName, 20)})";
+        if (c.IsConflicted)
+        {
+            text.BrightRed(Text(subject, cw.Subject));
+            return;
+        }
+        if (c.IsUncommitted)
+        {
+            text.BrightYellow(Text(subject, cw.Subject));
+            return;
+        }
+
         if (c.BranchName == currentRowBranch.Name ||
             c.BranchName == currentRowBranch.LocalName ||
             c.BranchName == currentRowBranch.RemoteName)

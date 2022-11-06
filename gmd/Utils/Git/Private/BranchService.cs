@@ -7,7 +7,6 @@ interface IBranchService
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
 }
 
-
 class BranchService : IBranchService
 {
     static string remotePrefix = "remotes/";

@@ -41,8 +41,9 @@ class AugmentedRepoService : IAugmentedRepoService
         // Start some git commands in parallel
         var logTask = git.GetLogAsync(maxCommitCount);
         var branchesTask = git.GetBranchesAsync();
+        var statusTask = git.GetStatusAsync();
 
-        await Task.WhenAll(logTask, branchesTask);
+        await Task.WhenAll(logTask, branchesTask, statusTask);
 
         if (logTask.Result.IsError)
         {
@@ -52,10 +53,15 @@ class AugmentedRepoService : IAugmentedRepoService
         {
             return branchesTask.Result.Error;
         }
+        else if (statusTask.Result.IsError)
+        {
+            return statusTask.Result.Error;
+        }
 
         return new GitRepo(
             logTask.Result.Value,
-            branchesTask.Result.Value);
+            branchesTask.Result.Value,
+            statusTask.Result.Value);
     }
 
 

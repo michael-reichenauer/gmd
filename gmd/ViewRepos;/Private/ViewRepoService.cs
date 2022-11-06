@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using gmd.ViewRepos.Private.Augmented;
 
 namespace gmd.ViewRepos.Private;
@@ -31,7 +32,7 @@ class ViewRepoService : IViewRepoService
             return augmentedRepo.Error;
         }
 
-        return await GetViewRepoAsync(augmentedRepo.Value, showBranches);
+        return GetViewRepoAsync(augmentedRepo.Value, showBranches);
     }
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo)
@@ -39,14 +40,14 @@ class ViewRepoService : IViewRepoService
         return converter.ToBranches(repo.AugmentedRepo.Branches);
     }
 
-    public async Task<Repo> ShowBranch(Repo repo, string branchName)
+    public Repo ShowBranch(Repo repo, string branchName)
     {
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName).ToArray();
 
-        return await GetViewRepoAsync(repo.AugmentedRepo, branchNames);
+        return GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 
-    public async Task<Repo> HideBranch(Repo repo, string name)
+    public Repo HideBranch(Repo repo, string name)
     {
         Log.Info($"Hide {name}");
         var branch = repo.AugmentedRepo.BranchByName[name];
@@ -62,7 +63,7 @@ class ViewRepoService : IViewRepoService
             .ToArray();
 
         Log.Info($"Show names {branchNames}");
-        return await GetViewRepoAsync(repo.AugmentedRepo, branchNames);
+        return GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 
 
@@ -72,10 +73,16 @@ class ViewRepoService : IViewRepoService
         handler?.Invoke(this, e);
     }
 
-    async Task<Repo> GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
+    Repo GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
     {
         var branches = FilterOutViewBranches(augRepo, showBranches);
+
         var commits = FilterOutViewCommits(augRepo, branches);
+
+        if (TryGetUncommittedCommit(augRepo, branches, out var uncommitted))
+        {
+            AdjustCurrentBranch(augRepo, branches, commits, uncommitted);
+        }
 
         Log.Info($"Branches: {augRepo.Branches.Count} => {branches.Count}");
         Log.Info($"Commits: {augRepo.Commits.Count} => {commits.Count}");
@@ -83,10 +90,12 @@ class ViewRepoService : IViewRepoService
         return new Repo(
             augRepo,
             converter.ToCommits(commits),
-            converter.ToBranches(branches));
+            converter.ToBranches(branches),
+            augRepo.Status);
     }
 
-    private IReadOnlyList<Augmented.Commit> FilterOutViewCommits(
+
+    List<Augmented.Commit> FilterOutViewCommits(
         Augmented.Repo repo, IReadOnlyList<Augmented.Branch> viewBranches)
     {
         // Return commits, which branch does exist in branches to be viewed.
@@ -95,7 +104,7 @@ class ViewRepoService : IViewRepoService
             .ToList();
     }
 
-    IReadOnlyList<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, string[] showBranches)
+    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, string[] showBranches)
     {
         var branches = showBranches
             .Select(name => repo.Branches.FirstOrDefault(b => b.Name == name))
@@ -140,6 +149,80 @@ class ViewRepoService : IViewRepoService
         // Sort on branch hierarchy
         branches.Sort((b1, b2) => CompareBranches(repo, b1, b2));
         return branches;
+    }
+
+    bool TryGetUncommittedCommit(
+      Augmented.Repo repo,
+      IReadOnlyList<Augmented.Branch> viewBranches,
+      [MaybeNullWhen(false)] out Augmented.Commit uncommitted)
+    {
+        if (!repo.Status.IsOk)
+        {
+            var currentBranch = viewBranches.FirstOrDefault(b => b.IsCurrent);
+            if (currentBranch != null)
+            {
+                var current = repo.CommitById[currentBranch.TipId];
+
+                var parentIds = new List<string>() { current.Id };
+
+                int changesCount = repo.Status.ChangesCount;
+                string subject = $"{changesCount} uncommitted files";
+                if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
+                {
+                    subject = $"{repo.Status.MergeMessage} {subject}";
+                }
+                if (repo.Status.Conflicted > 0)
+                {
+                    subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
+                }
+
+                uncommitted = new Augmented.Commit(
+                    Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Substring(0, 6),
+                    Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
+                    Index: 0, currentBranch.Name, ParentIds: parentIds, ChildIds: new List<string>(),
+                    Tags: new List<Tag>(), BranchTips: new List<string>(),
+                    IsCurrent: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
+                     IsLocalOnly: false, IsRemoteOnly: false,
+                    IsPartialLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false);
+
+
+
+                return true;
+            }
+        }
+
+        uncommitted = null;
+        return false;
+    }
+
+    private void AdjustCurrentBranch(Augmented.Repo augRepo, List<Augmented.Branch> branches, List<Augmented.Commit> commits, Augmented.Commit uncommitted)
+    {
+        // Prepend the commits with the uncommitted commit
+        commits.Insert(0, uncommitted);
+
+        // We need to adjust the current branch and the tip of that branch to include the
+        // uncommitted commit
+        var currentBranchIndex = branches.FindIndex(b => b.Name == uncommitted.BranchName);
+        var currentBranch = branches[currentBranchIndex];
+        var tipCommitIndex = commits.FindIndex(c => c.Id == currentBranch.TipId);
+        var tipCommit = commits[tipCommitIndex];
+
+        // Adjust the current branch tip id and if the branch is empty, the bottom id
+        var tipId = uncommitted.Id;
+        var bottomId = currentBranch.BottomId;
+        if (tipCommit.BranchName != currentBranch.Name)
+        {
+            // Current branch does not yet have any commits, so bottom id will be the uncommitted commit
+            bottomId = uncommitted.Id;
+        }
+
+        var newCurrentBranch = currentBranch with { TipId = tipId, BottomId = bottomId };
+        branches[currentBranchIndex] = newCurrentBranch;
+
+        // Adjust the current tip commit to have the uncommitted commit as child
+        var childIds = tipCommit.ChildIds.Append(uncommitted.Id).ToList();
+        var newTipCommit = tipCommit with { ChildIds = childIds };
+        commits[tipCommitIndex] = newTipCommit;
     }
 
     int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)

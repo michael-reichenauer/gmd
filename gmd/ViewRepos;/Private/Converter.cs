@@ -9,7 +9,6 @@ interface IConverter
 
 class Converter : IConverter
 {
-
     public IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits) =>
        commits.Select(ToCommit).ToList();
 
@@ -32,6 +31,7 @@ class Converter : IConverter
         BranchTips: c.BranchTips,
         IsCurrent: c.IsCurrent,
         IsUncommitted: c.IsUncommitted,
+        IsConflicted: c.IsConflicted,
         IsLocalOnly: c.IsLocalOnly,
         IsRemoteOnly: c.IsRemoteOnly,
         IsPartialLogCommit: c.IsPartialLogCommit,

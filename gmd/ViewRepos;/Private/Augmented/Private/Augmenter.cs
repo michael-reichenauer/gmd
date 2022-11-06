@@ -15,7 +15,7 @@ class Augmenter : IAugmenter
 
     readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master" };
 
-    internal Augmenter(IBranchNameService branchNameService)
+    internal Augmenter(IBranchNameService branchNameService, IConverter converter)
     {
         this.branchNameService = branchNameService;
     }
@@ -28,7 +28,8 @@ class Augmenter : IAugmenter
 
     private WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
     {
-        var repo = new WorkRepo();
+        WorkRepo repo = new WorkRepo(ToStatus(gitRepo));
+
         SetAugBranches(repo, gitRepo);
         SetAugCommits(repo, gitRepo, partialMax);
         SetCommitBranches(repo);
@@ -36,6 +37,13 @@ class Augmenter : IAugmenter
         return repo;
     }
 
+
+    Status ToStatus(GitRepo repo)
+    {
+        var s = repo.Status;
+        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
+          s.IsMerging, s.MergeMessage, s.AddedFiles, s.ConflictsFiles);
+    }
 
     void SetAugBranches(WorkRepo repo, GitRepo gitRepo)
     {

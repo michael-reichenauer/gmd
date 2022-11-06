@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using gmd.ViewRepos;
 
 using Color = Terminal.Gui.Attribute;
@@ -384,20 +386,18 @@ class GraphService : IGraphService
             return Colors.Magenta;
         }
 
-        var branchColorId = (Hash(name) + (UInt64)addIndex) % (UInt64)Colors.BranchColors.Length;
-
+        var branchColorId = (Hash(name) + addIndex) % Colors.BranchColors.Length;
         return Colors.BranchColors[branchColorId];
     }
 
-    // https://stackoverflow.com/questions/9545619/a-fast-hash-function-for-string-in-c-sharp
-    static UInt64 Hash(string read)
+    // Create a simple string hash to int
+    static int Hash(string plainText)
     {
-        UInt64 hashedValue = 3074457345618258791ul;
-        for (int i = 0; i < read.Length; i++)
+        using (SHA256 sha256Hash = SHA256.Create())
         {
-            hashedValue += read[i];
-            hashedValue *= 3074457345618258799ul;
+            // Computing Hash - returns here byte array
+            byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(plainText));
+            return Math.Abs(BitConverter.ToInt32(bytes, 0));
         }
-        return hashedValue;
     }
 }

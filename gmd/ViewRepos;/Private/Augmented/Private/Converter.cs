@@ -13,10 +13,10 @@ class Converter : IConverter
     {
         return new Repo(
             workRepo.Commits.Select((WorkCommit c, int index) => ToCommit(c, index)).ToList(),
-            workRepo.Branches.Select(ToBranch).ToList()
+            workRepo.Branches.Select(ToBranch).ToList(),
+            workRepo.Status
         );
     }
-
 
     Commit ToCommit(WorkCommit c, int index)
     {
@@ -36,6 +36,7 @@ class Converter : IConverter
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,
             IsUncommitted: c.IsUncommitted,
+            IsConflicted: c.IsConflicted,
             IsLocalOnly: c.IsLocalOnly,
             IsRemoteOnly: c.IsRemoteOnly,
             IsPartialLogCommit: c.IsPartialLogCommit,

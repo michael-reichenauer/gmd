@@ -1,5 +1,14 @@
 namespace gmd.Utils.Git;
 
+
+interface IGit
+{
+    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000);
+    Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
+    Task<R<Status>> GetStatusAsync();
+}
+
+
 public record Commit(
     string Id,
      string Sid,
@@ -8,7 +17,8 @@ public record Commit(
      string Message,
      string Author,
      DateTime AuthorTime,
-     DateTime CommitTime);
+     DateTime CommitTime
+);
 
 public record Branch(
     string Name,
@@ -20,10 +30,20 @@ public record Branch(
     bool IsDetached,
     int AheadCount,
     int BehindCount,
-    bool IsRemoteMissing);
+    bool IsRemoteMissing
+);
 
-interface IGit
+public record Status(
+    int Modified,
+    int Added,
+    int Deleted,
+    int Conflicted,
+    bool IsMerging,
+    string MergeMessage,
+    string[] AddedFiles,
+    string[] ConflictsFiles
+)
 {
-    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000);
-    Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
+    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }
+
