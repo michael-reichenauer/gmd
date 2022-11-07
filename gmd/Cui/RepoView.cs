@@ -54,7 +54,7 @@ class RepoView : IRepoView
     }
 
     // Called once the repo has been set
-    void RegisterKeyHandlers(Repo _)
+    void RegisterKeyHandlers()
     {
         contentView.RegisterKeyHandler(Key.m, OnMenuKey);
         contentView.RegisterKeyHandler(Key.M, OnMenuKey);
@@ -99,7 +99,7 @@ class RepoView : IRepoView
 
         if (this.repo == null)
         {   // Register key handlers on first repo
-            RegisterKeyHandlers(repo);
+            RegisterKeyHandlers();
         }
 
         // Trigger content view to show repo
