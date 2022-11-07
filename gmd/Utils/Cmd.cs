@@ -5,9 +5,11 @@ namespace gmd.Utils;
 
 internal interface ICmd
 {
+    string WorkingDirectory { get; }
     CmdResult Run(string path, string args);
     Task<CmdResult> RunAsync(string path, string args);
     CmdResult Start(string path, string args);
+
 }
 
 internal class CmdResult
@@ -33,16 +35,16 @@ internal class Cmd : ICmd
 {
     private static readonly IReadOnlyList<string> EmptyLines = new string[0];
 
-    private string workingDirectory;
+    public string WorkingDirectory { get; internal set; }
 
     internal Cmd(string workingDirectory = "")
     {
-        this.workingDirectory = workingDirectory;
+        this.WorkingDirectory = workingDirectory;
     }
 
     public CmdResult Run(string path, string args)
     {
-        var t = Timing.StartNew();
+        var t = Timing.Start();
         try
         {
             List<string> lines = new List<string>();
@@ -61,9 +63,9 @@ internal class Cmd : ICmd
                 }
             };
 
-            if (workingDirectory != "")
+            if (WorkingDirectory != "")
             {
-                process.StartInfo.WorkingDirectory = workingDirectory;
+                process.StartInfo.WorkingDirectory = WorkingDirectory;
             }
 
             process.Start();
@@ -78,7 +80,7 @@ internal class Cmd : ICmd
             }
 
             process.WaitForExit();
-            Log.Info($"{path} {args} ({workingDirectory}) {t}");
+            Log.Info($"{path} {args} ({WorkingDirectory}) {t}");
 
             return new CmdResult(process.ExitCode, lines, EmptyLines);
         }

@@ -1,27 +1,36 @@
-using System.IO;
-using gmd.Utils;
+using IOPath = System.IO.Path;
 
 namespace gmd.Utils.Git.Private;
 
 internal class Git : IGit
 {
-    private IGitLog log;
+    private ILogService logService;
+    private IBranchService branchService;
+    private IStatusService statusService;
+    private CommitService commitService;
+
     private string rootPath = "";
     private ICmd cmd;
+
+    public string Path => rootPath;
 
     public Git(string path)
     {
         rootPath = WorkingTreeRoot(path).Or("");
         cmd = new Cmd(rootPath);
 
-        log = new GitLog(cmd);
+        logService = new LogService(cmd);
+        branchService = new BranchService(cmd);
+        statusService = new StatusService(cmd);
+        commitService = new CommitService(cmd);
     }
 
-    public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000)
-    {
-        return log.GetLogAsync(maxCount);
-    }
+    public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000) =>
+        logService.GetLogAsync(maxCount);
 
+    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync() => branchService.GetBranchesAsync();
+    public Task<R<Status>> GetStatusAsync() => statusService.GetStatusAsync();
+    public Task<R> CommitAllChangesAsync(string message) => commitService.CommitAllChangesAsync(message);
 
     public static R<string> WorkingTreeRoot(string path)
     {
@@ -33,17 +42,17 @@ internal class Git : IGit
         var current = path;
         if (path.EndsWith(".git") || path.EndsWith(".git/") || path.EndsWith(".git\\"))
         {
-            current = Path.GetDirectoryName(path) ?? path;
+            current = IOPath.GetDirectoryName(path) ?? path;
         }
 
         while (true)
         {
-            string gitRepoPath = Path.Join(current, ".git");
+            string gitRepoPath = IOPath.Join(current, ".git");
             if (Directory.Exists(gitRepoPath))
             {
                 return current;
             }
-            string parent = Path.GetDirectoryName(current) ?? current;
+            string parent = IOPath.GetDirectoryName(current) ?? current;
             if (parent == current)
             {
                 // Reached top/root volume folder

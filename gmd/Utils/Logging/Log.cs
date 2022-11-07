@@ -1,12 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using static System.Environment;
 
 namespace gmd.Utils.Logging;
@@ -32,7 +26,7 @@ internal static class Log
 
     static Log()
     {
-        Task.Factory.StartNew(SendBufferedLogRows, TaskCreationOptions.LongRunning)
+        Task.Factory.StartNew(ProcessLogs, TaskCreationOptions.LongRunning)
             .RunInBackground();
 
         Init($"{Environment.GetFolderPath(SpecialFolder.UserProfile)}/gmd.log");
@@ -42,14 +36,14 @@ internal static class Log
     public static void Init(string logFilePath, [CallerFilePath] string sourceFilePath = "")
     {
         LogPath = logFilePath;
-        string rootPath = Path.GetDirectoryName(Path.GetDirectoryName(
-            Path.GetDirectoryName(sourceFilePath))) ?? "";
+        string rootPath = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(
+            Path.GetDirectoryName(sourceFilePath)))) ?? "";
         prefixLength = rootPath.Length + 1;
         File.WriteAllText(LogPath, "");
     }
 
 
-    private static void SendBufferedLogRows()
+    private static void ProcessLogs()
     {
         try
         {
@@ -58,7 +52,12 @@ internal static class Log
                 List<string> batchedTexts = new List<string>();
                 // Wait for texts to log
                 string filePrefix = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
-                string? logText = logTexts.Take();
+
+                if (!logTexts.TryTake(out var logText, int.MaxValue))
+                {
+                    break;
+                }
+                // string? logText = logTexts.Take();
                 // Native.OutputDebugString(logText);
                 batchedTexts.Add($"{filePrefix} {logText}");
 
@@ -84,6 +83,8 @@ internal static class Log
                     // Native.OutputDebugString("ERROR Failed to log to file, " + e);
                 }
             }
+
+            LogDone("Logging done");
         }
         finally
         {
@@ -173,7 +174,6 @@ internal static class Log
         Write(LevelError, $"{e}", memberName, sourceFilePath, sourceLineNumber);
     }
 
-
     private static void Write(
         string level,
         string msg,
@@ -181,7 +181,7 @@ internal static class Log
         string filePath,
         int lineNumber)
     {
-        filePath = filePath.Substring(prefixLength);
+        filePath = filePath.Substring(prefixLength).Replace(";", "");
         var lines = msg.Split('\n');
         foreach (var line in lines)
         {
@@ -211,6 +211,18 @@ internal static class Log
         }
     }
 
+
+    private static void LogDone(
+        string msg,
+         [CallerMemberName] string memberName = "",
+         [CallerFilePath] string sourceFilePath = "",
+         [CallerLineNumber] int sourceLineNumber = 0)
+    {
+        string timePrefix = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
+        string filePath = sourceFilePath.Substring(prefixLength);
+        string text = $"{timePrefix} {LevelInfo} {filePath}:{sourceLineNumber} {memberName}: {msg}";
+        WriteToFile(new List<string>() { text });
+    }
 
     private static void WriteToFile(IReadOnlyCollection<string> text)
     {

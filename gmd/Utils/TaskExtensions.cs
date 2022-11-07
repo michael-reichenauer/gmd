@@ -43,16 +43,18 @@ public static class TaskExtensions
     }
 
 
-
     public static void RunInBackground(this Task task)
     {
         task.ContinueWith(
-            FailTask,
+            FailedBackgroundTask,
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted);
     }
 
 
-    private static void FailTask(Task task) =>
-        throw new InvalidOperationException("RunInBackground task failed", task.Exception);
+    private static void FailedBackgroundTask(Task task)
+    {
+        var e = new InvalidOperationException("RunInBackground task failed", task.Exception);
+        ExceptionHandling.OnBackgroundTaskException(e);
+    }
 }
 

@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 class UI
 {
-    internal static void Post(Action action)
+    public static void Post(Action action)
     {
         Application.MainLoop.Invoke(action);
     }
@@ -14,12 +14,12 @@ class UI
 
     internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)
     {
-        return Application.MainLoop.AddTimeout(TimeSpan.FromSeconds(20), callback);
+        return Application.MainLoop.AddTimeout(timeout, callback);
     }
 
     internal static void Shutdown()
     {
-        Application.Shutdown();
+        Application.RequestStop();
     }
 
     internal static int InfoMessage(string title, string message, params ustring[] buttons)
@@ -40,12 +40,12 @@ class UI
         return MessageBox.Query(0, 0, title, message, defaultButton, border, buttons);
     }
 
-    internal static int ErrorMessage(string title, string message, params ustring[] buttons)
+    internal static int ErrorMessage(string message, params ustring[] buttons)
     {
-        return ErrorMessage(title, message, 0, buttons);
+        return ErrorMessage(message, 0, buttons);
     }
 
-    internal static int ErrorMessage(string title, string message, int defaultButton = 0, params ustring[] buttons)
+    internal static int ErrorMessage(string message, int defaultButton = 0, params ustring[] buttons)
     {
         buttons = buttons.Length == 0 ? new ustring[] { "OK" } : buttons;
 
@@ -55,6 +55,6 @@ class UI
             BorderStyle = BorderStyle.Rounded,
         };
 
-        return MessageBox.ErrorQuery(0, 0, title, message, defaultButton, border, buttons);
+        return MessageBox.ErrorQuery(0, 0, "Error", message, defaultButton, border, buttons);
     }
 }

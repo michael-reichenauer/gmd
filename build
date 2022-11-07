@@ -1,0 +1,21 @@
+#!/bin/bash
+
+echo "Cleaning"
+rm gmd.exe
+rm gmd_linux
+
+if test -f "gmd.exe"; then
+    echo "Error: gmd.exe was not deleted!";
+    exit -1;
+fi
+if test -f "gmd_linux"; then
+    echo "Error: gmd_linux was not deleted!";
+    exit -1;
+fi
+
+echo "Building ..."
+dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+cp /workspaces/gmd/gmd/bin/Release/net6.0/win-x64/publish/gmd.exe gmd.exe
+
+dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+cp /workspaces/gmd/gmd/bin/Release/net6.0/linux-x64/publish/gmd gmd_linux

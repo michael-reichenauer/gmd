@@ -17,10 +17,12 @@ internal static class ExceptionHandling
     private static bool hasDisplayedErrorMessageBox;
     private static bool hasFailed;
     private static bool hasShutdown;
-    private static DateTime StartTime = DateTime.Now;
+    private static DateTime StartTime = DateTime.UtcNow;
+    private static Action shutdown = () => { };
 
-    public static void HandleUnhandledException()
+    public static void HandleUnhandledExceptions(Action shutdownCallback)
     {
+        shutdown = shutdownCallback;
         // Add the event handler for handling non-UI thread exceptions to the event. 
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             HandleException("app domain exception", e.ExceptionObject as Exception ?? new Exception());
@@ -40,6 +42,10 @@ internal static class ExceptionHandling
         Asserter.AssertOccurred += (s, e) => HandleException("Assert failed", e.Exception);
     }
 
+    public static void OnBackgroundTaskException(Exception exception)
+    {
+        HandleException("RunInBackground error", exception);
+    }
 
     // public static void HandleDispatcherUnhandledException()
     // {
@@ -57,7 +63,7 @@ internal static class ExceptionHandling
 
 
 
-    private static void HandleException(string errorType, Exception exception)
+    static void HandleException(string errorType, Exception exception)
     {
         if (hasFailed)
         {
@@ -81,7 +87,7 @@ internal static class ExceptionHandling
     }
 
 
-    public static void Shutdown(string message, Exception e)
+    static void Shutdown(string message, Exception e)
     {
         if (hasShutdown)
         {
@@ -90,8 +96,6 @@ internal static class ExceptionHandling
         }
 
         hasShutdown = true;
-
-        Log.Exception(e, message);
 
         // if (isDispatcherInitialized)
         // {
@@ -112,7 +116,8 @@ internal static class ExceptionHandling
         }
 
         Log.CloseAsync().Wait();
-        System.Environment.Exit(-1);
+
+        shutdown();
 
         // if (DateTime.Now - StartTime >= MinTimeBeforeAutoRestart)
         // {
@@ -137,10 +142,10 @@ internal static class ExceptionHandling
             return;
         }
 
-        if (DateTime.Now - StartTime < MinTimeBeforeAutoRestart)
+        if (DateTime.UtcNow - StartTime < MinTimeBeforeAutoRestart)
         {
             Console.WriteLine("Sorry, but an unexpected error just occurred");
-            StartTime = DateTime.Now;
+            StartTime = DateTime.UtcNow;
         }
 
         hasDisplayedErrorMessageBox = true;

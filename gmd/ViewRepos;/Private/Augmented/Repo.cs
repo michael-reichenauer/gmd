@@ -1,28 +1,24 @@
 
-namespace gmd.ViewRepos;
+using gmd.Utils.Git;
 
-using AugmentedRepo = gmd.ViewRepos.Private.Augmented.Repo;
+namespace gmd.ViewRepos.Private.Augmented;
 
 
 class Repo
 {
-    internal static readonly string PartialLogCommitID =
-        gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
-    internal static readonly string UncommittedId =
-        gmd.ViewRepos.Private.Augmented.Repo.UncommittedId;
+    internal static readonly string PartialLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
+    internal static readonly string UncommittedId = "0000000000000000000000000000000000000000";
 
-
-    private readonly Private.Augmented.Repo repo;
 
     public Repo(
         DateTime timeStamp,
-        AugmentedRepo augRepo,
+        string path,
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
         Status status)
     {
         TimeStamp = timeStamp;
-        this.repo = augRepo;
+        Path = path;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
         Branches = branches;
@@ -31,31 +27,23 @@ class Repo
     }
 
     public DateTime TimeStamp { get; }
-    public string Path => AugmentedRepo.Path;
+    public string Path { get; }
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
     public Status Status { get; }
-
-
-    internal Private.Augmented.Repo AugmentedRepo => repo;
-
-    public override string ToString() => $"b:{Branches.Count}, c:{Commits.Count}";
 }
 
-
 public record Commit(
-    // Git Properties
     string Id,
     string Sid,
     string Subject,
     string Message,
     string Author,
     DateTime AuthorTime,
-
-    // Augmented properties
     int Index,
+
     string BranchName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> ChildIds,
@@ -69,24 +57,12 @@ public record Commit(
     bool IsBehind,
     bool IsPartialLogCommit,
     bool IsAmbiguous,
-    bool IsAmbiguousTip,
-
-    // View properties
-    More More)
+    bool IsAmbiguousTip)
 {
     public override string ToString() => $"{Sid} {Subject} ({BranchName})";
 }
 
 
-
-public record Tag(string name);
-
-public enum More
-{
-    None,
-    MergeIn,    // ╮
-    BranchOut,  // ╯
-}
 
 public record Branch(
     string Name,
@@ -98,44 +74,20 @@ public record Branch(
     string RemoteName,
     string LocalName,
 
-    // Augmented properties
+    string ParentBranchName,
+
     bool IsGitBranch,
     bool IsDetached,
     bool IsSetAsParent,
     bool IsMainBranch,
 
-    string ParentBranchName,
-
     int AheadCount,
     int BehindCount,
-    bool HasLocalOnly,
-    bool HasRemoteOnly,
-    string AmbiguousTipId,
-    IReadOnlyList<string> AmbiguousBranchNames,
+    bool HasAheadCommits,
+    bool HasBehindCommits,
 
-    // View properties
-    int X,
-    bool IsIn,
-    bool IsOut)
+    string AmbiguousTipId,
+    IReadOnlyList<string> AmbiguousBranchNames)
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
-}
-
-
-public record Status(
-    int Modified,
-    int Added,
-    int Deleted,
-    int Conflicted,
-    bool IsMerging,
-    string MergeMessage,
-    string[] AddedFiles,
-    string[] ConflictsFiles
-)
-{
-    internal bool IsOk => ChangesCount == 0 && !IsMerging;
-
-    internal int ChangesCount => Modified + Added + Deleted + Conflicted;
-
-    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }

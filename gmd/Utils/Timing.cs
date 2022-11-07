@@ -18,7 +18,7 @@ public class Timing
     }
 
 
-    public static Timing StartNew() => new Timing();
+    public static Timing Start() => new Timing();
 
     public TimeSpan Stop()
     {
@@ -37,6 +37,12 @@ public class Timing
     }
 
     public long ElapsedMs => (long)Elapsed.TotalMilliseconds;
+
+    public string ElapsedText => ElapsedMs < 1000
+        ? $"{ElapsedMs}ms" : ElapsedMs < 60 * 1000
+        ? $"{Elapsed.Seconds}s, {Elapsed.Milliseconds}ms"
+        : $"{Elapsed.Hours}:{Elapsed.Minutes}:{Elapsed.Seconds}:{Elapsed.Milliseconds}";
+
 
     public TimeSpan Diff
     {
@@ -75,7 +81,7 @@ public class Timing
     }
 
 
-    public override string ToString() => count == 0 ? $"({ElapsedMs}ms)" : $"{DiffMs}ms ({ElapsedMs}ms)";
+    public override string ToString() => count == 0 ? $"({ElapsedText})" : $"{DiffMs}ms ({ElapsedText})";
 
     public struct StopParameter
     {

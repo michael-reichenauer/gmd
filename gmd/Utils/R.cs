@@ -21,7 +21,7 @@ public class R
 
     public Exception Exception { get; }
 
-    public Error Error => IsError ? Error.From(Exception) : throw Asserter.FailFast("Was no error error");
+    public Error Error => IsError ? Error.From(Exception) : throw Asserter.FailFast("Result was not an error");
     public bool IsOk => !IsError;
     protected bool isErrorChecked = false;
     public bool IsError

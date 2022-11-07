@@ -6,7 +6,7 @@ internal class GitService : IGitService
     {
     }
 
-    public IGit GetGit(string path)
+    public IGit Git(string path)
     {
         return new Git(path);
     }

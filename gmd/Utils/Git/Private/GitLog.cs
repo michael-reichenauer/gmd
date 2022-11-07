@@ -2,16 +2,16 @@ using gmd.Utils;
 
 namespace gmd.Utils.Git.Private;
 
-internal interface IGitLog
+internal interface ILogService
 {
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount);
 }
 
-internal class GitLog : IGitLog
+internal class LogService : ILogService
 {
     private readonly ICmd cmd;
 
-    internal GitLog(ICmd cmd)
+    internal LogService(ICmd cmd)
     {
         this.cmd = cmd;
     }
@@ -25,7 +25,8 @@ internal class GitLog : IGitLog
             return Error.From(cmdResult.ErrorMessage);
         }
 
-        return ParseLines(cmdResult.OutputLines);
+        // Wrap parsing in separate task thread, since it might be a lot of commits to parse
+        return await Task.Run(() => ParseLines(cmdResult.OutputLines));
     }
 
     private R<IReadOnlyList<Commit>> ParseLines(IReadOnlyList<string> lines)

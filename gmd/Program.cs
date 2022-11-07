@@ -16,11 +16,17 @@ class Program
 
     static void Main(string[] args)
     {
+        var t = Timing.Start();
+        Log.Info($"Starting gmd ...");
+        ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
+
         dependencyInjection = new DependencyInjection();
         dependencyInjection.RegisterDependencyInjectionTypes();
 
         Program program = dependencyInjection.Resolve<Program>();
+        Log.Info($"Initialized {t}");
         program.Run();
+        Log.Info($"Done, running for {t}");
         Log.CloseAsync().Wait();
     }
 
@@ -31,12 +37,15 @@ class Program
 
     private void Run()
     {
+        var t = Timing.Start();
+        Log.Info($"Init ui ...");
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         Application.Top.WantMousePositionReports = false;
         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
         Application.Top.Add(mainView.View);
+        Log.Info($"Initialized UI {t}");
 
         // Run blocks until the user quits the application
         Application.Run(HandleUIMainLoopError);

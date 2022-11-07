@@ -1,3 +1,4 @@
+using gmd.Utils.Git;
 using gmd.ViewRepos;
 using Terminal.Gui;
 
@@ -13,14 +14,13 @@ class MainView : IMainView
 {
     Toplevel toplevel;
     readonly IRepoView repoView;
-    private readonly IViewRepoService viewRepoService;
 
     public View View => toplevel;
 
-    MainView(IRepoView repoView, IViewRepoService viewRepoService) : base()
+    MainView(IRepoView repoView) : base()
     {
         this.repoView = repoView;
-        this.viewRepoService = viewRepoService;
+
         toplevel = new Toplevel()
         {
             X = 0,
@@ -38,15 +38,19 @@ class MainView : IMainView
 
     async Task OnLoaded()
     {
-        string path = "";
-        var repo = await viewRepoService.GetRepoAsync(path);
-        if (repo.IsError)
+        UI.AddTimeout(TimeSpan.FromMilliseconds(1000), (m) =>
         {
-            UI.ErrorMessage("Error", $"Failed to load repo in:\n'{path}'");
+            return true;
+        });
+
+        string path = "";
+
+        var result = await repoView.ShowRepoAsync(path);
+        if (result.IsError)
+        {
+            UI.ErrorMessage($"Failed to load repo in:\n'{path}'");
             UI.Shutdown();
             return;
         }
-
-        repoView.SetRepo(repo.Value);
     }
 }
