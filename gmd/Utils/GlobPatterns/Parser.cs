@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-
-
-namespace gmd.Utils.GlobPatterns;
+﻿namespace gmd.Utils.GlobPatterns;
 class Parser
 {
-    private Scanner _scanner;
-    private Token _currentToken;
+    private Scanner? _scanner;
+    private Token? _currentToken;
 
     public Parser(string pattern = "")
     {
@@ -24,7 +20,7 @@ class Parser
 
     private void Accept(TokenKind expectedKind)
     {
-        if (this._currentToken.Kind == expectedKind)
+        if (this._currentToken != null && this._currentToken.Kind == expectedKind)
         {
             this.AcceptIt();
             return;
@@ -44,7 +40,7 @@ class Parser
 
     private Identifier ParseIdentifier()
     {
-        if (this._currentToken.Kind == TokenKind.Identifier)
+        if (this._currentToken != null && this._currentToken.Kind == TokenKind.Identifier)
         {
             var identifier = new Identifier(this._currentToken.Spelling);
             this.AcceptIt();
@@ -60,7 +56,7 @@ class Parser
         this.Accept(TokenKind.LiteralSetStart);
         items.Add(this.ParseIdentifier());
 
-        while (this._currentToken.Kind == TokenKind.LiteralSetSeperator)
+        while (this._currentToken != null && this._currentToken.Kind == TokenKind.LiteralSetSeperator)
         {
             this.AcceptIt();
             items.Add(this.ParseIdentifier());
@@ -73,7 +69,7 @@ class Parser
     {
         this.Accept(TokenKind.CharacterSetStart);
         var inverted = false;
-        if (this._currentToken.Kind == TokenKind.CharacterSetInvert)
+        if (this._currentToken != null && this._currentToken.Kind == TokenKind.CharacterSetInvert)
         {
             this.AcceptIt();
             inverted = true;
@@ -98,7 +94,7 @@ class Parser
     // SubSegment := Identifier | CharacterSet | LiteralSet | CharacterWildcard | Wildcard
     private SubSegment ParseSubSegment()
     {
-        switch (this._currentToken.Kind)
+        switch (this._currentToken!.Kind)
         {
             case TokenKind.Identifier:
                 return this.ParseIdentifier();
@@ -122,7 +118,7 @@ class Parser
     // Segment := DirectoryWildcard | DirectorySegment
     private Segment ParseSegment()
     {
-        if (this._currentToken.Kind == TokenKind.DirectoryWildcard)
+        if (this._currentToken!.Kind == TokenKind.DirectoryWildcard)
         {
             this.AcceptIt();
             return DirectoryWildcard.Default;
@@ -141,7 +137,7 @@ class Parser
 
         while (true)
         {
-            switch (this._currentToken.Kind)
+            switch (this._currentToken!.Kind)
             {
                 case TokenKind.Identifier:
                 case TokenKind.CharacterSetStart:
@@ -161,7 +157,7 @@ class Parser
 
     private Root ParseRoot()
     {
-        if (this._currentToken.Kind == TokenKind.PathSeparator)
+        if (this._currentToken!.Kind == TokenKind.PathSeparator)
             return new Root(); //dont eat it so we can leave it for the segments
 
         if (this._currentToken.Kind == TokenKind.WindowsRoot)
@@ -179,7 +175,7 @@ class Parser
     {
         var items = new List<Segment>();
 
-        if (this._currentToken.Kind == TokenKind.PathSeparator || this._currentToken.Kind == TokenKind.WindowsRoot)
+        if (this._currentToken!.Kind == TokenKind.PathSeparator || this._currentToken.Kind == TokenKind.WindowsRoot)
         {
             items.Add(this.ParseRoot());
         }
@@ -207,7 +203,7 @@ class Parser
 
         Tree path;
 
-        switch (this._currentToken.Kind)
+        switch (this._currentToken!.Kind)
         {
             case TokenKind.WindowsRoot:
             case TokenKind.PathSeparator:

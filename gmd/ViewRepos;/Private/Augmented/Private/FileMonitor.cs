@@ -1,3 +1,4 @@
+using gmd.Cui;
 using gmd.Utils.GlobPatterns;
 using Timer = System.Timers.Timer;
 
@@ -5,23 +6,14 @@ namespace gmd.ViewRepos.Private.Augmented.Private;
 
 interface IFileMonitor
 {
-    event EventHandler<FileEventArgs> FileChanged;
-    event EventHandler<FileEventArgs> RepoChanged;
+    event EventHandler<ChangeEventArgs> FileChanged;
+    event EventHandler<ChangeEventArgs> RepoChanged;
 
     void Monitor(string workingFolder);
 }
 
 public delegate bool Ignorer(string path);
 
-internal class FileEventArgs : EventArgs
-{
-    public DateTime DateTime { get; }
-
-    public FileEventArgs(DateTime dateTime)
-    {
-        DateTime = dateTime;
-    }
-}
 
 [SingleInstance]
 class FileMonitor : IFileMonitor
@@ -74,9 +66,9 @@ class FileMonitor : IFileMonitor
     }
 
 
-    public event EventHandler<FileEventArgs>? FileChanged;
+    public event EventHandler<ChangeEventArgs>? FileChanged;
 
-    public event EventHandler<FileEventArgs>? RepoChanged;
+    public event EventHandler<ChangeEventArgs>? RepoChanged;
 
     public void Monitor(string workingFolder)
     {
@@ -104,8 +96,8 @@ class FileMonitor : IFileMonitor
         refsWatcher.Filter = "*.*";
         refsWatcher.IncludeSubdirectories = true;
 
-        statusChangeTime = DateTime.Now;
-        repoChangeTime = DateTime.Now;
+        statusChangeTime = DateTime.UtcNow;
+        repoChangeTime = DateTime.UtcNow;
 
         workFolderWatcher.EnableRaisingEvents = true;
         refsWatcher.EnableRaisingEvents = true;
@@ -140,11 +132,11 @@ class FileMonitor : IFileMonitor
 
     private void FileChange(string fullPath)
     {
-        Log.Info($"Status change '{fullPath}'");
+        // Log.Info($"Status change '{fullPath}'");
         lock (syncRoot)
         {
             isFileChanged = true;
-            statusChangeTime = DateTime.Now;
+            statusChangeTime = DateTime.UtcNow;
 
             if (!fileChangedTimer.Enabled)
             {
@@ -156,7 +148,7 @@ class FileMonitor : IFileMonitor
 
     private void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        Log.Info($"'{fullPath}'");
+        // Log.Info($"'{fullPath}'");
 
         if (Path.GetExtension(fullPath) == ".lock")
         {
@@ -167,12 +159,12 @@ class FileMonitor : IFileMonitor
             return;
         }
 
-        // Log.Debug($"Repo change for '{fullPath}' {changeType}");
+        // Log.Debug($"Repo change for '{fullPath}' {changeType}");.l
 
         lock (syncRoot)
         {
             isRepoChanged = true;
-            repoChangeTime = DateTime.Now;
+            repoChangeTime = DateTime.UtcNow;
 
             if (!repoChangedTimer.Enabled)
             {
@@ -271,7 +263,8 @@ class FileMonitor : IFileMonitor
             isFileChanged = false;
         }
 
-        FileChanged?.Invoke(this, new FileEventArgs(statusChangeTime));
+        Log.Info("On File change");
+        UI.Post(() => FileChanged?.Invoke(this, new ChangeEventArgs(statusChangeTime)));
     }
 
 
@@ -288,120 +281,7 @@ class FileMonitor : IFileMonitor
             isRepoChanged = false;
         }
 
-        RepoChanged?.Invoke(this, new FileEventArgs(repoChangeTime));
+        Log.Info("On Repo change");
+        UI.Post(() => RepoChanged?.Invoke(this, new ChangeEventArgs(repoChangeTime)));
     }
 }
-
-// func (h *monitor) Start(ctx context.Context) error {
-// 	go func() {
-// 		<-ctx.Done()
-// 		h.watcher.Close()
-// 	}()
-// 	go h.monitorFolderRoutine(ctx)
-// 	go h.addWatchFoldersRecursively(ctx, h.rootFolderPath)
-// 	return nil
-// }
-
-
-// func (h *monitor) addWatchFoldersRecursively(ctx context.Context, path string) {
-// 	filepath.Walk(path, func(path string, fi os.FileInfo, err error) error {
-// 		select {
-// 		case <-ctx.Done():
-// 			return nil
-// 		default:
-// 		}
-// 		if err != nil {
-// 			return err
-// 		}
-// 		if fi.Mode().IsDir() {
-// 			return h.watcher.Add(path)
-// 		}
-// 		return nil
-// 	})
-// }
-
-// func (h *monitor) monitorFolderRoutine(ctx context.Context) {
-// 	gitPath := filepath.Join(h.rootFolderPath, ".git")
-// 	gitFolderPath := gitPath + "/"
-// 	refsPath := filepath.Join(gitPath, "refs")
-// 	headPath := filepath.Join(gitPath, "HEAD")
-// 	objectPath := filepath.Join(gitPath, "objects")
-// 	fetchHeadPath := filepath.Join(gitPath, "FETCH_HEAD")
-// 	defer close(h.Changes)
-
-// 	for event := range h.watcher.Events {
-// 		// log.Infof("event %v", event)
-// 		select {
-// 		case <-ctx.Done():
-// 			return
-// 		default:
-// 		}
-// 		if h.isNewFolder(event, objectPath) {
-// 			log.Infof("New folder detected: %q", event.Name)
-// 			go h.addWatchFoldersRecursively(ctx, event.Name)
-// 			continue
-// 		}
-// 		if h.isIgnored(event.Name) {
-// 			// log.Infof("ignoring: %s", event.Name)
-// 		} else if h.isRepoChange(event.Name, fetchHeadPath, headPath, refsPath) {
-// 			// log.Infof("Repo change: %s", event.Name)
-// 			select {
-// 			case h.Changes <- repoChange:
-// 			case <-ctx.Done():
-// 				return
-// 			}
-// 		} else if h.isStatusChange(event.Name, gitFolderPath) {
-// 			// log.Infof("Status change: %s", event.Name)
-// 			select {
-// 			case h.Changes <- statusChange:
-// 			case <-ctx.Done():
-// 				return
-// 			}
-// 		} else {
-// 			// fmt.Printf("ignoring: %s\n", event.Name)
-// 		}
-// 	}
-// }
-
-// func (h *monitor) isIgnored(path string) bool {
-// 	if utils.DirExists(path) {
-// 		return true
-// 	}
-// 	if h.ignorer != nil && h.ignorer.IsIgnored(path) {
-// 		return true
-// 	}
-// 	return false
-// }
-
-// func (h *monitor) isStatusChange(path, gitFolderPath string) bool {
-// 	return !strings.HasPrefix(path, gitFolderPath)
-// }
-
-// func (h *monitor) isRepoChange(path, fetchHeadPath, headPath, refsPath string) bool {
-// 	if strings.HasSuffix(path, ".lock") {
-// 		return false
-// 	}
-// 	if path == fetchHeadPath {
-// 		return false
-// 	}
-// 	if path == headPath {
-// 		return true
-// 	}
-// 	if strings.HasPrefix(path, refsPath) {
-// 		return true
-// 	}
-// 	return false
-// }
-
-// func (h *monitor) isNewFolder(event fsnotify.Event, objectPath string) bool {
-// 	if strings.HasPrefix(event.Name, objectPath) {
-// 		return false
-// 	}
-// 	if event.Op != fsnotify.Create {
-// 		return false
-// 	}
-// 	if utils.DirExists(event.Name) {
-// 		return true
-// 	}
-// 	return false
-// }

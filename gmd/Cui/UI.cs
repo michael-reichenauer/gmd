@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 class UI
 {
-    internal static void Post(Action action)
+    public static void Post(Action action)
     {
         Application.MainLoop.Invoke(action);
     }
@@ -14,7 +14,7 @@ class UI
 
     internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)
     {
-        return Application.MainLoop.AddTimeout(TimeSpan.FromSeconds(20), callback);
+        return Application.MainLoop.AddTimeout(timeout, callback);
     }
 
     internal static void Shutdown()

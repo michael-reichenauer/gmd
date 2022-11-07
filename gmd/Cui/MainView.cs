@@ -38,6 +38,11 @@ class MainView : IMainView
 
     async Task OnLoaded()
     {
+        UI.AddTimeout(TimeSpan.FromMilliseconds(1000), (m) =>
+        {
+            return true;
+        });
+
         string path = "";
 
         var result = await repoView.ShowRepoAsync(path);

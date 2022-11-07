@@ -2,10 +2,13 @@ namespace gmd.ViewRepos;
 
 interface IViewRepoService
 {
-    public event EventHandler RepoChange;
+    event EventHandler<ChangeEventArgs> RepoChange;
+    event EventHandler<ChangeEventArgs> StatusChange;
+
     Task<R<Repo>> GetRepoAsync(string path);
     Task<R<Repo>> GetRepoAsync(string path, string[] showBranches);
     Task<R<Repo>> GetFreshRepoAsync(Repo repo);
+    Task<R<Repo>> GetNewStatusRepoAsync(Repo repo);
 
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
@@ -14,4 +17,14 @@ interface IViewRepoService
 
     // Git commands
     Task<R> CommitAllChangesAsync(Repo repo, string message);
+}
+
+internal class ChangeEventArgs : EventArgs
+{
+    public DateTime TimeStamp { get; }
+
+    public ChangeEventArgs(DateTime timeStamp)
+    {
+        TimeStamp = timeStamp;
+    }
 }

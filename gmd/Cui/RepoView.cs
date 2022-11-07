@@ -55,6 +55,9 @@ class RepoView : IRepoView, IRepo
         };
 
         repoLayout = new RepoWriter(contentView, contentView.ContentX);
+
+        viewRepoService.RepoChange += (s, e) => Refresh();
+        viewRepoService.StatusChange += (s, e) => Refresh();
     }
 
     // Called once the repo has been set
@@ -83,7 +86,6 @@ class RepoView : IRepoView, IRepo
     {
         ShowRefreshedRepoAsync().RunInBackground();
     }
-
 
     public async Task<R> ShowRepoAsync(string path, string[] showBranches)
     {

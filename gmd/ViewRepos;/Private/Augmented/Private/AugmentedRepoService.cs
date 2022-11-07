@@ -24,12 +24,12 @@ class AugmentedRepoService : IAugmentedRepoService
         this.converter = converter;
         this.fileMonitor = fileMonitor;
 
-        Log.Info("Register file watcher handlers #########");
-        fileMonitor.FileChanged += (s, e) => Log.Info($"File change at {e.DateTime}");
-        fileMonitor.RepoChanged += (s, e) => Log.Info($"Repo change at {e.DateTime}");
+        fileMonitor.FileChanged += (s, e) => OnStatusChange(e);
+        fileMonitor.RepoChanged += (s, e) => OnRepoChange(e);
     }
 
-    public event EventHandler? RepoChange;
+    public event EventHandler<ChangeEventArgs>? RepoChange;
+    public event EventHandler<ChangeEventArgs>? StatusChange;
 
     public async Task<R<Repo>> GetRepoAsync(string path)
     {
@@ -77,10 +77,15 @@ class AugmentedRepoService : IAugmentedRepoService
         return repo;
     }
 
-
-    protected virtual void OnRepoChange(EventArgs e)
+    protected virtual void OnRepoChange(ChangeEventArgs e)
     {
-        EventHandler? handler = RepoChange;
+        var handler = RepoChange;
+        handler?.Invoke(this, e);
+    }
+
+    protected virtual void OnStatusChange(ChangeEventArgs e)
+    {
+        var handler = StatusChange;
         handler?.Invoke(this, e);
     }
 

@@ -4,7 +4,7 @@ using gmd.ViewRepos.Private.Augmented;
 
 namespace gmd.ViewRepos.Private;
 
-
+[SingleInstance]
 class ViewRepoService : IViewRepoService
 {
     private readonly IGitService gitService;
@@ -22,9 +22,13 @@ class ViewRepoService : IViewRepoService
         this.augmentedRepoService = augmentedRepoService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
+
+        augmentedRepoService.RepoChange += (s, e) => OnRepoChange(e);
+        augmentedRepoService.StatusChange += (s, e) => OnStatusChange(e);
     }
 
-    public event EventHandler? RepoChange;
+    public event EventHandler<ChangeEventArgs>? RepoChange;
+    public event EventHandler<ChangeEventArgs>? StatusChange;
 
 
     public Task<R<Repo>> GetRepoAsync(string path) =>
@@ -36,6 +40,13 @@ class ViewRepoService : IViewRepoService
         var branches = repo.Branches.Select(b => b.Name).ToArray();
         return await GetRepoAsync(repo.Path, branches);
     }
+
+
+    public Task<R<Repo>> GetNewStatusRepoAsync(Repo repo)
+    {
+        throw new NotImplementedException();
+    }
+
 
     public async Task<R<Repo>> GetRepoAsync(string path, string[] showBranches)
     {
@@ -114,11 +125,16 @@ class ViewRepoService : IViewRepoService
     }
 
 
-    protected virtual void OnRepoChange(EventArgs e)
+    protected virtual void OnRepoChange(ChangeEventArgs e)
     {
-        EventHandler? handler = RepoChange;
+        var handler = RepoChange;
         handler?.Invoke(this, e);
     }
 
+    protected virtual void OnStatusChange(ChangeEventArgs e)
+    {
+        var handler = StatusChange;
+        handler?.Invoke(this, e);
+    }
 }
 
