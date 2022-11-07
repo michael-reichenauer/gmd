@@ -1,6 +1,4 @@
-using gmd.Utils;
 using gmd.Utils.Git;
-using gmd.Utils.Git.Private;
 
 namespace gmdTest.Utils.Git;
 
@@ -8,7 +6,7 @@ namespace gmdTest.Utils.Git;
 public class GitRepoTest
 {
     [TestMethod]
-    public async Task TestLog()
+    public async void TestLog()
     {
         IGit git = new gmd.Utils.Git.Private.Git("");
 
@@ -23,7 +21,7 @@ public class GitRepoTest
     }
 
     [TestMethod]
-    public async Task TestGetBranches()
+    public async void TestGetBranches()
     {
         IGit git = new gmd.Utils.Git.Private.Git("");
 
