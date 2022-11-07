@@ -3,6 +3,7 @@ using gmd.Utils.Git;
 
 namespace gmd.ViewRepos.Private.Augmented.Private;
 
+[SingleInstance]
 class AugmentedRepoService : IAugmentedRepoService
 {
     const int maxCommitCount = 30000;
@@ -10,15 +11,22 @@ class AugmentedRepoService : IAugmentedRepoService
     private readonly IGitService gitService;
     private readonly IAugmenter augmenter;
     private readonly IConverter converter;
+    private readonly IFileMonitor fileMonitor;
 
     public AugmentedRepoService(
         IGitService gitService,
         IAugmenter augmenter,
-        IConverter converter)
+        IConverter converter,
+        IFileMonitor fileMonitor)
     {
         this.gitService = gitService;
         this.augmenter = augmenter;
         this.converter = converter;
+        this.fileMonitor = fileMonitor;
+
+        Log.Info("Register file watcher handlers #########");
+        fileMonitor.FileChanged += (s, e) => Log.Info($"File change at {e.DateTime}");
+        fileMonitor.RepoChanged += (s, e) => Log.Info($"Repo change at {e.DateTime}");
     }
 
     public event EventHandler? RepoChange;
@@ -78,6 +86,8 @@ class AugmentedRepoService : IAugmentedRepoService
 
     async Task<R<Repo>> GetAugmentedRepo(GitRepo gitRepo)
     {
+        fileMonitor.Monitor(gitRepo.Path);
+
         Timing t = Timing.Start();
         WorkRepo augRepo = await this.augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
 

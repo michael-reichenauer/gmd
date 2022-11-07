@@ -72,6 +72,7 @@ class Augmenter : IAugmenter
     {
         IReadOnlyList<GitCommit> gitCommits = gitRepo.Commits;
         // For repositories with a lot of commits, only the latest 'partialMax' number of commits
+
         // are used, i.w. partial commits, which should have parents, but they are unknown
         bool isPartialPossible = gitCommits.Count >= partialMax;
         bool isPartialNeeded = false;
