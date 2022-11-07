@@ -27,7 +27,8 @@ class MenuService : IMenuService
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(new MenuItem("Commit", "", () => repoCommands.CommitAsync(repo).RunInBackground()));
+        items.Add(new MenuItem("Commit", "", () => repoCommands.CommitAsync(repo).RunInBackground(),
+            () => !repo.Repo.Status.IsOk));
         items.Add(new MenuBarItem("Show/Scroll to Branch", GetShowBranchItems(repo)));
 
         var menu = new ContextMenu(repo.ViewWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
