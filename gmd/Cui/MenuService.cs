@@ -1,71 +1,43 @@
 using gmd.ViewRepos;
-using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui;
 
+
 interface IMenuService
 {
-    void SetRepoViewer(IRepoView repoView);
-    void ShowMainMenu(Repo repo, int middleX, int currentIndex);
-    void ShowShowBranchesMenu(Repo repo, Point point, int currentIndex);
-    void ShowHideBranchesMenu(Repo repo, Point point);
+    void ShowMainMenu(IRepo repo);
+    void ShowShowBranchesMenu(IRepo repo);
+    void ShowHideBranchesMenu(IRepo repo);
 }
 
 class MenuService : IMenuService
 {
     readonly IViewRepoService viewRepoService;
-    IRepoView? repoViewer;
+    private readonly IRepoCommands repoCommands;
 
-    IRepoView repoView => repoViewer!;
 
-    internal MenuService(IViewRepoService viewRepoService)
+    internal MenuService(IViewRepoService viewRepoService, IRepoCommands repoCommands)
     {
         this.viewRepoService = viewRepoService;
+        this.repoCommands = repoCommands;
     }
 
-    public void SetRepoViewer(IRepoView repoView)
-    {
-        this.repoViewer = repoView;
-    }
-
-    public void ShowMainMenu(Repo repo, int middleX, int currentIndex)
+    public void ShowMainMenu(IRepo repo)
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(new MenuItem("Commit", "", () => CommitAsync(repo, currentIndex).RunInBackground()));
+        items.Add(new MenuItem("Commit", "", () => repoCommands.CommitAsync(repo).RunInBackground()));
         items.Add(new MenuBarItem("Show/Scroll to Branch", GetShowBranchItems(repo)));
 
-        var menu = new ContextMenu(middleX - 10, 0, new MenuBarItem(items.ToArray()));
+        var menu = new ContextMenu(repo.ViewWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
 
-    private async Task CommitAsync(Repo repo, int currentIndex)
-    {
-        var commit = repo.Commits[0];
-        if (commit.Id != Repo.UncommittedId)
-        {
-            return;
-        }
-
-        var commitDlg = new CommitDlg(commit.BranchName, repo.Status.ChangesCount, repo.Status.MergeMessage);
-        if (!commitDlg.Show())
-        {
-            return;
-        }
-        var rsp = await this.viewRepoService.CommitAllChangesAsync(repo, commitDlg.Message);
-        if (rsp.IsError)
-        {
-            UI.ErrorMessage($"Failed to commit:\n{rsp.Error.Message}");
-            return;
-        }
-        repoView.Refresh();
-    }
-
-    public void ShowShowBranchesMenu(Repo repo, Point point, int currentIndex)
+    public void ShowShowBranchesMenu(IRepo repo)
     {
         List<MenuItem> items = new List<MenuItem>();
-        var showItems = GetShowItems(repo, currentIndex);
+        var showItems = GetShowItems(repo, repo.CurrentIndex);
         var scrollToItems = GetScrollToItems();
         var switchToItems = GetSwitchToItems();
 
@@ -95,25 +67,25 @@ class MenuService : IMenuService
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems(repo)));
         items.Add(new MenuBarItem("Main Menu", GetMainMenuItems()));
 
-        var menu = new ContextMenu(point.X, point.Y, new MenuBarItem(items.ToArray()));
+        var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
 
-    public void ShowHideBranchesMenu(Repo repo, Point point)
+    public void ShowHideBranchesMenu(IRepo repo)
     {
         List<MenuItem> items = new List<MenuItem>();
 
         items.Add(Separator("Hide"));
         items.AddRange(GetHideItems(repo));
 
-        var menu = new ContextMenu(point.X, point.Y, new MenuBarItem(items.ToArray()));
+        var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
 
-    private MenuItem[] GetShowItems(Repo repo, int currentIndex)
+    private MenuItem[] GetShowItems(IRepo repo, int currentIndex)
     {
-        var selectedCommit = repo.Commits[currentIndex];
-        var branches = viewRepoService.GetCommitBranches(repo, selectedCommit.Id);
+        var selectedCommit = repo.Repo.Commits[currentIndex];
+        var branches = viewRepoService.GetCommitBranches(repo.Repo, selectedCommit.Id);
         return ToShowBranchesItems(repo, branches);
     }
 
@@ -128,24 +100,24 @@ class MenuService : IMenuService
         return new MenuItem[0];
     }
 
-    private MenuItem[] GetHideItems(Repo repo)
+    private MenuItem[] GetHideItems(IRepo repo)
     {
-        var branches = repo.Branches
+        var branches = repo.Repo.Branches
             .Where(b => !b.IsMainBranch)
             .DistinctBy(b => b.DisplayName)
             .OrderBy(b => b.DisplayName);
 
         return branches.Select(b =>
-            new MenuItem(b.DisplayName, "", () => HideBranch(repo, b.Name)))
+            new MenuItem(b.DisplayName, "", () => repoCommands.HideBranch(repo, b.Name)))
             .ToArray();
     }
 
 
-    MenuItem[] GetShowBranchItems(Repo repo)
+    MenuItem[] GetShowBranchItems(IRepo repo)
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        var allBranches = viewRepoService.GetAllBranches(repo);
+        var allBranches = viewRepoService.GetAllBranches(repo.Repo);
 
         var liveBranches = allBranches
             .Where(b => b.IsGitBranch)
@@ -157,7 +129,7 @@ class MenuService : IMenuService
             .OrderBy(b => b.DisplayName);
 
         var recentBranches = liveAndDeletedBranches
-            .OrderBy(b => repo.AugmentedRepo.CommitById[b.TipId].Index)
+            .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].Index)
             .Take(15);
 
         items.Add(new MenuBarItem("Recent Branches", ToShowBranchesItems(repo, recentBranches)));
@@ -167,28 +139,11 @@ class MenuService : IMenuService
         return items.ToArray();
     }
 
-    MenuItem[] ToShowBranchesItems(Repo repo, IEnumerable<Branch> branches)
+    MenuItem[] ToShowBranchesItems(IRepo repo, IEnumerable<Branch> branches)
     {
         return branches.Select(b =>
-            new MenuItem(b.DisplayName, "", () => ShowBranch(repo, b.Name)))
+            new MenuItem(b.DisplayName, "", () => repoCommands.ShowBranch(repo, b.Name)))
             .ToArray();
-    }
-
-    void ShowBranch(Repo repo, string name)
-    {
-        Repo newRepo = viewRepoService.ShowBranch(repo, name);
-        repoView.ShowRepo(newRepo);
-    }
-
-    void HideBranch(Repo repo, string name)
-    {
-        Repo newRepo = viewRepoService.HideBranch(repo, name);
-        repoView.ShowRepo(newRepo);
-    }
-
-    private void RunInBackground(Func<Task> doTask)
-    {
-        doTask().RunInBackground();
     }
 
     MenuItem[] GetShowScrollBranchItems()
@@ -207,7 +162,6 @@ class MenuService : IMenuService
             items.Add(Separator("Show"));
         }
 
-
         return items.ToArray();
     }
 
@@ -217,7 +171,6 @@ class MenuService : IMenuService
         return supportedCultures.ToArray();
     }
 
-
     MenuItem Separator(string text)
     {
         const int maxDivider = 20;
@@ -226,15 +179,3 @@ class MenuService : IMenuService
         return new MenuItem($"── {text} {suffix}", "", () => { }, () => false);
     }
 }
-
-//  var menu = new ContextMenu(point.X, point.Y, new MenuBarItem(new MenuItem[] {
-//         Divider("Scroll to"),
-//         new MenuItem ("_Configuration", "", () => MessageBox.Query (50, 5, "Info", "This would open settings dialog", "Ok")),
-//         Divider("Switch to"),
-//         new MenuBarItem ("More options", new MenuItem [] {
-//             new MenuItem ("_Setup", "", () => MessageBox.Query (50, 5, "Info", "This would open setup dialog", "Ok")),
-//             new MenuItem ("_Maintenance", "", () => MessageBox.Query (50, 5, "Info", "This would open maintenance dialog", "Ok")),
-//         }),
-//         new MenuBarItem ("_Languages", GetSupportedCultures ()),
-//         new MenuItem ("_Quit", "", UI.Shutdown)
-//      }));

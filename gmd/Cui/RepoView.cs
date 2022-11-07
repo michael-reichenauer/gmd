@@ -15,32 +15,36 @@ interface IRepoView
     void Refresh();
 }
 
-class RepoView : IRepoView
+class RepoView : IRepoView, IRepo
 {
     readonly IViewRepoService viewRepoService;
     readonly IGraphService graphService;
     readonly IMenuService menuService;
+    private readonly IRepoCommands repoCommands;
     readonly ContentView contentView;
     readonly IRepoWriter repoLayout;
 
     Repo? repo = null;
     Graph? graph = null;
-
     int TotalRows => repo?.Commits.Count ?? 0;
 
     public View View => contentView;
+    public int ViewWidth => contentView.ViewWidth;
+    public Repo Repo => repo!;
+    public int CurrentIndex => contentView.CurrentIndex;
+    public Point CurrentPoint => contentView.CurrentPoint;
 
 
     internal RepoView(
         IViewRepoService viewRepoService,
         IGraphService graphService,
-        IMenuService menuService) : base()
+        IMenuService menuService,
+        IRepoCommands repoCommands) : base()
     {
         this.viewRepoService = viewRepoService;
         this.graphService = graphService;
         this.menuService = menuService;
-        this.menuService.SetRepoViewer(this);
-
+        this.repoCommands = repoCommands;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
@@ -62,11 +66,13 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
         contentView.RegisterKeyHandler(Key.r, Refresh);
         contentView.RegisterKeyHandler(Key.R, Refresh);
+        contentView.RegisterKeyHandler(Key.c, CommitAll);
     }
 
-    void OnMenuKey() => menuService.ShowMainMenu(repo!, contentView.ViewWidth / 2, contentView.CurrentIndex);
-    void OnRightArrow() => menuService.ShowShowBranchesMenu(repo!, contentView.CurrentPoint, contentView.CurrentIndex);
-    void OnLeftArrow() => menuService.ShowHideBranchesMenu(repo!, contentView.CurrentPoint);
+    void CommitAll() => repoCommands.CommitAsync(this).RunInBackground();
+    void OnMenuKey() => menuService.ShowMainMenu(this);
+    void OnRightArrow() => menuService.ShowShowBranchesMenu(this);
+    void OnLeftArrow() => menuService.ShowHideBranchesMenu(this);
 
 
     public Task<R> ShowRepoAsync(string path) =>
