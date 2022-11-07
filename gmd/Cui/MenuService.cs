@@ -7,7 +7,7 @@ namespace gmd.Cui;
 interface IMenuService
 {
     void SetRepoViewer(IRepoView repoView);
-    void ShowMainMenu(Repo repo, int middleX);
+    void ShowMainMenu(Repo repo, int middleX, int currentIndex);
     void ShowShowBranchesMenu(Repo repo, Point point, int currentIndex);
     void ShowHideBranchesMenu(Repo repo, Point point);
 }
@@ -29,13 +29,33 @@ class MenuService : IMenuService
         this.repoViewer = repoView;
     }
 
-    public void ShowMainMenu(Repo repo, int middleX)
+    public void ShowMainMenu(Repo repo, int middleX, int currentIndex)
     {
         List<MenuItem> items = new List<MenuItem>();
+
+        items.Add(new MenuItem("Commit", "", () => Commit(repo, currentIndex)));
         items.Add(new MenuBarItem("Show/Scroll to Branch", GetShowBranchItems(repo)));
 
         var menu = new ContextMenu(middleX - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
+    }
+
+    private void Commit(Repo repo, int currentIndex)
+    {
+        var commit = repo.Commits[0];
+        if (commit.Id != Repo.UncommittedId)
+        {
+            return;
+        }
+
+        var commitDlg = new CommitDlg();
+        if (!commitDlg.Show())
+        {
+            Log.Info($"Canceled");
+            return;
+        }
+
+        Log.Info($"Commit current {commit.Id}");
     }
 
     public void ShowShowBranchesMenu(Repo repo, Point point, int currentIndex)

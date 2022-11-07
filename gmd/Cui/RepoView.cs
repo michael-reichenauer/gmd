@@ -62,7 +62,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
     }
 
-    void OnMenuKey() => menuService.ShowMainMenu(repo!, contentView.ViewWidth / 2);
+    void OnMenuKey() => menuService.ShowMainMenu(repo!, contentView.ViewWidth / 2, contentView.CurrentIndex);
     void OnRightArrow() => menuService.ShowShowBranchesMenu(repo!, contentView.CurrentPoint, contentView.CurrentIndex);
     void OnLeftArrow() => menuService.ShowHideBranchesMenu(repo!, contentView.CurrentPoint);
 
