@@ -28,7 +28,7 @@ class Augmenter : IAugmenter
 
     private WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
     {
-        WorkRepo repo = new WorkRepo(ToStatus(gitRepo));
+        WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, ToStatus(gitRepo));
 
         SetAugBranches(repo, gitRepo);
         SetAugCommits(repo, gitRepo, partialMax);

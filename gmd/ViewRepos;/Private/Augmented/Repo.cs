@@ -11,10 +11,14 @@ class Repo
 
 
     public Repo(
+        DateTime timeStamp,
+        string path,
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
         Status status)
     {
+        TimeStamp = timeStamp;
+        Path = path;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
         Branches = branches;
@@ -22,6 +26,8 @@ class Repo
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
+    public DateTime TimeStamp { get; }
+    public string Path { get; }
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }

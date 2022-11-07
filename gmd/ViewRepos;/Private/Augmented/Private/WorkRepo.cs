@@ -6,13 +6,20 @@ using GitBranch = gmd.Utils.Git.Branch;
 
 class WorkRepo
 {
+    public DateTime TimeStamp { get; }
+    public string Path { get; }
     public Status Status { get; }
     internal List<WorkCommit> Commits { get; } = new List<WorkCommit>();
     internal Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
     internal List<WorkBranch> Branches { get; } = new List<WorkBranch>();
 
-    public WorkRepo(Status status)
+    public WorkRepo(
+        DateTime timeStamp,
+        string path,
+        Status status)
     {
+        TimeStamp = timeStamp;
+        Path = path;
         Status = status;
     }
 }

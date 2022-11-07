@@ -33,14 +33,14 @@ class MenuService : IMenuService
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(new MenuItem("Commit", "", () => Commit(repo, currentIndex)));
+        items.Add(new MenuItem("Commit", "", () => CommitAsync(repo, currentIndex).RunInBackground()));
         items.Add(new MenuBarItem("Show/Scroll to Branch", GetShowBranchItems(repo)));
 
         var menu = new ContextMenu(middleX - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
 
-    private void Commit(Repo repo, int currentIndex)
+    private async Task CommitAsync(Repo repo, int currentIndex)
     {
         var commit = repo.Commits[0];
         if (commit.Id != Repo.UncommittedId)
@@ -48,14 +48,18 @@ class MenuService : IMenuService
             return;
         }
 
-        var commitDlg = new CommitDlg();
+        var commitDlg = new CommitDlg(commit.BranchName, repo.Status.ChangesCount, repo.Status.MergeMessage);
         if (!commitDlg.Show())
         {
-            Log.Info($"Canceled");
             return;
         }
-
-        Log.Info($"Commit current {commit.Id}");
+        var rsp = await this.viewRepoService.CommitAllChangesAsync(repo, commitDlg.Message);
+        if (rsp.IsError)
+        {
+            UI.ErrorMessage($"Failed to commit:\n{rsp.Error.Message}");
+            return;
+        }
+        repoView.Refresh();
     }
 
     public void ShowShowBranchesMenu(Repo repo, Point point, int currentIndex)

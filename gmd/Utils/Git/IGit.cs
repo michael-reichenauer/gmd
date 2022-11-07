@@ -3,9 +3,11 @@ namespace gmd.Utils.Git;
 
 interface IGit
 {
+    string Path { get; }
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000);
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
     Task<R<Status>> GetStatusAsync();
+    Task<R> CommitAllChangesAsync(string message);
 }
 
 

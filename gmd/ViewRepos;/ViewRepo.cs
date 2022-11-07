@@ -15,11 +15,13 @@ class Repo
     private readonly Private.Augmented.Repo repo;
 
     public Repo(
+        DateTime timeStamp,
         AugmentedRepo augRepo,
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
         Status status)
     {
+        TimeStamp = timeStamp;
         this.repo = augRepo;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
@@ -28,6 +30,8 @@ class Repo
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
+    public DateTime TimeStamp { get; }
+    public string Path => AugmentedRepo.Path;
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }

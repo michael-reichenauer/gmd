@@ -43,7 +43,7 @@ class MainView : IMainView
         var result = await repoView.ShowRepoAsync(path);
         if (result.IsError)
         {
-            UI.ErrorMessage("Error", $"Failed to load repo in:\n'{path}'");
+            UI.ErrorMessage($"Failed to load repo in:\n'{path}'");
             UI.Shutdown();
             return;
         }

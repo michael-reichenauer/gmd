@@ -17,7 +17,7 @@ internal static class ExceptionHandling
     private static bool hasDisplayedErrorMessageBox;
     private static bool hasFailed;
     private static bool hasShutdown;
-    private static DateTime StartTime = DateTime.Now;
+    private static DateTime StartTime = DateTime.UtcNow;
     private static Action shutdown = () => { };
 
     public static void HandleUnhandledExceptions(Action shutdownCallback)
@@ -142,10 +142,10 @@ internal static class ExceptionHandling
             return;
         }
 
-        if (DateTime.Now - StartTime < MinTimeBeforeAutoRestart)
+        if (DateTime.UtcNow - StartTime < MinTimeBeforeAutoRestart)
         {
             Console.WriteLine("Sorry, but an unexpected error just occurred");
-            StartTime = DateTime.Now;
+            StartTime = DateTime.UtcNow;
         }
 
         hasDisplayedErrorMessageBox = true;

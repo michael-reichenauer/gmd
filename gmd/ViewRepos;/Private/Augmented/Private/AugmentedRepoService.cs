@@ -37,7 +37,7 @@ class AugmentedRepoService : IAugmentedRepoService
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
     {
         Timing t = Timing.Start();
-        var git = gitService.GetGit(path);
+        var git = gitService.Git(path);
 
         // Start some git commands in parallel
         var logTask = git.GetLogAsync(maxCommitCount);
@@ -60,6 +60,8 @@ class AugmentedRepoService : IAugmentedRepoService
         }
 
         var repo = new GitRepo(
+            DateTime.UtcNow,
+            git.Path,
             logTask.Result.Value,
             branchesTask.Result.Value,
             statusTask.Result.Value);

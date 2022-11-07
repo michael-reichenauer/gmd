@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using gmd.Utils.Git;
 using gmd.ViewRepos.Private.Augmented;
 
 namespace gmd.ViewRepos.Private;
@@ -6,13 +7,16 @@ namespace gmd.ViewRepos.Private;
 
 class ViewRepoService : IViewRepoService
 {
+    private readonly IGitService gitService;
     private readonly IAugmentedRepoService augmentedRepoService;
     private readonly IConverter converter;
 
     public ViewRepoService(
+        IGitService gitService,
         IAugmentedRepoService augmentedRepoService,
         IConverter converter)
     {
+        this.gitService = gitService;
         this.augmentedRepoService = augmentedRepoService;
         this.converter = converter;
     }
@@ -23,6 +27,12 @@ class ViewRepoService : IViewRepoService
     public Task<R<Repo>> GetRepoAsync(string path) =>
         GetRepoAsync(path, new string[0]);
 
+
+    public async Task<R<Repo>> GetFreshRepoAsync(Repo repo)
+    {
+        var branches = repo.Branches.Select(b => b.Name).ToArray();
+        return await GetRepoAsync(repo.Path, branches);
+    }
 
     public async Task<R<Repo>> GetRepoAsync(string path, string[] showBranches)
     {
@@ -95,6 +105,12 @@ class ViewRepoService : IViewRepoService
     }
 
 
+    public async Task<R> CommitAllChangesAsync(Repo repo, string message)
+    {
+        return await gitService.Git(repo.Path).CommitAllChangesAsync(message);
+    }
+
+
     protected virtual void OnRepoChange(EventArgs e)
     {
         EventHandler? handler = RepoChange;
@@ -116,6 +132,7 @@ class ViewRepoService : IViewRepoService
         SetAheadBehind(branches, commits);
 
         var repo = new Repo(
+            DateTime.UtcNow,
             augRepo,
             converter.ToCommits(commits),
             converter.ToBranches(branches),

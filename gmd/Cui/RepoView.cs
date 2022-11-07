@@ -12,6 +12,7 @@ interface IRepoView
     Task<R> ShowRepoAsync(string path);
     Task<R> ShowRepoAsync(string path, string[] showBranches);
     void ShowRepo(Repo repo);
+    void Refresh();
 }
 
 class RepoView : IRepoView
@@ -50,8 +51,6 @@ class RepoView : IRepoView
         };
 
         repoLayout = new RepoWriter(contentView, contentView.ContentX);
-
-
     }
 
     // Called once the repo has been set
@@ -69,6 +68,12 @@ class RepoView : IRepoView
 
     public Task<R> ShowRepoAsync(string path) =>
         ShowRepoAsync(path, new string[0]);
+
+
+    public void Refresh()
+    {
+        ShowRefreshedRepoAsync().RunInBackground();
+    }
 
 
     public async Task<R> ShowRepoAsync(string path, string[] showBranches)
@@ -112,5 +117,19 @@ class RepoView : IRepoView
         int commitCount = Math.Min(Height, TotalRows - firstCommit);
 
         repoLayout.WriteRepoPage(graph, repo, width, firstCommit, commitCount, currentIndex);
+    }
+
+    async Task ShowRefreshedRepoAsync()
+    {
+        var t = Timing.Start();
+        var repo = await viewRepoService.GetFreshRepoAsync(this.repo!);
+        if (repo.IsError)
+        {
+            UI.ErrorMessage($"Failed to refresh:\n{repo.Error.Message}");
+            return;
+        }
+
+        ShowRepo(repo.Value);
+        Log.Info($"{t}");
     }
 }

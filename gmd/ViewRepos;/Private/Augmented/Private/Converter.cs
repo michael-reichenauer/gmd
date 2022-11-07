@@ -12,6 +12,8 @@ class Converter : IConverter
     public Repo ToRepo(WorkRepo workRepo)
     {
         return new Repo(
+            workRepo.TimeStamp,
+            workRepo.Path,
             workRepo.Commits.Select((WorkCommit c, int index) => ToCommit(c, index)).ToList(),
             workRepo.Branches.Select(ToBranch).ToList(),
             workRepo.Status
