@@ -57,7 +57,7 @@ class RepoView : IRepoView, IRepo
         repoLayout = new RepoWriter(contentView, contentView.ContentX);
 
         viewRepoService.RepoChange += (s, e) => Refresh();
-        viewRepoService.StatusChange += (s, e) => Refresh();
+        viewRepoService.StatusChange += (s, e) => RefreshStatus();
     }
 
     // Called once the repo has been set
@@ -82,10 +82,10 @@ class RepoView : IRepoView, IRepo
         ShowRepoAsync(path, new string[0]);
 
 
-    public void Refresh()
-    {
-        ShowRefreshedRepoAsync().RunInBackground();
-    }
+    public void Refresh() => ShowRefreshedRepoAsync().RunInBackground();
+
+    public void RefreshStatus() => ShowUpdatedStatusRepoAsync().RunInBackground();
+
 
     public async Task<R> ShowRepoAsync(string path, string[] showBranches)
     {
@@ -137,6 +137,20 @@ class RepoView : IRepoView, IRepo
         if (repo.IsError)
         {
             UI.ErrorMessage($"Failed to refresh:\n{repo.Error.Message}");
+            return;
+        }
+
+        ShowRepo(repo.Value);
+        Log.Info($"{t}");
+    }
+
+    async Task ShowUpdatedStatusRepoAsync()
+    {
+        var t = Timing.Start();
+        var repo = await viewRepoService.GetUpdateStatusRepoAsync(this.repo!);
+        if (repo.IsError)
+        {
+            UI.ErrorMessage($"Failed to update status:\n{repo.Error.Message}");
             return;
         }
 

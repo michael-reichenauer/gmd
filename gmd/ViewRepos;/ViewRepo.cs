@@ -4,7 +4,7 @@ namespace gmd.ViewRepos;
 using AugmentedRepo = gmd.ViewRepos.Private.Augmented.Repo;
 
 
-class Repo
+record Repo
 {
     internal static readonly string PartialLogCommitID =
         gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
@@ -36,7 +36,7 @@ class Repo
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
-    public Status Status { get; }
+    public Status Status { get; init; }
 
 
     internal Private.Augmented.Repo AugmentedRepo => repo;

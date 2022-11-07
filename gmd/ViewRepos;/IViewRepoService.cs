@@ -8,7 +8,7 @@ interface IViewRepoService
     Task<R<Repo>> GetRepoAsync(string path);
     Task<R<Repo>> GetRepoAsync(string path, string[] showBranches);
     Task<R<Repo>> GetFreshRepoAsync(Repo repo);
-    Task<R<Repo>> GetNewStatusRepoAsync(Repo repo);
+    Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
 
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);

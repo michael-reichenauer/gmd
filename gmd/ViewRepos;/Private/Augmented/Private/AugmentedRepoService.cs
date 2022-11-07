@@ -42,6 +42,23 @@ class AugmentedRepoService : IAugmentedRepoService
         return await GetAugmentedRepo(gitRepo.Value);
     }
 
+    public async Task<R<Repo>> UpdateStatusRepoAsync(Repo augRepo)
+    {
+        var git = gitService.Git(augRepo.Path);
+
+        var gitStatus = await git.GetStatusAsync();
+        if (gitStatus.IsError)
+        {
+            return gitStatus.Error;
+        }
+
+        var s = gitStatus.Value;
+        Status status = new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
+          s.IsMerging, s.MergeMessage, s.AddedFiles, s.ConflictsFiles);
+
+        return augRepo with { Status = status };
+    }
+
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
     {
         Timing t = Timing.Start();

@@ -4,11 +4,10 @@ using gmd.Utils.Git;
 namespace gmd.ViewRepos.Private.Augmented;
 
 
-class Repo
+record Repo
 {
     internal static readonly string PartialLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
     internal static readonly string UncommittedId = "0000000000000000000000000000000000000000";
-
 
     public Repo(
         DateTime timeStamp,
@@ -32,7 +31,7 @@ class Repo
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
-    public Status Status { get; }
+    public Status Status { get; init; }
 }
 
 public record Commit(

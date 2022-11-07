@@ -687,6 +687,14 @@ class Augmenter : IAugmenter
                 b.BottomID = b.TipID;
             }
 
+            if (b.RemoteName != "")
+            {
+                // For a local branch with a remote branch, the remote branch is parent.
+                var remoteBranch = repo.Branches.First(bb => bb.Name == b.RemoteName);
+                b.ParentBranch = remoteBranch;
+                continue;
+            }
+
             var bottom = repo.CommitsById[b.BottomID];
             if (bottom.Branch != b)
             {

@@ -42,11 +42,18 @@ class ViewRepoService : IViewRepoService
     }
 
 
-    public Task<R<Repo>> GetNewStatusRepoAsync(Repo repo)
+    public async Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo)
     {
-        throw new NotImplementedException();
-    }
+        var branches = repo.Branches.Select(b => b.Name).ToArray();
 
+        var augmentedRepo = await augmentedRepoService.UpdateStatusRepoAsync(repo.AugmentedRepo);
+        if (augmentedRepo.IsError)
+        {
+            return augmentedRepo.Error;
+        }
+
+        return viewRepoCreater.GetViewRepoAsync(augmentedRepo.Value, branches);
+    }
 
     public async Task<R<Repo>> GetRepoAsync(string path, string[] showBranches)
     {
