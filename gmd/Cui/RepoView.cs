@@ -57,8 +57,11 @@ class RepoView : IRepoView
     void RegisterKeyHandlers(Repo _)
     {
         contentView.RegisterKeyHandler(Key.m, OnMenuKey);
+        contentView.RegisterKeyHandler(Key.M, OnMenuKey);
         contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
         contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
+        contentView.RegisterKeyHandler(Key.r, Refresh);
+        contentView.RegisterKeyHandler(Key.R, Refresh);
     }
 
     void OnMenuKey() => menuService.ShowMainMenu(repo!, contentView.ViewWidth / 2, contentView.CurrentIndex);
