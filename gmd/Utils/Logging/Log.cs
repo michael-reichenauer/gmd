@@ -43,60 +43,15 @@ internal static class Log
     }
 
 
-    private static void ProcessLogs()
-    {
-        try
-        {
-            while (!logTexts.IsCompleted)
-            {
-                List<string> batchedTexts = new List<string>();
-                // Wait for texts to log
-                string filePrefix = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
-
-                if (!logTexts.TryTake(out var logText, int.MaxValue))
-                {
-                    break;
-                }
-                // string? logText = logTexts.Take();
-                // Native.OutputDebugString(logText);
-                batchedTexts.Add($"{filePrefix} {logText}");
-
-                // Check if there might be more buffered log texts, if so add them in batch
-                while (logTexts.TryTake(out logText))
-                {
-                    // Native.OutputDebugString(logText);
-                    batchedTexts.Add($"{filePrefix} {logText}");
-                }
-
-                try
-                {
-                    WriteToFile(batchedTexts);
-                }
-                catch (ThreadAbortException)
-                {
-                    // The process or app-domain is closing,
-                    // Thread.ResetAbort();
-                    return;
-                }
-                catch (Exception e) when (e.IsNotFatal())
-                {
-                    // Native.OutputDebugString("ERROR Failed to log to file, " + e);
-                }
-            }
-
-            LogDone("Logging done");
-        }
-        finally
-        {
-            doneTask.SetResult();
-        }
-    }
 
     public static Task CloseAsync()
     {
         try
         {
-            logTexts.CompleteAdding();
+            if (!logTexts.IsCompleted)
+            {
+                logTexts.CompleteAdding();
+            }
         }
         catch
         {
@@ -174,32 +129,120 @@ internal static class Log
         Write(LevelError, $"{e}", memberName, sourceFilePath, sourceLineNumber);
     }
 
-    private static void Write(
-        string level,
-        string msg,
-        string memberName,
-        string filePath,
-        int lineNumber)
-    {
-        filePath = filePath.Substring(prefixLength).Replace(";", "");
-        var lines = msg.Split('\n');
-        foreach (var line in lines)
-        {
-            string text = $"{level} {filePath}:{lineNumber} {memberName}: {line}";
 
-            try
+    private static void ProcessLogs()
+    {
+        try
+        {
+            while (!logTexts.IsCompleted)
             {
-                SendLog(text);
+                List<string> batchedTexts = new List<string>();
+
+                if (!logTexts.TryTake(out var logText, int.MaxValue))
+                {
+                    break;
+                }
+                // string? logText = logTexts.Take();
+                // Native.OutputDebugString(logText);
+                //batchedTexts.Add($"{filePrefix} {logText}");
+                batchedTexts.Add(logText);
+
+                // Check if there might be more buffered log texts, if so add them in batch
+                while (logTexts.TryTake(out logText))
+                {
+                    // Native.OutputDebugString(logText);
+                    // batchedTexts.Add($"{filePrefix} {logText}");
+                    batchedTexts.Add(logText);
+                }
+
+                try
+                {
+                    WriteToFile(batchedTexts);
+                }
+                catch (ThreadAbortException)
+                {
+                    // The process or app-domain is closing,
+                    // Thread.ResetAbort();
+                    return;
+                }
+                catch (Exception e) when (e.IsNotFatal())
+                {
+                    // Native.OutputDebugString("ERROR Failed to log to file, " + e);
+                }
             }
-            catch (Exception e) when (e.IsNotFatal())
-            {
-                SendLog("ERROR Failed to log " + e);
-            }
+
+            LogDone("Logging done");
+        }
+        finally
+        {
+            doneTask.SetResult();
         }
     }
 
 
-    private static void SendLog(string text)
+    private static void Write(
+        string level,
+        string msg,
+        string memberName,
+        string sourceFilePath,
+        int sourceLineNumber)
+    {
+        var msgLines = msg.Split('\n');
+        foreach (var msgLine in msgLines)
+        {
+            string text = ToLogLine(level, msgLine, memberName, sourceFilePath, sourceLineNumber);
+            QueueLogLine(text);
+        }
+    }
+
+
+    static void LogDone(
+       string msg,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0)
+    {
+        string text = ToLogLine(LevelInfo, msg, memberName, sourceFilePath, sourceLineNumber);
+        // Bypassing log queue since that is already closed
+        WriteToFile(new List<string>() { text });
+    }
+
+
+    static string ToRelativeFilePath(string sourceFilePath)
+    {
+        return sourceFilePath.Substring(prefixLength).Replace(";", "");
+    }
+
+
+    static string ToLogLine(
+        string level,
+        string msg,
+        string memberName,
+        string sourceFilePath,
+        int lineNumber)
+    {
+        string timeStamp = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
+        string filePath = sourceFilePath.Substring(prefixLength).Replace(";", "");
+
+        int classStartIndex = filePath.LastIndexOf(Path.DirectorySeparatorChar);
+        if (classStartIndex == -1)
+        {
+            classStartIndex = 0;
+        }
+        int extensionIndex = filePath.LastIndexOf('.');
+        if (extensionIndex == -1)
+        {
+            extensionIndex = filePath.Length - 1;
+        }
+        string className = filePath.Substring(classStartIndex + 1, extensionIndex - classStartIndex - 1);
+        string msgLine = $"{timeStamp} {level} {memberName}: \"{msg}\"";
+
+        string line = $"{msgLine,-100} {{{filePath}:{lineNumber}}}";
+        return line;
+    }
+
+
+    private static void QueueLogLine(string text)
     {
         try
         {
@@ -211,18 +254,6 @@ internal static class Log
         }
     }
 
-
-    private static void LogDone(
-        string msg,
-         [CallerMemberName] string memberName = "",
-         [CallerFilePath] string sourceFilePath = "",
-         [CallerLineNumber] int sourceLineNumber = 0)
-    {
-        string timePrefix = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
-        string filePath = sourceFilePath.Substring(prefixLength);
-        string text = $"{timePrefix} {LevelInfo} {filePath}:{sourceLineNumber} {memberName}: {msg}";
-        WriteToFile(new List<string>() { text });
-    }
 
     private static void WriteToFile(IReadOnlyCollection<string> text)
     {
@@ -296,20 +327,14 @@ internal static class Log
                 }
                 catch (Exception e)
                 {
-                    SendLog("ERROR Failed to move temp to second log file: " + e);
+                    QueueLogLine("ERROR Failed to move temp to second log file: " + e);
                 }
 
             }).RunInBackground();
         }
         catch (Exception e)
         {
-            SendLog("ERROR Failed to move large log file: " + e);
+            QueueLogLine("ERROR Failed to move large log file: " + e);
         }
     }
-
-    // private static class Native
-    // {
-    //     [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-    //     public static extern void OutputDebugString(string message);
-    // }
 }

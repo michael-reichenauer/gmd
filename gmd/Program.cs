@@ -25,7 +25,7 @@ class Program
 
         Program program = dependencyInjection.Resolve<Program>();
         Log.Info($"Initialized {t}");
-        program.Run();
+        program.Main();
         Log.Info($"Done, running for {t}");
         Log.CloseAsync().Wait();
     }
@@ -35,7 +35,7 @@ class Program
         this.mainView = mainView;
     }
 
-    private void Run()
+    private void Main()
     {
         var t = Timing.Start();
         Log.Info($"Init ui ...");

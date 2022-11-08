@@ -39,7 +39,7 @@ class AugmentedRepoService : IAugmentedRepoService
             return gitRepo.Error;
         }
 
-        return await GetAugmentedRepo(gitRepo.Value);
+        return await GetAugmentedRepoAsync(gitRepo.Value);
     }
 
     public async Task<R<Repo>> UpdateStatusRepoAsync(Repo augRepo)
@@ -106,7 +106,7 @@ class AugmentedRepoService : IAugmentedRepoService
         handler?.Invoke(this, e);
     }
 
-    async Task<R<Repo>> GetAugmentedRepo(GitRepo gitRepo)
+    async Task<R<Repo>> GetAugmentedRepoAsync(GitRepo gitRepo)
     {
         fileMonitor.Monitor(gitRepo.Path);
 

@@ -6,7 +6,7 @@ namespace gmd.Utils;
 internal interface ICmd
 {
     string WorkingDirectory { get; }
-    CmdResult Run(string path, string args);
+    CmdResult RunCmd(string path, string args);
     Task<CmdResult> RunAsync(string path, string args);
     CmdResult Start(string path, string args);
 
@@ -42,7 +42,7 @@ internal class Cmd : ICmd
         this.WorkingDirectory = workingDirectory;
     }
 
-    public CmdResult Run(string path, string args)
+    public CmdResult RunCmd(string path, string args)
     {
         var t = Timing.Start();
         try
@@ -95,7 +95,7 @@ internal class Cmd : ICmd
     {
         return Task.Run(() =>
         {
-            return Run(path, args);
+            return RunCmd(path, args);
         });
     }
 
