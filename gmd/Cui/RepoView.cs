@@ -17,6 +17,9 @@ interface IRepoView
 
 class RepoView : IRepoView, IRepo
 {
+    static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
+    static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
+
     readonly IViewRepoService viewRepoService;
     readonly IGraphService graphService;
     readonly IMenuService menuService;
@@ -56,8 +59,8 @@ class RepoView : IRepoView, IRepo
 
         repoLayout = new RepoWriter(contentView, contentView.ContentX);
 
-        viewRepoService.RepoChange += (s, e) => Refresh();
-        viewRepoService.StatusChange += (s, e) => RefreshStatus();
+        viewRepoService.RepoChange += (s, e) => OnRefresh(e);
+        viewRepoService.StatusChange += (s, e) => OnRefreshStatus(e);
     }
 
     // Called once the repo has been set
@@ -72,6 +75,8 @@ class RepoView : IRepoView, IRepo
         contentView.RegisterKeyHandler(Key.c, CommitAll);
     }
 
+
+
     void CommitAll() => repoCommands.CommitAsync(this).RunInBackground();
     void OnMenuKey() => menuService.ShowMainMenu(this);
     void OnRightArrow() => menuService.ShowShowBranchesMenu(this);
@@ -84,7 +89,30 @@ class RepoView : IRepoView, IRepo
 
     public void Refresh() => ShowRefreshedRepoAsync().RunInBackground();
 
-    public void RefreshStatus() => ShowUpdatedStatusRepoAsync().RunInBackground();
+    void OnRefresh(ChangeEventArgs e)
+    {
+        Log.Info($"Current: {Repo.TimeStamp.Iso()}");
+        Log.Info($"New    : {e.TimeStamp.Iso()}");
+
+        if (e.TimeStamp - Repo.TimeStamp < minRepoUpdateInterval)
+        {
+            Log.Warn("New repo event to soon, skipping update");
+            return;
+        }
+        ShowRefreshedRepoAsync().RunInBackground();
+    }
+
+    void OnRefreshStatus(ChangeEventArgs e)
+    {
+        Log.Info($"Current: {Repo.TimeStamp.Iso()}");
+        Log.Info($"New    : {e.TimeStamp.Iso()}");
+        if (e.TimeStamp - Repo.TimeStamp < minStatusUpdateInterval)
+        {
+            Log.Warn("New status event to soon, skipping update");
+            return;
+        }
+        ShowUpdatedStatusRepoAsync().RunInBackground();
+    }
 
 
     public async Task<R> ShowRepoAsync(string path, string[] showBranches)

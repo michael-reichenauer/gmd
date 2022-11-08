@@ -140,6 +140,7 @@ class FileMonitor : IFileMonitor
 
             if (!fileChangedTimer.Enabled)
             {
+                Log.Info("In progress ...");
                 fileChangedTimer.Enabled = true;
             }
         }
@@ -159,7 +160,7 @@ class FileMonitor : IFileMonitor
             return;
         }
 
-        // Log.Debug($"Repo change for '{fullPath}' {changeType}");.l
+        // Log.Debug($"Repo change for '{fullPath}' {changeType}");
 
         lock (syncRoot)
         {
@@ -168,6 +169,7 @@ class FileMonitor : IFileMonitor
 
             if (!repoChangedTimer.Enabled)
             {
+                Log.Info("In progress ...");
                 repoChangedTimer.Enabled = true;
             }
         }
