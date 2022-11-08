@@ -50,14 +50,13 @@ class FileMonitor : IFileMonitor
         fileChangedTimer = new Timer(StatusDelayTriggerTime.TotalMilliseconds);
         fileChangedTimer.Elapsed += (s, e) => OnFileChangedTimer();
 
-
         workFolderWatcher.Changed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Created += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Deleted += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Renamed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
 
         repoChangedTimer = new Timer(RepositoryDelayTriggerTime.TotalMilliseconds);
-        repoChangedTimer.Elapsed += (s, e) => OnRepoTimer();
+        repoChangedTimer.Elapsed += (s, e) => OnRepoChangedTimer();
 
         refsWatcher.Changed += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
         refsWatcher.Created += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
@@ -270,7 +269,7 @@ class FileMonitor : IFileMonitor
     }
 
 
-    private void OnRepoTimer()
+    private void OnRepoChangedTimer()
     {
         lock (syncRoot)
         {
