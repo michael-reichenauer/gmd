@@ -46,4 +46,15 @@ public class GitRepoTest
 
         Log.Info($"Diff: {diff}");
     }
+
+    [TestMethod]
+    public async Task TestDiffUncommitted()
+    {
+        IGit git = new gmd.Utils.Git.Private.Git("");
+
+        var diff = await git.UnCommittedDiff();
+        Assert.IsFalse(diff.IsError);
+
+        Log.Info($"Diff: {diff}");
+    }
 }

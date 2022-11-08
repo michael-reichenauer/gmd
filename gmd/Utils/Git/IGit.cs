@@ -9,6 +9,7 @@ interface IGit
     Task<R<Status>> GetStatusAsync();
     Task<R> CommitAllChangesAsync(string message);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
+    Task<R<CommitDiff>> UnCommittedDiff();
 }
 
 

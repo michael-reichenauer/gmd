@@ -24,7 +24,7 @@ internal class Git : IGit
         branchService = new BranchService(cmd);
         statusService = new StatusService(cmd);
         commitService = new CommitService(cmd);
-        diffService = new DiffService(cmd);
+        diffService = new DiffService(cmd, statusService);
     }
 
     public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000) =>
@@ -34,6 +34,7 @@ internal class Git : IGit
     public Task<R<Status>> GetStatusAsync() => statusService.GetStatusAsync();
     public Task<R> CommitAllChangesAsync(string message) => commitService.CommitAllChangesAsync(message);
     public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId) => diffService.GetCommitDiffAsync(commitId);
+    public Task<R<CommitDiff>> UnCommittedDiff() => diffService.UnCommittedDiff();
 
 
     public static R<string> WorkingTreeRoot(string path)
