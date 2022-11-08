@@ -175,7 +175,6 @@ class FileMonitor : IFileMonitor
     }
 
 
-
     private IReadOnlyList<Glob> GetMatches(string workingFolder)
     {
         List<Glob> patterns = new List<Glob>();
