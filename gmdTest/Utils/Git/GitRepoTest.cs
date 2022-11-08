@@ -6,7 +6,7 @@ namespace gmdTest.Utils.Git;
 public class GitRepoTest
 {
     [TestMethod]
-    public async void TestLog()
+    public async Task TestLog()
     {
         IGit git = new gmd.Utils.Git.Private.Git("");
 
@@ -21,7 +21,7 @@ public class GitRepoTest
     }
 
     [TestMethod]
-    public async void TestGetBranches()
+    public async Task TestGetBranches()
     {
         IGit git = new gmd.Utils.Git.Private.Git("");
 
@@ -33,5 +33,17 @@ public class GitRepoTest
         {
             Log.Info($"C: {b}");
         }
+    }
+
+    [TestMethod]
+    public async Task TestDiffCommit()
+    {
+        IGit git = new gmd.Utils.Git.Private.Git("");
+        string id = "385175";
+
+        var diff = await git.GetCommitDiffAsync(id);
+        Assert.IsFalse(diff.IsError);
+
+        Log.Info($"Diff: {diff}");
     }
 }

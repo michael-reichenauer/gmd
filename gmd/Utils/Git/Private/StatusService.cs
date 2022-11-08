@@ -20,7 +20,7 @@ class StatusService : IStatusService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.ErrorMessage);
+            return Error.From(cmdResult.Error);
         }
 
         return Parse(cmdResult.Output);
