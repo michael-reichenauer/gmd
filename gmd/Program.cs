@@ -38,7 +38,6 @@ class Program
     private void Main()
     {
         var t = Timing.Start();
-        Log.Info($"Init ui ...");
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         Application.Top.WantMousePositionReports = false;
