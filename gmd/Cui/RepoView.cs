@@ -62,6 +62,8 @@ class RepoView : IRepoView, IRepo
 
         viewRepoService.RepoChange += (s, e) => OnRefresh(e);
         viewRepoService.StatusChange += (s, e) => OnRefreshStatus(e);
+
+        RegisterKeyHandlers();
     }
 
     // Called once the repo has been set
@@ -126,29 +128,19 @@ class RepoView : IRepoView, IRepo
     public async Task<R> ShowRepoAsync(string path, string[] showBranches)
     {
         var t = Timing.Start();
-        var repo = await viewRepoService.GetRepoAsync(path, showBranches);
-        if (repo.IsError)
+        if (!Try(out repo, out var e, await viewRepoService.GetRepoAsync(path, showBranches)))
         {
-            return repo.Error;
+            return e;
         }
 
-        ShowRepo(repo.Value);
+        ShowRepo(repo);
         Log.Info($"{t}");
         return R.Ok;
     }
 
     public void ShowRepo(Repo repo)
     {
-        var graph = graphService.CreateGraph(repo);
-
-        if (this.repo == null)
-        {   // Register key handlers on first repo
-            RegisterKeyHandlers();
-        }
-
-        // Trigger content view to show repo
-        this.repo = repo;
-        this.graph = graph;
+        graph = graphService.CreateGraph(repo);
 
         contentView.TriggerUpdateContent(TotalRows);
     }
@@ -168,29 +160,29 @@ class RepoView : IRepoView, IRepo
 
     async Task ShowRefreshedRepoAsync()
     {
+        Log.Info("show refresh");
         var t = Timing.Start();
-        var repo = await viewRepoService.GetFreshRepoAsync(this.repo!);
-        if (repo.IsError)
+
+        if (!Try(out repo, out var e, await viewRepoService.GetFreshRepoAsync(repo!)))
         {
-            UI.ErrorMessage($"Failed to refresh:\n{repo.Error.Message}");
+            UI.ErrorMessage($"Failed to refresh:\n{e}");
             return;
         }
 
-        ShowRepo(repo.Value);
+        ShowRepo(repo);
         Log.Info($"{t}");
     }
 
     async Task ShowUpdatedStatusRepoAsync()
     {
         var t = Timing.Start();
-        var repo = await viewRepoService.GetUpdateStatusRepoAsync(this.repo!);
-        if (repo.IsError)
+        if (!Try(out repo, out var e, await viewRepoService.GetUpdateStatusRepoAsync(repo!)))
         {
-            UI.ErrorMessage($"Failed to update status:\n{repo.Error.Message}");
+            UI.ErrorMessage($"Failed to update status:\n{e}");
             return;
         }
 
-        ShowRepo(repo.Value);
+        ShowRepo(repo);
         Log.Info($"{t}");
     }
 }

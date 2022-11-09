@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -28,8 +27,8 @@ public class Error : R
            [CallerMemberName] string memberName = "",
            [CallerFilePath] string sourceFilePath = "",
            [CallerLineNumber] int sourceLineNumber = 0) =>
-           errorResult.IsError ?
-           new Error(errorResult.Exception, memberName, sourceFilePath, sourceLineNumber) : throw Asserter.FailFast("Was no error error");
+           errorResult.IsResultError ?
+           new Error(errorResult.GetResultException(), memberName, sourceFilePath, sourceLineNumber) : throw Asserter.FailFast("Was no error error");
 
     public static Error From(
         Exception e,
@@ -63,7 +62,8 @@ public class Error : R
         : this(e, ToStackTrace(memberName, sourceFilePath, sourceLineNumber)) { }
 
 
-    private Error(Exception e, string stackTrace) : base(AddStackTrace(e, stackTrace))
+    private Error(Exception e, string stackTrace)
+        : base(AddStackTrace(e, stackTrace))
     {
         if (e != NoError && e != NoValueError)
         {

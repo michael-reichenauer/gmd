@@ -43,12 +43,11 @@ class MainView : IMainView
             return true;
         });
 
-        string path = "";
+        string path = "";  // !!!!!!!!!!!! make selectable 
 
-        var result = await repoView.ShowRepoAsync(path);
-        if (result.IsError)
+        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
         {
-            UI.ErrorMessage($"Failed to load repo in:\n'{path}'");
+            UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e}");
             UI.Shutdown();
             return;
         }

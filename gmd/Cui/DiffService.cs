@@ -67,7 +67,7 @@ class DiffService : IDiffService
     {
         return commitDiff.FileDiffs.Select(fd => fd.IsRenamed
             ? ToColorText($"  {ToDiffModeText(fd.DiffMode),-12} {fd.PathBefore} => {fd.PathAfter}", fd.DiffMode)
-            : ToColorText($"  {ToDiffModeText(fd.DiffMode),-12} {fd.PathBefore} => {fd.PathAfter}", fd.DiffMode))
+            : ToColorText($"  {ToDiffModeText(fd.DiffMode),-12} {fd.PathAfter}", fd.DiffMode))
         .ToList();
     }
 

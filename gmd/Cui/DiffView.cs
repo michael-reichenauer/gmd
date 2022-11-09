@@ -61,14 +61,13 @@ class DiffView : IDiffView
         if (commitId == Repo.UncommittedId)
         {
             Log.Info($"Show diff for '{commitId}'");
-            var diff = await viewRepoService.GetUncommittedDiff(repo);
-            if (diff.IsError)
+            if (!Try(out var diff, out var e, await viewRepoService.GetUncommittedDiff(repo)))
             {
-                UI.ErrorMessage($"Failed to get uncommitted diff:\n{diff.Error.Message}");
+                UI.ErrorMessage($"Failed to get uncommitted diff:\n{e}");
                 return;
             }
 
-            diffRows = diffService.CreateRows(diff.Value);
+            diffRows = diffService.CreateRows(diff);
             View.SetNeedsDisplay();
         }
     }
@@ -91,7 +90,7 @@ class DiffView : IDiffView
 
         Rect contentRect = new Rect(0, firstRow, 50, rowCount);
 
-        int rowWidth = 30;
+        int rowWidth = 100;
         int rowX = contentRect.X;
 
         for (int y = firstRow; y < firstRow + rowCount; y++)

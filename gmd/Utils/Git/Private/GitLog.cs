@@ -43,13 +43,12 @@ internal class LogService : ILogService
                     continue;
                 }
 
-                var commit = ParseRow(row);
-                if (commit.IsError)
+                if (!Try(out var commit, out var e, ParseRow(row)))
                 {
-                    return commit.Error;
+                    return e;
                 }
 
-                commits.Add(commit.Value);
+                commits.Add(commit);
             }
         }
 

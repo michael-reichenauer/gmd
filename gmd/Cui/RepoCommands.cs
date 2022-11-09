@@ -56,10 +56,10 @@ class RepoCommands : IRepoCommands
         {
             return;
         }
-        var rsp = await this.viewRepoService.CommitAllChangesAsync(repo.Repo, commitDlg.Message);
-        if (rsp.IsError)
+
+        if (!Try(out var e, await this.viewRepoService.CommitAllChangesAsync(repo.Repo, commitDlg.Message)))
         {
-            UI.ErrorMessage($"Failed to commit:\n{rsp.Error.Message}");
+            UI.ErrorMessage($"Failed to commit:\n{e}");
             return;
         }
         repo.Refresh();

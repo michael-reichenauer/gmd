@@ -45,24 +45,23 @@ class ViewRepoService : IViewRepoService
     {
         var branches = repo.Branches.Select(b => b.Name).ToArray();
 
-        var augmentedRepo = await augmentedRepoService.UpdateStatusRepoAsync(repo.AugmentedRepo);
-        if (augmentedRepo.IsError)
+        if (!Try(out var augmentedRepo, out var e,
+            await augmentedRepoService.UpdateStatusRepoAsync(repo.AugmentedRepo)))
         {
-            return augmentedRepo.Error;
+            return e;
         }
 
-        return viewRepoCreater.GetViewRepoAsync(augmentedRepo.Value, branches);
+        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
     public async Task<R<Repo>> GetRepoAsync(string path, string[] showBranches)
     {
-        var augmentedRepo = await augmentedRepoService.GetRepoAsync(path);
-        if (augmentedRepo.IsError)
+        if (!Try(out var augmentedRepo, out var e, await augmentedRepoService.GetRepoAsync(path)))
         {
-            return augmentedRepo.Error;
+            return e;
         }
 
-        return viewRepoCreater.GetViewRepoAsync(augmentedRepo.Value, showBranches);
+        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
     }
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo)
@@ -132,24 +131,25 @@ class ViewRepoService : IViewRepoService
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(Repo repo, string commitId)
     {
-        var gitCommitDiff = await gitService.Git(repo.Path).GetCommitDiffAsync(commitId);
-        if (gitCommitDiff.IsError)
+        if (!Try(out var gitCommitDiff, out var e,
+            await gitService.Git(repo.Path).GetCommitDiffAsync(commitId)))
         {
-            return gitCommitDiff.Error;
+            return e;
         }
 
-        return converter.ToCommitDiff(gitCommitDiff.Value);
+        return converter.ToCommitDiff(gitCommitDiff);
     }
+
 
     public async Task<R<CommitDiff>> GetUncommittedDiff(Repo repo)
     {
-        var gitCommitDiff = await gitService.Git(repo.Path).GetUncommittedDiff();
-        if (gitCommitDiff.IsError)
+        if (!Try(out var gitCommitDiff, out var e,
+            await gitService.Git(repo.Path).GetUncommittedDiff()))
         {
-            return gitCommitDiff.Error;
+            return e;
         }
 
-        return converter.ToCommitDiff(gitCommitDiff.Value);
+        return converter.ToCommitDiff(gitCommitDiff);
     }
 
 
@@ -158,6 +158,7 @@ class ViewRepoService : IViewRepoService
         var handler = RepoChange;
         handler?.Invoke(this, e);
     }
+
 
     protected virtual void OnStatusChange(ChangeEventArgs e)
     {

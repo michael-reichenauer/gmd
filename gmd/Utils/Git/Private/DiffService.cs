@@ -62,20 +62,18 @@ class DiffService : IDiffService
 
         var commitDiff = commitDiffs[0];
 
-
-        var status = await statusService.GetStatusAsync();
-        if (status.IsError)
+        if (!Try(out var status, out var e, await statusService.GetStatusAsync()))
         {
-            return status.Error;
+            return e;
         }
 
         var fileDiffs = commitDiff.FileDiffs.ToList();
 
         // If status know files are conflicted, the diff mode property needs to be adjusted
-        fileDiffs = SetConflictsFilesMode(fileDiffs, status.Value);
+        fileDiffs = SetConflictsFilesMode(fileDiffs, status);
 
         // Add file diffs for new/added files
-        var addedFileDiffs = GetAddedFilesDiffs(status.Value, cmd.WorkingDirectory);
+        var addedFileDiffs = GetAddedFilesDiffs(status, cmd.WorkingDirectory);
         if (addedFileDiffs.Any())
         {
             fileDiffs = fileDiffs.Concat(addedFileDiffs).OrderBy(d => d.PathAfter.ToLower()).ToList();
@@ -344,7 +342,6 @@ class DiffService : IDiffService
 
             var lines = file.Split('\n');
             var lineDiffs = lines.Select(l => new LineDiff(DiffMode.DiffAdded, l.TrimEnd().Replace("\t", "   "))).ToList();
-
 
             var sectionDiffs = new List<SectionDiff>() { new SectionDiff($"-0,0 +1,{lines.Length}", 0, 0, 0, lines.Length, lineDiffs) };
             var fileDiff = new FileDiff("", name, false, DiffMode.DiffAdded, sectionDiffs);
