@@ -50,17 +50,14 @@ class DiffView : IDiffView
 
     public void Show(Repo repo, string commitId)
     {
-        Log.Info($"Show '{commitId}'");
         ShowAsync(repo, commitId).RunInBackground();
         Application.Run(diffView);
     }
 
     async Task ShowAsync(Repo repo, string commitId)
     {
-        Log.Info($"Show '{commitId}'");
         if (commitId == Repo.UncommittedId)
         {
-            Log.Info($"Show diff for '{commitId}'");
             if (!Try(out var diff, out var e, await viewRepoService.GetUncommittedDiff(repo)))
             {
                 UI.ErrorMessage($"Failed to get uncommitted diff:\n{e}");
