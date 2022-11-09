@@ -139,3 +139,43 @@ public record Status(
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }
+
+
+record CommitDiff(
+    string Id,
+    string Author,
+    string Date,
+    string Message,
+    IReadOnlyList<FileDiff> FileDiffs
+);
+
+record FileDiff(
+    string PathBefore,
+    string PathAfter,
+    bool IsRenamed,
+    DiffMode DiffMode,
+    IReadOnlyList<SectionDiff> SectionDiffs
+);
+
+record SectionDiff(
+    string ChangedIndexes,
+    int LeftLine,
+    int LeftCount,
+    int RightLine,
+    int RightCount,
+    IReadOnlyList<LineDiff> LineDiffs
+);
+
+record LineDiff(DiffMode DiffMode, string Line);
+
+enum DiffMode
+{
+    DiffModified,
+    DiffAdded,
+    DiffRemoved,
+    DiffSame,
+    DiffConflicts,
+    DiffConflictStart,
+    DiffConflictSplit,
+    DiffConflictEnd
+}

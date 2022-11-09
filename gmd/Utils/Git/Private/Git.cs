@@ -34,7 +34,7 @@ internal class Git : IGit
     public Task<R<Status>> GetStatusAsync() => statusService.GetStatusAsync();
     public Task<R> CommitAllChangesAsync(string message) => commitService.CommitAllChangesAsync(message);
     public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId) => diffService.GetCommitDiffAsync(commitId);
-    public Task<R<CommitDiff>> UnCommittedDiff() => diffService.UnCommittedDiff();
+    public Task<R<CommitDiff>> GetUncommittedDiff() => diffService.GetUncommittedDiff();
 
 
     public static R<string> WorkingTreeRoot(string path)

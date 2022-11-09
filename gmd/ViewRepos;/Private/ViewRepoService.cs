@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using gmd.Utils.Git;
 using gmd.ViewRepos.Private.Augmented;
 
@@ -129,6 +128,28 @@ class ViewRepoService : IViewRepoService
     public async Task<R> CommitAllChangesAsync(Repo repo, string message)
     {
         return await gitService.Git(repo.Path).CommitAllChangesAsync(message);
+    }
+
+    public async Task<R<CommitDiff>> GetCommitDiffAsync(Repo repo, string commitId)
+    {
+        var gitCommitDiff = await gitService.Git(repo.Path).GetCommitDiffAsync(commitId);
+        if (gitCommitDiff.IsError)
+        {
+            return gitCommitDiff.Error;
+        }
+
+        return converter.ToCommitDiff(gitCommitDiff.Value);
+    }
+
+    public async Task<R<CommitDiff>> GetUncommittedDiff(Repo repo)
+    {
+        var gitCommitDiff = await gitService.Git(repo.Path).GetUncommittedDiff();
+        if (gitCommitDiff.IsError)
+        {
+            return gitCommitDiff.Error;
+        }
+
+        return converter.ToCommitDiff(gitCommitDiff.Value);
     }
 
 

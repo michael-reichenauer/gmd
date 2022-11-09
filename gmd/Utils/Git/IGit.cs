@@ -9,19 +9,19 @@ interface IGit
     Task<R<Status>> GetStatusAsync();
     Task<R> CommitAllChangesAsync(string message);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
-    Task<R<CommitDiff>> UnCommittedDiff();
+    Task<R<CommitDiff>> GetUncommittedDiff();
 }
 
 
 public record Commit(
     string Id,
-     string Sid,
-     string[] ParentIds,
-     string Subject,
-     string Message,
-     string Author,
-     DateTime AuthorTime,
-     DateTime CommitTime
+    string Sid,
+    string[] ParentIds,
+    string Subject,
+    string Message,
+    string Author,
+    DateTime AuthorTime,
+    DateTime CommitTime
 );
 
 public record Branch(
@@ -52,18 +52,6 @@ public record Status(
 }
 
 
-enum DiffMode
-{
-    DiffModified,
-    DiffAdded,
-    DiffRemoved,
-    DiffSame,
-    DiffConflicts,
-    DiffConflictStart,
-    DiffConflictSplit,
-    DiffConflictEnd
-}
-
 record CommitDiff(
     string Id,
     string Author,
@@ -89,7 +77,16 @@ record SectionDiff(
     IReadOnlyList<LineDiff> LineDiffs
 );
 
-record LineDiff(
-    DiffMode DiffMode,
-    string Line
-);
+record LineDiff(DiffMode DiffMode, string Line);
+
+enum DiffMode
+{
+    DiffModified,
+    DiffAdded,
+    DiffRemoved,
+    DiffSame,
+    DiffConflicts,
+    DiffConflictStart,
+    DiffConflictSplit,
+    DiffConflictEnd
+}

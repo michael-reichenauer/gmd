@@ -44,6 +44,8 @@ class FileMonitor : IFileMonitor
     private bool isRepoChanged = false;
     private DateTime repoChangeTime;
 
+    private string workingFolder = "";
+
 
     public FileMonitor()
     {
@@ -78,6 +80,12 @@ class FileMonitor : IFileMonitor
             return;
         }
 
+        if (workingFolder == this.workingFolder)
+        {
+            // Already monitoring this folder
+            return;
+        }
+
         workFolderWatcher.EnableRaisingEvents = false;
         refsWatcher.EnableRaisingEvents = false;
         fileChangedTimer.Enabled = false;
@@ -100,6 +108,8 @@ class FileMonitor : IFileMonitor
 
         workFolderWatcher.EnableRaisingEvents = true;
         refsWatcher.EnableRaisingEvents = true;
+
+        this.workingFolder = workingFolder;
     }
 
 

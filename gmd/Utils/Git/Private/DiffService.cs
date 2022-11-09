@@ -5,7 +5,7 @@ namespace gmd.Utils.Git.Private;
 interface IDiffService
 {
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
-    Task<R<CommitDiff>> UnCommittedDiff();
+    Task<R<CommitDiff>> GetUncommittedDiff();
 }
 
 class DiffService : IDiffService
@@ -39,7 +39,7 @@ class DiffService : IDiffService
     }
 
 
-    public async Task<R<CommitDiff>> UnCommittedDiff()
+    public async Task<R<CommitDiff>> GetUncommittedDiff()
     {
         var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             " --find-renames --unified=6 HEAD";
@@ -49,10 +49,9 @@ class DiffService : IDiffService
             return Error.From(cmdResult.Error);
         }
 
-        // Add uncommited commit text to support parser.
+        // Add commit prefix text to support parser.
         var dateText = DateTime.Now.Iso();
-        string output = "commit 0000000000000000000000000000000000000000\nMerge: \nAuthor: " +
-            $"\nDate:   {dateText}\n\n    Uncommitted files\n\n" +
+        string output = $"commit  \nMerge: \nAuthor: \nDate:   {dateText}\n\n    Uncommitted files\n\n" +
             cmdResult.Output;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);

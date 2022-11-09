@@ -52,7 +52,7 @@ public class GitRepoTest
     {
         IGit git = new gmd.Utils.Git.Private.Git("");
 
-        var diff = await git.UnCommittedDiff();
+        var diff = await git.GetUncommittedDiff();
         Assert.IsFalse(diff.IsError);
 
         Log.Info($"Diff: {diff}");

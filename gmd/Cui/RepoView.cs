@@ -1,10 +1,8 @@
-using gmd.Utils.Git;
 using gmd.ViewRepos;
 using Terminal.Gui;
 
 
 namespace gmd.Cui;
-
 
 interface IRepoView
 {
@@ -21,11 +19,12 @@ class RepoView : IRepoView, IRepo
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
 
     readonly IViewRepoService viewRepoService;
+    private readonly IDiffView diffView;
     readonly IGraphService graphService;
     readonly IMenuService menuService;
     private readonly IRepoCommands repoCommands;
     readonly ContentView contentView;
-    readonly IRepoWriter repoLayout;
+    readonly IRepoWriter repoWriter;
 
     Repo? repo = null;
     Graph? graph = null;
@@ -40,11 +39,13 @@ class RepoView : IRepoView, IRepo
 
     internal RepoView(
         IViewRepoService viewRepoService,
+        IDiffView diffView,
         IGraphService graphService,
         IMenuService menuService,
         IRepoCommands repoCommands) : base()
     {
         this.viewRepoService = viewRepoService;
+        this.diffView = diffView;
         this.graphService = graphService;
         this.menuService = menuService;
         this.repoCommands = repoCommands;
@@ -57,7 +58,7 @@ class RepoView : IRepoView, IRepo
             WantMousePositionReports = false,
         };
 
-        repoLayout = new RepoWriter(contentView, contentView.ContentX);
+        repoWriter = new RepoWriter(contentView, contentView.ContentX);
 
         viewRepoService.RepoChange += (s, e) => OnRefresh(e);
         viewRepoService.StatusChange += (s, e) => OnRefreshStatus(e);
@@ -73,9 +74,16 @@ class RepoView : IRepoView, IRepo
         contentView.RegisterKeyHandler(Key.r, Refresh);
         contentView.RegisterKeyHandler(Key.R, Refresh);
         contentView.RegisterKeyHandler(Key.c, CommitAll);
+        contentView.RegisterKeyHandler(Key.C, CommitAll);
+
+        contentView.RegisterKeyHandler(Key.d, ShowDiff);
+        contentView.RegisterKeyHandler(Key.D, ShowDiff);
     }
 
-
+    private void ShowDiff()
+    {
+        diffView.Show(Repo, Repo.UncommittedId);
+    }
 
     void CommitAll() => repoCommands.CommitAsync(this).RunInBackground();
     void OnMenuKey() => menuService.ShowMainMenu(this);
@@ -155,7 +163,7 @@ class RepoView : IRepoView, IRepo
         int firstCommit = Math.Min(firstIndex, TotalRows);
         int commitCount = Math.Min(Height, TotalRows - firstCommit);
 
-        repoLayout.WriteRepoPage(graph, repo, width, firstCommit, commitCount, currentIndex);
+        repoWriter.WriteRepoPage(graph, repo, width, firstCommit, commitCount, currentIndex);
     }
 
     async Task ShowRefreshedRepoAsync()
