@@ -4,7 +4,7 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-public delegate void DrawContentCallback(int width, int Height, int firstIndex, int currentIndex);
+public delegate void DrawContentCallback(Rect bounds, int firstIndex, int currentIndex);
 public delegate void OnKeyCallback();
 
 
@@ -135,7 +135,8 @@ class ContentView : View
     {
         Clear();
 
-        onDrawRepoContent(ContentWidth, ContentHeight, firstIndex, currentIndex);
+        Rect contentRect = new Rect(ContentX, 0, ContentWidth, ContentHeight);
+        onDrawRepoContent(contentRect, firstIndex, currentIndex);
 
         DrawCursor();
         DrawVerticalScrollbar();

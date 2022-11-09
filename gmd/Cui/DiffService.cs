@@ -1,42 +1,41 @@
-
-
 using gmd.ViewRepos;
 
 namespace gmd.Cui;
 
 
-record DiffRows(IReadOnlyList<DiffRow> Rows);
-record DiffRow(string Left, string Right);
-
-
-
 interface IDiffService
 {
-    DiffRows CreateRows(CommitDiff diff);
-    DiffRows CreateRows(CommitDiff[] commitDiffs);
+    Content CreateRows(CommitDiff diff);
+    Content CreateRows(CommitDiff[] commitDiffs);
 }
 
 class DiffService : IDiffService
 {
-    public DiffRows CreateRows(CommitDiff commitDiff)
+    public Content CreateRows(CommitDiff commitDiff)
     {
         return CreateRows(new[] { commitDiff });
     }
 
-    public DiffRows CreateRows(CommitDiff[] commitDiffs)
+    public Content CreateRows(CommitDiff[] commitDiffs)
     {
-        return new DiffRows(commitDiffs.SelectMany(d => ToCommitRows(d)).ToList());
+        var content = new Content();
+        commitDiffs.ForEach(diff => AddCommitDiff(diff, content));
+        return content;
     }
 
-    IReadOnlyList<DiffRow> ToCommitRows(CommitDiff d)
+    void AddCommitDiff(CommitDiff d, Content content)
     {
-        var rows = new List<DiffRow>();
-
-        rows.Add(new DiffRow($"Commit:  {d.Id}", d.Id));
-        rows.Add(new DiffRow($"Author:  {d.Author}", ""));
-        rows.Add(new DiffRow($"Date:    {d.Date}", ""));
-        rows.Add(new DiffRow($"Message: {d.Message}", ""));
-
-        return rows;
+        content.DarkGray("Commit:  ");
+        content.White(d.Id);
+        content.EoL();
+        content.DarkGray("Author:  ");
+        content.White(d.Author);
+        content.EoL();
+        content.DarkGray("Date:    ");
+        content.White(d.Date);
+        content.EoL();
+        content.DarkGray("Message: ");
+        content.White(d.Message);
+        content.EoL();
     }
 }

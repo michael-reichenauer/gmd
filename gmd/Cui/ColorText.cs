@@ -1,5 +1,3 @@
-
-using System.Text;
 using Terminal.Gui;
 using Color = Terminal.Gui.Attribute;
 

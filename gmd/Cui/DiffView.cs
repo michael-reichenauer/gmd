@@ -19,11 +19,10 @@ class DiffView : IDiffView
     public Toplevel diffView { get; }
 
     readonly ContentView contentView;
-    readonly DiffWriter diffWriter;
 
-    DiffRows? diffRows = null;
+    Content? diffRows = null;
 
-    int TotalRows => diffRows?.Rows.Count ?? 0;
+    int TotalRows => diffRows?.RowCount ?? 0;
 
     public DiffView(IViewRepoService viewRepoService, IDiffService diffService)
     {
@@ -44,7 +43,6 @@ class DiffView : IDiffView
         };
 
         diffView.Add(contentView);
-        diffWriter = new DiffWriter(contentView, contentView.ContentX);
         this.viewRepoService = viewRepoService;
         this.diffService = diffService;
     }
@@ -74,17 +72,19 @@ class DiffView : IDiffView
         }
     }
 
-    private void onDrawRepoContent(int width, int Height, int firstIndex, int currentIndex)
+    private void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)
     {
         if (diffRows == null)
         {
             return;
         }
 
-        int firstCommit = Math.Min(firstIndex, TotalRows);
-        int commitCount = Math.Min(Height, TotalRows - firstCommit);
+        int firstRow = Math.Min(firstIndex, TotalRows);
+        int rowCount = Math.Min(bounds.Height, TotalRows - firstRow);
 
-        diffWriter.WriteDiffPage(diffRows, width, firstIndex, Height, currentIndex);
+        Rect contentRect = new Rect(10, firstRow, 10, rowCount);
+
+        diffRows.Draw(contentView, bounds, contentRect);
     }
 
 

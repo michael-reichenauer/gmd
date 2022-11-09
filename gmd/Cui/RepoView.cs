@@ -153,7 +153,7 @@ class RepoView : IRepoView, IRepo
         contentView.TriggerUpdateContent(TotalRows);
     }
 
-    void onDrawRepoContent(int width, int Height, int firstIndex, int currentIndex)
+    void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)
     {
         if (repo == null || graph == null)
         {
@@ -161,9 +161,9 @@ class RepoView : IRepoView, IRepo
         }
 
         int firstCommit = Math.Min(firstIndex, TotalRows);
-        int commitCount = Math.Min(Height, TotalRows - firstCommit);
+        int commitCount = Math.Min(bounds.Height, TotalRows - firstCommit);
 
-        repoWriter.WriteRepoPage(graph, repo, width, firstCommit, commitCount, currentIndex);
+        repoWriter.WriteRepoPage(graph, repo, bounds.Width, firstCommit, commitCount, currentIndex);
     }
 
     async Task ShowRefreshedRepoAsync()
