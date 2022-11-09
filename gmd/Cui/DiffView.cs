@@ -15,12 +15,13 @@ class DiffView : IDiffView
 {
     private readonly IViewRepoService viewRepoService;
     private readonly IDiffService diffService;
+    static readonly Text splitLine = Text.New.DarkGray("│");
 
     public Toplevel diffView { get; }
 
     readonly ContentView contentView;
 
-    Content? diffRows = null;
+    DiffRows? diffRows = null;
 
     int TotalRows => diffRows?.RowCount ?? 0;
 
@@ -82,9 +83,35 @@ class DiffView : IDiffView
         int firstRow = Math.Min(firstIndex, TotalRows);
         int rowCount = Math.Min(bounds.Height, TotalRows - firstRow);
 
-        Rect contentRect = new Rect(10, firstRow, 10, rowCount);
 
-        diffRows.Draw(contentView, bounds, contentRect);
+        if (rowCount == 0 || bounds.Width == 0)
+        {
+            return;
+        };
+
+        Rect contentRect = new Rect(0, firstRow, 50, rowCount);
+
+        int rowWidth = 30;
+        int rowX = contentRect.X;
+
+        for (int y = firstRow; y < firstRow + rowCount; y++)
+        {
+            var row = diffRows.Rows[y];
+            if (row.Mode == DiffRowMode.Line)
+            {
+                row.Left.DrawAsLine(contentView, contentView.ContentX, y, rowWidth);
+            }
+            else if (row.Mode == DiffRowMode.Left)
+            {
+                row.Left.Draw(contentView, contentView.ContentX, y, 0, rowWidth);
+            }
+            else if (row.Mode == DiffRowMode.LeftRight)
+            {
+                row.Left.Draw(contentView, contentView.ContentX, y, 0, rowWidth);
+                splitLine.Draw(contentView, contentView.ContentX + rowWidth, y);
+                row.Right.Draw(contentView, contentView.ContentX + rowWidth + 1, y, 0, rowWidth);
+            }
+        }
     }
 
 
