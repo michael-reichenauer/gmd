@@ -13,20 +13,36 @@ class DiffRows
 {
     readonly List<DiffRow> rows = new List<DiffRow>();
 
-    public int Count => rows.Count;
+    internal int MaxLength { get; private set; }
+    internal int Count => rows.Count;
+
     public IReadOnlyList<DiffRow> Rows => rows;
 
     internal void Add(Text oneRow) =>
-        rows.Add(new DiffRow(oneRow, Text.None, DiffRowMode.Left));
+        Add(oneRow, Text.None, DiffRowMode.SpanBoth);
 
     internal void Add(Text left, Text right) =>
-        rows.Add(new DiffRow(left, right, DiffRowMode.LeftRight));
+        Add(left, right, DiffRowMode.LeftRight);
 
     internal void AddToBoth(Text text) =>
-        rows.Add(new DiffRow(text, text, DiffRowMode.LeftRight));
+        Add(text, text, DiffRowMode.LeftRight);
 
     internal void AddLine(Text line) =>
-       rows.Add(new DiffRow(line, Text.None, DiffRowMode.Line));
+       Add(line, Text.None, DiffRowMode.Line);
+
+    private void Add(Text left, Text right, DiffRowMode mode)
+    {
+        if (left.Length > MaxLength)
+        {
+            MaxLength = left.Length;
+        }
+        if (right.Length > MaxLength)
+        {
+            MaxLength = right.Length;
+        }
+
+        rows.Add(new DiffRow(left, right, mode));
+    }
 }
 
 record DiffRow(Text Left, Text Right, DiffRowMode Mode);
@@ -34,7 +50,7 @@ record DiffRow(Text Left, Text Right, DiffRowMode Mode);
 enum DiffRowMode
 {
     LeftRight,
-    Left,
+    SpanBoth,
     Line,
 }
 

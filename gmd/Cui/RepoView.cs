@@ -66,7 +66,6 @@ class RepoView : IRepoView, IRepo
         RegisterKeyHandlers();
     }
 
-    // Called once the repo has been set
     void RegisterKeyHandlers()
     {
         contentView.RegisterKeyHandler(Key.m, OnMenuKey);

@@ -9,6 +9,7 @@ class Text
 {
     record Fragment(string Text, Color Color);
     readonly List<Fragment> fragments = new List<Fragment>();
+    internal int Length { get; private set; } = 0;
 
     internal static Text None => new Text();
     internal static Text New => new Text();
@@ -34,6 +35,7 @@ class Text
     internal Text Add(string text, Color color)
     {
         fragments.Add(new Fragment(text, color));
+        Length += text.Length;
         return this;
     }
 

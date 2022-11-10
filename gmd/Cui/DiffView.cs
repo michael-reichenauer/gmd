@@ -18,6 +18,7 @@ class DiffView : IDiffView
     static readonly Text splitLine = Text.New.DarkGray("│");
 
     Toplevel diffView;
+    int rowStartIndex = 0;
 
     public Toplevel View => diffView;
 
@@ -43,11 +44,39 @@ class DiffView : IDiffView
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
+            IsNoCursor = true,
         };
 
         diffView.Add(contentView);
         this.viewRepoService = viewRepoService;
         this.diffService = diffService;
+
+        RegisterKeyHandlers();
+    }
+
+    void RegisterKeyHandlers()
+    {
+        contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
+        contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
+    }
+
+    private void OnLeftArrow()
+    {
+        if (rowStartIndex > 0)
+        {
+            rowStartIndex--;
+            contentView.TriggerUpdateContent(diffRows!.Count);
+        }
+    }
+
+    private void OnRightArrow()
+    {
+        int maxColumnWidth = contentView.ContentWidth / 2;
+        if (diffRows!.MaxLength - rowStartIndex > maxColumnWidth)
+        {
+            rowStartIndex++;
+            contentView.TriggerUpdateContent(diffRows!.Count);
+        }
     }
 
     public void Show(Repo repo, string commitId)
@@ -88,29 +117,31 @@ class DiffView : IDiffView
 
         Rect contentRect = new Rect(0, firstRow, 50, rowCount);
 
-        int rowWidth = 100;
+        int contentWidth = bounds.Width;
         int rowX = contentRect.X;
-        DrawDiffRows(firstRow, rowCount, rowWidth);
+        DrawDiffRows(firstRow, rowCount, rowStartIndex, contentWidth);
     }
 
-    void DrawDiffRows(int firstRow, int rowCount, int rowWidth)
+    void DrawDiffRows(int firstRow, int rowCount, int rowStart, int contentWidth)
     {
-        for (int y = firstRow; y < firstRow + rowCount; y++)
+        int columnWidth = (contentWidth - 1) / 2;
+        int oneColumnWidth = columnWidth * 2 + 1;
+        for (int y = 0; y < rowCount; y++)
         {
-            var row = diffRows!.Rows[y];
+            var row = diffRows!.Rows[firstRow + y];
             if (row.Mode == DiffRowMode.Line)
             {
-                row.Left.DrawAsLine(contentView, contentView.ContentX, y, rowWidth);
+                row.Left.DrawAsLine(contentView, contentView.ContentX, y, oneColumnWidth);
             }
-            else if (row.Mode == DiffRowMode.Left)
+            else if (row.Mode == DiffRowMode.SpanBoth)
             {
-                row.Left.Draw(contentView, contentView.ContentX, y, 0, rowWidth);
+                row.Left.Draw(contentView, contentView.ContentX, y, 0, oneColumnWidth);
             }
             else if (row.Mode == DiffRowMode.LeftRight)
             {
-                row.Left.Draw(contentView, contentView.ContentX, y, 0, rowWidth);
-                splitLine.Draw(contentView, contentView.ContentX + rowWidth, y);
-                row.Right.Draw(contentView, contentView.ContentX + rowWidth + 1, y, 0, rowWidth);
+                row.Left.Draw(contentView, contentView.ContentX, y, rowStart, columnWidth);
+                splitLine.Draw(contentView, contentView.ContentX + columnWidth, y);
+                row.Right.Draw(contentView, contentView.ContentX + columnWidth + 1, y, rowStart, columnWidth);
             }
         }
     }
