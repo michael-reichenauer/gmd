@@ -122,7 +122,7 @@ class RepoWriter : IRepoWriter
             text.Black(Text("       ", cw.Sid));
             return;
         }
-        text.Green(Text(" " + c.Sid, cw.Sid));
+        text.DarkGray(Text(" " + c.Sid, cw.Sid));
     }
 
     void WriteAuthor(Columns cw, Commit c)
@@ -132,7 +132,7 @@ class RepoWriter : IRepoWriter
 
     void WriteTime(Columns cw, Commit c)
     {
-        text.Blue(Text(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
+        text.DarkGray(Text(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
     }
 
     string Text(string text, int width)
