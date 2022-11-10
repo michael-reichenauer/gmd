@@ -118,6 +118,7 @@ class RepoView : IRepoView, IRepo
     {
         Log.Info($"Current: {Repo.TimeStamp.Iso()}");
         Log.Info($"New    : {e.TimeStamp.Iso()}");
+
         if (e.TimeStamp - Repo.TimeStamp < minStatusUpdateInterval)
         {
             Log.Warn("New status event to soon, skipping update");
