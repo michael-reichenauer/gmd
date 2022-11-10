@@ -1,7 +1,7 @@
 ﻿using Terminal.Gui;
 using gmd.Cui;
 using System.Runtime.CompilerServices;
-using gmd.Utils;
+
 
 [assembly: InternalsVisibleTo("gmdTest")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
@@ -38,6 +38,9 @@ class Program
     private void Main()
     {
         var t = Timing.Start();
+
+        Log.Info($"Build {Util.GetBuildVersion()} {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         //Application.Top.WantMousePositionReports = false;
