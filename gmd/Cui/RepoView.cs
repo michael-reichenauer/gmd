@@ -19,7 +19,7 @@ class RepoView : IRepoView, IRepo
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
 
     readonly IViewRepoService viewRepoService;
-    private readonly IDiffView diffView;
+    private readonly Func<IDiffView> diffViewProvider;
     readonly IGraphService graphService;
     readonly IMenuService menuService;
     private readonly IRepoCommands repoCommands;
@@ -39,13 +39,13 @@ class RepoView : IRepoView, IRepo
 
     internal RepoView(
         IViewRepoService viewRepoService,
-        IDiffView diffView,
+        Func<IDiffView> diffViewProvider,
         IGraphService graphService,
         IMenuService menuService,
         IRepoCommands repoCommands) : base()
     {
         this.viewRepoService = viewRepoService;
-        this.diffView = diffView;
+        this.diffViewProvider = diffViewProvider;
         this.graphService = graphService;
         this.menuService = menuService;
         this.repoCommands = repoCommands;
@@ -84,6 +84,7 @@ class RepoView : IRepoView, IRepo
 
     private void ShowDiff()
     {
+        var diffView = diffViewProvider();
         diffView.Show(Repo, Repo.UncommittedId);
     }
 

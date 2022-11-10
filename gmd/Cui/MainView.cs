@@ -27,7 +27,6 @@ class MainView : IMainView
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            // WantMousePositionReports = false,
         };
 
         toplevel.Add(repoView.View);

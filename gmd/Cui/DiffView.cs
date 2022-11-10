@@ -73,20 +73,16 @@ class DiffView : IDiffView
 
     private void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)
     {
-        Log.Info("Draw diff content");
         if (diffRows == null)
         {
-            Log.Info("Nothing to drawt");
             return;
         }
 
         int firstRow = Math.Min(firstIndex, TotalRows);
         int rowCount = Math.Min(bounds.Height, TotalRows - firstRow);
 
-
         if (rowCount == 0 || bounds.Width == 0)
         {
-            Log.Info("Empty lines");
             return;
         };
 
@@ -95,7 +91,6 @@ class DiffView : IDiffView
         int rowWidth = 100;
         int rowX = contentRect.X;
 
-        Log.Info($"Drawing lines first: {firstRow}, count: {rowCount}");
         for (int y = firstRow; y < firstRow + rowCount; y++)
         {
             var row = diffRows.Rows[y];
