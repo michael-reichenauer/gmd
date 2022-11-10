@@ -91,51 +91,52 @@ class RepoWriter : IRepoWriter
         IReadOnlyDictionary<string, Text> branchTips)
     {
         int columnWidth = cw.Subject;
+        int maxTipWidth = maxTipsLength;
+
+        if (maxTipWidth < columnWidth - c.Subject.Length)
+        {
+            maxTipWidth = (columnWidth - c.Subject.Length);
+        }
 
         if (branchTips.TryGetValue(c.Id, out var tips))
         {
-            tips.Draw(0, maxTipsLength);
-            columnWidth = columnWidth - (Math.Min(tips.Length, maxTipsLength)) - 1;
+            columnWidth--;
+            columnWidth -= Math.Min(tips.Length, maxTipsLength);
             if (tips.Length > maxTipsLength)
             {
-                Text.New.DarkGray("...").Draw();
                 columnWidth -= 3;
             }
-            Text.New.Black(" ").Draw();
         }
 
-        string subject = $"{c.Subject,-60}";
-        if (c.IsConflicted)
-        {
-            text.BrightRed(Txt(subject, cw.Subject));
-            return;
-        }
-        if (c.IsUncommitted)
-        {
-            text.BrightYellow(Txt(subject, cw.Subject));
-            return;
-        }
-        if (c.IsAhead)
-        {
-            text.BrightGreen(Txt(subject, cw.Subject));
-            return;
-        }
-        if (c.IsBehind)
-        {
-            text.BrightBlue(Txt(subject, cw.Subject));
-            return;
-        }
+        string subject = Txt(c.Subject, columnWidth);
 
-        if (c.BranchName == currentRowBranch.Name ||
+        if (c.IsConflicted) { text.BrightRed(subject); }
+        else if (c.IsUncommitted) { text.BrightYellow(subject); }
+        else if (c.IsAhead) { text.BrightGreen(subject); }
+        else if (c.IsBehind) { text.BrightBlue(subject); }
+        else if (c.BranchName == currentRowBranch.Name ||
             c.BranchName == currentRowBranch.LocalName ||
             c.BranchName == currentRowBranch.RemoteName)
         {
-
             text.White(Txt(subject, columnWidth));
-            return;
         }
+        else { text.DarkGray(Txt(subject, columnWidth)); }
 
-        text.DarkGray(Txt(subject, columnWidth));
+        if (tips != null) { WriteBranchTips(tips, maxTipWidth); }
+    }
+
+    void WriteBranchTips(Text tips, int maxWidth)
+    {
+        if (tips.Length > maxWidth - 1)
+        {
+            maxWidth -= 3;
+        }
+        Text.New.Black(" ").Draw();
+        tips.Draw(0, maxWidth - 1);
+        if (tips.Length > maxTipsLength)
+        {
+            Text.New.Dark("...").Draw();
+        }
     }
 
     void WriteSid(Columns cw, Commit c)
@@ -216,7 +217,7 @@ class RepoWriter : IRepoWriter
                     ambiguousTipText = Text.New;
                 }
 
-                ambiguousTipText.White("(╸").DarkGray("ambiguous").White(")");
+                ambiguousTipText.White("(╸").Dark("ambiguous").White(")");
                 branchTips[b.AmbiguousTipId] = ambiguousTipText;
             }
 
@@ -239,7 +240,7 @@ class RepoWriter : IRepoWriter
             }
             else
             {
-                tipText.Add("(╸", color).DarkGray(branchName).Add(")", color);
+                tipText.Add("(╸", color).Dark(branchName).Add(")", color);
             }
 
             branchTips[b.TipId] = tipText;

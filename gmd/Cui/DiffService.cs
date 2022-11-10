@@ -57,7 +57,7 @@ enum DiffRowMode
 
 class DiffService : IDiffService
 {
-    static readonly Text NoLine = Text.New.DarkGray(new string('░', 100));
+    static readonly Text NoLine = Text.New.Dark(new string('░', 100));
     public DiffRows CreateRows(CommitDiff commitDiff)
     {
         return CreateRows(new[] { commitDiff });
@@ -75,14 +75,14 @@ class DiffService : IDiffService
         rows.AddLine(Text.New.Yellow("═"));
         if (commitDiff.Id == "")
         {   // Uncommitted changes
-            rows.Add(Text.New.DarkGray("Commit: ").White("Uncommitted changes"));
+            rows.Add(Text.New.Dark("Commit: ").White("Uncommitted changes"));
         }
         else
         {   // Some specified commit id
-            rows.Add(Text.New.DarkGray("Commit:  ").White(commitDiff.Id));
-            rows.Add(Text.New.DarkGray("Author:  ").White(commitDiff.Author));
-            rows.Add(Text.New.DarkGray("Date:    ").White(commitDiff.Date));
-            rows.Add(Text.New.DarkGray("Message: ").White(commitDiff.Message));
+            rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id));
+            rows.Add(Text.New.Dark("Author:  ").White(commitDiff.Author));
+            rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Date));
+            rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
         }
 
         rows.Add(Text.None);
@@ -120,7 +120,7 @@ class DiffService : IDiffService
     void AddSectionDiff(SectionDiff sectionDiff, DiffRows rows)
     {
         rows.Add(Text.None);
-        rows.AddLine(Text.New.DarkGray("─"));
+        rows.AddLine(Text.New.Dark("─"));
 
         var leftBlock = new List<Text>();
         var rightBlock = new List<Text>();
@@ -135,7 +135,7 @@ class DiffService : IDiffService
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.DarkGray("=== Start of conflict"));
+                    rows.AddToBoth(Text.New.Dark("=== Start of conflict"));
                     break;
 
                 case DiffMode.DiffConflictSplit:
@@ -145,21 +145,21 @@ class DiffService : IDiffService
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.DarkGray("=== End of conflict"));
+                    rows.AddToBoth(Text.New.Dark("=== End of conflict"));
                     break;
 
                 case DiffMode.DiffRemoved:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(Text.New.DarkGray($"{leftNr,4}").Yellow($" {dl.Line}"));
+                        leftBlock.Add(Text.New.Dark($"{leftNr,4}").Yellow($" {dl.Line}"));
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(Text.New.DarkGray($"{leftNr,4}").Yellow($" {dl.Line}"));
+                        rightBlock.Add(Text.New.Dark($"{leftNr,4}").Yellow($" {dl.Line}"));
                     }
                     else
                     {
-                        leftBlock.Add(Text.New.DarkGray($"{leftNr,4}").Red($" {dl.Line}"));
+                        leftBlock.Add(Text.New.Dark($"{leftNr,4}").Red($" {dl.Line}"));
                     }
 
                     leftNr++;
@@ -168,15 +168,15 @@ class DiffService : IDiffService
                 case DiffMode.DiffAdded:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(Text.New.DarkGray($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        leftBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(Text.New.DarkGray($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
                     }
                     else
                     {
-                        rightBlock.Add(Text.New.DarkGray($"{rightNr,4}").Green($" {dl.Line}"));
+                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").Green($" {dl.Line}"));
                     }
 
                     rightNr++;
@@ -185,17 +185,17 @@ class DiffService : IDiffService
                 case DiffMode.DiffSame:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(Text.New.DarkGray($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        leftBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(Text.New.DarkGray($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
                     }
                     else
                     {
                         AddBlocks(ref leftBlock, ref rightBlock, rows);
-                        leftBlock.Add(Text.New.DarkGray($"{leftNr,4}").White($" {dl.Line}"));
-                        rightBlock.Add(Text.New.DarkGray($"{rightNr,4}").White($" {dl.Line}"));
+                        leftBlock.Add(Text.New.Dark($"{leftNr,4}").White($" {dl.Line}"));
+                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").White($" {dl.Line}"));
                     }
 
                     leftNr++;
@@ -205,7 +205,7 @@ class DiffService : IDiffService
         }
 
         AddBlocks(ref leftBlock, ref rightBlock, rows);
-        rows.AddLine(Text.New.DarkGray("─"));
+        rows.AddLine(Text.New.Dark("─"));
     }
 
     private void AddBlocks(ref List<Text> leftBlock, ref List<Text> rightBlock, DiffRows rows)

@@ -15,7 +15,7 @@ class DiffView : IDiffView
 {
     readonly IViewRepoService viewRepoService;
     readonly IDiffService diffService;
-    static readonly Text splitLine = Text.New.DarkGray("│");
+    static readonly Text splitLine = Text.New.Dark("│");
 
     Toplevel diffView;
     int rowStartIndex = 0;
