@@ -4,7 +4,7 @@ namespace gmd.ViewRepos;
 using AugmentedRepo = gmd.ViewRepos.Private.Augmented.Repo;
 
 
-class Repo
+record Repo
 {
     internal static readonly string PartialLogCommitID =
         gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
@@ -36,7 +36,7 @@ class Repo
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
-    public Status Status { get; }
+    public Status Status { get; init; }
 
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
@@ -138,4 +138,44 @@ public record Status(
     internal int ChangesCount => Modified + Added + Deleted + Conflicted;
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
+}
+
+
+record CommitDiff(
+    string Id,
+    string Author,
+    string Date,
+    string Message,
+    IReadOnlyList<FileDiff> FileDiffs
+);
+
+record FileDiff(
+    string PathBefore,
+    string PathAfter,
+    bool IsRenamed,
+    DiffMode DiffMode,
+    IReadOnlyList<SectionDiff> SectionDiffs
+);
+
+record SectionDiff(
+    string ChangedIndexes,
+    int LeftLine,
+    int LeftCount,
+    int RightLine,
+    int RightCount,
+    IReadOnlyList<LineDiff> LineDiffs
+);
+
+record LineDiff(DiffMode DiffMode, string Line);
+
+enum DiffMode
+{
+    DiffModified,
+    DiffAdded,
+    DiffRemoved,
+    DiffSame,
+    DiffConflicts,
+    DiffConflictStart,
+    DiffConflictSplit,
+    DiffConflictEnd
 }

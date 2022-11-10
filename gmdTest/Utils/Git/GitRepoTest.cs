@@ -6,32 +6,51 @@ namespace gmdTest.Utils.Git;
 public class GitRepoTest
 {
     [TestMethod]
-    public async void TestLog()
+    public async Task TestLog()
     {
         IGit git = new gmd.Utils.Git.Private.Git("");
 
-        var log = await git.GetLogAsync();
-        Assert.IsFalse(log.IsError);
+        Assert.IsTrue(Try(out var log, await git.GetLogAsync()));
 
-        Log.Info($"Count: {log.Value.Count}");
-        foreach (var c in log.Value)
+        Log.Info($"Count: {log.Count}");
+        foreach (var c in log)
         {
             Log.Info($"C: {c}");
         }
     }
 
     [TestMethod]
-    public async void TestGetBranches()
+    public async Task TestGetBranches()
     {
         IGit git = new gmd.Utils.Git.Private.Git("");
 
-        var branches = await git.GetBranchesAsync();
-        Assert.IsFalse(branches.IsError);
+        Assert.IsTrue(Try(out var branches, await git.GetBranchesAsync()));
 
-        Log.Info($"Count: {branches.Value.Count}");
-        foreach (var b in branches.Value)
+        Log.Info($"Count: {branches.Count}");
+        foreach (var b in branches)
         {
             Log.Info($"C: {b}");
         }
+    }
+
+    [TestMethod]
+    public async Task TestDiffCommit()
+    {
+        IGit git = new gmd.Utils.Git.Private.Git("");
+        string id = "385175";
+
+        Assert.IsTrue(Try(out var diff, await git.GetCommitDiffAsync(id)));
+
+        Log.Info($"Diff: {diff}");
+    }
+
+    [TestMethod]
+    public async Task TestDiffUncommitted()
+    {
+        IGit git = new gmd.Utils.Git.Private.Git("");
+
+        Assert.IsTrue(Try(out var diff, await git.GetUncommittedDiff()));
+
+        Log.Info($"Diff: {diff}");
     }
 }

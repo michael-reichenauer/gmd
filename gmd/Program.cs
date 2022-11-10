@@ -1,7 +1,7 @@
 ﻿using Terminal.Gui;
 using gmd.Cui;
 using System.Runtime.CompilerServices;
-using gmd.Utils;
+
 
 [assembly: InternalsVisibleTo("gmdTest")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
@@ -25,9 +25,9 @@ class Program
 
         Program program = dependencyInjection.Resolve<Program>();
         Log.Info($"Initialized {t}");
-        program.Run();
+        program.Main();
         Log.Info($"Done, running for {t}");
-        Log.CloseAsync().Wait();
+        ConfigLogger.CloseAsync().Wait();
     }
 
     internal Program(IMainView mainView)
@@ -35,13 +35,14 @@ class Program
         this.mainView = mainView;
     }
 
-    private void Run()
+    private void Main()
     {
         var t = Timing.Start();
-        Log.Info($"Init ui ...");
+
+        Log.Info($"Build {Util.GetBuildVersion()} {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
-        Application.Top.WantMousePositionReports = false;
         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
         Application.Top.Add(mainView.View);
@@ -56,7 +57,7 @@ class Program
     private bool HandleUIMainLoopError(Exception e)
     {
         Log.Exception(e, "Error in UI main loop");
-        Log.CloseAsync().Wait();
+        ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
     }
 }

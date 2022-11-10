@@ -4,7 +4,7 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-public delegate void DrawContentCallback(int width, int Height, int firstIndex, int currentIndex);
+public delegate void DrawContentCallback(Rect bounds, int firstIndex, int currentIndex);
 public delegate void OnKeyCallback();
 
 
@@ -16,14 +16,15 @@ class ContentView : View
     static readonly int cursorWidth = 1;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
 
-
     int totalRowCount = 0;
     int firstIndex = 0;
     int currentIndex = 0;
 
     internal int CurrentIndex => currentIndex;
 
-    internal readonly int ContentX = cursorWidth;
+    internal bool IsNoCursor { get; set; } = false;
+    internal int ContentX => IsNoCursor ? 0 : cursorWidth;
+
     internal Point CurrentPoint => new Point(0, firstIndex + currentIndex);
 
     internal ContentView(DrawContentCallback onDrawRepoContent)
@@ -35,6 +36,7 @@ class ContentView : View
     {
         keys[key] = callback;
     }
+
 
     internal int ContentWidth => Frame.Width - (cursorWidth + ContentX);
     int ViewHeight => Frame.Height;
@@ -67,6 +69,7 @@ class ContentView : View
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
+
         switch (keyEvent.Key)
         {
             case Key.Esc:
@@ -135,7 +138,8 @@ class ContentView : View
     {
         Clear();
 
-        onDrawRepoContent(ContentWidth, ContentHeight, firstIndex, currentIndex);
+        Rect contentRect = new Rect(ContentX, 0, ContentWidth, ContentHeight);
+        onDrawRepoContent(contentRect, firstIndex, currentIndex);
 
         DrawCursor();
         DrawVerticalScrollbar();
@@ -143,6 +147,11 @@ class ContentView : View
 
     void DrawCursor()
     {
+        if (IsNoCursor)
+        {
+            return;
+        }
+
         Move(0, currentIndex - firstIndex);
         Driver.SetAttribute(Colors.White);
         Driver.AddStr("┃");
@@ -190,6 +199,12 @@ class ContentView : View
 
     void Move(int move)
     {
+        if (IsNoCursor)
+        {
+            Scroll(move);
+            return;
+        }
+
         // Log.Info($"move {move}, current: {currentIndex}");
         if (TotalRows == 0)
         {   // Cannot scroll empty view

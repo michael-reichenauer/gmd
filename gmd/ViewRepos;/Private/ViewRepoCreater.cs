@@ -244,11 +244,10 @@ class ViewRepoCreater : IViewRepoCreater
             }
         }
 
-        if (branches.Count == 0)
-        {   // Ensure that at least main branch is included 
-            var main = repo.Branches.First(b => b.IsMainBranch);
-            branches.Add(main);
-        }
+
+        // Ensure that main branch is always included 
+        var main = repo.Branches.First(b => b.IsMainBranch);
+        branches.Add(main);
 
         // Ensure all ancestors are included
         foreach (var b in branches.ToList())

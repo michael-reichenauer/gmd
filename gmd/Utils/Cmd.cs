@@ -6,7 +6,7 @@ namespace gmd.Utils;
 internal interface ICmd
 {
     string WorkingDirectory { get; }
-    CmdResult Run(string path, string args);
+    CmdResult RunCmd(string path, string args);
     Task<CmdResult> RunAsync(string path, string args);
     CmdResult Start(string path, string args);
 
@@ -15,19 +15,15 @@ internal interface ICmd
 internal class CmdResult
 {
     public int ExitCode { get; }
-    public IReadOnlyList<string> OutputLines { get; }
-    public IReadOnlyList<string> ErrorLines { get; }
+    public string Output { get; }
+    public string Error { get; }
 
-    public string Output => string.Join('\n', OutputLines);
-    public string ErrorMessage => string.Join('\n', ErrorLines);
-
-    public CmdResult(int exitCode, IReadOnlyList<string> outputLines, IReadOnlyList<string> errorLines)
+    public CmdResult(int exitCode, string output, string error)
     {
         ExitCode = exitCode;
-        OutputLines = outputLines;
-        ErrorLines = errorLines;
+        Output = output;
+        Error = error;
     }
-
 }
 
 
@@ -42,7 +38,7 @@ internal class Cmd : ICmd
         this.WorkingDirectory = workingDirectory;
     }
 
-    public CmdResult Run(string path, string args)
+    public CmdResult RunCmd(string path, string args)
     {
         var t = Timing.Start();
         try
@@ -58,6 +54,7 @@ internal class Cmd : ICmd
                     Arguments = args,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                     CreateNoWindow = true,
                     StandardOutputEncoding = Encoding.UTF8
                 }
@@ -69,25 +66,20 @@ internal class Cmd : ICmd
             }
 
             process.Start();
-
-            while (!process.StandardOutput.EndOfStream)
-            {
-                string? line = process.StandardOutput.ReadLine();
-                if (line != null)
-                {
-                    lines.Add(line.TrimEnd('r'));
-                }
-            }
-
             process.WaitForExit();
+
+            var exitCode = process.ExitCode;
+            var output = process.StandardOutput.ReadToEnd().Replace("\r", "").TrimEnd();
+            var error = process.StandardError.ReadToEnd().Replace("\r", "").TrimEnd();
+
             Log.Info($"{path} {args} ({WorkingDirectory}) {t}");
 
-            return new CmdResult(process.ExitCode, lines, EmptyLines);
+            return new CmdResult(process.ExitCode, output, error);
         }
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Error($"Failed: {path} {args} {t}\n{e.Message}");
-            return new CmdResult(-1, EmptyLines, new[] { e.Message });
+            return new CmdResult(-1, "", e.Message);
         }
     }
 
@@ -95,7 +87,7 @@ internal class Cmd : ICmd
     {
         return Task.Run(() =>
         {
-            return Run(path, args);
+            return RunCmd(path, args);
         });
     }
 
@@ -108,12 +100,12 @@ internal class Cmd : ICmd
         {
             // Start process, but do not wait for it to complete
             Process.Start(info);
-            return new CmdResult(0, EmptyLines, EmptyLines);
+            return new CmdResult(0, "", "");
         }
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Exception(e, $"Exception for {path} {args}");
-            return new CmdResult(-1, EmptyLines, new[] { e.Message });
+            return new CmdResult(-1, "", e.Message);
         }
     }
 }

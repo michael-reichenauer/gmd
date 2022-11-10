@@ -31,7 +31,7 @@ class BranchService : IBranchService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.ErrorMessage);
+            return Error.From(cmdResult.Error);
         }
 
         return ParseBranches(cmdResult.Output);

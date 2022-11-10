@@ -33,13 +33,28 @@ class AugmentedRepoService : IAugmentedRepoService
 
     public async Task<R<Repo>> GetRepoAsync(string path)
     {
-        var gitRepo = await GetGitRepoAsync(path);
-        if (gitRepo.IsError)
+        if (!Try(out var gitRepo, out var e, await GetGitRepoAsync(path)))
         {
-            return gitRepo.Error;
+            return e;
         }
 
-        return await GetAugmentedRepo(gitRepo.Value);
+        return await GetAugmentedRepoAsync(gitRepo);
+    }
+
+    public async Task<R<Repo>> UpdateStatusRepoAsync(Repo augRepo)
+    {
+        var git = gitService.Git(augRepo.Path);
+
+        if (!Try(out var gitStatus, out var e, await git.GetStatusAsync()))
+        {
+            return e;
+        }
+
+        var s = gitStatus;
+        Status status = new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
+          s.IsMerging, s.MergeMessage, s.AddedFiles, s.ConflictsFiles);
+
+        return augRepo with { Status = status };
     }
 
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
@@ -54,25 +69,20 @@ class AugmentedRepoService : IAugmentedRepoService
 
         await Task.WhenAll(logTask, branchesTask, statusTask);
 
-        if (logTask.Result.IsError)
+        if (!Try(out var log, out var e, logTask.Result))
         {
-            return logTask.Result.Error;
+            return e;
         }
-        else if (branchesTask.Result.IsError)
+        if (!Try(out var branches, out e, branchesTask.Result))
         {
-            return branchesTask.Result.Error;
+            return e;
         }
-        else if (statusTask.Result.IsError)
+        if (!Try(out var status, out e, statusTask.Result))
         {
-            return statusTask.Result.Error;
+            return e;
         }
 
-        var repo = new GitRepo(
-            DateTime.UtcNow,
-            git.Path,
-            logTask.Result.Value,
-            branchesTask.Result.Value,
-            statusTask.Result.Value);
+        var repo = new GitRepo(DateTime.UtcNow, git.Path, log, branches, status);
         Log.Info($"{t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");
         return repo;
     }
@@ -89,7 +99,7 @@ class AugmentedRepoService : IAugmentedRepoService
         handler?.Invoke(this, e);
     }
 
-    async Task<R<Repo>> GetAugmentedRepo(GitRepo gitRepo)
+    async Task<R<Repo>> GetAugmentedRepoAsync(GitRepo gitRepo)
     {
         fileMonitor.Monitor(gitRepo.Path);
 

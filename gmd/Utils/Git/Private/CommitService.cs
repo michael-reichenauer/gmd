@@ -24,14 +24,14 @@ class CommitService : ICommitService
             CmdResult addResult = await cmd.RunAsync("git", "add .");
             if (addResult.ExitCode != 0)
             {
-                return Error.From(addResult.ErrorMessage);
+                return Error.From(addResult.Error);
             }
         }
 
         CmdResult commitResult = await cmd.RunAsync("git", $"commit -am \"{message}\"");
         if (commitResult.ExitCode != 0)
         {
-            return Error.From(commitResult.ErrorMessage);
+            return Error.From(commitResult.Error);
         }
 
         return R.Ok;

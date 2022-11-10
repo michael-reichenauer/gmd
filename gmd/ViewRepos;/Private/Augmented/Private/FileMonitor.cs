@@ -44,12 +44,13 @@ class FileMonitor : IFileMonitor
     private bool isRepoChanged = false;
     private DateTime repoChangeTime;
 
+    private string workingFolder = "";
+
 
     public FileMonitor()
     {
         fileChangedTimer = new Timer(StatusDelayTriggerTime.TotalMilliseconds);
         fileChangedTimer.Elapsed += (s, e) => OnFileChangedTimer();
-
 
         workFolderWatcher.Changed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Created += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
@@ -57,7 +58,7 @@ class FileMonitor : IFileMonitor
         workFolderWatcher.Renamed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
 
         repoChangedTimer = new Timer(RepositoryDelayTriggerTime.TotalMilliseconds);
-        repoChangedTimer.Elapsed += (s, e) => OnRepoTimer();
+        repoChangedTimer.Elapsed += (s, e) => OnRepoChangedTimer();
 
         refsWatcher.Changed += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
         refsWatcher.Created += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
@@ -76,6 +77,12 @@ class FileMonitor : IFileMonitor
         if (!Directory.Exists(workingFolder) || !Directory.Exists(refsPath))
         {
             Log.Warn($"Selected folder '{workingFolder}' is not a root working folder.");
+            return;
+        }
+
+        if (workingFolder == this.workingFolder)
+        {
+            // Already monitoring this folder
             return;
         }
 
@@ -101,6 +108,8 @@ class FileMonitor : IFileMonitor
 
         workFolderWatcher.EnableRaisingEvents = true;
         refsWatcher.EnableRaisingEvents = true;
+
+        this.workingFolder = workingFolder;
     }
 
 
@@ -140,6 +149,7 @@ class FileMonitor : IFileMonitor
 
             if (!fileChangedTimer.Enabled)
             {
+                Log.Info("In progress ...");
                 fileChangedTimer.Enabled = true;
             }
         }
@@ -159,7 +169,7 @@ class FileMonitor : IFileMonitor
             return;
         }
 
-        // Log.Debug($"Repo change for '{fullPath}' {changeType}");.l
+        // Log.Debug($"Repo change for '{fullPath}' {changeType}");
 
         lock (syncRoot)
         {
@@ -168,11 +178,11 @@ class FileMonitor : IFileMonitor
 
             if (!repoChangedTimer.Enabled)
             {
+                Log.Info("In progress ...");
                 repoChangedTimer.Enabled = true;
             }
         }
     }
-
 
 
     private IReadOnlyList<Glob> GetMatches(string workingFolder)
@@ -268,7 +278,7 @@ class FileMonitor : IFileMonitor
     }
 
 
-    private void OnRepoTimer()
+    private void OnRepoChangedTimer()
     {
         lock (syncRoot)
         {

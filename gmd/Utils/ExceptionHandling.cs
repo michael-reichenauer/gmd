@@ -115,7 +115,7 @@ internal static class ExceptionHandling
             Debugger.Break();
         }
 
-        Log.CloseAsync().Wait();
+        ConfigLogger.CloseAsync().Wait();
 
         shutdown();
 

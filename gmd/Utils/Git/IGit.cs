@@ -8,18 +8,28 @@ interface IGit
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
     Task<R<Status>> GetStatusAsync();
     Task<R> CommitAllChangesAsync(string message);
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
+    Task<R<CommitDiff>> GetUncommittedDiff();
+    Task<R> FetchAsync();
+    Task<R> PushBranchAsync(string name);
+    Task<R> PullCurrentBranchAsync();
+    Task<R> PullBranchAsync(string name);
+    Task<R> DeleteRemoteBranchAsync(string name);
+    Task<R> PushRefForceAsync(string name);
+    Task<R> PullRefAsync(string name);
+    Task<R> CloneAsync(string uri, string path);
 }
 
 
 public record Commit(
     string Id,
-     string Sid,
-     string[] ParentIds,
-     string Subject,
-     string Message,
-     string Author,
-     DateTime AuthorTime,
-     DateTime CommitTime
+    string Sid,
+    string[] ParentIds,
+    string Subject,
+    string Message,
+    string Author,
+    DateTime AuthorTime,
+    DateTime CommitTime
 );
 
 public record Branch(
@@ -49,3 +59,42 @@ public record Status(
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }
 
+
+record CommitDiff(
+    string Id,
+    string Author,
+    string Date,
+    string Message,
+    IReadOnlyList<FileDiff> FileDiffs
+);
+
+record FileDiff(
+    string PathBefore,
+    string PathAfter,
+    bool IsRenamed,
+    DiffMode DiffMode,
+    IReadOnlyList<SectionDiff> SectionDiffs
+);
+
+record SectionDiff(
+    string ChangedIndexes,
+    int LeftLine,
+    int LeftCount,
+    int RightLine,
+    int RightCount,
+    IReadOnlyList<LineDiff> LineDiffs
+);
+
+record LineDiff(DiffMode DiffMode, string Line);
+
+enum DiffMode
+{
+    DiffModified,
+    DiffAdded,
+    DiffRemoved,
+    DiffSame,
+    DiffConflicts,
+    DiffConflictStart,
+    DiffConflictSplit,
+    DiffConflictEnd
+}

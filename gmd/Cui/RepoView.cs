@@ -1,10 +1,8 @@
-using gmd.Utils.Git;
 using gmd.ViewRepos;
 using Terminal.Gui;
 
 
 namespace gmd.Cui;
-
 
 interface IRepoView
 {
@@ -17,12 +15,16 @@ interface IRepoView
 
 class RepoView : IRepoView, IRepo
 {
+    static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
+    static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
+
     readonly IViewRepoService viewRepoService;
+    private readonly Func<IDiffView> diffViewProvider;
     readonly IGraphService graphService;
     readonly IMenuService menuService;
-    private readonly IRepoCommands repoCommands;
+    private readonly IRepoCommands cmds;
     readonly ContentView contentView;
-    readonly IRepoWriter repoLayout;
+    readonly IRepoWriter repoWriter;
 
     Repo? repo = null;
     Graph? graph = null;
@@ -37,30 +39,34 @@ class RepoView : IRepoView, IRepo
 
     internal RepoView(
         IViewRepoService viewRepoService,
+        Func<IDiffView> diffViewProvider,
+        Func<View, int, IRepoWriter> repoWriterProvider,
         IGraphService graphService,
         IMenuService menuService,
         IRepoCommands repoCommands) : base()
     {
         this.viewRepoService = viewRepoService;
+        this.diffViewProvider = diffViewProvider;
         this.graphService = graphService;
         this.menuService = menuService;
-        this.repoCommands = repoCommands;
+        this.cmds = repoCommands;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            WantMousePositionReports = false,
+            // WantMousePositionReports = false,
         };
 
-        repoLayout = new RepoWriter(contentView, contentView.ContentX);
+        repoWriter = repoWriterProvider(contentView, contentView.ContentX);
 
-        viewRepoService.RepoChange += (s, e) => Refresh();
-        viewRepoService.StatusChange += (s, e) => Refresh();
+        viewRepoService.RepoChange += (s, e) => OnRefresh(e);
+        viewRepoService.StatusChange += (s, e) => OnRefreshStatus(e);
+
+        RegisterKeyHandlers();
     }
 
-    // Called once the repo has been set
     void RegisterKeyHandlers()
     {
         contentView.RegisterKeyHandler(Key.m, OnMenuKey);
@@ -70,9 +76,24 @@ class RepoView : IRepoView, IRepo
         contentView.RegisterKeyHandler(Key.r, Refresh);
         contentView.RegisterKeyHandler(Key.R, Refresh);
         contentView.RegisterKeyHandler(Key.c, CommitAll);
+        contentView.RegisterKeyHandler(Key.C, CommitAll);
+
+        contentView.RegisterKeyHandler(Key.d, ShowDiff);
+        contentView.RegisterKeyHandler(Key.D, ShowDiff);
+        contentView.RegisterKeyHandler(Key.p, PushCurrentBranch);
     }
 
-    void CommitAll() => repoCommands.CommitAsync(this).RunInBackground();
+    private void PushCurrentBranch() => cmds.PushCurrentBranch(this);
+
+
+    private void ShowDiff()
+    {
+        var currentRowCommit = repo!.Commits[CurrentIndex];
+        var diffView = diffViewProvider();
+        diffView.Show(Repo, currentRowCommit.Id);
+    }
+
+    void CommitAll() => cmds.Commit(this);
     void OnMenuKey() => menuService.ShowMainMenu(this);
     void OnRightArrow() => menuService.ShowShowBranchesMenu(this);
     void OnLeftArrow() => menuService.ShowHideBranchesMenu(this);
@@ -82,42 +103,56 @@ class RepoView : IRepoView, IRepo
         ShowRepoAsync(path, new string[0]);
 
 
-    public void Refresh()
+    public void Refresh() => ShowRefreshedRepoAsync().RunInBackground();
+
+    void OnRefresh(ChangeEventArgs e)
     {
+        Log.Info($"Current: {Repo.TimeStamp.Iso()}");
+        Log.Info($"New    : {e.TimeStamp.Iso()}");
+
+        if (e.TimeStamp - Repo.TimeStamp < minRepoUpdateInterval)
+        {
+            Log.Warn("New repo event to soon, skipping update");
+            return;
+        }
         ShowRefreshedRepoAsync().RunInBackground();
     }
+
+    void OnRefreshStatus(ChangeEventArgs e)
+    {
+        Log.Info($"Current: {Repo.TimeStamp.Iso()}");
+        Log.Info($"New    : {e.TimeStamp.Iso()}");
+
+        if (e.TimeStamp - Repo.TimeStamp < minStatusUpdateInterval)
+        {
+            Log.Warn("New status event to soon, skipping update");
+            return;
+        }
+        ShowUpdatedStatusRepoAsync().RunInBackground();
+    }
+
 
     public async Task<R> ShowRepoAsync(string path, string[] showBranches)
     {
         var t = Timing.Start();
-        var repo = await viewRepoService.GetRepoAsync(path, showBranches);
-        if (repo.IsError)
+        if (!Try(out repo, out var e, await viewRepoService.GetRepoAsync(path, showBranches)))
         {
-            return repo.Error;
+            return e;
         }
 
-        ShowRepo(repo.Value);
+        ShowRepo(repo);
         Log.Info($"{t}");
         return R.Ok;
     }
 
     public void ShowRepo(Repo repo)
     {
-        var graph = graphService.CreateGraph(repo);
-
-        if (this.repo == null)
-        {   // Register key handlers on first repo
-            RegisterKeyHandlers();
-        }
-
-        // Trigger content view to show repo
-        this.repo = repo;
-        this.graph = graph;
+        graph = graphService.CreateGraph(repo);
 
         contentView.TriggerUpdateContent(TotalRows);
     }
 
-    void onDrawRepoContent(int width, int Height, int firstIndex, int currentIndex)
+    void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)
     {
         if (repo == null || graph == null)
         {
@@ -125,22 +160,36 @@ class RepoView : IRepoView, IRepo
         }
 
         int firstCommit = Math.Min(firstIndex, TotalRows);
-        int commitCount = Math.Min(Height, TotalRows - firstCommit);
+        int commitCount = Math.Min(bounds.Height, TotalRows - firstCommit);
 
-        repoLayout.WriteRepoPage(graph, repo, width, firstCommit, commitCount, currentIndex);
+        repoWriter.WriteRepoPage(graph, repo, bounds.Width, firstCommit, commitCount, currentIndex);
     }
 
     async Task ShowRefreshedRepoAsync()
     {
+        Log.Info("show refreshed repo ...");
         var t = Timing.Start();
-        var repo = await viewRepoService.GetFreshRepoAsync(this.repo!);
-        if (repo.IsError)
+
+        if (!Try(out repo, out var e, await viewRepoService.GetFreshRepoAsync(repo!)))
         {
-            UI.ErrorMessage($"Failed to refresh:\n{repo.Error.Message}");
+            UI.ErrorMessage($"Failed to refresh:\n{e}");
             return;
         }
 
-        ShowRepo(repo.Value);
+        ShowRepo(repo);
+        Log.Info($"{t}");
+    }
+
+    async Task ShowUpdatedStatusRepoAsync()
+    {
+        var t = Timing.Start();
+        if (!Try(out repo, out var e, await viewRepoService.GetUpdateStatusRepoAsync(repo!)))
+        {
+            UI.ErrorMessage($"Failed to update status:\n{e}");
+            return;
+        }
+
+        ShowRepo(repo);
         Log.Info($"{t}");
     }
 }

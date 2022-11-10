@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using gmd.Utils.Git;
 using gmd.ViewRepos.Private.Augmented;
 
@@ -42,21 +41,27 @@ class ViewRepoService : IViewRepoService
     }
 
 
-    public Task<R<Repo>> GetNewStatusRepoAsync(Repo repo)
+    public async Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo)
     {
-        throw new NotImplementedException();
-    }
+        var branches = repo.Branches.Select(b => b.Name).ToArray();
 
+        if (!Try(out var augmentedRepo, out var e,
+            await augmentedRepoService.UpdateStatusRepoAsync(repo.AugmentedRepo)))
+        {
+            return e;
+        }
+
+        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
+    }
 
     public async Task<R<Repo>> GetRepoAsync(string path, string[] showBranches)
     {
-        var augmentedRepo = await augmentedRepoService.GetRepoAsync(path);
-        if (augmentedRepo.IsError)
+        if (!Try(out var augmentedRepo, out var e, await augmentedRepoService.GetRepoAsync(path)))
         {
-            return augmentedRepo.Error;
+            return e;
         }
 
-        return viewRepoCreater.GetViewRepoAsync(augmentedRepo.Value, showBranches);
+        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
     }
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo)
@@ -124,6 +129,32 @@ class ViewRepoService : IViewRepoService
         return await gitService.Git(repo.Path).CommitAllChangesAsync(message);
     }
 
+    public async Task<R<CommitDiff>> GetCommitDiffAsync(Repo repo, string commitId)
+    {
+        if (!Try(out var gitCommitDiff, out var e,
+            await gitService.Git(repo.Path).GetCommitDiffAsync(commitId)))
+        {
+            return e;
+        }
+
+        return converter.ToCommitDiff(gitCommitDiff);
+    }
+
+
+    public async Task<R<CommitDiff>> GetUncommittedDiff(Repo repo)
+    {
+        if (!Try(out var gitCommitDiff, out var e,
+            await gitService.Git(repo.Path).GetUncommittedDiff()))
+        {
+            return e;
+        }
+
+        return converter.ToCommitDiff(gitCommitDiff);
+    }
+
+    public Task<R> PushBranchAsync(Repo repo, string name) =>
+        gitService.Git(repo.Path).PushBranchAsync(name);
+
 
     protected virtual void OnRepoChange(ChangeEventArgs e)
     {
@@ -131,10 +162,12 @@ class ViewRepoService : IViewRepoService
         handler?.Invoke(this, e);
     }
 
+
     protected virtual void OnStatusChange(ChangeEventArgs e)
     {
         var handler = StatusChange;
         handler?.Invoke(this, e);
     }
+
 }
 

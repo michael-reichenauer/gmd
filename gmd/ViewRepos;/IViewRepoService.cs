@@ -8,7 +8,7 @@ interface IViewRepoService
     Task<R<Repo>> GetRepoAsync(string path);
     Task<R<Repo>> GetRepoAsync(string path, string[] showBranches);
     Task<R<Repo>> GetFreshRepoAsync(Repo repo);
-    Task<R<Repo>> GetNewStatusRepoAsync(Repo repo);
+    Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
 
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
@@ -17,6 +17,9 @@ interface IViewRepoService
 
     // Git commands
     Task<R> CommitAllChangesAsync(Repo repo, string message);
+    Task<R<CommitDiff>> GetCommitDiffAsync(Repo repo, string commitId);
+    Task<R<CommitDiff>> GetUncommittedDiff(Repo repo);
+    Task<R> PushBranchAsync(Repo repo, string name);
 }
 
 internal class ChangeEventArgs : EventArgs

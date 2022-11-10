@@ -22,15 +22,16 @@ internal class LogService : ILogService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.ErrorMessage);
+            return Error.From(cmdResult.Error);
         }
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
-        return await Task.Run(() => ParseLines(cmdResult.OutputLines));
+        return await Task.Run(() => ParseLines(cmdResult.Output));
     }
 
-    private R<IReadOnlyList<Commit>> ParseLines(IReadOnlyList<string> lines)
+    private R<IReadOnlyList<Commit>> ParseLines(string output)
     {
+        var lines = output.Split('\n');
         var commits = new List<Commit>();
         foreach (var line in lines)
         {
@@ -42,13 +43,12 @@ internal class LogService : ILogService
                     continue;
                 }
 
-                var commit = ParseRow(row);
-                if (commit.IsError)
+                if (!Try(out var commit, out var e, ParseRow(row)))
                 {
-                    return commit.Error;
+                    return e;
                 }
 
-                commits.Add(commit.Value);
+                commits.Add(commit);
             }
         }
 

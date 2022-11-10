@@ -448,6 +448,14 @@ class Augmenter : IAugmenter
 
             branch = TryGetBranchFromName(c, name);
 
+            if (branch != null && branch.TipID == c.Id)
+            {  // The commit is branch tip, we should not find higher/previous commit up, since tip would move up
+                c.Branch = branch;
+                c.TryAddToBranches(branch);
+                c.IsLikely = true;
+                return true;
+            }
+
             if (branch != null && branch.BottomID != "")
             {
                 // Found an existing branch with that name, set lowest known commit to the bottom
@@ -463,6 +471,10 @@ class Augmenter : IAugmenter
                     current.Children.Count == 1 && (current.Children[0].Branch?.IsAmbiguousBranch ?? true);
                     current = current.Children[0])
                 {
+                    if (branch != null && branch.TipID == current.Id)
+                    {   // Found a commit with the branch tip
+                        break;
+                    }
                 }
             }
 
@@ -685,6 +697,14 @@ class Augmenter : IAugmenter
             {
                 // For branches with no own commits (multiple tips to same commit)
                 b.BottomID = b.TipID;
+            }
+
+            if (b.RemoteName != "")
+            {
+                // For a local branch with a remote branch, the remote branch is parent.
+                var remoteBranch = repo.Branches.First(bb => bb.Name == b.RemoteName);
+                b.ParentBranch = remoteBranch;
+                continue;
             }
 
             var bottom = repo.CommitsById[b.BottomID];
