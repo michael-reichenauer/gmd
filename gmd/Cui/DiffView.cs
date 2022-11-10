@@ -19,6 +19,8 @@ class DiffView : IDiffView
 
     Toplevel diffView;
     int rowStartIndex = 0;
+    Repo? repo;
+    string commitId = "";
 
     public Toplevel View => diffView;
 
@@ -58,6 +60,13 @@ class DiffView : IDiffView
     {
         contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
         contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
+        contentView.RegisterKeyHandler(Key.r, Refresh);
+        contentView.RegisterKeyHandler(Key.R, Refresh);
+    }
+
+    private void Refresh()
+    {
+        ShowAsync(repo!, commitId).RunInBackground();
     }
 
     private void OnLeftArrow()
@@ -81,6 +90,9 @@ class DiffView : IDiffView
 
     public void Show(Repo repo, string commitId)
     {
+        this.repo = repo;
+        this.commitId = commitId;
+
         ShowAsync(repo, commitId).RunInBackground();
         Application.Run(diffView);
     }

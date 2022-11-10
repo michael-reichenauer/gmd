@@ -73,36 +73,34 @@ class DiffService : IDiffService
     void AddCommitDiff(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.New.Yellow("═"));
-        rows.Add(Text.New.DarkGray("Commit:  ").White(commitDiff.Id));
-        rows.Add(Text.New.DarkGray("Author:  ").White(commitDiff.Author));
-        rows.Add(Text.New.DarkGray("Date:    ").White(commitDiff.Date));
-        rows.Add(Text.New.DarkGray("Message: ").White(commitDiff.Message));
-        rows.Add(Text.None);
+        if (commitDiff.Id == "")
+        {   // Uncommitted changes
+            rows.Add(Text.New.DarkGray("Commit: ").White("Uncommitted changes"));
+        }
+        else
+        {   // Some specified commit id
+            rows.Add(Text.New.DarkGray("Commit:  ").White(commitDiff.Id));
+            rows.Add(Text.New.DarkGray("Author:  ").White(commitDiff.Author));
+            rows.Add(Text.New.DarkGray("Date:    ").White(commitDiff.Date));
+            rows.Add(Text.New.DarkGray("Message: ").White(commitDiff.Message));
+        }
 
-        AddDiffFileNames(commitDiff, rows);
+        rows.Add(Text.None);
+        AddDiffFileNamesSummery(commitDiff, rows);
 
         commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows));
     }
 
 
-
-    void AddDiffFileNames(CommitDiff commitDiff, DiffRows rows)
+    void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.Add(Text.New.White($"{commitDiff.FileDiffs.Count} Files:"));
 
         commitDiff.FileDiffs.ForEach(fd =>
         {
-            if (fd.IsRenamed)
-            {
-                rows.Add(
-                    ToColorText($"  {ToDiffModeText(fd.DiffMode),-12} {fd.PathBefore} => {fd.PathAfter}",
-                    fd.DiffMode));
-                return;
-            }
-
-            rows.Add(
-                ToColorText($"  {ToDiffModeText(fd.DiffMode),-12} {fd.PathAfter}",
-                 fd.DiffMode));
+            var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
+            var diffMode = ToDiffModeText(fd.DiffMode);
+            rows.Add(ToColorText($"  {diffMode,-12} {path}", fd.DiffMode));
         });
     }
 
@@ -112,18 +110,9 @@ class DiffService : IDiffService
         rows.AddLine(Text.New.Blue("━"));
 
         var fd = fileDiff;
-        if (fd.IsRenamed)
-        {
-            rows.Add(
-                ToColorText($"{ToDiffModeText(fd.DiffMode)} {fd.PathBefore} => {fd.PathAfter}",
-                    fd.DiffMode));
-        }
-        else
-        {
-            rows.Add(
-                ToColorText($"{ToDiffModeText(fd.DiffMode)} {fd.PathAfter}",
-                    fd.DiffMode));
-        }
+        var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
+        var diffMode = ToDiffModeText(fd.DiffMode);
+        rows.Add(ToColorText($"{diffMode} {path}", fd.DiffMode));
 
         fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
     }
@@ -146,7 +135,7 @@ class DiffService : IDiffService
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.DarkGray("=== Start of conflict "));
+                    rows.AddToBoth(Text.New.DarkGray("=== Start of conflict"));
                     break;
 
                 case DiffMode.DiffConflictSplit:
@@ -156,7 +145,7 @@ class DiffService : IDiffService
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.Add(Text.New.DarkGray("=== End of conflict "));
+                    rows.AddToBoth(Text.New.DarkGray("=== End of conflict"));
                     break;
 
                 case DiffMode.DiffRemoved:
