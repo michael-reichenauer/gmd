@@ -23,6 +23,7 @@ interface IRepoCommands
     void Commit(IRepo repo);
     void PushCurrentBranch(IRepo repo);
     bool CanPushCurrentBranch(IRepo repo);
+    bool CanPush(IRepo repo);
 }
 
 class RepoCommands : IRepoCommands
@@ -100,4 +101,8 @@ class RepoCommands : IRepoCommands
     {
         action().RunInBackground();
     }
+
+    public bool CanPush(IRepo repo) =>
+        CanPushCurrentBranch(repo);
+
 }

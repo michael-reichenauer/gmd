@@ -27,20 +27,21 @@ class MenuService : IMenuService
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(new MenuItem("Commit", "",
+        items.Add(Separator($"Commit {Sid(repo.Repo.Commits[repo.CurrentIndex].Id)}"));
+        items.Add(new MenuItem("Commit ...", "",
             () => cmds.Commit(repo),
             () => !repo.Repo.Status.IsOk));
-        items.Add(new MenuBarItem("Show Branch", GetShowBranchItems(repo)));
-        items.Add(new MenuBarItem("Push", new[]{
-            new MenuItem("Push Current Branch", "",
-                () => cmds.PushCurrentBranch(repo),
-                () => cmds.CanPushCurrentBranch(repo),
-                null, Key.p)}));
 
+        items.Add(Separator("Branches"));
+        items.Add(new MenuBarItem("Show Branch", GetShowBranchItems(repo)));
+        items.Add(new MenuBarItem("Hide Branch", GetHideItems(repo)));
+        items.Add(new MenuBarItem("Push", GetPushItems(repo)));
 
         var menu = new ContextMenu(repo.ViewWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
+
+    string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Substring(0, 6);
 
     public void ShowShowBranchesMenu(IRepo repo)
     {
@@ -89,6 +90,16 @@ class MenuService : IMenuService
         var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
+
+    MenuItem[] GetPushItems(IRepo repo) =>
+      cmds.CanPush(repo)
+          ? new[]{
+                new MenuItem("Push Current Branch", "",
+                    () => cmds.PushCurrentBranch(repo),
+                    () => cmds.CanPushCurrentBranch(repo))
+              }
+          : new MenuItem[0];
+
 
     private MenuItem[] GetShowItems(IRepo repo, int currentIndex)
     {

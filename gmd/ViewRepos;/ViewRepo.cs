@@ -10,6 +10,7 @@ record Repo
         gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
     internal static readonly string UncommittedId =
         gmd.ViewRepos.Private.Augmented.Repo.UncommittedId;
+    internal static readonly string UncommittedSid = UncommittedId.Substring(0, 6);
 
 
     private readonly Private.Augmented.Repo repo;
