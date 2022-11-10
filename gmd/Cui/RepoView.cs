@@ -40,6 +40,7 @@ class RepoView : IRepoView, IRepo
     internal RepoView(
         IViewRepoService viewRepoService,
         Func<IDiffView> diffViewProvider,
+        Func<View, int, IRepoWriter> repoWriterProvider,
         IGraphService graphService,
         IMenuService menuService,
         IRepoCommands repoCommands) : base()
@@ -58,7 +59,7 @@ class RepoView : IRepoView, IRepo
             // WantMousePositionReports = false,
         };
 
-        repoWriter = new RepoWriter(contentView, contentView.ContentX);
+        repoWriter = repoWriterProvider(contentView, contentView.ContentX);
 
         viewRepoService.RepoChange += (s, e) => OnRefresh(e);
         viewRepoService.StatusChange += (s, e) => OnRefreshStatus(e);

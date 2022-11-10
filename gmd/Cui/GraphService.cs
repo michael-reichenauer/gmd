@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using gmd.ViewRepos;
 
 using Color = Terminal.Gui.Attribute;
@@ -39,11 +37,18 @@ interface IGraphService
 
 class GraphService : IGraphService
 {
+    private readonly IBranchColorService branchColorService;
+
+    public GraphService(IBranchColorService branchColorService)
+    {
+        this.branchColorService = branchColorService;
+    }
+
     public Graph CreateGraph(Repo repo)
     {
         var t = Timing.Start();
         var branches = ToGraphBranches(repo);
-        SetBranchesColor(branches);
+        SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);
 
         // The width is the max branch X + room for 'more' branch in/out signs
@@ -56,9 +61,9 @@ class GraphService : IGraphService
         return graph;
     }
 
-    private void SetBranchesColor(IReadOnlyList<GraphBranch> branches)
+    private void SetBranchesColor(Repo repo, IReadOnlyList<GraphBranch> branches)
     {
-        branches.ForEach(b => b.Color = BranchColor(b));
+        branches.ForEach(b => b.Color = branchColorService.GetColor(repo, b.B));
     }
 
     void SetGraph(Graph graph, Repo repo, IReadOnlyList<GraphBranch> branches)
@@ -356,49 +361,4 @@ class GraphService : IGraphService
             (top2 <= top1 && bottom2 >= bottom1);
     }
 
-    Color BranchColor(GraphBranch branch)
-    {
-        if (branch.ParentBranch == null)
-        {   // branch has no parent or parent is remote of this branch, lets use it
-            return BranchNameColor(branch.B.DisplayName, 0);
-        }
-
-        if (branch.B.RemoteName == branch.ParentBranch.B.Name)
-        {
-            // Parent is remote of this branch, lets use parent color
-            return BranchColor(branch.ParentBranch);
-        }
-
-        Color color = BranchNameColor(branch.B.DisplayName, 0);
-        Color parentColor = BranchNameColor(branch.ParentBranch.B.DisplayName, 0);
-
-        if (color == parentColor)
-        {   // branch got same color as parent, lets change branch color
-            color = BranchNameColor(branch.B.DisplayName, 1);
-        }
-
-        return color;
-    }
-
-    private Color BranchNameColor(string name, int addIndex)
-    {
-        if (name == "main" || name == "master")
-        {
-            return Colors.Magenta;
-        }
-
-        var branchColorId = (Hash(name) + addIndex) % Colors.BranchColors.Length;
-        return Colors.BranchColors[branchColorId];
-    }
-
-    // Create a simple string hash to int
-    static int Hash(string plainText)
-    {
-        using (SHA256 sha256Hash = SHA256.Create())
-        {
-            // Computing Hash - returns here byte array
-            byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(plainText));
-            return Math.Abs(BitConverter.ToInt32(bytes, 0));
-        }
-    }
 }
