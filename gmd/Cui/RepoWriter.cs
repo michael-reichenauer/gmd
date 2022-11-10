@@ -133,7 +133,7 @@ class RepoWriter : IRepoWriter
         }
         Text.New.Black(" ").Draw();
         tips.Draw(0, maxWidth - 1);
-        if (tips.Length > maxTipsLength)
+        if (tips.Length > maxWidth - 1)
         {
             Text.New.Dark("...").Draw();
         }
