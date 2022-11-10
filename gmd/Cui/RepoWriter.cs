@@ -135,7 +135,7 @@ class RepoWriter : IRepoWriter
         tips.Draw(0, maxWidth - 1);
         if (tips.Length > maxWidth - 1)
         {
-            Text.New.Dark("┄").Draw();
+            Text.New.Dark("┅").Draw();
         }
     }
 
@@ -225,7 +225,7 @@ class RepoWriter : IRepoWriter
 
             if (branchName.Length > maxTipNameLength)
             {   // Branch name to long, shorten it
-                branchName = "┄" + branchName.Substring(branchName.Length - maxTipNameLength);
+                branchName = "┅" + branchName.Substring(branchName.Length - maxTipNameLength);
             }
 
             var color = branchColorService.GetColor(repo, b);
