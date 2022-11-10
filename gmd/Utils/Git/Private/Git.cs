@@ -9,6 +9,7 @@ internal class Git : IGit
     readonly IStatusService statusService;
     readonly ICommitService commitService;
     readonly IDiffService diffService;
+    readonly IRemoteService remoteService;
 
     private string rootPath = "";
     private ICmd cmd;
@@ -25,6 +26,7 @@ internal class Git : IGit
         statusService = new StatusService(cmd);
         commitService = new CommitService(cmd);
         diffService = new DiffService(cmd, statusService);
+        remoteService = new RemoteService(cmd);
     }
 
     public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000) =>
@@ -35,6 +37,14 @@ internal class Git : IGit
     public Task<R> CommitAllChangesAsync(string message) => commitService.CommitAllChangesAsync(message);
     public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId) => diffService.GetCommitDiffAsync(commitId);
     public Task<R<CommitDiff>> GetUncommittedDiff() => diffService.GetUncommittedDiff();
+    public Task<R> FetchAsync() => remoteService.FetchAsync();
+    public Task<R> PushBranchAsync(string name) => remoteService.PushBranchAsync(name);
+    public Task<R> PushRefForceAsync(string name) => remoteService.PushRefForceAsync(name);
+    public Task<R> PullRefAsync(string name) => remoteService.PullRefAsync(name);
+    public Task<R> DeleteRemoteBranchAsync(string name) => remoteService.DeleteRemoteBranchAsync(name);
+    public Task<R> PullCurrentBranchAsync() => remoteService.PullCurrentBranchAsync();
+    public Task<R> PullBranchAsync(string name) => remoteService.PullBranchAsync(name);
+    public Task<R> CloneAsync(string uri, string path) => remoteService.CloneAsync(uri, path);
 
 
     public static R<string> WorkingTreeRoot(string path)
@@ -68,6 +78,4 @@ internal class Git : IGit
 
         return R.NoValue;
     }
-
-
 }

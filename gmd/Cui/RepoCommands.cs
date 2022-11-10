@@ -1,4 +1,5 @@
 using gmd.ViewRepos;
+using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -20,6 +21,8 @@ interface IRepoCommands
     void ShowBranch(IRepo repo, string name);
     void HideBranch(IRepo repo, string name);
     Task CommitAsync(IRepo repo);
+    Task PushCurrentBranch(IRepo repo);
+    bool CanPushCurrentBranch(IRepo repo);
 }
 
 class RepoCommands : IRepoCommands
@@ -57,12 +60,33 @@ class RepoCommands : IRepoCommands
             return;
         }
 
-        if (!Try(out var e, await this.viewRepoService.CommitAllChangesAsync(repo.Repo, commitDlg.Message)))
+        if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(repo.Repo, commitDlg.Message)))
         {
             UI.ErrorMessage($"Failed to commit:\n{e}");
             return;
         }
+
         repo.Refresh();
     }
 
+
+    public async Task PushCurrentBranch(IRepo repo)
+    {
+        var branch = repo.Repo.Branches.First(b => b.IsCurrent);
+
+        if (!Try(out var e, await viewRepoService.PushBranchAsync(repo.Repo, branch.Name)))
+        {
+            UI.ErrorMessage($"Failed to push branch {branch.Name}:\n{e}");
+            return;
+        }
+
+        repo.Refresh();
+    }
+
+    public bool CanPushCurrentBranch(IRepo repo)
+    {
+        var branch = repo.Repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        return repo.Repo.Status.IsOk &&
+         branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
+    }
 }

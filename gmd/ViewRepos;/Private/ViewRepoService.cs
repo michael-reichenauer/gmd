@@ -152,6 +152,9 @@ class ViewRepoService : IViewRepoService
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
+    public Task<R> PushBranchAsync(Repo repo, string name) =>
+        gitService.Git(repo.Path).PushBranchAsync(name);
+
 
     protected virtual void OnRepoChange(ChangeEventArgs e)
     {
@@ -165,5 +168,6 @@ class ViewRepoService : IViewRepoService
         var handler = StatusChange;
         handler?.Invoke(this, e);
     }
+
 }
 

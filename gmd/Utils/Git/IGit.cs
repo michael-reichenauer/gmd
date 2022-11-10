@@ -10,6 +10,14 @@ interface IGit
     Task<R> CommitAllChangesAsync(string message);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
     Task<R<CommitDiff>> GetUncommittedDiff();
+    Task<R> FetchAsync();
+    Task<R> PushBranchAsync(string name);
+    Task<R> PullCurrentBranchAsync();
+    Task<R> PullBranchAsync(string name);
+    Task<R> DeleteRemoteBranchAsync(string name);
+    Task<R> PushRefForceAsync(string name);
+    Task<R> PullRefAsync(string name);
+    Task<R> CloneAsync(string uri, string path);
 }
 
 
