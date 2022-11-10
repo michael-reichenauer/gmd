@@ -22,7 +22,7 @@ class RepoView : IRepoView, IRepo
     private readonly Func<IDiffView> diffViewProvider;
     readonly IGraphService graphService;
     readonly IMenuService menuService;
-    private readonly IRepoCommands repoCommands;
+    private readonly IRepoCommands cmds;
     readonly ContentView contentView;
     readonly IRepoWriter repoWriter;
 
@@ -49,7 +49,7 @@ class RepoView : IRepoView, IRepo
         this.diffViewProvider = diffViewProvider;
         this.graphService = graphService;
         this.menuService = menuService;
-        this.repoCommands = repoCommands;
+        this.cmds = repoCommands;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
@@ -80,7 +80,11 @@ class RepoView : IRepoView, IRepo
 
         contentView.RegisterKeyHandler(Key.d, ShowDiff);
         contentView.RegisterKeyHandler(Key.D, ShowDiff);
+        contentView.RegisterKeyHandler(Key.p, PushCurrentBranch);
     }
+
+    private void PushCurrentBranch() => cmds.PushCurrentBranch(this);
+
 
     private void ShowDiff()
     {
@@ -89,7 +93,7 @@ class RepoView : IRepoView, IRepo
         diffView.Show(Repo, currentRowCommit.Id);
     }
 
-    void CommitAll() => repoCommands.CommitAsync(this).RunInBackground();
+    void CommitAll() => cmds.Commit(this);
     void OnMenuKey() => menuService.ShowMainMenu(this);
     void OnRightArrow() => menuService.ShowShowBranchesMenu(this);
     void OnLeftArrow() => menuService.ShowHideBranchesMenu(this);

@@ -28,12 +28,12 @@ class MenuService : IMenuService
         List<MenuItem> items = new List<MenuItem>();
 
         items.Add(new MenuItem("Commit", "",
-            () => cmds.CommitAsync(repo).RunInBackground(),
+            () => cmds.Commit(repo),
             () => !repo.Repo.Status.IsOk));
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems(repo)));
         items.Add(new MenuBarItem("Push", new[]{
             new MenuItem("Push Current Branch", "",
-                () => cmds.PushCurrentBranch(repo).RunInBackground(),
+                () => cmds.PushCurrentBranch(repo),
                 () => cmds.CanPushCurrentBranch(repo),
                 null, Key.p)}));
 
