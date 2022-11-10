@@ -163,7 +163,7 @@ class RepoView : IRepoView, IRepo
 
     async Task ShowRefreshedRepoAsync()
     {
-        Log.Info("show refresh");
+        Log.Info("show refreshed repo ...");
         var t = Timing.Start();
 
         if (!Try(out repo, out var e, await viewRepoService.GetFreshRepoAsync(repo!)))

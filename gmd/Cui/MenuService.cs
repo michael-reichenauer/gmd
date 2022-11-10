@@ -35,7 +35,7 @@ class MenuService : IMenuService
             new MenuItem("Push Current Branch", "",
                 () => cmds.PushCurrentBranch(repo).RunInBackground(),
                 () => cmds.CanPushCurrentBranch(repo),
-               null, Key.p)}));
+                null, Key.p)}));
 
 
         var menu = new ContextMenu(repo.ViewWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
