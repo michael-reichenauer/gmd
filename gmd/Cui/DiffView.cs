@@ -87,17 +87,17 @@ class DiffView : IDiffView
 
     async Task ShowAsync(Repo repo, string commitId)
     {
-        if (commitId == Repo.UncommittedId)
+        if (!Try(out var diff, out var e,
+            commitId == Repo.UncommittedId
+                ? await viewRepoService.GetUncommittedDiff(repo)
+                : await viewRepoService.GetCommitDiffAsync(repo, commitId)))
         {
-            if (!Try(out var diff, out var e, await viewRepoService.GetUncommittedDiff(repo)))
-            {
-                UI.ErrorMessage($"Failed to get uncommitted diff:\n{e}");
-                return;
-            }
-
-            diffRows = diffService.CreateRows(diff);
-            contentView.TriggerUpdateContent(TotalRows);
+            UI.ErrorMessage($"Failed to get diff:\n{e}");
+            return;
         }
+
+        diffRows = diffService.CreateRows(diff);
+        contentView.TriggerUpdateContent(TotalRows);
     }
 
     void onDrawDiffContent(Rect bounds, int firstIndex, int currentIndex)

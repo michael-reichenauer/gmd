@@ -83,8 +83,9 @@ class RepoView : IRepoView, IRepo
 
     private void ShowDiff()
     {
+        var currentRowCommit = repo!.Commits[CurrentIndex];
         var diffView = diffViewProvider();
-        diffView.Show(Repo, Repo.UncommittedId);
+        diffView.Show(Repo, currentRowCommit.Id);
     }
 
     void CommitAll() => repoCommands.CommitAsync(this).RunInBackground();
