@@ -14,7 +14,7 @@ class DiffRows
 {
     readonly List<DiffRow> rows = new List<DiffRow>();
 
-    public int RowCount => rows.Count;
+    public int Count => rows.Count;
     public IReadOnlyList<DiffRow> Rows => rows;
 
     internal void Add(Text oneRow) =>

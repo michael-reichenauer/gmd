@@ -55,7 +55,7 @@ class RepoView : IRepoView, IRepo
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            WantMousePositionReports = false,
+            // WantMousePositionReports = false,
         };
 
         repoWriter = new RepoWriter(contentView, contentView.ContentX);
