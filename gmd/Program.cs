@@ -27,7 +27,7 @@ class Program
         Log.Info($"Initialized {t}");
         program.Main();
         Log.Info($"Done, running for {t}");
-        Log.CloseAsync().Wait();
+        ConfigLogger.CloseAsync().Wait();
     }
 
     internal Program(IMainView mainView)
@@ -55,7 +55,7 @@ class Program
     private bool HandleUIMainLoopError(Exception e)
     {
         Log.Exception(e, "Error in UI main loop");
-        Log.CloseAsync().Wait();
+        ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
     }
 }

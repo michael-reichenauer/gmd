@@ -37,7 +37,6 @@ interface IGraphService
 }
 
 
-
 class GraphService : IGraphService
 {
     public Graph CreateGraph(Repo repo)
@@ -53,7 +52,7 @@ class GraphService : IGraphService
         Graph graph = new Graph(width, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
 
-        Log.Info($"{t}");
+        Log.Debug($"{t}");
         return graph;
     }
 

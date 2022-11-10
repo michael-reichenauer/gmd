@@ -82,13 +82,8 @@ class AugmentedRepoService : IAugmentedRepoService
             return e;
         }
 
-        var repo = new GitRepo(
-            DateTime.UtcNow,
-            git.Path,
-            log,
-            branches,
-            status);
-        Log.Info($"{t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");
+        var repo = new GitRepo(DateTime.UtcNow, git.Path, log, branches, status);
+        Log.Debug($"{t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");
         return repo;
     }
 
