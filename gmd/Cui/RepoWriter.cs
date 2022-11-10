@@ -100,7 +100,7 @@ class RepoWriter : IRepoWriter
 
         if (branchTips.TryGetValue(c.Id, out var tips))
         {
-            columnWidth--;
+            columnWidth -= 2;
             columnWidth -= Math.Min(tips.Length, maxTipsLength);
             if (tips.Length > maxTipsLength)
             {
