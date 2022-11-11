@@ -225,7 +225,7 @@ class RepoViewMenus : IRepoViewMenus
         name = isBranchIn ? "╮" + name : name;
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;
-        name = branch.IsCurrent ? "●" + name : " " + name;
+        name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
 
         return name;
     }

@@ -54,6 +54,7 @@ class Converter : IConverter
         TipId: b.TipId,
         BottomId: b.BottomId,
         IsCurrent: b.IsCurrent,
+        IsLocalCurrent: b.IsLocalCurrent,
         IsRemote: b.IsRemote,
         RemoteName: b.RemoteName,
         LocalName: b.LocalName,

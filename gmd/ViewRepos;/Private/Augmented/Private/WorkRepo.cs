@@ -110,9 +110,10 @@ internal class WorkBranch
     public int AheadCount { get; }
     public int BehindCount { get; }
     public bool IsRemoteMissing { get; }
+    public bool IsCurrent { get; }
 
     // Augmented properties
-    public bool IsCurrent { get; set; }
+    public bool IsLocalCurrent { get; set; }
     public string DisplayName { get; set; } = "";
     public string RemoteName { get; set; } = "";
     public string LocalName { get; set; } = "";

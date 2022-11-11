@@ -22,6 +22,8 @@ class RemoteService : IRemoteService
         this.cmd = cmd;
     }
 
+    public static string TrimRemotePrefix(string name) => name.TrimPrefix("origin/");
+
     public async Task<R> FetchAsync()
     {
         var args = "fetch --force --prune --tags --prune-tags origin";
@@ -36,6 +38,7 @@ class RemoteService : IRemoteService
 
     public async Task<R> PushBranchAsync(string name)
     {
+        name = TrimRemotePrefix(name);
         string refs = $"refs/heads/{name}:refs/heads/{name}";
         var args = $"push --porcelain origin --set-upstream {refs}";
         CmdResult cmdResult = await cmd.RunAsync("git", args);
@@ -61,6 +64,7 @@ class RemoteService : IRemoteService
 
     public async Task<R> PullBranchAsync(string name)
     {
+        name = TrimRemotePrefix(name);
         var refs = $"{name}:{name}";
         var args = $"fetch origin {refs}";
         CmdResult cmdResult = await cmd.RunAsync("git", args);
@@ -74,7 +78,7 @@ class RemoteService : IRemoteService
 
     public async Task<R> DeleteRemoteBranchAsync(string name)
     {
-        name = name.StartsWith("origin/") ? name.Substring("origin/".Length) : name;
+        name = TrimRemotePrefix(name);
 
         var args = $"push --porcelain origin --delete {name}";
         CmdResult cmdResult = await cmd.RunAsync("git", args);
@@ -89,6 +93,7 @@ class RemoteService : IRemoteService
 
     public async Task<R> PushRefForceAsync(string name)
     {
+        name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
         var args = $"push --porcelain origin --set-upstream --force {refs}";
         CmdResult cmdResult = await cmd.RunAsync("git", args);
@@ -102,6 +107,7 @@ class RemoteService : IRemoteService
 
     public async Task<R> PullRefAsync(string name)
     {
+        name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
         var args = $"fetch origin {refs}";
         CmdResult cmdResult = await cmd.RunAsync("git", args);

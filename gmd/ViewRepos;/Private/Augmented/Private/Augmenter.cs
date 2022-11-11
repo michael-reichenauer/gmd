@@ -61,7 +61,7 @@ class Augmenter : IAugmenter
                     remoteBranch.LocalName = b.Name;
                     if (b.IsCurrent)
                     {
-                        remoteBranch.IsCurrent = true;
+                        remoteBranch.IsLocalCurrent = true;
                     }
                 }
                 else

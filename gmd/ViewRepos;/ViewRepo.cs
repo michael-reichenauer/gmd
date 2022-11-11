@@ -96,6 +96,7 @@ public record Branch(
     string TipId,
     string BottomId,
     bool IsCurrent,
+    bool IsLocalCurrent,
     bool IsRemote,
     string RemoteName,
     string LocalName,

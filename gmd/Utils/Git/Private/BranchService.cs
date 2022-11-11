@@ -42,7 +42,7 @@ class BranchService : IBranchService
 
     public async Task<R> CheckoutAsync(string name)
     {
-        name = TrimRemotePrefix(name);
+        name = RemoteService.TrimRemotePrefix(name);
         CmdResult cmdResult = await cmd.RunAsync("git", $"checkout {name}");
         if (cmdResult.ExitCode != 0)
         {
@@ -53,7 +53,7 @@ class BranchService : IBranchService
 
     public async Task<R> MergeBranch(string name)
     {
-        name = TrimRemotePrefix(name);
+        name = RemoteService.TrimRemotePrefix(name);
         CmdResult cmdResult = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}");
         if (cmdResult.ExitCode != 0)
         {
@@ -107,9 +107,6 @@ class BranchService : IBranchService
             name, commonName, tipId, isCurrent, isRemote, remoteName, isDetached,
             aheadCount, behindCount, isRemoteMissing);
     }
-
-    string TrimRemotePrefix(string name) => name.TrimPrefix("origin/");
-
 
 
     // IsNormalBranch returns true if branch is normal and not a pointer branch
