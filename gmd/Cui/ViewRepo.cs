@@ -10,7 +10,8 @@ interface IRepo
     Graph Graph { get; }
     int TotalRows { get; }
     int CurrentIndex { get; }
-    Commit CurrentRowCommit { get; }
+    Commit CurrentIndexCommit { get; }
+    Branch CurrentBranch { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
     bool HasUncommittedChanges { get; }
@@ -61,10 +62,11 @@ class ViewRepo : IRepo
     public Graph Graph { get; init; }
     public int TotalRows => Repo.Commits.Count;
     public int CurrentIndex => repoView.CurrentIndex;
-    public Commit CurrentRowCommit => Repo.Commits[CurrentIndex];
+    public Commit CurrentIndexCommit => Repo.Commits[CurrentIndex];
     public int ContentWidth => repoView.ContentWidth;
     public Point CurrentPoint => repoView.CurrentPoint;
     public bool HasUncommittedChanges => !Repo.Status.IsOk;
+    public Branch CurrentBranch => Repo.Branches.First(b => b.IsCurrent);
 
     public void Refresh() => repoView.Refresh();
     public void UpdateRepoTo(Repo newRepo) => repoView.UpdateRepoTo(newRepo);
@@ -85,7 +87,7 @@ class ViewRepo : IRepo
     public IReadOnlyList<Branch> GetAllBranches() => viewRepoService.GetAllBranches(Repo);
 
     public IReadOnlyList<Branch> GetCommitBranches() =>
-        viewRepoService.GetCommitBranches(Repo, CurrentRowCommit.Id);
+        viewRepoService.GetCommitBranches(Repo, CurrentIndexCommit.Id);
 
     public void SwitchTo(string branchName)
     {

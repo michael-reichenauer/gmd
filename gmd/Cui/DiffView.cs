@@ -58,7 +58,7 @@ class DiffView : IDiffView
     }
 
 
-    public void ShowCurrentRow() => Show(repo.CurrentRowCommit.Id);
+    public void ShowCurrentRow() => Show(repo.CurrentIndexCommit.Id);
 
     public void ShowUncommittedDiff() => Show(Repo.UncommittedId);
 
