@@ -104,7 +104,7 @@ class RepoWriter : IRepoWriter
             columnWidth -= Math.Min(tips.Length, maxTipsLength);
             if (tips.Length > maxTipsLength)
             {
-                columnWidth -= 3;
+                columnWidth -= 4;
             }
         }
 
