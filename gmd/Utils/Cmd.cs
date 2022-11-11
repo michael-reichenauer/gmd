@@ -16,7 +16,7 @@ internal class CmdResult : R<string>
         : base(new Exception(errorOutput))
     {
         ExitCode = exitCode;
-        Output = "";
+        Output = output;
         ErrorOutput = errorOutput;
     }
 
