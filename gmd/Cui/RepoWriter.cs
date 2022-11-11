@@ -232,9 +232,9 @@ class RepoWriter : IRepoWriter
             if (branchName.Length > maxTipNameLength)
             {   // Branch name to long, shorten it
                 int splitIndex = branchName.LastIndexOf('/');
-                if (splitIndex != -1 && branchName.Length - splitIndex < maxTipNameLength - 2)
+                if (splitIndex != -1 && branchName.Length - splitIndex < maxTipNameLength - 1)
                 {
-                    branchName = "┅/" + branchName.Substring(0, splitIndex);
+                    branchName = "┅" + branchName.Substring(splitIndex);
                 }
                 else
                 {

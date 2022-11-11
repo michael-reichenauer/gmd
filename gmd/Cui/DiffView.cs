@@ -138,7 +138,7 @@ class DiffView : IDiffView
     {
         int columnWidth = (contentWidth - 1) / 2;
         int oneColumnWidth = columnWidth * 2 + 1;
-        for (int y = 0; y < rowCount; y++)
+        for (int y = 0; y < rowCount && y + firstRow < diffRows!.Rows.Count; y++)
         {
             var row = diffRows!.Rows[firstRow + y];
             if (row.Mode == DiffRowMode.Line)
