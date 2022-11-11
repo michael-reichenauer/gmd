@@ -1,19 +1,6 @@
 using gmd.ViewRepos;
-using NStack;
-using Terminal.Gui;
 
 namespace gmd.Cui;
-
-interface IRepo
-{
-    int ViewWidth { get; }
-    Repo Repo { get; }
-    int CurrentIndex { get; }
-    Point CurrentPoint { get; }
-
-    void Refresh();
-    void ShowRepo(Repo newRepo);
-}
 
 
 interface IRepoCommands
@@ -31,12 +18,12 @@ class RepoCommands : IRepoCommands
 {
     private readonly IViewRepoService viewRepoService;
     private readonly Func<ICommitDlg> newCommitDlg;
-    private readonly Func<IDiffView> newDiffView;
+    private readonly Func<IRepo, IDiffView> newDiffView;
 
     internal RepoCommands(
         IViewRepoService viewRepoService,
         Func<ICommitDlg> newCommitDlg,
-        Func<IDiffView> newDiffView)
+        Func<IRepo, IDiffView> newDiffView)
     {
         this.viewRepoService = viewRepoService;
         this.newCommitDlg = newCommitDlg;
@@ -46,13 +33,13 @@ class RepoCommands : IRepoCommands
     public void ShowBranch(IRepo repo, string name)
     {
         Repo newRepo = viewRepoService.ShowBranch(repo.Repo, name);
-        repo.ShowRepo(newRepo);
+        repo.UpdateRepo(newRepo);
     }
 
     public void HideBranch(IRepo repo, string name)
     {
         Repo newRepo = viewRepoService.HideBranch(repo.Repo, name);
-        repo.ShowRepo(newRepo);
+        repo.UpdateRepo(newRepo);
     }
 
     public void Commit(IRepo repo)
@@ -109,7 +96,7 @@ class RepoCommands : IRepoCommands
 
     public void ShowUncommittedDiff(IRepo repo)
     {
-        var diffView = newDiffView();
-        diffView.Show(repo.Repo, Repo.UncommittedId);
+        var diffView = newDiffView(repo);
+        diffView.ShowUncommittedDiff();
     }
 }
