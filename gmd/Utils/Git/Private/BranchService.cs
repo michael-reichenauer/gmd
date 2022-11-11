@@ -31,38 +31,27 @@ class BranchService : IBranchService
     public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync()
     {
         var args = "branch -vv --no-color --no-abbrev --all";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
         {
-            return R.Error(cmdResult.Error);
+            return e;
         }
 
-        return ParseBranches(cmdResult.Output);
+        return ParseBranches(output);
     }
 
     public async Task<R> CheckoutAsync(string name)
     {
         name = RemoteService.TrimRemotePrefix(name);
-        CmdResult cmdResult = await cmd.RunAsync("git", $"checkout {name}");
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-        return R.Ok;
+        return await cmd.RunAsync("git", $"checkout {name}");
     }
 
     public async Task<R> MergeBranch(string name)
     {
         name = RemoteService.TrimRemotePrefix(name);
-        CmdResult cmdResult = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}");
-        if (cmdResult.ExitCode != 0)
-        {
-            // if strings.Contains(err.Error(), "exit status 1") &&
-            //     strings.Contains(output, "CONFLICT") {
-            //     return ErrConflicts
-            return R.Error(cmdResult.Error);
-        }
-        return R.Ok;
+        return await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}");
+        // if strings.Contains(err.Error(), "exit status 1") &&
+        //     strings.Contains(output, "CONFLICT") {
+        //     return ErrConflicts
     }
 
 

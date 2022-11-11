@@ -23,13 +23,12 @@ class DiffService : IDiffService
     {
         var args = "show --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             $" --find-renames --unified=6 {commitId}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
         {
-            return R.Error(cmdResult.Error);
+            return e;
         }
 
-        var commitDiffs = ParseCommitDiffs(cmdResult.Output, "", false);
+        var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
         {
             return R.Error("Failed to parse diff");
@@ -46,43 +45,37 @@ class DiffService : IDiffService
         var needReset = false;
         if (!IsMergeInProgress())
         {
-            CmdResult addResult = await cmd.RunAsync("git", "add .");
-            if (addResult.ExitCode != 0)
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .")))
             {
-                return R.Error(addResult.Error);
+                return err;
             }
             needReset = true;
         }
 
         var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             " --find-renames --unified=6 HEAD";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
         {
-            return R.Error(cmdResult.Error);
+            return e;
         }
 
         if (needReset)
         {   // Reset the git add . previously 
-            CmdResult resetResult = await cmd.RunAsync("git", "reset");
-            if (resetResult.ExitCode != 0)
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset")))
             {
-                return R.Error(resetResult.Error);
+                return err;
             }
         }
 
         // Add commit prefix text to support parser.
         var dateText = DateTime.Now.Iso();
-        string output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" +
-            cmdResult.Output;
+        output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
         {
             return R.Error("Failed to parse diff");
         }
-
-
 
         return commitDiffs[0];
 
@@ -398,10 +391,5 @@ class DiffService : IDiffService
         return line.Substring(2).Replace("\t", "   ");
     }
 
-    bool IsMergeInProgress()
-    {
-        string mergeIpPath = Path.Combine(cmd.WorkingDirectory, ".git", "MERGE_HEAD");
-        return File.Exists(mergeIpPath);
-
-    }
+    bool IsMergeInProgress() => File.Exists(Path.Join(cmd.WorkingDirectory, ".git", "MERGE_MSG"));
 }

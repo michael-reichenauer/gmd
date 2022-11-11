@@ -21,25 +21,14 @@ class CommitService : ICommitService
 
         if (!IsMergeInProgress())
         {
-            CmdResult addResult = await cmd.RunAsync("git", "add .");
-            if (addResult.ExitCode != 0)
+            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .")))
             {
-                return R.Error(addResult.Error);
+                return e;
             }
         }
 
-        CmdResult commitResult = await cmd.RunAsync("git", $"commit -am \"{message}\"");
-        if (commitResult.ExitCode != 0)
-        {
-            return R.Error(commitResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", $"commit -am \"{message}\"");
     }
 
-    bool IsMergeInProgress()
-    {
-        string mergeMsgPath = Path.Join(cmd.WorkingDirectory, ".git", "MERGE_MSG");
-        return File.Exists(mergeMsgPath);
-    }
+    bool IsMergeInProgress() => File.Exists(Path.Join(cmd.WorkingDirectory, ".git", "MERGE_MSG"));
 }

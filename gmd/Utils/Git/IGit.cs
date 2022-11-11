@@ -61,7 +61,6 @@ public record Status(
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }
 
-
 record CommitDiff(
     string Id,
     string Author,

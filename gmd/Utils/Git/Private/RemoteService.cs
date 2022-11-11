@@ -27,13 +27,7 @@ class RemoteService : IRemoteService
     public async Task<R> FetchAsync()
     {
         var args = "fetch --force --prune --tags --prune-tags origin";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 
     public async Task<R> PushBranchAsync(string name)
@@ -41,25 +35,13 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         string refs = $"refs/heads/{name}:refs/heads/{name}";
         var args = $"push --porcelain origin --set-upstream {refs}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 
     public async Task<R> PullCurrentBranchAsync()
     {
         var args = $"pull --ff --no-rebase";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 
     public async Task<R> PullBranchAsync(string name)
@@ -67,13 +49,7 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         var refs = $"{name}:{name}";
         var args = $"fetch origin {refs}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 
     public async Task<R> DeleteRemoteBranchAsync(string name)
@@ -81,13 +57,7 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
 
         var args = $"push --porcelain origin --delete {name}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 
 
@@ -96,13 +66,7 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
         var args = $"push --porcelain origin --set-upstream --force {refs}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 
     public async Task<R> PullRefAsync(string name)
@@ -110,25 +74,13 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
         var args = $"fetch origin {refs}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 
 
     public async Task<R> CloneAsync(string uri, string path)
     {
         var args = $"clone {uri} {path}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return R.Error(cmdResult.Error);
-        }
-
-        return R.Ok;
+        return await cmd.RunAsync("git", args);
     }
 }

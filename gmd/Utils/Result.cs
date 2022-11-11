@@ -153,9 +153,9 @@ public class R<T> : R
 
     public new static readonly R<T> NoValue = new R<T>(NoValueError);
 
-    private R(T value) : base(NoError) => this.storedValue = value;
+    protected R(T value) : base(NoError) => this.storedValue = value;
 
-    private R(Exception error) : base(error) { }
+    protected R(Exception error) : base(error) { }
 
     public T GetResultValue() => isErrorChecked ?
            IsOk ? storedValue! : throw Asserter.FailFast(resultException.ToString()) :

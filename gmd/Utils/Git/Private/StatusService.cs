@@ -17,13 +17,12 @@ class StatusService : IStatusService
     public async Task<R<Status>> GetStatusAsync()
     {
         var args = "status -s --porcelain --ahead-behind --untracked-files=all";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
         {
-            return R.Error(cmdResult.Error);
+            return e;
         }
 
-        return Parse(cmdResult.Output);
+        return Parse(output);
     }
 
     private R<Status> Parse(string statusText)
