@@ -30,7 +30,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;
@@ -44,7 +44,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;
@@ -56,7 +56,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;
@@ -70,7 +70,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;
@@ -84,7 +84,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;
@@ -99,7 +99,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;
@@ -113,7 +113,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;
@@ -126,7 +126,7 @@ class RemoteService : IRemoteService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return R.Ok;

@@ -34,7 +34,7 @@ class BranchService : IBranchService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         return ParseBranches(cmdResult.Output);
@@ -46,7 +46,7 @@ class BranchService : IBranchService
         CmdResult cmdResult = await cmd.RunAsync("git", $"checkout {name}");
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
         return R.Ok;
     }
@@ -60,7 +60,7 @@ class BranchService : IBranchService
             // if strings.Contains(err.Error(), "exit status 1") &&
             //     strings.Contains(output, "CONFLICT") {
             //     return ErrConflicts
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
         return R.Ok;
     }

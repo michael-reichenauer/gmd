@@ -26,13 +26,13 @@ class DiffService : IDiffService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         var commitDiffs = ParseCommitDiffs(cmdResult.Output, "", false);
         if (commitDiffs.Count == 0)
         {
-            return Error.From("Failed to parse diff");
+            return R.Error("Failed to parse diff");
         }
 
         return commitDiffs[0];
@@ -49,7 +49,7 @@ class DiffService : IDiffService
             CmdResult addResult = await cmd.RunAsync("git", "add .");
             if (addResult.ExitCode != 0)
             {
-                return Error.From(addResult.Error);
+                return R.Error(addResult.Error);
             }
             needReset = true;
         }
@@ -59,7 +59,7 @@ class DiffService : IDiffService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         if (needReset)
@@ -67,7 +67,7 @@ class DiffService : IDiffService
             CmdResult resetResult = await cmd.RunAsync("git", "reset");
             if (resetResult.ExitCode != 0)
             {
-                return Error.From(resetResult.Error);
+                return R.Error(resetResult.Error);
             }
         }
 
@@ -79,7 +79,7 @@ class DiffService : IDiffService
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
         {
-            return Error.From("Failed to parse diff");
+            return R.Error("Failed to parse diff");
         }
 
 

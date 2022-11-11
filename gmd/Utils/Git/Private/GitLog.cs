@@ -22,7 +22,7 @@ internal class LogService : ILogService
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
-            return Error.From(cmdResult.Error);
+            return R.Error(cmdResult.Error);
         }
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
@@ -60,7 +60,7 @@ internal class LogService : ILogService
         var rowParts = row.Split('|');
         if (rowParts.Length < 6)
         {
-            return Error.From($"failed to parse git commit {row}");
+            return R.Error($"failed to parse git commit {row}");
         }
 
         var id = rowParts[0];
