@@ -67,6 +67,8 @@ class DiffService : IDiffService
     {
         DiffRows rows = new DiffRows();
         commitDiffs.ForEach(diff => AddCommitDiff(diff, rows));
+        rows.Add(Text.None);
+        rows.AddLine(Text.New.Yellow("━"));
         return rows;
     }
 
@@ -76,6 +78,7 @@ class DiffService : IDiffService
         if (commitDiff.Id == "")
         {   // Uncommitted changes
             rows.Add(Text.New.Dark("Commit: ").White("Uncommitted changes"));
+            rows.Add(Text.New.Dark("Time:   ").White(DateTime.Now.Iso()));
         }
         else
         {   // Some specified commit id

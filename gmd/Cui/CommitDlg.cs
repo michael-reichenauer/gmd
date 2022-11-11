@@ -79,10 +79,10 @@ class CommitDlg : ICommitDlg
 
     private bool OnKey(Key key)
     {
-        if (key == (Key.d | Key.CtrlMask))
+        if (key == (Key.D | Key.CtrlMask))
         {
             cmds.ShowUncommittedDiff(repo!);
-            return false;
+            return true;
         }
 
         return false;

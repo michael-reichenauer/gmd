@@ -258,8 +258,6 @@ class RepoWriter : IRepoWriter
                 {
                     tipText.Add($"({branchName})", color);
                 }
-
-
             }
             else
             {

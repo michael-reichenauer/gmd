@@ -109,7 +109,6 @@ class RepoCommands : IRepoCommands
 
     public void ShowUncommittedDiff(IRepo repo)
     {
-
         var diffView = newDiffView();
         diffView.Show(repo.Repo, Repo.UncommittedId);
     }

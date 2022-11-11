@@ -80,6 +80,7 @@ class RepoView : IRepoView, IRepo
 
         contentView.RegisterKeyHandler(Key.d, ShowDiff);
         contentView.RegisterKeyHandler(Key.D, ShowDiff);
+        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, ShowDiff);
         contentView.RegisterKeyHandler(Key.p, PushCurrentBranch);
     }
 
