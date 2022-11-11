@@ -101,17 +101,17 @@ class RepoWriter : IRepoWriter
 
         if (maxTipWidth < columnWidth - c.Subject.Length)
         {
-            maxTipWidth = (columnWidth - c.Subject.Length);
+            maxTipWidth = (columnWidth - c.Subject.Length) - 1;
         }
 
         if (branchTips.TryGetValue(c.Id, out var tips))
         {
             //columnWidth -= 1;
             columnWidth -= (Math.Min(tips.Length, maxTipsLength) + 1);
-            if (tips.Length >= maxTipWidth)
-            {
-                columnWidth -= 1;
-            }
+            // if (tips.Length >= maxTipWidth)
+            // {
+            //     columnWidth -= 1;
+            // }
         }
 
         string subject = Txt(c.Subject, columnWidth);
