@@ -721,6 +721,11 @@ class Augmenter : IAugmenter
 
         var rootBranch = repo.Branches.First(b => b.ParentBranch == null);
         rootBranch.IsMainBranch = true;
+        if (rootBranch.LocalName != "")
+        {
+            var rootLocalBranch = repo.Branches.First(b => b.Name == rootBranch.LocalName);
+            rootLocalBranch.IsMainBranch = true;
+        }
     }
 }
 

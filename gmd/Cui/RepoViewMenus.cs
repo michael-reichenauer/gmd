@@ -116,6 +116,7 @@ class RepoViewMenus : IRepoViewMenus
     MenuItem[] GetSwitchToItems()
     {
         var currentName = repo.Repo.Branches.FirstOrDefault(b => b.IsCurrent)?.DisplayName ?? "";
+
         var branches = repo.Repo.Branches
              .Where(b => b.DisplayName != currentName)
              .DistinctBy(b => b.DisplayName)
