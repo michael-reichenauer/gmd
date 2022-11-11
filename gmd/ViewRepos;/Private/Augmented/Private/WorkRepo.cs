@@ -104,8 +104,7 @@ internal class WorkBranch
 {
     // Git properties
     public string Name { get; }
-    public string DisplayName { get; }
-    public bool IsCurrent { get; }
+    public string CommonName { get; }
     public bool IsRemote { get; }
     public bool IsDetached { get; }
     public int AheadCount { get; }
@@ -113,6 +112,8 @@ internal class WorkBranch
     public bool IsRemoteMissing { get; }
 
     // Augmented properties
+    public bool IsCurrent { get; set; }
+    public string DisplayName { get; set; } = "";
     public string RemoteName { get; set; } = "";
     public string LocalName { get; set; } = "";
     public string TipID { get; }
@@ -129,12 +130,14 @@ internal class WorkBranch
 
     public string AmbiguousTipId { get; set; } = "";
     public List<string> AmbiguousBranchNames { get; } = new List<string>();
+
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
 
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
-        DisplayName = b.DisplayName;
+        CommonName = b.CommonName;
+        DisplayName = b.CommonName;
         TipID = b.TipID;
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
@@ -148,9 +151,10 @@ internal class WorkBranch
         BottomID = "";
     }
 
-    public WorkBranch(string name, string displayName, string tipID)
+    public WorkBranch(string name, string commonName, string displayName, string tipID)
     {
         Name = name;
+        CommonName = commonName;
         DisplayName = displayName;
         TipID = tipID;
     }

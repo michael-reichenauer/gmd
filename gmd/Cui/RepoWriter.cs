@@ -223,7 +223,7 @@ class RepoWriter : IRepoWriter
                     ambiguousTipText = Text.New;
                 }
 
-                ambiguousTipText.White("(╸").Dark("ambiguous").White(")");
+                ambiguousTipText.White("(~").Dark("ambiguous").White(")");
                 branchTips[b.AmbiguousTipId] = ambiguousTipText;
             }
 
@@ -261,7 +261,7 @@ class RepoWriter : IRepoWriter
             }
             else
             {
-                tipText.Add("(╸", color).Dark(branchName).Add(")", color);
+                tipText.Add("(~", color).Dark(branchName).Add(")", color);
             }
 
             branchTips[b.TipId] = tipText;

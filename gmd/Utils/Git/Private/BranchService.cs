@@ -92,7 +92,7 @@ class BranchService : IBranchService
             name = $"({match.Groups[3].Value})";
         }
 
-        string displayName = name.StartsWith(originPrefix) ?
+        string commonName = name.StartsWith(originPrefix) ?
             name.Substring(originPrefix.Length) :
             name;
 
@@ -104,7 +104,7 @@ class BranchService : IBranchService
         bool isRemoteMissing = match.Groups[15].Value == "gone";
 
         return new Branch(
-            name, displayName, tipId, isCurrent, isRemote, remoteName, isDetached,
+            name, commonName, tipId, isCurrent, isRemote, remoteName, isDetached,
             aheadCount, behindCount, isRemoteMissing);
     }
 

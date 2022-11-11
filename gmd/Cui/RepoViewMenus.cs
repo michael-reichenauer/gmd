@@ -104,8 +104,12 @@ class RepoViewMenus : IRepoViewMenus
 
     MenuItem[] GetShowItems()
     {
-        var branches = repo.GetCommitBranches();
-        return ToShowBranchesItems(branches);
+
+        var branches = repo
+            .GetCommitBranches()
+            .Concat(repo.Repo.Branches);
+
+        return ToShowBranchesItems(branches, true);
     }
 
 
@@ -116,11 +120,11 @@ class RepoViewMenus : IRepoViewMenus
 
     MenuItem[] GetSwitchToItems()
     {
-        var currentName = repo.CurrentBranch.DisplayName;
+        var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Repo.Branches
-             .Where(b => b.DisplayName != currentName)
-             .DistinctBy(b => b.DisplayName)
-             .OrderBy(b => b.DisplayName);
+             .Where(b => b.CommonName != currentName)
+             .DistinctBy(b => b.CommonName)
+             .OrderBy(b => b.CommonName);
 
         return branches.Select(b =>
             new MenuItem(b.DisplayName, "", () => repo.SwitchTo(b.Name)))
@@ -134,11 +138,11 @@ class RepoViewMenus : IRepoViewMenus
             return new MenuItem[0];
         }
 
-        var currentName = repo.CurrentBranch.DisplayName;
+        var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Repo.Branches
-             .Where(b => b.DisplayName != currentName)
-             .DistinctBy(b => b.DisplayName)
-             .OrderBy(b => b.DisplayName);
+             .Where(b => b.CommonName != currentName)
+             .DistinctBy(b => b.CommonName)
+             .OrderBy(b => b.CommonName);
 
         return branches.Select(b =>
             new MenuItem(b.DisplayName, "", () => repo.MergeBranch(b.Name)))
@@ -151,8 +155,8 @@ class RepoViewMenus : IRepoViewMenus
     {
         var branches = repo.Repo.Branches
             .Where(b => !b.IsMainBranch)
-            .DistinctBy(b => b.DisplayName)
-            .OrderBy(b => b.DisplayName);
+            .DistinctBy(b => b.CommonName)
+            .OrderBy(b => b.CommonName);
 
         return branches.Select(b =>
             new MenuItem(b.DisplayName, "", () => repo.HideBranch(b.Name)))
@@ -168,12 +172,12 @@ class RepoViewMenus : IRepoViewMenus
 
         var liveBranches = allBranches
             .Where(b => b.IsGitBranch)
-            .DistinctBy(b => b.DisplayName)
-            .OrderBy(b => b.DisplayName);
+            .DistinctBy(b => b.CommonName)
+            .OrderBy(b => b.CommonName);
 
         var liveAndDeletedBranches = allBranches
-            .DistinctBy(b => b.DisplayName)
-            .OrderBy(b => b.DisplayName);
+            .DistinctBy(b => b.CommonName)
+            .OrderBy(b => b.CommonName);
 
         var recentBranches = liveAndDeletedBranches
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].Index)
@@ -186,11 +190,44 @@ class RepoViewMenus : IRepoViewMenus
         return items.ToArray();
     }
 
-    MenuItem[] ToShowBranchesItems(IEnumerable<Branch> branches)
+    MenuItem[] ToShowBranchesItems(IEnumerable<Branch> branches, bool canBeOutside = false)
     {
-        return branches.Select(b =>
-            new MenuItem(b.DisplayName, "", () => repo.ShowBranch(b.Name)))
+        var cic = repo.CurrentIndexCommit;
+        return branches
+            .DistinctBy(b => b.CommonName)
+            .Select(b => new MenuItem(ToShowName(b, cic, canBeOutside), "", () => repo.ShowBranch(b.Name)))
             .ToArray();
+    }
+
+    string ToShowName(Branch branch, Commit cic, bool canBeOutside)
+    {
+        bool isBranchIn = false;
+        bool isBranchOut = false;
+        if (canBeOutside &&
+            !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
+        {
+            if (repo.Repo.AugmentedRepo.BranchByName.TryGetValue(branch.Name, out var b))
+            {
+                // The branch is not shown, but does exist
+                if (cic.ParentIds.Count > 1 && cic.ParentIds[1] == b.TipId)
+                {
+                    isBranchIn = true;
+                }
+                else if (cic.ChildIds.Contains(b.BottomId))
+                {
+                    isBranchOut = true;
+                }
+            }
+        }
+
+        string name = branch.DisplayName;
+        name = branch.IsGitBranch ? " " + name : "~" + name;
+        name = isBranchIn ? "╮" + name : name;
+        name = isBranchOut ? "╯" + name : name;
+        name = isBranchIn || isBranchOut ? name : " " + name;
+        name = branch.IsCurrent ? "●" + name : " " + name;
+
+        return name;
     }
 
     MenuItem[] GetShowScrollBranchItems()

@@ -49,6 +49,7 @@ class Converter : IConverter
 
     Branch ToBranch(Augmented.Branch b) => new Branch(
         Name: b.Name,
+        CommonName: b.CommonName,
         DisplayName: b.DisplayName,
         TipId: b.TipId,
         BottomId: b.BottomId,

@@ -65,6 +65,7 @@ public record Commit(
 
 public record Branch(
     string Name,
+    string CommonName,
     string DisplayName,
     string TipId,
     string BottomId,

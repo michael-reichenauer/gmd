@@ -11,7 +11,7 @@ interface IRepo
     int TotalRows { get; }
     int CurrentIndex { get; }
     Commit CurrentIndexCommit { get; }
-    Branch CurrentBranch { get; }
+    Branch? CurrentBranch { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
     bool HasUncommittedChanges { get; }
@@ -67,7 +67,7 @@ class ViewRepo : IRepo
     public int ContentWidth => repoView.ContentWidth;
     public Point CurrentPoint => repoView.CurrentPoint;
     public bool HasUncommittedChanges => !Repo.Status.IsOk;
-    public Branch CurrentBranch => Repo.Branches.First(b => b.IsCurrent);
+    public Branch? CurrentBranch => Repo.Branches.FirstOrDefault(b => b.IsCurrent);
 
     public void Refresh() => repoView.Refresh();
     public void UpdateRepoTo(Repo newRepo) => repoView.UpdateRepoTo(newRepo);

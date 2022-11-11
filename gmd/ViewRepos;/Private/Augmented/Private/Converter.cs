@@ -50,6 +50,7 @@ class Converter : IConverter
     {
         return new Branch(
             Name: b.Name,
+            CommonName: b.CommonName,
             DisplayName: b.DisplayName,
             TipId: b.TipID,
             BottomId: b.BottomID,

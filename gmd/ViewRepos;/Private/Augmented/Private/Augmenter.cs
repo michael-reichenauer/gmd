@@ -59,6 +59,10 @@ class Augmenter : IAugmenter
                 if (remoteBranch != null)
                 {   // Corresponding remote branch, set local branch name property
                     remoteBranch.LocalName = b.Name;
+                    if (b.IsCurrent)
+                    {
+                        remoteBranch.IsCurrent = true;
+                    }
                 }
                 else
                 {   // No remote corresponding remote branch, unset property
@@ -351,7 +355,7 @@ class Augmenter : IAugmenter
             {   // Managed to parse a branch name
                 var mergeChildBranch = c.MergeChildren[0].Branch!;
 
-                if (name == mergeChildBranch.DisplayName)
+                if (name == mergeChildBranch.CommonName)
                 {
                     branch = mergeChildBranch;
                     return true;
@@ -363,7 +367,7 @@ class Augmenter : IAugmenter
             }
 
             // could not parse a name from any of the merge children, use id named branch
-            branch = AddNamedBranch(repo, c, "branch");
+            branch = AddNamedBranch(repo, c);
             return true;
         }
 
@@ -385,7 +389,7 @@ class Augmenter : IAugmenter
             }
 
             // could not parse a name from any of the merge children, use id named branch
-            branch = AddNamedBranch(repo, c, "branch");
+            branch = AddNamedBranch(repo, c);
             return true;
         }
 
@@ -521,7 +525,7 @@ class Augmenter : IAugmenter
         }
 
         // Try find a branch with the display name
-        return c.Branches.Find(b => b.DisplayName == name);
+        return c.Branches.Find(b => b.CommonName == name);
     }
     private bool TryHasOnlyOneChild(WorkCommit c, out WorkBranch? branch)
     {
@@ -584,11 +588,14 @@ class Augmenter : IAugmenter
         }
     }
 
-    private WorkBranch? AddNamedBranch(WorkRepo repo, WorkCommit c, string branchName)
+    private WorkBranch? AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
+        var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
+        var displayName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
-            name: $"{branchName}:{c.Sid}",
-            displayName: $"{branchName}@{c.Sid}",
+            name: branchName,
+            commonName: branchName,
+            displayName: displayName,
             tipID: c.Id);
 
         repo.Branches.Add(branch);
@@ -598,9 +605,11 @@ class Augmenter : IAugmenter
 
     internal WorkBranch AddAmbiguousBranch(WorkRepo repo, WorkCommit c)
     {
+        var name = $"ambiguous:{c.Sid}";
         WorkBranch branch = new WorkBranch(
-            name: $"ambiguous:{c.Sid}",
-            displayName: $"ambiguous@{c.Sid}",
+            name: name,
+            commonName: name,
+            displayName: name,
             tipID: c.Id);
 
         branch.IsAmbiguousBranch = true;

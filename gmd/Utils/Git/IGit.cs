@@ -36,7 +36,7 @@ public record Commit(
 
 public record Branch(
     string Name,
-    string DisplayName,
+    string CommonName,
     string TipID,
     bool IsCurrent,
     bool IsRemote,
