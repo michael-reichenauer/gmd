@@ -20,6 +20,7 @@ interface IViewRepoService
     Task<R<CommitDiff>> GetCommitDiffAsync(Repo repo, string commitId);
     Task<R<CommitDiff>> GetUncommittedDiff(Repo repo);
     Task<R> PushBranchAsync(Repo repo, string name);
+    Task<R> SwitchToAsync(Repo repo, string branchName);
 }
 
 internal class ChangeEventArgs : EventArgs

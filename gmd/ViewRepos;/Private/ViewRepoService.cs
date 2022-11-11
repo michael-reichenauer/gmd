@@ -155,6 +155,9 @@ class ViewRepoService : IViewRepoService
     public Task<R> PushBranchAsync(Repo repo, string name) =>
         gitService.Git(repo.Path).PushBranchAsync(name);
 
+    public Task<R> SwitchToAsync(Repo repo, string branchName) =>
+        gitService.Git(repo.Path).CheckoutAsync(branchName);
+
 
     protected virtual void OnRepoChange(ChangeEventArgs e)
     {
@@ -168,6 +171,5 @@ class ViewRepoService : IViewRepoService
         var handler = StatusChange;
         handler?.Invoke(this, e);
     }
-
 }
 

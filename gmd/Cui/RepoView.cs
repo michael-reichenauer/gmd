@@ -13,7 +13,7 @@ interface IRepoView
 
     Task<R> ShowRepoAsync(string path);
     Task<R> ShowRepoAsync(string path, string[] showBranches);
-    void UpdateRepo(Repo repo);
+    void UpdateRepoTo(Repo repo);
     void Refresh();
 }
 
@@ -77,7 +77,7 @@ class RepoView : IRepoView
     public Task<R> ShowRepoAsync(string path, string[] showBranches) =>
         ShowNewRepoAsync(path, showBranches);
 
-    public void UpdateRepo(Repo repo) => ShowRepo(repo);
+    public void UpdateRepoTo(Repo repo) => ShowRepo(repo);
 
     public void Refresh() => ShowRefreshedRepoAsync().RunInBackground();
 

@@ -5,6 +5,7 @@ namespace gmd.Utils.Git.Private;
 interface IBranchService
 {
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
+    Task<R> CheckoutAsync(string name);
 }
 
 class BranchService : IBranchService
@@ -23,6 +24,16 @@ class BranchService : IBranchService
     public BranchService(ICmd cmd)
     {
         this.cmd = cmd;
+    }
+
+    public async Task<R> CheckoutAsync(string name)
+    {
+        CmdResult cmdResult = await cmd.RunAsync("git", $"checkout {name}");
+        if (cmdResult.ExitCode != 0)
+        {
+            return Error.From(cmdResult.Error);
+        }
+        return R.Ok;
     }
 
     public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync()

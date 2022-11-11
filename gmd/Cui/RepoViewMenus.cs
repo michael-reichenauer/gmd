@@ -1,4 +1,5 @@
 using gmd.ViewRepos;
+using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -33,10 +34,13 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems()));
         items.Add(new MenuBarItem("Hide Branch", GetHideItems()));
         items.Add(new MenuBarItem("Push", GetPushItems()));
+        items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
 
         var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
+
+
 
     string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Substring(0, 6);
 
@@ -97,26 +101,32 @@ class RepoViewMenus : IRepoViewMenus
               }
           : new MenuItem[0];
 
-
-    private MenuItem[] GetShowItems()
+    MenuItem[] GetShowItems()
     {
-
-        var branches = repo.GetCommitBranches(repo.Repo);
+        var branches = repo.GetCommitBranches();
         return ToShowBranchesItems(branches);
     }
 
 
-    private MenuItem[] GetScrollToItems()
+    MenuItem[] GetScrollToItems()
     {
         return new MenuItem[0];
     }
 
-    private MenuItem[] GetSwitchToItems()
+    MenuItem[] GetSwitchToItems()
     {
-        return new MenuItem[0];
+        var currentName = repo.Repo.Branches.FirstOrDefault(b => b.IsCurrent)?.DisplayName ?? "";
+        var branches = repo.Repo.Branches
+             .Where(b => b.DisplayName != currentName)
+             .DistinctBy(b => b.DisplayName)
+             .OrderBy(b => b.DisplayName);
+
+        return branches.Select(b =>
+            new MenuItem(b.DisplayName, "", () => repo.SwitchTo(b.Name)))
+            .ToArray();
     }
 
-    private MenuItem[] GetHideItems()
+    MenuItem[] GetHideItems()
     {
         var branches = repo.Repo.Branches
             .Where(b => !b.IsMainBranch)

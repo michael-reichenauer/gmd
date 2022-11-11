@@ -16,13 +16,13 @@ interface IRepo
     bool HasUncommittedChanges { get; }
 
     void Refresh();
-    void UpdateRepo(Repo newRepo);
 
     void ShowBranch(string name);
     void HideBranch(string name);
     IReadOnlyList<Branch> GetAllBranches();
-    IReadOnlyList<Branch> GetCommitBranches(Repo repo);
+    IReadOnlyList<Branch> GetCommitBranches();
 
+    void SwitchTo(string branchName);
     void Commit();
     void PushCurrentBranch();
     void ShowUncommittedDiff();
@@ -67,25 +67,38 @@ class ViewRepo : IRepo
     public bool HasUncommittedChanges => !Repo.Status.IsOk;
 
     public void Refresh() => repoView.Refresh();
-    public void UpdateRepo(Repo newRepo) => repoView.UpdateRepo(newRepo);
+    public void UpdateRepoTo(Repo newRepo) => repoView.UpdateRepoTo(newRepo);
 
 
     public void ShowBranch(string name)
     {
         Repo newRepo = viewRepoService.ShowBranch(Repo, name);
-        UpdateRepo(newRepo);
+        UpdateRepoTo(newRepo);
     }
 
     public void HideBranch(string name)
     {
         Repo newRepo = viewRepoService.HideBranch(Repo, name);
-        UpdateRepo(newRepo);
+        UpdateRepoTo(newRepo);
     }
 
     public IReadOnlyList<Branch> GetAllBranches() => viewRepoService.GetAllBranches(Repo);
 
-    public IReadOnlyList<Branch> GetCommitBranches(Repo repo) =>
-        viewRepoService.GetCommitBranches(repo, CurrentRowCommit.Id);
+    public IReadOnlyList<Branch> GetCommitBranches() =>
+        viewRepoService.GetCommitBranches(Repo, CurrentRowCommit.Id);
+
+    public void SwitchTo(string branchName)
+    {
+        Do(async () =>
+        {
+            if (!Try(out var e, await viewRepoService.SwitchToAsync(Repo, branchName)))
+            {
+                UI.ErrorMessage($"Failed to switch to {branchName}:\n{e}");
+                return;
+            }
+        });
+    }
+
 
     public void Commit()
     {
