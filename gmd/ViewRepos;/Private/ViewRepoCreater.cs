@@ -291,7 +291,7 @@ class ViewRepoCreater : IViewRepoCreater
                 string subject = $"{changesCount} uncommitted files";
                 if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
                 {
-                    subject = $"{repo.Status.MergeMessage} {subject}";
+                    subject = $"{repo.Status.MergeMessage}, {subject}";
                 }
                 if (repo.Status.Conflicted > 0)
                 {

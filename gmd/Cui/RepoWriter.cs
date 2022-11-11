@@ -36,7 +36,7 @@ class RepoWriter : IRepoWriter
 
         text.Reset();
         int graphWidth = repo.Graph.Width;
-        int markersWidth = 3; // 1 margin to graph and then 1 current marker and 1 ahead/behind
+        int markersWidth = 3; //  1 current marker and 1 ahead/behind
 
         Columns cw = ColumnWidths(repo.ContentWidth - (graphWidth + markersWidth));
 

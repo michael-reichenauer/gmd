@@ -51,8 +51,8 @@ class GraphService : IGraphService
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);
 
-        // The width is the max branch X + room for 'more' branch in/out signs
-        int width = branches.Max(b => b.X) + 1;
+        // The width is the max branch X +2 room for 'more' branch in/out signs
+        int width = branches.Max(b => b.X) + 2;
 
         Graph graph = new Graph(width, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
