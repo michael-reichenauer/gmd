@@ -18,6 +18,8 @@ interface IGit
     Task<R> PushRefForceAsync(string name);
     Task<R> PullRefAsync(string name);
     Task<R> CloneAsync(string uri, string path);
+    Task<R> CheckoutAsync(string name);
+    Task<R> MergeBranch(string name);
 }
 
 

@@ -3,10 +3,10 @@ using gmd.ViewRepos;
 namespace gmd.Cui;
 
 
-interface IDiffService
+interface IDiffConverter
 {
-    DiffRows CreateRows(CommitDiff diff);
-    DiffRows CreateRows(CommitDiff[] commitDiffs);
+    DiffRows ToDiffRows(CommitDiff diff);
+    DiffRows ToDiffRows(CommitDiff[] commitDiffs);
 }
 
 class DiffRows
@@ -55,18 +55,20 @@ enum DiffRowMode
 }
 
 
-class DiffService : IDiffService
+class DiffService : IDiffConverter
 {
     static readonly Text NoLine = Text.New.Dark(new string('░', 100));
-    public DiffRows CreateRows(CommitDiff commitDiff)
+    public DiffRows ToDiffRows(CommitDiff commitDiff)
     {
-        return CreateRows(new[] { commitDiff });
+        return ToDiffRows(new[] { commitDiff });
     }
 
-    public DiffRows CreateRows(CommitDiff[] commitDiffs)
+    public DiffRows ToDiffRows(CommitDiff[] commitDiffs)
     {
         DiffRows rows = new DiffRows();
         commitDiffs.ForEach(diff => AddCommitDiff(diff, rows));
+        rows.Add(Text.None);
+        rows.AddLine(Text.New.Yellow("━"));
         return rows;
     }
 
@@ -76,6 +78,7 @@ class DiffService : IDiffService
         if (commitDiff.Id == "")
         {   // Uncommitted changes
             rows.Add(Text.New.Dark("Commit: ").White("Uncommitted changes"));
+            rows.Add(Text.New.Dark("Time:   ").White(DateTime.Now.Iso()));
         }
         else
         {   // Some specified commit id
@@ -100,7 +103,12 @@ class DiffService : IDiffService
         {
             var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
             var diffMode = ToDiffModeText(fd.DiffMode);
-            rows.Add(ToColorText($"  {diffMode,-12} {path}", fd.DiffMode));
+            var text = ToColorText($"  {diffMode,-12} {path}", fd.DiffMode);
+            if (fd.IsRenamed)
+            {
+                text.Cyan(" (Renamed)");
+            }
+            rows.Add(text);
         });
     }
 
@@ -112,7 +120,12 @@ class DiffService : IDiffService
         var fd = fileDiff;
         var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
         var diffMode = ToDiffModeText(fd.DiffMode);
-        rows.Add(ToColorText($"{diffMode} {path}", fd.DiffMode));
+        var text = ToColorText($"{diffMode} {path}", fd.DiffMode);
+        if (fd.IsRenamed)
+        {
+            text.Cyan("  (Renamed)");
+        }
+        rows.Add(text);
 
         fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
     }

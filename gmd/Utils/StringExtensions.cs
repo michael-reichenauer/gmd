@@ -1,14 +1,8 @@
 
+
+
 namespace System
 {
-    public static class TimeDateExtensions
-    {
-        public static string Iso(this DateTime source)
-        {
-            return $"{source:yyyy-MM-dd HH:mm:ss.fff}";
-        }
-    }
-
     public static class StringExtensions
     {
         /// <summary>
@@ -24,6 +18,26 @@ namespace System
             }
 
             return source.Substring(0, maxLength);
+        }
+
+        public static string TrimPrefix(this string source, string prefix)
+        {
+            if (!source.StartsWith(prefix))
+            {
+                return source;
+            }
+
+            return source.Substring(prefix.Length);
+        }
+
+        public static string TrimSuffix(this string source, string suffix)
+        {
+            if (!source.EndsWith(suffix))
+            {
+                return source;
+            }
+
+            return source.Substring(0, source.Length - suffix.Length);
         }
     }
 }

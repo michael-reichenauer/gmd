@@ -5,33 +5,34 @@ namespace gmd.Cui;
 
 interface IDiffView
 {
-    Toplevel View { get; }
-
-    void Show(Repo repo, string commitId);
+    void ShowCurrentRow();
+    void ShowUncommittedDiff();
 }
 
 
 class DiffView : IDiffView
 {
-    readonly IViewRepoService viewRepoService;
-    readonly IDiffService diffService;
     static readonly Text splitLine = Text.New.Dark("│");
 
+    readonly IViewRepoService viewRepoService;
+    readonly IDiffConverter diffService;
+
+    readonly IRepo repo;
+
+    ContentView contentView;
     Toplevel diffView;
+
     int rowStartIndex = 0;
-    Repo? repo;
     string commitId = "";
 
-    public Toplevel View => diffView;
-
-    readonly ContentView contentView;
 
     DiffRows? diffRows = null;
 
     int TotalRows => diffRows?.Count ?? 0;
 
-    public DiffView(IViewRepoService viewRepoService, IDiffService diffService)
+    public DiffView(IViewRepoService viewRepoService, IDiffConverter diffService, IRepo repo)
     {
+        this.repo = repo;
         diffView = new Toplevel()
         {
             X = 0,
@@ -56,18 +57,32 @@ class DiffView : IDiffView
         RegisterKeyHandlers();
     }
 
+
+    public void ShowCurrentRow() => Show(repo.CurrentIndexCommit.Id);
+
+    public void ShowUncommittedDiff() => Show(Repo.UncommittedId);
+
+
+    void Show(string commitId)
+    {
+        this.commitId = commitId;
+
+
+
+        ShowAsync(commitId).RunInBackground();
+        Application.Run(diffView);
+    }
+
+
     void RegisterKeyHandlers()
     {
         contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
         contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
-        contentView.RegisterKeyHandler(Key.r, Refresh);
-        contentView.RegisterKeyHandler(Key.R, Refresh);
+        contentView.RegisterKeyHandler(Key.r, OnRefresh);
+        contentView.RegisterKeyHandler(Key.R, OnRefresh);
     }
 
-    private void Refresh()
-    {
-        ShowAsync(repo!, commitId).RunInBackground();
-    }
+    private void OnRefresh() => ShowAsync(commitId).RunInBackground();
 
     private void OnLeftArrow()
     {
@@ -88,27 +103,19 @@ class DiffView : IDiffView
         }
     }
 
-    public void Show(Repo repo, string commitId)
+    async Task ShowAsync(string commitId)
     {
-        this.repo = repo;
-        this.commitId = commitId;
+        var diffTask = commitId == Repo.UncommittedId
+            ? viewRepoService.GetUncommittedDiff(repo.Repo)
+            : viewRepoService.GetCommitDiffAsync(repo.Repo, commitId);
 
-        ShowAsync(repo, commitId).RunInBackground();
-        Application.Run(diffView);
-    }
-
-    async Task ShowAsync(Repo repo, string commitId)
-    {
-        if (!Try(out var diff, out var e,
-            commitId == Repo.UncommittedId
-                ? await viewRepoService.GetUncommittedDiff(repo)
-                : await viewRepoService.GetCommitDiffAsync(repo, commitId)))
+        if (!Try(out var diff, out var e, await diffTask))
         {
             UI.ErrorMessage($"Failed to get diff:\n{e}");
             return;
         }
 
-        diffRows = diffService.CreateRows(diff);
+        diffRows = diffService.ToDiffRows(diff);
         contentView.TriggerUpdateContent(TotalRows);
     }
 
@@ -138,7 +145,7 @@ class DiffView : IDiffView
     {
         int columnWidth = (contentWidth - 1) / 2;
         int oneColumnWidth = columnWidth * 2 + 1;
-        for (int y = 0; y < rowCount; y++)
+        for (int y = 0; y < rowCount && y + firstRow < diffRows!.Rows.Count; y++)
         {
             var row = diffRows!.Rows[firstRow + y];
             if (row.Mode == DiffRowMode.Line)

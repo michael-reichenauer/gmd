@@ -5,6 +5,8 @@ namespace gmd.Utils.Git.Private;
 interface IBranchService
 {
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
+    Task<R> CheckoutAsync(string name);
+    Task<R> MergeBranch(string name);
 }
 
 class BranchService : IBranchService
@@ -25,6 +27,7 @@ class BranchService : IBranchService
         this.cmd = cmd;
     }
 
+
     public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync()
     {
         var args = "branch -vv --no-color --no-abbrev --all";
@@ -36,6 +39,32 @@ class BranchService : IBranchService
 
         return ParseBranches(cmdResult.Output);
     }
+
+    public async Task<R> CheckoutAsync(string name)
+    {
+        name = TrimRemotePrefix(name);
+        CmdResult cmdResult = await cmd.RunAsync("git", $"checkout {name}");
+        if (cmdResult.ExitCode != 0)
+        {
+            return Error.From(cmdResult.Error);
+        }
+        return R.Ok;
+    }
+
+    public async Task<R> MergeBranch(string name)
+    {
+        name = TrimRemotePrefix(name);
+        CmdResult cmdResult = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}");
+        if (cmdResult.ExitCode != 0)
+        {
+            // if strings.Contains(err.Error(), "exit status 1") &&
+            //     strings.Contains(output, "CONFLICT") {
+            //     return ErrConflicts
+            return Error.From(cmdResult.Error);
+        }
+        return R.Ok;
+    }
+
 
     R<IReadOnlyList<Branch>> ParseBranches(string output)
     {
@@ -78,6 +107,10 @@ class BranchService : IBranchService
             name, displayName, tipId, isCurrent, isRemote, remoteName, isDetached,
             aheadCount, behindCount, isRemoteMissing);
     }
+
+    string TrimRemotePrefix(string name) => name.TrimPrefix("origin/");
+
+
 
     // IsNormalBranch returns true if branch is normal and not a pointer branch
     bool IsNormalBranch(Match match) => match.Groups[5].Value != "->";

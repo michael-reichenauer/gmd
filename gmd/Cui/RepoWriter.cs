@@ -5,13 +5,13 @@ namespace gmd.Cui;
 
 interface IRepoWriter
 {
-    void WriteRepoPage(Graph graph, Repo repo, int contentWidth, int firstRow, int rowCount, int currentRow);
+    void WriteRepoPage(IRepo repo, int firstRow, int rowCount);
 }
 
 class RepoWriter : IRepoWriter
 {
     static readonly int maxTipNameLength = 16;
-    static readonly int maxTipsLength = 40;
+    static readonly int maxTipsLength = 41;
 
     private readonly ColorText text;
     private readonly IBranchColorService branchColorService;
@@ -26,25 +26,26 @@ class RepoWriter : IRepoWriter
         graphWriter = new GraphWriter(text);
     }
 
-    public void WriteRepoPage(Graph graph, Repo repo, int contentWidth, int firstRow, int rowCount, int currentRow)
+    public void WriteRepoPage(IRepo repo, int firstRow, int rowCount)
     {
         var branchTips = GetBranchTips(repo);
 
-        var crc = repo.Commits[currentRow];
-        var crb = repo.BranchByName[crc.BranchName];
+        var crc = repo.Repo.Commits[repo.CurrentIndex];
+        var crb = repo.Repo.BranchByName[crc.BranchName];
+        var isUncommitted = repo.HasUncommittedChanges; //repo.Repo.Status.IsOk;
 
         text.Reset();
-        int graphWidth = graph.Width;
+        int graphWidth = repo.Graph.Width;
         int markersWidth = 3; // 1 margin to graph and then 1 current marker and 1 ahead/behind
 
-        Columns cw = ColumnWidths(contentWidth - (graphWidth + markersWidth));
+        Columns cw = ColumnWidths(repo.ContentWidth - (graphWidth + markersWidth));
 
         for (int i = firstRow; i < firstRow + rowCount; i++)
         {
-            var c = repo.Commits[i];
-            var graphRow = graph.GetRow(i);
+            var c = repo.Repo.Commits[i];
+            var graphRow = repo.Graph.GetRow(i);
             WriteGraph(graphRow);
-            WriteCurrentMarker(c);
+            WriteCurrentMarker(c, isUncommitted);
             WriteAheadBehindMarker(c);
             WriteSubject(cw, c, crb, branchTips);
             WriteSid(cw, c);
@@ -60,9 +61,14 @@ class RepoWriter : IRepoWriter
         graphWriter.Write(graphRow);
     }
 
-    void WriteCurrentMarker(Commit c)
+    void WriteCurrentMarker(Commit c, bool isUncommitted)
     {
-        if (c.IsCurrent)
+        if (c.IsCurrent && !isUncommitted)
+        {
+            text.White(" ●");
+            return;
+        }
+        if (c.Id == Repo.UncommittedId)
         {
             text.White(" ●");
             return;
@@ -95,17 +101,17 @@ class RepoWriter : IRepoWriter
 
         if (maxTipWidth < columnWidth - c.Subject.Length)
         {
-            maxTipWidth = (columnWidth - c.Subject.Length) - 1;
+            maxTipWidth = (columnWidth - c.Subject.Length);
         }
 
         if (branchTips.TryGetValue(c.Id, out var tips))
         {
+            columnWidth -= (Math.Min(tips.Length, maxTipsLength));
             columnWidth -= 1;
-            columnWidth -= Math.Min(tips.Length, maxTipsLength);
-            if (tips.Length > maxTipsLength)
-            {
-                columnWidth -= 3;
-            }
+            // if (tips.Length >= maxTipWidth)
+            // {
+            //     columnWidth -= 1;
+            // }
         }
 
         string subject = Txt(c.Subject, columnWidth);
@@ -199,11 +205,11 @@ class RepoWriter : IRepoWriter
 
 
 
-    IReadOnlyDictionary<string, Text> GetBranchTips(Repo repo)
+    IReadOnlyDictionary<string, Text> GetBranchTips(IRepo repo)
     {
         var branchTips = new Dictionary<string, Text>();
 
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.Repo.Branches)
         {
             if (!branchTips.TryGetValue(b.TipId, out var tipText))
             {   //  Commit has no tip yet, crating tip text
@@ -225,10 +231,18 @@ class RepoWriter : IRepoWriter
 
             if (branchName.Length > maxTipNameLength)
             {   // Branch name to long, shorten it
-                branchName = "┅" + branchName.Substring(branchName.Length - maxTipNameLength);
+                int splitIndex = branchName.LastIndexOf('/');
+                if (splitIndex != -1 && branchName.Length - splitIndex < maxTipNameLength - 1)
+                {
+                    branchName = "┅" + branchName.Substring(splitIndex);
+                }
+                else
+                {
+                    branchName = "┅" + branchName.Substring(branchName.Length - maxTipNameLength);
+                }
             }
 
-            var color = branchColorService.GetColor(repo, b);
+            var color = branchColorService.GetColor(repo.Repo, b);
 
             if (b.IsGitBranch)
             {
@@ -236,7 +250,14 @@ class RepoWriter : IRepoWriter
                 {
                     branchName = "^/" + branchName;
                 }
-                tipText.Add($"({branchName})", color);
+                if (b.IsCurrent)
+                {
+                    tipText.Add($"(", color).White("●").Add($"{branchName})", color);
+                }
+                else
+                {
+                    tipText.Add($"({branchName})", color);
+                }
             }
             else
             {
