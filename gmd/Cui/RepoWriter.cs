@@ -236,7 +236,16 @@ class RepoWriter : IRepoWriter
                 {
                     branchName = "^/" + branchName;
                 }
-                tipText.Add($"({branchName})", color);
+                if (b.IsCurrent)
+                {
+                    tipText.Add($"(", color).White("●").Add($"{branchName})", color);
+                }
+                else
+                {
+                    tipText.Add($"({branchName})", color);
+                }
+
+
             }
             else
             {
