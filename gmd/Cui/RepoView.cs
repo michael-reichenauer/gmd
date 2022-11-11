@@ -43,13 +43,13 @@ class RepoView : IRepoView, IRepo
         Func<View, int, IRepoWriter> repoWriterProvider,
         IGraphService graphService,
         IMenuService menuService,
-        IRepoCommands repoCommands) : base()
+        IRepoCommands cmds) : base()
     {
         this.viewRepoService = viewRepoService;
         this.diffViewProvider = diffViewProvider;
         this.graphService = graphService;
         this.menuService = menuService;
-        this.cmds = repoCommands;
+        this.cmds = cmds;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,

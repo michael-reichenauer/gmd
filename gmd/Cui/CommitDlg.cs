@@ -1,25 +1,48 @@
 
+using gmd.ViewRepos;
+using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui;
 
-class CommitDlg
+interface ICommitDlg
 {
-    readonly Dialog dialog;
-    readonly TextField subjectField;
-    readonly MessageTextView messageView;
+    bool Show(IRepo repo, out string message);
+}
 
-    internal string Message => MessageText();
+class CommitDlg : ICommitDlg
+{
+    readonly IRepoCommands cmds;
+    Dialog? dialog;
+    TextField? subjectField;
+    MessageTextView? messageView;
+    IRepo? repo;
 
     bool isOk = false;
-    public CommitDlg(string branchName, int filesCount, string message = "")
+    internal CommitDlg(IRepoCommands cmds)
     {
-        (string subjectText, string messageText) = ParseMessage(message);
+        this.cmds = cmds;
+    }
+
+    public bool Show(IRepo repo, out string message)
+    {
+        message = "";
+        this.repo = repo;
+
+        var commit = repo.Repo.Commits[0];
+        if (commit.Id != Repo.UncommittedId)
+        {
+            return false;
+        }
+
+        string branchName = commit.BranchName;
+        (string subjectText, string messageText) = ParseMessage(repo);
+        int filesCount = repo.Repo.Status.ChangesCount;
 
         Button okButton = new Button("OK", true);
         okButton.Clicked += () =>
         {
-            if (Message == "")
+            if (GetMessage() == "")
             {
                 UI.ErrorMessage("Empty commit message");
                 subjectField!.SetFocus();
@@ -28,34 +51,48 @@ class CommitDlg
             isOk = true;
             Application.RequestStop();
         };
+
         Button cancelButton = new Button("Cancel", false);
         cancelButton.Clicked += () => Application.RequestStop();
 
-        dialog = new Dialog("Commit", 72, 17, new Button[] { okButton, cancelButton })
+        dialog = new CustomDialog("Commit", 72, 17, new[] { okButton, cancelButton }, OnKey)
         {
             Border = { Effect3D = false }
         };
 
-        var label = new Label(0, 0, $"Commit {filesCount} files on {branchName}:");
+        Label infoLabel = new Label(0, 0, $"Commit {filesCount} files on {branchName}:");
         subjectField = new TextField(0, 1, 50, "some text");
         subjectField.Text = subjectText;
 
         messageView = new MessageTextView() { X = 0, Y = 3, Width = 70, Height = 10 };
         messageView.Text = messageText;
 
-        dialog.Add(label, subjectField, messageView);
+        dialog.Add(infoLabel, subjectField, messageView);
         subjectField.SetFocus();
-    }
 
-    internal bool Show()
-    {
         Application.Run(dialog);
+
+        message = GetMessage();
         return isOk;
     }
 
 
-    (string, string) ParseMessage(string msg)
+    private bool OnKey(Key key)
     {
+        if (key == (Key.d | Key.CtrlMask))
+        {
+            cmds.ShowUncommittedDiff(repo!);
+            return false;
+        }
+
+        return false;
+    }
+
+
+    (string, string) ParseMessage(IRepo repo)
+    {
+        string msg = repo.Repo.Status.MergeMessage;
+
         if (msg.Trim() == "")
         {
             return ("", "");
@@ -81,13 +118,13 @@ class CommitDlg
     }
 
 
-    string SubjectText() => subjectField.Text.ToString()?.Trim() ?? "";
+    string SubjectText() => subjectField!.Text.ToString()?.Trim() ?? "";
 
 
-    string MessageText()
+    string GetMessage()
     {
         string subjectText = SubjectText();
-        string msgText = messageView.Text.ToString()?.TrimEnd() ?? "";
+        string msgText = messageView!.Text.ToString()?.TrimEnd() ?? "";
         if (msgText.Trim() == "")
         {
             msgText = "";
@@ -115,6 +152,19 @@ class CommitDlg
             }
             return base.ProcessKey(keyEvent);
         }
+    }
+
+    class CustomDialog : Dialog
+    {
+        private readonly Func<Key, bool> onKey;
+
+        public CustomDialog(ustring title, int width, int height, Button[] buttons, Func<Key, bool> onKey)
+        : base(title, width, height, buttons)
+        {
+            this.onKey = onKey;
+        }
+
+        public override bool ProcessHotKey(KeyEvent keyEvent) => onKey(keyEvent.Key);
     }
 }
 

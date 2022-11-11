@@ -24,15 +24,23 @@ interface IRepoCommands
     void PushCurrentBranch(IRepo repo);
     bool CanPushCurrentBranch(IRepo repo);
     bool CanPush(IRepo repo);
+    void ShowUncommittedDiff(IRepo repo);
 }
 
 class RepoCommands : IRepoCommands
 {
     private readonly IViewRepoService viewRepoService;
+    private readonly Func<ICommitDlg> newCommitDlg;
+    private readonly Func<IDiffView> newDiffView;
 
-    internal RepoCommands(IViewRepoService viewRepoService)
+    internal RepoCommands(
+        IViewRepoService viewRepoService,
+        Func<ICommitDlg> newCommitDlg,
+        Func<IDiffView> newDiffView)
     {
         this.viewRepoService = viewRepoService;
+        this.newCommitDlg = newCommitDlg;
+        this.newDiffView = newDiffView;
     }
 
     public void ShowBranch(IRepo repo, string name)
@@ -51,19 +59,13 @@ class RepoCommands : IRepoCommands
     {
         Do(async () =>
         {
-            var commit = repo.Repo.Commits[0];
-            if (commit.Id != Repo.UncommittedId)
+            var commitDlg = newCommitDlg();
+            if (!commitDlg.Show(repo, out var message))
             {
                 return;
             }
 
-            var commitDlg = new CommitDlg(commit.BranchName, repo.Repo.Status.ChangesCount, repo.Repo.Status.MergeMessage);
-            if (!commitDlg.Show())
-            {
-                return;
-            }
-
-            if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(repo.Repo, commitDlg.Message)))
+            if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(repo.Repo, message)))
             {
                 UI.ErrorMessage($"Failed to commit:\n{e}");
                 return;
@@ -105,4 +107,10 @@ class RepoCommands : IRepoCommands
     public bool CanPush(IRepo repo) =>
         CanPushCurrentBranch(repo);
 
+    public void ShowUncommittedDiff(IRepo repo)
+    {
+
+        var diffView = newDiffView();
+        diffView.Show(repo.Repo, Repo.UncommittedId);
+    }
 }

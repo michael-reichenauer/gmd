@@ -69,7 +69,6 @@ class ContentView : View
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
-
         switch (keyEvent.Key)
         {
             case Key.Esc:
