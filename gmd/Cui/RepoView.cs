@@ -23,12 +23,13 @@ class RepoView : IRepoView
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
     readonly IViewRepoService viewRepoService;
     readonly Func<IRepoView, Repo, IRepo> newViewRepo;
+    private readonly Func<IRepo, IRepoViewMenus> newMenuService;
     readonly Func<IRepo, IDiffView> newDiffView;
-    readonly IMenuService menuService;
     readonly ContentView contentView;
     readonly IRepoWriter repoWriter;
 
     // State data
+    IRepoViewMenus? menuService;
     IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo()
 
 
@@ -37,12 +38,12 @@ class RepoView : IRepoView
         Func<IRepo, IDiffView> newDiffView,
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Repo, IRepo> newViewRepo,
-        IMenuService menuService) : base()
+        Func<IRepo, IRepoViewMenus> newMenuService) : base()
     {
         this.viewRepoService = viewRepoService;
         this.newDiffView = newDiffView;
         this.newViewRepo = newViewRepo;
-        this.menuService = menuService;
+        this.newMenuService = newMenuService;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
@@ -66,9 +67,9 @@ class RepoView : IRepoView
     public Point CurrentPoint => contentView.CurrentPoint;
 
     void CommitAll() => repo!.Commit();
-    void OnMenuKey() => menuService.ShowMainMenu(repo!);
-    void OnRightArrow() => menuService.ShowShowBranchesMenu(repo!);
-    void OnLeftArrow() => menuService.ShowHideBranchesMenu(repo!);
+    void OnMenuKey() => menuService!.ShowMainMenu();
+    void OnRightArrow() => menuService!.ShowShowBranchesMenu();
+    void OnLeftArrow() => menuService!.ShowHideBranchesMenu();
 
     public Task<R> ShowRepoAsync(string path) =>
         ShowRepoAsync(path, new string[0]);
@@ -192,6 +193,7 @@ class RepoView : IRepoView
     void ShowRepo(Repo repo)
     {
         this.repo = newViewRepo(this, repo);
+        this.menuService = newMenuService(this.repo);
         contentView.TriggerUpdateContent(this.repo.TotalRows);
     }
 }

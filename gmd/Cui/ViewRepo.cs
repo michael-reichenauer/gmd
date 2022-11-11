@@ -20,6 +20,8 @@ interface IRepo
 
     void ShowBranch(string name);
     void HideBranch(string name);
+    IReadOnlyList<Branch> GetAllBranches();
+    IReadOnlyList<Branch> GetCommitBranches(Repo repo);
 
     void Commit();
     void PushCurrentBranch();
@@ -79,6 +81,11 @@ class ViewRepo : IRepo
         Repo newRepo = viewRepoService.HideBranch(Repo, name);
         UpdateRepo(newRepo);
     }
+
+    public IReadOnlyList<Branch> GetAllBranches() => viewRepoService.GetAllBranches(Repo);
+
+    public IReadOnlyList<Branch> GetCommitBranches(Repo repo) =>
+        viewRepoService.GetCommitBranches(repo, CurrentRowCommit.Id);
 
     public void Commit()
     {
