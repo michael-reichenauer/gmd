@@ -228,18 +228,17 @@ class RepoWriter : IRepoWriter
             }
 
             string branchName = b.DisplayName;
+            int splitIndex = branchName.LastIndexOf('/');
+            if (splitIndex != -1)
+            {
+                branchName = "┅" + branchName.Substring(splitIndex);
+            }
 
             if (branchName.Length > maxTipNameLength)
             {   // Branch name to long, shorten it
-                int splitIndex = branchName.LastIndexOf('/');
-                if (splitIndex != -1 && branchName.Length - splitIndex < maxTipNameLength - 1)
-                {
-                    branchName = "┅" + branchName.Substring(splitIndex);
-                }
-                else
-                {
-                    branchName = "┅" + branchName.Substring(branchName.Length - maxTipNameLength);
-                }
+
+                branchName = branchName.Substring(branchName.Length - maxTipNameLength);
+                branchName = splitIndex == -1 ? "┅" + branchName : branchName;
             }
 
             var color = branchColorService.GetColor(repo.Repo, b);
@@ -252,7 +251,7 @@ class RepoWriter : IRepoWriter
                 }
                 if (b.IsCurrent)
                 {
-                    tipText.Add($"(", color).White("●").Add($"{branchName})", color);
+                    tipText.Add($"(", color).White("● ").Add($"{branchName})", color);
                 }
                 else
                 {
