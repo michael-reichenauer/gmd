@@ -135,7 +135,7 @@ class RepoWriter : IRepoWriter
     {
         if (tips.Length > maxWidth - 1)
         {
-            maxWidth -= 1;
+            maxWidth -= 2;
         }
         Text.New.Black(" ").Draw();
         tips.Draw(0, maxWidth - 1);
