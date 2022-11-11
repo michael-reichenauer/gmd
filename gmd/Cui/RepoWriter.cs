@@ -32,6 +32,7 @@ class RepoWriter : IRepoWriter
 
         var crc = repo.Commits[currentRow];
         var crb = repo.BranchByName[crc.BranchName];
+        var isUncommitted = !repo.Status.IsOk;
 
         text.Reset();
         int graphWidth = graph.Width;
@@ -44,7 +45,7 @@ class RepoWriter : IRepoWriter
             var c = repo.Commits[i];
             var graphRow = graph.GetRow(i);
             WriteGraph(graphRow);
-            WriteCurrentMarker(c);
+            WriteCurrentMarker(c, isUncommitted);
             WriteAheadBehindMarker(c);
             WriteSubject(cw, c, crb, branchTips);
             WriteSid(cw, c);
@@ -60,9 +61,14 @@ class RepoWriter : IRepoWriter
         graphWriter.Write(graphRow);
     }
 
-    void WriteCurrentMarker(Commit c)
+    void WriteCurrentMarker(Commit c, bool isUncommitted)
     {
-        if (c.IsCurrent)
+        if (c.IsCurrent && !isUncommitted)
+        {
+            text.White(" ●");
+            return;
+        }
+        if (c.Id == Repo.UncommittedId)
         {
             text.White(" ●");
             return;
@@ -95,17 +101,17 @@ class RepoWriter : IRepoWriter
 
         if (maxTipWidth < columnWidth - c.Subject.Length)
         {
-            maxTipWidth = (columnWidth - c.Subject.Length) - 1;
+            maxTipWidth = (columnWidth - c.Subject.Length);
         }
 
         if (branchTips.TryGetValue(c.Id, out var tips))
         {
-            columnWidth -= 1;
-            columnWidth -= Math.Min(tips.Length, maxTipsLength);
-            if (tips.Length > maxTipsLength)
-            {
-                columnWidth -= 4;
-            }
+            //columnWidth -= 1;
+            columnWidth -= (Math.Min(tips.Length, maxTipsLength) + 1);
+            // if (tips.Length > maxTipsLength)
+            // {
+            //     columnWidth -= 4;
+            // }
         }
 
         string subject = Txt(c.Subject, columnWidth);
