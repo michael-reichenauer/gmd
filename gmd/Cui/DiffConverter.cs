@@ -103,7 +103,12 @@ class DiffService : IDiffConverter
         {
             var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
             var diffMode = ToDiffModeText(fd.DiffMode);
-            rows.Add(ToColorText($"  {diffMode,-12} {path}", fd.DiffMode));
+            var text = ToColorText($"  {diffMode,-12} {path}", fd.DiffMode);
+            if (fd.IsRenamed)
+            {
+                text.Cyan(" (Renamed)");
+            }
+            rows.Add(text);
         });
     }
 
@@ -115,7 +120,12 @@ class DiffService : IDiffConverter
         var fd = fileDiff;
         var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
         var diffMode = ToDiffModeText(fd.DiffMode);
-        rows.Add(ToColorText($"{diffMode} {path}", fd.DiffMode));
+        var text = ToColorText($"{diffMode} {path}", fd.DiffMode);
+        if (fd.IsRenamed)
+        {
+            text.Cyan("  (Renamed)");
+        }
+        rows.Add(text);
 
         fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
     }

@@ -41,12 +41,34 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetUncommittedDiff()
     {
+        // To be able to include renamed and added files in uncommitted diff, we first
+        // stage all and after diff, the stage is reset.  
+        var needReset = false;
+        if (!IsMergeInProgress())
+        {
+            CmdResult addResult = await cmd.RunAsync("git", "add .");
+            if (addResult.ExitCode != 0)
+            {
+                return Error.From(addResult.Error);
+            }
+            needReset = true;
+        }
+
         var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             " --find-renames --unified=6 HEAD";
         CmdResult cmdResult = await cmd.RunAsync("git", args);
         if (cmdResult.ExitCode != 0)
         {
             return Error.From(cmdResult.Error);
+        }
+
+        if (needReset)
+        {   // Reset the git add . previously 
+            CmdResult resetResult = await cmd.RunAsync("git", "reset");
+            if (resetResult.ExitCode != 0)
+            {
+                return Error.From(resetResult.Error);
+            }
         }
 
         // Add commit prefix text to support parser.
@@ -60,27 +82,32 @@ class DiffService : IDiffService
             return Error.From("Failed to parse diff");
         }
 
-        var commitDiff = commitDiffs[0];
 
-        if (!Try(out var status, out var e, await statusService.GetStatusAsync()))
-        {
-            return e;
-        }
 
-        var fileDiffs = commitDiff.FileDiffs.ToList();
+        return commitDiffs[0];
 
-        // If status know files are conflicted, the diff mode property needs to be adjusted
-        fileDiffs = SetConflictsFilesMode(fileDiffs, status);
 
-        // Add file diffs for new/added files
-        var addedFileDiffs = GetAddedFilesDiffs(status, cmd.WorkingDirectory);
-        if (addedFileDiffs.Any())
-        {
-            fileDiffs = fileDiffs.Concat(addedFileDiffs).OrderBy(d => d.PathAfter.ToLower()).ToList();
-            return commitDiff with { FileDiffs = fileDiffs };
-        }
+        // var commitDiff = commitDiffs[0];
 
-        return commitDiff;
+        // if (!Try(out var status, out var e, await statusService.GetStatusAsync()))
+        // {
+        //     return e;
+        // }
+
+        // var fileDiffs = commitDiff.FileDiffs.ToList();
+
+        // // If status know files are conflicted, the diff mode property needs to be adjusted
+        // fileDiffs = SetConflictsFilesMode(fileDiffs, status);
+
+        // // Add file diffs for new/added files
+        // var addedFileDiffs = GetAddedFilesDiffs(status, cmd.WorkingDirectory);
+        // if (addedFileDiffs.Any())
+        // {
+        //     fileDiffs = fileDiffs.Concat(addedFileDiffs).OrderBy(d => d.PathAfter.ToLower()).ToList();
+        //     return commitDiff with { FileDiffs = fileDiffs };
+        // }
+
+        //return commitDiff;
     }
 
 
@@ -121,9 +148,9 @@ class DiffService : IDiffService
         {
             author = lines[i++].Substring("Author: ".Length).Trim();
         }
-        if (i < lines.Length && lines[i].StartsWith("Date:   "))
+        if (i < lines.Length && lines[i].StartsWith("Date: "))
         {
-            date = lines[i++].Substring("Date:   ".Length).Trim();
+            date = lines[i++].Substring("Date: ".Length).Trim();
         }
         i++; // Skipping next line
         if (i < lines.Length)
@@ -213,6 +240,16 @@ class DiffService : IDiffService
         {
             i++;
             return (DiffMode.DiffRemoved, i);
+        }
+        if (lines[i].StartsWith("similarity "))
+        {   // 3 lines with rename info
+            i += 3;
+            return (DiffMode.DiffModified, i);
+        }
+        if (lines[i].StartsWith("rename "))
+        {   // 2 lines with rename info
+            i += 2;
+            return (DiffMode.DiffModified, i);
         }
 
         return (DiffMode.DiffModified, i);
@@ -359,5 +396,12 @@ class DiffService : IDiffService
     string AsConflictLine(string line)
     {
         return line.Substring(2).Replace("\t", "   ");
+    }
+
+    bool IsMergeInProgress()
+    {
+        string mergeIpPath = Path.Combine(cmd.WorkingDirectory, ".git", "MERGE_HEAD");
+        return File.Exists(mergeIpPath);
+
     }
 }

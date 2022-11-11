@@ -64,7 +64,7 @@ class ViewRepo : IRepo
     public Commit CurrentRowCommit => Repo.Commits[CurrentIndex];
     public int ContentWidth => repoView.ContentWidth;
     public Point CurrentPoint => repoView.CurrentPoint;
-    public bool HasUncommittedChanges => Repo.Status.IsOk;
+    public bool HasUncommittedChanges => !Repo.Status.IsOk;
 
     public void Refresh() => repoView.Refresh();
     public void UpdateRepo(Repo newRepo) => repoView.UpdateRepo(newRepo);
