@@ -5,7 +5,7 @@ namespace gmd.Cui;
 
 interface IRepoWriter
 {
-    void WriteRepoPage(Graph graph, Repo repo, int contentWidth, int firstRow, int rowCount, int currentRow);
+    void WriteRepoPage(IRepo repo, int firstRow, int rowCount);
 }
 
 class RepoWriter : IRepoWriter
@@ -26,24 +26,24 @@ class RepoWriter : IRepoWriter
         graphWriter = new GraphWriter(text);
     }
 
-    public void WriteRepoPage(Graph graph, Repo repo, int contentWidth, int firstRow, int rowCount, int currentRow)
+    public void WriteRepoPage(IRepo repo, int firstRow, int rowCount)
     {
         var branchTips = GetBranchTips(repo);
 
-        var crc = repo.Commits[currentRow];
-        var crb = repo.BranchByName[crc.BranchName];
-        var isUncommitted = !repo.Status.IsOk;
+        var crc = repo.Repo.Commits[repo.CurrentIndex];
+        var crb = repo.Repo.BranchByName[crc.BranchName];
+        var isUncommitted = repo.HasUncommittedChanges; //repo.Repo.Status.IsOk;
 
         text.Reset();
-        int graphWidth = graph.Width;
+        int graphWidth = repo.Graph.Width;
         int markersWidth = 3; // 1 margin to graph and then 1 current marker and 1 ahead/behind
 
-        Columns cw = ColumnWidths(contentWidth - (graphWidth + markersWidth));
+        Columns cw = ColumnWidths(repo.ContentWidth - (graphWidth + markersWidth));
 
         for (int i = firstRow; i < firstRow + rowCount; i++)
         {
-            var c = repo.Commits[i];
-            var graphRow = graph.GetRow(i);
+            var c = repo.Repo.Commits[i];
+            var graphRow = repo.Graph.GetRow(i);
             WriteGraph(graphRow);
             WriteCurrentMarker(c, isUncommitted);
             WriteAheadBehindMarker(c);
@@ -205,11 +205,11 @@ class RepoWriter : IRepoWriter
 
 
 
-    IReadOnlyDictionary<string, Text> GetBranchTips(Repo repo)
+    IReadOnlyDictionary<string, Text> GetBranchTips(IRepo repo)
     {
         var branchTips = new Dictionary<string, Text>();
 
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.Repo.Branches)
         {
             if (!branchTips.TryGetValue(b.TipId, out var tipText))
             {   //  Commit has no tip yet, crating tip text
@@ -242,7 +242,7 @@ class RepoWriter : IRepoWriter
                 }
             }
 
-            var color = branchColorService.GetColor(repo, b);
+            var color = branchColorService.GetColor(repo.Repo, b);
 
             if (b.IsGitBranch)
             {

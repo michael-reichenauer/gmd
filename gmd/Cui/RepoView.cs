@@ -8,7 +8,7 @@ interface IRepoView
 {
     int CurrentIndex { get; }
     View View { get; }
-    int ViewWidth { get; }
+    int ContentWidth { get; }
     Point CurrentPoint { get; }
 
     Task<R> ShowRepoAsync(string path);
@@ -29,7 +29,7 @@ class RepoView : IRepoView
     readonly IRepoWriter repoWriter;
 
     // State data
-    IRepo? repo;
+    IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo()
 
 
     internal RepoView(
@@ -60,7 +60,7 @@ class RepoView : IRepoView
     }
 
     public View View => contentView;
-    public int ViewWidth => contentView.ViewWidth;
+    public int ContentWidth => contentView.ContentWidth;
 
     public int CurrentIndex => contentView.CurrentIndex;
     public Point CurrentPoint => contentView.CurrentPoint;
@@ -144,7 +144,7 @@ class RepoView : IRepoView
         int firstCommit = Math.Min(firstIndex, repo.TotalRows);
         int commitCount = Math.Min(bounds.Height, repo.TotalRows - firstCommit);
 
-        repoWriter.WriteRepoPage(repo.Graph, repo.Repo, bounds.Width, firstCommit, commitCount, currentIndex);
+        repoWriter.WriteRepoPage(repo, firstCommit, commitCount);
     }
 
     async Task<R> ShowNewRepoAsync(string path, string[] showBranches)

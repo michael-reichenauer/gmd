@@ -7,27 +7,26 @@ namespace gmd.Cui;
 
 interface ICommitDlg
 {
-    bool Show(IRepo repo, out string message);
+    bool Show(out string message);
 }
 
 class CommitDlg : ICommitDlg
 {
-    readonly IRepoCommands cmds;
     Dialog? dialog;
     TextField? subjectField;
     MessageTextView? messageView;
-    IRepo? repo;
+    IRepo repo;
 
     bool isOk = false;
-    internal CommitDlg(IRepoCommands cmds)
+
+    internal CommitDlg(IRepo repo)
     {
-        this.cmds = cmds;
+        this.repo = repo;
     }
 
-    public bool Show(IRepo repo, out string message)
+    public bool Show(out string message)
     {
         message = "";
-        this.repo = repo;
 
         var commit = repo.Repo.Commits[0];
         if (commit.Id != Repo.UncommittedId)
@@ -81,7 +80,7 @@ class CommitDlg : ICommitDlg
     {
         if (key == (Key.D | Key.CtrlMask))
         {
-            cmds.ShowUncommittedDiff(repo!);
+            repo.ShowUncommittedDiff();
             return true;
         }
 

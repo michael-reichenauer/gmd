@@ -14,13 +14,10 @@ interface IMenuService
 class MenuService : IMenuService
 {
     readonly IViewRepoService viewRepoService;
-    private readonly IRepoCommands cmds;
 
-
-    internal MenuService(IViewRepoService viewRepoService, IRepoCommands repoCommands)
+    internal MenuService(IViewRepoService viewRepoService)
     {
         this.viewRepoService = viewRepoService;
-        this.cmds = repoCommands;
     }
 
     public void ShowMainMenu(IRepo repo)
@@ -29,7 +26,7 @@ class MenuService : IMenuService
 
         items.Add(Separator($"Commit {Sid(repo.Repo.Commits[repo.CurrentIndex].Id)}"));
         items.Add(new MenuItem("Commit ...", "",
-            () => cmds.Commit(repo),
+            () => repo.Commit(),
             () => !repo.Repo.Status.IsOk));
 
         items.Add(Separator("Branches"));
@@ -37,7 +34,7 @@ class MenuService : IMenuService
         items.Add(new MenuBarItem("Hide Branch", GetHideItems(repo)));
         items.Add(new MenuBarItem("Push", GetPushItems(repo)));
 
-        var menu = new ContextMenu(repo.ViewWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
+        var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
 
@@ -92,11 +89,11 @@ class MenuService : IMenuService
     }
 
     MenuItem[] GetPushItems(IRepo repo) =>
-      cmds.CanPush(repo)
+      repo.CanPush()
           ? new[]{
                 new MenuItem("Push Current Branch", "",
-                    () => cmds.PushCurrentBranch(repo),
-                    () => cmds.CanPushCurrentBranch(repo))
+                    () => repo.PushCurrentBranch(),
+                    () => repo.CanPushCurrentBranch())
               }
           : new MenuItem[0];
 
@@ -127,7 +124,7 @@ class MenuService : IMenuService
             .OrderBy(b => b.DisplayName);
 
         return branches.Select(b =>
-            new MenuItem(b.DisplayName, "", () => cmds.HideBranch(repo, b.Name)))
+            new MenuItem(b.DisplayName, "", () => repo.HideBranch(b.Name)))
             .ToArray();
     }
 
@@ -161,7 +158,7 @@ class MenuService : IMenuService
     MenuItem[] ToShowBranchesItems(IRepo repo, IEnumerable<Branch> branches)
     {
         return branches.Select(b =>
-            new MenuItem(b.DisplayName, "", () => cmds.ShowBranch(repo, b.Name)))
+            new MenuItem(b.DisplayName, "", () => repo.ShowBranch(b.Name)))
             .ToArray();
     }
 

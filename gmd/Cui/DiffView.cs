@@ -30,10 +30,7 @@ class DiffView : IDiffView
 
     int TotalRows => diffRows?.Count ?? 0;
 
-    public DiffView(
-        IRepo repo,
-        IViewRepoService viewRepoService,
-        IDiffService diffService)
+    public DiffView(IViewRepoService viewRepoService, IDiffService diffService, IRepo repo)
     {
         this.repo = repo;
         diffView = new Toplevel()
@@ -69,6 +66,8 @@ class DiffView : IDiffView
     void Show(string commitId)
     {
         this.commitId = commitId;
+
+
 
         ShowAsync(commitId).RunInBackground();
         Application.Run(diffView);
