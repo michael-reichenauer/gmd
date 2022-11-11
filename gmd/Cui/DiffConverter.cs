@@ -3,10 +3,10 @@ using gmd.ViewRepos;
 namespace gmd.Cui;
 
 
-interface IDiffService
+interface IDiffConverter
 {
-    DiffRows CreateRows(CommitDiff diff);
-    DiffRows CreateRows(CommitDiff[] commitDiffs);
+    DiffRows ToDiffRows(CommitDiff diff);
+    DiffRows ToDiffRows(CommitDiff[] commitDiffs);
 }
 
 class DiffRows
@@ -55,15 +55,15 @@ enum DiffRowMode
 }
 
 
-class DiffService : IDiffService
+class DiffService : IDiffConverter
 {
     static readonly Text NoLine = Text.New.Dark(new string('░', 100));
-    public DiffRows CreateRows(CommitDiff commitDiff)
+    public DiffRows ToDiffRows(CommitDiff commitDiff)
     {
-        return CreateRows(new[] { commitDiff });
+        return ToDiffRows(new[] { commitDiff });
     }
 
-    public DiffRows CreateRows(CommitDiff[] commitDiffs)
+    public DiffRows ToDiffRows(CommitDiff[] commitDiffs)
     {
         DiffRows rows = new DiffRows();
         commitDiffs.ForEach(diff => AddCommitDiff(diff, rows));

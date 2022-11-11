@@ -15,7 +15,7 @@ class DiffView : IDiffView
     static readonly Text splitLine = Text.New.Dark("│");
 
     readonly IViewRepoService viewRepoService;
-    readonly IDiffService diffService;
+    readonly IDiffConverter diffService;
 
     readonly IRepo repo;
 
@@ -30,7 +30,7 @@ class DiffView : IDiffView
 
     int TotalRows => diffRows?.Count ?? 0;
 
-    public DiffView(IViewRepoService viewRepoService, IDiffService diffService, IRepo repo)
+    public DiffView(IViewRepoService viewRepoService, IDiffConverter diffService, IRepo repo)
     {
         this.repo = repo;
         diffView = new Toplevel()
@@ -115,7 +115,7 @@ class DiffView : IDiffView
             return;
         }
 
-        diffRows = diffService.CreateRows(diff);
+        diffRows = diffService.ToDiffRows(diff);
         contentView.TriggerUpdateContent(TotalRows);
     }
 

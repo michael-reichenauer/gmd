@@ -29,8 +29,8 @@ class RepoView : IRepoView
     readonly IRepoWriter repoWriter;
 
     // State data
-    IRepoViewMenus? menuService;
     IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo()
+    IRepoViewMenus? menuService;
 
 
     internal RepoView(
