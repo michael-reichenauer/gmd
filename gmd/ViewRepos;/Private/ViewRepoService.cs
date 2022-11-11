@@ -156,12 +156,11 @@ class ViewRepoService : IViewRepoService
         gitService.Git(repo.Path).PushBranchAsync(name);
 
 
-    public Task<R> SwitchToAsync(Repo repo, string branchName)
-    {
-        branchName = branchName.TrimPrefix("origin/");
-        return gitService.Git(repo.Path).CheckoutAsync(branchName);
-    }
+    public Task<R> SwitchToAsync(Repo repo, string branchName) =>
+        gitService.Git(repo.Path).CheckoutAsync(branchName);
 
+    public Task<R> MergeBranch(Repo repo, string name) =>
+        gitService.Git(repo.Path).MergeBranch(name);
 
     protected virtual void OnRepoChange(ChangeEventArgs e)
     {

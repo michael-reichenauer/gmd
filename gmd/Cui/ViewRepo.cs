@@ -30,6 +30,7 @@ interface IRepo
 
     bool CanPush();
     bool CanPushCurrentBranch();
+    void MergeBranch(string name);
 }
 
 class ViewRepo : IRepo
@@ -145,6 +146,20 @@ class ViewRepo : IRepo
         diffView.ShowUncommittedDiff();
     }
 
+    public void MergeBranch(string name)
+    {
+        Do(async () =>
+        {
+            if (!Try(out var e, await viewRepoService.MergeBranch(Repo, name)))
+            {
+                UI.ErrorMessage($"Failed to merge branch {name}:\n{e}");
+                return;
+            }
+
+            Refresh();
+        });
+    }
+
     public bool CanPush() => CanPushCurrentBranch();
 
     public bool CanPushCurrentBranch()
@@ -154,8 +169,11 @@ class ViewRepo : IRepo
          branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
     }
 
+
     void Do(Func<Task> action)
     {
         action().RunInBackground();
     }
+
+
 }

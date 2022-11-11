@@ -35,6 +35,7 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(new MenuBarItem("Hide Branch", GetHideItems()));
         items.Add(new MenuBarItem("Push", GetPushItems()));
         items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
+        items.Add(new MenuBarItem("Merge", GetMergeItems()));
 
         var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
@@ -125,6 +126,26 @@ class RepoViewMenus : IRepoViewMenus
             new MenuItem(b.DisplayName, "", () => repo.SwitchTo(b.Name)))
             .ToArray();
     }
+
+    MenuItem[] GetMergeItems()
+    {
+        if (repo.HasUncommittedChanges)
+        {
+            return new MenuItem[0];
+        }
+
+        var currentName = repo.CurrentBranch.DisplayName;
+        var branches = repo.Repo.Branches
+             .Where(b => b.DisplayName != currentName)
+             .DistinctBy(b => b.DisplayName)
+             .OrderBy(b => b.DisplayName);
+
+        return branches.Select(b =>
+            new MenuItem(b.DisplayName, "", () => repo.MergeBranch(b.Name)))
+            .ToArray();
+    }
+
+
 
     MenuItem[] GetHideItems()
     {
