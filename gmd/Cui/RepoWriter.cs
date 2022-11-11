@@ -11,7 +11,7 @@ interface IRepoWriter
 class RepoWriter : IRepoWriter
 {
     static readonly int maxTipNameLength = 16;
-    static readonly int maxTipsLength = 40;
+    static readonly int maxTipsLength = 41;
 
     private readonly ColorText text;
     private readonly IBranchColorService branchColorService;
@@ -101,7 +101,7 @@ class RepoWriter : IRepoWriter
 
         if (maxTipWidth < columnWidth - c.Subject.Length)
         {
-            maxTipWidth = (columnWidth - c.Subject.Length) - 1;
+            maxTipWidth = (columnWidth - c.Subject.Length);
         }
 
         if (branchTips.TryGetValue(c.Id, out var tips))
