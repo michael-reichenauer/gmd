@@ -27,4 +27,6 @@ class GitRepo
     internal IReadOnlyList<GitCommit> Commits { get; }
     public IReadOnlyList<GitBranch> Branches { get; }
     public GitStatus Status { get; }
+
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }

@@ -1,6 +1,3 @@
-
-using gmd.Utils.Git;
-
 namespace gmd.ViewRepos.Private.Augmented;
 
 
@@ -32,6 +29,8 @@ record Repo
     public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
     public Status Status { get; init; }
+
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 
 public record Commit(

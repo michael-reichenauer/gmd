@@ -12,7 +12,6 @@ record Repo
         gmd.ViewRepos.Private.Augmented.Repo.UncommittedId;
     internal static readonly string UncommittedSid = UncommittedId.Substring(0, 6);
 
-
     private readonly Private.Augmented.Repo repo;
 
     public Repo(
@@ -42,7 +41,7 @@ record Repo
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
-    public override string ToString() => $"b:{Branches.Count}, c:{Commits.Count}";
+    public override string ToString() => $"b:{Branches.Count}, c:{Commits.Count}, S:{Status}";
 }
 
 
@@ -137,7 +136,6 @@ public record Status(
 )
 {
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
-
     internal int ChangesCount => Modified + Added + Deleted + Conflicted;
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";

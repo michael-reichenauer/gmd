@@ -149,7 +149,7 @@ class FileMonitor : IFileMonitor
 
             if (!fileChangedTimer.Enabled)
             {
-                Log.Info("In progress ...");
+                Log.Debug("In progress ...");
                 fileChangedTimer.Enabled = true;
             }
         }
@@ -178,7 +178,7 @@ class FileMonitor : IFileMonitor
 
             if (!repoChangedTimer.Enabled)
             {
-                Log.Info("In progress ...");
+                Log.Debug("In progress ...");
                 repoChangedTimer.Enabled = true;
             }
         }
@@ -273,7 +273,7 @@ class FileMonitor : IFileMonitor
             isFileChanged = false;
         }
 
-        Log.Info("On File change");
+        Log.Debug("On File change");
         UI.Post(() => FileChanged?.Invoke(this, new ChangeEventArgs(statusChangeTime)));
     }
 
@@ -291,7 +291,7 @@ class FileMonitor : IFileMonitor
             isRepoChanged = false;
         }
 
-        Log.Info("On Repo change");
+        Log.Debug("On Repo change");
         UI.Post(() => RepoChanged?.Invoke(this, new ChangeEventArgs(repoChangeTime)));
     }
 }

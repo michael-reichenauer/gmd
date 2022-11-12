@@ -110,12 +110,12 @@ class RepoView : IRepoView
 
     void OnRefresh(ChangeEventArgs e)
     {
-        Log.Info($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Info($"New    : {e.TimeStamp.Iso()}");
+        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
+        Log.Debug($"New    : {e.TimeStamp.Iso()}");
 
         if (e.TimeStamp - repo!.Repo.TimeStamp < minRepoUpdateInterval)
         {
-            Log.Warn("New repo event to soon, skipping update");
+            Log.Debug("New repo event to soon, skipping update");
             return;
         }
         ShowRefreshedRepoAsync().RunInBackground();
@@ -123,12 +123,12 @@ class RepoView : IRepoView
 
     void OnRefreshStatus(ChangeEventArgs e)
     {
-        Log.Info($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Info($"New    : {e.TimeStamp.Iso()}");
+        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
+        Log.Debug($"New    : {e.TimeStamp.Iso()}");
 
         if (e.TimeStamp - repo!.Repo.TimeStamp < minStatusUpdateInterval)
         {
-            Log.Warn("New status event to soon, skipping update");
+            Log.Debug("New status event to soon, skipping update");
             return;
         }
         ShowUpdatedStatusRepoAsync().RunInBackground();
@@ -151,13 +151,14 @@ class RepoView : IRepoView
     async Task<R> ShowNewRepoAsync(string path, string[] showBranches)
     {
         var t = Timing.Start();
-        if (!Try(out var repo, out var e, await viewRepoService.GetRepoAsync(path, showBranches)))
+        if (!Try(out var viewRepo, out var e,
+            await viewRepoService.GetRepoAsync(path, showBranches)))
         {
             return e;
         }
 
-        ShowRepo(repo);
-        Log.Info($"{t}");
+        ShowRepo(viewRepo);
+        Log.Info($"{t} {viewRepo}");
         return R.Ok;
     }
 
@@ -166,27 +167,29 @@ class RepoView : IRepoView
         Log.Info("show refreshed repo ...");
         var t = Timing.Start();
 
-        if (!Try(out var viewRepo, out var e, await viewRepoService.GetFreshRepoAsync(repo!.Repo!)))
+        if (!Try(out var viewRepo, out var e,
+            await viewRepoService.GetFreshRepoAsync(repo!.Repo!)))
         {
             UI.ErrorMessage($"Failed to refresh:\n{e}");
             return;
         }
 
         ShowRepo(viewRepo);
-        Log.Info($"{t}");
+        Log.Info($"{t} {viewRepo}");
     }
 
     async Task ShowUpdatedStatusRepoAsync()
     {
         var t = Timing.Start();
-        if (!Try(out var viewRepo, out var e, await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
+        if (!Try(out var viewRepo, out var e,
+            await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
         {
             UI.ErrorMessage($"Failed to update status:\n{e}");
             return;
         }
 
         ShowRepo(viewRepo);
-        Log.Info($"{t}");
+        Log.Info($"{t} {viewRepo}");
     }
 
 

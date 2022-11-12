@@ -22,6 +22,8 @@ class WorkRepo
         Path = path;
         Status = status;
     }
+
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 
 internal class WorkCommit
