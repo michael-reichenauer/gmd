@@ -150,7 +150,7 @@ class RepoView : IRepoView
 
     async Task<R> ShowNewRepoAsync(string path, string[] showBranches)
     {
-        var t = Timing.Start();
+        var t = Timing.Start;
         if (!Try(out var viewRepo, out var e,
             await viewRepoService.GetRepoAsync(path, showBranches)))
         {
@@ -165,7 +165,7 @@ class RepoView : IRepoView
     async Task ShowRefreshedRepoAsync()
     {
         Log.Info("show refreshed repo ...");
-        var t = Timing.Start();
+        var t = Timing.Start;
 
         if (!Try(out var viewRepo, out var e,
             await viewRepoService.GetFreshRepoAsync(repo!.Repo!)))
@@ -180,7 +180,7 @@ class RepoView : IRepoView
 
     async Task ShowUpdatedStatusRepoAsync()
     {
-        var t = Timing.Start();
+        var t = Timing.Start;
         if (!Try(out var viewRepo, out var e,
             await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
         {

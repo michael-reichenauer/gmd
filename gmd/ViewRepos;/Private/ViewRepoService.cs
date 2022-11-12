@@ -131,25 +131,31 @@ class ViewRepoService : IViewRepoService
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(Repo repo, string commitId)
     {
+        var t = Timing.Start;
         if (!Try(out var gitCommitDiff, out var e,
             await gitService.Git(repo.Path).GetCommitDiffAsync(commitId)))
         {
             return e;
         }
 
-        return converter.ToCommitDiff(gitCommitDiff);
+        var diff = converter.ToCommitDiff(gitCommitDiff);
+        Log.Info($"{t} {diff}");
+        return diff;
     }
 
 
     public async Task<R<CommitDiff>> GetUncommittedDiff(Repo repo)
     {
+        var t = Timing.Start;
         if (!Try(out var gitCommitDiff, out var e,
             await gitService.Git(repo.Path).GetUncommittedDiff()))
         {
             return e;
         }
 
-        return converter.ToCommitDiff(gitCommitDiff);
+        var diff = converter.ToCommitDiff(gitCommitDiff);
+        Log.Info($"{t} {diff}");
+        return diff;
     }
 
     public Task<R> PushBranchAsync(Repo repo, string name) =>

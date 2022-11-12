@@ -18,7 +18,7 @@ public class Timing
     }
 
 
-    public static Timing Start() => new Timing();
+    public static Timing Start => new Timing();
 
     public TimeSpan Stop()
     {

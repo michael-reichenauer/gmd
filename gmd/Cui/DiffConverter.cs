@@ -43,6 +43,8 @@ class DiffRows
 
         rows.Add(new DiffRow(left, right, mode));
     }
+
+    public override string ToString() => $"Rows: {Count}";
 }
 
 record DiffRow(Text Left, Text Right, DiffRowMode Mode);

@@ -148,7 +148,10 @@ record CommitDiff(
     string Date,
     string Message,
     IReadOnlyList<FileDiff> FileDiffs
-);
+)
+{
+    public override string ToString() => $"Files: {FileDiffs.Count}";
+};
 
 record FileDiff(
     string PathBefore,

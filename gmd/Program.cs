@@ -16,7 +16,7 @@ class Program
 
     static void Main(string[] args)
     {
-        var t = Timing.Start();
+        var t = Timing.Start;
         Log.Info($"Starting gmd ...");
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
@@ -37,7 +37,7 @@ class Program
 
     private void Main()
     {
-        var t = Timing.Start();
+        var t = Timing.Start;
 
         Log.Info($"Build {Util.GetBuildVersion()} {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
 

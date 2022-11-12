@@ -105,6 +105,8 @@ class DiffView : IDiffView
 
     async Task ShowAsync(string commitId)
     {
+        var t = Timing.Start;
+
         var diffTask = commitId == Repo.UncommittedId
             ? viewRepoService.GetUncommittedDiff(repo.Repo)
             : viewRepoService.GetCommitDiffAsync(repo.Repo, commitId);
@@ -116,6 +118,7 @@ class DiffView : IDiffView
         }
 
         diffRows = diffService.ToDiffRows(diff);
+        Log.Info($"{t} {diffRows}");
         contentView.TriggerUpdateContent(TotalRows);
     }
 

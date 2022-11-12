@@ -46,7 +46,7 @@ class GraphService : IGraphService
 
     public Graph CreateGraph(Repo repo)
     {
-        var t = Timing.Start();
+        var t = Timing.Start;
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);

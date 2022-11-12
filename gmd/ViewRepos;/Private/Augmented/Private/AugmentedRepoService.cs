@@ -67,7 +67,7 @@ class AugmentedRepoService : IAugmentedRepoService
     // GetGitRepoAsync returns a fresh git repo info object with commits, branches, ...
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
     {
-        Timing t = Timing.Start();
+        Timing t = Timing.Start;
         var git = gitService.Git(path);
 
         // Start some git commands in parallel to get commits, branches, status, ...
@@ -101,7 +101,7 @@ class AugmentedRepoService : IAugmentedRepoService
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
-        Timing t = Timing.Start();
+        Timing t = Timing.Start;
 
         var git = gitService.Git(path);
         if (!Try(out var gitStatus, out var e, await git.GetStatusAsync()))
@@ -130,7 +130,7 @@ class AugmentedRepoService : IAugmentedRepoService
     {
         fileMonitor.Monitor(gitRepo.Path);
 
-        Timing t = Timing.Start();
+        Timing t = Timing.Start;
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
 
         var repo = converter.ToRepo(augRepo);
