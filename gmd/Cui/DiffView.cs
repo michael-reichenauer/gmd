@@ -66,10 +66,8 @@ class DiffView : IDiffView
     void Show(string commitId)
     {
         this.commitId = commitId;
-
-
-
         ShowAsync(commitId).RunInBackground();
+
         Application.Run(diffView);
     }
 

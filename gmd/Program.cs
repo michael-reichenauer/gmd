@@ -43,7 +43,7 @@ class Program
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
-        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+        UI.HideCursor();
 
         Application.Top.Add(mainView.View);
         Log.Info($"Initialized UI {t}");

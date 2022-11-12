@@ -31,12 +31,12 @@ class AugmentedRepoService : IAugmentedRepoService
         this.converter = converter;
         this.fileMonitor = fileMonitor;
 
-        fileMonitor.FileChanged += (s, e) => OnStatusChange(e);
-        fileMonitor.RepoChanged += (s, e) => OnRepoChange(e);
+        fileMonitor.FileChanged += e => StatusChange?.Invoke(e);
+        fileMonitor.RepoChanged += e => RepoChange?.Invoke(e);
     }
 
-    public event EventHandler<ChangeEventArgs>? RepoChange;
-    public event EventHandler<ChangeEventArgs>? StatusChange;
+    public event Action<ChangeEvent>? RepoChange;
+    public event Action<ChangeEvent>? StatusChange;
 
     // GetRepoAsync returns an augmented repo based on new git info like branches, commits, ...
     public async Task<R<Repo>> GetRepoAsync(string path)
@@ -111,18 +111,6 @@ class AugmentedRepoService : IAugmentedRepoService
 
         Log.Info($"{t} S:{gitStatus}");
         return gitStatus;
-    }
-
-    protected virtual void OnRepoChange(ChangeEventArgs e)
-    {
-        var handler = RepoChange;
-        handler?.Invoke(this, e);
-    }
-
-    protected virtual void OnStatusChange(ChangeEventArgs e)
-    {
-        var handler = StatusChange;
-        handler?.Invoke(this, e);
     }
 
     // GetAugmentedRepoAsync returns an augmented git repo, and monitors working folder changes

@@ -48,11 +48,11 @@ class CommitDlg : ICommitDlg
                 return;
             }
             isOk = true;
-            Application.RequestStop();
+            Close();
         };
 
         Button cancelButton = new Button("Cancel", false);
-        cancelButton.Clicked += () => Application.RequestStop();
+        cancelButton.Clicked += () => Close();
 
         dialog = new CustomDialog("Commit", 72, 17, new[] { okButton, cancelButton }, OnKey)
         {
@@ -68,11 +68,18 @@ class CommitDlg : ICommitDlg
 
         dialog.Add(infoLabel, subjectField, messageView);
         subjectField.SetFocus();
+        dialog.Closed += e => UI.HideCursor();
 
+        UI.ShowCursor();
         Application.Run(dialog);
 
         message = GetMessage();
         return isOk;
+    }
+
+    void Close()
+    {
+        Application.RequestStop();
     }
 
 

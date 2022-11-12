@@ -29,7 +29,7 @@ class RepoView : IRepoView
     readonly IRepoWriter repoWriter;
 
     // State data
-    IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo()
+    IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo().
     IRepoViewMenus? menuService;
 
 
@@ -54,8 +54,8 @@ class RepoView : IRepoView
 
         repoWriter = newRepoWriter(contentView, contentView.ContentX);
 
-        viewRepoService.RepoChange += (s, e) => OnRefresh(e);
-        viewRepoService.StatusChange += (s, e) => OnRefreshStatus(e);
+        viewRepoService.RepoChange += OnRefresh;
+        viewRepoService.StatusChange += OnRefreshStatus;
 
         RegisterKeyHandlers();
     }
@@ -108,7 +108,7 @@ class RepoView : IRepoView
     void PushCurrentBranch() => repo!.PushCurrentBranch();
 
 
-    void OnRefresh(ChangeEventArgs e)
+    void OnRefresh(ChangeEvent e)
     {
         Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
         Log.Debug($"New    : {e.TimeStamp.Iso()}");
@@ -121,7 +121,7 @@ class RepoView : IRepoView
         ShowRefreshedRepoAsync().RunInBackground();
     }
 
-    void OnRefreshStatus(ChangeEventArgs e)
+    void OnRefreshStatus(ChangeEvent e)
     {
         Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
         Log.Debug($"New    : {e.TimeStamp.Iso()}");

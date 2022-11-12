@@ -22,12 +22,12 @@ class ViewRepoService : IViewRepoService
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
 
-        augmentedRepoService.RepoChange += (s, e) => OnRepoChange(e);
-        augmentedRepoService.StatusChange += (s, e) => OnStatusChange(e);
+        augmentedRepoService.RepoChange += e => RepoChange?.Invoke(e);
+        augmentedRepoService.StatusChange += e => StatusChange?.Invoke(e);
     }
 
-    public event EventHandler<ChangeEventArgs>? RepoChange;
-    public event EventHandler<ChangeEventArgs>? StatusChange;
+    public event Action<ChangeEvent>? RepoChange;
+    public event Action<ChangeEvent>? StatusChange;
 
 
     public Task<R<Repo>> GetRepoAsync(string path) =>
@@ -167,18 +167,5 @@ class ViewRepoService : IViewRepoService
 
     public Task<R> MergeBranch(Repo repo, string name) =>
         gitService.Git(repo.Path).MergeBranch(name);
-
-    protected virtual void OnRepoChange(ChangeEventArgs e)
-    {
-        var handler = RepoChange;
-        handler?.Invoke(this, e);
-    }
-
-
-    protected virtual void OnStatusChange(ChangeEventArgs e)
-    {
-        var handler = StatusChange;
-        handler?.Invoke(this, e);
-    }
 }
 

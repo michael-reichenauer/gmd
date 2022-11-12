@@ -2,8 +2,8 @@ namespace gmd.ViewRepos;
 
 interface IViewRepoService
 {
-    event EventHandler<ChangeEventArgs> RepoChange;
-    event EventHandler<ChangeEventArgs> StatusChange;
+    event Action<ChangeEvent> RepoChange;
+    event Action<ChangeEvent> StatusChange;
 
     Task<R<Repo>> GetRepoAsync(string path);
     Task<R<Repo>> GetRepoAsync(string path, string[] showBranches);
@@ -24,12 +24,5 @@ interface IViewRepoService
     Task<R> MergeBranch(Repo repo, string name);
 }
 
-internal class ChangeEventArgs : EventArgs
-{
-    public DateTime TimeStamp { get; }
+internal record ChangeEvent(DateTime TimeStamp);
 
-    public ChangeEventArgs(DateTime timeStamp)
-    {
-        TimeStamp = timeStamp;
-    }
-}

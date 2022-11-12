@@ -8,10 +8,10 @@ namespace gmd.ViewRepos.Private.Augmented;
 interface IAugmentedRepoService
 {
     // RepoChange events when git repo changes like new commit, new branches, ...
-    public event EventHandler<ChangeEventArgs> RepoChange;
+    public event Action<ChangeEvent> RepoChange;
 
     // StatusChange events when working folder changes like changed, added or removed files.
-    public event EventHandler<ChangeEventArgs> StatusChange;
+    public event Action<ChangeEvent> StatusChange;
 
     // GetRepoAsync returns an augmented repo based on new git info like branches, commits, ...
     Task<R<Repo>> GetRepoAsync(string path);

@@ -6,8 +6,8 @@ namespace gmd.ViewRepos.Private.Augmented.Private;
 
 interface IFileMonitor
 {
-    event EventHandler<ChangeEventArgs> FileChanged;
-    event EventHandler<ChangeEventArgs> RepoChanged;
+    event Action<ChangeEvent> FileChanged;
+    event Action<ChangeEvent> RepoChanged;
 
     void Monitor(string workingFolder);
 }
@@ -50,7 +50,7 @@ class FileMonitor : IFileMonitor
     public FileMonitor()
     {
         fileChangedTimer = new Timer(StatusDelayTriggerTime.TotalMilliseconds);
-        fileChangedTimer.Elapsed += (s, e) => OnFileChangedTimer();
+        fileChangedTimer.Elapsed += (s, e) => OnFileChanged();
 
         workFolderWatcher.Changed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Created += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
@@ -58,7 +58,7 @@ class FileMonitor : IFileMonitor
         workFolderWatcher.Renamed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
 
         repoChangedTimer = new Timer(RepositoryDelayTriggerTime.TotalMilliseconds);
-        repoChangedTimer.Elapsed += (s, e) => OnRepoChangedTimer();
+        repoChangedTimer.Elapsed += (s, e) => OnRepoChanged();
 
         refsWatcher.Changed += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
         refsWatcher.Created += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
@@ -67,9 +67,9 @@ class FileMonitor : IFileMonitor
     }
 
 
-    public event EventHandler<ChangeEventArgs>? FileChanged;
+    public event Action<ChangeEvent>? FileChanged;
 
-    public event EventHandler<ChangeEventArgs>? RepoChanged;
+    public event Action<ChangeEvent>? RepoChanged;
 
     public void Monitor(string workingFolder)
     {
@@ -149,7 +149,7 @@ class FileMonitor : IFileMonitor
 
             if (!fileChangedTimer.Enabled)
             {
-                Log.Debug("In progress ...");
+                Log.Info("File changing ...");
                 fileChangedTimer.Enabled = true;
             }
         }
@@ -178,7 +178,7 @@ class FileMonitor : IFileMonitor
 
             if (!repoChangedTimer.Enabled)
             {
-                Log.Debug("In progress ...");
+                Log.Info("Repo changing ...");
                 repoChangedTimer.Enabled = true;
             }
         }
@@ -255,12 +255,12 @@ class FileMonitor : IFileMonitor
             }
         }
 
-        // Log.Info($"Allow '{path}'");
+        // Log.Info($"Allow '{path}'");.
         return false;
     }
 
 
-    private void OnFileChangedTimer()
+    private void OnFileChanged()
     {
         lock (syncRoot)
         {
@@ -273,12 +273,12 @@ class FileMonitor : IFileMonitor
             isFileChanged = false;
         }
 
-        Log.Debug("On File change");
-        UI.Post(() => FileChanged?.Invoke(this, new ChangeEventArgs(statusChangeTime)));
+        Log.Info("File changed");
+        UI.Post(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
     }
 
 
-    private void OnRepoChangedTimer()
+    private void OnRepoChanged()
     {
         lock (syncRoot)
         {
@@ -291,7 +291,7 @@ class FileMonitor : IFileMonitor
             isRepoChanged = false;
         }
 
-        Log.Debug("On Repo change");
-        UI.Post(() => RepoChanged?.Invoke(this, new ChangeEventArgs(repoChangeTime)));
+        Log.Info("Repo changed");
+        UI.Post(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
     }
 }
