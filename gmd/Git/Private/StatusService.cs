@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 interface IStatusService
 {
-    Task<R<Status>> GetStatusAsync();
+    Task<R<Status>> GetStatusAsync(string wd);
 }
 
 class StatusService : IStatusService
@@ -14,18 +14,18 @@ class StatusService : IStatusService
         this.cmd = cmd;
     }
 
-    public async Task<R<Status>> GetStatusAsync()
+    public async Task<R<Status>> GetStatusAsync(string wd)
     {
         var args = "status -s --porcelain --ahead-behind --untracked-files=all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {
             return e;
         }
 
-        return Parse(output);
+        return Parse(output, wd);
     }
 
-    private R<Status> Parse(string statusText)
+    private R<Status> Parse(string statusText, string wd)
     {
         var lines = statusText.Split('\n');
 
@@ -85,17 +85,17 @@ class StatusService : IStatusService
                 modified++;
             }
         }
-        (string mergeMessage, bool isMerging) = GetMergeStatus();
+        (string mergeMessage, bool isMerging) = GetMergeStatus(wd);
 
         return new Status(modified, added, deleted, conflicted, isMerging, mergeMessage,
             addedFiles.ToArray(), conflictsFiles.ToArray());
     }
 
-    (string, bool) GetMergeStatus()
+    (string, bool) GetMergeStatus(string wd)
     {
         string mergeMessage = "";
         //mergeIpPath := path.Join(h.cmd.RepoPath(), ".git", "MERGE_HEAD")
-        string mergeMsgPath = Path.Join(cmd.WorkingDirectory, ".git", "MERGE_MSG");
+        string mergeMsgPath = Path.Join(wd, ".git", "MERGE_MSG");
 
         try
         {
@@ -117,4 +117,7 @@ class StatusService : IStatusService
 
         return (mergeMessage, true);
     }
+
+    internal static bool IsMergeInProgress(string wd) =>
+        File.Exists(Path.Join(wd, ".git", "MERGE_MSG"));
 }

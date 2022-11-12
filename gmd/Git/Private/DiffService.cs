@@ -2,26 +2,24 @@ namespace gmd.Git.Private;
 
 interface IDiffService
 {
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
-    Task<R<CommitDiff>> GetUncommittedDiff();
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
+    Task<R<CommitDiff>> GetUncommittedDiff(string wd);
 }
 
 class DiffService : IDiffService
 {
     private readonly ICmd cmd;
-    private readonly IStatusService statusService;
 
-    public DiffService(ICmd cmd, IStatusService statusService)
+    public DiffService(ICmd cmd)
     {
         this.cmd = cmd;
-        this.statusService = statusService;
     }
 
-    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId)
+    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
         var args = "show --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             $" --find-renames --unified=6 {commitId}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {
             return e;
         }
@@ -36,14 +34,14 @@ class DiffService : IDiffService
     }
 
 
-    public async Task<R<CommitDiff>> GetUncommittedDiff()
+    public async Task<R<CommitDiff>> GetUncommittedDiff(string wd)
     {
         // To be able to include renamed and added files in uncommitted diff, we first
         // stage all and after diff, the stage is reset.  
         var needReset = false;
-        if (!IsMergeInProgress())
+        if (!StatusService.IsMergeInProgress(wd))
         {
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .")))
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd)))
             {
                 return err;
             }
@@ -52,14 +50,14 @@ class DiffService : IDiffService
 
         var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             " --find-renames --unified=6 HEAD";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {
             return e;
         }
 
         if (needReset)
         {   // Reset the git add . previously 
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset")))
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd)))
             {
                 return err;
             }
@@ -395,6 +393,4 @@ class DiffService : IDiffService
     {
         return line.Substring(2).Replace("\t", "   ");
     }
-
-    bool IsMergeInProgress() => File.Exists(Path.Join(cmd.WorkingDirectory, ".git", "MERGE_MSG"));
 }

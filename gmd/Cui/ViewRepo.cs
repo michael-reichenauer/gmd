@@ -94,7 +94,7 @@ class ViewRepo : IRepo
     {
         Do(async () =>
         {
-            if (!Try(out var e, await viewRepoService.SwitchToAsync(Repo, branchName)))
+            if (!Try(out var e, await viewRepoService.SwitchToAsync(Repo.Path, branchName)))
             {
                 UI.ErrorMessage($"Failed to switch to {branchName}:\n{e}");
                 return;
@@ -113,7 +113,7 @@ class ViewRepo : IRepo
                 return;
             }
 
-            if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(Repo, message)))
+            if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(Repo.Path, message)))
             {
                 UI.ErrorMessage($"Failed to commit:\n{e}");
                 return;
@@ -130,7 +130,7 @@ class ViewRepo : IRepo
         {
             var branch = Repo.Branches.First(b => b.IsCurrent);
 
-            if (!Try(out var e, await viewRepoService.PushBranchAsync(Repo, branch.Name)))
+            if (!Try(out var e, await viewRepoService.PushBranchAsync(Repo.Path, branch.Name)))
             {
                 UI.ErrorMessage($"Failed to push branch {branch.Name}:\n{e}");
                 return;
@@ -150,7 +150,7 @@ class ViewRepo : IRepo
     {
         Do(async () =>
         {
-            if (!Try(out var e, await viewRepoService.MergeBranch(Repo, name)))
+            if (!Try(out var e, await viewRepoService.MergeBranch(Repo.Path, name)))
             {
                 UI.ErrorMessage($"Failed to merge branch {name}:\n{e}");
                 return;

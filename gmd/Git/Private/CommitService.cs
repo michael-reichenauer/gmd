@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 interface ICommitService
 {
-    Task<R> CommitAllChangesAsync(string message);
+    Task<R> CommitAllChangesAsync(string message, string wd);
 }
 
 class CommitService : ICommitService
@@ -14,21 +14,21 @@ class CommitService : ICommitService
         this.cmd = cmd;
     }
 
-    public async Task<R> CommitAllChangesAsync(string message)
+    public async Task<R> CommitAllChangesAsync(string message, string wd)
     {
         // Encode '"' chars
         message = message.Replace("\"", "\\\"");
 
-        if (!IsMergeInProgress())
+        if (!StatusService.IsMergeInProgress(wd))
         {
-            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .")))
+            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd)))
             {
                 return e;
             }
         }
 
-        return await cmd.RunAsync("git", $"commit -am \"{message}\"");
+        return await cmd.RunAsync("git", $"commit -am \"{message}\"", wd);
     }
 
-    bool IsMergeInProgress() => File.Exists(Path.Join(cmd.WorkingDirectory, ".git", "MERGE_MSG"));
+
 }

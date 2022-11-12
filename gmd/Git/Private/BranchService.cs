@@ -4,9 +4,9 @@ namespace gmd.Git.Private;
 
 interface IBranchService
 {
-    Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
-    Task<R> CheckoutAsync(string name);
-    Task<R> MergeBranch(string name);
+    Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+    Task<R> CheckoutAsync(string name, string wd);
+    Task<R> MergeBranch(string name, string wd);
 }
 
 class BranchService : IBranchService
@@ -28,10 +28,10 @@ class BranchService : IBranchService
     }
 
 
-    public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync()
+    public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd)
     {
         var args = "branch -vv --no-color --no-abbrev --all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {
             return e;
         }
@@ -39,16 +39,16 @@ class BranchService : IBranchService
         return ParseBranches(output);
     }
 
-    public async Task<R> CheckoutAsync(string name)
+    public async Task<R> CheckoutAsync(string name, string wd)
     {
         name = RemoteService.TrimRemotePrefix(name);
-        return await cmd.RunAsync("git", $"checkout {name}");
+        return await cmd.RunAsync("git", $"checkout {name}", wd);
     }
 
-    public async Task<R> MergeBranch(string name)
+    public async Task<R> MergeBranch(string name, string wd)
     {
         name = RemoteService.TrimRemotePrefix(name);
-        return await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}");
+        return await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
         // if strings.Contains(err.Error(), "exit status 1") &&
         //     strings.Contains(output, "CONFLICT") {
         //     return ErrConflicts

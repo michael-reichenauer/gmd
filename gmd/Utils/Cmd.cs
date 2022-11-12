@@ -5,9 +5,8 @@ namespace gmd.Utils;
 
 internal interface ICmd
 {
-    string WorkingDirectory { get; }
-    CmdResult RunCmd(string path, string args);
-    Task<CmdResult> RunAsync(string path, string args);
+    CmdResult RunCmd(string path, string args, string workingDirectory);
+    Task<CmdResult> RunAsync(string path, string args, string workingDirectory);
 }
 
 internal class CmdResult : R<string>
@@ -36,17 +35,10 @@ internal class CmdResult : R<string>
 
 internal class Cmd : ICmd
 {
-    public string WorkingDirectory { get; internal set; }
+    public Task<CmdResult> RunAsync(string path, string args, string workingDirectory) =>
+        Task.Run(() => RunCmd(path, args, workingDirectory));
 
-    internal Cmd(string workingDirectory = "")
-    {
-        this.WorkingDirectory = workingDirectory;
-    }
-
-    public Task<CmdResult> RunAsync(string path, string args) =>
-        Task.Run(() => RunCmd(path, args));
-
-    public CmdResult RunCmd(string path, string args)
+    public CmdResult RunCmd(string path, string args, string workingDirectory)
     {
         var t = Timing.Start;
         try
@@ -68,9 +60,9 @@ internal class Cmd : ICmd
                 }
             };
 
-            if (WorkingDirectory != "")
+            if (workingDirectory != "")
             {
-                process.StartInfo.WorkingDirectory = WorkingDirectory;
+                process.StartInfo.WorkingDirectory = workingDirectory;
             }
 
             process.Start();
@@ -80,7 +72,7 @@ internal class Cmd : ICmd
             var output = process.StandardOutput.ReadToEnd().Replace("\r", "").TrimEnd();
             var error = process.StandardError.ReadToEnd().Replace("\r", "").TrimEnd();
 
-            Log.Info($"{path} {args} ({WorkingDirectory}) {t}");
+            Log.Info($"{path} {args} ({workingDirectory}) {t}");
 
             if (process.ExitCode != 0)
             {

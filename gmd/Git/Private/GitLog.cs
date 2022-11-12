@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 internal interface ILogService
 {
-    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount);
+    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
 }
 
 internal class LogService : ILogService
@@ -14,10 +14,10 @@ internal class LogService : ILogService
         this.cmd = cmd;
     }
 
-    public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000)
+    public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
         var args = $"log --all --date-order -z --pretty=%H|%ai|%ci|%an|%P|%B --max-count={maxCount}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args)))
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {
             return e;
         }
