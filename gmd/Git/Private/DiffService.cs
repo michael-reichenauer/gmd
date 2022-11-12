@@ -192,7 +192,7 @@ class DiffService : IDiffService
         {
             string file = lines[i++].Substring(10);
             (DiffMode df, i) = ParseDiffMode(i, lines);
-            i = i + 3;// Step over index, ---, +++ lines
+            i = ParsePossibleIndexRows(i, lines);
             (var conflictSectionDiffs, i) = ParseSectionDiffs(i, lines);
             return (new FileDiff(file, file, false, DiffMode.DiffConflicts, conflictSectionDiffs), i, true);
         }
@@ -207,11 +207,10 @@ class DiffService : IDiffService
         string before = parts[0].Substring(2);
         string after = parts[1].Substring(2);
         bool isRenamed = before != after;
-
         i++;
-        (DiffMode diffMode, i) = ParseDiffMode(i, lines);
-        i = i + 3; // Step over index, ---, +++ lines
 
+        (DiffMode diffMode, i) = ParseDiffMode(i, lines);
+        i = ParsePossibleIndexRows(i, lines);
         (var sectionDiffs, i) = ParseSectionDiffs(i, lines);
 
         if (i < lines.Length && lines[i].StartsWith("\\ No newline at end of file"))
@@ -248,16 +247,19 @@ class DiffService : IDiffService
         return (DiffMode.DiffModified, i);
     }
 
+    int ParsePossibleIndexRows(int i, string[] lines)
+    {
+        if (lines[i].StartsWith("index ")) { i++; }
+        if (lines[i].StartsWith("--- ")) { i++; }
+        if (lines[i].StartsWith("+++ ")) { i++; }
+        return i;
+    }
+
     (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
     {
         var sectionDiffs = new List<SectionDiff>();
         while (i < lines.Length)
         {
-            if (!lines[i].StartsWith("@@"))
-            {
-                break;
-            }
-
             (var sectionDiff, i, bool ok) = ParseSectionDiff(i, lines);
             if (!ok)
             {
@@ -271,6 +273,11 @@ class DiffService : IDiffService
 
     (SectionDiff?, int, bool) ParseSectionDiff(int i, string[] lines)
     {
+        if (!lines[i].StartsWith("@@ "))
+        {
+            return (null, i, false);
+        }
+
         int endIndex = lines[i].Substring(2).IndexOf("@@");
         if (endIndex == -1)
         {

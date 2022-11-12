@@ -181,5 +181,5 @@ enum DiffMode
     DiffConflicts,
     DiffConflictStart,
     DiffConflictSplit,
-    DiffConflictEnd
+    DiffConflictEnd,
 }
