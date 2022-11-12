@@ -4,12 +4,55 @@ using System.Reflection;
 
 namespace gmd.Utils;
 
+
 public static class Result
 {
     public static bool Try<T>(
         [NotNullWhen(true)] out T? value,
         [NotNullWhen(false)] out ErrorResult? e,
         R<T> result)
+    {
+        return R.Try(out value, out e, result);
+    }
+
+    public static bool Try<T>(
+       [NotNullWhen(true)] out T? value,
+       R<T> result)
+    {
+        return R.Try(out value, result);
+    }
+
+    public static bool Try(
+        [NotNullWhen(false)] out ErrorResult? e,
+         R result)
+    {
+        return R.Try(out e, result);
+    }
+
+    public static bool Try(R result)
+    {
+        return R.Try(result);
+    }
+}
+
+
+public class R
+{
+    protected static readonly Exception NoError = new Exception("No error");
+    protected static readonly Exception NoValueError = new Exception("No value");
+
+    protected R(Exception e)
+    {
+        resultException = e;
+    }
+
+    public static R Ok = Error(NoError);
+    public static ErrorResult NoValue = Error(NoValueError);
+
+    public static bool Try<T>(
+     [NotNullWhen(true)] out T? value,
+     [NotNullWhen(false)] out ErrorResult? e,
+     R<T> result)
     {
         if (result.IsResultError)
         {
@@ -58,21 +101,6 @@ public static class Result
 
         return true;
     }
-}
-
-
-public class R
-{
-    protected static readonly Exception NoError = new Exception("No error");
-    protected static readonly Exception NoValueError = new Exception("No value");
-
-    protected R(Exception e)
-    {
-        resultException = e;
-    }
-
-    public static R Ok = Error(NoError);
-    public static ErrorResult NoValue = Error(NoValueError);
 
     public static ErrorResult Error(
           string message,

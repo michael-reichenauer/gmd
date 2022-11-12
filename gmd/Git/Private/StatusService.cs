@@ -17,10 +17,7 @@ class StatusService : IStatusService
     public async Task<R<Status>> GetStatusAsync(string wd)
     {
         var args = "status -s --porcelain --ahead-behind --untracked-files=all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-        {
-            return e;
-        }
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         return Parse(output, wd);
     }

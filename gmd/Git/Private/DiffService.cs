@@ -19,10 +19,7 @@ class DiffService : IDiffService
     {
         var args = "show --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             $" --find-renames --unified=6 {commitId}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-        {
-            return e;
-        }
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
@@ -41,26 +38,17 @@ class DiffService : IDiffService
         var needReset = false;
         if (!StatusService.IsMergeInProgress(wd))
         {
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd)))
-            {
-                return err;
-            }
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd))) return err;
             needReset = true;
         }
 
         var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             " --find-renames --unified=6 HEAD";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-        {
-            return e;
-        }
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         if (needReset)
         {   // Reset the git add . previously 
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd)))
-            {
-                return err;
-            }
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd))) return err;
         }
 
         // Add commit prefix text to support parser.

@@ -21,10 +21,7 @@ class CommitService : ICommitService
 
         if (!StatusService.IsMergeInProgress(wd))
         {
-            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd)))
-            {
-                return e;
-            }
+            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd))) return e;
         }
 
         return await cmd.RunAsync("git", $"commit -am \"{message}\"", wd);

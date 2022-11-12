@@ -17,10 +17,7 @@ internal class LogService : ILogService
     public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
         var args = $"log --all --date-order -z --pretty=%H|%ai|%ci|%an|%P|%B --max-count={maxCount}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-        {
-            return e;
-        }
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return await Task.Run(() => ParseLines(output));
@@ -40,10 +37,7 @@ internal class LogService : ILogService
                     continue;
                 }
 
-                if (!Try(out var commit, out var e, ParseRow(row)))
-                {
-                    return e;
-                }
+                if (!Try(out var commit, out var e, ParseRow(row))) return e;
 
                 commits.Add(commit);
             }

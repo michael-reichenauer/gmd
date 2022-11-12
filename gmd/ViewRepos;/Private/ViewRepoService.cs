@@ -130,11 +130,7 @@ class ViewRepoService : IViewRepoService
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string wd, string commitId)
     {
         var t = Timing.Start;
-        if (!Try(out var gitCommitDiff, out var e,
-            await git.GetCommitDiffAsync(commitId, wd)))
-        {
-            return e;
-        }
+        if (!Try(out var gitCommitDiff, out var e, await git.GetCommitDiffAsync(commitId, wd))) return e;
 
         var diff = converter.ToCommitDiff(gitCommitDiff);
         Log.Info($"{t} {diff}");

@@ -152,10 +152,7 @@ class RepoView : IRepoView
     {
         var t = Timing.Start;
         if (!Try(out var viewRepo, out var e,
-            await viewRepoService.GetRepoAsync(path, showBranches)))
-        {
-            return e;
-        }
+            await viewRepoService.GetRepoAsync(path, showBranches))) return e;
 
         ShowRepo(viewRepo);
         Log.Info($"{t} {viewRepo}");
