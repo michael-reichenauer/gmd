@@ -60,6 +60,7 @@ class RepoView : IRepoView
         RegisterKeyHandlers();
     }
 
+
     public View View => contentView;
     public int ContentWidth => contentView.ContentWidth;
 

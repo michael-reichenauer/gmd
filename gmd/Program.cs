@@ -48,6 +48,7 @@ class Program
         Application.Top.Add(mainView.View);
         Log.Info($"Initialized UI {t}");
 
+
         // Run blocks until the user quits the application
         Application.Run(HandleUIMainLoopError);
         Application.Shutdown();

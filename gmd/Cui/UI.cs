@@ -11,7 +11,7 @@ class UI
         Application.MainLoop.Invoke(action);
     }
 
-    public static void ShowCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Vertical);
+    public static void ShowCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Default);
     public static void HideCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
     internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)

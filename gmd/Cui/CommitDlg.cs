@@ -39,6 +39,7 @@ class CommitDlg : ICommitDlg
         int filesCount = repo.Repo.Status.ChangesCount;
 
         Button okButton = new Button("OK", true);
+        okButton.ColorScheme = Colors.ButtonColorScheme;
         okButton.Clicked += () =>
         {
             if (GetMessage() == "")
@@ -53,23 +54,26 @@ class CommitDlg : ICommitDlg
 
         Button cancelButton = new Button("Cancel", false);
         cancelButton.Clicked += () => Close();
+        cancelButton.ColorScheme = Colors.ButtonColorScheme;
 
-        dialog = new CustomDialog("Commit", 72, 17, new[] { okButton, cancelButton }, OnKey)
+
+        Label infoLabel = new Label(1, 0, $"Commit {filesCount} files on '{branchName}':");
+
+        subjectField = new TextField(1, 2, 50, "") { Text = subjectText };
+        Label sep1 = new Label(0, 3, "└" + new string('─', 49) + "┘");
+
+        messageView = new MessageTextView() { X = 1, Y = 4, Width = 69, Height = 10, Text = messageText };
+        Label sep3 = new Label(0, 14, "└" + new string('─', 67) + "┘");
+
+        dialog = new CustomDialog("Commit", 72, 18, new[] { okButton, cancelButton }, OnKey)
         {
-            Border = { Effect3D = false }
+            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
+            ColorScheme = Colors.DialogColorScheme,
         };
-
-        Label infoLabel = new Label(0, 0, $"Commit {filesCount} files on {branchName}:");
-        subjectField = new TextField(0, 1, 50, "some text");
-        subjectField.Text = subjectText;
-
-        messageView = new MessageTextView() { X = 0, Y = 3, Width = 70, Height = 10 };
-        messageView.Text = messageText;
-
-        dialog.Add(infoLabel, subjectField, messageView);
-        subjectField.SetFocus();
         dialog.Closed += e => UI.HideCursor();
+        dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
 
+        subjectField.SetFocus();
         UI.ShowCursor();
         Application.Run(dialog);
 
@@ -158,6 +162,8 @@ class CommitDlg : ICommitDlg
             }
             return base.ProcessKey(keyEvent);
         }
+
+        public override Border Border { get => new Border() { }; set => base.Border = value; }
     }
 
     class CustomDialog : Dialog
