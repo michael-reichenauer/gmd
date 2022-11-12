@@ -1,6 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
-
-namespace gmd.Utils.Git.Private;
+namespace gmd.Git.Private;
 
 interface IDiffService
 {

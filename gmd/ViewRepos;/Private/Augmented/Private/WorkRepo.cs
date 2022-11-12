@@ -1,7 +1,7 @@
 namespace gmd.ViewRepos.Private.Augmented.Private;
 
-using GitCommit = gmd.Utils.Git.Commit;
-using GitBranch = gmd.Utils.Git.Branch;
+using GitCommit = gmd.Git.Commit;
+using GitBranch = gmd.Git.Branch;
 
 
 class WorkRepo

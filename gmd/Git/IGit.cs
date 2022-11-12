@@ -1,4 +1,4 @@
-namespace gmd.Utils.Git;
+namespace gmd.Git;
 
 
 interface IGit

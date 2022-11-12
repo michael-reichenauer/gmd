@@ -1,4 +1,4 @@
-namespace gmd.Utils.Git.Private;
+namespace gmd.Git.Private;
 
 internal class GitService : IGitService
 {

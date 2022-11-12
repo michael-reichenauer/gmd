@@ -1,5 +1,5 @@
-using gmd.Utils.Git;
-using GitStatus = gmd.Utils.Git.Status;
+using gmd.Git;
+using GitStatus = gmd.Git.Status;
 
 
 namespace gmd.ViewRepos.Private.Augmented.Private;

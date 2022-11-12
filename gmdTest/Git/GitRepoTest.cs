@@ -1,4 +1,4 @@
-using gmd.Utils.Git;
+using gmd.Git;
 
 namespace gmdTest.Utils.Git;
 
@@ -8,7 +8,7 @@ public class GitRepoTest
     [TestMethod]
     public async Task TestLog()
     {
-        IGit git = new gmd.Utils.Git.Private.Git("");
+        IGit git = new gmd.Git.Private.Git("");
 
         Assert.IsTrue(Try(out var log, await git.GetLogAsync()));
 
@@ -22,7 +22,7 @@ public class GitRepoTest
     [TestMethod]
     public async Task TestGetBranches()
     {
-        IGit git = new gmd.Utils.Git.Private.Git("");
+        IGit git = new gmd.Git.Private.Git("");
 
         Assert.IsTrue(Try(out var branches, await git.GetBranchesAsync()));
 
@@ -36,7 +36,7 @@ public class GitRepoTest
     [TestMethod]
     public async Task TestDiffCommit()
     {
-        IGit git = new gmd.Utils.Git.Private.Git("");
+        IGit git = new gmd.Git.Private.Git("");
         string id = "385175";
 
         Assert.IsTrue(Try(out var diff, await git.GetCommitDiffAsync(id)));
@@ -47,7 +47,7 @@ public class GitRepoTest
     [TestMethod]
     public async Task TestDiffUncommitted()
     {
-        IGit git = new gmd.Utils.Git.Private.Git("");
+        IGit git = new gmd.Git.Private.Git("");
 
         Assert.IsTrue(Try(out var diff, await git.GetUncommittedDiff()));
 

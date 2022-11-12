@@ -1,4 +1,4 @@
-using gmd.Utils.Git;
+using gmd.Git;
 using gmd.ViewRepos.Private.Augmented;
 
 namespace gmd.ViewRepos.Private;

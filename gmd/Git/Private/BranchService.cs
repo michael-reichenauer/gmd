@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace gmd.Utils.Git.Private;
+namespace gmd.Git.Private;
 
 interface IBranchService
 {

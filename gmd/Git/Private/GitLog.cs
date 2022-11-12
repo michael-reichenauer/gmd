@@ -1,6 +1,4 @@
-using gmd.Utils;
-
-namespace gmd.Utils.Git.Private;
+namespace gmd.Git.Private;
 
 internal interface ILogService
 {

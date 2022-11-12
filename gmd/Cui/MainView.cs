@@ -1,5 +1,3 @@
-using gmd.Utils.Git;
-using gmd.ViewRepos;
 using Terminal.Gui;
 
 

@@ -1,6 +1,6 @@
 using IOPath = System.IO.Path;
 
-namespace gmd.Utils.Git.Private;
+namespace gmd.Git.Private;
 
 internal class Git : IGit
 {
