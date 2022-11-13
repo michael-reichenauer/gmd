@@ -1,10 +1,12 @@
 
+using GitStatus = gmd.Git.Status;
 
 namespace gmd.ViewRepos.Private.Augmented.Private;
 
 interface IConverter
 {
     Repo ToRepo(WorkRepo augRepo);
+    Status ToStatus(GitStatus gitStatus);
 }
 
 class Converter : IConverter
@@ -18,6 +20,13 @@ class Converter : IConverter
             workRepo.Branches.Select(ToBranch).ToList(),
             workRepo.Status
         );
+    }
+
+    public Status ToStatus(GitStatus gitStatus)
+    {
+        var s = gitStatus;
+        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
+          s.IsMerging, s.MergeMessage, s.AddedFiles, s.ConflictsFiles);
     }
 
     Commit ToCommit(WorkCommit c, int index)

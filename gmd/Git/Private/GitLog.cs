@@ -1,10 +1,8 @@
-using gmd.Utils;
-
-namespace gmd.Utils.Git.Private;
+namespace gmd.Git.Private;
 
 internal interface ILogService
 {
-    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount);
+    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
 }
 
 internal class LogService : ILogService
@@ -16,17 +14,13 @@ internal class LogService : ILogService
         this.cmd = cmd;
     }
 
-    public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000)
+    public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
-        var args = $"log --all --date-order -z --pretty=%H|%ai|%ci|%an|%P|%B --max-count={maxCount}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return Error.From(cmdResult.Error);
-        }
+        var args = $"log --all --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={maxCount}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
-        return await Task.Run(() => ParseLines(cmdResult.Output));
+        return await Task.Run(() => ParseLines(output));
     }
 
     private R<IReadOnlyList<Commit>> ParseLines(string output)
@@ -43,10 +37,7 @@ internal class LogService : ILogService
                     continue;
                 }
 
-                if (!Try(out var commit, out var e, ParseRow(row)))
-                {
-                    return e;
-                }
+                if (!Try(out var commit, out var e, ParseRow(row))) return e;
 
                 commits.Add(commit);
             }
@@ -60,7 +51,7 @@ internal class LogService : ILogService
         var rowParts = row.Split('|');
         if (rowParts.Length < 6)
         {
-            return Error.From($"failed to parse git commit {row}");
+            return R.Error($"failed to parse git commit {row}");
         }
 
         var id = rowParts[0];

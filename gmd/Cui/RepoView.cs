@@ -29,7 +29,7 @@ class RepoView : IRepoView
     readonly IRepoWriter repoWriter;
 
     // State data
-    IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo()
+    IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo().
     IRepoViewMenus? menuService;
 
 
@@ -54,11 +54,12 @@ class RepoView : IRepoView
 
         repoWriter = newRepoWriter(contentView, contentView.ContentX);
 
-        viewRepoService.RepoChange += (s, e) => OnRefresh(e);
-        viewRepoService.StatusChange += (s, e) => OnRefreshStatus(e);
+        viewRepoService.RepoChange += OnRefresh;
+        viewRepoService.StatusChange += OnRefreshStatus;
 
         RegisterKeyHandlers();
     }
+
 
     public View View => contentView;
     public int ContentWidth => contentView.ContentWidth;
@@ -101,6 +102,10 @@ class RepoView : IRepoView
 
     private void ShowDiff()
     {
+        if (repo == null)
+        {
+            return;
+        }
         var diffView = newDiffView(repo!);
         diffView.ShowCurrentRow();
     }
@@ -108,27 +113,27 @@ class RepoView : IRepoView
     void PushCurrentBranch() => repo!.PushCurrentBranch();
 
 
-    void OnRefresh(ChangeEventArgs e)
+    void OnRefresh(ChangeEvent e)
     {
-        Log.Info($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Info($"New    : {e.TimeStamp.Iso()}");
+        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
+        Log.Debug($"New    : {e.TimeStamp.Iso()}");
 
         if (e.TimeStamp - repo!.Repo.TimeStamp < minRepoUpdateInterval)
         {
-            Log.Warn("New repo event to soon, skipping update");
+            Log.Debug("New repo event to soon, skipping update");
             return;
         }
         ShowRefreshedRepoAsync().RunInBackground();
     }
 
-    void OnRefreshStatus(ChangeEventArgs e)
+    void OnRefreshStatus(ChangeEvent e)
     {
-        Log.Info($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Info($"New    : {e.TimeStamp.Iso()}");
+        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
+        Log.Debug($"New    : {e.TimeStamp.Iso()}");
 
         if (e.TimeStamp - repo!.Repo.TimeStamp < minStatusUpdateInterval)
         {
-            Log.Warn("New status event to soon, skipping update");
+            Log.Debug("New status event to soon, skipping update");
             return;
         }
         ShowUpdatedStatusRepoAsync().RunInBackground();
@@ -150,43 +155,43 @@ class RepoView : IRepoView
 
     async Task<R> ShowNewRepoAsync(string path, string[] showBranches)
     {
-        var t = Timing.Start();
-        if (!Try(out var repo, out var e, await viewRepoService.GetRepoAsync(path, showBranches)))
-        {
-            return e;
-        }
+        var t = Timing.Start;
+        if (!Try(out var viewRepo, out var e,
+            await viewRepoService.GetRepoAsync(path, showBranches))) return e;
 
-        ShowRepo(repo);
-        Log.Info($"{t}");
+        ShowRepo(viewRepo);
+        Log.Info($"{t} {viewRepo}");
         return R.Ok;
     }
 
     async Task ShowRefreshedRepoAsync()
     {
         Log.Info("show refreshed repo ...");
-        var t = Timing.Start();
+        var t = Timing.Start;
 
-        if (!Try(out var viewRepo, out var e, await viewRepoService.GetFreshRepoAsync(repo!.Repo!)))
+        if (!Try(out var viewRepo, out var e,
+            await viewRepoService.GetFreshRepoAsync(repo!.Repo!)))
         {
             UI.ErrorMessage($"Failed to refresh:\n{e}");
             return;
         }
 
         ShowRepo(viewRepo);
-        Log.Info($"{t}");
+        Log.Info($"{t} {viewRepo}");
     }
 
     async Task ShowUpdatedStatusRepoAsync()
     {
-        var t = Timing.Start();
-        if (!Try(out var viewRepo, out var e, await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
+        var t = Timing.Start;
+        if (!Try(out var viewRepo, out var e,
+            await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
         {
             UI.ErrorMessage($"Failed to update status:\n{e}");
             return;
         }
 
         ShowRepo(viewRepo);
-        Log.Info($"{t}");
+        Log.Info($"{t} {viewRepo}");
     }
 
 

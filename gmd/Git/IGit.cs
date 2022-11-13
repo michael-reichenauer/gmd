@@ -1,25 +1,26 @@
-namespace gmd.Utils.Git;
+namespace gmd.Git;
 
 
 interface IGit
 {
-    string Path { get; }
-    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount = 30000);
-    Task<R<IReadOnlyList<Branch>>> GetBranchesAsync();
-    Task<R<Status>> GetStatusAsync();
-    Task<R> CommitAllChangesAsync(string message);
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
-    Task<R<CommitDiff>> GetUncommittedDiff();
-    Task<R> FetchAsync();
-    Task<R> PushBranchAsync(string name);
-    Task<R> PullCurrentBranchAsync();
-    Task<R> PullBranchAsync(string name);
-    Task<R> DeleteRemoteBranchAsync(string name);
-    Task<R> PushRefForceAsync(string name);
-    Task<R> PullRefAsync(string name);
-    Task<R> CloneAsync(string uri, string path);
-    Task<R> CheckoutAsync(string name);
-    Task<R> MergeBranch(string name);
+    R<string> RootPath(string path);
+
+    Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
+    Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+    Task<R<Status>> GetStatusAsync(string wd);
+    Task<R> CommitAllChangesAsync(string message, string wd);
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
+    Task<R<CommitDiff>> GetUncommittedDiff(string wd);
+    Task<R> FetchAsync(string wd);
+    Task<R> PushBranchAsync(string name, string wd);
+    Task<R> PullCurrentBranchAsync(string wd);
+    Task<R> PullBranchAsync(string name, string wd);
+    Task<R> DeleteRemoteBranchAsync(string name, string wd);
+    Task<R> PushRefForceAsync(string name, string wd);
+    Task<R> PullRefAsync(string name, string wd);
+    Task<R> CloneAsync(string uri, string path, string wd);
+    Task<R> CheckoutAsync(string name, string wd);
+    Task<R> MergeBranch(string name, string wd);
 }
 
 
@@ -61,7 +62,6 @@ public record Status(
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }
 
-
 record CommitDiff(
     string Id,
     string Author,
@@ -98,5 +98,5 @@ enum DiffMode
     DiffConflicts,
     DiffConflictStart,
     DiffConflictSplit,
-    DiffConflictEnd
+    DiffConflictEnd,
 }

@@ -46,7 +46,7 @@ class GraphService : IGraphService
 
     public Graph CreateGraph(Repo repo)
     {
-        var t = Timing.Start();
+        var t = Timing.Start;
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);
@@ -189,7 +189,7 @@ class GraphService : IGraphService
             // Drawing a dark  ╮
             int x = commitBranch.X;
             int y = commit.Index;
-            Color color = Colors.DarkGray;
+            Color color = Colors.Dark;
             graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color);  //   ╮     
         }
     }
@@ -199,7 +199,7 @@ class GraphService : IGraphService
         // Drawing a dark   ╯
         int x = commitBranch.X;
         int y = commit.Index;
-        Color color = Colors.DarkGray;
+        Color color = Colors.Dark;
         graph.SetGraphConnect(x + 1, y, Sign.BranchToRight, color);  //   ╯    
     }
 

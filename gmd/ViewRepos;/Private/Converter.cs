@@ -4,7 +4,7 @@ interface IConverter
 {
     IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits);
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches);
-    CommitDiff ToCommitDiff(Utils.Git.CommitDiff gitCommitDiff);
+    CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
 }
 
 
@@ -16,7 +16,7 @@ class Converter : IConverter
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches) =>
            branches.Select(ToBranch).ToList();
 
-    public CommitDiff ToCommitDiff(Utils.Git.CommitDiff gitCommitDiff)
+    public CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff)
     {
         var d = gitCommitDiff;
         return new CommitDiff(d.Id, d.Author, d.Date, d.Message, ToFileDiffs(d.FileDiffs));
@@ -79,42 +79,42 @@ class Converter : IConverter
         IsOut: false);
 
 
-    IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Utils.Git.FileDiff> fileDiffs) =>
+    IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs
             .Select(d => new FileDiff(d.PathBefore, d.PathAfter, d.IsRenamed,
                 ToDiffMode(d.DiffMode), ToSectionDiffs(d.SectionDiffs)))
             .ToList();
 
 
-    private IReadOnlyList<SectionDiff> ToSectionDiffs(IReadOnlyList<Utils.Git.SectionDiff> sectionDiffs) =>
+    private IReadOnlyList<SectionDiff> ToSectionDiffs(IReadOnlyList<Git.SectionDiff> sectionDiffs) =>
         sectionDiffs
             .Select(d => new SectionDiff(d.ChangedIndexes, d.LeftLine, d.LeftCount,
                 d.RightLine, d.RightCount, ToLineDiffs(d.LineDiffs)))
             .ToList();
 
-    private IReadOnlyList<LineDiff> ToLineDiffs(IReadOnlyList<Utils.Git.LineDiff> lineDiffs) =>
+    private IReadOnlyList<LineDiff> ToLineDiffs(IReadOnlyList<Git.LineDiff> lineDiffs) =>
         lineDiffs.Select(d => new LineDiff(ToDiffMode(d.DiffMode), d.Line)).ToList();
 
 
-    private DiffMode ToDiffMode(Utils.Git.DiffMode diffMode)
+    private DiffMode ToDiffMode(Git.DiffMode diffMode)
     {
         switch (diffMode)
         {
-            case Utils.Git.DiffMode.DiffAdded:
+            case Git.DiffMode.DiffAdded:
                 return DiffMode.DiffAdded;
-            case Utils.Git.DiffMode.DiffConflictEnd:
+            case Git.DiffMode.DiffConflictEnd:
                 return DiffMode.DiffConflictEnd;
-            case Utils.Git.DiffMode.DiffConflicts:
+            case Git.DiffMode.DiffConflicts:
                 return DiffMode.DiffConflicts;
-            case Utils.Git.DiffMode.DiffConflictSplit:
+            case Git.DiffMode.DiffConflictSplit:
                 return DiffMode.DiffConflictSplit;
-            case Utils.Git.DiffMode.DiffConflictStart:
+            case Git.DiffMode.DiffConflictStart:
                 return DiffMode.DiffConflictStart;
-            case Utils.Git.DiffMode.DiffModified:
+            case Git.DiffMode.DiffModified:
                 return DiffMode.DiffModified;
-            case Utils.Git.DiffMode.DiffRemoved:
+            case Git.DiffMode.DiffRemoved:
                 return DiffMode.DiffRemoved;
-            case Utils.Git.DiffMode.DiffSame:
+            case Git.DiffMode.DiffSame:
                 return DiffMode.DiffSame;
         }
 

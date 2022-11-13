@@ -66,10 +66,8 @@ class DiffView : IDiffView
     void Show(string commitId)
     {
         this.commitId = commitId;
-
-
-
         ShowAsync(commitId).RunInBackground();
+
         Application.Run(diffView);
     }
 
@@ -105,9 +103,11 @@ class DiffView : IDiffView
 
     async Task ShowAsync(string commitId)
     {
+        var t = Timing.Start;
+
         var diffTask = commitId == Repo.UncommittedId
-            ? viewRepoService.GetUncommittedDiff(repo.Repo)
-            : viewRepoService.GetCommitDiffAsync(repo.Repo, commitId);
+            ? viewRepoService.GetUncommittedDiff(repo.Repo.Path)
+            : viewRepoService.GetCommitDiffAsync(repo.Repo.Path, commitId);
 
         if (!Try(out var diff, out var e, await diffTask))
         {
@@ -116,6 +116,7 @@ class DiffView : IDiffView
         }
 
         diffRows = diffService.ToDiffRows(diff);
+        Log.Info($"{t} {diffRows}");
         contentView.TriggerUpdateContent(TotalRows);
     }
 

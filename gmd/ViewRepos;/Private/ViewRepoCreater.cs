@@ -22,7 +22,7 @@ class ViewRepoCreater : IViewRepoCreater
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
     {
-        var t = Timing.Start();
+        var t = Timing.Start;
         var branches = FilterOutViewBranches(augRepo, showBranches);
 
         var commits = FilterOutViewCommits(augRepo, branches);

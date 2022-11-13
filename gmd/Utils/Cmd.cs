@@ -3,50 +3,52 @@ using System.Text;
 
 namespace gmd.Utils;
 
-internal interface ICmd
-{
-    string WorkingDirectory { get; }
-    CmdResult RunCmd(string path, string args);
-    Task<CmdResult> RunAsync(string path, string args);
-    CmdResult Start(string path, string args);
 
+interface ICmd
+{
+    CmdResult RunCmd(string path, string args, string workingDirectory);
+    Task<CmdResult> RunAsync(string path, string args, string workingDirectory);
 }
 
-internal class CmdResult
+class CmdResult : R<string>
 {
-    public int ExitCode { get; }
-    public string Output { get; }
-    public string Error { get; }
-
-    public CmdResult(int exitCode, string output, string error)
+    public CmdResult(int exitCode, string output, string errorOutput)
+        : base(new Exception(errorOutput))
     {
         ExitCode = exitCode;
         Output = output;
-        Error = error;
+        ErrorOutput = errorOutput;
     }
+
+    public CmdResult(string output, string errorOutput)
+        : base(output)
+    {
+        ExitCode = 0;
+        Output = output;
+        ErrorOutput = errorOutput;
+    }
+
+    public int ExitCode { get; }
+    public string Output { get; }
+    public string ErrorOutput { get; }
 }
 
 
-internal class Cmd : ICmd
+class Cmd : ICmd
 {
-    private static readonly IReadOnlyList<string> EmptyLines = new string[0];
+    public Task<CmdResult> RunAsync(string path, string args, string workingDirectory) =>
+        Task.Run(() => RunCmd(path, args, workingDirectory));
 
-    public string WorkingDirectory { get; internal set; }
-
-    internal Cmd(string workingDirectory = "")
+    public CmdResult RunCmd(string path, string args, string workingDirectory)
     {
-        this.WorkingDirectory = workingDirectory;
-    }
-
-    public CmdResult RunCmd(string path, string args)
-    {
-        var t = Timing.Start();
+        var t = Timing.Start;
         try
         {
-            List<string> lines = new List<string>();
-            // Log.Debug($"{path} {args} ({workingDirectory})");
+            Log.Debug($"{path} {args} ({workingDirectory})");
+            var outputLines = new List<string>();
+            var errorLines = new List<string>();
 
-            var process = new Process
+            using (var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -56,55 +58,41 @@ internal class Cmd : ICmd
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8
                 }
-            };
-
-            if (WorkingDirectory != "")
+            })
             {
-                process.StartInfo.WorkingDirectory = WorkingDirectory;
+                if (workingDirectory != "")
+                {
+                    process.StartInfo.WorkingDirectory = workingDirectory;
+                }
+                process.OutputDataReceived += (sender, args) => outputLines.Add(args.Data ?? "");
+                process.ErrorDataReceived += (sender, args) => errorLines.Add(args.Data ?? "");
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                process.WaitForExit(); //you need this in order to flush the output buffer
+
+                var exitCode = process.ExitCode;
+                var output = string.Join('\n', outputLines).Replace("\r", "").TrimEnd();
+                var error = string.Join('\n', errorLines).Replace("\r", "").TrimEnd();
+
+                Log.Info($"{path} {args} ({workingDirectory}) {t}");
+
+                if (process.ExitCode != 0)
+                {
+                    return new CmdResult(process.ExitCode, output, error);
+                }
+
+                return new CmdResult(output, error);
             }
-
-            process.Start();
-            process.WaitForExit();
-
-            var exitCode = process.ExitCode;
-            var output = process.StandardOutput.ReadToEnd().Replace("\r", "").TrimEnd();
-            var error = process.StandardError.ReadToEnd().Replace("\r", "").TrimEnd();
-
-            Log.Info($"{path} {args} ({WorkingDirectory}) {t}");
-
-            return new CmdResult(process.ExitCode, output, error);
         }
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Error($"Failed: {path} {args} {t}\n{e.Message}");
-            return new CmdResult(-1, "", e.Message);
-        }
-    }
-
-    public Task<CmdResult> RunAsync(string path, string args)
-    {
-        return Task.Run(() =>
-        {
-            return RunCmd(path, args);
-        });
-    }
-
-    public CmdResult Start(string path, string args)
-    {
-        ProcessStartInfo info = new ProcessStartInfo(path);
-        info.Arguments = args;
-        info.UseShellExecute = true;
-        try
-        {
-            // Start process, but do not wait for it to complete
-            Process.Start(info);
-            return new CmdResult(0, "", "");
-        }
-        catch (Exception e) when (e.IsNotFatal())
-        {
-            Log.Exception(e, $"Exception for {path} {args}");
             return new CmdResult(-1, "", e.Message);
         }
     }

@@ -4,13 +4,33 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-class UI
+static class UI
 {
-    public static void Post(Action action)
+    static internal void RunInBackground(Func<Task> action)
+    {
+        action().RunInBackground();
+    }
+
+    public static MenuItem MenuSeparator(string text = "")
+    {
+        const int maxDivider = 25;
+        if (text == "")
+        {
+            return new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
+        }
+
+        text = text.Max(maxDivider - 6);
+        string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
+        return new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
+    }
+
+    internal static void Post(Action action)
     {
         Application.MainLoop.Invoke(action);
     }
 
+    internal static void ShowCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Default);
+    internal static void HideCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
     internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)
     {

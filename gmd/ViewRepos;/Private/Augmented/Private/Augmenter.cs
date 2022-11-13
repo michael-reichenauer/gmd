@@ -1,9 +1,14 @@
 
-using GitCommit = gmd.Utils.Git.Commit;
-using GitBranch = gmd.Utils.Git.Branch;
+using GitCommit = gmd.Git.Commit;
+using GitBranch = gmd.Git.Branch;
 
 namespace gmd.ViewRepos.Private.Augmented.Private;
 
+// Augmenter augments repos of git repo information, The augmentations 
+// adds information not available in git directly, but can be inferred by parsing the 
+// git information. 
+// Examples of augmentation is which branch a commits belongs to and the hierarchical structure
+// of branches. 
 interface IAugmenter
 {
     Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax);
@@ -11,9 +16,10 @@ interface IAugmenter
 
 class Augmenter : IAugmenter
 {
+    readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master" };
+
     readonly IBranchNameService branchNameService;
 
-    readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master" };
 
     internal Augmenter(IBranchNameService branchNameService, IConverter converter)
     {

@@ -1,88 +1,65 @@
-using System.Diagnostics.CodeAnalysis;
-
-namespace gmd.Utils.Git.Private;
+namespace gmd.Git.Private;
 
 interface IDiffService
 {
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId);
-    Task<R<CommitDiff>> GetUncommittedDiff();
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
+    Task<R<CommitDiff>> GetUncommittedDiff(string wd);
 }
 
 class DiffService : IDiffService
 {
     private readonly ICmd cmd;
-    private readonly IStatusService statusService;
 
-    public DiffService(ICmd cmd, IStatusService statusService)
+    public DiffService(ICmd cmd)
     {
         this.cmd = cmd;
-        this.statusService = statusService;
     }
 
-    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId)
+    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
         var args = "show --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             $" --find-renames --unified=6 {commitId}";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return Error.From(cmdResult.Error);
-        }
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
-        var commitDiffs = ParseCommitDiffs(cmdResult.Output, "", false);
+        var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
         {
-            return Error.From("Failed to parse diff");
+            return R.Error("Failed to parse diff");
         }
 
         return commitDiffs[0];
     }
 
 
-    public async Task<R<CommitDiff>> GetUncommittedDiff()
+    public async Task<R<CommitDiff>> GetUncommittedDiff(string wd)
     {
         // To be able to include renamed and added files in uncommitted diff, we first
         // stage all and after diff, the stage is reset.  
         var needReset = false;
-        if (!IsMergeInProgress())
+        if (!StatusService.IsMergeInProgress(wd))
         {
-            CmdResult addResult = await cmd.RunAsync("git", "add .");
-            if (addResult.ExitCode != 0)
-            {
-                return Error.From(addResult.Error);
-            }
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd))) return err;
             needReset = true;
         }
 
         var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
             " --find-renames --unified=6 HEAD";
-        CmdResult cmdResult = await cmd.RunAsync("git", args);
-        if (cmdResult.ExitCode != 0)
-        {
-            return Error.From(cmdResult.Error);
-        }
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         if (needReset)
         {   // Reset the git add . previously 
-            CmdResult resetResult = await cmd.RunAsync("git", "reset");
-            if (resetResult.ExitCode != 0)
-            {
-                return Error.From(resetResult.Error);
-            }
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd))) return err;
         }
 
         // Add commit prefix text to support parser.
         var dateText = DateTime.Now.Iso();
-        string output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" +
-            cmdResult.Output;
+        output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
         {
-            return Error.From("Failed to parse diff");
+            return R.Error("Failed to parse diff");
         }
-
-
 
         return commitDiffs[0];
 
@@ -199,7 +176,7 @@ class DiffService : IDiffService
         {
             string file = lines[i++].Substring(10);
             (DiffMode df, i) = ParseDiffMode(i, lines);
-            i = i + 3;// Step over index, ---, +++ lines
+            i = ParsePossibleIndexRows(i, lines);
             (var conflictSectionDiffs, i) = ParseSectionDiffs(i, lines);
             return (new FileDiff(file, file, false, DiffMode.DiffConflicts, conflictSectionDiffs), i, true);
         }
@@ -214,11 +191,10 @@ class DiffService : IDiffService
         string before = parts[0].Substring(2);
         string after = parts[1].Substring(2);
         bool isRenamed = before != after;
-
         i++;
-        (DiffMode diffMode, i) = ParseDiffMode(i, lines);
-        i = i + 3; // Step over index, ---, +++ lines
 
+        (DiffMode diffMode, i) = ParseDiffMode(i, lines);
+        i = ParsePossibleIndexRows(i, lines);
         (var sectionDiffs, i) = ParseSectionDiffs(i, lines);
 
         if (i < lines.Length && lines[i].StartsWith("\\ No newline at end of file"))
@@ -255,16 +231,19 @@ class DiffService : IDiffService
         return (DiffMode.DiffModified, i);
     }
 
+    int ParsePossibleIndexRows(int i, string[] lines)
+    {
+        if (lines[i].StartsWith("index ")) { i++; }
+        if (lines[i].StartsWith("--- ")) { i++; }
+        if (lines[i].StartsWith("+++ ")) { i++; }
+        return i;
+    }
+
     (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
     {
         var sectionDiffs = new List<SectionDiff>();
         while (i < lines.Length)
         {
-            if (!lines[i].StartsWith("@@"))
-            {
-                break;
-            }
-
             (var sectionDiff, i, bool ok) = ParseSectionDiff(i, lines);
             if (!ok)
             {
@@ -278,6 +257,11 @@ class DiffService : IDiffService
 
     (SectionDiff?, int, bool) ParseSectionDiff(int i, string[] lines)
     {
+        if (!lines[i].StartsWith("@@ "))
+        {
+            return (null, i, false);
+        }
+
         int endIndex = lines[i].Substring(2).IndexOf("@@");
         if (endIndex == -1)
         {
@@ -396,12 +380,5 @@ class DiffService : IDiffService
     string AsConflictLine(string line)
     {
         return line.Substring(2).Replace("\t", "   ");
-    }
-
-    bool IsMergeInProgress()
-    {
-        string mergeIpPath = Path.Combine(cmd.WorkingDirectory, ".git", "MERGE_HEAD");
-        return File.Exists(mergeIpPath);
-
     }
 }

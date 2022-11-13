@@ -43,6 +43,8 @@ class DiffRows
 
         rows.Add(new DiffRow(left, right, mode));
     }
+
+    public override string ToString() => $"Rows: {Count}";
 }
 
 record DiffRow(Text Left, Text Right, DiffRowMode Mode);
@@ -102,8 +104,8 @@ class DiffService : IDiffConverter
         commitDiff.FileDiffs.ForEach(fd =>
         {
             var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
-            var diffMode = ToDiffModeText(fd.DiffMode);
-            var text = ToColorText($"  {diffMode,-12} {path}", fd.DiffMode);
+            var diffMode = ToDiffModeText(fd);
+            var text = ToColorText($"  {diffMode,-12} {path}", fd);
             if (fd.IsRenamed)
             {
                 text.Cyan(" (Renamed)");
@@ -119,8 +121,8 @@ class DiffService : IDiffConverter
 
         var fd = fileDiff;
         var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
-        var diffMode = ToDiffModeText(fd.DiffMode);
-        var text = ToColorText($"{diffMode} {path}", fd.DiffMode);
+        var diffMode = ToDiffModeText(fd);
+        var text = ToColorText($"{diffMode} {path}", fd);
         if (fd.IsRenamed)
         {
             text.Cyan("  (Renamed)");
@@ -252,9 +254,14 @@ class DiffService : IDiffConverter
         rightBlock.Clear();
     }
 
-    Text ToColorText(string text, DiffMode diffMode)
+    Text ToColorText(string text, FileDiff fd)
     {
-        switch (diffMode)
+        if (fd.IsRenamed && !fd.SectionDiffs.Any())
+        {
+            return Text.New.Cyan(text);
+        }
+
+        switch (fd.DiffMode)
         {
             case DiffMode.DiffModified:
                 return Text.New.White(text);
@@ -266,13 +273,18 @@ class DiffService : IDiffConverter
                 return Text.New.BrightYellow(text);
         }
 
-        throw (Asserter.FailFast($"Unknown diffMode {diffMode}"));
+        throw (Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"));
     }
 
 
-    string ToDiffModeText(DiffMode diffMode)
+    string ToDiffModeText(FileDiff fd)
     {
-        switch (diffMode)
+        if (fd.IsRenamed && !fd.SectionDiffs.Any())
+        {
+            return "Renamed:";
+        }
+
+        switch (fd.DiffMode)
         {
             case DiffMode.DiffModified:
                 return "Modified:";
@@ -284,6 +296,6 @@ class DiffService : IDiffConverter
                 return "Conflicted:";
         }
 
-        throw (Asserter.FailFast($"Unknown diffMode {diffMode}"));
+        throw (Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"));
     }
 }

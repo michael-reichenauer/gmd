@@ -1,8 +1,8 @@
 
 
-using GitCommit = gmd.Utils.Git.Commit;
-using GitBranch = gmd.Utils.Git.Branch;
-using GitStatus = gmd.Utils.Git.Status;
+using GitCommit = gmd.Git.Commit;
+using GitBranch = gmd.Git.Branch;
+using GitStatus = gmd.Git.Status;
 
 namespace gmd.ViewRepos.Private.Augmented.Private;
 
@@ -27,4 +27,6 @@ class GitRepo
     internal IReadOnlyList<GitCommit> Commits { get; }
     public IReadOnlyList<GitBranch> Branches { get; }
     public GitStatus Status { get; }
+
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
