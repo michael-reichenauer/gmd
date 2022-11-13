@@ -92,7 +92,7 @@ class ViewRepo : IRepo
 
     public void SwitchTo(string branchName)
     {
-        Do(async () =>
+        UI.RunInBackground(async () =>
         {
             if (!Try(out var e, await viewRepoService.SwitchToAsync(Repo.Path, branchName)))
             {
@@ -105,7 +105,7 @@ class ViewRepo : IRepo
 
     public void Commit()
     {
-        Do(async () =>
+        UI.RunInBackground(async () =>
         {
             var commitDlg = newCommitDlg(this);
             if (!commitDlg.Show(out var message))
@@ -126,7 +126,7 @@ class ViewRepo : IRepo
 
     public void PushCurrentBranch()
     {
-        Do(async () =>
+        UI.RunInBackground(async () =>
         {
             var branch = Repo.Branches.First(b => b.IsCurrent);
 
@@ -148,7 +148,7 @@ class ViewRepo : IRepo
 
     public void MergeBranch(string name)
     {
-        Do(async () =>
+        UI.RunInBackground(async () =>
         {
             if (!Try(out var e, await viewRepoService.MergeBranch(Repo.Path, name)))
             {
@@ -168,12 +168,4 @@ class ViewRepo : IRepo
         return Repo.Status.IsOk &&
          branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
     }
-
-
-    void Do(Func<Task> action)
-    {
-        action().RunInBackground();
-    }
-
-
 }

@@ -25,12 +25,12 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(Separator($"Commit {Sid(repo.Repo.Commits[repo.CurrentIndex].Id)}"));
+        items.Add(UI.MenuSeparator($"Commit {Sid(repo.Repo.Commits[repo.CurrentIndex].Id)}"));
         items.Add(new MenuItem("Commit ...", "",
             () => repo.Commit(),
             () => !repo.Repo.Status.IsOk));
 
-        items.Add(Separator("Branches"));
+        items.Add(UI.MenuSeparator("Branches"));
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems()));
         items.Add(new MenuBarItem("Hide Branch", GetHideItems()));
         items.Add(new MenuBarItem("Push", GetPushItems()));
@@ -55,24 +55,24 @@ class RepoViewMenus : IRepoViewMenus
 
         if (showItems.Length > 0)
         {
-            items.Add(Separator("Show"));
+            items.Add(UI.MenuSeparator("Show"));
             items.AddRange(showItems);
         }
 
         if (scrollToItems.Length > 0)
         {
-            items.Add(Separator("Scroll to"));
+            items.Add(UI.MenuSeparator("Scroll to"));
             items.AddRange(scrollToItems);
         }
         if (switchToItems.Length > 0)
         {
-            items.Add(Separator("Switch to"));
+            items.Add(UI.MenuSeparator("Switch to"));
             items.AddRange(switchToItems);
         }
 
         if (items.Count > 0)
         {
-            items.Add(Separator("More"));
+            items.Add(UI.MenuSeparator("More"));
         }
 
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems()));
@@ -86,7 +86,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(Separator("Hide"));
+        items.Add(UI.MenuSeparator("Hide"));
         items.AddRange(GetHideItems());
 
         var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
@@ -238,12 +238,12 @@ class RepoViewMenus : IRepoViewMenus
 
         if (scrollToItems.Length > 0)
         {
-            items.Add(Separator("Scroll to"));
+            items.Add(UI.MenuSeparator("Scroll to"));
             items.AddRange(switchToItems);
         }
         if (items.Count > 0)
         {
-            items.Add(Separator("Show"));
+            items.Add(UI.MenuSeparator("Show"));
         }
 
         return items.ToArray();
@@ -253,13 +253,5 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> supportedCultures = new List<MenuItem>();
         return supportedCultures.ToArray();
-    }
-
-    MenuItem Separator(string text)
-    {
-        const int maxDivider = 20;
-        text = text.Max(maxDivider - 1);
-        string suffix = new string('─', maxDivider - text.Length);
-        return new MenuItem($"── {text} {suffix}", "", () => { }, () => false);
     }
 }

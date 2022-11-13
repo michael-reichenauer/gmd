@@ -1,6 +1,6 @@
 using gmd.Git;
 using Terminal.Gui;
-
+using Terminal.Gui.Trees;
 
 namespace gmd.Cui;
 
@@ -9,71 +9,123 @@ interface IMainView
     View View { get; }
 }
 
-class MainView : IMainView
+partial class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IGit git;
-    readonly Lazy<Toplevel> toplevel;
+    readonly Lazy<View> toplevel;
 
     MainView(IRepoView repoView, IGit git) : base()
     {
         this.repoView = repoView;
         this.git = git;
 
-        toplevel = new Lazy<Toplevel>(CreateView);
+        toplevel = new Lazy<View>(CreateView);
     }
 
     public View View => toplevel.Value;
 
-    Toplevel CreateView()
+    View CreateView()
     {
-        Toplevel toplevel = new Toplevel()
-        {
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = Dim.Fill(),
-        };
+        // Adjust some global color schemes
+        Terminal.Gui.Colors.Dialog = ColorSchemes.DialogColorScheme;
+        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialogColorScheme;
+        Terminal.Gui.Colors.Menu = ColorSchemes.MenuColorScheme;
 
-        toplevel.Add(repoView.View);
+        var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
+        mainView.ColorScheme = ColorSchemes.WindowColorScheme;
 
-        Terminal.Gui.Colors.Dialog = Colors.DialogColorScheme;
-        Terminal.Gui.Colors.Error = Colors.ErrorDialogColorScheme;
+        mainView.Add(repoView.View);
 
-        toplevel.Loaded += () => OnLoaded().RunInBackground();
-        return toplevel;
+        //Application.Current.Added += (v) => Log.Info($"View added {v}");
+        //     Application.Current.Removed += (v) =>
+        //    {
+        //        Log.Info($"View removed {v}");
+        //    };
+
+        return mainView;
     }
 
 
-
-    async Task OnLoaded()
+    void OnReady()
     {
-        // UI.AddTimeout(TimeSpan.FromMilliseconds(1000), (m) =>
-        // {
-        //     return true;
-        // });
-        // UI.ErrorMessage("Title", "Text");
-        // return;
-
-        string path = "";  // !!!!!!!!!!!! make selectable 
-
-        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+        string path = "";
+        if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
-            UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e}");
-            UI.Shutdown();
+            if (path != "")
+            {
+                // User specified an invalid folder
+                UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
+            }
+
+            ShowMainMenu();
             return;
         }
+
+        Log.Info($"Show Path {rootPath}");
+        ShowRepo(rootPath);
     }
 
-    public void ShowMainMenu()
+
+    void ShowMainMenu()
     {
         List<MenuItem> items = new List<MenuItem>();
+        items.Add(UI.MenuSeparator("Open Repo"));
 
-        items.Add(new MenuItem("Commit ...", "", () => { }));
+        items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
+        items.Add(new MenuItem("Clone ...", "", () => { }, () => false));
+        items.Add(new MenuItem("Quit", "", () => Application.RequestStop()));
 
-
-        var menu = new ContextMenu(View.Frame.Width / 2 - 10, 0, new MenuBarItem(items.ToArray()));
+        var menu = new ContextMenu(4, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
 
+    void ShowRepo(string path)
+    {
+        UI.RunInBackground(async () =>
+        {
+            if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+            {
+                UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e}");
+                ShowMainMenu();
+                return;
+            }
+        });
+    }
+
+    void ShowBrowseDialog()
+    {
+        var browser = new FolderBrowseDlg();
+        if (!Try(out var path, out var e, browser.Show()))
+        {
+            ShowMainMenu();
+            return;
+        }
+
+        ShowRepo(path);
+    }
+
+
+    // A workaround to get notifications once view is ready
+    class MainViewWrapper : Toplevel
+    {
+        Action ready;
+        bool hasCalledReady;
+
+        public MainViewWrapper(Action ready)
+        {
+            this.ready = ready;
+        }
+
+        public override void Redraw(Rect bounds)
+        {
+            base.Redraw(bounds);
+
+            if (!hasCalledReady)
+            {
+                hasCalledReady = true;
+                UI.Post(() => ready());
+            }
+        }
+    }
 }

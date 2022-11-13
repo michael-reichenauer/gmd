@@ -102,6 +102,10 @@ class RepoView : IRepoView
 
     private void ShowDiff()
     {
+        if (repo == null)
+        {
+            return;
+        }
         var diffView = newDiffView(repo!);
         diffView.ShowCurrentRow();
     }

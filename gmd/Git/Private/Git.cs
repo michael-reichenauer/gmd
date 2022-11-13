@@ -56,6 +56,11 @@ internal class Git : IGit
             path = Directory.GetCurrentDirectory();
         }
 
+        if (!Directory.Exists(path))
+        {
+            return R.Error($"Folder does not exist: '{path}'");
+        }
+
         var current = path;
         if (path.EndsWith(".git") || path.EndsWith(".git/") || path.EndsWith(".git\\"))
         {
@@ -78,6 +83,6 @@ internal class Git : IGit
             current = parent;
         }
 
-        return R.NoValue;
+        return R.Error($"No '.git' folder was found in:\n'{path}'\n or in any parent folders.");
     }
 }

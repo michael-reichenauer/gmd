@@ -47,7 +47,6 @@ public class R
     }
 
     public static R Ok = Error(NoError);
-    public static ErrorResult NoValue = Error(NoValueError);
 
     public static bool Try<T>(
      [NotNullWhen(true)] out T? value,
@@ -103,7 +102,7 @@ public class R
     }
 
     public static ErrorResult Error(
-          string message,
+          string message = "",
           [CallerMemberName] string memberName = "",
           [CallerFilePath] string sourceFilePath = "",
           [CallerLineNumber] int sourceLineNumber = 0) =>
@@ -140,7 +139,7 @@ public class R
 
     public static implicit operator R(Exception e) => Error(e);
     public static implicit operator bool(R r) => r.IsOk;
-    public override string ToString() => IsOk ? "OK" : $"Error: {resultException}";
+    public override string ToString() => IsOk ? "OK" : $"Error: {resultException.Message}";
     public string ToString(bool includeStack) => IsOk ? "OK" : $"Error: {AllErrorMessages()}\n{resultException}";
 
 
@@ -178,8 +177,6 @@ public class R
 public class R<T> : R
 {
     private readonly T? storedValue = default;
-
-    public new static readonly R<T> NoValue = new R<T>(NoValueError);
 
     protected R(T value) : base(NoError) => this.storedValue = value;
 

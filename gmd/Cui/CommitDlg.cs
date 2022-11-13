@@ -39,7 +39,7 @@ class CommitDlg : ICommitDlg
         int filesCount = repo.Repo.Status.ChangesCount;
 
         Button okButton = new Button("OK", true);
-        okButton.ColorScheme = Colors.ButtonColorScheme;
+        okButton.ColorScheme = ColorSchemes.ButtonColorScheme;
         okButton.Clicked += () =>
         {
             if (GetMessage() == "")
@@ -54,7 +54,7 @@ class CommitDlg : ICommitDlg
 
         Button cancelButton = new Button("Cancel", false);
         cancelButton.Clicked += () => Close();
-        cancelButton.ColorScheme = Colors.ButtonColorScheme;
+        cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
 
 
         Label infoLabel = new Label(1, 0, $"Commit {filesCount} files on '{branchName}':");
@@ -68,7 +68,7 @@ class CommitDlg : ICommitDlg
         dialog = new CustomDialog("Commit", 72, 18, new[] { okButton, cancelButton }, OnKey)
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = Colors.DialogColorScheme,
+            ColorScheme = ColorSchemes.DialogColorScheme,
         };
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
