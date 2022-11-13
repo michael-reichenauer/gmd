@@ -16,7 +16,7 @@ internal class LogService : ILogService
 
     public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
-        var args = $"log --all --date-order -z --pretty=%H|%ai|%ci|%an|%P|%B --max-count={maxCount}";
+        var args = $"log --all --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={maxCount}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse

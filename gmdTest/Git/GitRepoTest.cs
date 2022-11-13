@@ -1,5 +1,3 @@
-using gmd.Git;
-
 namespace gmdTest.Utils.Git;
 
 [TestClass]
@@ -54,3 +52,4 @@ public class GitRepoTest
     //     Log.Info($"Diff: {diff}");
     // }
 }
+

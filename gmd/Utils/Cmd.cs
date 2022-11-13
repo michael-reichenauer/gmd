@@ -43,10 +43,11 @@ internal class Cmd : ICmd
         var t = Timing.Start;
         try
         {
-            List<string> lines = new List<string>();
-            // Log.Debug($"{path} {args} ({workingDirectory})");
+            Log.Debug($"{path} {args} ({workingDirectory})");
+            var outputLines = new List<string>();
+            var errorLines = new List<string>();
 
-            var process = new Process
+            using (var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -56,30 +57,37 @@ internal class Cmd : ICmd
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8
                 }
-            };
-
-            if (workingDirectory != "")
+            })
             {
-                process.StartInfo.WorkingDirectory = workingDirectory;
+                if (workingDirectory != "")
+                {
+                    process.StartInfo.WorkingDirectory = workingDirectory;
+                }
+                process.OutputDataReceived += (sender, args) => outputLines.Add(args.Data ?? "");
+                process.ErrorDataReceived += (sender, args) => errorLines.Add(args.Data ?? "");
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                process.WaitForExit(); //you need this in order to flush the output buffer
+
+                var exitCode = process.ExitCode;
+                var output = string.Join('\n', outputLines).Replace("\r", "").TrimEnd();
+                var error = string.Join('\n', errorLines).Replace("\r", "").TrimEnd();
+
+                Log.Info($"{path} {args} ({workingDirectory}) {t}");
+
+                if (process.ExitCode != 0)
+                {
+                    return new CmdResult(process.ExitCode, output, error);
+                }
+
+                return new CmdResult(output, error);
             }
-
-            process.Start();
-            process.WaitForExit();
-
-            var exitCode = process.ExitCode;
-            var output = process.StandardOutput.ReadToEnd().Replace("\r", "").TrimEnd();
-            var error = process.StandardError.ReadToEnd().Replace("\r", "").TrimEnd();
-
-            Log.Info($"{path} {args} ({workingDirectory}) {t}");
-
-            if (process.ExitCode != 0)
-            {
-                return new CmdResult(process.ExitCode, output, error);
-            }
-
-            return new CmdResult(output, error);
         }
         catch (Exception e) when (e.IsNotFatal())
         {
