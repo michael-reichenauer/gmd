@@ -7,7 +7,7 @@ namespace gmd.ViewRepos.Private;
 
 interface IViewRepoCreater
 {
-    Repo GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches);
+    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches);
     bool IsFirstAncestorOfSecond(Augmented.Repo augmentedRepo, Augmented.Branch ancestor, Augmented.Branch branch);
 }
 
@@ -20,7 +20,7 @@ class ViewRepoCreater : IViewRepoCreater
         this.converter = converter;
     }
 
-    public Repo GetViewRepoAsync(Augmented.Repo augRepo, string[] showBranches)
+    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches)
     {
         var t = Timing.Start;
         var branches = FilterOutViewBranches(augRepo, showBranches);
@@ -227,7 +227,7 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
     }
 
-    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, string[] showBranches)
+    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches)
     {
         var branches = showBranches
             .Select(name => repo.Branches.FirstOrDefault(b => b.Name == name))
@@ -235,7 +235,7 @@ class ViewRepoCreater : IViewRepoCreater
             .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
             .ToList();       // To be able to add more
 
-        if (showBranches.Length == 0)
+        if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch
             var current = repo.Branches.FirstOrDefault(b => b.IsCurrent);
             if (current != null)

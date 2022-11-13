@@ -54,7 +54,7 @@ class ViewRepoService : IViewRepoService
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
-    public async Task<R<Repo>> GetRepoAsync(string path, string[] showBranches)
+    public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         if (!Try(out var augmentedRepo, out var e, await augmentedRepoService.GetRepoAsync(path)))
         {

@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.ViewRepos;
 using Terminal.Gui;
 
@@ -12,7 +13,6 @@ interface IRepoView
     Point CurrentPoint { get; }
 
     Task<R> ShowRepoAsync(string path);
-    Task<R> ShowRepoAsync(string path, string[] showBranches);
     void UpdateRepoTo(Repo repo);
     void Refresh();
 }
@@ -24,6 +24,7 @@ class RepoView : IRepoView
     readonly IViewRepoService viewRepoService;
     readonly Func<IRepoView, Repo, IRepo> newViewRepo;
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
+    private readonly IState state;
     readonly Func<IRepo, IDiffView> newDiffView;
     readonly ContentView contentView;
     readonly IRepoWriter repoWriter;
@@ -38,12 +39,15 @@ class RepoView : IRepoView
         Func<IRepo, IDiffView> newDiffView,
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Repo, IRepo> newViewRepo,
-        Func<IRepo, IRepoViewMenus> newMenuService) : base()
+        Func<IRepo, IRepoViewMenus> newMenuService,
+        IState state) : base()
     {
         this.viewRepoService = viewRepoService;
         this.newDiffView = newDiffView;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
+        this.state = state;
+
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
@@ -73,10 +77,7 @@ class RepoView : IRepoView
     void OnLeftArrow() => menuService!.ShowHideBranchesMenu();
 
     public Task<R> ShowRepoAsync(string path) =>
-        ShowRepoAsync(path, new string[0]);
-
-    public Task<R> ShowRepoAsync(string path, string[] showBranches) =>
-        ShowNewRepoAsync(path, showBranches);
+        ShowNewRepoAsync(path, state.GetRepo(path).Branches);
 
     public void UpdateRepoTo(Repo repo) => ShowRepo(repo);
 
@@ -153,7 +154,7 @@ class RepoView : IRepoView
         repoWriter.WriteRepoPage(repo, firstCommit, commitCount);
     }
 
-    async Task<R> ShowNewRepoAsync(string path, string[] showBranches)
+    async Task<R> ShowNewRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         var t = Timing.Start;
         if (!Try(out var viewRepo, out var e,
@@ -200,5 +201,8 @@ class RepoView : IRepoView
         this.repo = newViewRepo(this, repo);
         this.menuService = newMenuService(this.repo);
         contentView.TriggerUpdateContent(this.repo.TotalRows);
+
+        var names = repo.Branches.Select(b => b.Name).ToList();
+        state.SetRepo(repo.Path, s => s.Branches = names);
     }
 }
