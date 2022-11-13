@@ -3,13 +3,14 @@ using System.Text;
 
 namespace gmd.Utils;
 
-internal interface ICmd
+
+interface ICmd
 {
     CmdResult RunCmd(string path, string args, string workingDirectory);
     Task<CmdResult> RunAsync(string path, string args, string workingDirectory);
 }
 
-internal class CmdResult : R<string>
+class CmdResult : R<string>
 {
     public CmdResult(int exitCode, string output, string errorOutput)
         : base(new Exception(errorOutput))
@@ -33,7 +34,7 @@ internal class CmdResult : R<string>
 }
 
 
-internal class Cmd : ICmd
+class Cmd : ICmd
 {
     public Task<CmdResult> RunAsync(string path, string args, string workingDirectory) =>
         Task.Run(() => RunCmd(path, args, workingDirectory));

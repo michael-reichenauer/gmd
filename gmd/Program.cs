@@ -1,7 +1,7 @@
 ﻿using Terminal.Gui;
 using gmd.Cui;
 using System.Runtime.CompilerServices;
-
+using Microsoft.Extensions.Configuration;
 
 [assembly: InternalsVisibleTo("gmdTest")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
@@ -14,10 +14,20 @@ class Program
     private static DependencyInjection? dependencyInjection;
     private readonly IMainView mainView;
 
+    // static readonly string configPath = "/workspaces/gmd/config.json";
+
     static void Main(string[] args)
     {
         var t = Timing.Start;
         Log.Info($"Starting gmd ...");
+
+        // IConfigurationRoot config = new ConfigurationBuilder()
+        //     .AddJsonFile(configPath)
+        //     .AddEnvironmentVariables()
+        //     .AddCommandLine(args)
+        //     .Build();
+        //Log.Info($"{config["greetingds"]}");
+
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
         dependencyInjection = new DependencyInjection();

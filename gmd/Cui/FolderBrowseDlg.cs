@@ -9,7 +9,7 @@ partial class MainView
     {
         string selectedPath = "";
 
-        internal R<string> Show()
+        internal R<string> Show(IReadOnlyList<string> recentFolders)
         {
             var folderView = new TreeView<FileSystemInfo>() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2, };
 
@@ -32,7 +32,7 @@ partial class MainView
             dialog.Closed += e => UI.HideCursor();
             dialog.Add(folderView);
 
-            SetupFileTree(folderView);
+            SetupFileTree(folderView, recentFolders);
             SetupScrollBar(folderView);
 
             folderView.SetFocus();
@@ -105,14 +105,36 @@ partial class MainView
             };
         }
 
-        private void SetupFileTree(TreeView<FileSystemInfo> treeView)
+        private void SetupFileTree(
+            TreeView<FileSystemInfo> treeView,
+            IReadOnlyList<string> recentFolders)
         {
             treeView.TreeBuilder = new DelegateTreeBuilder<FileSystemInfo>(GetChildren, HasChildren);
             treeView.AspectGetter = GetName;
 
-            treeView.AddObjects(DriveInfo.GetDrives().Select(d => d.RootDirectory));
+            var roots = recentFolders
+                .Select(f => GetDirInfo(f))
+                .Where(f => f != null).Select(f => f!)
+                .OrderBy(f => f.Name)
+                .Concat(DriveInfo.GetDrives()
+                    .Select(d => d.RootDirectory)
+                    .OrderBy(f => f.Name));
+
+            treeView.AddObjects(roots);
         }
 
+        private DirectoryInfo? GetDirInfo(string path)
+        {
+            try
+            {
+                return new DirectoryInfo(path);
+            }
+            catch (SystemException)
+            {
+                // Access violation or other error getting the file list for directory
+                return null;
+            }
+        }
 
         bool HasChildren(FileSystemInfo item)
         {

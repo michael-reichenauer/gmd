@@ -1,4 +1,4 @@
-namespace gmdTest.Utils.Git;
+namespace gmdTest.Git;
 
 [TestClass]
 public class GitRepoTest
