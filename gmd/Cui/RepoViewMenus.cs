@@ -106,7 +106,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         // Get current branch, commit branch in/out and all shown branches.
         var branches =
-            new[] { repo.GetAllBranches().First(b => b.IsCurrent) }
+            new[] { repo.GetCurrentBranch() }
             .Concat(repo.GetCommitBranches())
             .Concat(repo.Repo.Branches);
 

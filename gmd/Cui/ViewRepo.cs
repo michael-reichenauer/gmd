@@ -21,6 +21,7 @@ interface IRepo
     void ShowBranch(string name);
     void HideBranch(string name);
     IReadOnlyList<Branch> GetAllBranches();
+    Branch GetCurrentBranch();
     IReadOnlyList<Branch> GetCommitBranches();
 
     void SwitchTo(string branchName);
@@ -84,6 +85,8 @@ class ViewRepo : IRepo
         Repo newRepo = viewRepoService.HideBranch(Repo, name);
         UpdateRepoTo(newRepo);
     }
+
+    public Branch GetCurrentBranch() => GetAllBranches().First(b => b.IsCurrent);
 
     public IReadOnlyList<Branch> GetAllBranches() => viewRepoService.GetAllBranches(Repo);
 
