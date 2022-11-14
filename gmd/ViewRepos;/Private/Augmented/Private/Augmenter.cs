@@ -518,14 +518,16 @@ class Augmenter : IAugmenter
                     {   // if multiple children, we do not know which child to follow up.
                         break;
                     }
+
                     var firstChild = current.Children[0];
+
+                    // Step the ambiguous branch bottom upp since current will belong to other branch
+                    firstChild.Branch!.BottomID = firstChild.Id;
+
                     if (!firstChild.IsAmbiguous)
                     {   // We only go upp if child up is ambigous as well
                         break;
                     }
-
-                    // Step the ambiguous branch bottom upp since current will belong to other branch
-                    firstChild.Branch!.BottomID = firstChild.Id;
 
                     if (branch != null && current.Id == branch.TipID)
                     {   // Found a commit with the branch tip
