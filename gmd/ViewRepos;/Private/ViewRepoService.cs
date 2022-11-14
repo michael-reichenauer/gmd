@@ -119,11 +119,11 @@ class ViewRepoService : IViewRepoService
     }
 
 
-    public async Task<R> CommitAllChangesAsync(string wd, string message) =>
+    public async Task<R> CommitAllChangesAsync(string message, string wd) =>
          await git.CommitAllChangesAsync(message, wd);
 
 
-    public async Task<R<CommitDiff>> GetCommitDiffAsync(string wd, string commitId)
+    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
         var t = Timing.Start;
         if (!Try(out var gitCommitDiff, out var e, await git.GetCommitDiffAsync(commitId, wd))) return e;
@@ -145,13 +145,13 @@ class ViewRepoService : IViewRepoService
     }
 
 
-    public Task<R> PushBranchAsync(string wd, string name) =>
+    public Task<R> PushBranchAsync(string name, string wd) =>
         git.PushBranchAsync(name, wd);
 
-    public Task<R> SwitchToAsync(string wd, string branchName) =>
+    public Task<R> SwitchToAsync(string branchName, string wd) =>
         git.CheckoutAsync(branchName, wd);
 
-    public Task<R> MergeBranch(string wd, string name) =>
+    public Task<R> MergeBranch(string name, string wd) =>
         git.MergeBranch(name, wd);
 
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>

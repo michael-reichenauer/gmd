@@ -107,7 +107,7 @@ class DiffView : IDiffView
 
         var diffTask = commitId == Repo.UncommittedId
             ? viewRepoService.GetUncommittedDiff(repo.Repo.Path)
-            : viewRepoService.GetCommitDiffAsync(repo.Repo.Path, commitId);
+            : viewRepoService.GetCommitDiffAsync(commitId, repo.Repo.Path);
 
         if (!Try(out var diff, out var e, await diffTask))
         {
