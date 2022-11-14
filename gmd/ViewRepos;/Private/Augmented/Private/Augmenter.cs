@@ -479,82 +479,92 @@ class Augmenter : IAugmenter
 
     private bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit c, out WorkBranch? branch)
     {
+        branch = null;
         string name = branchNameService.GetBranchName(c.Id);
-        if (name != "")
-        {   // A branch name could be parsed form the commit subject or a merge child subject.
-            // Lets use that as a branch name and also let children (commits above)
-            // use that branch if they are an ambiguous branch
-            WorkCommit? current = null;
+        if (name == "")
+        {
+            return false;
+        }
 
-            branch = TryGetBranchFromName(c, name);
+        // A branch name could be parsed form the commit subject or a merge child subject.
+        // Lets use that as a branch name and also let children (commits above)
+        // use that branch if they are an ambiguous branch
+        WorkCommit? current = null;
 
-            if (branch != null && branch.TipID == c.Id)
-            {  // The commit is branch tip, we should not find higher/previous commit up, since tip would move up
-                c.Branch = branch;
-                c.TryAddToBranches(branch);
-                c.IsLikely = true;
-                return true;
-            }
+        branch = TryGetBranchFromName(c, name);
+        if (branch == null)
+        {
+            return false;
+        }
 
-            if (branch != null && branch.BottomID != "")
-            {
-                // Found an existing branch with that name, set lowest known commit to the bottom
-                // of that known branch
-                repo.CommitsById.TryGetValue(branch.BottomID, out current);
-            }
+        if (branch.TipID == c.Id)
+        {  // The commit is branch tip, we should not find higher/previous commit up, since tip would move up
+            c.Branch = branch;
+            c.TryAddToBranches(branch);
+            c.IsLikely = true;
+            return true;
+        }
 
-            if (current == null)
-            {
-                // branch has no known last (bottom) commit, lets iterate upp (first child) as long
-                // as commits are on an ambiguous branch
-                current = c;
-                while (true)
-                {
-                    if (current.Children.Count == 0)
-                    {   // if no child, there are no commits above
-                        break;
-                    }
-                    if (current.Children.Count > 1)
-                    {   // if multiple children, we do not know which child to follow up.
-                        break;
-                    }
-
-                    var firstChild = current.Children[0];
-
-                    // Step the ambiguous branch bottom upp since current will belong to other branch
-                    firstChild.Branch!.BottomID = firstChild.Id;
-
-                    if (!firstChild.IsAmbiguous)
-                    {   // We only go upp if child up is ambigous as well
-                        break;
-                    }
-
-                    if (branch != null && current.Id == branch.TipID)
-                    {   // Found a commit with the branch tip
-                        break;
-                    }
-
-                    // Go to upp to child
-                    current = current.Children[0];
-                }
-            }
-
-            if (branch != null)
+        if (branch.BottomID != "")
+        {   // Found an existing branch with that name, set lowest known commit to the bottom
+            // of that known branch
+            if (repo.CommitsById.TryGetValue(branch.BottomID, out current))
             {
                 for (; current != null && current != c.FirstParent; current = current.FirstParent)
                 {
                     current.Branch = branch;
                     current.IsAmbiguous = false;
+                    current.IsAmbiguousTip = false;
                     current.TryAddToBranches(branch);
                     current.IsLikely = true;
                 }
-
                 return true;
             }
         }
 
-        branch = null;
-        return false;
+
+        // Lets iterate upp (first child) as long as commits are ambiguous
+        current = c;
+        while (true)
+        {
+            if (current.Branch != null && current.Branch.AmbiguousTipId == current.Id)
+            {   // Branch is no longer ambiguous all ambigous commits have been cleared.
+                current.Branch.AmbiguousTipId = "";
+                current.Branch.IsAmbiguousBranch = false;
+                current.Branch.AmbiguousBranches.Clear();
+                current.Branch.AmbiguousBranchNames.Clear();
+            }
+
+            current.Branch = branch;
+            current.IsAmbiguous = false;
+            current.IsAmbiguousTip = false;
+            current.TryAddToBranches(branch);
+            current.IsLikely = true;
+
+            if (current.Children.Count == 0 || current.Children.Count > 1)
+            {   // if no child, there are no commits above or
+                // if multiple children, we do not know which child to follow up.
+                return true;
+            }
+
+            var firstChild = current.Children[0];
+
+            // Step the ambiguous branch bottom upp since current belongs branch
+            firstChild.Branch!.BottomID = firstChild.Id;
+
+            if (!firstChild.IsAmbiguous)
+            {   // We only go upp if first child above is ambiguous
+                return true;
+            }
+
+            if (current.Id == branch.TipID)
+            {   // Found the commit tip of the branch no commits above that.
+                return true;
+            }
+
+            // Go to upp to first child
+            current = firstChild;
+        }
     }
 
 
