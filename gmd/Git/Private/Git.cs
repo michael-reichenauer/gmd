@@ -33,21 +33,34 @@ internal class Git : IGit
     public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
         logService.GetLogAsync(maxCount, wd);
 
-    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => branchService.GetBranchesAsync(wd);
+    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) =>
+        branchService.GetBranchesAsync(wd);
     public Task<R<Status>> GetStatusAsync(string wd) => statusService.GetStatusAsync(wd);
-    public Task<R> CommitAllChangesAsync(string message, string wd) => commitService.CommitAllChangesAsync(message, wd);
-    public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd) => diffService.GetCommitDiffAsync(commitId, wd);
+    public Task<R> CommitAllChangesAsync(string message, string wd) =>
+        commitService.CommitAllChangesAsync(message, wd);
+    public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd) =>
+        diffService.GetCommitDiffAsync(commitId, wd);
     public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
     public Task<R> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);
     public Task<R> PushRefForceAsync(string name, string wd) => remoteService.PushRefForceAsync(name, wd);
     public Task<R> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
-    public Task<R> DeleteRemoteBranchAsync(string name, string wd) => remoteService.DeleteRemoteBranchAsync(name, wd);
     public Task<R> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
     public Task<R> PullBranchAsync(string name, string wd) => remoteService.PullBranchAsync(name, wd);
-    public Task<R> CloneAsync(string uri, string path, string wd) => remoteService.CloneAsync(uri, path, wd);
+    public Task<R> CloneAsync(string uri, string path, string wd) =>
+        remoteService.CloneAsync(uri, path, wd);
     public Task<R> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
     public Task<R> MergeBranch(string name, string wd) => branchService.MergeBranch(name, wd);
+    public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
+        branchService.CreateBranchAsync(name, isCheckout, wd);
+    public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
+        branchService.CreateBranchFromCommitAsync(name, sha, isCheckout, wd);
+    public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
+        branchService.DeleteLocalBranchAsync(name, isForced, wd);
+    public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
+        remoteService.DeleteRemoteBranchAsync(name, wd);
+
+
 
     public static R<string> RootPathDir(string path)
     {
