@@ -98,6 +98,7 @@ class ViewRepo : IRepo
     public IReadOnlyList<Branch> GetCommitBranches() =>
         viewRepoService.GetCommitBranches(Repo, CurrentIndexCommit.Id);
 
+
     public void SwitchTo(string branchName)
     {
         UI.RunInBackground(async () =>
@@ -184,7 +185,19 @@ class ViewRepo : IRepo
             var currentBranchName = GetCurrentBranch().Name;
             if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return;
 
-            if (!Try(out var e, await viewRepoService.CreateBranchAsync(name, true, Repo.Path))) return;
+            if (!Try(out var e, await viewRepoService.CreateBranchAsync(name, true, Repo.Path)))
+            {
+                UI.ErrorMessage($"Failed to create branch {name}:\n{e}");
+                return;
+            }
+
+            if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
+            {
+                UI.ErrorMessage($"Failed to push branch {name} to remote server:\n{e}");
+                return;
+            }
+
+            Refresh();
         });
     }
 
@@ -198,7 +211,19 @@ class ViewRepo : IRepo
             if (!Try(out var name, createBranchDlg.Show(commit.BranchName, commit.Sid))) return;
 
             if (!Try(out var e,
-                await viewRepoService.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path))) return;
+                await viewRepoService.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
+            {
+                UI.ErrorMessage($"Failed to create branch {name}:\n{e}");
+                return;
+            }
+
+            if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
+            {
+                UI.ErrorMessage($"Failed to push branch {name} to remote server:\n{e}");
+                return;
+            }
+
+            Refresh();
         });
     }
 }

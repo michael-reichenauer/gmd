@@ -60,8 +60,6 @@ class RepoView : IRepoView
 
         viewRepoService.RepoChange += OnRefresh;
         viewRepoService.StatusChange += OnRefreshStatus;
-
-        RegisterKeyHandlers();
     }
 
 
@@ -71,47 +69,45 @@ class RepoView : IRepoView
     public int CurrentIndex => contentView.CurrentIndex;
     public Point CurrentPoint => contentView.CurrentPoint;
 
-    void CommitAll() => repo!.Commit();
-    void OnMenuKey() => menuService!.ShowMainMenu();
-    void OnRightArrow() => menuService!.ShowShowBranchesMenu();
-    void OnLeftArrow() => menuService!.ShowHideBranchesMenu();
+    public async Task<R> ShowRepoAsync(string path)
+    {
+        var branches = state.GetRepo(path).Branches;
+        if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
 
-    public Task<R> ShowRepoAsync(string path) =>
-        ShowNewRepoAsync(path, state.GetRepo(path).Branches);
+        RegisterShortcuts();
+        return R.Ok;
+    }
+
 
     public void UpdateRepoTo(Repo repo) => ShowRepo(repo);
 
     public void Refresh() => ShowRefreshedRepoAsync().RunInBackground();
 
 
-    void RegisterKeyHandlers()
+    void RegisterShortcuts()
     {
-        contentView.RegisterKeyHandler(Key.m, OnMenuKey);
-        contentView.RegisterKeyHandler(Key.M, OnMenuKey);
-        contentView.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
-        contentView.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
+        contentView.RegisterKeyHandler(Key.m, menuService!.ShowMainMenu);
+        contentView.RegisterKeyHandler(Key.M, menuService!.ShowMainMenu);
+        contentView.RegisterKeyHandler(Key.CursorRight, menuService!.ShowShowBranchesMenu);
+        contentView.RegisterKeyHandler(Key.CursorLeft, menuService!.ShowHideBranchesMenu);
         contentView.RegisterKeyHandler(Key.r, Refresh);
         contentView.RegisterKeyHandler(Key.R, Refresh);
-        contentView.RegisterKeyHandler(Key.c, CommitAll);
-        contentView.RegisterKeyHandler(Key.C, CommitAll);
-
+        contentView.RegisterKeyHandler(Key.c, repo!.Commit);
+        contentView.RegisterKeyHandler(Key.C, repo!.Commit);
+        contentView.RegisterKeyHandler(Key.b, repo!.CreateBranch);
+        contentView.RegisterKeyHandler(Key.B, repo!.CreateBranch);
         contentView.RegisterKeyHandler(Key.d, ShowDiff);
         contentView.RegisterKeyHandler(Key.D, ShowDiff);
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, ShowDiff);
-        contentView.RegisterKeyHandler(Key.p, PushCurrentBranch);
+        contentView.RegisterKeyHandler(Key.p, repo!.PushCurrentBranch);
+        contentView.RegisterKeyHandler(Key.P, repo!.PushCurrentBranch);
     }
 
     private void ShowDiff()
     {
-        if (repo == null)
-        {
-            return;
-        }
         var diffView = newDiffView(repo!);
         diffView.ShowCurrentRow();
     }
-
-    void PushCurrentBranch() => repo!.PushCurrentBranch();
 
 
     void OnRefresh(ChangeEvent e)

@@ -30,10 +30,6 @@ class ViewRepoService : IViewRepoService
     public event Action<ChangeEvent>? StatusChange;
 
 
-    public Task<R<Repo>> GetRepoAsync(string path) =>
-        GetRepoAsync(path, new string[0]);
-
-
     public async Task<R<Repo>> GetFreshRepoAsync(Repo repo)
     {
         var branches = repo.Branches.Select(b => b.Name).ToArray();
