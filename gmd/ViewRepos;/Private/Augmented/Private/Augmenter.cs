@@ -477,14 +477,33 @@ class Augmenter : IAugmenter
             {
                 // branch has no known last (bottom) commit, lets iterate upp (first child) as long
                 // as commits are on an ambiguous branch
-                for (current = c;
-                    current.Children.Count == 1 && (current.Children[0].Branch?.IsAmbiguousBranch ?? true);
-                    current = current.Children[0])
+                current = c;
+                while (true)
                 {
-                    if (branch != null && branch.TipID == current.Id)
+                    if (current.Children.Count == 0)
+                    {   // if no child, there are no commits above
+                        break;
+                    }
+                    if (current.Children.Count > 1)
+                    {   // if multiple children, we do not know which child to follow up.
+                        break;
+                    }
+                    var firstChild = current.Children[0];
+                    if (!firstChild.Branch!.IsAmbiguousBranch)
+                    {   // We only go upp if child up is ambigous as well
+                        break;
+                    }
+
+                    // Step up ambiguous branch bottom since current will belong to other branch
+                    firstChild.Branch.BottomID = firstChild.Id;
+
+                    if (branch != null && current.Id == branch.TipID)
                     {   // Found a commit with the branch tip
                         break;
                     }
+
+                    // Go to upp to child
+                    current = current.Children[0];
                 }
             }
 
@@ -667,20 +686,11 @@ class Augmenter : IAugmenter
                 c.IsAmbiguousTip = true;
                 c.IsAmbiguous = true;
 
-                // Determine the most likely branch (branch of the oldest child)
-                var oldestChild = c.Children[0];
-                List<WorkBranch> childBranches = new List<WorkBranch>();
-                foreach (var cc in c.Children)
-                {
-                    if (cc.AuthorTime > oldestChild.AuthorTime)
-                    {
-                        oldestChild = cc;
-                    }
-                    childBranches.Add(c.Branch!);
-                }
-                c.Branch = oldestChild.Branch!;
+                (var likelyBranch, var likelyBranches) = GetLikelyBranches(c);
+
+                c.Branch = likelyBranch;
                 c.Branch.AmbiguousTipId = c.Id;
-                c.Branch.AmbiguousBranches = childBranches;
+                c.Branch.AmbiguousBranches = likelyBranches;
                 c.Branch.BottomID = c.Id;
                 break;
             }
@@ -698,6 +708,41 @@ class Augmenter : IAugmenter
         var bs = repo.Branches.Where(b => !b.IsAmbiguousBranch).ToList();
         repo.Branches.Clear();
         repo.Branches.AddRange(bs);
+    }
+
+    (WorkBranch, List<WorkBranch>) GetLikelyBranches(WorkCommit c)
+    {
+        if (!c.Children.Any())
+        {
+            // Commit has no children (i.e. a branch tip with multiple possible tipps)
+            // Prefer remote branch if possible
+            var likelyBranch1 = c.Branches.FirstOrDefault(b => b.IsRemote);
+            if (likelyBranch1 == null)
+            {   // No remote branch, just take one branch
+                likelyBranch1 = c.Branches.First();
+            }
+
+            var likelyBranches1 = c.Branches;
+            return (likelyBranch1, likelyBranches1);
+        }
+
+
+        // Determine the most likely branch (branch of the oldest child)
+        var oldestChild = c.Children[0];
+        List<WorkBranch> childBranches = new List<WorkBranch>();
+        foreach (var cc in c.Children)
+        {
+            if (cc.AuthorTime > oldestChild.AuthorTime)
+            {
+                oldestChild = cc;
+            }
+            childBranches.Add(c.Branch!);
+        }
+
+        var likelyBranch2 = oldestChild.Branch!;
+        var likelyBranches2 = childBranches;
+
+        return (likelyBranch2, likelyBranches2);
     }
 
 

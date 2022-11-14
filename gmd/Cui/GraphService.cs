@@ -75,7 +75,7 @@ class GraphService : IGraphService
             for (int y = b.TipIndex; y <= b.BottomIndex; y++)
             {
                 var c = repo.Commits[y];
-                if (c.BranchName == b.B.Name && c.IsAmbiguous)
+                if (c.IsAmbiguous && c.BranchName == b.B.Name)
                 {
                     isAmbiguous = true;
                 }
@@ -118,30 +118,34 @@ class GraphService : IGraphService
     // DrawOtherBranchTip draws  ─┺ in when multiple tips on same commit
     void DrawOtherBranchTip(Graph graph, Repo repo, GraphBranch b, Commit c)
     {
-        int x = b.X;
-        int y = c.Index;
-        Color color = b.Color;
         var commitBranch = graph.BranchByName(c.BranchName);
+        Color color = b.Color;
+
+        int x1 = commitBranch.X;
+        int x2 = b.X;
+        int y2 = c.Index;
 
         // this tip commit is not part of the branch (multiple branch tips on the same commit)
-        graph.DrawHorizontalLine(commitBranch.X + 1, x + 1, y, color);  //   ─
+        graph.DrawHorizontalLine(x1 + 1, x2 + 1, y2, color);  //   ─
 
         if (c.IsAmbiguous)
         {
             color = Colors.Ambiguous;
         }
-        graph.SetGraphBranch(x, y, Sign.Bottom | Sign.Pass, color); //       ┺
+        graph.SetGraphBranch(x2, y2, Sign.Bottom | Sign.Pass, color); //       ┺
     }
+
 
     void DrawBranch(Graph graph, Repo repo, GraphBranch b, Commit c, bool isAmbiguous)
     {
         int x = b.X;
         int y = c.Index;
-        Color color = !isAmbiguous ? b.Color : Colors.Ambiguous;
+        Color color = c.IsAmbiguous ? Colors.Ambiguous : b.Color;
 
         if (c.BranchName != b.B.Name && c.Id != b.B.TipId)
         {   // Other branch commit, normal branch line (no commit on that branch)
-            graph.SetGraphBranch(x, y, Sign.BLine, color); //      ┃  (other branch, not this commit)
+            Color otherColor = !isAmbiguous ? b.Color : Colors.Ambiguous;
+            graph.SetGraphBranch(x, y, Sign.BLine, otherColor); //      ┃  (other branch, not this commit)
             return;
         }
 
