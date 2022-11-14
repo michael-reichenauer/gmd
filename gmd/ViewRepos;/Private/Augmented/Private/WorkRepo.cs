@@ -136,6 +136,7 @@ internal class WorkBranch
 
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
 
+    // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
@@ -154,6 +155,7 @@ internal class WorkBranch
         BottomID = "";
     }
 
+    // Called when creating a branched based on a name, usually from a deleted branch
     public WorkBranch(string name, string commonName, string displayName, string tipID)
     {
         Name = name;
