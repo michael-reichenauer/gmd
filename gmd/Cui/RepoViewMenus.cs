@@ -1,5 +1,4 @@
 using gmd.ViewRepos;
-using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui;

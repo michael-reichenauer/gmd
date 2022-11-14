@@ -22,6 +22,9 @@ interface IViewRepoService
     Task<R> PushBranchAsync(string wd, string name);
     Task<R> SwitchToAsync(string wd, string branchName);
     Task<R> MergeBranch(string wd, string name);
+    Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
+    Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
+    Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);

@@ -157,5 +157,14 @@ class ViewRepoService : IViewRepoService
 
     public Task<R> MergeBranch(string wd, string name) =>
         git.MergeBranch(name, wd);
+
+    public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
+        git.CreateBranchAsync(name, isCheckout, wd);
+
+    public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
+        git.CreateBranchFromCommitAsync(name, sha, isCheckout, wd);
+
+    public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
+        git.DeleteLocalBranchAsync(name, isForced, wd);
 }
 

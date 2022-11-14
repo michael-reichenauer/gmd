@@ -33,7 +33,7 @@ interface IRepo
     bool CanPushCurrentBranch();
     void MergeBranch(string name);
     void CreateBranch();
-    void CreateBranchFromCommit(string id);
+    void CreateBranchFromCommit();
 }
 
 class ViewRepo : IRepo
@@ -183,12 +183,12 @@ class ViewRepo : IRepo
         {
             var currentBranchName = GetCurrentBranch().Name;
             if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return;
-            Log.Info($"Create branch '{name}'");
 
+            if (!Try(out var e, await viewRepoService.CreateBranchAsync(name, true, Repo.Path))) return;
         });
     }
 
-    public void CreateBranchFromCommit(string id)
+    public void CreateBranchFromCommit()
     {
         UI.RunInBackground(async () =>
         {
@@ -196,8 +196,9 @@ class ViewRepo : IRepo
 
             var currentBranchName = GetCurrentBranch().Name;
             if (!Try(out var name, createBranchDlg.Show(commit.BranchName, commit.Sid))) return;
-            Log.Info($"Create branch '{name}'");
 
+            if (!Try(out var e,
+                await viewRepoService.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path))) return;
         });
     }
 }
