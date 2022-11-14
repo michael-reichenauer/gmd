@@ -36,11 +36,12 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(new MenuBarItem("Push", GetPushItems()));
         items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
         items.Add(new MenuBarItem("Merge", GetMergeItems()));
+        items.Add(new MenuItem("Create Branch ...", "", repo.CreateBranch));
+
 
         var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
-
 
 
     string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Substring(0, 6);

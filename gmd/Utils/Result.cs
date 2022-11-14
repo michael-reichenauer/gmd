@@ -216,7 +216,7 @@ public class ErrorResult : R
     {
         if (e != NoError && e != NoValueError)
         {
-            Log.Warn($"{this}");
+            Log.Debug($"Result {this}");
         }
     }
 
@@ -225,7 +225,7 @@ public class ErrorResult : R
     {
         if (e != NoError && e != NoValueError)
         {
-            Log.Warn($"{this}");
+            Log.Debug($"Result {this}");
         }
     }
 

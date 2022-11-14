@@ -32,6 +32,8 @@ interface IRepo
     bool CanPush();
     bool CanPushCurrentBranch();
     void MergeBranch(string name);
+    void CreateBranch();
+    void CreateBranchFromCommit(string id);
 }
 
 class ViewRepo : IRepo
@@ -41,6 +43,7 @@ class ViewRepo : IRepo
     readonly IViewRepoService viewRepoService;
     private readonly Func<IRepo, ICommitDlg> newCommitDlg;
     private readonly Func<IRepo, IDiffView> newDiffView;
+    private readonly ICreateBranchDlg createBranchDlg;
 
     internal ViewRepo(
         IRepoView repoView,
@@ -48,7 +51,8 @@ class ViewRepo : IRepo
         IGraphService graphService,
         IViewRepoService viewRepoService,
         Func<IRepo, ICommitDlg> newCommitDlg,
-        Func<IRepo, IDiffView> newDiffView)
+        Func<IRepo, IDiffView> newDiffView,
+        ICreateBranchDlg createBranchDlg)
     {
         this.repoView = repoView;
         Repo = repo;
@@ -56,6 +60,7 @@ class ViewRepo : IRepo
         this.viewRepoService = viewRepoService;
         this.newCommitDlg = newCommitDlg;
         this.newDiffView = newDiffView;
+        this.createBranchDlg = createBranchDlg;
         Graph = graphService.CreateGraph(repo);
     }
 
@@ -170,5 +175,29 @@ class ViewRepo : IRepo
         var branch = Repo.Branches.FirstOrDefault(b => b.IsCurrent);
         return Repo.Status.IsOk &&
          branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
+    }
+
+    public void CreateBranch()
+    {
+        UI.RunInBackground(async () =>
+        {
+            var currentBranchName = GetCurrentBranch().Name;
+            if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return;
+            Log.Info($"Create branch '{name}'");
+
+        });
+    }
+
+    public void CreateBranchFromCommit(string id)
+    {
+        UI.RunInBackground(async () =>
+        {
+            var commit = CurrentIndexCommit;
+
+            var currentBranchName = GetCurrentBranch().Name;
+            if (!Try(out var name, createBranchDlg.Show(commit.BranchName, commit.Sid))) return;
+            Log.Info($"Create branch '{name}'");
+
+        });
     }
 }

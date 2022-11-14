@@ -49,11 +49,11 @@ class CommitDlg : ICommitDlg
                 return;
             }
             isOk = true;
-            Close();
+            Application.RequestStop();
         };
 
         Button cancelButton = new Button("Cancel", false);
-        cancelButton.Clicked += () => Close();
+        cancelButton.Clicked += () => Application.RequestStop();
         cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
 
 
@@ -79,11 +79,6 @@ class CommitDlg : ICommitDlg
 
         message = GetMessage();
         return isOk;
-    }
-
-    void Close()
-    {
-        Application.RequestStop();
     }
 
 
