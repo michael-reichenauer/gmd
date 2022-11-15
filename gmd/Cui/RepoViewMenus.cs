@@ -135,13 +135,12 @@ class RepoViewMenus : IRepoViewMenus
     private MenuItem[] GetDeleteItems()
     {
         return repo.GetAllBranches()
-            .Where(b => !b.IsMainBranch)
+            .Where(b => b.IsGitBranch && !b.IsMainBranch)
             .DistinctBy(b => b.CommonName)
             .OrderBy(b => b.CommonName)
             .Select(b => new MenuItem(b.DisplayName, "", () => repo.DeleteBranch(b.Name)))
             .ToArray();
     }
-
 
 
     MenuItem[] GetMergeItems()
