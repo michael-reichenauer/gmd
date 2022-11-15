@@ -162,5 +162,8 @@ class ViewRepoService : IViewRepoService
 
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
+
+    public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
+        git.DeleteRemoteBranchAsync(name, wd);
 }
 

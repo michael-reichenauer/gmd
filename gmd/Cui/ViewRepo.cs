@@ -34,6 +34,7 @@ interface IRepo
     void MergeBranch(string name);
     void CreateBranch();
     void CreateBranchFromCommit();
+    void DeleteBranch(string name);
 }
 
 class ViewRepo : IRepo
@@ -221,6 +222,58 @@ class ViewRepo : IRepo
             {
                 UI.ErrorMessage($"Failed to push branch {name} to remote server:\n{e}");
                 return;
+            }
+
+            Refresh();
+        });
+    }
+
+    public void DeleteBranch(string name)
+    {
+        UI.RunInBackground(async () =>
+        {
+            var allBranches = GetAllBranches();
+            var branch = allBranches.First(b => b.Name == name);
+
+            Branch? localBranch = null;
+            Branch? remoteBranch = null;
+
+            if (!branch.IsRemote)
+            {
+                // Branch is a local branch
+                localBranch = branch;
+                if (branch.RemoteName != "")
+                {    //with a corresponding remote branch
+                    remoteBranch = allBranches.First(b => b.Name == branch.RemoteName);
+                }
+            }
+            else
+            {   // Branch is a remote branch 
+                remoteBranch = branch;
+                if (branch.LocalName != "")
+                {   // with a coresponding local branch
+                    localBranch = allBranches.First(b => b.Name == branch.LocalName);
+                }
+            }
+
+            if (localBranch != null)
+            {
+                if (!Try(out var e,
+                    await viewRepoService.DeleteLocalBranchAsync(branch.Name, false, Repo.Path)))
+                {
+                    UI.ErrorMessage($"Failed to delete branch {branch.Name}:\n{e}");
+                    return;
+                }
+            }
+
+            if (remoteBranch != null)
+            {
+                if (!Try(out var e,
+                    await viewRepoService.DeleteRemoteBranchAsync(remoteBranch.Name, Repo.Path)))
+                {
+                    UI.ErrorMessage($"Failed to delete remote branch {remoteBranch.Name}:\n{e}");
+                    return;
+                }
             }
 
             Refresh();

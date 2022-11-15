@@ -24,6 +24,7 @@ interface IViewRepoService
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+    Task<R> DeleteRemoteBranchAsync(string name, string wd);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);

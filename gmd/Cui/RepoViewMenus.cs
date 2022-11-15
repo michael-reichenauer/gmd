@@ -1,4 +1,5 @@
 using gmd.ViewRepos;
+using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -36,12 +37,11 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
         items.Add(new MenuBarItem("Merge", GetMergeItems()));
         items.Add(new MenuItem("Create Branch ...", "", repo.CreateBranch));
-
+        items.Add(new MenuBarItem("Delete Branch", GetDeleteItems()));
 
         var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
-
 
     string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Substring(0, 6);
 
@@ -131,6 +131,18 @@ class RepoViewMenus : IRepoViewMenus
             new MenuItem(b.DisplayName, "", () => repo.SwitchTo(b.Name)))
             .ToArray();
     }
+
+    private MenuItem[] GetDeleteItems()
+    {
+        return repo.GetAllBranches()
+            .Where(b => !b.IsMainBranch)
+            .DistinctBy(b => b.CommonName)
+            .OrderBy(b => b.CommonName)
+            .Select(b => new MenuItem(b.DisplayName, "", () => repo.DeleteBranch(b.Name)))
+            .ToArray();
+    }
+
+
 
     MenuItem[] GetMergeItems()
     {
