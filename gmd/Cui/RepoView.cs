@@ -86,21 +86,21 @@ class RepoView : IRepoView
 
     void RegisterShortcuts()
     {
-        contentView.RegisterKeyHandler(Key.m, menuService!.ShowMainMenu);
-        contentView.RegisterKeyHandler(Key.M, menuService!.ShowMainMenu);
-        contentView.RegisterKeyHandler(Key.CursorRight, menuService!.ShowShowBranchesMenu);
-        contentView.RegisterKeyHandler(Key.CursorLeft, menuService!.ShowHideBranchesMenu);
+        contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
+        contentView.RegisterKeyHandler(Key.M, () => menuService!.ShowMainMenu());
+        contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
+        contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, Refresh);
         contentView.RegisterKeyHandler(Key.R, Refresh);
-        contentView.RegisterKeyHandler(Key.c, repo!.Commit);
-        contentView.RegisterKeyHandler(Key.C, repo!.Commit);
-        contentView.RegisterKeyHandler(Key.b, repo!.CreateBranch);
-        contentView.RegisterKeyHandler(Key.B, repo!.CreateBranch);
+        contentView.RegisterKeyHandler(Key.c, () => repo!.Commit());
+        contentView.RegisterKeyHandler(Key.C, () => repo!.Commit());
+        contentView.RegisterKeyHandler(Key.b, () => repo!.CreateBranch());
+        contentView.RegisterKeyHandler(Key.B, () => repo!.CreateBranch());
         contentView.RegisterKeyHandler(Key.d, ShowDiff);
         contentView.RegisterKeyHandler(Key.D, ShowDiff);
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, ShowDiff);
-        contentView.RegisterKeyHandler(Key.p, repo!.PushCurrentBranch);
-        contentView.RegisterKeyHandler(Key.P, repo!.PushCurrentBranch);
+        contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
+        contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
     }
 
     private void ShowDiff()
