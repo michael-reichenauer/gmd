@@ -4,7 +4,7 @@ using GitCommit = gmd.Git.Commit;
 using GitBranch = gmd.Git.Branch;
 using GitStatus = gmd.Git.Status;
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 class GitRepo
 {

@@ -1,4 +1,4 @@
-using gmd.ViewRepos;
+using gmd.Server;
 using Terminal.Gui;
 
 namespace gmd.Cui;

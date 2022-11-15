@@ -1,4 +1,4 @@
-namespace gmd.ViewRepos.Private.Augmented;
+namespace gmd.Server.Private.Augmented;
 
 // AugmentedRepoService returns augmented repos of git repo information, The augmentations 
 // adds information not available in git directly, but can be inferred by parsing the 

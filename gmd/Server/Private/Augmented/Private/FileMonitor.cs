@@ -2,7 +2,7 @@ using gmd.Cui;
 using gmc.Utils.GlobPatterns;
 using Timer = System.Timers.Timer;
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 interface IFileMonitor
 {

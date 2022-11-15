@@ -1,17 +1,17 @@
 using gmd.Git;
-using gmd.ViewRepos.Private.Augmented;
+using gmd.Server.Private.Augmented;
 
-namespace gmd.ViewRepos.Private;
+namespace gmd.Server.Private;
 
 [SingleInstance]
-class ViewRepoService : IViewRepoService
+class Server : IServer
 {
     private readonly IGit git;
     private readonly IAugmentedRepoService augmentedRepoService;
     private readonly IConverter converter;
     private readonly IViewRepoCreater viewRepoCreater;
 
-    public ViewRepoService(
+    public Server(
         IGit git,
         IAugmentedRepoService augmentedRepoService,
         IConverter converter,

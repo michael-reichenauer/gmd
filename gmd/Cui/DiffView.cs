@@ -1,4 +1,4 @@
-using gmd.ViewRepos;
+using gmd.Server;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -14,7 +14,7 @@ class DiffView : IDiffView
 {
     static readonly Text splitLine = Text.New.Dark("│");
 
-    readonly IViewRepoService viewRepoService;
+    readonly IServer viewRepoService;
     readonly IDiffConverter diffService;
 
     readonly IRepo repo;
@@ -30,7 +30,7 @@ class DiffView : IDiffView
 
     int TotalRows => diffRows?.Count ?? 0;
 
-    public DiffView(IViewRepoService viewRepoService, IDiffConverter diffService, IRepo repo)
+    public DiffView(IServer viewRepoService, IDiffConverter diffService, IRepo repo)
     {
         this.repo = repo;
         diffView = new Toplevel()

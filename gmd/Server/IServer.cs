@@ -1,6 +1,6 @@
-namespace gmd.ViewRepos;
+namespace gmd.Server;
 
-interface IViewRepoService
+interface IServer
 {
     event Action<ChangeEvent> RepoChange;
     event Action<ChangeEvent> StatusChange;

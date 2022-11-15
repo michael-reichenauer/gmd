@@ -1,15 +1,15 @@
 
-namespace gmd.ViewRepos;
+namespace gmd.Server;
 
-using AugmentedRepo = gmd.ViewRepos.Private.Augmented.Repo;
+using AugmentedRepo = gmd.Server.Private.Augmented.Repo;
 
 
 record Repo
 {
     internal static readonly string PartialLogCommitID =
-        gmd.ViewRepos.Private.Augmented.Repo.PartialLogCommitID;
+        gmd.Server.Private.Augmented.Repo.PartialLogCommitID;
     internal static readonly string UncommittedId =
-        gmd.ViewRepos.Private.Augmented.Repo.UncommittedId;
+        gmd.Server.Private.Augmented.Repo.UncommittedId;
     internal static readonly string UncommittedSid = UncommittedId.Substring(0, 6);
 
     private readonly Private.Augmented.Repo repo;

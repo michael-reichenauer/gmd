@@ -1,4 +1,4 @@
-namespace gmd.ViewRepos.Private.Augmented;
+namespace gmd.Server.Private.Augmented;
 
 
 record Repo

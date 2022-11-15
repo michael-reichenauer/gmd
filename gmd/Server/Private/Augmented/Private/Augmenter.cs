@@ -1,7 +1,7 @@
 using GitCommit = gmd.Git.Commit;
 using GitBranch = gmd.Git.Branch;
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 // Augmenter augments repos of git repo information, The augmentations 
 // adds information not available in git directly, but can be inferred by parsing the 

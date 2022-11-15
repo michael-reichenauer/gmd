@@ -1,4 +1,4 @@
-namespace gmd.ViewRepos.Private;
+namespace gmd.Server.Private;
 
 interface IConverter
 {

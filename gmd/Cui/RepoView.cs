@@ -1,5 +1,5 @@
 using gmd.Common;
-using gmd.ViewRepos;
+using gmd.Server;
 using Terminal.Gui;
 
 
@@ -21,7 +21,7 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
-    readonly IViewRepoService viewRepoService;
+    readonly IServer viewRepoService;
     readonly Func<IRepoView, Repo, IRepo> newViewRepo;
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
     private readonly IState state;
@@ -35,7 +35,7 @@ class RepoView : IRepoView
 
 
     internal RepoView(
-        IViewRepoService viewRepoService,
+        IServer viewRepoService,
         Func<IRepo, IDiffView> newDiffView,
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Repo, IRepo> newViewRepo,

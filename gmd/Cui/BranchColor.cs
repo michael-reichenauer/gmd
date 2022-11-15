@@ -1,7 +1,7 @@
 namespace gmd.Cui;
 using System.Security.Cryptography;
 using System.Text;
-using gmd.ViewRepos;
+using gmd.Server;
 using Color = Terminal.Gui.Attribute;
 
 interface IBranchColorService

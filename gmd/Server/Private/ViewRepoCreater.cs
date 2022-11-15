@@ -1,8 +1,6 @@
-
-
 using System.Diagnostics.CodeAnalysis;
 
-namespace gmd.ViewRepos.Private;
+namespace gmd.Server.Private;
 
 
 interface IViewRepoCreater

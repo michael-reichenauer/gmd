@@ -2,7 +2,7 @@ using gmd.Git;
 using GitStatus = gmd.Git.Status;
 
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 
 // AugmentedRepoService returns augmented repos of git repo information, The augmentations 

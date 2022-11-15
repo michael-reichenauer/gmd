@@ -1,4 +1,4 @@
-using gmd.ViewRepos;
+using gmd.Server;
 
 namespace gmd.Cui;
 

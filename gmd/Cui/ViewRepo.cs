@@ -1,4 +1,4 @@
-using gmd.ViewRepos;
+using gmd.Server;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -41,7 +41,7 @@ class ViewRepo : IRepo
 {
     readonly IRepoView repoView;
     private readonly IGraphService graphService;
-    readonly IViewRepoService viewRepoService;
+    readonly IServer viewRepoService;
     private readonly Func<IRepo, ICommitDlg> newCommitDlg;
     private readonly Func<IRepo, IDiffView> newDiffView;
     private readonly ICreateBranchDlg createBranchDlg;
@@ -50,7 +50,7 @@ class ViewRepo : IRepo
         IRepoView repoView,
         Repo repo,
         IGraphService graphService,
-        IViewRepoService viewRepoService,
+        IServer viewRepoService,
         Func<IRepo, ICommitDlg> newCommitDlg,
         Func<IRepo, IDiffView> newDiffView,
         ICreateBranchDlg createBranchDlg)
