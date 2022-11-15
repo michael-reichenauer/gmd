@@ -5,7 +5,7 @@ namespace gmd.Server.Private.Augmented;
 // git information. 
 // Examples of augmentation is which branch a commits belongs to and the hierarchical structure
 // of branches. 
-interface IAugmentedRepoService
+interface IAugmentedService
 {
     // RepoChange events when git repo changes like new commit, new branches, ...
     public event Action<ChangeEvent> RepoChange;

@@ -7,13 +7,13 @@ namespace gmd.Server.Private;
 class Server : IServer
 {
     private readonly IGit git;
-    private readonly IAugmentedRepoService augmentedRepoService;
+    private readonly IAugmentedService augmentedRepoService;
     private readonly IConverter converter;
     private readonly IViewRepoCreater viewRepoCreater;
 
     public Server(
         IGit git,
-        IAugmentedRepoService augmentedRepoService,
+        IAugmentedService augmentedRepoService,
         IConverter converter,
         IViewRepoCreater viewRepoCreater)
     {

@@ -11,7 +11,7 @@ namespace gmd.Server.Private.Augmented.Private;
 // Examples of augmentation is which branch a commits belongs to and the hierarchical structure
 // of branches. 
 [SingleInstance]
-class AugmentedRepoService : IAugmentedRepoService
+class AugmentedService : IAugmentedService
 {
     const int maxCommitCount = 30000; // Increase performance in case of very large repos
 
@@ -20,7 +20,7 @@ class AugmentedRepoService : IAugmentedRepoService
     private readonly IConverter converter;
     private readonly IFileMonitor fileMonitor;
 
-    public AugmentedRepoService(
+    public AugmentedService(
         IGit git,
         IAugmenter augmenter,
         IConverter converter,
