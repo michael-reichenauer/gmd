@@ -31,7 +31,7 @@ class RepoViewMenus : IRepoViewMenus
             () => !repo.Repo.Status.IsOk));
         items.Add(new MenuItem("Branch from commit ...", "",
             () => repo.CreateBranchFromCommit(),
-            () => !repo.Repo.Status.IsOk));
+            () => repo.Repo.Status.IsOk));
 
         items.Add(UI.MenuSeparator("Branches"));
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems()));
