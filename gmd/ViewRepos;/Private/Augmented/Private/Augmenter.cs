@@ -448,6 +448,24 @@ class Augmenter : IAugmenter
         {
             // commit has only one child with a likely branch
             var child = c.Children.First(c => c.IsLikely);
+            c.IsAmbiguous = child.IsAmbiguous;
+
+            if (child.Branch!.IsRemote)
+            {   // The branch is remote, we prefer that
+                branch = child.Branch;
+                return true;
+            }
+
+            if (child.Branch!.RemoteName != "")
+            {   // The child branch has a corresponding remote branch, lets try to use that
+                var remoteBranch = c.Branches.FirstOrDefault(b => b.Name == child.Branch!.RemoteName);
+                if (remoteBranch != null)
+                {   // The child branch was local and the corresponding remote is also possible, 
+                    branch = remoteBranch;
+                    return true;
+                }
+            }
+
             branch = child.Branch;
             c.IsAmbiguous = child.IsAmbiguous;
             return true;
