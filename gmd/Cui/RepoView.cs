@@ -32,6 +32,8 @@ class RepoView : IRepoView
     // State data
     IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo().
     IRepoViewMenus? menuService;
+    bool isStatusUpdateInProgress = false;
+    bool isRepoUpdateInProgress = false;
 
 
     internal RepoView(
@@ -58,7 +60,7 @@ class RepoView : IRepoView
 
         repoWriter = newRepoWriter(contentView, contentView.ContentX);
 
-        viewRepoService.RepoChange += OnRefresh;
+        viewRepoService.RepoChange += OnRefreshRepo;
         viewRepoService.StatusChange += OnRefreshStatus;
     }
 
@@ -82,6 +84,41 @@ class RepoView : IRepoView
     public void UpdateRepoTo(Repo repo) => ShowRepo(repo);
 
     public void Refresh() => ShowRefreshedRepoAsync().RunInBackground();
+
+    void OnRefreshRepo(ChangeEvent e)
+    {
+        if (isRepoUpdateInProgress)
+        {
+            return;
+        }
+
+        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
+        Log.Debug($"New    : {e.TimeStamp.Iso()}");
+
+        if (e.TimeStamp - repo!.Repo.TimeStamp < minRepoUpdateInterval)
+        {
+            Log.Debug("New repo event to soon, skipping update");
+            return;
+        }
+        ShowRefreshedRepoAsync().RunInBackground();
+    }
+
+    void OnRefreshStatus(ChangeEvent e)
+    {
+        if (isStatusUpdateInProgress || isRepoUpdateInProgress)
+        {
+            return;
+        }
+        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
+        Log.Debug($"New    : {e.TimeStamp.Iso()}");
+
+        if (e.TimeStamp - repo!.Repo.TimeStamp < minStatusUpdateInterval)
+        {
+            Log.Debug("New status event to soon, skipping update");
+            return;
+        }
+        ShowUpdatedStatusRepoAsync().RunInBackground();
+    }
 
 
     void RegisterShortcuts()
@@ -109,34 +146,6 @@ class RepoView : IRepoView
         diffView.ShowCurrentRow();
     }
 
-
-    void OnRefresh(ChangeEvent e)
-    {
-        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Debug($"New    : {e.TimeStamp.Iso()}");
-
-        if (e.TimeStamp - repo!.Repo.TimeStamp < minRepoUpdateInterval)
-        {
-            Log.Debug("New repo event to soon, skipping update");
-            return;
-        }
-        ShowRefreshedRepoAsync().RunInBackground();
-    }
-
-    void OnRefreshStatus(ChangeEvent e)
-    {
-        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Debug($"New    : {e.TimeStamp.Iso()}");
-
-        if (e.TimeStamp - repo!.Repo.TimeStamp < minStatusUpdateInterval)
-        {
-            Log.Debug("New status event to soon, skipping update");
-            return;
-        }
-        ShowUpdatedStatusRepoAsync().RunInBackground();
-    }
-
-
     void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)
     {
         if (repo == null)
@@ -152,10 +161,19 @@ class RepoView : IRepoView
 
     async Task<R> ShowNewRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
+        isStatusUpdateInProgress = true;
+        isRepoUpdateInProgress = true;
         var t = Timing.Start;
         if (!Try(out var viewRepo, out var e,
-            await viewRepoService.GetRepoAsync(path, showBranches))) return e;
+            await viewRepoService.GetRepoAsync(path, showBranches)))
+        {
+            isStatusUpdateInProgress = true;
+            isRepoUpdateInProgress = true;
+            return e;
+        }
 
+        isStatusUpdateInProgress = true;
+        isRepoUpdateInProgress = true;
         ShowRepo(viewRepo);
         Log.Info($"{t} {viewRepo}");
         return R.Ok;
@@ -164,30 +182,39 @@ class RepoView : IRepoView
     async Task ShowRefreshedRepoAsync()
     {
         Log.Info("show refreshed repo ...");
+        isStatusUpdateInProgress = true;
+        isRepoUpdateInProgress = true;
         var t = Timing.Start;
         var branchNames = repo!.Repo.Branches.Select(b => b.Name).ToList();
 
         if (!Try(out var viewRepo, out var e,
             await viewRepoService.GetRepoAsync(repo!.Repo.Path, branchNames)))
         {
+            isStatusUpdateInProgress = false;
+            isRepoUpdateInProgress = false;
             UI.ErrorMessage($"Failed to refresh:\n{e}");
             return;
         }
 
+        isStatusUpdateInProgress = false;
+        isRepoUpdateInProgress = false;
         ShowRepo(viewRepo);
         Log.Info($"{t} {viewRepo}");
     }
 
     async Task ShowUpdatedStatusRepoAsync()
     {
+        isStatusUpdateInProgress = true;
         var t = Timing.Start;
         if (!Try(out var viewRepo, out var e,
             await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
         {
+            isStatusUpdateInProgress = false;
             UI.ErrorMessage($"Failed to update status:\n{e}");
             return;
         }
 
+        isStatusUpdateInProgress = false;
         ShowRepo(viewRepo);
         Log.Info($"{t} {viewRepo}");
     }
