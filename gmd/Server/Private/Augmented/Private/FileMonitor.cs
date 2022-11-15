@@ -73,7 +73,6 @@ class FileMonitor : IFileMonitor
 
     public void Monitor(string workingFolder)
     {
-        Log.Info($"Thread ID {Threading.CurrentId} #########");
         string refsPath = Path.Combine(workingFolder, GitFolder, GitRefsFolder);
         if (!Directory.Exists(workingFolder) || !Directory.Exists(refsPath))
         {
@@ -142,7 +141,7 @@ class FileMonitor : IFileMonitor
 
     private void FileChange(string fullPath)
     {
-        Log.Info($"Status change '{fullPath}'");
+        // Log.Info($"Status change '{fullPath}'");
         lock (syncRoot)
         {
             isFileChanged = true;
