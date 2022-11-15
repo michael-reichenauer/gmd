@@ -1,18 +1,19 @@
-﻿namespace gmd.Utils.GlobPatterns;
-class Token
+﻿namespace gmc.Utils.GlobPatterns
 {
-    public Token(TokenKind kind, string spelling)
+    class Token
     {
-        this.Kind = kind;
-        this.Spelling = spelling;
-    }
+        public Token(TokenKind kind, string spelling)
+        {
+            this.Kind = kind;
+            this.Spelling = spelling;
+        }
 
-    public TokenKind Kind { get; }
-    public string Spelling { get; }
+        public TokenKind Kind { get; }
+        public string Spelling { get; }
 
-    public override string ToString()
-    {
-        return Kind + ": " + Spelling;
+        public override string ToString()
+        {
+            return Kind + ": " + Spelling;
+        }
     }
 }
-

@@ -1,55 +1,56 @@
 ﻿using System.Linq;
 
 
-namespace gmd.Utils.GlobPatterns;
-static class Matcher
+namespace gmc.Utils.GlobPatterns
 {
-    public static bool MatchesSegment(this DirectorySegment segment, string pathSegment) =>
-        MatchesSubSegment(segment.SubSegments, 0, pathSegment, 0);
-
-    static bool MatchesSubSegment(SubSegment[] segments, int segmentIndex, string pathSegment, int pathIndex)
+    static class Matcher
     {
-        var nextSegment = segmentIndex + 1;
-        if (nextSegment > segments.Length)
-            return pathIndex == pathSegment.Length;
+        public static bool MatchesSegment(this DirectorySegment segment, string pathSegment) =>
+            MatchesSubSegment(segment.SubSegments, 0, pathSegment, 0);
 
-        var head = segments[segmentIndex];
-
-        switch (head)
+        static bool MatchesSubSegment(SubSegment[] segments, int segmentIndex, string pathSegment, int pathIndex)
         {
-            // match zero or more chars
-            case StringWildcard _:
-                return MatchesSubSegment(segments, segmentIndex + 1, pathSegment, pathIndex) // zero
-                       || (pathIndex < pathSegment.Length &&
-                           MatchesSubSegment(segments, segmentIndex, pathSegment, pathIndex + 1)); // or one+
+            var nextSegment = segmentIndex + 1;
+            if (nextSegment > segments.Length)
+                return pathIndex == pathSegment.Length;
 
-            case CharacterWildcard _:
-                return pathIndex < pathSegment.Length && MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + 1);
+            var head = segments[segmentIndex];
 
-            case Identifier ident:
-                var len = ident.Value.Length;
-                if (len + pathIndex > pathSegment.Length)
-                    return false;
+            switch (head)
+            {
+                // match zero or more chars
+                case StringWildcard _:
+                    return MatchesSubSegment(segments, segmentIndex + 1, pathSegment, pathIndex) // zero
+                           || (pathIndex < pathSegment.Length &&
+                               MatchesSubSegment(segments, segmentIndex, pathSegment, pathIndex + 1)); // or one+
 
-                if (pathSegment.Substring(pathIndex, ident.Value.Length) != ident.Value)
-                    return false;
+                case CharacterWildcard _:
+                    return pathIndex < pathSegment.Length && MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + 1);
 
-                return MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + len);
+                case Identifier ident:
+                    var len = ident.Value.Length;
+                    if (len + pathIndex > pathSegment.Length)
+                        return false;
 
-            case LiteralSet literalSet:
-                //TODO we can probably optimize this somehow to get rid of the allocations...
-                var tail = segments.Skip(nextSegment).ToArray();
-                return literalSet.Literals.Any(lit => MatchesSubSegment(new SubSegment[] { lit }.Concat(tail).ToArray(), 0, pathSegment, pathIndex));
+                    if (pathSegment.Substring(pathIndex, ident.Value.Length) != ident.Value)
+                        return false;
 
-            case CharacterSet set:
-                if (pathIndex == pathSegment.Length)
-                    return false;
+                    return MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + len);
 
-                var inThere = set.Matches(pathSegment[pathIndex]);
-                return inThere && MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + 1);
+                case LiteralSet literalSet:
+                    //TODO we can probably optimize this somehow to get rid of the allocations...
+                    var tail = segments.Skip(nextSegment).ToArray();
+                    return literalSet.Literals.Any(lit => MatchesSubSegment(new SubSegment[] { lit }.Concat(tail).ToArray(), 0, pathSegment, pathIndex));
+
+                case CharacterSet set:
+                    if (pathIndex == pathSegment.Length)
+                        return false;
+
+                    var inThere = set.Matches(pathSegment[pathIndex]);
+                    return inThere && MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + 1);
+            }
+            return false;
+
         }
-        return false;
-
     }
 }
-

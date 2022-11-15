@@ -52,7 +52,7 @@ class AugmentedRepoService : IAugmentedRepoService
     }
 
 
-    // GetRepoAsync returns the updated augmented repo with git status ...
+    // GetRepoAsync returns the updated augmented repo with git status .
     public async Task<R<Repo>> UpdateStatusRepoAsync(Repo repo)
     {
         // Get latest git status
@@ -106,6 +106,7 @@ class AugmentedRepoService : IAugmentedRepoService
 
         Timing t = Timing.Start;
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
+        Threading.AssertMainThread();
 
         var repo = converter.ToRepo(augRepo);
         Log.Info($"{t} {repo}");

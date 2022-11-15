@@ -1,95 +1,96 @@
 ﻿using System.Linq;
 
 
-namespace gmd.Utils.GlobPatterns;
-
-/// <summary>
-/// Based on: https://github.com/kthompson/glob
-/// </summary>
-public class Glob
+namespace gmc.Utils.GlobPatterns
 {
-    public string Pattern { get; }
-
-    private Tree? _root = null;
-    private Segment[] _segments = new Segment[0];
-
-
-    public Glob(string pattern)
+    /// <summary>
+    /// Based on: https://github.com/kthompson/glob
+    /// </summary>
+    public class Glob
     {
-        this.Pattern = pattern.ToLower();
-        Compile();
-    }
+        public string Pattern { get; }
+
+        private Tree? _root;
+        private Segment[]? _segments;
 
 
-    public bool IsMatch(string input)
-    {
-        var pathSegments = input.ToLower().Split('/', '\\');
-        // match filename only
-        if (_segments.Length == 1)
+        public Glob(string pattern)
         {
-            var last = pathSegments.LastOrDefault();
-            var tail = (last == null) ? new string[0] : new[] { last };
-
-            if (IsMatch(_segments, 0, tail, 0))
-                return true;
+            this.Pattern = pattern.ToLower();
+            Compile();
         }
 
-        return IsMatch(_segments, 0, pathSegments, 0);
-    }
 
-
-    private void Compile()
-    {
-        if (_root != null)
-            return;
-
-        if (_segments != null)
-            return;
-
-        var parser = new Parser(this.Pattern);
-        _root = parser.ParseTree();
-        _segments = _root.Segments;
-    }
-
-
-    static bool IsMatch(Segment[] pattern, int patternIndex, string[] input, int inputIndex)
-    {
-        while (true)
+        public bool IsMatch(string input)
         {
-            if (inputIndex == input.Length)
-                return patternIndex == pattern.Length;
-
-            // we have a input to match but no pattern to match against so we are done.
-            if (patternIndex == pattern.Length)
-                return false;
-
-            var inputHead = input[inputIndex];
-            var patternHead = pattern[patternIndex];
-
-
-            switch (patternHead)
+            var pathSegments = input.ToLower().Split('/', '\\');
+            // match filename only
+            if (_segments!.Length == 1)
             {
-                case DirectoryWildcard _:
-                    // return all consuming the wildcard
-                    return IsMatch(pattern, patternIndex + 1, input, inputIndex) // 0 matches
-                         || IsMatch(pattern, patternIndex + 1, input, inputIndex + 1) // 1 match
-                         || IsMatch(pattern, patternIndex, input, inputIndex + 1); // more
+                var last = pathSegments.LastOrDefault();
+                var tail = (last == null) ? new string[0] : new[] { last };
 
-                case Root root when inputHead == root.Text:
-                    patternIndex++;
-                    inputIndex++;
-                    continue;
-
-                case DirectorySegment dir when dir.MatchesSegment(inputHead):
-                    patternIndex++;
-                    inputIndex++;
-                    continue;
+                if (IsMatch(_segments, 0, tail, 0))
+                    return true;
             }
 
-            return false;
+            return IsMatch(_segments, 0, pathSegments, 0);
         }
+
+
+        private void Compile()
+        {
+            if (_root != null)
+                return;
+
+            if (_segments != null)
+                return;
+
+            var parser = new Parser(this.Pattern);
+            _root = parser.ParseTree();
+            _segments = _root.Segments;
+        }
+
+
+        static bool IsMatch(Segment[] pattern, int patternIndex, string[] input, int inputIndex)
+        {
+            while (true)
+            {
+                if (inputIndex == input.Length)
+                    return patternIndex == pattern.Length;
+
+                // we have a input to match but no pattern to match against so we are done.
+                if (patternIndex == pattern.Length)
+                    return false;
+
+                var inputHead = input[inputIndex];
+                var patternHead = pattern[patternIndex];
+
+
+                switch (patternHead)
+                {
+                    case DirectoryWildcard _:
+                        // return all consuming the wildcard
+                        return IsMatch(pattern, patternIndex + 1, input, inputIndex) // 0 matches
+                             || IsMatch(pattern, patternIndex + 1, input, inputIndex + 1) // 1 match
+                             || IsMatch(pattern, patternIndex, input, inputIndex + 1); // more
+
+                    case Root root when inputHead == root.Text:
+                        patternIndex++;
+                        inputIndex++;
+                        continue;
+
+                    case DirectorySegment dir when dir.MatchesSegment(inputHead):
+                        patternIndex++;
+                        inputIndex++;
+                        continue;
+                }
+
+                return false;
+            }
+        }
+
+
+        public static bool IsMatch(string input, string pattern) => new Glob(pattern).IsMatch(input);
     }
-
-
-    public static bool IsMatch(string input, string pattern) => new Glob(pattern).IsMatch(input);
 }

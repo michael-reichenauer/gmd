@@ -1,31 +1,34 @@
-﻿
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 
-namespace gmd.Utils.GlobPatterns;
-public static class GlobExtensions
+namespace gmc.Utils.GlobPatterns
 {
-    public static IEnumerable<DirectoryInfo> GlobDirectories(this DirectoryInfo di, string pattern)
+    public static class GlobExtensions
     {
-        var glob = new gmd.Utils.GlobPatterns.Glob(pattern);
-        var truncateLength = di.FullName.Length + 1;
+        public static IEnumerable<DirectoryInfo> GlobDirectories(this DirectoryInfo di, string pattern)
+        {
+            var glob = new gmc.Utils.GlobPatterns.Glob(pattern);
+            var truncateLength = di.FullName.Length + 1;
 
-        return di.EnumerateDirectories("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
-    }
+            return di.EnumerateDirectories("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
+        }
 
-    public static IEnumerable<FileInfo> GlobFiles(this DirectoryInfo di, string pattern)
-    {
-        var glob = new gmd.Utils.GlobPatterns.Glob(pattern);
-        var truncateLength = di.FullName.Length + 1;
+        public static IEnumerable<FileInfo> GlobFiles(this DirectoryInfo di, string pattern)
+        {
+            var glob = new gmc.Utils.GlobPatterns.Glob(pattern);
+            var truncateLength = di.FullName.Length + 1;
 
-        return di.EnumerateFiles("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
-    }
+            return di.EnumerateFiles("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
+        }
 
-    public static IEnumerable<FileSystemInfo> GlobFileSystemInfos(this DirectoryInfo di, string pattern)
-    {
-        var glob = new gmd.Utils.GlobPatterns.Glob(pattern);
-        var truncateLength = di.FullName.Length + 1;
+        public static IEnumerable<FileSystemInfo> GlobFileSystemInfos(this DirectoryInfo di, string pattern)
+        {
+            var glob = new gmc.Utils.GlobPatterns.Glob(pattern);
+            var truncateLength = di.FullName.Length + 1;
 
-        return di.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
+            return di.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
+        }
     }
 }
-

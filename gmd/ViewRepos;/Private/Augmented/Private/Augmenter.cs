@@ -28,11 +28,11 @@ class Augmenter : IAugmenter
     public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax)
     {
         return Task.Run(() => GetAugRepo(gitRepo, partialMax));
-
     }
 
     private WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
     {
+        Threading.AssertIsOtherThread();
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, ToStatus(gitRepo));
 
         SetAugBranches(repo, gitRepo);

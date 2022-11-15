@@ -1,5 +1,5 @@
 using gmd.Cui;
-using gmd.Utils.GlobPatterns;
+using gmc.Utils.GlobPatterns;
 using Timer = System.Timers.Timer;
 
 namespace gmd.ViewRepos.Private.Augmented.Private;
@@ -73,6 +73,7 @@ class FileMonitor : IFileMonitor
 
     public void Monitor(string workingFolder)
     {
+        Log.Info($"Thread ID {Threading.CurrentId} #########");
         string refsPath = Path.Combine(workingFolder, GitFolder, GitRefsFolder);
         if (!Directory.Exists(workingFolder) || !Directory.Exists(refsPath))
         {
@@ -127,13 +128,13 @@ class FileMonitor : IFileMonitor
         {
             if (path != null && IsIgnored(path))
             {
-                Log.Info($"Ignored: '{fullPath}'");
+                // Log.Info($"Ignored: '{fullPath}'");
                 return;
             }
 
             if (fullPath != null && !Directory.Exists(fullPath))
             {
-                // Log.Debug($"Status change for '{fullPath}' {changeType}");
+                //Log.Debug($"Status change for '{fullPath}' {changeType}");.
                 FileChange(fullPath);
             }
         }
@@ -141,7 +142,7 @@ class FileMonitor : IFileMonitor
 
     private void FileChange(string fullPath)
     {
-        // Log.Info($"Status change '{fullPath}'");
+        Log.Info($"Status change '{fullPath}'");
         lock (syncRoot)
         {
             isFileChanged = true;
@@ -169,7 +170,7 @@ class FileMonitor : IFileMonitor
             return;
         }
 
-        // Log.Debug($"Repo change for '{fullPath}' {changeType}");
+        // Log.Debug($"Repo change for '{fullPath}' {changeType}");.
 
         lock (syncRoot)
         {
@@ -250,12 +251,12 @@ class FileMonitor : IFileMonitor
         {
             if (matcher.IsMatch(path))
             {
-                // Log.Info($"Ignoring '{path}'");
+                // Log.Info($"Ignoring '{path}'");.
                 return true;
             }
         }
 
-        // Log.Info($"Allow '{path}'");.
+        // Log.Info($"Allow '{path}'");
         return false;
     }
 

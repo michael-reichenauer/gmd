@@ -20,6 +20,7 @@ class Program
     {
         var t = Timing.Start;
         Log.Info($"Starting gmd ...");
+        Log.Info($"Thread ID {Threading.CurrentId} #########");
 
         // IConfigurationRoot config = new ConfigurationBuilder()
         //     .AddJsonFile(configPath)
@@ -35,6 +36,7 @@ class Program
 
         Program program = dependencyInjection.Resolve<Program>();
         Log.Info($"Initialized {t}");
+        Threading.AssertMainThread();
         program.Main();
         Log.Info($"Done, running for {t}");
         ConfigLogger.CloseAsync().Wait();
