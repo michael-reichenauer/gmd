@@ -16,7 +16,7 @@ interface IRepo
     Point CurrentPoint { get; }
     bool HasUncommittedChanges { get; }
 
-    void Refresh();
+    void Refresh(string name = "");
 
     void ShowBranch(string name);
     void HideBranch(string name);
@@ -76,7 +76,7 @@ class ViewRepo : IRepo
     public bool HasUncommittedChanges => !Repo.Status.IsOk;
     public Branch? CurrentBranch => Repo.Branches.FirstOrDefault(b => b.IsCurrent);
 
-    public void Refresh() => repoView.Refresh();
+    public void Refresh(string addName = "") => repoView.Refresh(addName);
     public void UpdateRepoTo(Repo newRepo) => repoView.UpdateRepoTo(newRepo);
 
 
@@ -198,7 +198,7 @@ class ViewRepo : IRepo
                 return;
             }
 
-            Refresh();
+            Refresh(name);
         });
     }
 

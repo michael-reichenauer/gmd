@@ -25,9 +25,12 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(UI.MenuSeparator($"Commit {Sid(repo.Repo.Commits[repo.CurrentIndex].Id)}"));
+        items.Add(UI.MenuSeparator($"Commit {Sid(repo.CurrentIndexCommit.Id)}"));
         items.Add(new MenuItem("Commit ...", "",
             () => repo.Commit(),
+            () => !repo.Repo.Status.IsOk));
+        items.Add(new MenuItem("Branch from commit ...", "",
+            () => repo.CreateBranchFromCommit(),
             () => !repo.Repo.Status.IsOk));
 
         items.Add(UI.MenuSeparator("Branches"));

@@ -14,7 +14,7 @@ interface IRepoView
 
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo);
-    void Refresh();
+    void Refresh(string addName = "");
 }
 
 class RepoView : IRepoView
@@ -83,7 +83,7 @@ class RepoView : IRepoView
 
     public void UpdateRepoTo(Repo repo) => ShowRepo(repo);
 
-    public void Refresh() => ShowRefreshedRepoAsync().RunInBackground();
+    public void Refresh(string addName = "") => ShowRefreshedRepoAsync(addName).RunInBackground();
 
     void OnRefreshRepo(ChangeEvent e)
     {
@@ -100,7 +100,7 @@ class RepoView : IRepoView
             Log.Debug("New repo event to soon, skipping update");
             return;
         }
-        ShowRefreshedRepoAsync().RunInBackground();
+        ShowRefreshedRepoAsync("").RunInBackground();
     }
 
     void OnRefreshStatus(ChangeEvent e)
@@ -123,12 +123,13 @@ class RepoView : IRepoView
 
     void RegisterShortcuts()
     {
+        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, UI.Shutdown);
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.M, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
-        contentView.RegisterKeyHandler(Key.r, Refresh);
-        contentView.RegisterKeyHandler(Key.R, Refresh);
+        contentView.RegisterKeyHandler(Key.r, () => Refresh());
+        contentView.RegisterKeyHandler(Key.R, () => Refresh());
         contentView.RegisterKeyHandler(Key.c, () => repo!.Commit());
         contentView.RegisterKeyHandler(Key.C, () => repo!.Commit());
         contentView.RegisterKeyHandler(Key.b, () => repo!.CreateBranch());
@@ -179,13 +180,18 @@ class RepoView : IRepoView
         return R.Ok;
     }
 
-    async Task ShowRefreshedRepoAsync()
+    async Task ShowRefreshedRepoAsync(string addName)
     {
         Log.Info("show refreshed repo ...");
         isStatusUpdateInProgress = true;
         isRepoUpdateInProgress = true;
         var t = Timing.Start;
+
         var branchNames = repo!.Repo.Branches.Select(b => b.Name).ToList();
+        if (addName != "")
+        {
+            branchNames.Add(addName);
+        }
 
         if (!Try(out var viewRepo, out var e,
             await viewRepoService.GetRepoAsync(repo!.Repo.Path, branchNames)))
