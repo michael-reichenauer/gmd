@@ -286,7 +286,7 @@ class ViewRepoCreater : IViewRepoCreater
                 var parentIds = new List<string>() { current.Id };
 
                 int changesCount = repo.Status.ChangesCount;
-                string subject = $"{changesCount} uncommitted files";
+                string subject = $"{changesCount} uncommitted changes";
                 if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
                 {
                     subject = $"{repo.Status.MergeMessage}, {subject}";

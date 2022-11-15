@@ -57,7 +57,7 @@ class CommitDlg : ICommitDlg
         cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
 
 
-        Label infoLabel = new Label(1, 0, $"Commit {filesCount} files on '{branchName}':");
+        Label infoLabel = new Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
 
         subjectField = new TextField(1, 2, 50, "") { Text = subjectText };
         Label sep1 = new Label(0, 3, "└" + new string('─', 49) + "┘");
