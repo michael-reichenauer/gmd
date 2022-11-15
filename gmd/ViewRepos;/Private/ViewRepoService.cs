@@ -30,12 +30,13 @@ class ViewRepoService : IViewRepoService
     public event Action<ChangeEvent>? StatusChange;
 
 
-    public async Task<R<Repo>> GetFreshRepoAsync(Repo repo)
+    public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
-        var branches = repo.Branches.Select(b => b.Name).ToArray();
-        return await GetRepoAsync(repo.Path, branches);
-    }
+        if (!Try(out var augmentedRepo, out var e,
+            await augmentedRepoService.GetRepoAsync(path))) return e;
 
+        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
+    }
 
     public async Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo)
     {
@@ -50,15 +51,6 @@ class ViewRepoService : IViewRepoService
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
-    public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
-    {
-        if (!Try(out var augmentedRepo, out var e, await augmentedRepoService.GetRepoAsync(path)))
-        {
-            return e;
-        }
-
-        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
-    }
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
         converter.ToBranches(repo.AugmentedRepo.Branches);

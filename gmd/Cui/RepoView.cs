@@ -165,9 +165,10 @@ class RepoView : IRepoView
     {
         Log.Info("show refreshed repo ...");
         var t = Timing.Start;
+        var branchNames = repo!.Repo.Branches.Select(b => b.Name).ToList();
 
         if (!Try(out var viewRepo, out var e,
-            await viewRepoService.GetFreshRepoAsync(repo!.Repo!)))
+            await viewRepoService.GetRepoAsync(repo!.Repo.Path, branchNames)))
         {
             UI.ErrorMessage($"Failed to refresh:\n{e}");
             return;

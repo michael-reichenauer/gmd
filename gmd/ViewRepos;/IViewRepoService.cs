@@ -6,7 +6,6 @@ interface IViewRepoService
     event Action<ChangeEvent> StatusChange;
 
     Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
-    Task<R<Repo>> GetFreshRepoAsync(Repo repo);
     Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
 
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
