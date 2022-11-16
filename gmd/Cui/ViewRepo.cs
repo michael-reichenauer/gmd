@@ -107,11 +107,14 @@ class ViewRepo : IRepo
     {
         Do(async () =>
         {
-            if (!Try(out var e, await viewRepoService.SwitchToAsync(branchName, Repo.Path)))
+            using (progress.Show())
             {
-                return R.Error($"Failed to switch to {branchName}", e);
+                if (!Try(out var e, await viewRepoService.SwitchToAsync(branchName, Repo.Path)))
+                {
+                    return R.Error($"Failed to switch to {branchName}", e);
+                }
+                return R.Ok;
             }
-            return R.Ok;
         });
     }
 
@@ -123,13 +126,16 @@ class ViewRepo : IRepo
             var commitDlg = newCommitDlg(this);
             if (!commitDlg.Show(out var message)) return R.Ok;
 
-            if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(message, Repo.Path)))
+            using (progress.Show())
             {
-                return R.Error($"Failed to commit", e);
-            }
+                if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(message, Repo.Path)))
+                {
+                    return R.Error($"Failed to commit", e);
+                }
 
-            Refresh();
-            return R.Ok;
+                Refresh();
+                return R.Ok;
+            }
         });
     }
 
@@ -138,15 +144,18 @@ class ViewRepo : IRepo
     {
         Do(async () =>
         {
-            var branch = Repo.Branches.First(b => b.IsCurrent);
-
-            if (!Try(out var e, await viewRepoService.PushBranchAsync(branch.Name, Repo.Path)))
+            using (progress.Show())
             {
-                return R.Error($"Failed to push branch {branch.Name}", e);
-            }
+                var branch = Repo.Branches.First(b => b.IsCurrent);
 
-            Refresh();
-            return R.Ok;
+                if (!Try(out var e, await viewRepoService.PushBranchAsync(branch.Name, Repo.Path)))
+                {
+                    return R.Error($"Failed to push branch {branch.Name}", e);
+                }
+
+                Refresh();
+                return R.Ok;
+            }
         });
     }
 
@@ -160,13 +169,16 @@ class ViewRepo : IRepo
     {
         Do(async () =>
         {
-            if (!Try(out var e, await viewRepoService.MergeBranch(name, Repo.Path)))
+            using (progress.Show())
             {
-                return R.Error($"Failed to merge branch {name}", e);
-            }
+                if (!Try(out var e, await viewRepoService.MergeBranch(name, Repo.Path)))
+                {
+                    return R.Error($"Failed to merge branch {name}", e);
+                }
 
-            Refresh();
-            return R.Ok;
+                Refresh();
+                return R.Ok;
+            }
         });
     }
 
@@ -186,18 +198,21 @@ class ViewRepo : IRepo
             var currentBranchName = GetCurrentBranch().Name;
             if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-            if (!Try(out var e, await viewRepoService.CreateBranchAsync(name, true, Repo.Path)))
+            using (progress.Show())
             {
-                return R.Error($"Failed to create branch {name}", e);
-            }
+                if (!Try(out var e, await viewRepoService.CreateBranchAsync(name, true, Repo.Path)))
+                {
+                    return R.Error($"Failed to create branch {name}", e);
+                }
 
-            if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
-            {
-                return R.Error($"Failed to push branch {name} to remote server", e);
-            }
+                if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
+                {
+                    return R.Error($"Failed to push branch {name} to remote server", e);
+                }
 
-            Refresh(name);
-            return R.Ok;
+                Refresh(name);
+                return R.Ok;
+            }
         });
     }
 
@@ -210,19 +225,22 @@ class ViewRepo : IRepo
 
             if (!Try(out var name, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
 
-            if (!Try(out var e,
-                await viewRepoService.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
+            using (progress.Show())
             {
-                return R.Error($"Failed to create branch {name}", e);
-            }
+                if (!Try(out var e,
+                    await viewRepoService.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
+                {
+                    return R.Error($"Failed to create branch {name}", e);
+                }
 
-            if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
-            {
-                return R.Error($"Failed to push branch {name} to remote server", e);
-            }
+                if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
+                {
+                    return R.Error($"Failed to push branch {name} to remote server", e);
+                }
 
-            Refresh(name);
-            return R.Ok;
+                Refresh(name);
+                return R.Ok;
+            }
         });
     }
 
@@ -230,61 +248,65 @@ class ViewRepo : IRepo
     {
         Do(async () =>
         {
-            var allBranches = GetAllBranches();
-            var branch = allBranches.First(b => b.Name == name);
-
-            Branch? localBranch = null;
-            Branch? remoteBranch = null;
-
-            if (!branch.IsRemote)
+            using (progress.Show())
             {
-                // Branch is a local branch
-                localBranch = branch;
-                if (branch.RemoteName != "")
-                {    //with a corresponding remote branch
-                    remoteBranch = allBranches.First(b => b.Name == branch.RemoteName);
-                }
-            }
-            else
-            {   // Branch is a remote branch 
-                remoteBranch = branch;
-                if (branch.LocalName != "")
-                {   // with a coresponding local branch
-                    localBranch = allBranches.First(b => b.Name == branch.LocalName);
-                }
-            }
+                var allBranches = GetAllBranches();
+                var branch = allBranches.First(b => b.Name == name);
 
-            if (localBranch != null)
-            {
-                if (!Try(out var e,
-                    await viewRepoService.DeleteLocalBranchAsync(branch.Name, false, Repo.Path)))
+                Branch? localBranch = null;
+                Branch? remoteBranch = null;
+
+                if (!branch.IsRemote)
                 {
-                    return R.Error($"Failed to delete branch {branch.Name}", e);
+                    // Branch is a local branch
+                    localBranch = branch;
+                    if (branch.RemoteName != "")
+                    {    //with a corresponding remote branch
+                        remoteBranch = allBranches.First(b => b.Name == branch.RemoteName);
+                    }
                 }
-            }
+                else
+                {   // Branch is a remote branch 
+                    remoteBranch = branch;
+                    if (branch.LocalName != "")
+                    {   // with a coresponding local branch
+                        localBranch = allBranches.First(b => b.Name == branch.LocalName);
+                    }
+                }
 
-            if (remoteBranch != null)
-            {
-                if (!Try(out var e,
-                    await viewRepoService.DeleteRemoteBranchAsync(remoteBranch.Name, Repo.Path)))
+                if (localBranch != null)
                 {
-                    return R.Error($"Failed to delete remote branch {branch.Name}", e);
+                    if (!Try(out var e,
+                        await viewRepoService.DeleteLocalBranchAsync(branch.Name, false, Repo.Path)))
+                    {
+                        return R.Error($"Failed to delete branch {branch.Name}", e);
+                    }
                 }
-            }
 
-            Refresh();
-            return R.Ok;
+                if (remoteBranch != null)
+                {
+                    if (!Try(out var e,
+                        await viewRepoService.DeleteRemoteBranchAsync(remoteBranch.Name, Repo.Path)))
+                    {
+                        return R.Error($"Failed to delete remote branch {branch.Name}", e);
+                    }
+                }
+
+                Refresh();
+                return R.Ok;
+            }
         });
     }
 
     internal void Do(Func<Task<R>> action)
     {
-        var result = progress.While(async () => await action());
-
-        if (!Try(out var e, result!))
+        UI.RunInBackground(async () =>
         {
-            UI.ErrorMessage($"{e.AllErrorMessages()}");
-        }
+            if (!Try(out var e, await action()!))
+            {
+                UI.ErrorMessage($"{e.AllErrorMessages()}");
+            }
+        });
     }
 }
 

@@ -4,8 +4,8 @@ namespace gmd.Cui;
 
 interface IProgress
 {
-    void While(Func<Task> action);
-    T While<T>(Func<Task<T>> action);
+    Disposable Show();
+    Disposable Hide();
 }
 
 
@@ -18,40 +18,44 @@ class Progress : IProgress
 
     Timer? progressTimer;
     int count = 0;
+    Toplevel? currentParentView;
+    bool isModal = false;
+    View? progressView;
+    int hideCount = 0;
 
-
-    public void While(Func<Task> action)
+    public Disposable Show()
     {
-        Log.Info("Starting task with progress ...");
-        UI.RunInBackground(async () =>
-        {
-            await action();
-            Stop();
-        });
-
-        Show();
-        Log.Info("Progress Done");
+        Start();
+        return new Disposable(() => Stop());
     }
 
-    public T While<T>(Func<Task<T>> action)
+    public Disposable Hide()
     {
-        Log.Info("Starting task with progress ...");
-
-        T? result = default;
-        UI.RunInBackground(async () =>
+        if (count == 0)
         {
-            result = await action();
-            Stop();
-        });
+            // No progress is running, lets return empyt
+            return new Disposable(() => { });
+        }
 
-        Show();
-        Log.Info("Progress Done");
-        return result!;
+        hideCount++;
+        Application.RootKeyEvent = null;
+
+        return new Disposable(() =>
+        {
+            hideCount--;
+            if (count == 0)
+            {
+                return;
+            }
+            if (hideCount == 0)
+            {
+                Application.RootKeyEvent = (_) => true;
+            }
+        });
     }
 
 
-
-    public void Show()
+    void Start()
     {
         count++;
         if (count > 1)
@@ -69,13 +73,28 @@ class Progress : IProgress
             ColorScheme = colorScheme
         };
 
-        var dialog = new Dialog("", progressWidth + 3, 3)
+        Border progressViewBorder = new Border()
         {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.None },
+            BorderStyle = BorderStyle.None,
+            DrawMarginFrame = false,
+            BorderThickness = new Thickness(0, 0, 0, 0),
+            BorderBrush = Color.Black,
+            Padding = new Thickness(0, 0, 0, 0),
+            Background = Color.Black,
+            Effect3D = false,
+        };
+
+        progressView = new View()
+        {
+            X = Pos.Center(),
+            Y = Pos.Center(),
+            Width = progressWidth,
+            Height = 1,
+            Border = progressViewBorder,
             ColorScheme = colorScheme,
         };
 
-        dialog.Add(progressBar);
+        progressView.Add(progressBar);
 
         bool isFirstTime = false;
         progressTimer = new Timer(_ =>
@@ -83,21 +102,28 @@ class Progress : IProgress
             if (!isFirstTime)
             {   // Show border after an intial short delay
                 isFirstTime = true;
-                dialog.Border.BorderStyle = BorderStyle.Rounded;
+                progressView.Border.BorderStyle = BorderStyle.Rounded;
             }
 
             progressBar.Pulse();
             Application.MainLoop.Driver.Wakeup();
         }, null, intitialDelay, 100);
 
-        Application.Run(dialog);
+        currentParentView = Application.Current;
+        currentParentView.Add(progressView);
+        Application.RootKeyEvent = (_) => true;
     }
 
-    public void Stop()
+    void Stop()
     {
         count--;
         if (count > 0)
         {   // Not yet the last stop
+            return;
+        }
+        if (count < 0)
+        {
+            count = 0;
             return;
         }
 
@@ -106,7 +132,9 @@ class Progress : IProgress
             progressTimer.Dispose();
             progressTimer = null;
         }
-        Application.RequestStop();
+        currentParentView!.Remove(progressView);
+        currentParentView = null;
+        progressView = null;
+        Application.RootKeyEvent = null;
     }
 }
-
