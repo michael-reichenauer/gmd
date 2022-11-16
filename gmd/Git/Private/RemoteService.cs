@@ -55,11 +55,9 @@ class RemoteService : IRemoteService
     public async Task<R> DeleteRemoteBranchAsync(string name, string wd)
     {
         name = TrimRemotePrefix(name);
-
         var args = $"push --porcelain origin --delete {name}";
         return await cmd.RunAsync("git", args, wd);
     }
-
 
     public async Task<R> PushRefForceAsync(string name, string wd)
     {

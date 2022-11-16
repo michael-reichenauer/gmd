@@ -84,6 +84,7 @@ class Cmd : ICmd
 
                 if (process.ExitCode != 0)
                 {
+                    Log.Warn($"Error: {path} {args} ({workingDirectory}) {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
                     return new CmdResult(process.ExitCode, output, error);
                 }
 

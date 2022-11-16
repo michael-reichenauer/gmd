@@ -1,11 +1,11 @@
-namespace gmd.ViewRepos.Private.Augmented;
+namespace gmd.Server.Private.Augmented;
 
 // AugmentedRepoService returns augmented repos of git repo information, The augmentations 
 // adds information not available in git directly, but can be inferred by parsing the 
 // git information. 
 // Examples of augmentation is which branch a commits belongs to and the hierarchical structure
 // of branches. 
-interface IAugmentedRepoService
+interface IAugmentedService
 {
     // RepoChange events when git repo changes like new commit, new branches, ...
     public event Action<ChangeEvent> RepoChange;

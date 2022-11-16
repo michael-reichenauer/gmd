@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 
 interface IBranchNameService

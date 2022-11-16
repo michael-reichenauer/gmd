@@ -2,7 +2,7 @@ using gmd.Git;
 using GitStatus = gmd.Git.Status;
 
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 
 // AugmentedRepoService returns augmented repos of git repo information, The augmentations 
@@ -11,7 +11,7 @@ namespace gmd.ViewRepos.Private.Augmented.Private;
 // Examples of augmentation is which branch a commits belongs to and the hierarchical structure
 // of branches. 
 [SingleInstance]
-class AugmentedRepoService : IAugmentedRepoService
+class AugmentedService : IAugmentedService
 {
     const int maxCommitCount = 30000; // Increase performance in case of very large repos
 
@@ -20,7 +20,7 @@ class AugmentedRepoService : IAugmentedRepoService
     private readonly IConverter converter;
     private readonly IFileMonitor fileMonitor;
 
-    public AugmentedRepoService(
+    public AugmentedService(
         IGit git,
         IAugmenter augmenter,
         IConverter converter,
@@ -52,7 +52,7 @@ class AugmentedRepoService : IAugmentedRepoService
     }
 
 
-    // GetRepoAsync returns the updated augmented repo with git status ...
+    // GetRepoAsync returns the updated augmented repo with git status .
     public async Task<R<Repo>> UpdateStatusRepoAsync(Repo repo)
     {
         // Get latest git status
@@ -106,6 +106,7 @@ class AugmentedRepoService : IAugmentedRepoService
 
         Timing t = Timing.Start;
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
+        Threading.AssertIsMainThread();
 
         var repo = converter.ToRepo(augRepo);
         Log.Info($"{t} {repo}");

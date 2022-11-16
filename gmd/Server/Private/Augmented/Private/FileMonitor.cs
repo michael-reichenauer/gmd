@@ -1,8 +1,8 @@
 using gmd.Cui;
-using gmd.Utils.GlobPatterns;
+using gmc.Utils.GlobPatterns;
 using Timer = System.Timers.Timer;
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 interface IFileMonitor
 {
@@ -127,13 +127,13 @@ class FileMonitor : IFileMonitor
         {
             if (path != null && IsIgnored(path))
             {
-                Log.Info($"Ignored: '{fullPath}'");
+                // Log.Info($"Ignored: '{fullPath}'");
                 return;
             }
 
             if (fullPath != null && !Directory.Exists(fullPath))
             {
-                // Log.Debug($"Status change for '{fullPath}' {changeType}");
+                //Log.Debug($"Status change for '{fullPath}' {changeType}");.
                 FileChange(fullPath);
             }
         }
@@ -169,7 +169,7 @@ class FileMonitor : IFileMonitor
             return;
         }
 
-        // Log.Debug($"Repo change for '{fullPath}' {changeType}");
+        // Log.Debug($"Repo change for '{fullPath}' {changeType}");.
 
         lock (syncRoot)
         {
@@ -250,12 +250,12 @@ class FileMonitor : IFileMonitor
         {
             if (matcher.IsMatch(path))
             {
-                // Log.Info($"Ignoring '{path}'");
+                // Log.Info($"Ignoring '{path}'");.
                 return true;
             }
         }
 
-        // Log.Info($"Allow '{path}'");.
+        // Log.Info($"Allow '{path}'");
         return false;
     }
 

@@ -1,4 +1,4 @@
-using gmd.ViewRepos;
+using gmd.Server;
 using NStack;
 using Terminal.Gui;
 
@@ -25,10 +25,13 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(UI.MenuSeparator($"Commit {Sid(repo.Repo.Commits[repo.CurrentIndex].Id)}"));
+        items.Add(UI.MenuSeparator($"Commit {Sid(repo.CurrentIndexCommit.Id)}"));
         items.Add(new MenuItem("Commit ...", "",
             () => repo.Commit(),
             () => !repo.Repo.Status.IsOk));
+        items.Add(new MenuItem("Branch from commit ...", "",
+            () => repo.CreateBranchFromCommit(),
+            () => repo.Repo.Status.IsOk));
 
         items.Add(UI.MenuSeparator("Branches"));
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems()));
@@ -36,12 +39,12 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(new MenuBarItem("Push", GetPushItems()));
         items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
         items.Add(new MenuBarItem("Merge", GetMergeItems()));
+        items.Add(new MenuItem("Create Branch ...", "", repo.CreateBranch));
+        items.Add(new MenuBarItem("Delete Branch", GetDeleteItems()));
 
         var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
-
-
 
     string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Substring(0, 6);
 
@@ -104,9 +107,10 @@ class RepoViewMenus : IRepoViewMenus
 
     MenuItem[] GetShowItems()
     {
-
-        var branches = repo
-            .GetCommitBranches()
+        // Get current branch, commit branch in/out and all shown branches.
+        var branches =
+            new[] { repo.GetCurrentBranch() }
+            .Concat(repo.GetCommitBranches())
             .Concat(repo.Repo.Branches);
 
         return ToShowBranchesItems(branches, true);
@@ -130,6 +134,17 @@ class RepoViewMenus : IRepoViewMenus
             new MenuItem(b.DisplayName, "", () => repo.SwitchTo(b.Name)))
             .ToArray();
     }
+
+    private MenuItem[] GetDeleteItems()
+    {
+        return repo.GetAllBranches()
+            .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
+            .DistinctBy(b => b.CommonName)
+            .OrderBy(b => b.CommonName)
+            .Select(b => new MenuItem(b.DisplayName, "", () => repo.DeleteBranch(b.Name)))
+            .ToArray();
+    }
+
 
     MenuItem[] GetMergeItems()
     {

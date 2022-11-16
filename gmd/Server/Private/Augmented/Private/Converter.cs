@@ -1,7 +1,7 @@
 
 using GitStatus = gmd.Git.Status;
 
-namespace gmd.ViewRepos.Private.Augmented.Private;
+namespace gmd.Server.Private.Augmented.Private;
 
 interface IConverter
 {

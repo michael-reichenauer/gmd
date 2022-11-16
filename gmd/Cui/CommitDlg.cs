@@ -1,5 +1,5 @@
 
-using gmd.ViewRepos;
+using gmd.Server;
 using NStack;
 using Terminal.Gui;
 
@@ -49,15 +49,15 @@ class CommitDlg : ICommitDlg
                 return;
             }
             isOk = true;
-            Close();
+            Application.RequestStop();
         };
 
         Button cancelButton = new Button("Cancel", false);
-        cancelButton.Clicked += () => Close();
+        cancelButton.Clicked += () => Application.RequestStop();
         cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
 
 
-        Label infoLabel = new Label(1, 0, $"Commit {filesCount} files on '{branchName}':");
+        Label infoLabel = new Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
 
         subjectField = new TextField(1, 2, 50, "") { Text = subjectText };
         Label sep1 = new Label(0, 3, "└" + new string('─', 49) + "┘");
@@ -79,11 +79,6 @@ class CommitDlg : ICommitDlg
 
         message = GetMessage();
         return isOk;
-    }
-
-    void Close()
-    {
-        Application.RequestStop();
     }
 
 

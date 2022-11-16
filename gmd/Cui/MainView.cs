@@ -1,7 +1,6 @@
 using gmd.Common;
 using gmd.Git;
 using Terminal.Gui;
-using Terminal.Gui.Trees;
 
 namespace gmd.Cui;
 
@@ -41,6 +40,8 @@ partial class MainView : IMainView
         mainView.ColorScheme = ColorSchemes.WindowColorScheme;
 
         mainView.Add(repoView.View);
+        mainView.WantMousePositionReports = true;
+
 
         //Application.Current.Added += (v) => Log.Info($"View added {v}");
         //     Application.Current.Removed += (v) =>
@@ -54,6 +55,13 @@ partial class MainView : IMainView
 
     void OnReady()
     {
+        Threading.SetUp();
+        // UI.AddTimeout(TimeSpan.FromMilliseconds(1000), (f) =>
+        // {
+        //     Log.Info("Ui callback");
+        //     return true;
+        // });
+
         string path = "";
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
@@ -103,8 +111,11 @@ partial class MainView : IMainView
                 ShowMainMenu();
                 return;
             }
+            repoView.View.SetFocus();
+
             state.Set(s => s.RecentFolders = s.RecentFolders
                 .Prepend(path).Distinct().Take(MaxRecentFolders).ToList());
+
             var parent = Path.GetDirectoryName(path);
             if (parent != null)
             {

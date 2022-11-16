@@ -15,12 +15,15 @@ interface IGit
     Task<R> PushBranchAsync(string name, string wd);
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
-    Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> PushRefForceAsync(string name, string wd);
     Task<R> PullRefAsync(string name, string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R> CheckoutAsync(string name, string wd);
     Task<R> MergeBranch(string name, string wd);
+    Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
+    Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
+    Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+    Task<R> DeleteRemoteBranchAsync(string name, string wd);
 }
 
 

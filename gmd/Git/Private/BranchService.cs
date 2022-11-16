@@ -6,7 +6,11 @@ interface IBranchService
 {
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<R> CheckoutAsync(string name, string wd);
+    Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
+    Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
+    Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> MergeBranch(string name, string wd);
+
 }
 
 class BranchService : IBranchService
@@ -41,6 +45,28 @@ class BranchService : IBranchService
         name = RemoteService.TrimRemotePrefix(name);
         return await cmd.RunAsync("git", $"checkout {name}", wd);
     }
+
+    public async Task<R> CreateBranchAsync(string name, bool isCheckout, string wd)
+    {
+        string args = isCheckout ? "checkout -b" : "branch";
+        args += $" {name}";
+        return await cmd.RunAsync("git", args, wd);
+    }
+
+    public async Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd)
+    {
+        string args = isCheckout ? $"checkout -b" : $"branch";
+        args += $" {name} {sha}";
+        return await cmd.RunAsync("git", args, wd);
+    }
+
+    public async Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd)
+    {
+        string args = $"branch --delete {name}";
+        args = isForced ? args + " -D" : args;
+        return await cmd.RunAsync("git", args, wd);
+    }
+
 
     public async Task<R> MergeBranch(string name, string wd)
     {

@@ -1,19 +1,19 @@
 using gmd.Git;
-using gmd.ViewRepos.Private.Augmented;
+using gmd.Server.Private.Augmented;
 
-namespace gmd.ViewRepos.Private;
+namespace gmd.Server.Private;
 
 [SingleInstance]
-class ViewRepoService : IViewRepoService
+class Server : IServer
 {
     private readonly IGit git;
-    private readonly IAugmentedRepoService augmentedRepoService;
+    private readonly IAugmentedService augmentedRepoService;
     private readonly IConverter converter;
     private readonly IViewRepoCreater viewRepoCreater;
 
-    public ViewRepoService(
+    public Server(
         IGit git,
-        IAugmentedRepoService augmentedRepoService,
+        IAugmentedService augmentedRepoService,
         IConverter converter,
         IViewRepoCreater viewRepoCreater)
     {
@@ -30,16 +30,13 @@ class ViewRepoService : IViewRepoService
     public event Action<ChangeEvent>? StatusChange;
 
 
-    public Task<R<Repo>> GetRepoAsync(string path) =>
-        GetRepoAsync(path, new string[0]);
-
-
-    public async Task<R<Repo>> GetFreshRepoAsync(Repo repo)
+    public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
-        var branches = repo.Branches.Select(b => b.Name).ToArray();
-        return await GetRepoAsync(repo.Path, branches);
-    }
+        if (!Try(out var augmentedRepo, out var e,
+            await augmentedRepoService.GetRepoAsync(path))) return e;
 
+        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
+    }
 
     public async Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo)
     {
@@ -54,15 +51,6 @@ class ViewRepoService : IViewRepoService
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
-    public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
-    {
-        if (!Try(out var augmentedRepo, out var e, await augmentedRepoService.GetRepoAsync(path)))
-        {
-            return e;
-        }
-
-        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
-    }
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
         converter.ToBranches(repo.AugmentedRepo.Branches);
@@ -123,11 +111,11 @@ class ViewRepoService : IViewRepoService
     }
 
 
-    public async Task<R> CommitAllChangesAsync(string wd, string message) =>
+    public async Task<R> CommitAllChangesAsync(string message, string wd) =>
          await git.CommitAllChangesAsync(message, wd);
 
 
-    public async Task<R<CommitDiff>> GetCommitDiffAsync(string wd, string commitId)
+    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
         var t = Timing.Start;
         if (!Try(out var gitCommitDiff, out var e, await git.GetCommitDiffAsync(commitId, wd))) return e;
@@ -149,13 +137,25 @@ class ViewRepoService : IViewRepoService
     }
 
 
-    public Task<R> PushBranchAsync(string wd, string name) =>
+    public Task<R> PushBranchAsync(string name, string wd) =>
         git.PushBranchAsync(name, wd);
 
-    public Task<R> SwitchToAsync(string wd, string branchName) =>
+    public Task<R> SwitchToAsync(string branchName, string wd) =>
         git.CheckoutAsync(branchName, wd);
 
-    public Task<R> MergeBranch(string wd, string name) =>
+    public Task<R> MergeBranch(string name, string wd) =>
         git.MergeBranch(name, wd);
+
+    public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
+        git.CreateBranchAsync(name, isCheckout, wd);
+
+    public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
+        git.CreateBranchFromCommitAsync(name, sha, isCheckout, wd);
+
+    public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
+        git.DeleteLocalBranchAsync(name, isForced, wd);
+
+    public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
+        git.DeleteRemoteBranchAsync(name, wd);
 }
 

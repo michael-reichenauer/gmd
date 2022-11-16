@@ -117,6 +117,14 @@ public class R
         [CallerLineNumber] int sourceLineNumber = 0) =>
         new ErrorResult(new Exception(message, e), memberName, sourceFilePath, sourceLineNumber);
 
+    public static ErrorResult Error(
+          string message,
+          R errorResult,
+          [CallerMemberName] string memberName = "",
+          [CallerFilePath] string sourceFilePath = "",
+          [CallerLineNumber] int sourceLineNumber = 0) =>
+          new ErrorResult(new Exception(message, errorResult.GetResultException()), memberName, sourceFilePath, sourceLineNumber);
+
 
     public static ErrorResult Error(
            R errorResult,
@@ -134,6 +142,7 @@ public class R
         new ErrorResult(e, memberName, sourceFilePath, sourceLineNumber);
 
 
+    internal string ErrorMessage => IsResultError ? resultException.Message : throw Asserter.FailFast("Result was not an error");
     internal ErrorResult GetResultError() => IsResultError ? Error(resultException) : throw Asserter.FailFast("Result was not an error");
     internal Exception GetResultException() => resultException;
 
@@ -157,7 +166,7 @@ public class R
     // protected Error Error => IsResultError ? Error(resultException) : throw Asserter.FailFast("Result was not an error");
     protected bool IsOk => !IsResultError;
     protected bool isErrorChecked = false;
-    protected string AllErrorMessages() => string.Join(",\n", AllMessageLines());
+    internal string AllErrorMessages() => string.Join(",\n", AllMessageLines());
 
 
     private IEnumerable<string> AllMessageLines()
@@ -216,7 +225,7 @@ public class ErrorResult : R
     {
         if (e != NoError && e != NoValueError)
         {
-            Log.Warn($"{this}");
+            Log.Debug($"Result {this}");
         }
     }
 
@@ -225,7 +234,7 @@ public class ErrorResult : R
     {
         if (e != NoError && e != NoValueError)
         {
-            Log.Warn($"{this}");
+            Log.Debug($"Result {this}");
         }
     }
 
