@@ -279,21 +279,12 @@ class ViewRepo : IRepo
 
     internal void Do(Func<Task<R>> action)
     {
-        Log.Info("Starting task with progress ...");
-        UI.RunInBackground(async () =>
+        var result = progress.While(async () => await action());
+
+        if (!Try(out var e, result!))
         {
-            var result = await action();
-            Log.Info("Stop progress");
-            progress.Stop();
-
-            if (!Try(out var e, result))
-            {
-                UI.ErrorMessage($"{e.AllErrorMessages()}");
-            }
-        });
-
-        progress.Start();
-        Log.Info("Progress done");
+            UI.ErrorMessage($"{e.AllErrorMessages()}");
+        }
     }
 }
 

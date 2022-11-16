@@ -4,8 +4,8 @@ namespace gmd.Cui;
 
 interface IProgress
 {
-    void Start();
-    void Stop();
+    void While(Func<Task> action);
+    T While<T>(Func<Task<T>> action);
 }
 
 
@@ -19,7 +19,39 @@ class Progress : IProgress
     Timer? progressTimer;
     int count = 0;
 
-    public void Start()
+
+    public void While(Func<Task> action)
+    {
+        Log.Info("Starting task with progress ...");
+        UI.RunInBackground(async () =>
+        {
+            await action();
+            Stop();
+        });
+
+        Show();
+        Log.Info("Progress Done");
+    }
+
+    public T While<T>(Func<Task<T>> action)
+    {
+        Log.Info("Starting task with progress ...");
+
+        T? result = default;
+        UI.RunInBackground(async () =>
+        {
+            result = await action();
+            Stop();
+        });
+
+        Show();
+        Log.Info("Progress Done");
+        return result!;
+    }
+
+
+
+    public void Show()
     {
         count++;
         if (count > 1)
