@@ -45,6 +45,7 @@ class ViewRepo : IRepo
     private readonly Func<IRepo, ICommitDlg> newCommitDlg;
     private readonly Func<IRepo, IDiffView> newDiffView;
     private readonly ICreateBranchDlg createBranchDlg;
+    private readonly IProgress progress;
 
     internal ViewRepo(
         IRepoView repoView,
@@ -53,7 +54,8 @@ class ViewRepo : IRepo
         IServer viewRepoService,
         Func<IRepo, ICommitDlg> newCommitDlg,
         Func<IRepo, IDiffView> newDiffView,
-        ICreateBranchDlg createBranchDlg)
+        ICreateBranchDlg createBranchDlg,
+        IProgress progress)
     {
         this.repoView = repoView;
         Repo = repo;
@@ -62,6 +64,7 @@ class ViewRepo : IRepo
         this.newCommitDlg = newCommitDlg;
         this.newDiffView = newDiffView;
         this.createBranchDlg = createBranchDlg;
+        this.progress = progress;
         Graph = graphService.CreateGraph(repo);
     }
 
@@ -274,13 +277,14 @@ class ViewRepo : IRepo
         });
     }
 
-    static internal void Do(Func<Task<R>> action)
+    internal void Do(Func<Task<R>> action)
     {
+        Log.Info("Starting task with progress ...");
         UI.RunInBackground(async () =>
         {
-            Log.Info("Start progress ...");
             var result = await action();
             Log.Info("Stop progress");
+            progress.Stop();
 
             if (!Try(out var e, result))
             {
@@ -288,5 +292,8 @@ class ViewRepo : IRepo
             }
         });
 
+        progress.Start();
+        Log.Info("Progress done");
     }
 }
+
