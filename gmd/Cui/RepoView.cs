@@ -87,6 +87,7 @@ class RepoView : IRepoView
 
     void OnRefreshRepo(ChangeEvent e)
     {
+        UI.AssertOnUIThread();
         if (isRepoUpdateInProgress)
         {
             return;
@@ -105,6 +106,7 @@ class RepoView : IRepoView
 
     void OnRefreshStatus(ChangeEvent e)
     {
+        UI.AssertOnUIThread();
         if (isStatusUpdateInProgress || isRepoUpdateInProgress)
         {
             return;

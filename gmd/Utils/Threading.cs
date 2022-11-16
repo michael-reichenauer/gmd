@@ -18,7 +18,7 @@ static class Threading
         sctx.Post((o) => action(), null);
     }
 
-    internal static void AssertMainThread()
+    internal static void AssertIsMainThread()
     {
         if (CurrentId > mainThreadId)
         {

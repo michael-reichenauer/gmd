@@ -6,6 +6,8 @@ namespace gmd.Cui;
 
 static class UI
 {
+    static internal void AssertOnUIThread() => Threading.AssertIsMainThread();
+
     static internal void RunInBackground(Func<Task> action)
     {
         action().RunInBackground();

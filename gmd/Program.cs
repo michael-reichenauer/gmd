@@ -36,7 +36,7 @@ class Program
 
         Program program = dependencyInjection.Resolve<Program>();
         Log.Info($"Initialized {t}");
-        Threading.AssertMainThread();
+        Threading.AssertIsMainThread();
         program.Main();
         Log.Info($"Done, running for {t}");
         ConfigLogger.CloseAsync().Wait();
