@@ -230,7 +230,8 @@ class ViewRepo : IRepo
 
     public void DeleteBranch(string name)
     {
-        UI.RunInBackground(async () =>
+        name = "Some error branch";
+        Do(async () =>
         {
             var allBranches = GetAllBranches();
             var branch = allBranches.First(b => b.Name == name);
@@ -261,8 +262,7 @@ class ViewRepo : IRepo
                 if (!Try(out var e,
                     await viewRepoService.DeleteLocalBranchAsync(branch.Name, false, Repo.Path)))
                 {
-                    UI.ErrorMessage($"Failed to delete branch {branch.Name}:\n{e}");
-                    return;
+                    return R.Error($"Failed to delete branch {branch.Name}", e);
                 }
             }
 
@@ -271,12 +271,24 @@ class ViewRepo : IRepo
                 if (!Try(out var e,
                     await viewRepoService.DeleteRemoteBranchAsync(remoteBranch.Name, Repo.Path)))
                 {
-                    UI.ErrorMessage($"Failed to delete remote branch {remoteBranch.Name}:\n{e}");
-                    return;
+                    return R.Error($"Failed to delete remote branch {branch.Name}", e);
                 }
             }
 
             Refresh();
+            return R.Ok;
         });
+    }
+
+    static internal void Do(Func<Task<R>> action)
+    {
+        UI.RunInBackground(async () =>
+        {
+            if (!Try(out var e, await action()))
+            {
+                UI.ErrorMessage($"{e.ErrorMessage}:\n{e}");
+            }
+        });
+
     }
 }

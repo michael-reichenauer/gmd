@@ -117,6 +117,14 @@ public class R
         [CallerLineNumber] int sourceLineNumber = 0) =>
         new ErrorResult(new Exception(message, e), memberName, sourceFilePath, sourceLineNumber);
 
+    public static ErrorResult Error(
+          string message,
+          R errorResult,
+          [CallerMemberName] string memberName = "",
+          [CallerFilePath] string sourceFilePath = "",
+          [CallerLineNumber] int sourceLineNumber = 0) =>
+          new ErrorResult(new Exception(message, errorResult.GetResultException()), memberName, sourceFilePath, sourceLineNumber);
+
 
     public static ErrorResult Error(
            R errorResult,
@@ -134,6 +142,7 @@ public class R
         new ErrorResult(e, memberName, sourceFilePath, sourceLineNumber);
 
 
+    internal string ErrorMessage => IsResultError ? resultException.Message : throw Asserter.FailFast("Result was not an error");
     internal ErrorResult GetResultError() => IsResultError ? Error(resultException) : throw Asserter.FailFast("Result was not an error");
     internal Exception GetResultException() => resultException;
 
