@@ -102,51 +102,48 @@ class ViewRepo : IRepo
 
     public void SwitchTo(string branchName)
     {
-        UI.RunInBackground(async () =>
+        Do(async () =>
         {
             if (!Try(out var e, await viewRepoService.SwitchToAsync(branchName, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to switch to {branchName}:\n{e}");
-                return;
+                return R.Error($"Failed to switch to {branchName}", e);
             }
+            return R.Ok;
         });
     }
 
 
     public void Commit()
     {
-        UI.RunInBackground(async () =>
+        Do(async () =>
         {
             var commitDlg = newCommitDlg(this);
-            if (!commitDlg.Show(out var message))
-            {
-                return;
-            }
+            if (!commitDlg.Show(out var message)) return R.Ok;
 
             if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(message, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to commit:\n{e}");
-                return;
+                return R.Error($"Failed to commit", e);
             }
 
             Refresh();
+            return R.Ok;
         });
     }
 
 
     public void PushCurrentBranch()
     {
-        UI.RunInBackground(async () =>
+        Do(async () =>
         {
             var branch = Repo.Branches.First(b => b.IsCurrent);
 
             if (!Try(out var e, await viewRepoService.PushBranchAsync(branch.Name, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to push branch {branch.Name}:\n{e}");
-                return;
+                return R.Error($"Failed to push branch {branch.Name}", e);
             }
 
             Refresh();
+            return R.Ok;
         });
     }
 
@@ -158,15 +155,15 @@ class ViewRepo : IRepo
 
     public void MergeBranch(string name)
     {
-        UI.RunInBackground(async () =>
+        Do(async () =>
         {
             if (!Try(out var e, await viewRepoService.MergeBranch(name, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to merge branch {name}:\n{e}");
-                return;
+                return R.Error($"Failed to merge branch {name}", e);
             }
 
             Refresh();
+            return R.Ok;
         });
     }
 
@@ -181,56 +178,53 @@ class ViewRepo : IRepo
 
     public void CreateBranch()
     {
-        UI.RunInBackground(async () =>
+        Do(async () =>
         {
             var currentBranchName = GetCurrentBranch().Name;
-            if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return;
+            if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
             if (!Try(out var e, await viewRepoService.CreateBranchAsync(name, true, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to create branch {name}:\n{e}");
-                return;
+                return R.Error($"Failed to create branch {name}", e);
             }
 
             if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to push branch {name} to remote server:\n{e}");
-                return;
+                return R.Error($"Failed to push branch {name} to remote server", e);
             }
 
             Refresh(name);
+            return R.Ok;
         });
     }
 
     public void CreateBranchFromCommit()
     {
-        UI.RunInBackground(async () =>
+        Do(async () =>
         {
             var commit = CurrentIndexCommit;
+            var branchName = commit.BranchName;
 
-            var currentBranchName = GetCurrentBranch().Name;
-            if (!Try(out var name, createBranchDlg.Show(commit.BranchName, commit.Sid))) return;
+            if (!Try(out var name, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
 
             if (!Try(out var e,
                 await viewRepoService.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to create branch {name}:\n{e}");
-                return;
+                return R.Error($"Failed to create branch {name}", e);
             }
 
             if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
             {
-                UI.ErrorMessage($"Failed to push branch {name} to remote server:\n{e}");
-                return;
+                return R.Error($"Failed to push branch {name} to remote server", e);
             }
 
-            Refresh();
+            Refresh(name);
+            return R.Ok;
         });
     }
 
     public void DeleteBranch(string name)
     {
-        name = "Some error branch";
         Do(async () =>
         {
             var allBranches = GetAllBranches();
@@ -284,9 +278,13 @@ class ViewRepo : IRepo
     {
         UI.RunInBackground(async () =>
         {
-            if (!Try(out var e, await action()))
+            Log.Info("Start progress ...");
+            var result = await action();
+            Log.Info("Stop progress");
+
+            if (!Try(out var e, result))
             {
-                UI.ErrorMessage($"{e.ErrorMessage}:\n{e}");
+                UI.ErrorMessage($"{e.AllErrorMessages()}");
             }
         });
 

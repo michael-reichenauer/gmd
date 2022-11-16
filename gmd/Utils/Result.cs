@@ -166,7 +166,7 @@ public class R
     // protected Error Error => IsResultError ? Error(resultException) : throw Asserter.FailFast("Result was not an error");
     protected bool IsOk => !IsResultError;
     protected bool isErrorChecked = false;
-    protected string AllErrorMessages() => string.Join(",\n", AllMessageLines());
+    internal string AllErrorMessages() => string.Join(",\n", AllMessageLines());
 
 
     private IEnumerable<string> AllMessageLines()
