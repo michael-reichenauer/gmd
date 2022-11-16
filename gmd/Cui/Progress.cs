@@ -1,0 +1,140 @@
+using Terminal.Gui;
+
+namespace gmd.Cui;
+
+interface IProgress
+{
+    Disposable Show();
+    Disposable Hide();
+}
+
+
+[SingleInstance]
+class Progress : IProgress
+{
+    const int intitialDelay = 800;
+    const int progressWidth = 20;
+    static readonly ColorScheme colorScheme = new ColorScheme() { Normal = Colors.Magenta };
+
+    Timer? progressTimer;
+    int count = 0;
+    Toplevel? currentParentView;
+    bool isModal = false;
+    View? progressView;
+    int hideCount = 0;
+
+    public Disposable Show()
+    {
+        Start();
+        return new Disposable(() => Stop());
+    }
+
+    public Disposable Hide()
+    {
+        if (count == 0)
+        {
+            // No progress is running, lets return empyt
+            return new Disposable(() => { });
+        }
+
+        hideCount++;
+        Application.RootKeyEvent = null;
+
+        return new Disposable(() =>
+        {
+            hideCount--;
+            if (count == 0)
+            {
+                return;
+            }
+            if (hideCount == 0)
+            {
+                Application.RootKeyEvent = (_) => true;
+            }
+        });
+    }
+
+
+    void Start()
+    {
+        count++;
+        if (count > 1)
+        {   // Already started
+            return;
+        }
+
+        var progressBar = new ProgressBar()
+        {
+            X = 0,
+            Y = 0,
+            Width = progressWidth,
+            ProgressBarStyle = ProgressBarStyle.MarqueeContinuous,
+            BidirectionalMarquee = true,
+            ColorScheme = colorScheme
+        };
+
+        Border progressViewBorder = new Border()
+        {
+            BorderStyle = BorderStyle.None,
+            DrawMarginFrame = false,
+            BorderThickness = new Thickness(0, 0, 0, 0),
+            BorderBrush = Color.Black,
+            Padding = new Thickness(0, 0, 0, 0),
+            Background = Color.Black,
+            Effect3D = false,
+        };
+
+        progressView = new View()
+        {
+            X = Pos.Center(),
+            Y = Pos.Center(),
+            Width = progressWidth,
+            Height = 1,
+            Border = progressViewBorder,
+            ColorScheme = colorScheme,
+        };
+
+        progressView.Add(progressBar);
+
+        bool isFirstTime = false;
+        progressTimer = new Timer(_ =>
+        {
+            if (!isFirstTime)
+            {   // Show border after an intial short delay
+                isFirstTime = true;
+                progressView.Border.BorderStyle = BorderStyle.Rounded;
+            }
+
+            progressBar.Pulse();
+            Application.MainLoop.Driver.Wakeup();
+        }, null, intitialDelay, 100);
+
+        currentParentView = Application.Current;
+        currentParentView.Add(progressView);
+        Application.RootKeyEvent = (_) => true;
+    }
+
+    void Stop()
+    {
+        count--;
+        if (count > 0)
+        {   // Not yet the last stop
+            return;
+        }
+        if (count < 0)
+        {
+            count = 0;
+            return;
+        }
+
+        if (progressTimer != null)
+        {
+            progressTimer.Dispose();
+            progressTimer = null;
+        }
+        currentParentView!.Remove(progressView);
+        currentParentView = null;
+        progressView = null;
+        Application.RootKeyEvent = null;
+    }
+}

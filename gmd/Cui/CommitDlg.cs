@@ -9,7 +9,6 @@ interface ICommitDlg
 {
     bool Show(out string message);
 }
-
 class CommitDlg : ICommitDlg
 {
     Dialog? dialog;

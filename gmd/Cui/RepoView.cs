@@ -25,7 +25,9 @@ class RepoView : IRepoView
     readonly Func<IRepoView, Repo, IRepo> newViewRepo;
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
     private readonly IState state;
+    private readonly IProgress progress;
     readonly Func<IRepo, IDiffView> newDiffView;
+    private readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView contentView;
     readonly IRepoWriter repoWriter;
 
@@ -42,14 +44,16 @@ class RepoView : IRepoView
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
-        IState state) : base()
+        IState state,
+        IProgress progress) : base()
     {
         this.viewRepoService = viewRepoService;
         this.newDiffView = newDiffView;
+        this.newRepoWriter = newRepoWriter;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
         this.state = state;
-
+        this.progress = progress;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
