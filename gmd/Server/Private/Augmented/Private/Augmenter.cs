@@ -524,23 +524,15 @@ class Augmenter : IAugmenter
         }
 
         if (branch.BottomID != "")
-        {   // Found an existing branch with that name, set lowest known commit to the bottom
-            // of that known branch
-            if (repo.CommitsById.TryGetValue(branch.BottomID, out current))
+        {   // Found an existing branch with that name, set commits from bottom of that branch
+            // down to the c commit;
+            if (SetBranchForAmbiguousCommits(repo, branch, c))
             {
-                for (; current != null && current != c.FirstParent; current = current.FirstParent)
-                {
-                    current.Branch = branch;
-                    current.IsAmbiguous = false;
-                    current.IsAmbiguousTip = false;
-                    current.TryAddToBranches(branch);
-                    current.IsLikely = true;
-                }
                 return true;
             }
         }
 
-
+        // The branch does not have a known bottom, 
         // Lets iterate upp (first child) as long as commits are ambiguous
         current = c;
         while (true)
@@ -585,8 +577,52 @@ class Augmenter : IAugmenter
         }
     }
 
+    bool SetBranchForAmbiguousCommits(WorkRepo repo, WorkBranch branch, WorkCommit endCommit)
+    {
+        // Found an existing branch with that name, set lowest known commit to the bottom
+        // of that known branch
+        if (!repo.CommitsById.TryGetValue(branch.BottomID, out var current))
+        {
+            return false;
+        }
 
-    private WorkBranch? TryGetBranchFromName(WorkCommit c, string name)
+        // Step current down one step, since current is already the last commit on that branch
+        current = current.FirstParent;
+
+        if (current != null)
+        {
+            // Current is now the first commit after the c.Subject named brach
+            // Adjust the current child branch bottom id to be the 'first' child of current
+            var otherChild = current.Children.FirstOrDefault(cc => cc.Branch == current.Branch);
+            if (otherChild != null)
+            {
+                current.Branch!.BottomID = otherChild.Id;
+            }
+
+            if (current.Branch?.AmbiguousTipId == current.Id)
+            {   // Branch is no longer ambiguous all ambigous commits have been cleared.
+                current.Branch.AmbiguousTipId = "";
+                current.Branch.IsAmbiguousBranch = false;
+                current.Branch.AmbiguousBranches.Clear();
+                current.Branch.AmbiguousBranchNames.Clear();
+            }
+        }
+
+        // Set all commits to the branch below the current until reaching the commit after c
+        for (; current != null && current != endCommit.FirstParent; current = current.FirstParent)
+        {
+            current.Branch = branch;
+            current.IsAmbiguous = false;
+            current.IsAmbiguousTip = false;
+            current.TryAddToBranches(branch);
+            current.IsLikely = true;
+        }
+
+        return true;
+    }
+
+
+    WorkBranch? TryGetBranchFromName(WorkCommit c, string name)
     {
         // Try find a live git branch with the name
         foreach (var b in c.Branches)
