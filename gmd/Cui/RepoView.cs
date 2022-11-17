@@ -20,7 +20,7 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
-    readonly Server.IServer viewRepoService;
+    readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
     private readonly IState state;
@@ -38,7 +38,7 @@ class RepoView : IRepoView
 
 
     internal RepoView(
-        Server.IServer viewRepoService,
+        Server.IServer server,
         Func<IRepo, IDiffView> newDiffView,
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
@@ -46,7 +46,7 @@ class RepoView : IRepoView
         IState state,
         IProgress progress) : base()
     {
-        this.viewRepoService = viewRepoService;
+        this.server = server;
         this.newDiffView = newDiffView;
         this.newRepoWriter = newRepoWriter;
         this.newViewRepo = newViewRepo;
@@ -63,8 +63,8 @@ class RepoView : IRepoView
 
         repoWriter = newRepoWriter(contentView, contentView.ContentX);
 
-        viewRepoService.RepoChange += OnRefreshRepo;
-        viewRepoService.StatusChange += OnRefreshStatus;
+        server.RepoChange += OnRefreshRepo;
+        server.StatusChange += OnRefreshStatus;
     }
 
 
@@ -173,7 +173,7 @@ class RepoView : IRepoView
             isRepoUpdateInProgress = true;
             var t = Timing.Start;
             if (!Try(out var viewRepo, out var e,
-                await viewRepoService.GetRepoAsync(path, showBranches)))
+                await server.GetRepoAsync(path, showBranches)))
             {
                 isStatusUpdateInProgress = true;
                 isRepoUpdateInProgress = true;
@@ -204,7 +204,7 @@ class RepoView : IRepoView
             }
 
             if (!Try(out var viewRepo, out var e,
-                await viewRepoService.GetRepoAsync(repo!.Repo.Path, branchNames)))
+                await server.GetRepoAsync(repo!.Repo.Path, branchNames)))
             {
                 isStatusUpdateInProgress = false;
                 isRepoUpdateInProgress = false;
@@ -226,7 +226,7 @@ class RepoView : IRepoView
             isStatusUpdateInProgress = true;
             var t = Timing.Start;
             if (!Try(out var viewRepo, out var e,
-                await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
+                await server.GetUpdateStatusRepoAsync(repo!.Repo)))
             {
                 isStatusUpdateInProgress = false;
                 UI.ErrorMessage($"Failed to update status:\n{e}");

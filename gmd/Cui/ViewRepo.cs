@@ -41,7 +41,7 @@ class ViewRepo : IRepo
 {
     readonly IRepoView repoView;
     private readonly IGraphService graphService;
-    readonly Server.IServer viewRepoService;
+    readonly Server.IServer server;
     private readonly ICommitDlg commitDlg;
     private readonly Func<IRepo, IDiffView> newDiffView;
     private readonly ICreateBranchDlg createBranchDlg;
@@ -51,7 +51,7 @@ class ViewRepo : IRepo
         IRepoView repoView,
         Server.Repo repo,
         IGraphService graphService,
-        Server.IServer viewRepoService,
+        Server.IServer server,
         ICommitDlg commitDlg,
         Func<IRepo, IDiffView> newDiffView,
         ICreateBranchDlg createBranchDlg,
@@ -60,7 +60,7 @@ class ViewRepo : IRepo
         this.repoView = repoView;
         Repo = repo;
         this.graphService = graphService;
-        this.viewRepoService = viewRepoService;
+        this.server = server;
         this.commitDlg = commitDlg;
         this.newDiffView = newDiffView;
         this.createBranchDlg = createBranchDlg;
@@ -85,30 +85,30 @@ class ViewRepo : IRepo
 
     public void ShowBranch(string name)
     {
-        Server.Repo newRepo = viewRepoService.ShowBranch(Repo, name);
+        Server.Repo newRepo = server.ShowBranch(Repo, name);
         UpdateRepoTo(newRepo);
     }
 
     public void HideBranch(string name)
     {
-        Server.Repo newRepo = viewRepoService.HideBranch(Repo, name);
+        Server.Repo newRepo = server.HideBranch(Repo, name);
         UpdateRepoTo(newRepo);
     }
 
     public Server.Branch GetCurrentBranch() => GetAllBranches().First(b => b.IsCurrent);
 
-    public IReadOnlyList<Server.Branch> GetAllBranches() => viewRepoService.GetAllBranches(Repo);
+    public IReadOnlyList<Server.Branch> GetAllBranches() => server.GetAllBranches(Repo);
     public IReadOnlyList<Server.Branch> GetShownBranches() => Repo.Branches;
 
     public IReadOnlyList<Server.Branch> GetCommitBranches() =>
-        viewRepoService.GetCommitBranches(Repo, CurrentIndexCommit.Id);
+        server.GetCommitBranches(Repo, CurrentIndexCommit.Id);
 
 
     public void SwitchTo(string branchName) => Do(async () =>
     {
         using (progress.Show())
         {
-            if (!Try(out var e, await viewRepoService.SwitchToAsync(branchName, Repo.Path)))
+            if (!Try(out var e, await server.SwitchToAsync(branchName, Repo.Path)))
             {
                 return R.Error($"Failed to switch to {branchName}", e);
             }
@@ -123,7 +123,7 @@ class ViewRepo : IRepo
         if (!commitDlg.Show(this, out var message)) return R.Ok;
 
 
-        if (!Try(out var e, await viewRepoService.CommitAllChangesAsync(message, Repo.Path)))
+        if (!Try(out var e, await server.CommitAllChangesAsync(message, Repo.Path)))
         {
             return R.Error($"Failed to commit", e);
         }
@@ -138,7 +138,7 @@ class ViewRepo : IRepo
     {
         var branch = Repo.Branches.First(b => b.IsCurrent);
 
-        if (!Try(out var e, await viewRepoService.PushBranchAsync(branch.Name, Repo.Path)))
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, Repo.Path)))
         {
             return R.Error($"Failed to push branch {branch.Name}", e);
         }
@@ -156,7 +156,7 @@ class ViewRepo : IRepo
 
     public void MergeBranch(string name) => Do(async () =>
     {
-        if (!Try(out var e, await viewRepoService.MergeBranch(name, Repo.Path)))
+        if (!Try(out var e, await server.MergeBranch(name, Repo.Path)))
         {
             return R.Error($"Failed to merge branch {name}", e);
         }
@@ -180,12 +180,12 @@ class ViewRepo : IRepo
          var currentBranchName = GetCurrentBranch().Name;
          if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-         if (!Try(out var e, await viewRepoService.CreateBranchAsync(name, true, Repo.Path)))
+         if (!Try(out var e, await server.CreateBranchAsync(name, true, Repo.Path)))
          {
              return R.Error($"Failed to create branch {name}", e);
          }
 
-         if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
+         if (!Try(out e, await server.PushBranchAsync(name, Repo.Path)))
          {
              return R.Error($"Failed to push branch {name} to remote server", e);
          }
@@ -203,12 +203,12 @@ class ViewRepo : IRepo
         if (!Try(out var name, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
 
         if (!Try(out var e,
-            await viewRepoService.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
+            await server.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
         {
             return R.Error($"Failed to create branch {name}", e);
         }
 
-        if (!Try(out e, await viewRepoService.PushBranchAsync(name, Repo.Path)))
+        if (!Try(out e, await server.PushBranchAsync(name, Repo.Path)))
         {
             return R.Error($"Failed to push branch {name} to remote server", e);
         }
@@ -247,7 +247,7 @@ class ViewRepo : IRepo
         if (localBranch != null)
         {
             if (!Try(out var e,
-                await viewRepoService.DeleteLocalBranchAsync(branch.Name, false, Repo.Path)))
+                await server.DeleteLocalBranchAsync(branch.Name, false, Repo.Path)))
             {
                 return R.Error($"Failed to delete branch {branch.Name}", e);
             }
@@ -256,7 +256,7 @@ class ViewRepo : IRepo
         if (remoteBranch != null)
         {
             if (!Try(out var e,
-                await viewRepoService.DeleteRemoteBranchAsync(remoteBranch.Name, Repo.Path)))
+                await server.DeleteRemoteBranchAsync(remoteBranch.Name, Repo.Path)))
             {
                 return R.Error($"Failed to delete remote branch {branch.Name}", e);
             }

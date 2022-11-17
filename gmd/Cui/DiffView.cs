@@ -14,7 +14,7 @@ class DiffView : IDiffView
 {
     static readonly Text splitLine = Text.New.Dark("│");
 
-    readonly IServer viewRepoService;
+    readonly IServer server;
     readonly IDiffConverter diffService;
 
     readonly IRepo repo;
@@ -30,7 +30,7 @@ class DiffView : IDiffView
 
     int TotalRows => diffRows?.Count ?? 0;
 
-    public DiffView(IServer viewRepoService, IDiffConverter diffService, IRepo repo)
+    public DiffView(IServer server, IDiffConverter diffService, IRepo repo)
     {
         this.repo = repo;
         diffView = new Toplevel()
@@ -51,7 +51,7 @@ class DiffView : IDiffView
         };
 
         diffView.Add(contentView);
-        this.viewRepoService = viewRepoService;
+        this.server = server;
         this.diffService = diffService;
 
         RegisterKeyHandlers();
@@ -106,8 +106,8 @@ class DiffView : IDiffView
         var t = Timing.Start;
 
         var diffTask = commitId == Repo.UncommittedId
-            ? viewRepoService.GetUncommittedDiff(repo.Repo.Path)
-            : viewRepoService.GetCommitDiffAsync(commitId, repo.Repo.Path);
+            ? server.GetUncommittedDiff(repo.Repo.Path)
+            : server.GetCommitDiffAsync(commitId, repo.Repo.Path);
 
         if (!Try(out var diff, out var e, await diffTask))
         {
