@@ -1,5 +1,4 @@
 using gmd.Common;
-using gmd.Server;
 using Terminal.Gui;
 
 
@@ -13,7 +12,7 @@ interface IRepoView
     Point CurrentPoint { get; }
 
     Task<R> ShowRepoAsync(string path);
-    void UpdateRepoTo(Repo repo);
+    void UpdateRepoTo(Server.Repo repo);
     void Refresh(string addName = "");
 }
 
@@ -21,8 +20,8 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
-    readonly IServer viewRepoService;
-    readonly Func<IRepoView, Repo, IRepo> newViewRepo;
+    readonly Server.IServer viewRepoService;
+    readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
     private readonly IState state;
     private readonly IProgress progress;
@@ -39,10 +38,10 @@ class RepoView : IRepoView
 
 
     internal RepoView(
-        IServer viewRepoService,
+        Server.IServer viewRepoService,
         Func<IRepo, IDiffView> newDiffView,
         Func<View, int, IRepoWriter> newRepoWriter,
-        Func<IRepoView, Repo, IRepo> newViewRepo,
+        Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
         IState state,
         IProgress progress) : base()
@@ -85,11 +84,11 @@ class RepoView : IRepoView
     }
 
 
-    public void UpdateRepoTo(Repo repo) => ShowRepo(repo);
+    public void UpdateRepoTo(Server.Repo repo) => ShowRepo(repo);
 
     public void Refresh(string addName = "") => ShowRefreshedRepoAsync(addName).RunInBackground();
 
-    void OnRefreshRepo(ChangeEvent e)
+    void OnRefreshRepo(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
         if (isRepoUpdateInProgress)
@@ -108,7 +107,7 @@ class RepoView : IRepoView
         ShowRefreshedRepoAsync("").RunInBackground();
     }
 
-    void OnRefreshStatus(ChangeEvent e)
+    void OnRefreshStatus(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
         if (isStatusUpdateInProgress || isRepoUpdateInProgress)
@@ -198,7 +197,7 @@ class RepoView : IRepoView
             isRepoUpdateInProgress = true;
             var t = Timing.Start;
 
-            var branchNames = repo!.Repo.Branches.Select(b => b.Name).ToList();
+            var branchNames = repo!.GetShownBranches().Select(b => b.Name).ToList();
             if (addName != "")
             {
                 branchNames.Add(addName);
@@ -241,13 +240,14 @@ class RepoView : IRepoView
     }
 
 
-    void ShowRepo(Repo repo)
+    void ShowRepo(Server.Repo serverRepo)
     {
-        this.repo = newViewRepo(this, repo);
-        this.menuService = newMenuService(this.repo);
-        contentView.TriggerUpdateContent(this.repo.TotalRows);
+        repo = newViewRepo(this, serverRepo);
+        menuService = newMenuService(repo);
+        contentView.TriggerUpdateContent(repo.TotalRows);
 
-        var names = repo.Branches.Select(b => b.Name).ToList();
-        state.SetRepo(repo.Path, s => s.Branches = names);
+        // Remember shown branch for next restart of program
+        var names = repo.GetShownBranches().Select(b => b.Name).ToList();
+        state.SetRepo(serverRepo.Path, s => s.Branches = names);
     }
 }
