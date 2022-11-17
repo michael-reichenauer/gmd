@@ -7,25 +7,16 @@ namespace gmd.Cui;
 
 interface ICommitDlg
 {
-    bool Show(out string message);
+    bool Show(IRepo repo, out string message);
 }
 class CommitDlg : ICommitDlg
 {
-    Dialog? dialog;
-    TextField? subjectField;
-    MessageTextView? messageView;
-    IRepo repo;
-
-    bool isOk = false;
-
-    internal CommitDlg(IRepo repo)
-    {
-        this.repo = repo;
-    }
-
-    public bool Show(out string message)
+    public bool Show(IRepo repo, out string message)
     {
         message = "";
+        bool isOk = false;
+
+        (string subjectText, string messageText) = ParseMessage(repo);
 
         var commit = repo.Repo.Commits[0];
         if (commit.Id != Repo.UncommittedId)
@@ -33,38 +24,33 @@ class CommitDlg : ICommitDlg
             return false;
         }
 
-        string branchName = commit.BranchName;
-        (string subjectText, string messageText) = ParseMessage(repo);
         int filesCount = repo.Repo.Status.ChangesCount;
-
-        Button okButton = new Button("OK", true);
-        okButton.ColorScheme = ColorSchemes.ButtonColorScheme;
-        okButton.Clicked += () =>
-        {
-            if (GetMessage() == "")
-            {
-                UI.ErrorMessage("Empty commit message");
-                subjectField!.SetFocus();
-                return;
-            }
-            isOk = true;
-            Application.RequestStop();
-        };
-
-        Button cancelButton = new Button("Cancel", false);
-        cancelButton.Clicked += () => Application.RequestStop();
-        cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
-
+        string branchName = commit.BranchName;
 
         Label infoLabel = new Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
 
-        subjectField = new TextField(1, 2, 50, "") { Text = subjectText };
+        TextField subjectField = new TextField(1, 2, 50, "") { Text = subjectText };
         Label sep1 = new Label(0, 3, "└" + new string('─', 49) + "┘");
 
-        messageView = new MessageTextView() { X = 1, Y = 4, Width = 69, Height = 10, Text = messageText };
+        MessageTextView messageView = new MessageTextView()
+        { X = 1, Y = 4, Width = 69, Height = 10, Text = messageText };
         Label sep3 = new Label(0, 14, "└" + new string('─', 67) + "┘");
 
-        dialog = new CustomDialog("Commit", 72, 18, new[] { okButton, cancelButton }, OnKey)
+        Button okButton = Buttons.OK(true, () =>
+        {
+            if (GetMessage(subjectField, messageView) == "")
+            {
+                UI.ErrorMessage("Empty commit message");
+                subjectField!.SetFocus();
+                return false;
+            }
+            isOk = true;
+            Application.RequestStop();
+            return true;
+        });
+
+        Dialog dialog = new CustomDialog("Commit", 72, 18, new[] { okButton, Buttons.Cancel() },
+            (key) => OnKey(repo, key))
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
             ColorScheme = ColorSchemes.DialogColorScheme,
@@ -76,12 +62,12 @@ class CommitDlg : ICommitDlg
         UI.ShowCursor();
         UI.RunDialog(dialog);
 
-        message = GetMessage();
+        message = GetMessage(subjectField, messageView);
         return isOk;
     }
 
 
-    private bool OnKey(Key key)
+    private bool OnKey(IRepo repo, Key key)
     {
         if (key == (Key.D | Key.CtrlMask))
         {
@@ -122,12 +108,12 @@ class CommitDlg : ICommitDlg
     }
 
 
-    string SubjectText() => subjectField!.Text.ToString()?.Trim() ?? "";
+    string SubjectText(TextField subjectField) => subjectField!.Text.ToString()?.Trim() ?? "";
 
 
-    string GetMessage()
+    string GetMessage(TextField subjectField, MessageTextView messageView)
     {
-        string subjectText = SubjectText();
+        string subjectText = SubjectText(subjectField);
         string msgText = messageView!.Text.ToString()?.TrimEnd() ?? "";
         if (msgText.Trim() == "")
         {
