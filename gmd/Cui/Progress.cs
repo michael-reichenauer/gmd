@@ -5,7 +5,6 @@ namespace gmd.Cui;
 interface IProgress
 {
     Disposable Show();
-    Disposable Hide();
 }
 
 
@@ -19,41 +18,13 @@ class Progress : IProgress
     Timer? progressTimer;
     int count = 0;
     Toplevel? currentParentView;
-    bool isModal = false;
     View? progressView;
-    int hideCount = 0;
 
     public Disposable Show()
     {
         Start();
         return new Disposable(() => Stop());
     }
-
-    public Disposable Hide()
-    {
-        if (count == 0)
-        {
-            // No progress is running, lets return empyt
-            return new Disposable(() => { });
-        }
-
-        hideCount++;
-        Application.RootKeyEvent = null;
-
-        return new Disposable(() =>
-        {
-            hideCount--;
-            if (count == 0)
-            {
-                return;
-            }
-            if (hideCount == 0)
-            {
-                Application.RootKeyEvent = (_) => true;
-            }
-        });
-    }
-
 
     void Start()
     {
@@ -111,7 +82,7 @@ class Progress : IProgress
 
         currentParentView = Application.Current;
         currentParentView.Add(progressView);
-        Application.RootKeyEvent = (_) => true;
+        GrabInputMakeViewModal();
     }
 
     void Stop()
@@ -119,11 +90,6 @@ class Progress : IProgress
         count--;
         if (count > 0)
         {   // Not yet the last stop
-            return;
-        }
-        if (count < 0)
-        {
-            count = 0;
             return;
         }
 
@@ -135,6 +101,16 @@ class Progress : IProgress
         currentParentView!.Remove(progressView);
         currentParentView = null;
         progressView = null;
-        Application.RootKeyEvent = null;
+        UngrabInput();
+    }
+
+    void GrabInputMakeViewModal()
+    {
+        Application.RootKeyEvent = (_) => true;
+    }
+
+    void UngrabInput()
+    {
+        Application.RootKeyEvent = null; ;
     }
 }
