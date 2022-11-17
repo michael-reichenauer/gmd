@@ -39,7 +39,8 @@ class Progress : IProgress
             X = 0,
             Y = 0,
             Width = progressWidth,
-            ProgressBarStyle = ProgressBarStyle.MarqueeContinuous,
+            ProgressBarStyle = ProgressBarStyle.MarqueeBlocks,
+            SegmentCharacter = '●',
             BidirectionalMarquee = true,
             ColorScheme = colorScheme
         };
