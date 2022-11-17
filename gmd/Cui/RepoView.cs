@@ -139,17 +139,11 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.C, () => repo!.Commit());
         contentView.RegisterKeyHandler(Key.b, () => repo!.CreateBranch());
         contentView.RegisterKeyHandler(Key.B, () => repo!.CreateBranch());
-        contentView.RegisterKeyHandler(Key.d, ShowDiff);
-        contentView.RegisterKeyHandler(Key.D, ShowDiff);
-        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, ShowDiff);
+        contentView.RegisterKeyHandler(Key.d, () => repo!.ShowRowDiff());
+        contentView.RegisterKeyHandler(Key.D, () => repo!.ShowRowDiff());
+        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => repo!.ShowRowDiff());
         contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
-    }
-
-    private void ShowDiff()
-    {
-        var diffView = newDiffView(repo!);
-        diffView.ShowCurrentRow();
     }
 
     void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)

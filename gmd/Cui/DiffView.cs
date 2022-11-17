@@ -1,5 +1,5 @@
-using gmd.Server;
 using Terminal.Gui;
+
 
 namespace gmd.Cui;
 
@@ -14,7 +14,7 @@ class DiffView : IDiffView
 {
     static readonly Text splitLine = Text.New.Dark("│");
 
-    readonly IServer server;
+    readonly Server.IServer server;
     readonly IDiffConverter diffService;
 
     readonly IRepo repo;
@@ -30,7 +30,7 @@ class DiffView : IDiffView
 
     int TotalRows => diffRows?.Count ?? 0;
 
-    public DiffView(IServer server, IDiffConverter diffService, IRepo repo)
+    public DiffView(Server.IServer server, IDiffConverter diffService, IRepo repo)
     {
         this.repo = repo;
         diffView = new Toplevel()
@@ -60,7 +60,7 @@ class DiffView : IDiffView
 
     public void ShowCurrentRow() => Show(repo.CurrentIndexCommit.Id);
 
-    public void ShowUncommittedDiff() => Show(Repo.UncommittedId);
+    public void ShowUncommittedDiff() => Show(Server.Repo.UncommittedId);
 
 
     void Show(string commitId)
@@ -105,7 +105,7 @@ class DiffView : IDiffView
     {
         var t = Timing.Start;
 
-        var diffTask = commitId == Repo.UncommittedId
+        var diffTask = commitId == Server.Repo.UncommittedId
             ? server.GetUncommittedDiff(repo.Repo.Path)
             : server.GetCommitDiffAsync(commitId, repo.Repo.Path);
 
@@ -116,6 +116,7 @@ class DiffView : IDiffView
         }
 
         diffRows = diffService.ToDiffRows(diff);
+
         Log.Info($"{t} {diffRows}");
         contentView.TriggerUpdateContent(TotalRows);
     }

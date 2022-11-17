@@ -1,5 +1,3 @@
-using gmd.Server;
-
 using Color = Terminal.Gui.Attribute;
 
 
@@ -31,7 +29,7 @@ enum Sign
 
 interface IGraphService
 {
-    Graph CreateGraph(Repo repo);
+    Graph CreateGraph(Server.Repo repo);
 }
 
 
@@ -44,7 +42,7 @@ class GraphService : IGraphService
         this.branchColorService = branchColorService;
     }
 
-    public Graph CreateGraph(Repo repo)
+    public Graph CreateGraph(Server.Repo repo)
     {
         var t = Timing.Start;
         var branches = ToGraphBranches(repo);
@@ -61,12 +59,12 @@ class GraphService : IGraphService
         return graph;
     }
 
-    private void SetBranchesColor(Repo repo, IReadOnlyList<GraphBranch> branches)
+    private void SetBranchesColor(Server.Repo repo, IReadOnlyList<GraphBranch> branches)
     {
         branches.ForEach(b => b.Color = branchColorService.GetColor(repo, b.B));
     }
 
-    void SetGraph(Graph graph, Repo repo, IReadOnlyList<GraphBranch> branches)
+    void SetGraph(Graph graph, Server.Repo repo, IReadOnlyList<GraphBranch> branches)
     {
         foreach (var b in branches)
         {
@@ -116,7 +114,7 @@ class GraphService : IGraphService
 
 
     // DrawOtherBranchTip draws  ─┺ in when multiple tips on same commit
-    void DrawOtherBranchTip(Graph graph, Repo repo, GraphBranch b, Commit c)
+    void DrawOtherBranchTip(Graph graph, Server.Repo repo, GraphBranch b, Server.Commit c)
     {
         var commitBranch = graph.BranchByName(c.BranchName);
         Color color = b.Color;
@@ -136,7 +134,7 @@ class GraphService : IGraphService
     }
 
 
-    void DrawBranch(Graph graph, Repo repo, GraphBranch b, Commit c, bool isAmbiguous)
+    void DrawBranch(Graph graph, Server.Repo repo, GraphBranch b, Server.Commit c, bool isAmbiguous)
     {
         int x = b.X;
         int y = c.Index;
@@ -172,7 +170,7 @@ class GraphService : IGraphService
         }
     }
 
-    void DrawMerge(Graph graph, Repo repo, Commit commit, GraphBranch commitBranch)
+    void DrawMerge(Graph graph, Server.Repo repo, Server.Commit commit, GraphBranch commitBranch)
     {
         if (repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent))
         {
@@ -198,7 +196,7 @@ class GraphService : IGraphService
         }
     }
 
-    void DrawMoreBranchOut(Graph graph, Commit commit, GraphBranch commitBranch)
+    void DrawMoreBranchOut(Graph graph, Server.Commit commit, GraphBranch commitBranch)
     {
         // Drawing a dark   ╯
         int x = commitBranch.X;
@@ -207,9 +205,9 @@ class GraphService : IGraphService
         graph.SetGraphConnect(x + 1, y, Sign.BranchToRight, color);  //   ╯    
     }
 
-    private void DrawMergeFromParentBranch(Graph graph, Repo repo,
-        Commit commit, GraphBranch commitBranch,
-        Commit mergeParent, GraphBranch parentBranch)
+    private void DrawMergeFromParentBranch(Graph graph, Server.Repo repo,
+        Server.Commit commit, GraphBranch commitBranch,
+        Server.Commit mergeParent, GraphBranch parentBranch)
     {
         int x = commitBranch.X;
         int y = commit.Index;
@@ -233,9 +231,10 @@ class GraphService : IGraphService
         graph.DrawHorizontalLine(x2 + 1, x, y2, color);            // ──
     }
 
-    private void DrawMergeFromChildBranch(Graph graph, Repo repo,
-    Commit commit, GraphBranch commitBranch,
-    Commit mergeParent, GraphBranch parentBranch)
+    private void DrawMergeFromChildBranch(
+        Graph graph, Server.Repo repo,
+        Server.Commit commit, GraphBranch commitBranch,
+        Server.Commit mergeParent, GraphBranch parentBranch)
     {
         // Commit is a merge commit, has 2 parents
         int x = commitBranch.X;
@@ -265,7 +264,7 @@ class GraphService : IGraphService
         }
     }
 
-    void DrawBranchFromParent(Graph graph, Repo repo, Commit c, GraphBranch commitBranch)
+    void DrawBranchFromParent(Graph graph, Server.Repo repo, Server.Commit c, GraphBranch commitBranch)
     {
         // Commit parent is on other branch (commit is first/bottom commit on this branch)
         // Branched from parent branch
@@ -301,7 +300,7 @@ class GraphService : IGraphService
     }
 
 
-    IReadOnlyList<GraphBranch> ToGraphBranches(Repo repo)
+    IReadOnlyList<GraphBranch> ToGraphBranches(Server.Repo repo)
     {
         IReadOnlyList<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
         Func<string, GraphBranch> branchByName = name => branches.First(b => b.B.Name == name);

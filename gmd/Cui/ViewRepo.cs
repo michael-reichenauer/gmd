@@ -28,6 +28,7 @@ interface IRepo
     void Commit();
     void PushCurrentBranch();
     void ShowUncommittedDiff();
+    void ShowRowDiff();
 
     bool CanPush();
     bool CanPushCurrentBranch();
@@ -153,6 +154,13 @@ class ViewRepo : IRepo
         var diffView = newDiffView(this);
         diffView.ShowUncommittedDiff();
     }
+
+    public void ShowRowDiff()
+    {
+        var diffView = newDiffView(this);
+        diffView.ShowCurrentRow();
+    }
+
 
     public void MergeBranch(string name) => Do(async () =>
     {

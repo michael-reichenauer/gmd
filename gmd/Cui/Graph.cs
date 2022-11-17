@@ -1,4 +1,3 @@
-using gmd.Server;
 using Color = Terminal.Gui.Attribute;
 
 
@@ -150,7 +149,7 @@ class GraphRow
 
 class GraphBranch
 {
-    internal Branch B { get; }
+    internal Server.Branch B { get; }
 
     internal int Index { get; set; } = 0;
     internal int X { get; set; } = 0;
@@ -159,7 +158,7 @@ class GraphBranch
     internal GraphBranch? ParentBranch { get; set; }
     internal Color Color { get; set; }
 
-    internal GraphBranch(Branch branch, int index)
+    internal GraphBranch(Server.Branch branch, int index)
     {
         B = branch;
         Index = index;

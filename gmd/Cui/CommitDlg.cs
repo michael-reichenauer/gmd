@@ -1,5 +1,3 @@
-
-using gmd.Server;
 using NStack;
 using Terminal.Gui;
 
@@ -19,7 +17,7 @@ class CommitDlg : ICommitDlg
         (string subjectText, string messageText) = ParseMessage(repo);
 
         var commit = repo.Repo.Commits[0];
-        if (commit.Id != Repo.UncommittedId)
+        if (commit.Id != Server.Repo.UncommittedId)
         {
             return false;
         }

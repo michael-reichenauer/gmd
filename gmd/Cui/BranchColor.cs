@@ -1,17 +1,17 @@
 namespace gmd.Cui;
 using System.Security.Cryptography;
 using System.Text;
-using gmd.Server;
+
 using Color = Terminal.Gui.Attribute;
 
 interface IBranchColorService
 {
-    Color GetColor(Repo repo, Branch branch);
+    Color GetColor(Server.Repo repo, Server.Branch branch);
 }
 
 class BranchColorService : IBranchColorService
 {
-    public Color GetColor(Repo repo, Branch branch)
+    public Color GetColor(Server.Repo repo, Server.Branch branch)
     {
         if (branch.ParentBranchName == "")
         {   // branch has no parent or parent is remote of this branch, lets use it
