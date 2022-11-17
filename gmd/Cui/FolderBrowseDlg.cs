@@ -36,7 +36,7 @@ partial class MainView
             SetupScrollBar(folderView);
 
             folderView.SetFocus();
-            Application.Run(dialog);
+            UI.RunDialog(dialog);
 
             if (selectedPath == "")
             {

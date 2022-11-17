@@ -74,7 +74,7 @@ class CommitDlg : ICommitDlg
 
         subjectField.SetFocus();
         UI.ShowCursor();
-        Application.Run(dialog);
+        UI.RunDialog(dialog);
 
         message = GetMessage();
         return isOk;

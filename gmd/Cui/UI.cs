@@ -13,6 +13,24 @@ static class UI
         action().RunInBackground();
     }
 
+    static internal void RunDialog(Toplevel toplevel)
+    {
+        using (EnableInput())
+        {
+            Application.Run(toplevel);
+        }
+    }
+
+    static internal void StopInput()
+    {
+        Application.RootKeyEvent = (_) => true;
+    }
+
+    static internal void StartInput()
+    {
+        Application.RootKeyEvent = null;
+    }
+
     public static MenuItem MenuSeparator(string text = "")
     {
         const int maxDivider = 25;
@@ -59,7 +77,10 @@ static class UI
             BorderStyle = BorderStyle.Rounded,
         };
 
-        return MessageBox.Query(0, 0, title, message, defaultButton, border, buttons);
+        using (EnableInput())
+        {
+            return MessageBox.Query(0, 0, title, message, defaultButton, border, buttons);
+        }
     }
 
     internal static int ErrorMessage(string message, params ustring[] buttons)
@@ -77,6 +98,17 @@ static class UI
             BorderStyle = BorderStyle.Rounded,
         };
 
-        return MessageBox.ErrorQuery(0, 0, "Error", message, defaultButton, border, buttons);
+        using (EnableInput())
+        {
+            return MessageBox.ErrorQuery(0, 0, "Error", message, defaultButton, border, buttons);
+        }
     }
+
+    static Disposable EnableInput()
+    {
+        var rootKeyEvent = Application.RootKeyEvent;
+        Application.RootKeyEvent = null;
+        return new Disposable(() => Application.RootKeyEvent = rootKeyEvent);
+    }
+
 }

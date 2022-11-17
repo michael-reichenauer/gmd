@@ -45,7 +45,7 @@ class CreateBranchDlg : ICreateBranchDlg
 
         nameField.SetFocus();
         UI.ShowCursor();
-        Application.Run(dialog);
+        UI.RunDialog(dialog);
 
         if (!isOk)
         {

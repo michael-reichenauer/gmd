@@ -168,67 +168,76 @@ class RepoView : IRepoView
 
     async Task<R> ShowNewRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
-        isStatusUpdateInProgress = true;
-        isRepoUpdateInProgress = true;
-        var t = Timing.Start;
-        if (!Try(out var viewRepo, out var e,
-            await viewRepoService.GetRepoAsync(path, showBranches)))
+        using (progress.Show())
         {
             isStatusUpdateInProgress = true;
             isRepoUpdateInProgress = true;
-            return e;
-        }
+            var t = Timing.Start;
+            if (!Try(out var viewRepo, out var e,
+                await viewRepoService.GetRepoAsync(path, showBranches)))
+            {
+                isStatusUpdateInProgress = true;
+                isRepoUpdateInProgress = true;
+                return e;
+            }
 
-        isStatusUpdateInProgress = true;
-        isRepoUpdateInProgress = true;
-        ShowRepo(viewRepo);
-        Log.Info($"{t} {viewRepo}");
-        return R.Ok;
+            isStatusUpdateInProgress = true;
+            isRepoUpdateInProgress = true;
+            ShowRepo(viewRepo);
+            Log.Info($"{t} {viewRepo}");
+            return R.Ok;
+        }
     }
 
     async Task ShowRefreshedRepoAsync(string addName)
     {
-        Log.Info("show refreshed repo ...");
-        isStatusUpdateInProgress = true;
-        isRepoUpdateInProgress = true;
-        var t = Timing.Start;
-
-        var branchNames = repo!.Repo.Branches.Select(b => b.Name).ToList();
-        if (addName != "")
+        using (progress.Show())
         {
-            branchNames.Add(addName);
-        }
+            Log.Info("show refreshed repo ...");
+            isStatusUpdateInProgress = true;
+            isRepoUpdateInProgress = true;
+            var t = Timing.Start;
 
-        if (!Try(out var viewRepo, out var e,
-            await viewRepoService.GetRepoAsync(repo!.Repo.Path, branchNames)))
-        {
+            var branchNames = repo!.Repo.Branches.Select(b => b.Name).ToList();
+            if (addName != "")
+            {
+                branchNames.Add(addName);
+            }
+
+            if (!Try(out var viewRepo, out var e,
+                await viewRepoService.GetRepoAsync(repo!.Repo.Path, branchNames)))
+            {
+                isStatusUpdateInProgress = false;
+                isRepoUpdateInProgress = false;
+                UI.ErrorMessage($"Failed to refresh:\n{e}");
+                return;
+            }
+
             isStatusUpdateInProgress = false;
             isRepoUpdateInProgress = false;
-            UI.ErrorMessage($"Failed to refresh:\n{e}");
-            return;
+            ShowRepo(viewRepo);
+            Log.Info($"{t} {viewRepo}");
         }
-
-        isStatusUpdateInProgress = false;
-        isRepoUpdateInProgress = false;
-        ShowRepo(viewRepo);
-        Log.Info($"{t} {viewRepo}");
     }
 
     async Task ShowUpdatedStatusRepoAsync()
     {
-        isStatusUpdateInProgress = true;
-        var t = Timing.Start;
-        if (!Try(out var viewRepo, out var e,
-            await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
+        using (progress.Show())
         {
-            isStatusUpdateInProgress = false;
-            UI.ErrorMessage($"Failed to update status:\n{e}");
-            return;
-        }
+            isStatusUpdateInProgress = true;
+            var t = Timing.Start;
+            if (!Try(out var viewRepo, out var e,
+                await viewRepoService.GetUpdateStatusRepoAsync(repo!.Repo)))
+            {
+                isStatusUpdateInProgress = false;
+                UI.ErrorMessage($"Failed to update status:\n{e}");
+                return;
+            }
 
-        isStatusUpdateInProgress = false;
-        ShowRepo(viewRepo);
-        Log.Info($"{t} {viewRepo}");
+            isStatusUpdateInProgress = false;
+            ShowRepo(viewRepo);
+            Log.Info($"{t} {viewRepo}");
+        }
     }
 
 

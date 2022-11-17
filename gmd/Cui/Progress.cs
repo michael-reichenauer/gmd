@@ -82,8 +82,16 @@ class Progress : IProgress
 
         currentParentView = Application.Current;
         currentParentView.Add(progressView);
-        GrabInputMakeViewModal();
+
+        currentParentView.Activate += (_) => Log.Info("Active");
+        currentParentView.Deactivate += (_) => Log.Info("Deactivate");
+
+        Application.NotifyNewRunState += (d) => Log.Info("new run state");
+        Application.NotifyStopRunState += (d) => Log.Info("new stop state");
+
+        UI.StopInput();
     }
+
 
     void Stop()
     {
@@ -101,16 +109,6 @@ class Progress : IProgress
         currentParentView!.Remove(progressView);
         currentParentView = null;
         progressView = null;
-        UngrabInput();
-    }
-
-    void GrabInputMakeViewModal()
-    {
-        Application.RootKeyEvent = (_) => true;
-    }
-
-    void UngrabInput()
-    {
-        Application.RootKeyEvent = null; ;
+        UI.StartInput();
     }
 }
