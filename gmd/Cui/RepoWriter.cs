@@ -256,11 +256,11 @@ class RepoWriter : IRepoWriter
                             // Both local and remote tips on same commit, combine them
                             if (local.IsCurrent)
                             {
-                                tipText.Add($"(^)(", color).White("● ").Add($"{branchName})", color);
+                                tipText.Add($"(^|", color).White("● ").Add($"{branchName})", color);
                             }
                             else
                             {
-                                tipText.Add($"(^)({branchName})", color);
+                                tipText.Add($"(^|{branchName})", color);
                             }
                         }
                         else
