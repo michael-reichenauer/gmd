@@ -17,6 +17,8 @@ interface IServer
     Task<R> CommitAllChangesAsync(string message, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R> PushBranchAsync(string name, string wd);
+    Task<R> PullCurrentBranchAsync(string wd);
+    Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(string branchName, string wd);
     Task<R> MergeBranch(string name, string wd);
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);

@@ -131,6 +131,12 @@ class Server : IServer
     public Task<R> PushBranchAsync(string name, string wd) =>
         git.PushBranchAsync(name, wd);
 
+    public Task<R> PullCurrentBranchAsync(string wd) =>
+        git.PullCurrentBranchAsync(wd);
+
+    public Task<R> PullBranchAsync(string name, string wd) =>
+        git.PullBranchAsync(name, wd);
+
     public Task<R> SwitchToAsync(string branchName, string wd) =>
         git.CheckoutAsync(branchName, wd);
 

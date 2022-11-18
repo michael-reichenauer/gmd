@@ -29,17 +29,19 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(new MenuItem("Commit ...", "",
             () => repo.Commit(),
             () => !repo.Repo.Status.IsOk));
-        items.Add(new MenuItem("Branch from commit ...", "",
-            () => repo.CreateBranchFromCommit(),
-            () => repo.Repo.Status.IsOk));
+
 
         items.Add(UI.MenuSeparator("Branches"));
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems()));
         items.Add(new MenuBarItem("Hide Branch", GetHideItems()));
-        items.Add(new MenuBarItem("Push", GetPushItems()));
+        items.Add(new MenuBarItem("Push", "", null, () => repo.CanPush()) { Children = GetPushItems() });
+        items.Add(new MenuBarItem("Update/Pull", "", null, () => repo.CanPull()) { Children = GetPullItems() });
         items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
         items.Add(new MenuBarItem("Merge", GetMergeItems()));
         items.Add(new MenuItem("Create Branch ...", "", repo.CreateBranch));
+        items.Add(new MenuItem("Create Branch from commit ...", "",
+          () => repo.CreateBranchFromCommit(),
+          () => repo.Repo.Status.IsOk));
         items.Add(new MenuBarItem("Delete Branch", GetDeleteItems()));
 
         var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
@@ -52,7 +54,6 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
         var showItems = GetShowItems();
-        var scrollToItems = GetScrollToItems();
         var switchToItems = GetSwitchToItems();
 
 
@@ -62,11 +63,6 @@ class RepoViewMenus : IRepoViewMenus
             items.AddRange(showItems);
         }
 
-        if (scrollToItems.Length > 0)
-        {
-            items.Add(UI.MenuSeparator("Scroll to"));
-            items.AddRange(scrollToItems);
-        }
         if (switchToItems.Length > 0)
         {
             items.Add(UI.MenuSeparator("Switch to"));
@@ -105,6 +101,17 @@ class RepoViewMenus : IRepoViewMenus
               }
           : new MenuItem[0];
 
+
+    MenuItem[] GetPullItems() =>
+      repo.CanPull()
+          ? new[]{
+                new MenuItem("Pull Current Branch", "",
+                    () => repo.PullCurrentBranch(),
+                    () => repo.CanPullCurrentBranch())
+              }
+          : new MenuItem[0];
+
+
     MenuItem[] GetShowItems()
     {
         // Get current branch, commit branch in/out and all shown branches.
@@ -116,11 +123,6 @@ class RepoViewMenus : IRepoViewMenus
         return ToShowBranchesItems(branches, true);
     }
 
-
-    MenuItem[] GetScrollToItems()
-    {
-        return new MenuItem[0];
-    }
 
     MenuItem[] GetSwitchToItems()
     {
@@ -243,25 +245,6 @@ class RepoViewMenus : IRepoViewMenus
         name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
 
         return name;
-    }
-
-    MenuItem[] GetShowScrollBranchItems()
-    {
-        List<MenuItem> items = new List<MenuItem>();
-        var scrollToItems = GetScrollToItems();
-        var switchToItems = GetSwitchToItems();
-
-        if (scrollToItems.Length > 0)
-        {
-            items.Add(UI.MenuSeparator("Scroll to"));
-            items.AddRange(switchToItems);
-        }
-        if (items.Count > 0)
-        {
-            items.Add(UI.MenuSeparator("Show"));
-        }
-
-        return items.ToArray();
     }
 
     MenuItem[] GetMainMenuItems()

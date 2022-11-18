@@ -28,11 +28,14 @@ interface IRepo
     void SwitchTo(string branchName);
     void Commit();
     void PushCurrentBranch();
+    bool CanPush();
+    bool CanPushCurrentBranch();
+    void PullCurrentBranch();
+    bool CanPull();
+    bool CanPullCurrentBranch();
     void ShowUncommittedDiff();
     void ShowCurrentRowDiff();
 
-    bool CanPush();
-    bool CanPushCurrentBranch();
     void MergeBranch(string name);
     void CreateBranch();
     void CreateBranchFromCommit();
@@ -134,20 +137,6 @@ class RepoImpl : IRepo
     });
 
 
-    public void PushCurrentBranch() => Do(async () =>
-    {
-        var branch = Repo.Branches.First(b => b.IsCurrent);
-
-        if (!Try(out var e, await server.PushBranchAsync(branch.Name, Repo.Path)))
-        {
-            return R.Error($"Failed to push branch {branch.Name}", e);
-        }
-
-        Refresh();
-        return R.Ok;
-    });
-
-
     public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
 
     public void ShowCurrentRowDiff() => ShowDiff(CurrentIndexCommit.Id);
@@ -176,14 +165,48 @@ class RepoImpl : IRepo
     });
 
 
+    public void PushCurrentBranch() => Do(async () =>
+    {
+        var branch = Repo.Branches.First(b => b.IsCurrent);
+
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, Repo.Path)))
+        {
+            return R.Error($"Failed to push branch {branch.Name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
     public bool CanPush() => CanPushCurrentBranch();
 
     public bool CanPushCurrentBranch()
     {
         var branch = Repo.Branches.FirstOrDefault(b => b.IsCurrent);
         return Repo.Status.IsOk &&
-         branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
+            branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
     }
+
+
+    public void PullCurrentBranch() => Do(async () =>
+    {
+        if (!Try(out var e, await server.PullCurrentBranchAsync(Repo.Path)))
+        {
+            return R.Error($"Failed to pull current branch", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public bool CanPull() => CanPullCurrentBranch();
+
+    public bool CanPullCurrentBranch()
+    {
+        var branch = Repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        return Repo.Status.IsOk && branch != null && branch.HasRemoteOnly;
+    }
+
 
     public void CreateBranch() => Do(async () =>
      {
@@ -290,5 +313,6 @@ class RepoImpl : IRepo
             }
         });
     }
+
 }
 
