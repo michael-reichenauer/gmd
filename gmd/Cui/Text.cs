@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Terminal.Gui;
 using Color = Terminal.Gui.Attribute;
 
@@ -14,21 +15,21 @@ class Text
     internal static Text None => new Text();
     internal static Text New => new Text();
 
-    internal Text Red(string text) => Add(text, Colors.Red);
-    internal Text Blue(string text) => Add(text, Colors.Blue);
-    internal Text White(string text) => Add(text, Colors.White);
-    internal Text Magenta(string text) => Add(text, Colors.Magenta);
-    internal Text BrightBlue(string text) => Add(text, Colors.BrightBlue);
-    internal Text BrightCyan(string text) => Add(text, Colors.BrightCyan);
-    internal Text BrightGreen(string text) => Add(text, Colors.BrightGreen);
-    internal Text BrightMagenta(string text) => Add(text, Colors.BrightMagenta);
-    internal Text BrightRed(string text) => Add(text, Colors.BrightRed);
-    internal Text BrightYellow(string text) => Add(text, Colors.BrightYellow);
-    internal Text Cyan(string text) => Add(text, Colors.Cyan);
-    internal Text Dark(string text) => Add(text, Colors.Dark);
-    internal Text Green(string text) => Add(text, Colors.Green);
-    internal Text Yellow(string text) => Add(text, Colors.Yellow);
-    internal Text Black(string text) => Add(text, Colors.Black);
+    internal Text Red(string text) => Add(text, TextColor.Red);
+    internal Text Blue(string text) => Add(text, TextColor.Blue);
+    internal Text White(string text) => Add(text, TextColor.White);
+    internal Text Magenta(string text) => Add(text, TextColor.Magenta);
+    internal Text BrightBlue(string text) => Add(text, TextColor.BrightBlue);
+    internal Text BrightCyan(string text) => Add(text, TextColor.BrightCyan);
+    internal Text BrightGreen(string text) => Add(text, TextColor.BrightGreen);
+    internal Text BrightMagenta(string text) => Add(text, TextColor.BrightMagenta);
+    internal Text BrightRed(string text) => Add(text, TextColor.BrightRed);
+    internal Text BrightYellow(string text) => Add(text, TextColor.BrightYellow);
+    internal Text Cyan(string text) => Add(text, TextColor.Cyan);
+    internal Text Dark(string text) => Add(text, TextColor.Dark);
+    internal Text Green(string text) => Add(text, TextColor.Green);
+    internal Text Yellow(string text) => Add(text, TextColor.Yellow);
+    internal Text Black(string text) => Add(text, TextColor.Black);
 
 
     internal Text Add(string text, Color color)

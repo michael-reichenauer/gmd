@@ -1,10 +1,10 @@
 using NStack;
 using Terminal.Gui;
 
-namespace gmd.Cui;
+namespace gmd.Cui.Common;
 
 
-static class MessageBox
+static class MessageDlg
 {
     internal static int ShowInfo(ustring title, ustring message,
             int defaultButton = 0, params string[] buttons) =>
@@ -17,13 +17,9 @@ static class MessageBox
     static int ShowFull(bool useErrorColors, int width, int height, ustring title, ustring message,
             int defaultButton = 0, params string[] buttons)
     {
-        var border = new Border()
-        {
-            Effect3D = false,
-            BorderStyle = BorderStyle.Rounded,
-        };
+        var border = new Border() { Effect3D = false, BorderStyle = BorderStyle.Rounded };
 
-        int defaultWidth = 50;
+        int defaultWidth = 30;
         if (defaultWidth > Application.Driver.Cols / 2)
         {
             defaultWidth = (int)(Application.Driver.Cols * 0.60f);

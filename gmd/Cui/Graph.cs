@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Color = Terminal.Gui.Attribute;
 
 
@@ -64,9 +65,9 @@ class GraphColumn
 {
     internal Sign Connect { get; private set; } = Sign.Blank;
     internal Sign Branch { get; private set; } = Sign.Blank;
-    internal Color BranchColor { get; private set; } = Colors.None;
-    internal Color ConnectColor { get; private set; } = Colors.None;
-    internal Color PassColor { get; private set; } = Colors.None;
+    internal Color BranchColor { get; private set; } = TextColor.None;
+    internal Color ConnectColor { get; private set; } = TextColor.None;
+    internal Color PassColor { get; private set; } = TextColor.None;
 
     internal void SetConnect(Sign sign, Color color)
     {
@@ -84,7 +85,7 @@ class GraphColumn
     {
         Branch |= sign;
 
-        if (BranchColor == Colors.None)
+        if (BranchColor == TextColor.None)
         {
             BranchColor = color;
         }
@@ -94,13 +95,13 @@ class GraphColumn
     {
         Connect |= sign;
 
-        if (PassColor == Colors.None)
+        if (PassColor == TextColor.None)
         {
             PassColor = color;
         }
         else if (PassColor != color)
         {
-            PassColor = Colors.Ambiguous;
+            PassColor = TextColor.Ambiguous;
         }
     }
 }

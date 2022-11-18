@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -14,7 +15,7 @@ class Progress : IProgress
 {
     const int intitialDelay = 800;
     const int progressWidth = 20;
-    static readonly ColorScheme colorScheme = new ColorScheme() { Normal = Colors.Magenta };
+    static readonly ColorScheme colorScheme = new ColorScheme() { Normal = TextColor.Magenta };
 
     Timer? progressTimer;
     int count = 0;

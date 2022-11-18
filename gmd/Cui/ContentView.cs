@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Terminal.Gui;
 
 
@@ -151,7 +152,7 @@ class ContentView : View
         }
 
         Move(0, currentIndex - firstIndex);
-        Driver.SetAttribute(Colors.White);
+        Driver.SetAttribute(TextColor.White);
         Driver.AddStr("┃");
     }
 
@@ -248,7 +249,7 @@ class ContentView : View
         for (int i = sbStart; i <= sbEnd; i++)
         {
             Move(Math.Max(ViewWidth, 0), i);
-            Driver.SetAttribute(Colors.Magenta);
+            Driver.SetAttribute(TextColor.Magenta);
             Driver.AddStr("┃");
         }
     }

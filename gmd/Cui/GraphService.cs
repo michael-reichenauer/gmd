@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Color = Terminal.Gui.Attribute;
 
 
@@ -128,7 +129,7 @@ class GraphService : IGraphService
 
         if (c.IsAmbiguous)
         {
-            color = Colors.Ambiguous;
+            color = TextColor.Ambiguous;
         }
         graph.SetGraphBranch(x2, y2, Sign.Bottom | Sign.Pass, color); //       ┺
     }
@@ -138,11 +139,11 @@ class GraphService : IGraphService
     {
         int x = b.X;
         int y = c.Index;
-        Color color = c.IsAmbiguous ? Colors.Ambiguous : b.Color;
+        Color color = c.IsAmbiguous ? TextColor.Ambiguous : b.Color;
 
         if (c.BranchName != b.B.Name && c.Id != b.B.TipId)
         {   // Other branch commit, normal branch line (no commit on that branch)
-            Color otherColor = !isAmbiguous ? b.Color : Colors.Ambiguous;
+            Color otherColor = !isAmbiguous ? b.Color : TextColor.Ambiguous;
             graph.SetGraphBranch(x, y, Sign.BLine, otherColor); //      ┃  (other branch, not this commit)
             return;
         }
@@ -191,7 +192,7 @@ class GraphService : IGraphService
             // Drawing a dark  ╮
             int x = commitBranch.X;
             int y = commit.Index;
-            Color color = Colors.Dark;
+            Color color = TextColor.Dark;
             graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color);  //   ╮     
         }
     }
@@ -201,7 +202,7 @@ class GraphService : IGraphService
         // Drawing a dark   ╯
         int x = commitBranch.X;
         int y = commit.Index;
-        Color color = Colors.Dark;
+        Color color = TextColor.Dark;
         graph.SetGraphConnect(x + 1, y, Sign.BranchToRight, color);  //   ╯    
     }
 
@@ -218,7 +219,7 @@ class GraphService : IGraphService
         Color color = commitBranch.Color;
         if (commit.IsAmbiguous)
         {
-            color = Colors.Ambiguous;
+            color = TextColor.Ambiguous;
         }
 
         graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color); //     ╭
@@ -247,7 +248,7 @@ class GraphService : IGraphService
 
         if (mergeParent.IsAmbiguous)
         {
-            color = Colors.Ambiguous;
+            color = TextColor.Ambiguous;
         }
         graph.DrawHorizontalLine(x + 1, x2, y, color); //                 ─
 
@@ -278,7 +279,7 @@ class GraphService : IGraphService
 
         if (c.IsAmbiguous)
         {
-            color = Colors.Ambiguous;
+            color = TextColor.Ambiguous;
         }
 
         if (parentBranch.Index < commitBranch.Index)

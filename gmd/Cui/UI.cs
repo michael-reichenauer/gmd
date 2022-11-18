@@ -1,5 +1,5 @@
-using NStack;
 using Terminal.Gui;
+using gmd.Cui.Common;
 
 
 namespace gmd.Cui;
@@ -73,7 +73,7 @@ static class UI
 
         using (EnableInput())
         {
-            return MessageBox.ShowInfo(title, message, defaultButton, buttons);
+            return MessageDlg.ShowInfo(title, message, defaultButton, buttons);
         }
     }
 
@@ -88,7 +88,7 @@ static class UI
 
         using (EnableInput())
         {
-            return MessageBox.ShowError(message, defaultButton, buttons);
+            return MessageDlg.ShowError(message, defaultButton, buttons);
         }
     }
 

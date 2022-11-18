@@ -1,3 +1,5 @@
+using gmd.Cui.Common;
+
 namespace gmd.Cui;
 
 interface IGraphWriter
@@ -25,28 +27,28 @@ class GraphWriter : IGraphWriter
 
             // Draw connect runes (left of the branch)
             if (row[i].Connect == Sign.Pass &&
-                passColor != Colors.None &&
-                passColor != Colors.Ambiguous)
+                passColor != TextColor.None &&
+                passColor != TextColor.Ambiguous)
             {
                 connectColor = passColor;
             }
             else if (row[i].Connect.HasFlag(Sign.Pass))
             {
-                connectColor = Colors.Ambiguous;
+                connectColor = TextColor.Ambiguous;
             }
 
             text.Add(ConnectRune(row[i].Connect), connectColor);
 
             // Draw the branch rune
             if (row[i].Branch == Sign.Pass &&
-                passColor != Colors.None &&
-                passColor != Colors.Ambiguous)
+                passColor != TextColor.None &&
+                passColor != TextColor.Ambiguous)
             {
                 branchColor = passColor;
             }
             else if (row[i].Branch == Sign.Pass)
             {
-                branchColor = Colors.Ambiguous;
+                branchColor = TextColor.Ambiguous;
             }
             text.Add(BranchRune(row[i].Branch), branchColor);
         }

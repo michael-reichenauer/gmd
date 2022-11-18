@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Terminal.Gui;
 using Color = Terminal.Gui.Attribute;
 
@@ -24,21 +25,21 @@ class ColorText
 
     public void EoL() => view.Move(startX, ++row);
 
-    public void Red(string text) => Add(text, Colors.Red);
-    public void Blue(string text) => Add(text, Colors.Blue);
-    public void White(string text) => Add(text, Colors.White);
-    public void Magenta(string text) => Add(text, Colors.Magenta);
-    public void BrightBlue(string text) => Add(text, Colors.BrightBlue);
-    public void BrightCyan(string text) => Add(text, Colors.BrightCyan);
-    public void BrightGreen(string text) => Add(text, Colors.BrightGreen);
-    public void BrightMagenta(string text) => Add(text, Colors.BrightMagenta);
-    public void BrightRed(string text) => Add(text, Colors.BrightRed);
-    public void BrightYellow(string text) => Add(text, Colors.BrightYellow);
-    public void Cyan(string text) => Add(text, Colors.Cyan);
-    public void Dark(string text) => Add(text, Colors.Dark);
-    public void Green(string text) => Add(text, Colors.Green);
-    public void Yellow(string text) => Add(text, Colors.Yellow);
-    public void Black(string text) => Add(text, Colors.Black);
+    public void Red(string text) => Add(text, TextColor.Red);
+    public void Blue(string text) => Add(text, TextColor.Blue);
+    public void White(string text) => Add(text, TextColor.White);
+    public void Magenta(string text) => Add(text, TextColor.Magenta);
+    public void BrightBlue(string text) => Add(text, TextColor.BrightBlue);
+    public void BrightCyan(string text) => Add(text, TextColor.BrightCyan);
+    public void BrightGreen(string text) => Add(text, TextColor.BrightGreen);
+    public void BrightMagenta(string text) => Add(text, TextColor.BrightMagenta);
+    public void BrightRed(string text) => Add(text, TextColor.BrightRed);
+    public void BrightYellow(string text) => Add(text, TextColor.BrightYellow);
+    public void Cyan(string text) => Add(text, TextColor.Cyan);
+    public void Dark(string text) => Add(text, TextColor.Dark);
+    public void Green(string text) => Add(text, TextColor.Green);
+    public void Yellow(string text) => Add(text, TextColor.Yellow);
+    public void Black(string text) => Add(text, TextColor.Black);
 
 
     public void Add(string text, Color color)

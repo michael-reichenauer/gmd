@@ -1,6 +1,6 @@
 using Terminal.Gui;
 
-namespace gmd.Cui;
+namespace gmd.Cui.Common;
 
 class Buttons
 {
