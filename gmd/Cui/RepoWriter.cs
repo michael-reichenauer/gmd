@@ -248,15 +248,50 @@ class RepoWriter : IRepoWriter
             {
                 if (b.IsRemote)
                 {
-                    branchName = "^/" + branchName;
+                    if (b.LocalName != "")
+                    {
+                        var local = repo.Repo.Branches.First(bb => bb.Name == b.LocalName);
+                        if (local.TipId == b.TipId)
+                        {
+                            // Both local and remote tips on same commit, combine them
+                            if (local.IsCurrent)
+                            {
+                                tipText.Add($"(^)(", color).White("●").Add($"{branchName})", color);
+                            }
+                            else
+                            {
+                                tipText.Add($"(^)({branchName})", color);
+                            }
+                        }
+                        else
+                        {
+                            tipText.Add($"(^/{branchName})", color);
+                        }
+                    }
+                    else
+                    {
+                        tipText.Add($"(^/{branchName})", color);
+                    }
                 }
-                if (b.IsCurrent)
+                if (!b.IsRemote)
                 {
-                    tipText.Add($"(", color).White("● ").Add($"{branchName})", color);
-                }
-                else
-                {
-                    tipText.Add($"({branchName})", color);
+                    if (b.RemoteName != "")
+                    {
+                        var remote = repo.Repo.Branches.First(bb => bb.Name == b.RemoteName);
+                        if (remote.TipId == b.TipId)
+                        {
+                            // Both local and remote tips on same commit, handled by the remote branch
+                            continue;
+                        }
+                        else
+                        {
+                            tipText.Add($"({branchName})", color);
+                        }
+                    }
+                    else
+                    {
+                        tipText.Add($"({branchName})", color);
+                    }
                 }
             }
             else
