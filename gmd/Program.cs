@@ -1,7 +1,8 @@
 ﻿using Terminal.Gui;
 using gmd.Cui;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Configuration;
+using gmd.Cui.Common;
+// using Microsoft.Extensions.Configuration;
 
 [assembly: InternalsVisibleTo("gmdTest")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

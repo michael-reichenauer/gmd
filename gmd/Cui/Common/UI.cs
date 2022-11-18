@@ -1,8 +1,7 @@
 using Terminal.Gui;
-using gmd.Cui.Common;
 
 
-namespace gmd.Cui;
+namespace gmd.Cui.Common;
 
 static class UI
 {

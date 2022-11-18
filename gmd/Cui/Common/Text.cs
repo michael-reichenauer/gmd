@@ -1,9 +1,8 @@
-using gmd.Cui.Common;
 using Terminal.Gui;
 using Color = Terminal.Gui.Attribute;
 
-namespace gmd.Cui;
 
+namespace gmd.Cui.Common;
 
 
 class Text

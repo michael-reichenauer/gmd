@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Cui.Common;
 using gmd.Git;
 using Terminal.Gui;
 

@@ -1,8 +1,7 @@
-using gmd.Cui.Common;
 using Terminal.Gui;
 
-namespace gmd.Cui;
 
+namespace gmd.Cui.Common;
 
 interface IProgress
 {
