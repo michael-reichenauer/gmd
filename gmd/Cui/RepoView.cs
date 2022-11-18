@@ -145,6 +145,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => repo!.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
+        contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
     }
 
     void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)
@@ -187,7 +188,7 @@ class RepoView : IRepoView
     {
         using (progress.Show())
         {
-            Log.Info("show refreshed repo ...");
+            Log.Info($"show refreshed repo with {addName} ...");
 
             isStatusUpdateInProgress = true;
             isRepoUpdateInProgress = true;

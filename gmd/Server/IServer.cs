@@ -8,6 +8,7 @@ interface IServer
     Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
 
+    IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter);
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
     Repo ShowBranch(Repo repo, string branchName);

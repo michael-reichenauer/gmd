@@ -248,7 +248,7 @@ class ContentView : View
 
         for (int i = sbStart; i <= sbEnd; i++)
         {
-            Move(Math.Max(ViewWidth, 0), i);
+            Move(Math.Max(ViewWidth - 1, 0), i);
             Driver.SetAttribute(TextColor.Magenta);
             Driver.AddStr("┃");
         }

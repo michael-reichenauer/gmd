@@ -56,6 +56,20 @@ class Server : IServer
         converter.ToBranches(repo.AugmentedRepo.Branches);
 
 
+    public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
+    {
+        var sc = StringComparison.OrdinalIgnoreCase;
+        var commits = repo.AugmentedRepo.Commits
+         .Where(c =>
+             c.Id.Contains(filter, sc) ||
+             c.Subject.Contains(filter, sc) ||
+             c.BranchName.Contains(filter, sc) ||
+             c.Author.Contains(filter, sc));
+        return converter.ToCommits(commits.ToList());
+
+    }
+
+
     public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId)
     {
         if (commitId == Repo.UncommittedId)

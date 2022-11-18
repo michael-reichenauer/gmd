@@ -85,15 +85,28 @@ class Progress : IProgress
         currentParentView = Application.Current;
         currentParentView.Add(progressView);
 
-        currentParentView.Activate += (_) => Log.Info("Active");
-        currentParentView.Deactivate += (_) => Log.Info("Deactivate");
-
-        Application.NotifyNewRunState += (d) => Log.Info("new run state");
-        Application.NotifyStopRunState += (d) => Log.Info("new stop state");
-
+        UI.SetActions(() => Deactivated(), () => Activated());
         UI.StopInput();
     }
 
+    private void Activated()
+    {
+        if (progressView != null)
+        {
+            progressView.Visible = true;
+        }
+
+        progressTimer?.Change(0, 100);
+    }
+
+    private void Deactivated()
+    {
+        progressTimer?.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+        if (progressView != null)
+        {
+            progressView.Visible = false;
+        }
+    }
 
     void Stop()
     {
@@ -111,6 +124,7 @@ class Progress : IProgress
         currentParentView!.Remove(progressView);
         currentParentView = null;
         progressView = null;
+        UI.SetActions(null, null);
         UI.StartInput();
     }
 }

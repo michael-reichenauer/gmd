@@ -20,6 +20,15 @@ static class UI
         }
     }
 
+    static Action? onActivated;
+    static Action? onDeactivated;
+    static internal void SetActions(Action? deactivated, Action? activated)
+    {
+        onDeactivated = deactivated;
+        onActivated = activated;
+    }
+
+
     static internal void StopInput()
     {
         Application.RootKeyEvent = (_) => true;
@@ -95,7 +104,12 @@ static class UI
     {
         var rootKeyEvent = Application.RootKeyEvent;
         Application.RootKeyEvent = null;
-        return new Disposable(() => Application.RootKeyEvent = rootKeyEvent);
+        onDeactivated?.Invoke();
+        return new Disposable(() =>
+        {
+            Application.RootKeyEvent = rootKeyEvent;
+            onActivated?.Invoke();
+        });
     }
 
 }

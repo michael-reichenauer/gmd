@@ -42,6 +42,7 @@ interface IRepo
     void CreateBranch();
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
+    void Filter();
 }
 
 class RepoImpl : IRepo
@@ -53,6 +54,7 @@ class RepoImpl : IRepo
     private readonly IDiffView diffView;
     private readonly ICreateBranchDlg createBranchDlg;
     private readonly IProgress progress;
+    private readonly IFilterDlg filterDlg;
 
     internal RepoImpl(
         IRepoView repoView,
@@ -62,7 +64,8 @@ class RepoImpl : IRepo
         ICommitDlg commitDlg,
         IDiffView diffView,
         ICreateBranchDlg createBranchDlg,
-        IProgress progress)
+        IProgress progress,
+        IFilterDlg filterDlg)
     {
         this.repoView = repoView;
         Repo = repo;
@@ -72,6 +75,7 @@ class RepoImpl : IRepo
         this.diffView = diffView;
         this.createBranchDlg = createBranchDlg;
         this.progress = progress;
+        this.filterDlg = filterDlg;
         Graph = graphService.CreateGraph(repo);
     }
 
@@ -122,6 +126,16 @@ class RepoImpl : IRepo
             return R.Ok;
         }
     });
+
+
+    public void Filter() => Do(async () =>
+     {
+         if (!Try(out var commit, out var e, filterDlg.Show(this))) return R.Ok;
+         await Task.Delay(0);
+
+         Refresh(commit.BranchName);
+         return R.Ok;
+     });
 
 
     public void Commit() => Do(async () =>
@@ -339,5 +353,6 @@ class RepoImpl : IRepo
             }
         });
     }
+
 }
 
