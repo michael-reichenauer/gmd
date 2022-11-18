@@ -1,7 +1,7 @@
-using gmd.Cui.Common;
 using Terminal.Gui;
 
-namespace gmd.Cui;
+
+namespace gmd.Cui.Common;
 
 
 interface IRepo
@@ -39,7 +39,7 @@ interface IRepo
     void DeleteBranch(string name);
 }
 
-class ViewRepo : IRepo
+class RepoImpl : IRepo
 {
     readonly IRepoView repoView;
     private readonly IGraphService graphService;
@@ -49,7 +49,7 @@ class ViewRepo : IRepo
     private readonly ICreateBranchDlg createBranchDlg;
     private readonly IProgress progress;
 
-    internal ViewRepo(
+    internal RepoImpl(
         IRepoView repoView,
         Server.Repo repo,
         IGraphService graphService,
