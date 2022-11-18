@@ -12,7 +12,6 @@ static class Colors
     public static readonly TextColor Red = Make(Terminal.Gui.Color.Red);
     public static readonly TextColor Magenta = Make(Terminal.Gui.Color.Magenta);
     public static readonly TextColor Yellow = Make(Terminal.Gui.Color.Brown);
-    public static readonly TextColor Gray = Make(Terminal.Gui.Color.Gray);
     public static readonly TextColor Dark = Make(Terminal.Gui.Color.DarkGray);
     public static readonly TextColor BrightBlue = Make(Terminal.Gui.Color.BrightBlue);
     public static readonly TextColor BrightGreen = Make(Terminal.Gui.Color.BrightGreen);
@@ -33,6 +32,12 @@ static class Colors
     {
         return Make(fg, Terminal.Gui.Color.Black);
     }
+
+    static TextColor HighMake(Terminal.Gui.Color fg)
+    {
+        return Make(fg, Terminal.Gui.Color.DarkGray);
+    }
+
 
     public static TextColor Make(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
     {

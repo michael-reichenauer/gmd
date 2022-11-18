@@ -35,8 +35,7 @@ class ColorText
     public void BrightRed(string text) => Add(text, Colors.BrightRed);
     public void BrightYellow(string text) => Add(text, Colors.BrightYellow);
     public void Cyan(string text) => Add(text, Colors.Cyan);
-    public void DarkGray(string text) => Add(text, Colors.Dark);
-    public void Gray(string text) => Add(text, Colors.Gray);
+    public void Dark(string text) => Add(text, Colors.Dark);
     public void Green(string text) => Add(text, Colors.Green);
     public void Yellow(string text) => Add(text, Colors.Yellow);
     public void Black(string text) => Add(text, Colors.Black);

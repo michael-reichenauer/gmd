@@ -126,7 +126,7 @@ class RepoWriter : IRepoWriter
         {
             text.White(Txt(subject, columnWidth));
         }
-        else { text.DarkGray(Txt(subject, columnWidth)); }
+        else { text.Dark(Txt(subject, columnWidth)); }
 
         if (tips != null) { WriteBranchTips(tips, maxTipWidth); }
     }
@@ -152,17 +152,17 @@ class RepoWriter : IRepoWriter
             text.Black(Txt("       ", cw.Sid));
             return;
         }
-        text.DarkGray(Txt(" " + c.Sid, cw.Sid));
+        text.Dark(Txt(" " + c.Sid, cw.Sid));
     }
 
     void WriteAuthor(Columns cw, Commit c)
     {
-        text.DarkGray(Txt(" " + c.Author, cw.Author));
+        text.Dark(Txt(" " + c.Author, cw.Author));
     }
 
     void WriteTime(Columns cw, Commit c)
     {
-        text.DarkGray(Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
+        text.Dark(Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
     }
 
     string Txt(string text, int width)

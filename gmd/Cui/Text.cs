@@ -26,7 +26,6 @@ class Text
     internal Text BrightYellow(string text) => Add(text, Colors.BrightYellow);
     internal Text Cyan(string text) => Add(text, Colors.Cyan);
     internal Text Dark(string text) => Add(text, Colors.Dark);
-    internal Text Gray(string text) => Add(text, Colors.Gray);
     internal Text Green(string text) => Add(text, Colors.Green);
     internal Text Yellow(string text) => Add(text, Colors.Yellow);
     internal Text Black(string text) => Add(text, Colors.Black);
