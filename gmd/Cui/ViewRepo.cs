@@ -28,7 +28,7 @@ interface IRepo
     void Commit();
     void PushCurrentBranch();
     void ShowUncommittedDiff();
-    void ShowRowDiff();
+    void ShowCurrentRowDiff();
 
     bool CanPush();
     bool CanPushCurrentBranch();
@@ -44,7 +44,7 @@ class ViewRepo : IRepo
     private readonly IGraphService graphService;
     readonly Server.IServer server;
     private readonly ICommitDlg commitDlg;
-    private readonly Func<IRepo, IDiffView> newDiffView;
+    private readonly IDiffView diffView;
     private readonly ICreateBranchDlg createBranchDlg;
     private readonly IProgress progress;
 
@@ -54,7 +54,7 @@ class ViewRepo : IRepo
         IGraphService graphService,
         Server.IServer server,
         ICommitDlg commitDlg,
-        Func<IRepo, IDiffView> newDiffView,
+        IDiffView diffView,
         ICreateBranchDlg createBranchDlg,
         IProgress progress)
     {
@@ -63,7 +63,7 @@ class ViewRepo : IRepo
         this.graphService = graphService;
         this.server = server;
         this.commitDlg = commitDlg;
-        this.newDiffView = newDiffView;
+        this.diffView = diffView;
         this.createBranchDlg = createBranchDlg;
         this.progress = progress;
         Graph = graphService.CreateGraph(repo);
@@ -118,7 +118,6 @@ class ViewRepo : IRepo
     });
 
 
-
     public void Commit() => Do(async () =>
     {
         if (!commitDlg.Show(this, out var message)) return R.Ok;
@@ -132,7 +131,6 @@ class ViewRepo : IRepo
         Refresh();
         return R.Ok;
     });
-
 
 
     public void PushCurrentBranch() => Do(async () =>
@@ -149,17 +147,20 @@ class ViewRepo : IRepo
     });
 
 
-    public void ShowUncommittedDiff()
-    {
-        var diffView = newDiffView(this);
-        diffView.ShowUncommittedDiff();
-    }
+    public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
 
-    public void ShowRowDiff()
+    public void ShowCurrentRowDiff() => ShowDiff(CurrentIndexCommit.Id);
+
+    public void ShowDiff(string commitId) => Do(async () =>
     {
-        var diffView = newDiffView(this);
-        diffView.ShowCurrentRow();
-    }
+        if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, Repo.Path)))
+        {
+            return R.Error($"Failed to get diff", e);
+        }
+
+        diffView.Show(diff, commitId);
+        return R.Ok;
+    });
 
 
     public void MergeBranch(string name) => Do(async () =>

@@ -16,7 +16,6 @@ interface IServer
     // Git commands
     Task<R> CommitAllChangesAsync(string message, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
-    Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R> PushBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(string branchName, string wd);
     Task<R> MergeBranch(string name, string wd);

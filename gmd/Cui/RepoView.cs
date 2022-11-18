@@ -139,9 +139,9 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.C, () => repo!.Commit());
         contentView.RegisterKeyHandler(Key.b, () => repo!.CreateBranch());
         contentView.RegisterKeyHandler(Key.B, () => repo!.CreateBranch());
-        contentView.RegisterKeyHandler(Key.d, () => repo!.ShowRowDiff());
-        contentView.RegisterKeyHandler(Key.D, () => repo!.ShowRowDiff());
-        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => repo!.ShowRowDiff());
+        contentView.RegisterKeyHandler(Key.d, () => repo!.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.D, () => repo!.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => repo!.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
     }

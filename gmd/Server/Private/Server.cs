@@ -117,22 +117,13 @@ class Server : IServer
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
-        var t = Timing.Start;
-        if (!Try(out var gitCommitDiff, out var e, await git.GetCommitDiffAsync(commitId, wd))) return e;
+        var diffTask = commitId == Repo.UncommittedId
+            ? git.GetUncommittedDiff(wd)
+            : git.GetCommitDiffAsync(commitId, wd);
+
+        if (!Try(out var gitCommitDiff, out var e, await diffTask)) return e;
 
         var diff = converter.ToCommitDiff(gitCommitDiff);
-        Log.Info($"{t} {diff}");
-        return diff;
-    }
-
-
-    public async Task<R<CommitDiff>> GetUncommittedDiff(string wd)
-    {
-        var t = Timing.Start;
-        if (!Try(out var gitCommitDiff, out var e, await git.GetUncommittedDiff(wd))) return e;
-
-        var diff = converter.ToCommitDiff(gitCommitDiff);
-        Log.Info($"{t} {diff}");
         return diff;
     }
 
