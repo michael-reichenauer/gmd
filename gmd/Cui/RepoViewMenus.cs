@@ -100,27 +100,32 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(new MenuItem("Push Current Branch", "",
+        if (repo.CurrentBranch != null)
+        {
+            items.Add(new MenuItem(ToShowName(repo.CurrentBranch), "",
                     () => repo.PushCurrentBranch(),
                     () => repo.CanPushCurrentBranch()));
+        }
         items.AddRange(repo.GetShownBranches()
             .Where(b => !b.IsCurrent && b.HasLocalOnly && !b.HasRemoteOnly)
-            .Select(b => (new MenuItem($"Push {b.DisplayName}", "", () => repo.PushBranch(b.Name)))));
+            .Select(b => (new MenuItem($"Push {ToShowName(b)}", "", () => repo.PushBranch(b.Name)))));
 
         return items.ToArray();
     }
 
 
-
     MenuItem[] GetPullItems()
     {
         List<MenuItem> items = new List<MenuItem>();
-        items.Add(new MenuItem("Pull Current Branch", "",
-                () => repo.PullCurrentBranch(),
-                () => repo.CanPullCurrentBranch()));
+        if (repo.CurrentBranch != null)
+        {
+            items.Add(new MenuItem(ToShowName(repo.CurrentBranch), "",
+                    () => repo.PullCurrentBranch(),
+                    () => repo.CanPullCurrentBranch()));
+        }
         items.AddRange(repo.GetShownBranches()
         .Where(b => !b.IsCurrent && b.HasRemoteOnly)
-        .Select(b => (new MenuItem($"Pull {b.DisplayName}", "", () => repo.PullBranch(b.Name)))));
+        .Select(b => (new MenuItem($"Pull {ToShowName(b)}", "", () => repo.PullBranch(b.Name)))));
 
         return items.ToArray();
     }
@@ -250,6 +255,11 @@ class RepoViewMenus : IRepoViewMenus
             }
         }
 
+        return ToShowName(branch, isBranchIn, isBranchOut);
+    }
+
+    string ToShowName(Branch branch, bool isBranchIn = false, bool isBranchOut = false)
+    {
         string name = branch.DisplayName;
         name = branch.IsGitBranch ? " " + name : "~" + name;
         name = isBranchIn ? "╮" + name : name;
