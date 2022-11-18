@@ -45,6 +45,9 @@ class RepoViewMenus : IRepoViewMenus
           () => repo.Repo.Status.IsOk));
         items.Add(new MenuBarItem("Delete Branch", GetDeleteItems()));
 
+        items.Add(UI.MenuSeparator("More"));
+        items.Add(new MenuItem("Quit", "", () => UI.Shutdown()));
+
         var menu = new ContextMenu(repo.ContentWidth / 2 - 10, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
     }
