@@ -107,7 +107,7 @@ class RepoViewMenus : IRepoViewMenus
                     () => repo.CanPushCurrentBranch()));
         }
         items.AddRange(repo.GetShownBranches()
-            .Where(b => !b.IsCurrent && b.HasLocalOnly && !b.HasRemoteOnly)
+            .Where(b => !b.IsRemote && !b.IsCurrent && b.HasLocalOnly && !b.HasRemoteOnly)
             .Select(b => (new MenuItem($"Push {ToShowName(b)}", "", () => repo.PushBranch(b.Name)))));
 
         return items.ToArray();
@@ -124,7 +124,7 @@ class RepoViewMenus : IRepoViewMenus
                     () => repo.CanPullCurrentBranch()));
         }
         items.AddRange(repo.GetShownBranches()
-        .Where(b => !b.IsCurrent && b.HasRemoteOnly)
+        .Where(b => b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
         .Select(b => (new MenuItem($"Pull {ToShowName(b)}", "", () => repo.PullBranch(b.Name)))));
 
         return items.ToArray();
