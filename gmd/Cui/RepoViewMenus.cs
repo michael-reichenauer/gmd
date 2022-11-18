@@ -29,6 +29,7 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(new MenuItem("Commit ...", "",
             () => repo.Commit(),
             () => !repo.Repo.Status.IsOk));
+        items.Add(new MenuItem("Commit Diff ...", "", () => repo.ShowCurrentRowDiff()));
 
 
         items.Add(UI.MenuSeparator("Branches"));
@@ -92,25 +93,34 @@ class RepoViewMenus : IRepoViewMenus
         menu.Show();
     }
 
-    MenuItem[] GetPushItems() =>
-      repo.CanPush()
-          ? new[]{
-                new MenuItem("Push Current Branch", "",
+    MenuItem[] GetPushItems()
+    {
+        List<MenuItem> items = new List<MenuItem>();
+
+        items.Add(new MenuItem("Push Current Branch", "",
                     () => repo.PushCurrentBranch(),
-                    () => repo.CanPushCurrentBranch())
-              }
-          : new MenuItem[0];
+                    () => repo.CanPushCurrentBranch()));
+        items.AddRange(repo.GetShownBranches()
+            .Where(b => !b.IsCurrent && b.HasLocalOnly && !b.HasRemoteOnly)
+            .Select(b => (new MenuItem($"Push {b.DisplayName}", "", () => repo.PushBranch(b.Name)))));
+
+        return items.ToArray();
+    }
 
 
-    MenuItem[] GetPullItems() =>
-      repo.CanPull()
-          ? new[]{
-                new MenuItem("Pull Current Branch", "",
-                    () => repo.PullCurrentBranch(),
-                    () => repo.CanPullCurrentBranch())
-              }
-          : new MenuItem[0];
 
+    MenuItem[] GetPullItems()
+    {
+        List<MenuItem> items = new List<MenuItem>();
+        items.Add(new MenuItem("Pull Current Branch", "",
+                () => repo.PullCurrentBranch(),
+                () => repo.CanPullCurrentBranch()));
+        items.AddRange(repo.GetShownBranches()
+        .Where(b => !b.IsCurrent && b.HasRemoteOnly)
+        .Select(b => (new MenuItem($"Pull {b.DisplayName}", "", () => repo.PullBranch(b.Name)))));
+
+        return items.ToArray();
+    }
 
     MenuItem[] GetShowItems()
     {

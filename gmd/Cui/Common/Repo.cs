@@ -28,9 +28,11 @@ interface IRepo
     void SwitchTo(string branchName);
     void Commit();
     void PushCurrentBranch();
+    void PushBranch(string name);
     bool CanPush();
     bool CanPushCurrentBranch();
     void PullCurrentBranch();
+    void PullBranch(string name);
     bool CanPull();
     bool CanPullCurrentBranch();
     void ShowUncommittedDiff();
@@ -178,7 +180,20 @@ class RepoImpl : IRepo
         return R.Ok;
     });
 
-    public bool CanPush() => CanPushCurrentBranch();
+
+    public void PushBranch(string name) => Do(async () =>
+    {
+        if (!Try(out var e, await server.PushBranchAsync(name, Repo.Path)))
+        {
+            return R.Error($"Failed to push branch {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+
+    public bool CanPush() => Repo.Status.IsOk && GetShownBranches().Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 
     public bool CanPushCurrentBranch()
     {
@@ -199,7 +214,18 @@ class RepoImpl : IRepo
         return R.Ok;
     });
 
-    public bool CanPull() => CanPullCurrentBranch();
+    public void PullBranch(string name) => Do(async () =>
+    {
+        if (!Try(out var e, await server.PullBranchAsync(name, Repo.Path)))
+        {
+            return R.Error($"Failed to pull branch {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public bool CanPull() => Repo.Status.IsOk && GetShownBranches().Any(b => b.HasRemoteOnly);
 
     public bool CanPullCurrentBranch()
     {
@@ -313,6 +339,5 @@ class RepoImpl : IRepo
             }
         });
     }
-
 }
 
