@@ -62,45 +62,33 @@ static class UI
         Application.RequestStop();
     }
 
-    internal static int InfoMessage(string title, string message, params ustring[] buttons)
+    internal static int InfoMessage(string title, string message, params string[] buttons)
     {
         return InfoMessage(title, message, 0, buttons);
     }
 
-    internal static int InfoMessage(string title, string message, int defaultButton = 0, params ustring[] buttons)
+    internal static int InfoMessage(string title, string message, int defaultButton = 0, params string[] buttons)
     {
-        buttons = buttons.Length == 0 ? new ustring[] { "OK" } : buttons;
-
-        var border = new Border()
-        {
-            Effect3D = false,
-            BorderStyle = BorderStyle.Rounded,
-        };
+        buttons = buttons.Length == 0 ? new string[] { "OK" } : buttons;
 
         using (EnableInput())
         {
-            return MessageBox.Query(0, 0, title, message, defaultButton, border, buttons);
+            return MessageBox.ShowInfo(title, message, defaultButton, buttons);
         }
     }
 
-    internal static int ErrorMessage(string message, params ustring[] buttons)
+    internal static int ErrorMessage(string message, params string[] buttons)
     {
         return ErrorMessage(message, 0, buttons);
     }
 
-    internal static int ErrorMessage(string message, int defaultButton = 0, params ustring[] buttons)
+    internal static int ErrorMessage(string message, int defaultButton = 0, params string[] buttons)
     {
-        buttons = buttons.Length == 0 ? new ustring[] { "OK" } : buttons;
-
-        var border = new Border()
-        {
-            Effect3D = false,
-            BorderStyle = BorderStyle.Rounded,
-        };
+        buttons = buttons.Length == 0 ? new string[] { "OK" } : buttons;
 
         using (EnableInput())
         {
-            return MessageBox.ErrorQuery(0, 0, "Error", message, defaultButton, border, buttons);
+            return MessageBox.ShowError(message, defaultButton, buttons);
         }
     }
 

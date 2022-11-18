@@ -187,6 +187,7 @@ class RepoView : IRepoView
         using (progress.Show())
         {
             Log.Info("show refreshed repo ...");
+
             isStatusUpdateInProgress = true;
             isRepoUpdateInProgress = true;
             var t = Timing.Start;
