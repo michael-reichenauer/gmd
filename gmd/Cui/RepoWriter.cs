@@ -256,7 +256,7 @@ class RepoWriter : IRepoWriter
                             // Both local and remote tips on same commit, combine them
                             if (local.IsCurrent)
                             {
-                                tipText.Add($"(^)(", color).White("●").Add($"{branchName})", color);
+                                tipText.Add($"(^)(", color).White("● ").Add($"{branchName})", color);
                             }
                             else
                             {
@@ -285,12 +285,26 @@ class RepoWriter : IRepoWriter
                         }
                         else
                         {
-                            tipText.Add($"({branchName})", color);
+                            if (b.IsCurrent)
+                            {
+                                tipText.Add($"(", color).White("● ").Add($"{branchName})", color);
+                            }
+                            else
+                            {
+                                tipText.Add($"({branchName})", color);
+                            }
                         }
                     }
                     else
                     {
-                        tipText.Add($"({branchName})", color);
+                        if (b.IsCurrent)
+                        {
+                            tipText.Add($"(", color).White("● ").Add($"{branchName})", color);
+                        }
+                        else
+                        {
+                            tipText.Add($"({branchName})", color);
+                        }
                     }
                 }
             }
