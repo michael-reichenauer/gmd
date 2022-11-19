@@ -256,21 +256,21 @@ class RepoWriter : IRepoWriter
                             // Both local and remote tips on same commit, combine them
                             if (local.IsCurrent)
                             {
-                                tipText.Add($"(^", color).Dark("|").White("● ").Add($"{branchName})", color);
+                                tipText.Color(color, $"(^").Dark("|").White("● ").Color(color, $"{branchName})");
                             }
                             else
                             {
-                                tipText.Add($"(^", color).Dark("|").Add($"{branchName})", color);
+                                tipText.Color(color, $"(^").Dark("|").Color(color, $"{branchName})");
                             }
                         }
                         else
                         {
-                            tipText.Add($"(^/{branchName})", color);
+                            tipText.Color(color, $"(^/{branchName})");
                         }
                     }
                     else
                     {
-                        tipText.Add($"(^/{branchName})", color);
+                        tipText.Color(color, $"(^/{branchName})");
                     }
                 }
                 if (!b.IsRemote)
@@ -287,11 +287,11 @@ class RepoWriter : IRepoWriter
                         {
                             if (b.IsCurrent)
                             {
-                                tipText.Add($"(", color).White("● ").Add($"{branchName})", color);
+                                tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
                             }
                             else
                             {
-                                tipText.Add($"({branchName})", color);
+                                tipText.Color(color, $"({branchName})");
                             }
                         }
                     }
@@ -299,18 +299,18 @@ class RepoWriter : IRepoWriter
                     {
                         if (b.IsCurrent)
                         {
-                            tipText.Add($"(", color).White("● ").Add($"{branchName})", color);
+                            tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
                         }
                         else
                         {
-                            tipText.Add($"({branchName})", color);
+                            tipText.Color(color, $"({branchName})");
                         }
                     }
                 }
             }
             else
             {
-                tipText.Add("(~", color).Dark(branchName).Add(")", color);
+                tipText.Color(color, "(~").Dark(branchName).Color(color, ")");
             }
 
             branchTips[b.TipId] = tipText;

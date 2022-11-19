@@ -14,24 +14,24 @@ class Text
     internal static Text None => new Text();
     internal static Text New => new Text();
 
-    internal Text Red(string text) => Add(text, TextColor.Red);
-    internal Text Blue(string text) => Add(text, TextColor.Blue);
-    internal Text White(string text) => Add(text, TextColor.White);
-    internal Text Magenta(string text) => Add(text, TextColor.Magenta);
-    internal Text BrightBlue(string text) => Add(text, TextColor.BrightBlue);
-    internal Text BrightCyan(string text) => Add(text, TextColor.BrightCyan);
-    internal Text BrightGreen(string text) => Add(text, TextColor.BrightGreen);
-    internal Text BrightMagenta(string text) => Add(text, TextColor.BrightMagenta);
-    internal Text BrightRed(string text) => Add(text, TextColor.BrightRed);
-    internal Text BrightYellow(string text) => Add(text, TextColor.BrightYellow);
-    internal Text Cyan(string text) => Add(text, TextColor.Cyan);
-    internal Text Dark(string text) => Add(text, TextColor.Dark);
-    internal Text Green(string text) => Add(text, TextColor.Green);
-    internal Text Yellow(string text) => Add(text, TextColor.Yellow);
-    internal Text Black(string text) => Add(text, TextColor.Black);
+    internal Text Red(string text) => Color(TextColor.Red, text);
+    internal Text Blue(string text) => Color(TextColor.Blue, text);
+    internal Text White(string text) => Color(TextColor.White, text);
+    internal Text Magenta(string text) => Color(TextColor.Magenta, text);
+    internal Text BrightBlue(string text) => Color(TextColor.BrightBlue, text);
+    internal Text BrightCyan(string text) => Color(TextColor.BrightCyan, text);
+    internal Text BrightGreen(string text) => Color(TextColor.BrightGreen, text);
+    internal Text BrightMagenta(string text) => Color(TextColor.BrightMagenta, text);
+    internal Text BrightRed(string text) => Color(TextColor.BrightRed, text);
+    internal Text BrightYellow(string text) => Color(TextColor.BrightYellow, text);
+    internal Text Cyan(string text) => Color(TextColor.Cyan, text);
+    internal Text Dark(string text) => Color(TextColor.Dark, text);
+    internal Text Green(string text) => Color(TextColor.Green, text);
+    internal Text Yellow(string text) => Color(TextColor.Yellow, text);
+    internal Text Black(string text) => Color(TextColor.Black, text);
 
 
-    internal Text Add(string text, Color color)
+    internal Text Color(Color color, string text)
     {
         fragments.Add(new Fragment(text, color));
         Length += text.Length;
