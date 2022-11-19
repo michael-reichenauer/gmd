@@ -118,14 +118,11 @@ class RepoImpl : IRepo
 
     public void SwitchTo(string branchName) => Do(async () =>
     {
-        using (progress.Show())
+        if (!Try(out var e, await server.SwitchToAsync(branchName, Repo.Path)))
         {
-            if (!Try(out var e, await server.SwitchToAsync(branchName, Repo.Path)))
-            {
-                return R.Error($"Failed to switch to {branchName}", e);
-            }
-            return R.Ok;
+            return R.Error($"Failed to switch to {branchName}", e);
         }
+        return R.Ok;
     });
 
 

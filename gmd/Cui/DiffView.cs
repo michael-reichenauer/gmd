@@ -19,7 +19,7 @@ class DiffView : IDiffView
     ContentView? contentView;
     Toplevel? diffView;
 
-    int rowStartIndex = 0;
+    int rowStartX = 0;
     string commitId = "";
 
 
@@ -62,9 +62,9 @@ class DiffView : IDiffView
 
     private void OnLeftArrow()
     {
-        if (rowStartIndex > 0)
+        if (rowStartX > 0)
         {
-            rowStartIndex--;
+            rowStartX--;
             contentView?.TriggerUpdateContent(diffRows!.Count);
         }
     }
@@ -73,38 +73,26 @@ class DiffView : IDiffView
     private void OnRightArrow()
     {
         int maxColumnWidth = contentView!.ContentWidth / 2;
-        if (diffRows!.MaxLength - rowStartIndex > maxColumnWidth)
+        if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
-            rowStartIndex++;
+            rowStartX++;
             contentView!.TriggerUpdateContent(diffRows!.Count);
         }
     }
 
 
-    void onDrawContent(Rect bounds, int firstIndex, int currentIndex)
+    void onDrawContent(int firstIndex, int count, int currentIndex, int width)
     {
         if (diffRows == null)
         {
             return;
         }
 
-        int firstRow = Math.Min(firstIndex, TotalRows);
-        int rowCount = Math.Min(bounds.Height, TotalRows - firstRow);
-
-        if (rowCount == 0 || bounds.Width == 0)
-        {
-            return;
-        };
-
-        Rect contentRect = new Rect(0, firstRow, 50, rowCount);
-
-        int contentWidth = bounds.Width;
-        int rowX = contentRect.X;
-        DrawDiffRows(firstRow, rowCount, rowStartIndex, contentWidth);
+        DrawDiffRows(firstIndex, count, rowStartX, width);
     }
 
 
-    void DrawDiffRows(int firstRow, int rowCount, int rowStart, int contentWidth)
+    void DrawDiffRows(int firstRow, int rowCount, int rowStartX, int contentWidth)
     {
         int columnWidth = (contentWidth - 1) / 2;
         int oneColumnWidth = columnWidth * 2 + 1;
@@ -121,9 +109,9 @@ class DiffView : IDiffView
             }
             else if (row.Mode == DiffRowMode.LeftRight)
             {
-                row.Left.Draw(contentView!, contentView!.ContentX, y, rowStart, columnWidth);
+                row.Left.Draw(contentView!, contentView!.ContentX, y, rowStartX, columnWidth);
                 splitLine.Draw(contentView, contentView.ContentX + columnWidth, y);
-                row.Right.Draw(contentView, contentView.ContentX + columnWidth + 1, y, rowStart, columnWidth);
+                row.Right.Draw(contentView, contentView.ContentX + columnWidth + 1, y, rowStartX, columnWidth);
             }
         }
     }

@@ -40,7 +40,7 @@ partial class MainView : IMainView
         var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         mainView.ColorScheme = ColorSchemes.WindowColorScheme;
 
-        mainView.Add(repoView.View);
+        mainView.Add(repoView.View, repoView.DetailsView);
         mainView.WantMousePositionReports = true;
 
 

@@ -99,29 +99,19 @@ class FilterDlg : IFilterDlg
 
     private string Filter() => nameField!.Text.ToString()?.Trim() ?? "";
 
-    void onDrawContent(Rect bounds, int firstIndex, int currentIndex)
+    void onDrawContent(int firstIndex, int count, int currentIndex, int width)
     {
         if (commits == null)
         {
             return;
         }
 
-        int firstRow = Math.Min(firstIndex, TotalRows);
-        int rowCount = Math.Min(bounds.Height, TotalRows - firstRow);
+        Rect contentRect = new Rect(0, firstIndex, 50, count);
 
-        if (rowCount == 0 || bounds.Width == 0)
-        {
-            return;
-        };
-
-        Rect contentRect = new Rect(0, firstRow, 50, rowCount);
-
-        int contentWidth = bounds.Width;
-        int rowX = contentRect.X;
-        DrawDiffRows(firstRow, rowCount, rowStartIndex, contentWidth);
+        DrawDiffRows(firstIndex, count);
     }
 
-    void DrawDiffRows(int firstRow, int rowCount, int rowStart, int contentWidth)
+    void DrawDiffRows(int firstRow, int rowCount)
     {
         int x = contentView!.ContentX;
         for (int y = 0; y < rowCount && y + firstRow < commits.Count; y++)

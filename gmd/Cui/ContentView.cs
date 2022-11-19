@@ -4,7 +4,7 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-public delegate void DrawContentCallback(Rect bounds, int firstIndex, int currentIndex);
+public delegate void DrawContentCallback(int firstIndex, int count, int currentIndex, int width);
 public delegate void OnKeyCallback();
 
 
@@ -18,14 +18,27 @@ class ContentView : View
 
     int totalRowCount = 0;
     int firstIndex = 0;
-    int currentIndex = 0;
 
-    internal int CurrentIndex => currentIndex;
+    internal event Action? CurrentIndexChange;
+    int currentIndex = 0;
+    internal int CurrentIndex
+    {
+        get { return currentIndex; }
+        private set
+        {
+            var v = currentIndex;
+            currentIndex = value;
+            if (v != value)
+            {
+                CurrentIndexChange?.Invoke();
+            }
+        }
+    }
 
     internal bool IsNoCursor { get; set; } = false;
     internal int ContentX => IsNoCursor ? 0 : cursorWidth;
 
-    internal Point CurrentPoint => new Point(0, firstIndex + currentIndex);
+    internal Point CurrentPoint => new Point(0, firstIndex + CurrentIndex);
 
     internal ContentView(DrawContentCallback onDrawRepoContent)
     {
@@ -58,23 +71,23 @@ class ContentView : View
     int TotalRows => totalRowCount;
 
 
-    internal void TriggerUpdateContent(int rowCount)
+    internal void TriggerUpdateContent(int totalCount)
     {
-        this.totalRowCount = rowCount;
-        if (firstIndex > rowCount)
+        this.totalRowCount = totalCount;
+        if (firstIndex > totalCount)
         {
-            firstIndex = rowCount - 1;
+            firstIndex = totalCount - 1;
         }
-        if (currentIndex < firstIndex)
+        if (CurrentIndex < firstIndex)
         {
-            currentIndex = firstIndex;
+            CurrentIndex = firstIndex;
         }
-        if (currentIndex > firstIndex + ContentHeight)
+        if (CurrentIndex > firstIndex + ContentHeight)
         {
-            currentIndex = firstIndex + ContentHeight - 1;
+            CurrentIndex = firstIndex + ContentHeight - 1;
         }
-        currentIndex = Math.Min(rowCount - 1, currentIndex);
-        currentIndex = Math.Max(0, currentIndex);
+        CurrentIndex = Math.Min(totalCount - 1, CurrentIndex);
+        CurrentIndex = Math.Max(0, CurrentIndex);
 
         SetNeedsDisplay();
     }
@@ -149,8 +162,9 @@ class ContentView : View
     {
         Clear();
 
-        Rect contentRect = new Rect(ContentX, 0, ContentWidth, ContentHeight);
-        onDrawRepoContent(contentRect, firstIndex, currentIndex);
+        var count = Math.Min(bounds.Height, TotalRows - firstIndex);
+
+        onDrawRepoContent(firstIndex, count, CurrentIndex, ContentWidth);
 
         DrawCursor();
         DrawVerticalScrollbar();
@@ -163,7 +177,7 @@ class ContentView : View
             return;
         }
 
-        Move(0, currentIndex - firstIndex);
+        Move(0, CurrentIndex - firstIndex);
         Driver.SetAttribute(TextColor.White);
         Driver.AddStr("┃");
     }
@@ -191,7 +205,7 @@ class ContentView : View
             return;
         }
 
-        int newCurrent = currentIndex + (newFirst - firstIndex);
+        int newCurrent = CurrentIndex + (newFirst - firstIndex);
 
         if (newCurrent < newFirst)
         {   // Need to scroll view up to the new current line
@@ -203,7 +217,7 @@ class ContentView : View
         }
 
         firstIndex = newFirst;
-        currentIndex = newCurrent;
+        CurrentIndex = newCurrent;
 
         SetNeedsDisplay();
     }
@@ -222,7 +236,7 @@ class ContentView : View
             return;
         }
 
-        int newCurrent = currentIndex + move;
+        int newCurrent = CurrentIndex + move;
 
         if (newCurrent < 0)
         {   // Reached top, wrap or stay
@@ -234,21 +248,21 @@ class ContentView : View
             newCurrent = isMoveUpDownWrap ? 0 : TotalRows - 1;
         }
 
-        if (newCurrent == currentIndex)
+        if (newCurrent == CurrentIndex)
         {   // No move, reached top or bottom
             return;
         }
 
-        currentIndex = newCurrent;
+        CurrentIndex = newCurrent;
 
-        if (currentIndex < firstIndex)
+        if (CurrentIndex < firstIndex)
         {   // Need to scroll view up to the new current line 
-            firstIndex = currentIndex;
+            firstIndex = CurrentIndex;
         }
 
-        if (currentIndex >= firstIndex + ViewHeight)
+        if (CurrentIndex >= firstIndex + ViewHeight)
         {  // Need to scroll view down to the new current line
-            firstIndex = currentIndex - ViewHeight + 1;
+            firstIndex = CurrentIndex - ViewHeight + 1;
         }
 
         SetNeedsDisplay();

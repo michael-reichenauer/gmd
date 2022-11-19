@@ -7,8 +7,9 @@ namespace gmd.Cui;
 
 interface IRepoView
 {
-    int CurrentIndex { get; }
     View View { get; }
+    View DetailsView { get; }
+    int CurrentIndex { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
 
@@ -26,6 +27,7 @@ class RepoView : IRepoView
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
     private readonly IState state;
     private readonly IProgress progress;
+    private readonly ICommitDetailsView commitDetailsView;
     readonly Func<IRepo, IDiffView> newDiffView;
     private readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView contentView;
@@ -45,7 +47,8 @@ class RepoView : IRepoView
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
         IState state,
-        IProgress progress) : base()
+        IProgress progress,
+        ICommitDetailsView commitDetailsView) : base()
     {
         this.server = server;
         this.newDiffView = newDiffView;
@@ -54,6 +57,7 @@ class RepoView : IRepoView
         this.newMenuService = newMenuService;
         this.state = state;
         this.progress = progress;
+        this.commitDetailsView = commitDetailsView;
         contentView = new ContentView(onDrawRepoContent)
         {
             X = 0,
@@ -61,6 +65,7 @@ class RepoView : IRepoView
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };
+        contentView.CurrentIndexChange += () => OnCurrentIndexChange();
 
         repoWriter = newRepoWriter(contentView, contentView.ContentX);
 
@@ -68,8 +73,14 @@ class RepoView : IRepoView
         server.StatusChange += OnRefreshStatus;
     }
 
+    private void OnCurrentIndexChange()
+    {
+        var i = contentView.CurrentIndex;
+        Log.Info($"# {i}, {repo!.Repo.Commits[i]}");
+    }
 
     public View View => contentView;
+    public View DetailsView => commitDetailsView.View;
     public int ContentWidth => contentView.ContentWidth;
 
     public int CurrentIndex => contentView.CurrentIndex;
@@ -152,19 +163,23 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
+
+        contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
     }
 
-    void onDrawRepoContent(Rect bounds, int firstIndex, int currentIndex)
+    void ToggleDetails()
+    {
+        Log.Info("Toggle");
+    }
+
+    void onDrawRepoContent(int firstIndex, int count, int currentIndex, int width)
     {
         if (repo == null)
         {
             return;
         }
 
-        int firstCommit = Math.Min(firstIndex, repo.TotalRows);
-        int commitCount = Math.Min(bounds.Height, repo.TotalRows - firstCommit);
-
-        repoWriter.WriteRepoPage(repo, firstCommit, commitCount);
+        repoWriter.WriteRepoPage(repo, firstIndex, count);
     }
 
     async Task<R> ShowNewRepoAsync(string path, IReadOnlyList<string> showBranches)
