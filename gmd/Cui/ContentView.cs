@@ -37,6 +37,18 @@ class ContentView : View
         keys[key] = callback;
     }
 
+    internal void ScrollToShowIndex(int index)
+    {
+        if (index >= firstIndex && index <= firstIndex + ContentHeight)
+        {
+            // index already shown
+            return;
+        }
+
+        int scroll = index - firstIndex;
+        Scroll(scroll);
+    }
+
 
     internal int ContentWidth => Frame.Width - (cursorWidth + ContentX);
     int ViewHeight => Frame.Height;

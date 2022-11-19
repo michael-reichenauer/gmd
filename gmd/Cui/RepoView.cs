@@ -13,8 +13,8 @@ interface IRepoView
     Point CurrentPoint { get; }
 
     Task<R> ShowRepoAsync(string path);
-    void UpdateRepoTo(Server.Repo repo);
-    void Refresh(string addName = "");
+    void UpdateRepoTo(Server.Repo repo, string branchName = "");
+    void Refresh(string addName = "", string commitId = "");
 }
 
 class RepoView : IRepoView
@@ -85,9 +85,15 @@ class RepoView : IRepoView
     }
 
 
-    public void UpdateRepoTo(Server.Repo repo) => ShowRepo(repo);
+    public void UpdateRepoTo(Server.Repo serverRepo, string branchName = "")
+    {
+        ShowRepo(serverRepo);
 
-    public void Refresh(string addName = "") => ShowRefreshedRepoAsync(addName).RunInBackground();
+        ScrollToBranch(branchName);
+    }
+
+
+    public void Refresh(string addName = "", string commitId = "") => ShowRefreshedRepoAsync(addName, commitId).RunInBackground();
 
     void OnRefreshRepo(Server.ChangeEvent e)
     {
@@ -105,7 +111,7 @@ class RepoView : IRepoView
             Log.Debug("New repo event to soon, skipping update");
             return;
         }
-        ShowRefreshedRepoAsync("").RunInBackground();
+        ShowRefreshedRepoAsync("", "").RunInBackground();
     }
 
     void OnRefreshStatus(Server.ChangeEvent e)
@@ -184,20 +190,20 @@ class RepoView : IRepoView
         }
     }
 
-    async Task ShowRefreshedRepoAsync(string addName)
+    async Task ShowRefreshedRepoAsync(string addBranchName, string commitId)
     {
         using (progress.Show())
         {
-            Log.Info($"show refreshed repo with {addName} ...");
+            Log.Info($"show refreshed repo with {addBranchName} ...");
 
             isStatusUpdateInProgress = true;
             isRepoUpdateInProgress = true;
             var t = Timing.Start;
 
             var branchNames = repo!.GetShownBranches().Select(b => b.Name).ToList();
-            if (addName != "")
+            if (addBranchName != "")
             {
-                branchNames.Add(addName);
+                branchNames.Add(addBranchName);
             }
 
             if (!Try(out var viewRepo, out var e,
@@ -212,6 +218,16 @@ class RepoView : IRepoView
             isStatusUpdateInProgress = false;
             isRepoUpdateInProgress = false;
             ShowRepo(viewRepo);
+
+            if (commitId != "")
+            {
+                ScrollToCommit(commitId);
+            }
+            else if (addBranchName != "")
+            {
+                ScrollToBranch(addBranchName);
+            }
+
             Log.Info($"{t} {viewRepo}");
         }
     }
@@ -246,5 +262,27 @@ class RepoView : IRepoView
         // Remember shown branch for next restart of program
         var names = repo.GetShownBranches().Select(b => b.Name).ToList();
         state.SetRepo(serverRepo.Path, s => s.Branches = names);
+    }
+
+    private void ScrollToBranch(string branchName)
+    {
+        if (branchName != "")
+        {
+            var branch = repo!.Repo.Branches.FirstOrDefault(b => b.Name == branchName);
+            if (branch != null)
+            {
+                var tip = repo.Repo.CommitById[branch.TipId];
+                contentView.ScrollToShowIndex(tip.Index);
+            }
+        }
+    }
+
+    private void ScrollToCommit(string commitId)
+    {
+        var commit = repo!.Repo.Commits.FirstOrDefault(c => c.Id == commitId);
+        if (commit != null)
+        {
+            contentView.ScrollToShowIndex(commit.Index);
+        }
     }
 }
