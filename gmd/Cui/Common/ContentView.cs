@@ -271,7 +271,7 @@ class ContentView : View
         SetNeedsDisplay();
     }
 
-    internal void MoveToTop() => Move(-int.MaxValue);
+    internal void MoveToTop() => Move(-FirstIndex);
 
     internal void Move(int move)
     {
