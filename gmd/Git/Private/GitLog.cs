@@ -25,23 +25,21 @@ internal class LogService : ILogService
 
     private R<IReadOnlyList<Commit>> ParseLines(string output)
     {
-        var lines = output.Split('\n');
+        var rows = output.Split('\x00');
         var commits = new List<Commit>();
-        foreach (var line in lines)
+
+        foreach (var row in rows)
         {
-            var rows = line.Split('\x00');
-            foreach (var row in rows)
+            if (row.Trim() == "")
             {
-                if (row.Trim() == "")
-                {
-                    continue;
-                }
-
-                if (!Try(out var commit, out var e, ParseRow(row))) return e;
-
-                commits.Add(commit);
+                continue;
             }
+
+            if (!Try(out var commit, out var e, ParseRow(row))) return e;
+
+            commits.Add(commit);
         }
+
 
         return commits;
     }

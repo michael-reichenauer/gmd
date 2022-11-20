@@ -101,7 +101,7 @@ class RepoImpl : IRepo
     {
         if (!Try(out var e, await repoView.ShowRepoAsync(path)))
         {
-            return R.Error($"Failed to show repo at {path}", e);
+            return R.Error($"Failed to open repo at {path}", e);
         }
         return R.Ok;
     });

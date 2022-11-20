@@ -23,6 +23,8 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
+    static readonly int MaxRecentFolders = 10;
+    static readonly int MaxRecentParentFolders = 5;
 
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
@@ -90,6 +92,16 @@ class RepoView : IRepoView
     {
         var branches = state.GetRepo(path).Branches;
         if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
+
+        state.Set(s => s.RecentFolders = s.RecentFolders
+                .Prepend(path).Distinct().Take(MaxRecentFolders).ToList());
+
+        var parent = Path.GetDirectoryName(path);
+        if (parent != null)
+        {
+            state.Set(s => s.RecentParentFolders = s.RecentParentFolders
+               .Prepend(parent).Distinct().Take(MaxRecentParentFolders).ToList());
+        }
 
         RegisterShortcuts();
         return R.Ok;

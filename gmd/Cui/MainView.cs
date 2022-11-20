@@ -12,9 +12,6 @@ interface IMainView
 
 partial class MainView : IMainView
 {
-    static readonly int MaxRecentFolders = 10;
-    static readonly int MaxRecentParentFolders = 5;
-
     readonly IRepoView repoView;
     readonly IGit git;
     private readonly IState state;
@@ -98,7 +95,7 @@ partial class MainView : IMainView
 
     MenuItem[] GetRecentRepoItems() =>
         state.Get().RecentFolders
-            .Select(f => new MenuItem(f, "", () => ShowRepo(f)))
+            .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
             .ToArray();
 
 
@@ -113,16 +110,6 @@ partial class MainView : IMainView
                 return;
             }
             repoView.View.SetFocus();
-
-            state.Set(s => s.RecentFolders = s.RecentFolders
-                .Prepend(path).Distinct().Take(MaxRecentFolders).ToList());
-
-            var parent = Path.GetDirectoryName(path);
-            if (parent != null)
-            {
-                state.Set(s => s.RecentParentFolders = s.RecentParentFolders
-                   .Prepend(parent).Distinct().Take(MaxRecentParentFolders).ToList());
-            }
         });
     }
 
