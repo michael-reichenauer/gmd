@@ -16,6 +16,8 @@ interface IRepo
     Point CurrentPoint { get; }
     bool HasUncommittedChanges { get; }
 
+    void ToggleDetails();
+
     void Refresh(string addBranchName = "", string commitId = "");
 
     void ShowBranch(string name);
@@ -92,7 +94,7 @@ class RepoImpl : IRepo
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
     public void UpdateRepoTo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
-
+    public void ToggleDetails() => repoView.ToggleDetails();
 
     public void ShowBranch(string name)
     {

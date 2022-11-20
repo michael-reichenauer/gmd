@@ -16,6 +16,7 @@ interface IRepoView
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
     void Refresh(string addName = "", string commitId = "");
+    void ToggleDetails();
 }
 
 class RepoView : IRepoView
@@ -105,6 +106,28 @@ class RepoView : IRepoView
 
     public void Refresh(string addName = "", string commitId = "") => ShowRefreshedRepoAsync(addName, commitId).RunInBackground();
 
+    public void ToggleDetails()
+    {
+        isShowDetails = !isShowDetails;
+
+        if (!isShowDetails)
+        {
+            contentView.Height = Dim.Fill();
+            commitDetailsView.View.Height = 0;
+            contentView.IsFocus = true;
+            commitDetailsView.View.IsFocus = false;
+        }
+        else
+        {
+            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+            commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
+            OnCurrentIndexChange();
+        }
+
+        contentView.SetNeedsDisplay();
+        commitDetailsView.View.SetNeedsDisplay();
+    }
+
     void OnRefreshRepo(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
@@ -165,8 +188,6 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
-        contentView.RegisterKeyHandler(Key.CursorUp | Key.ShiftMask, () => ScrollDetails(-1));
-        contentView.RegisterKeyHandler(Key.CursorDown | Key.ShiftMask, () => ScrollDetails(1));
 
         // Keys on commit details view
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
@@ -282,7 +303,7 @@ class RepoView : IRepoView
         state.SetRepo(serverRepo.Path, s => s.Branches = names);
     }
 
-    private void ScrollToBranch(string branchName)
+    void ScrollToBranch(string branchName)
     {
         if (branchName != "")
         {
@@ -295,7 +316,7 @@ class RepoView : IRepoView
         }
     }
 
-    private void ScrollToCommit(string commitId)
+    void ScrollToCommit(string commitId)
     {
         var commit = repo!.Repo.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
@@ -305,14 +326,6 @@ class RepoView : IRepoView
     }
 
 
-    private void ScrollDetails(int v)
-    {
-        if (!isShowDetails)
-        {
-            return;
-        }
-        commitDetailsView.View.Scroll(v);
-    }
 
     private void ToggleDetailsFocous()
     {
@@ -327,29 +340,6 @@ class RepoView : IRepoView
 
         commitDetailsView.View.SetNeedsDisplay();
         contentView.SetNeedsDisplay();
-    }
-
-    void ToggleDetails()
-    {
-        isShowDetails = !isShowDetails;
-
-        if (!isShowDetails)
-        {
-            contentView.Height = Dim.Fill();
-            commitDetailsView.View.Height = 0;
-            contentView.IsFocus = true;
-            commitDetailsView.View.IsFocus = false;
-        }
-        else
-        {
-            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
-            commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
-            OnCurrentIndexChange();
-        }
-
-        contentView.SetNeedsDisplay();
-        commitDetailsView.View.SetNeedsDisplay();
-
     }
 
     void OnCurrentIndexChange()

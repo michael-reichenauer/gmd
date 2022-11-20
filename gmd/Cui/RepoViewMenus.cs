@@ -26,6 +26,7 @@ class RepoViewMenus : IRepoViewMenus
         List<MenuItem> items = new List<MenuItem>();
 
         items.Add(UI.MenuSeparator($"Commit {Sid(repo.CurrentIndexCommit.Id)}"));
+        items.Add(new MenuItem("Toggle Details ...", "", () => repo.ToggleDetails()));
         items.Add(new MenuItem("Commit ...", "",
             () => repo.Commit(),
             () => !repo.Repo.Status.IsOk));
@@ -35,6 +36,7 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(UI.MenuSeparator("Branches"));
         items.Add(new MenuBarItem("Show Branch", GetShowBranchItems()));
         items.Add(new MenuBarItem("Hide Branch", GetHideItems()));
+        items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
         items.Add(new MenuBarItem("Push", "", null, () => repo.CanPush()) { Children = GetPushItems() });
         items.Add(new MenuBarItem("Update/Pull", "", null, () => repo.CanPull()) { Children = GetPullItems() });
         items.Add(new MenuBarItem("Switch/Checkout", GetSwitchToItems()));
