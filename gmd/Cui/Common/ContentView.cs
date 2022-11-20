@@ -217,7 +217,7 @@ class ContentView : View
     }
 
 
-    void Scroll(int scroll)
+    internal void Scroll(int scroll)
     {
         if (Count == 0)
         {   // Cannot scroll empty view

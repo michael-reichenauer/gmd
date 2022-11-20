@@ -22,6 +22,7 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
+
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
@@ -161,44 +162,11 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
 
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
+        contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsScroll());
+        contentView.RegisterKeyHandler(Key.CursorUp | Key.ShiftMask, () => ScrollDetails(-1));
+        contentView.RegisterKeyHandler(Key.CursorDown | Key.ShiftMask, () => ScrollDetails(1));
     }
 
-    void ToggleDetails()
-    {
-        isShowDetails = !isShowDetails;
-
-        if (!isShowDetails)
-        {
-            contentView.Height = Dim.Fill();
-            commitDetailsView.View.Height = 0;
-            contentView.SetNeedsDisplay();
-            commitDetailsView.View.SetNeedsDisplay();
-            return;
-        }
-
-        contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
-        commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
-
-        OnCurrentIndexChange();
-
-        contentView.SetNeedsDisplay();
-        commitDetailsView.View.SetNeedsDisplay();
-
-    }
-
-    private void OnCurrentIndexChange()
-    {
-        var i = contentView.CurrentIndex;
-        if (i >= repo!.Repo.Commits.Count)
-        {
-            return;
-        }
-
-        if (isShowDetails)
-        {
-            commitDetailsView.Set(repo!.Repo.Commits[i]);
-        }
-    }
 
     void onDrawRepoContent(int firstIndex, int count, int currentIndex, int width)
     {
@@ -209,6 +177,7 @@ class RepoView : IRepoView
 
         repoWriter.WriteRepoPage(repo, firstIndex, count);
     }
+
 
     async Task<R> ShowNewRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
@@ -327,6 +296,64 @@ class RepoView : IRepoView
         if (commit != null)
         {
             contentView.ScrollToShowIndex(commit.Index);
+        }
+    }
+
+
+    private void ScrollDetails(int v)
+    {
+        if (!isShowDetails)
+        {
+            return;
+        }
+        commitDetailsView.View.Scroll(v);
+    }
+
+    private void ToggleDetailsScroll()
+    {
+        if (!isShowDetails)
+        {
+            return;
+        }
+        commitDetailsView.View.SetFocus();
+    }
+
+    void ToggleDetails()
+    {
+        isShowDetails = !isShowDetails;
+
+        if (!isShowDetails)
+        {
+            contentView.Height = Dim.Fill();
+            commitDetailsView.View.Height = 0;
+            contentView.SetNeedsDisplay();
+            commitDetailsView.View.SetNeedsDisplay();
+            contentView.SetFocus();
+            return;
+        }
+
+        contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+        commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
+
+        OnCurrentIndexChange();
+
+        contentView.SetNeedsDisplay();
+        commitDetailsView.View.SetNeedsDisplay();
+        commitDetailsView.View.SetFocus();
+
+    }
+
+    void OnCurrentIndexChange()
+    {
+        var i = contentView.CurrentIndex;
+        if (i >= repo!.Repo.Commits.Count)
+        {
+            return;
+        }
+
+        if (isShowDetails)
+        {
+            commitDetailsView.Set(repo!.Repo.Commits[i]);
         }
     }
 }
