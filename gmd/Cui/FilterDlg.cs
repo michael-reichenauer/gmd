@@ -18,9 +18,7 @@ class FilterDlg : IFilterDlg
     ContentView? contentView;
 
     IReadOnlyList<Server.Commit> commits = new List<Server.Commit>();
-    int rowStartIndex = 0;
 
-    int TotalRows => commits.Count;
     string currentFilter = "";
     IRepo? repo;
     Server.Commit? commit;
@@ -38,7 +36,7 @@ class FilterDlg : IFilterDlg
         Label sep1 = new Label(nameField.Frame.X - 1, nameField.Frame.Y + 1,
             "└" + new string('─', nameField.Frame.Width) + "┘");
 
-        contentView = new ContentView(onDrawContent)
+        contentView = new ContentView(OnGetContent)
         { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView.RegisterKeyHandler(Key.Enter, () => OnEnter());
 
@@ -67,9 +65,12 @@ class FilterDlg : IFilterDlg
         return commit;
     }
 
-    private void OnEnter()
+    string Filter() => nameField!.Text.ToString()?.Trim() ?? "";
+
+
+    void OnEnter()
     {
-        if (TotalRows == 0)
+        if (commits.Count == 0)
         {
             Application.RequestStop();
             return;
@@ -79,7 +80,7 @@ class FilterDlg : IFilterDlg
         Application.RequestStop();
     }
 
-    private void OnKeyUp()
+    void OnKeyUp()
     {
         string filter = Filter();
         if (filter == currentFilter)
@@ -89,39 +90,20 @@ class FilterDlg : IFilterDlg
         if (filter.Length < 2)
         {
             commits = new List<Server.Commit>();
-            contentView!.TriggerUpdateContent(TotalRows);
+            contentView!.TriggerUpdateContent(commits.Count);
             return;
         }
 
         commits = server.GetFilterCommits(repo!.Repo, filter);
-        contentView!.TriggerUpdateContent(TotalRows);
+        contentView!.TriggerUpdateContent(commits.Count);
     }
 
-    private string Filter() => nameField!.Text.ToString()?.Trim() ?? "";
 
-    void onDrawContent(int firstIndex, int count, int currentIndex, int width)
-    {
-        if (commits == null)
-        {
-            return;
-        }
+    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
+        commits.Skip(firstIndex).Take(count).Select(c => Text.New
+            .White($"{c.Subject.Max(50),-50}")
+            .Dark($"{c.Sid} {c.Author.Max(15),-15} {c.AuthorTime.ToString("yy-MM-dd")}"));
 
-        Rect contentRect = new Rect(0, firstIndex, 50, count);
-
-        DrawDiffRows(firstIndex, count);
-    }
-
-    void DrawDiffRows(int firstRow, int rowCount)
-    {
-        int x = contentView!.ContentX;
-        for (int y = 0; y < rowCount && y + firstRow < commits.Count; y++)
-        {
-            var c = commits[firstRow + y];
-            Text.New.White($"{c.Subject.Max(50),-50}")
-                .Dark($"{c.Sid} {c.Author.Max(15),-15} {c.AuthorTime.ToString("yy-MM-dd")}")
-                .Draw(contentView!, x, y);
-        }
-    }
 }
 
 

@@ -1,26 +1,40 @@
-using gmd.Cui.Common;
 using Terminal.Gui;
 
 
-namespace gmd.Cui;
+namespace gmd.Cui.Common;
 
-public delegate void DrawContentCallback(int firstIndex, int count, int currentIndex, int width);
-public delegate void OnKeyCallback();
+internal delegate void DrawContentCallback(int firstIndex, int count, int currentIndex, int width);
+
+internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int width);
+
+internal delegate void OnKeyCallback();
 
 
 class ContentView : View
 {
-    readonly DrawContentCallback onDrawRepoContent;
+    readonly DrawContentCallback? onDrawContent;
+    readonly GetContentCallback? onGetContent;
     readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
 
-    static readonly int cursorWidth = 1;
+    const int cursorWidth = 1;
+    const int verticalScrollbarWidth = 1;
+    const int contentMargin = cursorWidth + verticalScrollbarWidth;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
-
-    int totalRowCount = 0;
-    int firstIndex = 0;
-
-    internal event Action? CurrentIndexChange;
     int currentIndex = 0;
+
+    internal ContentView(DrawContentCallback onDrawContent)
+    {
+        this.onDrawContent = onDrawContent;
+    }
+
+    internal ContentView(GetContentCallback onGetContent)
+    {
+        this.onGetContent = onGetContent;
+    }
+
+    internal int FirstIndex { get; private set; } = 0;
+    internal int Count { get; private set; } = 0;
+
     internal int CurrentIndex
     {
         get { return currentIndex; }
@@ -35,15 +49,12 @@ class ContentView : View
         }
     }
 
+    internal event Action? CurrentIndexChange;
+
     internal bool IsNoCursor { get; set; } = false;
-    internal int ContentX => IsNoCursor ? 0 : cursorWidth;
+    internal int ContentX => IsNoCursor ? 0 : cursorWidth; // !!!!!!!!   remove
+    internal Point CurrentPoint => new Point(0, FirstIndex + CurrentIndex);
 
-    internal Point CurrentPoint => new Point(0, firstIndex + CurrentIndex);
-
-    internal ContentView(DrawContentCallback onDrawRepoContent)
-    {
-        this.onDrawRepoContent = onDrawRepoContent;
-    }
 
     internal void RegisterKeyHandler(Key key, OnKeyCallback callback)
     {
@@ -52,39 +63,37 @@ class ContentView : View
 
     internal void ScrollToShowIndex(int index)
     {
-        if (index >= firstIndex && index <= firstIndex + ContentHeight)
+        if (index >= FirstIndex && index <= FirstIndex + ContentHeight)
         {
             // index already shown
             return;
         }
 
-        int scroll = index - firstIndex;
+        int scroll = index - FirstIndex;
         Scroll(scroll);
     }
 
 
-    internal int ContentWidth => Frame.Width - (cursorWidth + ContentX);
+    internal int ContentWidth => Frame.Width - contentMargin;
     int ViewHeight => Frame.Height;
-    internal int ViewWidth => Frame.Width;
     int ContentHeight => Frame.Height;
-
-    int TotalRows => totalRowCount;
+    internal int ViewWidth => Frame.Width;
 
 
     internal void TriggerUpdateContent(int totalCount)
     {
-        this.totalRowCount = totalCount;
-        if (firstIndex > totalCount)
+        this.Count = totalCount;
+        if (FirstIndex > totalCount)
         {
-            firstIndex = totalCount - 1;
+            FirstIndex = totalCount - 1;
         }
-        if (CurrentIndex < firstIndex)
+        if (CurrentIndex < FirstIndex)
         {
-            CurrentIndex = firstIndex;
+            CurrentIndex = FirstIndex;
         }
-        if (CurrentIndex > firstIndex + ContentHeight)
+        if (CurrentIndex > FirstIndex + ContentHeight)
         {
-            CurrentIndex = firstIndex + ContentHeight - 1;
+            CurrentIndex = FirstIndex + ContentHeight - 1;
         }
         CurrentIndex = Math.Min(totalCount - 1, CurrentIndex);
         CurrentIndex = Math.Max(0, CurrentIndex);
@@ -111,10 +120,10 @@ class ContentView : View
                 Move(Math.Max(0, ContentHeight - 1));
                 return true;
             case Key.Home:
-                Move(-Math.Max(0, TotalRows));
+                Move(-Math.Max(0, Count));
                 return true;
             case Key.End:
-                Move(Math.Max(0, TotalRows));
+                Move(Math.Max(0, Count));
                 return true;
         }
 
@@ -162,13 +171,26 @@ class ContentView : View
     {
         Clear();
 
-        var count = Math.Min(bounds.Height, TotalRows - firstIndex);
+        var drawCount = Math.Min(bounds.Height, Count - FirstIndex);
 
-        onDrawRepoContent(firstIndex, count, CurrentIndex, ContentWidth);
+        if (onDrawContent != null)
+        {
+            onDrawContent(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+        }
+        else if (onGetContent != null)
+        {
+            var rows = onGetContent(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+            int y = 0;
+            foreach (var row in rows)
+            {
+                row.Draw(this, ContentX, y++);
+            }
+        }
 
         DrawCursor();
         DrawVerticalScrollbar();
     }
+
 
     void DrawCursor()
     {
@@ -177,7 +199,7 @@ class ContentView : View
             return;
         }
 
-        Move(0, CurrentIndex - firstIndex);
+        Move(0, CurrentIndex - FirstIndex);
         Driver.SetAttribute(TextColor.White);
         Driver.AddStr("┃");
     }
@@ -185,27 +207,27 @@ class ContentView : View
 
     void Scroll(int scroll)
     {
-        if (TotalRows == 0)
+        if (Count == 0)
         {   // Cannot scroll empty view
             return;
         }
 
-        int newFirst = firstIndex + scroll;
+        int newFirst = FirstIndex + scroll;
 
         if (newFirst < 0)
         {
             newFirst = 0;
         }
-        if (newFirst + ViewHeight >= TotalRows)
+        if (newFirst + ViewHeight >= Count)
         {
-            newFirst = TotalRows - ViewHeight;
+            newFirst = Count - ViewHeight;
         }
-        if (newFirst == firstIndex)
+        if (newFirst == FirstIndex)
         {   // No move, reached top or bottom
             return;
         }
 
-        int newCurrent = CurrentIndex + (newFirst - firstIndex);
+        int newCurrent = CurrentIndex + (newFirst - FirstIndex);
 
         if (newCurrent < newFirst)
         {   // Need to scroll view up to the new current line
@@ -216,7 +238,7 @@ class ContentView : View
             newCurrent = newFirst - ContentHeight - 1;
         }
 
-        firstIndex = newFirst;
+        FirstIndex = newFirst;
         CurrentIndex = newCurrent;
 
         SetNeedsDisplay();
@@ -231,7 +253,7 @@ class ContentView : View
         }
 
         // Log.Info($"move {move}, current: {currentIndex}");
-        if (TotalRows == 0)
+        if (Count == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -240,12 +262,12 @@ class ContentView : View
 
         if (newCurrent < 0)
         {   // Reached top, wrap or stay
-            newCurrent = isMoveUpDownWrap ? TotalRows - 1 : 0;
+            newCurrent = isMoveUpDownWrap ? Count - 1 : 0;
         }
 
-        if (newCurrent >= TotalRows)
+        if (newCurrent >= Count)
         {   // Reached bottom, wrap or stay 
-            newCurrent = isMoveUpDownWrap ? 0 : TotalRows - 1;
+            newCurrent = isMoveUpDownWrap ? 0 : Count - 1;
         }
 
         if (newCurrent == CurrentIndex)
@@ -255,14 +277,14 @@ class ContentView : View
 
         CurrentIndex = newCurrent;
 
-        if (CurrentIndex < firstIndex)
+        if (CurrentIndex < FirstIndex)
         {   // Need to scroll view up to the new current line 
-            firstIndex = CurrentIndex;
+            FirstIndex = CurrentIndex;
         }
 
-        if (CurrentIndex >= firstIndex + ViewHeight)
+        if (CurrentIndex >= FirstIndex + ViewHeight)
         {  // Need to scroll view down to the new current line
-            firstIndex = CurrentIndex - ViewHeight + 1;
+            FirstIndex = CurrentIndex - ViewHeight + 1;
         }
 
         SetNeedsDisplay();
@@ -282,14 +304,14 @@ class ContentView : View
 
     (int, int) GetVerticalScrollbarIndexes()
     {
-        if (TotalRows == 0 || ViewHeight == TotalRows)
+        if (Count == 0 || ViewHeight == Count)
         {   // No need for a scrollbar
             return (0, -1);
         }
 
-        float scrollbarFactor = (float)ViewHeight / (float)TotalRows;
+        float scrollbarFactor = (float)ViewHeight / (float)Count;
 
-        int sbStart = (int)Math.Floor((float)firstIndex * scrollbarFactor);
+        int sbStart = (int)Math.Floor((float)FirstIndex * scrollbarFactor);
         int sbSize = (int)Math.Ceiling((float)ViewHeight * scrollbarFactor);
 
         if (sbStart + sbSize + 1 > ViewHeight)

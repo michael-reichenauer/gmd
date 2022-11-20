@@ -72,6 +72,8 @@ class Progress : IProgress
         bool isFirstTime = false;
         progressTimer = new Timer(_ =>
         {
+            if (progressView == null) return;
+
             if (!isFirstTime)
             {   // Show border after an intial short delay
                 isFirstTime = true;
@@ -96,7 +98,7 @@ class Progress : IProgress
             progressView.Visible = true;
         }
 
-        progressTimer?.Change(0, 100);
+        progressTimer?.Change(200, 100);
     }
 
     private void Deactivated()
