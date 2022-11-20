@@ -291,6 +291,7 @@ class RepoView : IRepoView
 
             isStatusUpdateInProgress = false;
             ShowRepo(viewRepo);
+            OnCurrentIndexChange();
             Log.Info($"{t} {viewRepo}");
         }
     }
