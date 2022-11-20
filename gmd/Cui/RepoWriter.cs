@@ -27,6 +27,7 @@ class RepoWriter : IRepoWriter
         graphWriter = new GraphWriter(text);
     }
 
+
     public void WriteRepoPage(IRepo repo, int firstRow, int rowCount)
     {
         var branchTips = GetBranchTips(repo);

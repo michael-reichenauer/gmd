@@ -10,14 +10,20 @@ namespace System
         /// </summary>
         /// <param name="source">The source text.</param>
         /// <param name="maxLength">The maximum limit of the string to return.</param>
-        public static string Max(this string source, int maxLength)
+        public static string Max(this string source, int maxLength, bool isFill = true)
         {
             if (source.Length <= maxLength)
             {
                 return source;
             }
 
-            return source.Substring(0, maxLength);
+            var txt = source.Substring(0, maxLength);
+            if (isFill && txt.Length < maxLength)
+            {
+                txt += new string(' ', maxLength - txt.Length);
+            }
+
+            return txt;
         }
 
         public static string TrimPrefix(this string source, string prefix)

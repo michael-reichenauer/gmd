@@ -16,9 +16,10 @@ class ContentView : View
     readonly GetContentCallback? onGetContent;
     readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
 
+    const int topBorderHeight = 1;
     const int cursorWidth = 1;
     const int verticalScrollbarWidth = 1;
-    const int contentMargin = cursorWidth + verticalScrollbarWidth;
+    const int contentXMargin = cursorWidth + verticalScrollbarWidth;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
     int currentIndex = 0;
 
@@ -51,8 +52,15 @@ class ContentView : View
 
     internal event Action? CurrentIndexChange;
 
+    int ViewHeight => Frame.Height;
+    internal int ViewWidth => Frame.Width;
     internal bool IsNoCursor { get; set; } = false;
-    internal int ContentX => IsNoCursor ? 0 : cursorWidth; // !!!!!!!!   remove
+    internal bool IsTopBorder { get; set; } = false;
+    internal bool IsHideCursor { get; set; } = false;
+    internal int ContentX => IsNoCursor ? 0 : cursorWidth;
+    internal int ContentY => IsTopBorder ? topBorderHeight : 0;
+    internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
+    internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
     internal Point CurrentPoint => new Point(0, FirstIndex + CurrentIndex);
 
 
@@ -72,12 +80,6 @@ class ContentView : View
         int scroll = index - FirstIndex;
         Scroll(scroll);
     }
-
-
-    internal int ContentWidth => Frame.Width - contentMargin;
-    int ViewHeight => Frame.Height;
-    int ContentHeight => Frame.Height;
-    internal int ViewWidth => Frame.Width;
 
 
     internal void TriggerUpdateContent(int totalCount)
@@ -171,7 +173,8 @@ class ContentView : View
     {
         Clear();
 
-        var drawCount = Math.Min(bounds.Height, Count - FirstIndex);
+        var topMargin = IsTopBorder ? topBorderHeight : 0;
+        var drawCount = Math.Min(ContentHeight, Count - FirstIndex);
 
         if (onDrawContent != null)
         {
@@ -180,26 +183,35 @@ class ContentView : View
         else if (onGetContent != null)
         {
             var rows = onGetContent(FirstIndex, drawCount, CurrentIndex, ContentWidth);
-            int y = 0;
-            foreach (var row in rows)
-            {
-                row.Draw(this, ContentX, y++);
-            }
+            int y = ContentY;
+            rows.ForEach(row => row.Draw(this, ContentX, y++));
         }
 
+        DrawTopBorder();
         DrawCursor();
         DrawVerticalScrollbar();
+    }
+
+    void DrawTopBorder()
+    {
+        if (!IsTopBorder)
+        {
+            return;
+        }
+        Move(0, 0);
+        Driver.SetAttribute(TextColor.White);
+        Driver.AddStr(new string('─', ViewWidth));
     }
 
 
     void DrawCursor()
     {
-        if (IsNoCursor)
+        if (IsNoCursor || IsHideCursor)
         {
             return;
         }
 
-        Move(0, CurrentIndex - FirstIndex);
+        Move(0, ContentY + (CurrentIndex - FirstIndex));
         Driver.SetAttribute(TextColor.White);
         Driver.AddStr("┃");
     }
@@ -244,7 +256,7 @@ class ContentView : View
         SetNeedsDisplay();
     }
 
-    void Move(int move)
+    internal void Move(int move)
     {
         if (IsNoCursor)
         {
@@ -294,9 +306,10 @@ class ContentView : View
     {
         (int sbStart, int sbEnd) = GetVerticalScrollbarIndexes();
 
+        var x = Math.Max(ViewWidth - 1, 0);
         for (int i = sbStart; i <= sbEnd; i++)
         {
-            Move(Math.Max(ViewWidth - 1, 0), i);
+            Move(x, i + ContentY);
             Driver.SetAttribute(TextColor.Magenta);
             Driver.AddStr("┃");
         }
@@ -304,17 +317,17 @@ class ContentView : View
 
     (int, int) GetVerticalScrollbarIndexes()
     {
-        if (Count == 0 || ViewHeight == Count)
+        if (Count == 0 || Count <= ContentHeight)
         {   // No need for a scrollbar
             return (0, -1);
         }
 
-        float scrollbarFactor = (float)ViewHeight / (float)Count;
+        float scrollbarFactor = (float)ContentHeight / (float)Count;
 
         int sbStart = (int)Math.Floor((float)FirstIndex * scrollbarFactor);
-        int sbSize = (int)Math.Ceiling((float)ViewHeight * scrollbarFactor);
+        int sbSize = (int)Math.Ceiling((float)ContentHeight * scrollbarFactor);
 
-        if (sbStart + sbSize + 1 > ViewHeight)
+        if (sbStart + sbSize + 1 > ContentHeight)
         {
             sbStart = Frame.Height - sbSize - 1;
             if (sbStart < 0)

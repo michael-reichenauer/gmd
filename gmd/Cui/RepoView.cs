@@ -38,6 +38,7 @@ class RepoView : IRepoView
     IRepoViewMenus? menuService;
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
+    bool isShowDetails = false;
 
 
     internal RepoView(
@@ -73,11 +74,6 @@ class RepoView : IRepoView
         server.StatusChange += OnRefreshStatus;
     }
 
-    private void OnCurrentIndexChange()
-    {
-        var i = contentView.CurrentIndex;
-        Log.Info($"# {i}, {repo!.Repo.Commits[i]}");
-    }
 
     public View View => contentView;
     public View DetailsView => commitDetailsView.View;
@@ -169,7 +165,39 @@ class RepoView : IRepoView
 
     void ToggleDetails()
     {
-        Log.Info("Toggle");
+        isShowDetails = !isShowDetails;
+
+        if (!isShowDetails)
+        {
+            contentView.Height = Dim.Fill();
+            commitDetailsView.View.Height = 0;
+            contentView.SetNeedsDisplay();
+            commitDetailsView.View.SetNeedsDisplay();
+            return;
+        }
+
+        contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+        commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
+
+        OnCurrentIndexChange();
+
+        contentView.SetNeedsDisplay();
+        commitDetailsView.View.SetNeedsDisplay();
+
+    }
+
+    private void OnCurrentIndexChange()
+    {
+        var i = contentView.CurrentIndex;
+        if (i >= repo!.Repo.Commits.Count)
+        {
+            return;
+        }
+
+        if (isShowDetails)
+        {
+            commitDetailsView.Set(repo!.Repo.Commits[i]);
+        }
     }
 
     void onDrawRepoContent(int firstIndex, int count, int currentIndex, int width)

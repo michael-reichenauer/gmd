@@ -1,4 +1,5 @@
 using gmd.Cui.Common;
+using gmd.Server;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -6,30 +7,35 @@ namespace gmd.Cui;
 
 interface ICommitDetailsView
 {
-    View View { get; }
+    ContentView View { get; }
+
+    void Set(Commit commit);
+
 }
 
 class CommitDetailsView : ICommitDetailsView
 {
     ContentView? contentView;
     Server.Commit? commit;
-    IReadOnlyList<string> rows = new List<string>();
+    IReadOnlyList<Text> rows = new List<Text>();
 
+    internal static readonly int ContentHeight = 8;
 
     public CommitDetailsView()
     {
-        contentView = new ContentView(onDrawContent)
+        contentView = new ContentView(OnGetContent)
         {
             X = 0,
-            Y = 0,
-            Width = 0,
+            Y = Pos.AnchorEnd(ContentHeight),
             Height = 0,
-            // Width = Dim.Fill(),
+            Width = Dim.Fill(),
+            IsTopBorder = true,
+            IsNoCursor = true,
             // Height = Dim.Fill(),
         };
     }
 
-    public View View => contentView!;
+    public ContentView View => contentView!;
 
     public int TotalRows => rows.Count;
 
@@ -38,31 +44,45 @@ class CommitDetailsView : ICommitDetailsView
         await Task.Yield();
 
         this.commit = commit;
-        rows = new List<string>() { commit.Id };
+        var id = commit.Id;
 
-        contentView!.TriggerUpdateContent(0);
+        if (id == Repo.UncommittedId)
+        {
+            id = "Uncommitted";
+        }
+
+
+        var newRows = new List<Text>();
+        if (commit.Id == Repo.UncommittedId)
+        {
+            newRows.Add(Text.New.Dark("Id:         ").BrightYellow(id));
+        }
+        else
+        {
+            newRows.Add(Text.New.Dark("Id:         ").White(id));
+        }
+
+        newRows.Add(Text.New.Dark("Branch:     ").White(commit.BranchName));
+        newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>
+            id == Repo.UncommittedId ? "" : id.Substring(0, 6)))));
+        newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id => id.Substring(0, 6)))));
+        if (commit.IsAhead)
+        {
+            newRows.Add(Text.New.Dark("Remote:   ").Green("▲ pushable"));
+        }
+        if (commit.IsBehind)
+        {
+            newRows.Add(Text.New.Dark("Remote:   ").Blue("▼ pullable"));
+        }
+        newRows.AddRange(commit.Message.Split('\n').Select(l => Text.New.White(l)));
+
+        rows = newRows;
+
+        contentView!.TriggerUpdateContent(rows.Count);
     });
 
 
-    void onDrawContent(int firstIndex, int count, int currentIndex, int width)
-    {
-        if (commit == null)
-        {
-            return;
-        }
-
-        DrawRows(firstIndex, count, width);
-    }
-
-    void DrawRows(int firstRow, int rowCount, int contentWidth)
-    {
-        int x = contentView!.ContentX;
-        for (int y = 0; y < rowCount && y + firstRow < TotalRows; y++)
-        {
-            var row = rows[firstRow + y];
-            Text.New.White($"{row}")
-                .Draw(contentView!, x, y);
-        }
-    }
+    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
+        rows.Skip(firstIndex).Take(count);
 }
 
