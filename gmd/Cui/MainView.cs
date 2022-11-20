@@ -33,8 +33,8 @@ partial class MainView : IMainView
     View CreateView()
     {
         // Adjust some global color schemes
-        // Terminal.Gui.Colors.Dialog = ColorSchemes.DialogColorScheme;
-        // Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialogColorScheme;
+        Terminal.Gui.Colors.Dialog = ColorSchemes.DialogColorScheme;
+        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialogColorScheme;
         Terminal.Gui.Colors.Menu = ColorSchemes.MenuColorScheme;
 
         var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
@@ -89,7 +89,7 @@ partial class MainView : IMainView
 
         items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
         items.Add(new MenuItem("Clone ...", "", () => { }, () => false));
-        items.Add(new MenuItem("Quit", "", () => Application.RequestStop()));
+        items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
 
         var menu = new ContextMenu(4, 0, new MenuBarItem(items.ToArray()));
         menu.Show();

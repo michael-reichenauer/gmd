@@ -21,7 +21,6 @@ class Program
     {
         var t = Timing.Start;
         Log.Info($"Starting gmd ...");
-        Log.Info($"Thread ID {Threading.CurrentId} #########");
 
         // IConfigurationRoot config = new ConfigurationBuilder()
         //     .AddJsonFile(configPath)

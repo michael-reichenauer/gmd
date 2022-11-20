@@ -17,7 +17,7 @@ interface IRepo
     bool HasUncommittedChanges { get; }
 
     void ToggleDetails();
-
+    void ShowAbout();
     void Refresh(string addBranchName = "", string commitId = "");
 
     void ShowBranch(string name);
@@ -289,6 +289,13 @@ class RepoImpl : IRepo
         Refresh(name);
         return R.Ok;
     });
+
+    public void ShowAbout() => Do(async () =>
+     {
+         await Task.Yield();
+         UI.InfoMessage("About", $"Version: {Util.GetBuildVersion()}\nBuilt:   {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+         return R.Ok;
+     });
 
 
     public void DeleteBranch(string name) => Do(async () =>
