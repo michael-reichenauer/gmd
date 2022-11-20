@@ -120,7 +120,7 @@ partial class MainView : IMainView
         var recentFolders = state.Get().RecentParentFolders;
 
         var browser = new FolderBrowseDlg();
-        if (!Try(out var path, out var e, browser.Show(recentFolders)))
+        if (!Try(out var path, browser.Show(recentFolders)))
         {
             ShowMainMenu();
             return;

@@ -1,3 +1,4 @@
+using gmd.Common;
 using Terminal.Gui;
 
 
@@ -20,6 +21,8 @@ interface IRepo
     void ShowAbout();
     void Refresh(string addBranchName = "", string commitId = "");
     void ShowRepo(string path);
+    void ShowBrowseDialog();
+    void Filter();
 
     void ShowBranch(string name);
     void HideBranch(string name);
@@ -45,7 +48,6 @@ interface IRepo
     void CreateBranch();
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
-    void Filter();
 }
 
 class RepoImpl : IRepo
@@ -58,6 +60,7 @@ class RepoImpl : IRepo
     private readonly ICreateBranchDlg createBranchDlg;
     private readonly IProgress progress;
     private readonly IFilterDlg filterDlg;
+    private readonly IState state;
 
     internal RepoImpl(
         IRepoView repoView,
@@ -68,7 +71,8 @@ class RepoImpl : IRepo
         IDiffView diffView,
         ICreateBranchDlg createBranchDlg,
         IProgress progress,
-        IFilterDlg filterDlg)
+        IFilterDlg filterDlg,
+        IState state)
     {
         this.repoView = repoView;
         Repo = repo;
@@ -79,6 +83,7 @@ class RepoImpl : IRepo
         this.createBranchDlg = createBranchDlg;
         this.progress = progress;
         this.filterDlg = filterDlg;
+        this.state = state;
         Graph = graphService.CreateGraph(repo);
     }
 
@@ -99,6 +104,21 @@ class RepoImpl : IRepo
 
     public void ShowRepo(string path) => Do(async () =>
     {
+        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+        {
+            return R.Error($"Failed to open repo at {path}", e);
+        }
+        return R.Ok;
+    });
+
+    public void ShowBrowseDialog() => Do(async () =>
+    {
+        // Parent folders to recent work folders, usually other repos there as well
+        var recentFolders = state.Get().RecentParentFolders;
+
+        var browser = new FolderBrowseDlg();
+        if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
+
         if (!Try(out var e, await repoView.ShowRepoAsync(path)))
         {
             return R.Error($"Failed to open repo at {path}", e);
