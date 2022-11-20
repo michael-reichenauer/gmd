@@ -19,6 +19,7 @@ interface IRepo
     void ToggleDetails();
     void ShowAbout();
     void Refresh(string addBranchName = "", string commitId = "");
+    void ShowRepo(string path);
 
     void ShowBranch(string name);
     void HideBranch(string name);
@@ -95,6 +96,15 @@ class RepoImpl : IRepo
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
     public void UpdateRepoTo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
     public void ToggleDetails() => repoView.ToggleDetails();
+
+    public void ShowRepo(string path) => Do(async () =>
+    {
+        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+        {
+            return R.Error($"Failed to show repo at {path}", e);
+        }
+        return R.Ok;
+    });
 
     public void ShowBranch(string name)
     {
@@ -360,6 +370,5 @@ class RepoImpl : IRepo
             }
         });
     }
-
 }
 

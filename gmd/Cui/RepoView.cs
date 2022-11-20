@@ -41,6 +41,7 @@ class RepoView : IRepoView
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
     bool isShowDetails = false;
+    bool isRegistered = false;
 
 
     internal RepoView(
@@ -91,7 +92,6 @@ class RepoView : IRepoView
         if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
 
         RegisterShortcuts();
-        contentView.SetFocus();
         return R.Ok;
     }
 
@@ -168,6 +168,12 @@ class RepoView : IRepoView
 
     void RegisterShortcuts()
     {
+        if (isRegistered)
+        {
+            return;
+        }
+        isRegistered = true;
+
         // Keys on repo view contents
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, UI.Shutdown);
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());

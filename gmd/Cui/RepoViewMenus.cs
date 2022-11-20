@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Server;
 using Terminal.Gui;
@@ -15,10 +16,12 @@ interface IRepoViewMenus
 class RepoViewMenus : IRepoViewMenus
 {
     readonly IRepo repo;
+    private readonly IState state;
 
-    internal RepoViewMenus(IRepo repo)
+    internal RepoViewMenus(IRepo repo, IState state)
     {
         this.repo = repo;
+        this.state = state;
     }
 
     public void ShowMainMenu()
@@ -94,6 +97,7 @@ class RepoViewMenus : IRepoViewMenus
 
         items.Add(UI.MenuSeparator("More"));
         items.Add(Item("Seach/Filter ...", "F", () => repo.Filter()));
+        items.Add(SubMenu("Open Repo", "", GetRecentRepoItems()));
         items.Add(Item("About ...", "", () => repo.ShowAbout()));
         items.Add(Item("Quit", "Esc", () => UI.Shutdown()));
 
@@ -122,6 +126,12 @@ class RepoViewMenus : IRepoViewMenus
 
         return items.ToArray();
     }
+
+
+    MenuItem[] GetRecentRepoItems() =>
+        state.Get().RecentFolders
+            .Select(path => Item(path, "", () => repo.ShowRepo(path)))
+            .ToArray();
 
 
     MenuItem[] GetPullItems()
