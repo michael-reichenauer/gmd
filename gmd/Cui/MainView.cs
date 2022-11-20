@@ -41,7 +41,7 @@ partial class MainView : IMainView
         mainView.ColorScheme = ColorSchemes.WindowColorScheme;
 
         mainView.Add(repoView.View, repoView.DetailsView);
-        mainView.WantMousePositionReports = true;
+        repoView.View.SetFocus();
 
 
         //Application.Current.Added += (v) => Log.Info($"View added {v}");

@@ -66,6 +66,7 @@ class RepoView : IRepoView
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
+            IsFocus = true,
         };
         contentView.CurrentIndexChange += () => OnCurrentIndexChange();
 
@@ -89,6 +90,7 @@ class RepoView : IRepoView
         if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
 
         RegisterShortcuts();
+        contentView.SetFocus();
         return R.Ok;
     }
 
@@ -143,6 +145,7 @@ class RepoView : IRepoView
 
     void RegisterShortcuts()
     {
+        // Keys on repo view contents
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, UI.Shutdown);
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.M, () => menuService!.ShowMainMenu());
@@ -160,11 +163,13 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
-
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
-        contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsScroll());
+        contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
         contentView.RegisterKeyHandler(Key.CursorUp | Key.ShiftMask, () => ScrollDetails(-1));
         contentView.RegisterKeyHandler(Key.CursorDown | Key.ShiftMask, () => ScrollDetails(1));
+
+        // Keys on commit details view
+        commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
     }
 
 
@@ -309,13 +314,19 @@ class RepoView : IRepoView
         commitDetailsView.View.Scroll(v);
     }
 
-    private void ToggleDetailsScroll()
+    private void ToggleDetailsFocous()
     {
         if (!isShowDetails)
         {
             return;
         }
-        commitDetailsView.View.SetFocus();
+
+        // Shift focus (unfortionatley SetFocus() does not seem to work)
+        contentView.IsFocus = !contentView.IsFocus;
+        commitDetailsView.View.IsFocus = !commitDetailsView.View.IsFocus;
+
+        commitDetailsView.View.SetNeedsDisplay();
+        contentView.SetNeedsDisplay();
     }
 
     void ToggleDetails()
@@ -326,20 +337,18 @@ class RepoView : IRepoView
         {
             contentView.Height = Dim.Fill();
             commitDetailsView.View.Height = 0;
-            contentView.SetNeedsDisplay();
-            commitDetailsView.View.SetNeedsDisplay();
-            contentView.SetFocus();
-            return;
+            contentView.IsFocus = true;
+            commitDetailsView.View.IsFocus = false;
         }
-
-        contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
-        commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
-
-        OnCurrentIndexChange();
+        else
+        {
+            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+            commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
+            OnCurrentIndexChange();
+        }
 
         contentView.SetNeedsDisplay();
         commitDetailsView.View.SetNeedsDisplay();
-        commitDetailsView.View.SetFocus();
 
     }
 

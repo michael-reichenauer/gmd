@@ -33,6 +33,8 @@ class ContentView : View
         this.onGetContent = onGetContent;
     }
 
+
+    internal bool IsFocus { get; set; } = true;
     internal int FirstIndex { get; private set; } = 0;
     internal int Count { get; private set; } = 0;
 
@@ -105,6 +107,11 @@ class ContentView : View
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
+        if (!IsFocus)
+        {
+            return false;
+        }
+
         switch (keyEvent.Key)
         {
             case Key.Esc:
@@ -199,14 +206,22 @@ class ContentView : View
             return;
         }
         Move(0, 0);
-        Driver.SetAttribute(TextColor.White);
-        Driver.AddStr(new string('─', ViewWidth));
+        if (IsFocus)
+        {
+            Driver.SetAttribute(TextColor.White);
+            Driver.AddStr(new string('━', ViewWidth));
+        }
+        else
+        {
+            Driver.SetAttribute(TextColor.Dark);
+            Driver.AddStr(new string('─', ViewWidth));
+        }
     }
 
 
     void DrawCursor()
     {
-        if (IsNoCursor || IsHideCursor)
+        if (IsNoCursor || IsHideCursor || !IsFocus)
         {
             return;
         }
@@ -255,6 +270,8 @@ class ContentView : View
 
         SetNeedsDisplay();
     }
+
+    internal void MoveToTop() => Move(-int.MaxValue);
 
     internal void Move(int move)
     {

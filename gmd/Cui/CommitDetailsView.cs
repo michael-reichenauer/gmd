@@ -31,6 +31,7 @@ class CommitDetailsView : ICommitDetailsView
             Width = Dim.Fill(),
             IsTopBorder = true,
             IsNoCursor = true,
+            IsFocus = false,
             // Height = Dim.Fill(),
         };
     }
@@ -53,6 +54,7 @@ class CommitDetailsView : ICommitDetailsView
 
 
         var newRows = new List<Text>();
+
         if (commit.Id == Repo.UncommittedId)
         {
             newRows.Add(Text.New.Dark("Id:         ").BrightYellow(id));
@@ -65,7 +67,8 @@ class CommitDetailsView : ICommitDetailsView
         newRows.Add(Text.New.Dark("Branch:     ").White(commit.BranchName));
         newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>
             id == Repo.UncommittedId ? "" : id.Substring(0, 6)))));
-        newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id => id.Substring(0, 6)))));
+        newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id =>
+            id.Substring(0, 6)))));
         if (commit.IsAhead)
         {
             newRows.Add(Text.New.Dark("Remote:   ").Green("▲ pushable"));
@@ -77,8 +80,8 @@ class CommitDetailsView : ICommitDetailsView
         newRows.AddRange(commit.Message.Split('\n').Select(l => Text.New.White(l)));
 
         rows = newRows;
-
         contentView!.TriggerUpdateContent(rows.Count);
+        contentView!.MoveToTop();
     });
 
 
