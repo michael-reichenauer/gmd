@@ -291,7 +291,6 @@ class RepoView : IRepoView
 
             isStatusUpdateInProgress = false;
             ShowRepo(viewRepo);
-            OnCurrentIndexChange();
             Log.Info($"{t} {viewRepo}");
         }
     }
@@ -302,6 +301,7 @@ class RepoView : IRepoView
         repo = newViewRepo(this, serverRepo);
         menuService = newMenuService(repo);
         contentView.TriggerUpdateContent(repo.TotalRows);
+        OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
         var names = repo.GetShownBranches().Select(b => b.Name).ToList();
