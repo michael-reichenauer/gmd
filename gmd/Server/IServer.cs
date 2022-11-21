@@ -15,6 +15,7 @@ interface IServer
     Repo HideBranch(Repo repo, string name);
 
     // Git commands
+    Task<R> FetchAsync(string wd);
     Task<R> CommitAllChangesAsync(string message, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R> PushBranchAsync(string name, string wd);

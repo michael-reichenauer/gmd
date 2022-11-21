@@ -13,6 +13,7 @@ interface IRepoView
     int ContentWidth { get; }
     Point CurrentPoint { get; }
 
+    Task<R> ShowInitialRepoAsync(string path);
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
     void Refresh(string addName = "", string commitId = "");
@@ -23,6 +24,7 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
+    static readonly TimeSpan fetchIntervall = TimeSpan.FromMinutes(5);
     static readonly int MaxRecentFolders = 10;
     static readonly int MaxRecentParentFolders = 5;
 
@@ -88,6 +90,17 @@ class RepoView : IRepoView
     public int CurrentIndex => contentView.CurrentIndex;
     public Point CurrentPoint => contentView.CurrentPoint;
 
+    public async Task<R> ShowInitialRepoAsync(string path)
+    {
+        if (!Try(out var e, await ShowRepoAsync(path))) return e;
+
+        FetchFromRemote();
+        UI.AddTimeout(fetchIntervall, (_) => FetchFromRemote());
+
+        RegisterShortcuts();
+        return R.Ok;
+    }
+
     public async Task<R> ShowRepoAsync(string path)
     {
         Log.Info($"Show '{path}'");
@@ -104,7 +117,6 @@ class RepoView : IRepoView
                .Prepend(parent).Distinct().Take(MaxRecentParentFolders).ToList());
         }
 
-        RegisterShortcuts();
         return R.Ok;
     }
 
@@ -288,6 +300,8 @@ class RepoView : IRepoView
 
             Log.Info($"{t} {viewRepo}");
         }
+
+        server.FetchAsync(repo.Repo.Path).RunInBackground();
     }
 
     async Task ShowUpdatedStatusRepoAsync()
@@ -374,5 +388,11 @@ class RepoView : IRepoView
         {
             commitDetailsView.Set(repo!.Repo.Commits[i]);
         }
+    }
+
+    bool FetchFromRemote()
+    {
+        server.FetchAsync(repo!.Repo.Path).RunInBackground();
+        return true;
     }
 }

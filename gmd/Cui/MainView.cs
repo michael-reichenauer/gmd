@@ -102,7 +102,7 @@ partial class MainView : IMainView
     {
         UI.RunInBackground(async () =>
         {
-            if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+            if (!Try(out var e, await repoView.ShowInitialRepoAsync(path)))
             {
                 UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e}");
                 ShowMainMenu();
