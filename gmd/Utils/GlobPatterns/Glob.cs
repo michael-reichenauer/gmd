@@ -1,7 +1,5 @@
-﻿using System.Linq;
-
-
-namespace gmc.Utils.GlobPatterns
+﻿
+namespace gmd.Utils.GlobPatterns
 {
     /// <summary>
     /// Based on: https://github.com/kthompson/glob

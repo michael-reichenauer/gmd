@@ -4,6 +4,7 @@ namespace gmd.Git;
 interface IGit
 {
     R<string> RootPath(string path);
+    Task<R<string>> Version();
 
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);

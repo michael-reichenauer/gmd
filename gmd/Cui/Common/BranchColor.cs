@@ -1,7 +1,7 @@
-namespace gmd.Cui;
 using System.Security.Cryptography;
 using System.Text;
 
+namespace gmd.Cui.Common;
 using Color = Terminal.Gui.Attribute;
 
 interface IBranchColorService
@@ -41,11 +41,11 @@ class BranchColorService : IBranchColorService
     {
         if (name == "main" || name == "master")
         {
-            return Colors.Magenta;
+            return TextColor.Magenta;
         }
 
-        var branchColorId = (Hash(name) + addIndex) % Colors.BranchColors.Length;
-        return Colors.BranchColors[branchColorId];
+        var branchColorId = (Hash(name) + addIndex) % TextColor.BranchColors.Length;
+        return TextColor.BranchColors[branchColorId];
     }
 
 

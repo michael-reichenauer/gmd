@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -25,6 +26,7 @@ class RepoWriter : IRepoWriter
         this.text = new ColorText(view, startX);
         graphWriter = new GraphWriter(text);
     }
+
 
     public void WriteRepoPage(IRepo repo, int firstRow, int rowCount)
     {
@@ -137,6 +139,7 @@ class RepoWriter : IRepoWriter
         {
             maxWidth -= 2;
         }
+
         Text.New.Black(" ").Draw();
         tips.Draw(0, maxWidth - 1);
         if (tips.Length > maxWidth - 1)
@@ -247,20 +250,69 @@ class RepoWriter : IRepoWriter
             {
                 if (b.IsRemote)
                 {
-                    branchName = "^/" + branchName;
+                    if (b.LocalName != "")
+                    {
+                        var local = repo.Repo.Branches.First(bb => bb.Name == b.LocalName);
+                        if (local.TipId == b.TipId)
+                        {
+                            // Both local and remote tips on same commit, combine them
+                            if (local.IsCurrent)
+                            {
+                                tipText.Color(color, $"(^").Dark("|").White("● ").Color(color, $"{branchName})");
+                            }
+                            else
+                            {
+                                tipText.Color(color, $"(^").Dark("|").Color(color, $"{branchName})");
+                            }
+                        }
+                        else
+                        {
+                            tipText.Color(color, $"(^/{branchName})");
+                        }
+                    }
+                    else
+                    {
+                        tipText.Color(color, $"(^/{branchName})");
+                    }
                 }
-                if (b.IsCurrent)
+                if (!b.IsRemote)
                 {
-                    tipText.Add($"(", color).White("● ").Add($"{branchName})", color);
-                }
-                else
-                {
-                    tipText.Add($"({branchName})", color);
+                    if (b.RemoteName != "")
+                    {
+                        var remote = repo.Repo.Branches.First(bb => bb.Name == b.RemoteName);
+                        if (remote.TipId == b.TipId)
+                        {
+                            // Both local and remote tips on same commit, handled by the remote branch
+                            continue;
+                        }
+                        else
+                        {
+                            if (b.IsCurrent)
+                            {
+                                tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
+                            }
+                            else
+                            {
+                                tipText.Color(color, $"({branchName})");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (b.IsCurrent)
+                        {
+                            tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
+                        }
+                        else
+                        {
+                            tipText.Color(color, $"({branchName})");
+                        }
+                    }
                 }
             }
             else
             {
-                tipText.Add("(~", color).Dark(branchName).Add(")", color);
+                tipText.Color(color, "(~").Dark(branchName).Color(color, ")");
             }
 
             branchTips[b.TipId] = tipText;

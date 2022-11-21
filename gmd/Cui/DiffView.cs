@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Terminal.Gui;
 
 
@@ -17,26 +18,23 @@ class DiffView : IDiffView
 
     ContentView? contentView;
     Toplevel? diffView;
-
-    int rowStartIndex = 0;
+    DiffRows diffRows = new DiffRows();
+    int rowStartX = 0;
     string commitId = "";
 
-
-    DiffRows? diffRows = null;
-
-    int TotalRows => diffRows?.Count ?? 0;
 
     public DiffView(IDiffConverter diffService)
     {
         this.diffService = diffService;
     }
 
+
     public void Show(Server.CommitDiff diff, string commitId)
     {
         this.commitId = commitId;
 
         diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), };
-        contentView = new ContentView(onDrawContent)
+        contentView = new ContentView(OnGetContent)
         { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsNoCursor = true, };
 
         diffView.Add(contentView);
@@ -44,7 +42,7 @@ class DiffView : IDiffView
         RegisterShortcuts(contentView);
 
         diffRows = diffService.ToDiffRows(diff);
-        contentView.TriggerUpdateContent(TotalRows);
+        contentView.TriggerUpdateContent(diffRows.Rows.Count);
 
         UI.RunDialog(diffView);
     }
@@ -54,16 +52,14 @@ class DiffView : IDiffView
     {
         view.RegisterKeyHandler(Key.CursorRight, OnRightArrow);
         view.RegisterKeyHandler(Key.CursorLeft, OnLeftArrow);
-        // view.RegisterKeyHandler(Key.r, () => {repo!.UpdateDiff(commitId);});
-        // view.RegisterKeyHandler(Key.R, () => repo!.UpdateDiff(commitId));
     }
 
 
     private void OnLeftArrow()
     {
-        if (rowStartIndex > 0)
+        if (rowStartX > 0)
         {
-            rowStartIndex--;
+            rowStartX--;
             contentView?.TriggerUpdateContent(diffRows!.Count);
         }
     }
@@ -72,58 +68,32 @@ class DiffView : IDiffView
     private void OnRightArrow()
     {
         int maxColumnWidth = contentView!.ContentWidth / 2;
-        if (diffRows!.MaxLength - rowStartIndex > maxColumnWidth)
+        if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
-            rowStartIndex++;
+            rowStartX++;
             contentView!.TriggerUpdateContent(diffRows!.Count);
         }
     }
 
 
-    void onDrawContent(Rect bounds, int firstIndex, int currentIndex)
-    {
-        if (diffRows == null)
-        {
-            return;
-        }
-
-        int firstRow = Math.Min(firstIndex, TotalRows);
-        int rowCount = Math.Min(bounds.Height, TotalRows - firstRow);
-
-        if (rowCount == 0 || bounds.Width == 0)
-        {
-            return;
-        };
-
-        Rect contentRect = new Rect(0, firstRow, 50, rowCount);
-
-        int contentWidth = bounds.Width;
-        int rowX = contentRect.X;
-        DrawDiffRows(firstRow, rowCount, rowStartIndex, contentWidth);
-    }
-
-
-    void DrawDiffRows(int firstRow, int rowCount, int rowStart, int contentWidth)
+    IEnumerable<Text> OnGetContent(int firstRow, int rowCount, int rowStartX, int contentWidth)
     {
         int columnWidth = (contentWidth - 1) / 2;
         int oneColumnWidth = columnWidth * 2 + 1;
-        for (int y = 0; y < rowCount && y + firstRow < diffRows!.Rows.Count; y++)
-        {
-            var row = diffRows!.Rows[firstRow + y];
-            if (row.Mode == DiffRowMode.Line)
-            {
-                row.Left.DrawAsLine(contentView!, contentView!.ContentX, y, oneColumnWidth);
-            }
-            else if (row.Mode == DiffRowMode.SpanBoth)
-            {
-                row.Left.Draw(contentView!, contentView!.ContentX, y, 0, oneColumnWidth);
-            }
-            else if (row.Mode == DiffRowMode.LeftRight)
-            {
-                row.Left.Draw(contentView!, contentView!.ContentX, y, rowStart, columnWidth);
-                splitLine.Draw(contentView, contentView.ContentX + columnWidth, y);
-                row.Right.Draw(contentView, contentView.ContentX + columnWidth + 1, y, rowStart, columnWidth);
-            }
-        }
+
+        return diffRows.Rows.Skip(firstRow).Take(rowCount)
+            .Select(r => ToText(r, columnWidth, oneColumnWidth));
     }
+
+
+    private Text ToText(DiffRow row, int columnWidth, int oneColumnWidth) => row.Mode switch
+    {
+        DiffRowMode.Line => row.Left.AsLine(oneColumnWidth),
+        DiffRowMode.SpanBoth => row.Left.Subtext(0, oneColumnWidth),
+        DiffRowMode.LeftRight => Text.New
+            .Add(row.Left.Subtext(rowStartX, columnWidth, true))
+            .Add(splitLine)
+            .Add(row.Right.Subtext(rowStartX, columnWidth, true)),
+        _ => throw Asserter.FailFast($"Unknown row mode {row.Mode}")
+    };
 }

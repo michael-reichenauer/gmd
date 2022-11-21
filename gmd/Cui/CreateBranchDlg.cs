@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using Terminal.Gui;
 
 
@@ -42,7 +43,7 @@ class CreateBranchDlg : ICreateBranchDlg
             ColorScheme = ColorSchemes.DialogColorScheme,
         };
         dialog.Closed += e => UI.HideCursor();
-        dialog.Add(infoLabel, infoLabel, nameField, sep1);
+        dialog.Add(infoLabel, nameField, sep1);
 
         nameField.SetFocus();
         UI.ShowCursor();

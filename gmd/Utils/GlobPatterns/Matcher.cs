@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 
 
-namespace gmc.Utils.GlobPatterns
+namespace gmd.Utils.GlobPatterns
 {
     static class Matcher
     {

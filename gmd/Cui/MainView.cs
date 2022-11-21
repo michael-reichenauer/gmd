@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Cui.Common;
 using gmd.Git;
 using Terminal.Gui;
 
@@ -11,9 +12,6 @@ interface IMainView
 
 partial class MainView : IMainView
 {
-    static readonly int MaxRecentFolders = 10;
-    static readonly int MaxRecentParentFolders = 5;
-
     readonly IRepoView repoView;
     readonly IGit git;
     private readonly IState state;
@@ -39,8 +37,8 @@ partial class MainView : IMainView
         var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         mainView.ColorScheme = ColorSchemes.WindowColorScheme;
 
-        mainView.Add(repoView.View);
-        mainView.WantMousePositionReports = true;
+        mainView.Add(repoView.View, repoView.DetailsView);
+        repoView.View.SetFocus();
 
 
         //Application.Current.Added += (v) => Log.Info($"View added {v}");
@@ -88,7 +86,7 @@ partial class MainView : IMainView
 
         items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
         items.Add(new MenuItem("Clone ...", "", () => { }, () => false));
-        items.Add(new MenuItem("Quit", "", () => Application.RequestStop()));
+        items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
 
         var menu = new ContextMenu(4, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
@@ -97,7 +95,7 @@ partial class MainView : IMainView
 
     MenuItem[] GetRecentRepoItems() =>
         state.Get().RecentFolders
-            .Select(f => new MenuItem(f, "", () => ShowRepo(f)))
+            .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
             .ToArray();
 
 
@@ -112,16 +110,6 @@ partial class MainView : IMainView
                 return;
             }
             repoView.View.SetFocus();
-
-            state.Set(s => s.RecentFolders = s.RecentFolders
-                .Prepend(path).Distinct().Take(MaxRecentFolders).ToList());
-
-            var parent = Path.GetDirectoryName(path);
-            if (parent != null)
-            {
-                state.Set(s => s.RecentParentFolders = s.RecentParentFolders
-                   .Prepend(parent).Distinct().Take(MaxRecentParentFolders).ToList());
-            }
         });
     }
 
@@ -132,7 +120,7 @@ partial class MainView : IMainView
         var recentFolders = state.Get().RecentParentFolders;
 
         var browser = new FolderBrowseDlg();
-        if (!Try(out var path, out var e, browser.Show(recentFolders)))
+        if (!Try(out var path, browser.Show(recentFolders)))
         {
             ShowMainMenu();
             return;

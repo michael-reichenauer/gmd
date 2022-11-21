@@ -1,53 +1,53 @@
 using Terminal.Gui;
 
 
-namespace gmd.Cui;
+namespace gmd.Cui.Common;
 
 static class ColorSchemes
 {
     internal static readonly ColorScheme ButtonColorScheme = new ColorScheme()
     {
-        Normal = Colors.Black,
-        Focus = Colors.Make(Color.White, Color.DarkGray),
-        HotNormal = Colors.Blue,
-        HotFocus = Colors.Make(Color.White, Color.DarkGray),
-        Disabled = Colors.Dark,
+        Normal = TextColor.Black,
+        Focus = TextColor.Make(Color.White, Color.DarkGray),
+        HotNormal = TextColor.Blue,
+        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
+        Disabled = TextColor.Dark,
     };
 
     internal static readonly ColorScheme DialogColorScheme = new ColorScheme()
     {
-        Normal = Colors.White,
-        Focus = Colors.White,
-        HotNormal = Colors.White,
-        HotFocus = Colors.White,
-        Disabled = Colors.Dark,
+        Normal = TextColor.White,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
     };
 
     internal static readonly ColorScheme ErrorDialogColorScheme = new ColorScheme()
     {
-        Normal = Colors.BrightRed,
-        Focus = Colors.White,
-        HotNormal = Colors.White,
-        HotFocus = Colors.White,
-        Disabled = Colors.Dark,
+        Normal = TextColor.BrightRed,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
     };
 
     internal static readonly ColorScheme WindowColorScheme = new ColorScheme()
     {
-        Normal = Colors.White,
-        Focus = Colors.White,
-        HotNormal = Colors.White,
-        HotFocus = Colors.White,
-        Disabled = Colors.Dark,
+        Normal = TextColor.White,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
     };
 
     internal static readonly ColorScheme MenuColorScheme = new ColorScheme()
     {
-        Normal = Colors.White,
-        Focus = Colors.Make(Color.White, Color.DarkGray),
-        HotNormal = Colors.White,
-        HotFocus = Colors.Make(Color.White, Color.DarkGray),
-        Disabled = Colors.Dark,
+        Normal = TextColor.White,
+        Focus = TextColor.Make(Color.White, Color.DarkGray),
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
+        Disabled = TextColor.Dark,
     };
 
 

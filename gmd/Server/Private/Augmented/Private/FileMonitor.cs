@@ -1,5 +1,4 @@
-using gmd.Cui;
-using gmc.Utils.GlobPatterns;
+using gmd.Utils.GlobPatterns;
 using Timer = System.Timers.Timer;
 
 namespace gmd.Server.Private.Augmented.Private;
@@ -274,7 +273,7 @@ class FileMonitor : IFileMonitor
         }
 
         Log.Info("File changed");
-        UI.Post(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
+        gmd.Cui.Common.UI.Post(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
     }
 
 
@@ -292,6 +291,6 @@ class FileMonitor : IFileMonitor
         }
 
         Log.Info("Repo changed");
-        UI.Post(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
+        gmd.Cui.Common.UI.Post(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
     }
 }

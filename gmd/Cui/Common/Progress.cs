@@ -1,7 +1,7 @@
 using Terminal.Gui;
 
-namespace gmd.Cui;
 
+namespace gmd.Cui.Common;
 
 interface IProgress
 {
@@ -14,7 +14,7 @@ class Progress : IProgress
 {
     const int intitialDelay = 800;
     const int progressWidth = 20;
-    static readonly ColorScheme colorScheme = new ColorScheme() { Normal = Colors.Magenta };
+    static readonly ColorScheme colorScheme = new ColorScheme() { Normal = TextColor.Magenta };
 
     Timer? progressTimer;
     int count = 0;
@@ -72,6 +72,8 @@ class Progress : IProgress
         bool isFirstTime = false;
         progressTimer = new Timer(_ =>
         {
+            if (progressView == null) return;
+
             if (!isFirstTime)
             {   // Show border after an intial short delay
                 isFirstTime = true;
@@ -85,15 +87,28 @@ class Progress : IProgress
         currentParentView = Application.Current;
         currentParentView.Add(progressView);
 
-        currentParentView.Activate += (_) => Log.Info("Active");
-        currentParentView.Deactivate += (_) => Log.Info("Deactivate");
-
-        Application.NotifyNewRunState += (d) => Log.Info("new run state");
-        Application.NotifyStopRunState += (d) => Log.Info("new stop state");
-
+        UI.SetActions(() => Deactivated(), () => Activated());
         UI.StopInput();
     }
 
+    private void Activated()
+    {
+        if (progressView != null)
+        {
+            progressView.Visible = true;
+        }
+
+        progressTimer?.Change(200, 100);
+    }
+
+    private void Deactivated()
+    {
+        progressTimer?.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+        if (progressView != null)
+        {
+            progressView.Visible = false;
+        }
+    }
 
     void Stop()
     {
@@ -111,6 +126,7 @@ class Progress : IProgress
         currentParentView!.Remove(progressView);
         currentParentView = null;
         progressView = null;
+        UI.SetActions(null, null);
         UI.StartInput();
     }
 }

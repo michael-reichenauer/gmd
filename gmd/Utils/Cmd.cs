@@ -6,8 +6,8 @@ namespace gmd.Utils;
 
 interface ICmd
 {
-    CmdResult RunCmd(string path, string args, string workingDirectory);
-    Task<CmdResult> RunAsync(string path, string args, string workingDirectory);
+    CmdResult RunCmd(string path, string args, string workingDirectory, bool skipLog = false);
+    Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLog = false);
 }
 
 class CmdResult : R<string>
@@ -36,10 +36,10 @@ class CmdResult : R<string>
 
 class Cmd : ICmd
 {
-    public Task<CmdResult> RunAsync(string path, string args, string workingDirectory) =>
-        Task.Run(() => RunCmd(path, args, workingDirectory));
+    public Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLog = false) =>
+        Task.Run(() => RunCmd(path, args, workingDirectory, skipLog));
 
-    public CmdResult RunCmd(string path, string args, string workingDirectory)
+    public CmdResult RunCmd(string path, string args, string workingDirectory, bool skipLog = false)
     {
         var t = Timing.Start;
         try
@@ -80,7 +80,10 @@ class Cmd : ICmd
                 var output = string.Join('\n', outputLines).Replace("\r", "").TrimEnd();
                 var error = string.Join('\n', errorLines).Replace("\r", "").TrimEnd();
 
-                Log.Info($"{path} {args} ({workingDirectory}) {t}");
+                if (!skipLog)
+                {
+                    Log.Info($"{path} {args} ({workingDirectory}) {t}");
+                }
 
                 if (process.ExitCode != 0)
                 {

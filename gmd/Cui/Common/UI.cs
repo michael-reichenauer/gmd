@@ -1,8 +1,7 @@
-using NStack;
 using Terminal.Gui;
 
 
-namespace gmd.Cui;
+namespace gmd.Cui.Common;
 
 static class UI
 {
@@ -20,6 +19,15 @@ static class UI
             Application.Run(toplevel);
         }
     }
+
+    static Action? onActivated;
+    static Action? onDeactivated;
+    static internal void SetActions(Action? deactivated, Action? activated)
+    {
+        onDeactivated = deactivated;
+        onActivated = activated;
+    }
+
 
     static internal void StopInput()
     {
@@ -73,7 +81,7 @@ static class UI
 
         using (EnableInput())
         {
-            return MessageBox.ShowInfo(title, message, defaultButton, buttons);
+            return MessageDlg.ShowInfo(title, message, defaultButton, buttons);
         }
     }
 
@@ -88,7 +96,7 @@ static class UI
 
         using (EnableInput())
         {
-            return MessageBox.ShowError(message, defaultButton, buttons);
+            return MessageDlg.ShowError(message, defaultButton, buttons);
         }
     }
 
@@ -96,7 +104,12 @@ static class UI
     {
         var rootKeyEvent = Application.RootKeyEvent;
         Application.RootKeyEvent = null;
-        return new Disposable(() => Application.RootKeyEvent = rootKeyEvent);
+        onDeactivated?.Invoke();
+        return new Disposable(() =>
+        {
+            Application.RootKeyEvent = rootKeyEvent;
+            onActivated?.Invoke();
+        });
     }
 
 }

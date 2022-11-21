@@ -1,6 +1,9 @@
+using gmd.Common;
+using gmd.Git;
 using Terminal.Gui;
 
-namespace gmd.Cui;
+
+namespace gmd.Cui.Common;
 
 
 interface IRepo
@@ -15,7 +18,12 @@ interface IRepo
     Point CurrentPoint { get; }
     bool HasUncommittedChanges { get; }
 
-    void Refresh(string name = "");
+    void ToggleDetails();
+    void ShowAbout();
+    void Refresh(string addBranchName = "", string commitId = "");
+    void ShowRepo(string path);
+    void ShowBrowseDialog();
+    void Filter();
 
     void ShowBranch(string name);
     void HideBranch(string name);
@@ -26,19 +34,25 @@ interface IRepo
 
     void SwitchTo(string branchName);
     void Commit();
+    void CommitFromMenu();
     void PushCurrentBranch();
+    void PushBranch(string name);
+    bool CanPush();
+    bool CanPushCurrentBranch();
+    void PullCurrentBranch();
+    void PullBranch(string name);
+    bool CanPull();
+    bool CanPullCurrentBranch();
     void ShowUncommittedDiff();
     void ShowCurrentRowDiff();
 
-    bool CanPush();
-    bool CanPushCurrentBranch();
     void MergeBranch(string name);
     void CreateBranch();
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
 }
 
-class ViewRepo : IRepo
+class RepoImpl : IRepo
 {
     readonly IRepoView repoView;
     private readonly IGraphService graphService;
@@ -47,8 +61,11 @@ class ViewRepo : IRepo
     private readonly IDiffView diffView;
     private readonly ICreateBranchDlg createBranchDlg;
     private readonly IProgress progress;
+    private readonly IFilterDlg filterDlg;
+    private readonly IState state;
+    private readonly IGit git;
 
-    internal ViewRepo(
+    internal RepoImpl(
         IRepoView repoView,
         Server.Repo repo,
         IGraphService graphService,
@@ -56,7 +73,10 @@ class ViewRepo : IRepo
         ICommitDlg commitDlg,
         IDiffView diffView,
         ICreateBranchDlg createBranchDlg,
-        IProgress progress)
+        IProgress progress,
+        IFilterDlg filterDlg,
+        IState state,
+        IGit git)
     {
         this.repoView = repoView;
         Repo = repo;
@@ -66,6 +86,9 @@ class ViewRepo : IRepo
         this.diffView = diffView;
         this.createBranchDlg = createBranchDlg;
         this.progress = progress;
+        this.filterDlg = filterDlg;
+        this.state = state;
+        this.git = git;
         Graph = graphService.CreateGraph(repo);
     }
 
@@ -80,14 +103,39 @@ class ViewRepo : IRepo
     public bool HasUncommittedChanges => !Repo.Status.IsOk;
     public Server.Branch? CurrentBranch => Repo.Branches.FirstOrDefault(b => b.IsCurrent);
 
-    public void Refresh(string addName = "") => repoView.Refresh(addName);
-    public void UpdateRepoTo(Server.Repo newRepo) => repoView.UpdateRepoTo(newRepo);
+    public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+    public void UpdateRepoTo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
+    public void ToggleDetails() => repoView.ToggleDetails();
 
+    public void ShowRepo(string path) => Do(async () =>
+    {
+        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+        {
+            return R.Error($"Failed to open repo at {path}", e);
+        }
+        return R.Ok;
+    });
+
+    public void ShowBrowseDialog() => Do(async () =>
+    {
+        // Parent folders to recent work folders, usually other repos there as well
+        var recentFolders = state.Get().RecentParentFolders;
+
+        var browser = new FolderBrowseDlg();
+        if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
+
+        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+        {
+            return R.Error($"Failed to open repo at {path}", e);
+        }
+        return R.Ok;
+    });
 
     public void ShowBranch(string name)
     {
         Server.Repo newRepo = server.ShowBranch(Repo, name);
-        UpdateRepoTo(newRepo);
+        UpdateRepoTo(newRepo, name);
+
     }
 
     public void HideBranch(string name)
@@ -107,16 +155,35 @@ class ViewRepo : IRepo
 
     public void SwitchTo(string branchName) => Do(async () =>
     {
-        using (progress.Show())
+        if (!Try(out var e, await server.SwitchToAsync(branchName, Repo.Path)))
         {
-            if (!Try(out var e, await server.SwitchToAsync(branchName, Repo.Path)))
-            {
-                return R.Error($"Failed to switch to {branchName}", e);
-            }
-            return R.Ok;
+            return R.Error($"Failed to switch to {branchName}", e);
         }
+        return R.Ok;
     });
 
+
+    public void Filter() => Do(async () =>
+     {
+         if (!Try(out var commit, out var e, filterDlg.Show(this))) return R.Ok;
+         await Task.Delay(0);
+
+         Refresh(commit.BranchName, commit.Id);
+         return R.Ok;
+     });
+
+
+    public void CommitFromMenu()
+    {
+        // For some unknown reason, calling commit directly from the menu will
+        // Show the commit dialog, but diff will not work since async/await does not seem to work
+        // However wrapping with a timeout seems to work as desired.
+        UI.AddTimeout(TimeSpan.FromMilliseconds(100), (_) =>
+        {
+            Commit();
+            return false;
+        });
+    }
 
     public void Commit() => Do(async () =>
     {
@@ -126,20 +193,6 @@ class ViewRepo : IRepo
         if (!Try(out var e, await server.CommitAllChangesAsync(message, Repo.Path)))
         {
             return R.Error($"Failed to commit", e);
-        }
-
-        Refresh();
-        return R.Ok;
-    });
-
-
-    public void PushCurrentBranch() => Do(async () =>
-    {
-        var branch = Repo.Branches.First(b => b.IsCurrent);
-
-        if (!Try(out var e, await server.PushBranchAsync(branch.Name, Repo.Path)))
-        {
-            return R.Error($"Failed to push branch {branch.Name}", e);
         }
 
         Refresh();
@@ -175,14 +228,72 @@ class ViewRepo : IRepo
     });
 
 
-    public bool CanPush() => CanPushCurrentBranch();
+    public void PushCurrentBranch() => Do(async () =>
+    {
+        var branch = Repo.Branches.First(b => b.IsCurrent);
+
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, Repo.Path)))
+        {
+            return R.Error($"Failed to push branch {branch.Name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+
+    public void PushBranch(string name) => Do(async () =>
+    {
+        if (!Try(out var e, await server.PushBranchAsync(name, Repo.Path)))
+        {
+            return R.Error($"Failed to push branch {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+
+    public bool CanPush() => Repo.Status.IsOk && GetShownBranches().Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 
     public bool CanPushCurrentBranch()
     {
         var branch = Repo.Branches.FirstOrDefault(b => b.IsCurrent);
         return Repo.Status.IsOk &&
-         branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
+            branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
     }
+
+
+    public void PullCurrentBranch() => Do(async () =>
+    {
+        if (!Try(out var e, await server.PullCurrentBranchAsync(Repo.Path)))
+        {
+            return R.Error($"Failed to pull current branch", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void PullBranch(string name) => Do(async () =>
+    {
+        if (!Try(out var e, await server.PullBranchAsync(name, Repo.Path)))
+        {
+            return R.Error($"Failed to pull branch {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public bool CanPull() => Repo.Status.IsOk && GetShownBranches().Any(b => b.HasRemoteOnly);
+
+    public bool CanPullCurrentBranch()
+    {
+        var branch = Repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        return Repo.Status.IsOk && branch != null && branch.HasRemoteOnly;
+    }
+
 
     public void CreateBranch() => Do(async () =>
      {
@@ -225,6 +336,21 @@ class ViewRepo : IRepo
         Refresh(name);
         return R.Ok;
     });
+
+    public void ShowAbout() => Do(async () =>
+     {
+         var gmdVersion = Util.GetBuildVersion();
+         var gmdBuildTime = Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm");
+         if (!Try(out var gitVersion, out var e, await git.Version())) return e;
+
+         var msg =
+             $"Version: {gmdVersion}\n" +
+             $"Built:   {gmdBuildTime}\n" +
+             $"Git:     {gitVersion}";
+
+         UI.InfoMessage("About", msg);
+         return R.Ok;
+     });
 
 
     public void DeleteBranch(string name) => Do(async () =>
@@ -282,7 +408,7 @@ class ViewRepo : IRepo
         {
             using (progress.Show())
             {
-                if (!Try(out var e, await action()!))
+                if (!Try(out var e, await action()))
                 {
                     UI.ErrorMessage($"{e.AllErrorMessages()}");
                 }
