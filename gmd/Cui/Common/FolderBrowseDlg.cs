@@ -34,6 +34,11 @@ public class FolderBrowseDlg
 
         SetupFileTree(folderView, recentFolders);
         SetupScrollBar(folderView);
+        folderView.GoToFirst();
+        if (recentFolders.Any())
+        {
+            folderView.Expand();
+        }
 
         folderView.SetFocus();
         UI.RunDialog(dialog);

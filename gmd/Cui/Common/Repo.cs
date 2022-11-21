@@ -33,6 +33,7 @@ interface IRepo
 
     void SwitchTo(string branchName);
     void Commit();
+    void CommitFromMenu();
     void PushCurrentBranch();
     void PushBranch(string name);
     bool CanPush();
@@ -167,6 +168,18 @@ class RepoImpl : IRepo
          return R.Ok;
      });
 
+
+    public void CommitFromMenu()
+    {
+        // For some unknown reason, calling commit directly from the menu will
+        // Show the commit dialog, but diff will not work since async/await does not seem to work
+        // However wrapping with a timeout seems to work as desired.
+        UI.AddTimeout(TimeSpan.FromMilliseconds(100), (_) =>
+        {
+            Commit();
+            return false;
+        });
+    }
 
     public void Commit() => Do(async () =>
     {
@@ -383,7 +396,7 @@ class RepoImpl : IRepo
         {
             using (progress.Show())
             {
-                if (!Try(out var e, await action()!))
+                if (!Try(out var e, await action()))
                 {
                     UI.ErrorMessage($"{e.AllErrorMessages()}");
                 }

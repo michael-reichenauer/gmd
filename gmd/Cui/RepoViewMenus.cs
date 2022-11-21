@@ -79,7 +79,7 @@ class RepoViewMenus : IRepoViewMenus
              UI.MenuSeparator($"Commit {Sid(repo.CurrentIndexCommit.Id)}"),
              Item("Toggle Details ...", "Enter", () => repo.ToggleDetails()),
              Item("Commit ...", "C",
-                 () => repo.Commit(),
+                 () => repo.CommitFromMenu(),
                  () => !repo.Repo.Status.IsOk),
              Item("Commit Diff ...", "D", () => repo.ShowCurrentRowDiff()),
 
