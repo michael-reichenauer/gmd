@@ -1,0 +1,3 @@
+#!/bin/bash
+
+dotnet test gmdTest/gmdTest.csproj
