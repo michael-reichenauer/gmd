@@ -2,9 +2,9 @@ name: Build and release
 
 on:
   push:
-    branches: [main, dev, branches/cidi]
+    branches: [main, dev]
   pull_request:
-    branches: [main, dev, branches/cidi]
+    branches: [main, dev]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
 
       - name: Check if release branch
         id: check-branch
-        if: github.ref == 'refs/heads/branches/cidi'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo Branch ${{ github.ref }}
           echo "isRelease=true" >> $GITHUB_OUTPUT
