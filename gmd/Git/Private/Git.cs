@@ -10,7 +10,7 @@ internal class Git : IGit
     readonly ICommitService commitService;
     readonly IDiffService diffService;
     readonly IRemoteService remoteService;
-
+    private readonly ICmd cmd;
 
     public Git(
         ILogService logService,
@@ -18,7 +18,8 @@ internal class Git : IGit
         IStatusService statusService,
         ICommitService commitService,
         IDiffService diffService,
-        IRemoteService remoteService)
+        IRemoteService remoteService,
+        ICmd cmd)
     {
         this.logService = logService;
         this.branchService = branchService;
@@ -26,6 +27,7 @@ internal class Git : IGit
         this.commitService = commitService;
         this.diffService = diffService;
         this.remoteService = remoteService;
+        this.cmd = cmd;
     }
 
     public R<string> RootPath(string path) => RootPathDir(path);
@@ -61,6 +63,11 @@ internal class Git : IGit
         remoteService.DeleteRemoteBranchAsync(name, wd);
 
 
+    public async Task<R<string>> Version()
+    {
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true))) return e;
+        return output.TrimPrefix("git version ");
+    }
 
     public static R<string> RootPathDir(string path)
     {

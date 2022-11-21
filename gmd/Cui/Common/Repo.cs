@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Git;
 using Terminal.Gui;
 
 
@@ -62,6 +63,7 @@ class RepoImpl : IRepo
     private readonly IProgress progress;
     private readonly IFilterDlg filterDlg;
     private readonly IState state;
+    private readonly IGit git;
 
     internal RepoImpl(
         IRepoView repoView,
@@ -73,7 +75,8 @@ class RepoImpl : IRepo
         ICreateBranchDlg createBranchDlg,
         IProgress progress,
         IFilterDlg filterDlg,
-        IState state)
+        IState state,
+        IGit git)
     {
         this.repoView = repoView;
         Repo = repo;
@@ -85,6 +88,7 @@ class RepoImpl : IRepo
         this.progress = progress;
         this.filterDlg = filterDlg;
         this.state = state;
+        this.git = git;
         Graph = graphService.CreateGraph(repo);
     }
 
@@ -335,8 +339,16 @@ class RepoImpl : IRepo
 
     public void ShowAbout() => Do(async () =>
      {
-         await Task.Yield();
-         UI.InfoMessage("About", $"Version: {Util.GetBuildVersion()}\nBuilt:   {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+         var gmdVersion = Util.GetBuildVersion();
+         var gmdBuildTime = Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm");
+         if (!Try(out var gitVersion, out var e, await git.Version())) return e;
+
+         var msg =
+             $"Version: {gmdVersion}\n" +
+             $"Built:   {gmdBuildTime}\n" +
+             $"Git:     {gitVersion}";
+
+         UI.InfoMessage("About", msg);
          return R.Ok;
      });
 

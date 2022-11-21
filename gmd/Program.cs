@@ -2,6 +2,7 @@
 using gmd.Cui;
 using System.Runtime.CompilerServices;
 using gmd.Cui.Common;
+using gmd.Git;
 // using Microsoft.Extensions.Configuration;
 
 [assembly: InternalsVisibleTo("gmdTest")]
@@ -14,6 +15,7 @@ class Program
 {
     private static DependencyInjection? dependencyInjection;
     private readonly IMainView mainView;
+    private readonly IGit git;
 
     // static readonly string configPath = "/workspaces/gmd/config.json";
 
@@ -42,16 +44,16 @@ class Program
         ConfigLogger.CloseAsync().Wait();
     }
 
-    internal Program(IMainView mainView)
+    internal Program(IMainView mainView, IGit git)
     {
         this.mainView = mainView;
+        this.git = git;
     }
 
-    private void Main()
+    void Main()
     {
         var t = Timing.Start;
-
-        Log.Info($"Build {Util.GetBuildVersion()} {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+        LogInfoAsync().RunInBackground();
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
@@ -67,11 +69,26 @@ class Program
     }
 
 
-    private bool HandleUIMainLoopError(Exception e)
+    bool HandleUIMainLoopError(Exception e)
     {
         Log.Exception(e, "Error in UI main loop");
         ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
+    }
+
+    async Task LogInfoAsync()
+    {
+        Log.Info($"Version: {Util.GetBuildVersion()}");
+        Log.Info($"Build    {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+        if (!Try(out var gitVersion, out var e, await git.Version()))
+        {
+            Log.Error($"No git command detected, {e}");
+        }
+        Log.Info($"Git:     {gitVersion}");
+        Log.Info($"Cmd:     {Environment.CommandLine}");
+        Log.Info($"Dir:     {Environment.CurrentDirectory}");
+        Log.Info($".NET:    {Environment.Version}");
+        Log.Info($"OS:      {Environment.OSVersion}");
     }
 }
 
