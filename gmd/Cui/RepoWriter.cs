@@ -98,7 +98,17 @@ class RepoWriter : IRepoWriter
     void WriteSubject(Columns cw, Commit c, Branch currentRowBranch,
         IReadOnlyDictionary<string, Text> branchTips)
     {
-        int columnWidth = cw.Subject;
+        int width = cw.Subject;
+        if (c.Tags.Any())
+        {
+            string tags = "";
+            c.Tags.ForEach(t => tags += $"[{t.Name}]");
+            tags = tags.Max(Math.Max(0, width - 10));
+            text.Green(tags);
+            width = width - tags.Length;
+        }
+
+        int columnWidth = width;
         int maxTipWidth = maxTipsLength;
 
         if (maxTipWidth < columnWidth - c.Subject.Length)

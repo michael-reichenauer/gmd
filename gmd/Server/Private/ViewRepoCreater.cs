@@ -300,7 +300,7 @@ class ViewRepoCreater : IViewRepoCreater
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Substring(0, 6),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
                     Index: 0, currentBranch.Name, ParentIds: parentIds, ChildIds: new List<string>(),
-                    Tags: new List<Tag>(), BranchTips: new List<string>(),
+                    Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
                     IsPartialLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false);

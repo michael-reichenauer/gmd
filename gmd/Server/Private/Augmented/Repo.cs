@@ -60,8 +60,6 @@ public record Commit(
     public override string ToString() => $"{Sid} {Subject} ({BranchName})";
 }
 
-
-
 public record Branch(
     string Name,
     string CommonName,
@@ -91,3 +89,5 @@ public record Branch(
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
+
+public record Tag(string Name, string CommitId);

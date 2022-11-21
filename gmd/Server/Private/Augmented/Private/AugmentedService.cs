@@ -71,16 +71,18 @@ class AugmentedService : IAugmentedService
         // Start some git commands in parallel to get commits, branches, status, ...
         var logTask = git.GetLogAsync(maxCommitCount, path);
         var branchesTask = git.GetBranchesAsync(path);
+        var tagsTask = git.GetTagsAsync(path);
         var statusTask = git.GetStatusAsync(path);
 
         await Task.WhenAll(logTask, branchesTask, statusTask);
 
         if (!Try(out var log, out var e, logTask.Result)) return e;
         if (!Try(out var branches, out e, branchesTask.Result)) return e;
+        if (!Try(out var tags, out e, tagsTask.Result)) return e;
         if (!Try(out var status, out e, statusTask.Result)) return e;
 
         // Combine all git info into one git repo info object
-        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, status);
+        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status);
 
         Log.Info($"{t} {gitRepo}");
         return gitRepo;

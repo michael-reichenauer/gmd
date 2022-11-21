@@ -34,7 +34,7 @@ class Converter : IConverter
         BranchName: c.BranchName,
         ParentIds: c.ParentIds,
         ChildIds: c.ChildIds,
-        Tags: c.Tags,
+        Tags: ToTags(c.Tags),
         BranchTips: c.BranchTips,
         IsCurrent: c.IsCurrent,
         IsUncommitted: c.IsUncommitted,
@@ -78,6 +78,8 @@ class Converter : IConverter
         IsIn: false,
         IsOut: false);
 
+    IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
+        tags.Select(t => new Tag(t.Name, t.CommitId)).ToList();
 
     IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs

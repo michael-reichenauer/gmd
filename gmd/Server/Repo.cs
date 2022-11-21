@@ -78,9 +78,6 @@ public record Commit(
 }
 
 
-
-public record Tag(string name);
-
 public enum More
 {
     None,
@@ -123,6 +120,7 @@ public record Branch(
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
 
+public record Tag(string Name, string CommitId);
 
 public record Status(
     int Modified,

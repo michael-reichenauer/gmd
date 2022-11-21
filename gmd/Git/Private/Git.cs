@@ -10,7 +10,8 @@ internal class Git : IGit
     readonly ICommitService commitService;
     readonly IDiffService diffService;
     readonly IRemoteService remoteService;
-    private readonly ICmd cmd;
+    readonly ITagService tagService;
+    readonly ICmd cmd;
 
     public Git(
         ILogService logService,
@@ -19,6 +20,7 @@ internal class Git : IGit
         ICommitService commitService,
         IDiffService diffService,
         IRemoteService remoteService,
+        ITagService tagService,
         ICmd cmd)
     {
         this.logService = logService;
@@ -27,6 +29,7 @@ internal class Git : IGit
         this.commitService = commitService;
         this.diffService = diffService;
         this.remoteService = remoteService;
+        this.tagService = tagService;
         this.cmd = cmd;
     }
 
@@ -61,6 +64,8 @@ internal class Git : IGit
         branchService.DeleteLocalBranchAsync(name, isForced, wd);
     public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
         remoteService.DeleteRemoteBranchAsync(name, wd);
+    public Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd) =>
+        tagService.GetTagsAsync(wd);
 
 
     public async Task<R<string>> Version()

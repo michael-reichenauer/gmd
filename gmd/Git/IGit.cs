@@ -25,6 +25,7 @@ interface IGit
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
+    Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
 }
 
 
@@ -65,6 +66,8 @@ public record Status(
 {
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
 }
+
+public record Tag(string Name, string CommitId);
 
 record CommitDiff(
     string Id,

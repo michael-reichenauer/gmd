@@ -38,9 +38,11 @@ class Augmenter : IAugmenter
         SetAugBranches(repo, gitRepo);
         SetAugCommits(repo, gitRepo, partialMax);
         SetCommitBranches(repo);
+        SetAugTags(repo, gitRepo);
 
         return repo;
     }
+
 
 
     Status ToStatus(GitRepo repo)
@@ -146,6 +148,20 @@ class Augmenter : IAugmenter
 
         repo.Commits.Reverse();
     }
+
+
+    void SetAugTags(WorkRepo repo, GitRepo gitRepo)
+    {
+        gitRepo.Tags.ForEach(t =>
+        {
+            var tag = new Tag(t.Name, t.CommitId);
+            if (repo.CommitsById.TryGetValue(t.CommitId, out var c))
+            {
+                c.Tags.Add(tag);
+            }
+        });
+    }
+
 
     void SetCommitBranches(WorkRepo repo)
     {
