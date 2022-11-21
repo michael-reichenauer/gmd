@@ -45,7 +45,6 @@ class Program
         dependencyInjection.RegisterDependencyInjectionTypes();
 
         Program program = dependencyInjection.Resolve<Program>();
-        Log.Info($"Initialized {t}");
         Threading.AssertIsMainThread();
         program.Main();
         Log.Info($"Done, running for {t}");
@@ -62,15 +61,13 @@ class Program
     void Main()
     {
         var t = Timing.Start;
-        LogInfoAsync().RunInBackground();
+        StartAsync().RunInBackground();
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         UI.HideCursor();
 
         Application.Top.Add(mainView.View);
-        Log.Info($"Initialized UI {t}");
-
 
         // Run blocks until the user quits the application
         Application.Run(HandleUIMainLoopError);
@@ -83,6 +80,12 @@ class Program
         Log.Exception(e, "Error in UI main loop");
         ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
+    }
+
+    async Task StartAsync()
+    {
+        await LogInfoAsync();
+        await updater.CheckUpdateAvailableAsync();
     }
 
     async Task LogInfoAsync()
@@ -98,8 +101,6 @@ class Program
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
-
-        await updater.IsUpdateAvailableAsync();
     }
 }
 

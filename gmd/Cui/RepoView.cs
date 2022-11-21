@@ -90,6 +90,7 @@ class RepoView : IRepoView
 
     public async Task<R> ShowRepoAsync(string path)
     {
+        Log.Info($"Show '{path}'");
         var branches = state.GetRepo(path).Branches;
         if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
 

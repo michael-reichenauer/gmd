@@ -7,24 +7,24 @@ namespace gmd.Installation;
 
 interface IUpdater
 {
-    Task<bool> IsUpdateAvailableAsync();
+    Task CheckUpdateAvailableAsync();
 }
 
 public class GitRelease
 {
-    public string Tag_name { get; set; } = "";
-    public bool Draft { get; set; } = true;
-    public bool Prerelease { get; set; } = true;
-    public string Published_at { get; set; } = "";
-    public string Body { get; set; } = "";
-    public GitAsset[] Assets { get; set; } = new GitAsset[0];
+    public string tag_name { get; set; } = "";
+    public bool draft { get; set; } = true;
+    public bool prerelease { get; set; } = true;
+    public string published_at { get; set; } = "";
+    public string body { get; set; } = "";
+    public GitAsset[] assets { get; set; } = new GitAsset[0];
 }
 
 public class GitAsset
 {
-    public string Name { get; set; } = "";
-    public int Download_count { get; set; } = 0;
-    public string Browser_download_url { get; set; } = "";
+    public string name { get; set; } = "";
+    public int download_count { get; set; } = 0;
+    public string browser_download_url { get; set; } = "";
 }
 
 class Updater : IUpdater
@@ -47,8 +47,21 @@ class Updater : IUpdater
         buildVersion = Util.GetBuildVersion();
     }
 
+    public async Task CheckUpdateAvailableAsync()
+    {
+        await IsUpdateAvailableAsync();
+        var releases = state.Get().Releases;
+        if (releases.AllowPreview)
+        {
+            Log.Info($"Running: {buildVersion}, PreRelase: {releases.PreRelease.Version} (Stable: {releases.StableRelease.Version})");
+        }
+        else
+        {
+            Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version} (Preview: {releases.PreRelease.Version})");
+        }
+    }
 
-    public async Task<bool> IsUpdateAvailableAsync()
+    async Task<bool> IsUpdateAvailableAsync()
     {
         if (!Try(out var release, out var e, await GetRemoteInfoAsync()))
         {
@@ -67,12 +80,15 @@ class Updater : IUpdater
             Log.Warn($"No remote binaries for {release.Version}");
             return false;
         }
+        state.Set(s => s.Releases.LatestVersion = release.Version);
 
         if (!IsLeftNewer(release.Version, buildVersion.ToString()))
         {
+            state.Set(s => s.Releases.IsUpdateAvailable = false);
             return false;
         }
         Log.Info($"Update available, local {buildVersion}<{release.Version} remote (preview={release.IsPreview})");
+        state.Set(s => s.Releases.IsUpdateAvailable = true);
 
         return true;
     }
@@ -82,7 +98,7 @@ class Updater : IUpdater
         var releases = state.Get().Releases;
 
         if (releases.AllowPreview && releases.PreRelease.Assets.Any() &&
-            IsLeftNewer(releases.StableRelease.Version, releases.PreRelease.Version))
+            IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version))
         {   // user allow preview versions, and the preview version is newer
             return releases.PreRelease;
         }
@@ -111,7 +127,7 @@ class Updater : IUpdater
 
                 if (response.StatusCode == HttpStatusCode.NotModified || response.Content == null)
                 {
-                    Log.Info("Remote latest version info same as cached info");
+                    Log.Debug("Remote latest version info same as cached info");
                     return SelectRelease();
                 }
 
@@ -141,8 +157,8 @@ class Updater : IUpdater
         if (eTag == "") return;
 
         var gitReleases = JsonSerializer.Deserialize<GitRelease[]>(latestInfoText);
-        var stable = gitReleases?.FirstOrDefault(rr => !rr.Prerelease);
-        var preview = gitReleases?.FirstOrDefault(rr => rr.Prerelease);
+        var stable = gitReleases?.FirstOrDefault(rr => !rr.prerelease);
+        var preview = gitReleases?.FirstOrDefault(rr => rr.prerelease);
 
         Releases releases = new Releases()
         {
@@ -165,14 +181,14 @@ class Updater : IUpdater
 
         return new Release()
         {
-            Version = gr.Tag_name.TrimPrefix("v"),
-            IsPreview = gr.Prerelease,
-            Assets = ToAssets(gr.Assets)
+            Version = gr.tag_name.TrimPrefix("v"),
+            IsPreview = gr.prerelease,
+            Assets = ToAssets(gr.assets)
         };
     }
 
     Asset[] ToAssets(GitAsset[] gas) =>
-        gas.Select(ga => new Asset() { Name = ga.Name, Url = ga.Browser_download_url }).ToArray();
+        gas.Select(ga => new Asset() { Name = ga.name, Url = ga.browser_download_url }).ToArray();
 
     private static HttpClient GetHttpClient()
     {
@@ -183,8 +199,14 @@ class Updater : IUpdater
 
     bool IsLeftNewer(string v1Text, string v2Text)
     {
-        Version v1 = Version.Parse(v1Text);
-        Version v2 = Version.Parse(v2Text);
+        if (!Version.TryParse(v1Text, out var v1))
+        {
+            return false;
+        }
+        if (!Version.TryParse(v2Text, out var v2))
+        {
+            return true;
+        }
         return v1 > v2;
     }
 }

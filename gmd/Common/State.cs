@@ -18,10 +18,12 @@ public class Asset
 
 public class Releases
 {
-    public string Etag { get; set; } = "";
+    public bool IsUpdateAvailable { get; set; } = false;
+    public string LatestVersion { get; set; } = "";
     public bool AllowPreview { get; set; } = true;
     public Release PreRelease { get; set; } = new Release();
     public Release StableRelease { get; set; } = new Release();
+    public string Etag { get; set; } = "";
 }
 
 public class State

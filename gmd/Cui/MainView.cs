@@ -73,7 +73,6 @@ partial class MainView : IMainView
             return;
         }
 
-        Log.Info($"Show Path {rootPath}");
         ShowRepo(rootPath);
     }
 
