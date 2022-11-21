@@ -28,7 +28,7 @@ jobs:
         run: |
           echo Build on branch: ${{ github.ref }}
           ./build
-          echo "::set-output name=version::$(./gmd_linux --version)"
+          echo "version=$(./gmd_linux --version)" >> $GITHUB_OUTPUT
           echo Version: $(./gmd_linux --version)
 
       - name: Check if release branch
@@ -36,7 +36,7 @@ jobs:
         if: github.ref == 'refs/heads/branches/cidi'
         run: |
           echo Branch ${{ github.ref }}
-          echo "::set-output name=isRelease::true"
+          echo "isRelease=true" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release

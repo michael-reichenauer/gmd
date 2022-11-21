@@ -5,6 +5,8 @@
 
 gmd.exe
 gmd_linux
+gmd_windows
+gmd_mac
 
 
 # User-specific files
