@@ -75,7 +75,17 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetMainMenuItems()
     {
-        return EnumerableEx.From(
+        var releases = state.Get().Releases;
+        var items = EnumerableEx.From<MenuItem>();
+
+        if (releases.IsUpdateAvailable)
+        {
+            items = items.Add(UI.MenuSeparator("New Release !!!"),
+            Item("Update to Latest ...", "", () => repo!.UpdateRelease()),
+            UI.MenuSeparator());
+        }
+
+        return items.Add(
              UI.MenuSeparator($"Commit {Sid(repo.CurrentIndexCommit.Id)}"),
              Item("Toggle Details ...", "Enter", () => repo.ToggleDetails()),
              Item("Commit ...", "C",

@@ -25,7 +25,7 @@ class Program
     {
         if (args.Length > 0 && args[0] == "--version")
         {
-            Console.WriteLine($"{Utils.Util.GetBuildVersion()}");
+            Console.WriteLine($"{Utils.Util.BuildVersion()}");
             return;
         }
 
@@ -90,8 +90,8 @@ class Program
 
     async Task LogInfoAsync()
     {
-        Log.Info($"Version: {Util.GetBuildVersion()}");
-        Log.Info($"Build    {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+        Log.Info($"Version: {Util.BuildVersion()}");
+        Log.Info($"Build    {Util.BuildTime().ToString("yyyy-MM-dd HH:mm")}");
         if (!Try(out var gitVersion, out var e, await git.Version()))
         {
             Log.Error($"No git command detected, {e}");

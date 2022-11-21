@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using gmd.Common;
 
@@ -8,6 +9,7 @@ namespace gmd.Installation;
 interface IUpdater
 {
     Task CheckUpdateAvailableAsync();
+    Task<R> UpdateAsync();
 }
 
 public class GitRelease
@@ -38,18 +40,27 @@ class Updater : IUpdater
     const string UserAgent = "gmd";
 
     private readonly IState state;
-
+    private readonly ICmd cmd;
     readonly Version buildVersion;
 
-    internal Updater(IState state)
+    internal Updater(IState state, ICmd cmd)
     {
         this.state = state;
-        buildVersion = Util.GetBuildVersion();
+        this.cmd = cmd;
+        buildVersion = Util.BuildVersion();
     }
 
     public async Task CheckUpdateAvailableAsync()
     {
-        await IsUpdateAvailableAsync();
+        if (IsDotNet()) return;
+
+        CleanTempFiles();
+        if (!Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()))
+        {
+            Log.Warn($"Failed to check remote version, {e}");
+            return;
+        }
+
         var releases = state.Get().Releases;
         if (releases.AllowPreview)
         {
@@ -61,12 +72,69 @@ class Updater : IUpdater
         }
     }
 
-    async Task<bool> IsUpdateAvailableAsync()
+    public async Task<R> UpdateAsync()
+    {
+        if (IsDotNet()) return R.Ok;
+
+        if (!Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()))
+        {
+            Log.Warn($"Failed to check remote version, {e}");
+            return e;
+        }
+
+        if (!isAvailable)
+        {
+            Log.Info("Already at latest release");
+            return R.Ok;
+        }
+
+        if (!Try(out var newPath, out e, await DownloadBinaryAsync()))
+        {
+            Log.Warn($"Failed to download new version, {e}");
+            return e;
+        }
+
+        if (!Try(out e, Install(newPath)))
+        {
+            Log.Warn($"Failed to download new version, {e}");
+            return e;
+        }
+
+        return R.Ok;
+    }
+
+
+    private R Install(string newPath)
+    {
+        if (IsDotNet()) return R.Ok;
+
+        try
+        {
+            Log.Info($"Install {newPath} ...");
+            if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
+
+            var thisPath = Environment.ProcessPath ?? "gmd";
+            var newThisPath = GetTempPath();
+
+            File.Move(thisPath, newThisPath);
+            Log.Info($"Moved {thisPath} to {newThisPath}");
+            File.Move(newPath, thisPath);
+            Log.Info($"Installed {newPath}");
+            return R.Ok;
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            Log.Exception(e, "Failed install new file");
+            return R.Error("Failed to install new file", e);
+        }
+    }
+
+    async Task<R<bool>> IsUpdateAvailableAsync()
     {
         if (!Try(out var release, out var e, await GetRemoteInfoAsync()))
         {
             Log.Info($"Failed to get remote info, {e}");
-            return false;
+            return R.Error($"Failed to get remote info, {e}");
         }
 
         if (release.Version == "")
@@ -80,10 +148,15 @@ class Updater : IUpdater
             Log.Warn($"No remote binaries for {release.Version}");
             return false;
         }
-        state.Set(s => s.Releases.LatestVersion = release.Version);
+        state.Set(s =>
+        {
+            s.Releases.LatestVersion = release.Version;
+            s.Releases.IsPreview = release.IsPreview;
+        });
 
         if (!IsLeftNewer(release.Version, buildVersion.ToString()))
         {
+            Log.Info("No new remote release available");
             state.Set(s => s.Releases.IsUpdateAvailable = false);
             return false;
         }
@@ -92,6 +165,106 @@ class Updater : IUpdater
 
         return true;
     }
+
+
+    async Task<R<string>> DownloadBinaryAsync()
+    {
+        try
+        {
+            using (HttpClient httpClient = GetHttpClient())
+            {
+                string downloadUrl = SelectBinaryPath();
+                if (downloadUrl == "")
+                {
+                    return R.Error("No binay available");
+                }
+
+                var targetPath = GetTempPath();
+
+                Log.Info($"Downloading from {downloadUrl} ...");
+
+                byte[] remoteFileData = await httpClient.GetByteArrayAsync(downloadUrl);
+
+                File.WriteAllBytes(targetPath, remoteFileData);
+
+                Log.Info($"Downloaded to    {targetPath}");
+                return targetPath;
+            }
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            Log.Exception(e, "Failed to download latest binary");
+            return R.Error("Failed to download latest binary", e);
+        }
+    }
+
+    string GetTempPath()
+    {
+        var thisPath = Environment.ProcessPath ?? "gmd";
+
+        return $"{thisPath}.tmp_{RandomString(5)}";
+    }
+
+    void CleanTempFiles()
+    {
+        if (IsDotNet()) return;
+        try
+        {
+            var thisPath = Environment.ProcessPath ?? "gmd";
+            var tmpPathPrefix = thisPath + ".tmp";
+
+            foreach (var path in Directory.GetFiles(Path.GetDirectoryName(thisPath) ?? ""))
+            {
+                if (path.StartsWith(tmpPathPrefix))
+                {
+                    try
+                    {
+                        Log.Info($"Deleting {path}");
+                        File.Delete(path);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Info($"Failed to deleter {e}");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Info($"Failed to clean {e.Message}");
+        }
+    }
+
+
+    string SelectBinaryPath()
+    {
+        string name = "";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            name = "gmd_mac";
+        }
+        else
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            name = "gmd_linux";
+        }
+        else
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            name = "gmd_windows";
+        }
+        else
+        {
+            return "";
+        }
+
+        var release = SelectRelease();
+        var binaryPath = release.Assets.FirstOrDefault(a => a.Name == name)?.Url ?? "";
+        Log.Info($"{release.Version} Preview: {release.IsPreview}, {binaryPath}");
+
+        return binaryPath;
+    }
+
 
     Release SelectRelease()
     {
@@ -208,5 +381,31 @@ class Updater : IUpdater
             return true;
         }
         return v1 > v2;
+    }
+
+    private Random random = new Random();
+
+    private string RandomString(int length)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        return new string(Enumerable.Repeat(chars, length)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    R MakeBinaryExecutable(string path)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // Not needed on windows
+            return R.Ok;
+        }
+
+        return cmd.RunCmd("chmod", $"+x {path}", "");
+    }
+
+    private bool IsDotNet()
+    {
+        var thisPath = Environment.ProcessPath ?? "gmd";
+        return Path.GetFileNameWithoutExtension(thisPath) == "dotnet";
     }
 }
