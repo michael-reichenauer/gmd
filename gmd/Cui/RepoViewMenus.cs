@@ -230,8 +230,6 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetShowBranchItems()
     {
-        List<MenuItem> items = new List<MenuItem>();
-
         var allBranches = repo.GetAllBranches();
 
         var liveBranches = allBranches
@@ -247,11 +245,11 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].Index)
             .Take(15);
 
-        items.Add(SubMenu("Recent Branches", "", ToShowBranchesItems(recentBranches)),
+        return EnumerableEx.From(
+            SubMenu("Recent Branches", "", ToShowBranchesItems(recentBranches)),
             SubMenu("Live Branches", "", ToShowBranchesItems(liveBranches)),
-            SubMenu("Live and Deleted Branches", "", ToShowBranchesItems(liveAndDeletedBranches)));
-
-        return items;
+            SubMenu("Live and Deleted Branches", "", ToShowBranchesItems(liveAndDeletedBranches))
+        );
     }
 
     IEnumerable<MenuItem> ToShowBranchesItems(IEnumerable<Branch> branches, bool canBeOutside = false)
