@@ -160,7 +160,7 @@ class Updater : IUpdater
             state.Set(s => s.Releases.IsUpdateAvailable = false);
             return false;
         }
-        Log.Info($"Update available, local {buildVersion}<{release.Version} remote (preview={release.IsPreview})");
+        Log.Info($"Update available, local {buildVersion} < {release.Version} remote (preview={release.IsPreview})");
         state.Set(s => s.Releases.IsUpdateAvailable = true);
 
         return true;
@@ -406,6 +406,7 @@ class Updater : IUpdater
     private bool IsDotNet()
     {
         var thisPath = Environment.ProcessPath ?? "gmd";
+        Log.Info($"This {thisPath}");
         return Path.GetFileNameWithoutExtension(thisPath) == "dotnet";
     }
 }
