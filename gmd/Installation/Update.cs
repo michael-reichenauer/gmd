@@ -90,7 +90,6 @@ class Updater : IUpdater
     }
 
 
-
     async Task<R<Release>> GetRemoteInfoAsync()
     {
         try
