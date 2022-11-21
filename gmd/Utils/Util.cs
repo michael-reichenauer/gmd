@@ -5,7 +5,7 @@ namespace gmd.Utils;
 
 static class Util
 {
-    static readonly DateTime firstBuildTime = new DateTime(2022, 10, 30);
+    static readonly DateTime firstBuildTime = new DateTime(2022, 10, 30, 0, 0, 0, DateTimeKind.Utc);
 
     internal static Version BuildVersion(int major = 0)
     {
