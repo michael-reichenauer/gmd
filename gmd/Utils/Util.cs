@@ -5,6 +5,8 @@ namespace gmd.Utils;
 
 static class Util
 {
+    // The base version used to calculate the difference between build time to calculate
+    // version, wich is M.days_since_first_M.seconds_since_midnight
     static readonly DateTime firstBuildTime = new DateTime(2022, 10, 30, 0, 0, 0, DateTimeKind.Utc);
 
     internal static Version BuildVersion(int major = 0)
