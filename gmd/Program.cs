@@ -91,7 +91,7 @@ class Program
     async Task LogInfoAsync()
     {
         Log.Info($"Version: {Util.BuildVersion()}");
-        Log.Info($"Build    {Util.BuildTime().ToString("yyyy-MM-dd HH:mm")}");
+        Log.Info($"Build    {Util.BuildTime().ToUniversalTime().Iso()}");
         if (!Try(out var gitVersion, out var e, await git.Version()))
         {
             Log.Error($"No git command detected, {e}");

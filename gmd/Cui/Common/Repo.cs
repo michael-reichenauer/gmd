@@ -371,7 +371,7 @@ class RepoImpl : IRepo
     public void ShowAbout() => Do(async () =>
      {
          var gmdVersion = Util.BuildVersion();
-         var gmdBuildTime = Util.BuildTime().ToString("yyyy-MM-dd HH:mm");
+         var gmdBuildTime = Util.BuildTime().ToUniversalTime().Iso();
          if (!Try(out var gitVersion, out var e, await git.Version())) return e;
 
          var msg =

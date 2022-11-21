@@ -5,7 +5,12 @@ namespace gmd.Utils;
 
 static class Util
 {
-    static readonly DateTime firstBuildTime = new DateTime(2022, 10, 30);
+    const string dateFormat = "yyyy-MM-ddTHH:mm:ss:fffZ";
+
+    // The base version used to calculate the difference between build time to calculate
+    // version, wich is M.days_since_first_M.seconds_since_midnight
+    static readonly DateTime firstBuildTime = DateTime.ParseExact("2022-10-30T00:00:00:000Z",
+        dateFormat, CultureInfo.InvariantCulture);
 
     internal static Version BuildVersion(int major = 0)
     {
@@ -13,7 +18,8 @@ static class Util
         var timeSinceFirst = buildTime - firstBuildTime;
 
         var daysSinceFirst = (int)timeSinceFirst.TotalDays;
-        var buildMidnight = new DateTime(buildTime.Year, buildTime.Month, buildTime.Day);
+        var buildMidnight = DateTime.ParseExact($"{buildTime.Year:0000}-{buildTime.Month:00}-{buildTime.Day:00}T00:00:00:000Z",
+            dateFormat, CultureInfo.InvariantCulture);
         var minutesSinceBuildMidnight = (int)(buildTime - buildMidnight).TotalMinutes;
 
         return new Version(major, daysSinceFirst, minutesSinceBuildMidnight);
@@ -22,10 +28,10 @@ static class Util
     internal static DateTime BuildTime()
     {
         const string BuildVersionMetadataPrefix = "+build";
-        const string dateFormat = "yyyy-MM-ddTHH:mm:ss:fffZ";
 
         var attribute = Assembly.GetEntryAssembly()!
           .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+
 
         if (attribute?.InformationalVersion != null)
         {
@@ -34,7 +40,6 @@ static class Util
             if (index > 0)
             {
                 value = value[(index + BuildVersionMetadataPrefix.Length)..];
-
                 return DateTime.ParseExact(value, dateFormat, CultureInfo.InvariantCulture);
             }
         }
