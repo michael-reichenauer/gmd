@@ -64,7 +64,7 @@ class RepoImpl : IRepo
     private readonly ICreateBranchDlg createBranchDlg;
     private readonly IProgress progress;
     private readonly IFilterDlg filterDlg;
-    private readonly IState state;
+    private readonly IStates states;
     private readonly IGit git;
     private readonly IUpdater updater;
 
@@ -78,7 +78,7 @@ class RepoImpl : IRepo
         ICreateBranchDlg createBranchDlg,
         IProgress progress,
         IFilterDlg filterDlg,
-        IState state,
+        IStates states,
         IGit git,
         IUpdater updater)
     {
@@ -91,7 +91,7 @@ class RepoImpl : IRepo
         this.createBranchDlg = createBranchDlg;
         this.progress = progress;
         this.filterDlg = filterDlg;
-        this.state = state;
+        this.states = states;
         this.git = git;
         this.updater = updater;
         Graph = graphService.CreateGraph(repo);
@@ -124,7 +124,7 @@ class RepoImpl : IRepo
     public void ShowBrowseDialog() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = state.Get().RecentParentFolders;
+        var recentFolders = states.Get().RecentParentFolders;
 
         var browser = new FolderBrowseDlg();
         if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
@@ -141,7 +141,7 @@ class RepoImpl : IRepo
     {
         await Task.Yield();
 
-        var releases = state.Get().Releases;
+        var releases = states.Get().Releases;
         var typeText = releases.IsPreview ? "(preview)" : "(stable)";
         string msg = $"A new release is available:\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +

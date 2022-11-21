@@ -40,7 +40,7 @@ public class RepoState
     public List<string> Branches { get; set; } = new List<string>();
 }
 
-interface IState
+interface IStates
 {
     State Get();
     void Set(Action<State> setState);
@@ -50,7 +50,7 @@ interface IState
 }
 
 
-class StateService : IState
+class States : IStates
 {
     static readonly string StateFileName = ".gmdstate.json";
     static string StatePath = Path.Join(Environment.GetFolderPath(

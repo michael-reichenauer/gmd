@@ -39,13 +39,13 @@ class Updater : IUpdater
     const string tmpSuffix = ".tmp";
     const string UserAgent = "gmd";
 
-    private readonly IState state;
+    private readonly IStates states;
     private readonly ICmd cmd;
     readonly Version buildVersion;
 
-    internal Updater(IState state, ICmd cmd)
+    internal Updater(IStates states, ICmd cmd)
     {
-        this.state = state;
+        this.states = states;
         this.cmd = cmd;
         buildVersion = Util.BuildVersion();
     }
@@ -61,7 +61,7 @@ class Updater : IUpdater
             return;
         }
 
-        var releases = state.Get().Releases;
+        var releases = states.Get().Releases;
         if (releases.AllowPreview)
         {
             Log.Info($"Running: {buildVersion}, PreRelase: {releases.PreRelease.Version} (Stable: {releases.StableRelease.Version})");
@@ -148,7 +148,7 @@ class Updater : IUpdater
             Log.Warn($"No remote binaries for {release.Version}");
             return false;
         }
-        state.Set(s =>
+        states.Set(s =>
         {
             s.Releases.LatestVersion = release.Version;
             s.Releases.IsPreview = release.IsPreview;
@@ -157,11 +157,11 @@ class Updater : IUpdater
         if (!IsLeftNewer(release.Version, buildVersion.ToString()))
         {
             Log.Info("No new remote release available");
-            state.Set(s => s.Releases.IsUpdateAvailable = false);
+            states.Set(s => s.Releases.IsUpdateAvailable = false);
             return false;
         }
         Log.Info($"Update available, local {buildVersion} < {release.Version} remote (preview={release.IsPreview})");
-        state.Set(s => s.Releases.IsUpdateAvailable = true);
+        states.Set(s => s.Releases.IsUpdateAvailable = true);
 
         return true;
     }
@@ -268,7 +268,7 @@ class Updater : IUpdater
 
     Release SelectRelease()
     {
-        var releases = state.Get().Releases;
+        var releases = states.Get().Releases;
 
         if (releases.AllowPreview && releases.PreRelease.Assets.Any() &&
             IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version))
@@ -323,7 +323,7 @@ class Updater : IUpdater
         }
     }
 
-    string GetCachedLatestVersionInfoEtag() => state.Get().Releases.Etag;
+    string GetCachedLatestVersionInfoEtag() => states.Get().Releases.Etag;
 
     void CacheLatestVersionInfo(string eTag, string latestInfoText)
     {
@@ -336,13 +336,13 @@ class Updater : IUpdater
         Releases releases = new Releases()
         {
             Etag = eTag,
-            AllowPreview = state.Get().Releases.AllowPreview,
+            AllowPreview = states.Get().Releases.AllowPreview,
             StableRelease = ToRelease(stable),
             PreRelease = ToRelease(preview)
         };
 
         // Cache the latest version info
-        state.Set(s => s.Releases = releases);
+        states.Set(s => s.Releases = releases);
     }
 
     Release ToRelease(GitRelease? gr)

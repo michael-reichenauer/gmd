@@ -16,12 +16,12 @@ interface IRepoViewMenus
 class RepoViewMenus : IRepoViewMenus
 {
     readonly IRepo repo;
-    private readonly IState state;
+    private readonly IStates states;
 
-    internal RepoViewMenus(IRepo repo, IState state)
+    internal RepoViewMenus(IRepo repo, IStates states)
     {
         this.repo = repo;
-        this.state = state;
+        this.states = states;
     }
 
     public void ShowMainMenu()
@@ -75,7 +75,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetMainMenuItems()
     {
-        var releases = state.Get().Releases;
+        var releases = states.Get().Releases;
         var items = EnumerableEx.From<MenuItem>();
 
         if (releases.IsUpdateAvailable)
@@ -146,7 +146,7 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
-        state.Get().RecentFolders.Select(path => Item(path, "", () => repo.ShowRepo(path)));
+        states.Get().RecentFolders.Select(path => Item(path, "", () => repo.ShowRepo(path)));
 
 
     IEnumerable<MenuItem> GetPullItems()

@@ -14,14 +14,14 @@ partial class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IGit git;
-    private readonly IState state;
+    private readonly IStates states;
     readonly Lazy<View> toplevel;
 
-    MainView(IRepoView repoView, IGit git, IState state) : base()
+    MainView(IRepoView repoView, IGit git, IStates states) : base()
     {
         this.repoView = repoView;
         this.git = git;
-        this.state = state;
+        this.states = states;
         toplevel = new Lazy<View>(CreateView);
     }
 
@@ -93,7 +93,7 @@ partial class MainView : IMainView
 
 
     MenuItem[] GetRecentRepoItems() =>
-        state.Get().RecentFolders
+        states.Get().RecentFolders
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
             .ToArray();
 
@@ -116,7 +116,7 @@ partial class MainView : IMainView
     void ShowBrowseDialog()
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = state.Get().RecentParentFolders;
+        var recentFolders = states.Get().RecentParentFolders;
 
         var browser = new FolderBrowseDlg();
         if (!Try(out var path, browser.Show(recentFolders)))
