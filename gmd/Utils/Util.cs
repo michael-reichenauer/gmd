@@ -7,9 +7,9 @@ static class Util
 {
     static readonly DateTime firstBuildTime = new DateTime(2022, 10, 30);
 
-    internal static Version GetBuildVersion(int major = 0)
+    internal static Version BuildVersion(int major = 0)
     {
-        var buildTime = GetBuildTime();
+        var buildTime = BuildTime();
         var timeSinceFirst = buildTime - firstBuildTime;
 
         var daysSinceFirst = (int)timeSinceFirst.TotalDays;
@@ -19,7 +19,7 @@ static class Util
         return new Version(major, daysSinceFirst, minutesSinceBuildMidnight);
     }
 
-    internal static DateTime GetBuildTime()
+    internal static DateTime BuildTime()
     {
         const string BuildVersionMetadataPrefix = "+build";
         const string dateFormat = "yyyy-MM-ddTHH:mm:ss:fffZ";

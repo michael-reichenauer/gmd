@@ -23,6 +23,12 @@ class Program
 
     static void Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "--version")
+        {
+            Console.WriteLine($"{Utils.Util.BuildVersion()}");
+            return;
+        }
+
         var t = Timing.Start;
         Log.Info($"Starting gmd ...");
 
@@ -39,7 +45,6 @@ class Program
         dependencyInjection.RegisterDependencyInjectionTypes();
 
         Program program = dependencyInjection.Resolve<Program>();
-        Log.Info($"Initialized {t}");
         Threading.AssertIsMainThread();
         program.Main();
         Log.Info($"Done, running for {t}");
@@ -56,15 +61,13 @@ class Program
     void Main()
     {
         var t = Timing.Start;
-        LogInfoAsync().RunInBackground();
+        StartAsync().RunInBackground();
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         UI.HideCursor();
 
         Application.Top.Add(mainView.View);
-        Log.Info($"Initialized UI {t}");
-
 
         // Run blocks until the user quits the application
         Application.Run(HandleUIMainLoopError);
@@ -79,10 +82,16 @@ class Program
         return false; // End loop after error
     }
 
+    async Task StartAsync()
+    {
+        await LogInfoAsync();
+        await updater.CheckUpdateAvailableAsync();
+    }
+
     async Task LogInfoAsync()
     {
-        Log.Info($"Version: {Util.GetBuildVersion()}");
-        Log.Info($"Build    {Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm")}");
+        Log.Info($"Version: {Util.BuildVersion()}");
+        Log.Info($"Build    {Util.BuildTime().ToString("yyyy-MM-dd HH:mm")}");
         if (!Try(out var gitVersion, out var e, await git.Version()))
         {
             Log.Error($"No git command detected, {e}");
@@ -92,8 +101,6 @@ class Program
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
-
-        await updater.IsUpdateAvailableAsync();
     }
 }
 

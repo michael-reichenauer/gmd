@@ -18,10 +18,13 @@ public class Asset
 
 public class Releases
 {
-    public string Etag { get; set; } = "";
+    public bool IsUpdateAvailable { get; set; } = false;
+    public string LatestVersion { get; set; } = "";
+    public bool IsPreview { get; set; } = false;
     public bool AllowPreview { get; set; } = true;
     public Release PreRelease { get; set; } = new Release();
     public Release StableRelease { get; set; } = new Release();
+    public string Etag { get; set; } = "";
 }
 
 public class State
@@ -37,7 +40,7 @@ public class RepoState
     public List<string> Branches { get; set; } = new List<string>();
 }
 
-interface IState
+interface IStates
 {
     State Get();
     void Set(Action<State> setState);
@@ -47,7 +50,7 @@ interface IState
 }
 
 
-class StateService : IState
+class States : IStates
 {
     static readonly string StateFileName = ".gmdstate.json";
     static string StatePath = Path.Join(Environment.GetFolderPath(

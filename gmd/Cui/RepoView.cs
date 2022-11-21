@@ -13,6 +13,7 @@ interface IRepoView
     int ContentWidth { get; }
     Point CurrentPoint { get; }
 
+    Task<R> ShowInitialRepoAsync(string path);
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
     void Refresh(string addName = "", string commitId = "");
@@ -23,13 +24,14 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
+    static readonly TimeSpan fetchIntervall = TimeSpan.FromMinutes(5);
     static readonly int MaxRecentFolders = 10;
     static readonly int MaxRecentParentFolders = 5;
 
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     private readonly Func<IRepo, IRepoViewMenus> newMenuService;
-    private readonly IState state;
+    private readonly IStates states;
     private readonly IProgress progress;
     private readonly ICommitDetailsView commitDetailsView;
     readonly Func<IRepo, IDiffView> newDiffView;
@@ -52,7 +54,7 @@ class RepoView : IRepoView
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
-        IState state,
+        IStates states,
         IProgress progress,
         ICommitDetailsView commitDetailsView) : base()
     {
@@ -61,7 +63,7 @@ class RepoView : IRepoView
         this.newRepoWriter = newRepoWriter;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
-        this.state = state;
+        this.states = states;
         this.progress = progress;
         this.commitDetailsView = commitDetailsView;
         contentView = new ContentView(onDrawRepoContent)
@@ -88,22 +90,25 @@ class RepoView : IRepoView
     public int CurrentIndex => contentView.CurrentIndex;
     public Point CurrentPoint => contentView.CurrentPoint;
 
-    public async Task<R> ShowRepoAsync(string path)
+    public async Task<R> ShowInitialRepoAsync(string path)
     {
-        var branches = state.GetRepo(path).Branches;
-        if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
+        if (!Try(out var e, await ShowRepoAsync(path))) return e;
 
-        state.Set(s => s.RecentFolders = s.RecentFolders
-                .Prepend(path).Distinct().Take(MaxRecentFolders).ToList());
-
-        var parent = Path.GetDirectoryName(path);
-        if (parent != null)
-        {
-            state.Set(s => s.RecentParentFolders = s.RecentParentFolders
-               .Prepend(parent).Distinct().Take(MaxRecentParentFolders).ToList());
-        }
+        FetchFromRemote();
+        UI.AddTimeout(fetchIntervall, (_) => FetchFromRemote());
 
         RegisterShortcuts();
+        return R.Ok;
+    }
+
+    public async Task<R> ShowRepoAsync(string path)
+    {
+        Log.Info($"Show '{path}'");
+        var branches = states.GetRepo(path).Branches;
+        if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
+
+        RememberRepoPaths(path);
+
         return R.Ok;
     }
 
@@ -287,6 +292,8 @@ class RepoView : IRepoView
 
             Log.Info($"{t} {viewRepo}");
         }
+
+        server.FetchAsync(repo.Repo.Path).RunInBackground();
     }
 
     async Task ShowUpdatedStatusRepoAsync()
@@ -319,7 +326,7 @@ class RepoView : IRepoView
 
         // Remember shown branch for next restart of program
         var names = repo.GetShownBranches().Select(b => b.Name).ToList();
-        state.SetRepo(serverRepo.Path, s => s.Branches = names);
+        states.SetRepo(serverRepo.Path, s => s.Branches = names);
     }
 
     void ScrollToBranch(string branchName)
@@ -372,6 +379,27 @@ class RepoView : IRepoView
         if (isShowDetails)
         {
             commitDetailsView.Set(repo!.Repo.Commits[i]);
+        }
+    }
+
+    bool FetchFromRemote()
+    {
+        server.FetchAsync(repo!.Repo.Path).RunInBackground();
+        return true;
+    }
+
+    void RememberRepoPaths(string path)
+    {
+        // Rember recent repo paths
+        states.Set(s => s.RecentFolders = s.RecentFolders
+            .Prepend(path).Distinct().Take(MaxRecentFolders).ToList());
+
+        // Rember parent folder to paths to be used when browsing
+        var parent = Path.GetDirectoryName(path);
+        if (parent != null)
+        {
+            states.Set(s => s.RecentParentFolders = s.RecentParentFolders
+               .Prepend(parent).Distinct().Take(MaxRecentParentFolders).ToList());
         }
     }
 }

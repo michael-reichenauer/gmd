@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Git;
+using gmd.Installation;
 using Terminal.Gui;
 
 
@@ -50,6 +51,7 @@ interface IRepo
     void CreateBranch();
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
+    void UpdateRelease();
 }
 
 class RepoImpl : IRepo
@@ -62,8 +64,9 @@ class RepoImpl : IRepo
     private readonly ICreateBranchDlg createBranchDlg;
     private readonly IProgress progress;
     private readonly IFilterDlg filterDlg;
-    private readonly IState state;
+    private readonly IStates states;
     private readonly IGit git;
+    private readonly IUpdater updater;
 
     internal RepoImpl(
         IRepoView repoView,
@@ -75,8 +78,9 @@ class RepoImpl : IRepo
         ICreateBranchDlg createBranchDlg,
         IProgress progress,
         IFilterDlg filterDlg,
-        IState state,
-        IGit git)
+        IStates states,
+        IGit git,
+        IUpdater updater)
     {
         this.repoView = repoView;
         Repo = repo;
@@ -87,8 +91,9 @@ class RepoImpl : IRepo
         this.createBranchDlg = createBranchDlg;
         this.progress = progress;
         this.filterDlg = filterDlg;
-        this.state = state;
+        this.states = states;
         this.git = git;
+        this.updater = updater;
         Graph = graphService.CreateGraph(repo);
     }
 
@@ -119,7 +124,7 @@ class RepoImpl : IRepo
     public void ShowBrowseDialog() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = state.Get().RecentParentFolders;
+        var recentFolders = states.Get().RecentParentFolders;
 
         var browser = new FolderBrowseDlg();
         if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
@@ -128,6 +133,32 @@ class RepoImpl : IRepo
         {
             return R.Error($"Failed to open repo at {path}", e);
         }
+        return R.Ok;
+    });
+
+
+    public void UpdateRelease() => Do(async () =>
+    {
+        await Task.Yield();
+
+        var releases = states.Get().Releases;
+        var typeText = releases.IsPreview ? "(preview)" : "(stable)";
+        string msg = $"A new release is available:\n" +
+            $"New Version:     {releases.LatestVersion} {typeText}\n" +
+            $"Current Version: {Util.BuildVersion()}\n\n" +
+            "Do you want to update?";
+        var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
+        if (button != 0)
+        {
+            Log.Info($"Skip udate");
+            return R.Ok;
+        }
+        Log.Info($"Updating release ...");
+        if (!Try(out var e, await updater.UpdateAsync())) return e;
+
+        UI.InfoMessage("Restart Requiered", "A program restart is required,\nplease start gmd again.");
+        UI.Shutdown();
+
         return R.Ok;
     });
 
@@ -339,8 +370,8 @@ class RepoImpl : IRepo
 
     public void ShowAbout() => Do(async () =>
      {
-         var gmdVersion = Util.GetBuildVersion();
-         var gmdBuildTime = Util.GetBuildTime().ToString("yyyy-MM-dd HH:mm");
+         var gmdVersion = Util.BuildVersion();
+         var gmdBuildTime = Util.BuildTime().ToString("yyyy-MM-dd HH:mm");
          if (!Try(out var gitVersion, out var e, await git.Version())) return e;
 
          var msg =
@@ -415,5 +446,6 @@ class RepoImpl : IRepo
             }
         });
     }
+
 }
 

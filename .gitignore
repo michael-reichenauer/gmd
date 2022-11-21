@@ -5,7 +5,9 @@
 
 gmd.exe
 gmd_linux
-
+gmd_windows
+gmd_mac
+*.tmp*
 
 # User-specific files
 *.suo

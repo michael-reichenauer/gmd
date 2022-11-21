@@ -124,6 +124,8 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 
+    public async Task<R> FetchAsync(string wd) =>
+        await git.FetchAsync(wd);
 
     public async Task<R> CommitAllChangesAsync(string message, string wd) =>
          await git.CommitAllChangesAsync(message, wd);

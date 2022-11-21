@@ -15,7 +15,9 @@ fi
 
 echo "Building ..."
 dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-cp /workspaces/gmd/gmd/bin/Release/net6.0/win-x64/publish/gmd.exe gmd.exe
+cp ./gmd/bin/Release/net6.0/win-x64/publish/gmd.exe gmd_windows
+cp ./gmd/bin/Release/net6.0/win-x64/publish/gmd.exe gmd.exe
 
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-cp /workspaces/gmd/gmd/bin/Release/net6.0/linux-x64/publish/gmd gmd_linux
+cp ./gmd/bin/Release/net6.0/linux-x64/publish/gmd gmd_linux
+
