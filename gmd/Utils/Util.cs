@@ -15,7 +15,7 @@ static class Util
         var timeSinceFirst = buildTime - firstBuildTime;
 
         var daysSinceFirst = (int)timeSinceFirst.TotalDays;
-        var buildMidnight = new DateTime(buildTime.Year, buildTime.Month, buildTime.Day);
+        var buildMidnight = new DateTime(buildTime.Year, buildTime.Month, buildTime.Day, 0, 0, 0, DateTimeKind.Utc);
         var minutesSinceBuildMidnight = (int)(buildTime - buildMidnight).TotalMinutes;
 
         return new Version(major, daysSinceFirst, minutesSinceBuildMidnight);
@@ -28,6 +28,7 @@ static class Util
 
         var attribute = Assembly.GetEntryAssembly()!
           .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+
 
         if (attribute?.InformationalVersion != null)
         {
