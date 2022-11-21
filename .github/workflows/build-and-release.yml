@@ -33,7 +33,7 @@ jobs:
 
       - name: Check if release branch
         id: check-branch
-        if: github.ref == 'refs/heads/cidi'
+        if: github.ref == 'refs/heads/branches/cidi'
         run: |
           echo Branch ${{ github.ref }}
           echo "::set-output name=isRelease::true"
