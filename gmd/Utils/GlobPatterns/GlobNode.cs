@@ -3,7 +3,7 @@ using System.Linq;
 using System.Text;
 
 
-namespace gmc.Utils.GlobPatterns
+namespace gmd.Utils.GlobPatterns
 {
     abstract class GlobNode
     {

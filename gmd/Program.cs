@@ -3,6 +3,7 @@ using gmd.Cui;
 using System.Runtime.CompilerServices;
 using gmd.Cui.Common;
 using gmd.Git;
+using gmd.Installation;
 // using Microsoft.Extensions.Configuration;
 
 [assembly: InternalsVisibleTo("gmdTest")]
@@ -16,6 +17,7 @@ class Program
     private static DependencyInjection? dependencyInjection;
     private readonly IMainView mainView;
     private readonly IGit git;
+    private readonly IUpdater updater;
 
     // static readonly string configPath = "/workspaces/gmd/config.json";
 
@@ -44,10 +46,11 @@ class Program
         ConfigLogger.CloseAsync().Wait();
     }
 
-    internal Program(IMainView mainView, IGit git)
+    internal Program(IMainView mainView, IGit git, IUpdater updater)
     {
         this.mainView = mainView;
         this.git = git;
+        this.updater = updater;
     }
 
     void Main()
@@ -89,6 +92,8 @@ class Program
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
+
+        await updater.IsUpdateAvailableAsync();
     }
 }
 

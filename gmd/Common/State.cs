@@ -3,10 +3,33 @@ using static System.Environment;
 
 namespace gmd.Common;
 
+public class Release
+{
+    public string Version { get; set; } = "";
+    public bool IsPreview { get; set; } = false;
+    public Asset[] Assets { get; set; } = new Asset[0];
+}
+
+public class Asset
+{
+    public string Name { get; set; } = "";
+    public string Url { get; set; } = "";
+}
+
+public class Releases
+{
+    public string Etag { get; set; } = "";
+    public bool AllowPreview { get; set; } = true;
+    public Release PreRelease { get; set; } = new Release();
+    public Release StableRelease { get; set; } = new Release();
+}
+
 public class State
 {
     public List<string> RecentFolders { get; set; } = new List<string>();
     public List<string> RecentParentFolders { get; set; } = new List<string>();
+
+    public Releases Releases { get; set; } = new Releases();
 }
 
 public class RepoState

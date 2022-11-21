@@ -1,7 +1,7 @@
 ﻿using System;
 
 
-namespace gmc.Utils.GlobPatterns
+namespace gmd.Utils.GlobPatterns
 {
     class Scanner
     {

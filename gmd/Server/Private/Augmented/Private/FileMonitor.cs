@@ -1,4 +1,4 @@
-using gmc.Utils.GlobPatterns;
+using gmd.Utils.GlobPatterns;
 using Timer = System.Timers.Timer;
 
 namespace gmd.Server.Private.Augmented.Private;
