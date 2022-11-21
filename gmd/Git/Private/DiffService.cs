@@ -233,12 +233,11 @@ class DiffService : IDiffService
 
     int ParsePossibleIndexRows(int i, string[] lines)
     {
-        if (i >= lines.Length)
-        {
-            return i;
-        }
+        if (i >= lines.Length) return i;
         if (lines[i].StartsWith("index ")) { i++; }
+        if (i >= lines.Length) return i;
         if (lines[i].StartsWith("--- ")) { i++; }
+        if (i >= lines.Length) return i;
         if (lines[i].StartsWith("+++ ")) { i++; }
         return i;
     }
