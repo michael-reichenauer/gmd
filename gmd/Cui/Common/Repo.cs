@@ -322,7 +322,17 @@ class RepoImpl : IRepo
     public bool CanPullCurrentBranch()
     {
         var branch = Repo.Branches.FirstOrDefault(b => b.IsCurrent);
-        return Repo.Status.IsOk && branch != null && branch.HasRemoteOnly;
+        if (branch == null)
+        {
+            return false;
+        }
+        if (branch.RemoteName != "")
+        {
+            var remoteBranch = Repo.BranchByName[branch.RemoteName];
+            return Repo.Status.IsOk && branch != null && branch.HasRemoteOnly;
+        }
+        return false;
+
     }
 
 
