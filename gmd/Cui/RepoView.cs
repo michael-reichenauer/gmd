@@ -214,7 +214,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
 
-        // Keys on commit details view
+        // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => repo!.ShowCurrentRowDiff());
     }
