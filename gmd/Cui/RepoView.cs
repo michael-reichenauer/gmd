@@ -208,6 +208,8 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => repo!.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
+        contentView.RegisterKeyHandler(Key.u, () => repo!.PullCurrentBranch());
+        contentView.RegisterKeyHandler(Key.U, () => repo!.PullCurrentBranch());
         contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());

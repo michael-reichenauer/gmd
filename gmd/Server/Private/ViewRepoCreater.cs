@@ -268,6 +268,12 @@ class ViewRepoCreater : IViewRepoCreater
             }
         }
 
+        // Ensure all pull merger branches of a branch are included 
+        foreach (var b in branches.ToList())
+        {
+            b.PullMergeBranchNames.ForEach(bb => branches.Add(repo.BranchByName[bb]));
+        }
+
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
@@ -304,7 +310,8 @@ class ViewRepoCreater : IViewRepoCreater
                 uncommitted = new Augmented.Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Substring(0, 6),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    Index: 0, currentBranch.Name, ParentIds: parentIds, ChildIds: new List<string>(),
+                    Index: 0, currentBranch.Name, currentBranch.CommonName,
+                    ParentIds: parentIds, ChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,

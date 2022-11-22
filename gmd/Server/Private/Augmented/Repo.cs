@@ -43,6 +43,7 @@ public record Commit(
     int Index,
 
     string BranchName,
+    string BranchCommonName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> ChildIds,
     IReadOnlyList<Tag> Tags,
@@ -73,6 +74,7 @@ public record Branch(
     string LocalName,
 
     string ParentBranchName,
+    string PullMergeBranchName,
 
     bool IsGitBranch,
     bool IsDetached,
@@ -85,7 +87,8 @@ public record Branch(
     bool HasBehindCommits,
 
     string AmbiguousTipId,
-    IReadOnlyList<string> AmbiguousBranchNames)
+    IReadOnlyList<string> AmbiguousBranchNames,
+    IReadOnlyList<string> PullMergeBranchNames)
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }

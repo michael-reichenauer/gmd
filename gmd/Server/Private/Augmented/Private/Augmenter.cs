@@ -220,7 +220,7 @@ class Augmenter : IAugmenter
                 firstParent.Children.Add(c);
                 firstParent.ChildIds.Add(c.Id);
                 // Adding the child branches to the parent branches (inherited down)
-                firstParent.TryAddToBranches(c.Branches.ToArray());
+                firstParent.TryAddToBranches(c.Branches);
             }
 
             if (c.ParentIds.Count > 1 && repo.CommitsById.TryGetValue(c.ParentIds[1], out var mergeParent))
@@ -387,17 +387,27 @@ class Augmenter : IAugmenter
 
             if (name != "")
             {   // Managed to parse a branch name
-                var mergeChildBranch = c.MergeChildren[0].Branch!;
+                var mergeChild = c.MergeChildren[0];
 
-                if (name == mergeChildBranch.CommonName)
-                {
-                    branch = mergeChildBranch;
+                if (branchNameService.IsPullMerge(mergeChild))
+                {   // The merge child is a pullmerge, so this commit is on a "dead" branch part,
+                    // which used to be the local branch of the pull merge commit.
+                    // We need to connect this branch with the actual branch.
+                    var pullMergeBranch = mergeChild.Branch;
+                    branch = AddPullMergeBranch(repo, c, name, pullMergeBranch!);
+                    pullMergeBranch!.PullMergeBranches.Add(branch);
                     return true;
                 }
 
+                // var mergeChildBranch = mergeChild.Branch!;
+                // if (name == mergeChildBranch.CommonName)
+                // {
+                //     branch = mergeChildBranch;
+                //     return true;
+                // }
+
                 branch = AddNamedBranch(repo, c, name);
                 return true;
-
             }
 
             // could not parse a name from any of the merge children, use id named branch
@@ -728,7 +738,23 @@ class Augmenter : IAugmenter
         }
     }
 
-    private WorkBranch? AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
+    private WorkBranch AddPullMergeBranch(
+        WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeBranch)
+    {
+        var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
+        var displayName = name != "" ? name : $"branch@{c.Sid}";
+        var branch = new WorkBranch(
+            name: branchName,
+            commonName: pullMergeBranch.CommonName,
+            displayName: displayName,
+            tipID: c.Id);
+        branch.PullMergeBranch = pullMergeBranch;
+
+        repo.Branches.Add(branch);
+        return branch;
+    }
+
+    private WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
         var displayName = name != "" ? name : $"branch@{c.Sid}";

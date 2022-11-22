@@ -190,6 +190,7 @@ class RepoImpl : IRepo
         {
             return R.Error($"Failed to switch to {branchName}", e);
         }
+        Refresh();
         return R.Ok;
     });
 
@@ -261,6 +262,8 @@ class RepoImpl : IRepo
 
     public void PushCurrentBranch() => Do(async () =>
     {
+        if (!CanPushCurrentBranch()) return R.Ok;
+
         var branch = Repo.Branches.First(b => b.IsCurrent);
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, Repo.Path)))
@@ -297,6 +300,8 @@ class RepoImpl : IRepo
 
     public void PullCurrentBranch() => Do(async () =>
     {
+        if (!CanPullCurrentBranch()) return R.Ok;
+
         if (!Try(out var e, await server.PullCurrentBranchAsync(Repo.Path)))
         {
             return R.Error($"Failed to pull current branch", e);

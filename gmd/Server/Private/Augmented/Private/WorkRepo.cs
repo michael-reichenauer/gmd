@@ -89,7 +89,16 @@ internal class WorkCommit
         ParentIds = new List<string>(parentIds.AsEnumerable<string>());
     }
 
-    internal void TryAddToBranches(params WorkBranch[] branches)
+    internal void TryAddToBranches(WorkBranch branch)
+    {
+        if (Branches.Exists(b => b.Name == branch.Name))
+        {
+            return;
+        }
+        Branches.Add(branch);
+    }
+
+    internal void TryAddToBranches(IEnumerable<WorkBranch> branches)
     {
         foreach (var branch in branches)
         {
@@ -125,6 +134,7 @@ internal class WorkBranch
     public string BottomID { get; internal set; } = "";
 
     public WorkBranch? ParentBranch { get; internal set; }
+    public WorkBranch? PullMergeBranch { get; set; }
 
     public bool IsGitBranch { get; set; }
     public bool IsAmbiguousBranch { get; set; }
@@ -137,6 +147,7 @@ internal class WorkBranch
     public List<string> AmbiguousBranchNames { get; } = new List<string>();
 
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
+    public List<WorkBranch> PullMergeBranches = new List<WorkBranch>();
 
     // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)
