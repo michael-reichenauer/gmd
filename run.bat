@@ -1,4 +1,4 @@
 @echo off&setlocal
 
-rem test
+rem test.
 dotnet run --project gmd/gmd.csproj
