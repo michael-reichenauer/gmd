@@ -96,12 +96,12 @@ class ViewRepoCreater : IViewRepoCreater
     {
         foreach (var b in branches.ToList())  // ToList() since SetBehind/SetAhead modifies branches
         {
-            if (b.IsRemote && b.LocalName != "" && b.BehindCount > 0)
+            if (b.IsRemote && b.LocalName != "")
             {
                 // Remote branch with ahead commits (remote only commits)
                 SetBehindCommits(b, branches, commits);
             }
-            else if (!b.IsRemote && b.RemoteName != "" && b.AheadCount > 0)
+            else if (!b.IsRemote && b.RemoteName != "")
             {
                 // Local branch with behind commits (local only commits)
                 SetAheadCommits(b, branches, commits);
