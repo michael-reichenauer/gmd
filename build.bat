@@ -16,7 +16,7 @@ if exist "gmd_linux" (
 ) 
 
 
-echo "Building ..."
+echo "Building ...."
 dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 copy gmd\bin\Release\net6.0\win-x64\publish\gmd.exe gmd.exe
 
