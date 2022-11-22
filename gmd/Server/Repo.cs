@@ -57,6 +57,7 @@ public record Commit(
     // Augmented properties
     int Index,
     string BranchName,
+    string BranchCommonName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> ChildIds,
     IReadOnlyList<Tag> Tags,
@@ -104,6 +105,7 @@ public record Branch(
     bool IsMainBranch,
 
     string ParentBranchName,
+    string PullMergeBranchName,
 
     int AheadCount,
     int BehindCount,
@@ -111,6 +113,7 @@ public record Branch(
     bool HasRemoteOnly,
     string AmbiguousTipId,
     IReadOnlyList<string> AmbiguousBranchNames,
+    IReadOnlyList<string> PullMergeBranchNames,
 
     // View properties
     int X,

@@ -132,9 +132,7 @@ class RepoWriter : IRepoWriter
         else if (c.IsUncommitted) { text.BrightYellow(subject); }
         else if (c.IsAhead) { text.BrightGreen(subject); }
         else if (c.IsBehind) { text.BrightBlue(subject); }
-        else if (c.BranchName == currentRowBranch.Name ||
-            c.BranchName == currentRowBranch.LocalName ||
-            c.BranchName == currentRowBranch.RemoteName)
+        else if (c.BranchCommonName == currentRowBranch.CommonName)
         {
             text.White(Txt(subject, columnWidth));
         }
@@ -319,6 +317,10 @@ class RepoWriter : IRepoWriter
                         }
                     }
                 }
+            }
+            else if (b.PullMergeBranchName != "")
+            {
+                tipText.Color(color, "(>").Dark(branchName).Color(color, ")");
             }
             else
             {
