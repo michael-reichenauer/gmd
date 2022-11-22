@@ -190,6 +190,7 @@ class RepoImpl : IRepo
         {
             return R.Error($"Failed to switch to {branchName}", e);
         }
+        Refresh();
         return R.Ok;
     });
 
