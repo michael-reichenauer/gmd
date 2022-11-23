@@ -15,8 +15,6 @@ static class Build
 
     internal static Version Version()
     {
-        Log.Info($"{CiCdBuildTimeText}, {CiCdBuildShaText}");
-
         // The versin is always increasing using the base build time for last 2 version numbers
         (int daysSinceBase, int minutesSinceMidnight) = GetTimeSinceBaseTime();
 

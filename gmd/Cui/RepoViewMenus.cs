@@ -86,30 +86,31 @@ class RepoViewMenus : IRepoViewMenus
         }
 
         return items.Add(
-             UI.MenuSeparator($"Commit {Sid(repo.CurrentIndexCommit.Id)}"),
-             Item("Toggle Details ...", "Enter", () => repo.ToggleDetails()),
-             Item("Commit ...", "C",
-                 () => repo.CommitFromMenu(),
-                 () => !repo.Repo.Status.IsOk),
-             Item("Commit Diff ...", "D", () => repo.ShowCurrentRowDiff()),
+            UI.MenuSeparator($"Commit {Sid(repo.CurrentIndexCommit.Id)}"),
+            Item("Toggle Details ...", "Enter", () => repo.ToggleDetails()),
+            Item("Commit ...", "C",
+                () => repo.CommitFromMenu(),
+                () => !repo.Repo.Status.IsOk),
+            Item("Commit Diff ...", "D", () => repo.ShowCurrentRowDiff()),
 
-             UI.MenuSeparator("Branches"),
-             SubMenu("Show Branch", "->", GetShowBranchItems()),
-             SubMenu("Hide Branch", "<-", GetHideItems()),
-             SubMenu("Switch/Checkout", "", GetSwitchToItems()),
-             SubMenu("Push", "", GetPushItems(), () => repo.CanPush()),
-             SubMenu("Update/Pull", "", GetPullItems(), () => repo.CanPull()),
-             SubMenu("Merge", "", GetMergeItems()),
-             Item("Create Branch ...", "B", () => repo.CreateBranch()),
-             Item("Create Branch from commit ...", "",
-                 () => repo.CreateBranchFromCommit(), () => repo.Repo.Status.IsOk),
-             SubMenu("Delete Branch", "", GetDeleteItems()),
+            UI.MenuSeparator("Branches"),
+            SubMenu("Show Branch", "->", GetShowBranchItems()),
+            SubMenu("Hide Branch", "<-", GetHideItems()),
+            SubMenu("Switch/Checkout", "", GetSwitchToItems()),
+            SubMenu("Push", "", GetPushItems(), () => repo.CanPush()),
+            SubMenu("Update/Pull", "", GetPullItems(), () => repo.CanPull()),
+            SubMenu("Merge", "", GetMergeItems()),
+            Item("Create Branch ...", "B", () => repo.CreateBranch()),
+            Item("Create Branch from commit ...", "",
+                () => repo.CreateBranchFromCommit(), () => repo.Repo.Status.IsOk),
+            SubMenu("Delete Branch", "", GetDeleteItems()),
 
-             UI.MenuSeparator("More"),
-             Item("Seach/Filter ...", "F", () => repo.Filter()),
-             SubMenu("Open Repo", "", GetOpenRepoItems()),
-             Item("About ...", "A", () => repo.ShowAbout()),
-             Item("Quit", "Esc", () => UI.Shutdown()));
+            UI.MenuSeparator("More"),
+            Item("Seach/Filter ...", "F", () => repo.Filter()),
+            Item("Refresh/Reload", "R", () => repo.Refresh()),
+            SubMenu("Open Repo", "", GetOpenRepoItems()),
+            Item("About ...", "A", () => repo.ShowAbout()),
+            Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>

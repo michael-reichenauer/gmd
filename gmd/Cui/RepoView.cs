@@ -121,7 +121,8 @@ class RepoView : IRepoView
     }
 
 
-    public void Refresh(string addName = "", string commitId = "") => ShowRefreshedRepoAsync(addName, commitId).RunInBackground();
+    public void Refresh(string addName = "", string commitId = "") =>
+        ShowRefreshedRepoAsync(addName, commitId).RunInBackground();
 
     public void ToggleDetails()
     {
