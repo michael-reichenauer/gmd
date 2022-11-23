@@ -48,42 +48,42 @@ class StatusService : IStatusService
                 line.StartsWith("UA "))
             {   // How to reproduce this ???
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("UU "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("AA "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("UD "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("DU "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("?? ") || line.StartsWith(" A "))
             {
                 added++;
-                addedFiles.Add(line.Substring(3));
+                addedFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("D"))
             {
                 deleted++;
-                deletedFiles.Add(line.Substring(2));
+                deletedFiles.Add(line.Substring(2).Trim());
             }
             else
             {
                 modified++;
-                modifiedFiles.Add(line.Substring(2));
+                modifiedFiles.Add(line.Substring(2).Trim());
             }
         }
         (string mergeMessage, bool isMerging) = GetMergeStatus(wd);
