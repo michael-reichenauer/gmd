@@ -259,8 +259,9 @@ class RepoViewMenus : IRepoViewMenus
         return EnumerableEx.From(
             SubMenu("Undo/Restore Uncommitted File", "", GetUncommittedFileItems(), () => repo.CanUndoUncommitted()),
             UI.MenuSeparator(),
-            Item("Undo/Resore all Uncommitted Changes", "",
-                () => repo.UndoAllUncommittedChanged(), () => repo.CanUndoUncommitted())
+            Item("Undo/Restore all Uncommitted Changes", "",
+                () => repo.UndoAllUncommittedChanged(), () => repo.CanUndoUncommitted()),
+            Item("Clean/Restore Working Folder", "", () => repo.CleanWorkingFolder())
         );
 
     }

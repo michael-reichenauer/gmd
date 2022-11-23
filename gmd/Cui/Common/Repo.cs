@@ -56,6 +56,7 @@ interface IRepo
     IReadOnlyList<string> GetUncommittedFiles();
     void UndoUncommittedFile(string path);
     void UndoAllUncommittedChanged();
+    void CleanWorkingFolder();
 }
 
 class RepoImpl : IRepo
@@ -495,6 +496,17 @@ class RepoImpl : IRepo
         if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(Repo.Path)))
         {
             return R.Error($"Failed to undo all changes", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void CleanWorkingFolder() => Do(async () =>
+    {
+        if (!Try(out var e, await server.CleanWorkingFolderAsync(Repo.Path)))
+        {
+            return R.Error($"Failed to clean workin folder", e);
         }
 
         Refresh();
