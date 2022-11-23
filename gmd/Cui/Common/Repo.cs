@@ -504,6 +504,12 @@ class RepoImpl : IRepo
 
     public void CleanWorkingFolder() => Do(async () =>
     {
+        if (UI.InfoMessage("Clean Working Folder",
+            "Do you want to reset folder\nand delete all untracked files and folders?", new[] { "Yes", "No" })
+            != 1)
+        {
+            return R.Ok;
+        }
         if (!Try(out var e, await server.CleanWorkingFolderAsync(Repo.Path)))
         {
             return R.Error($"Failed to clean workin folder", e);
