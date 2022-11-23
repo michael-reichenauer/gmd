@@ -57,6 +57,10 @@ interface IRepo
     void UndoUncommittedFile(string path);
     void UndoAllUncommittedChanged();
     void CleanWorkingFolder();
+    void UndoCommit(string id);
+    bool CanUndoCommit();
+    void UncommitLastCommit();
+    bool CanUncommitLastCommit();
 }
 
 class RepoImpl : IRepo
@@ -481,7 +485,6 @@ class RepoImpl : IRepo
 
     public void UndoUncommittedFile(string path) => Do(async () =>
     {
-
         if (!Try(out var e, await server.UndoUncommittedFileAsync(path, Repo.Path)))
         {
             return R.Error($"Failed to undo {path}", e);
@@ -519,5 +522,43 @@ class RepoImpl : IRepo
         Refresh();
         return R.Ok;
     });
+
+    public void UndoCommit(string id) => Do(async () =>
+    {
+        if (!CanUndoCommit()) return R.Ok;
+
+        if (!Try(out var e, await server.UndoCommitAsync(id, Repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public bool CanUndoCommit() => Repo.Status.IsOk;
+
+
+    public void UncommitLastCommit() => Do(async () =>
+    {
+        if (!CanUncommitLastCommit()) return R.Ok;
+
+        if (!Try(out var e, await server.UncommitLastCommitAsync(Repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public bool CanUncommitLastCommit()
+    {
+        if (!Repo.Commits.Any()) return false;
+
+        var c = Repo.Commits[0];
+        var b = Repo.BranchByName[Repo.Commits[0].BranchName];
+        return Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
+    }
 }
 
