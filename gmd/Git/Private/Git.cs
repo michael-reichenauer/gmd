@@ -67,6 +67,14 @@ internal class Git : IGit
     public Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd) =>
         tagService.GetTagsAsync(wd);
 
+    public Task<R> UndoAllUncommittedChangesAsync(string wd) =>
+        commitService.UndoAllUncommittedChangesAsync(wd);
+    public Task<R> UndoUncommittedFileAsync(string path, string wd) =>
+        commitService.UndoUncommittedFileAsync(path, wd);
+    public Task<R> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
+    public Task<R> UndoCommitAsync(string id, string wd) => commitService.UndoCommitAsync(id, wd);
+    public Task<R> UncommitLastCommitAsync(string wd) => commitService.UncommitLastCommitAsync(wd);
+
 
     public async Task<R<string>> Version()
     {

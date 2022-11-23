@@ -132,7 +132,9 @@ public record Status(
     int Conflicted,
     bool IsMerging,
     string MergeMessage,
+    string[] ModifiedFiles,
     string[] AddedFiles,
+    string[] DeleteddFiles,
     string[] ConflictsFiles
 )
 {
@@ -158,6 +160,7 @@ record FileDiff(
     string PathBefore,
     string PathAfter,
     bool IsRenamed,
+    bool IsBinary,
     DiffMode DiffMode,
     IReadOnlyList<SectionDiff> SectionDiffs
 );

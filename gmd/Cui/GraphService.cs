@@ -330,15 +330,17 @@ class GraphService : IGraphService
             // Ensure parent branches are to the left of child branches
             if (b.ParentBranch != null)
             {
-                if (b.ParentBranch.B.LocalName != "" && b.ParentBranch.B.LocalName != b.B.Name)
-                {
-                    // Some other child branch
-                    b.X = b.ParentBranch.X + 2;
+                if (b.B.Name == b.ParentBranch.B.LocalName)
+                {   // The local branch of a remote branch
+                    b.X = b.ParentBranch.X + 1;
+                }
+                else if (b.B.PullMergeBranchName == b.ParentBranch.B.Name)
+                {   // The pull merger sub part of a branch
+                    b.X = b.ParentBranch.X + 1;
                 }
                 else
-                {
-                    // The local branch of a remote branch
-                    b.X = b.ParentBranch.X + 1;
+                {   // Some other child branch
+                    b.X = b.ParentBranch.X + 2;
                 }
             }
 

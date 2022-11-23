@@ -176,9 +176,9 @@ class DiffService : IDiffService
         {
             string file = lines[i++].Substring(10);
             (DiffMode df, i) = ParseDiffMode(i, lines);
-            i = ParsePossibleIndexRows(i, lines);
+            (i, bool isBin) = ParsePossibleIndexRows(i, lines);
             (var conflictSectionDiffs, i) = ParseSectionDiffs(i, lines);
-            return (new FileDiff(file, file, false, DiffMode.DiffConflicts, conflictSectionDiffs), i, true);
+            return (new FileDiff(file, file, false, isBin, DiffMode.DiffConflicts, conflictSectionDiffs), i, true);
         }
 
         if (!lines[i].StartsWith("diff --git "))
@@ -194,7 +194,8 @@ class DiffService : IDiffService
         i++;
 
         (DiffMode diffMode, i) = ParseDiffMode(i, lines);
-        i = ParsePossibleIndexRows(i, lines);
+        (i, var isBinary) = ParsePossibleIndexRows(i, lines);
+
         (var sectionDiffs, i) = ParseSectionDiffs(i, lines);
 
         if (i < lines.Length && lines[i].StartsWith("\\ No newline at end of file"))
@@ -202,7 +203,7 @@ class DiffService : IDiffService
             i++;  // Skip git diff comment
         }
 
-        return (new FileDiff(before, after, isRenamed, diffMode, sectionDiffs), i, true);
+        return (new FileDiff(before, after, isRenamed, isBinary, diffMode, sectionDiffs), i, true);
     }
 
     (DiffMode, int) ParseDiffMode(int i, string[] lines)
@@ -231,15 +232,22 @@ class DiffService : IDiffService
         return (DiffMode.DiffModified, i);
     }
 
-    int ParsePossibleIndexRows(int i, string[] lines)
+    (int, bool) ParsePossibleIndexRows(int i, string[] lines)
     {
-        if (i >= lines.Length) return i;
+        bool isBinay = false;
+        if (i >= lines.Length) return (i, isBinay);
         if (lines[i].StartsWith("index ")) { i++; }
-        if (i >= lines.Length) return i;
+        if (i >= lines.Length) return (i, isBinay);
+        if (lines[i].StartsWith("Binary "))
+        {
+            isBinay = true;
+            i++;
+        }
+        if (i >= lines.Length) return (i, isBinay);
         if (lines[i].StartsWith("--- ")) { i++; }
-        if (i >= lines.Length) return i;
+        if (i >= lines.Length) return (i, isBinay);
         if (lines[i].StartsWith("+++ ")) { i++; }
-        return i;
+        return (i, isBinay);
     }
 
     (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
@@ -368,7 +376,7 @@ class DiffService : IDiffService
             var lineDiffs = lines.Select(l => new LineDiff(DiffMode.DiffAdded, l.TrimEnd().Replace("\t", "   "))).ToList();
 
             var sectionDiffs = new List<SectionDiff>() { new SectionDiff($"-0,0 +1,{lines.Length}", 0, 0, 0, lines.Length, lineDiffs) };
-            var fileDiff = new FileDiff("", name, false, DiffMode.DiffAdded, sectionDiffs);
+            var fileDiff = new FileDiff("", name, false, false, DiffMode.DiffAdded, sectionDiffs);
             fileDiffs.Add(fileDiff);
         }
 

@@ -86,7 +86,7 @@ class Converter : IConverter
 
     IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs
-            .Select(d => new FileDiff(d.PathBefore, d.PathAfter, d.IsRenamed,
+            .Select(d => new FileDiff(d.PathBefore, d.PathAfter, d.IsRenamed, d.IsBinary,
                 ToDiffMode(d.DiffMode), ToSectionDiffs(d.SectionDiffs)))
             .ToList();
 

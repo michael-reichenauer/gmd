@@ -170,5 +170,20 @@ class Server : IServer
 
     public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
         git.DeleteRemoteBranchAsync(name, wd);
+
+    public Task<R> UndoAllUncommittedChangesAsync(string wd) =>
+        git.UndoAllUncommittedChangesAsync(wd);
+
+    public Task<R> UndoUncommittedFileAsync(string path, string wd) =>
+        git.UndoUncommittedFileAsync(path, wd);
+
+    public Task<R> CleanWorkingFolderAsync(string wd) =>
+        git.CleanWorkingFolderAsync(wd);
+
+    public Task<R> UndoCommitAsync(string id, string wd) =>
+        git.UndoCommitAsync(id, wd);
+
+    public Task<R> UncommitLastCommitAsync(string wd) =>
+        git.UncommitLastCommitAsync(wd);
 }
 
