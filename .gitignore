@@ -7,6 +7,7 @@ gmd.exe
 gmd_linux
 gmd_windows
 gmd_mac
+gmd_osx
 *.tmp*
 
 # User-specific files
