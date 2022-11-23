@@ -75,15 +75,15 @@ class StatusService : IStatusService
                 added++;
                 addedFiles.Add(line.Substring(3));
             }
-            else if (line.StartsWith(" D ") || line.StartsWith("D"))
+            else if (line.StartsWith("D"))
             {
                 deleted++;
-                deletedFiles.Add(line.Substring(3));
+                deletedFiles.Add(line.Substring(2));
             }
             else
             {
                 modified++;
-                modifiedFiles.Add(line.Substring(3));
+                modifiedFiles.Add(line.Substring(2));
             }
         }
         (string mergeMessage, bool isMerging) = GetMergeStatus(wd);
