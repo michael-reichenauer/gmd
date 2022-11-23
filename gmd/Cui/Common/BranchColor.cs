@@ -15,23 +15,23 @@ class BranchColorService : IBranchColorService
     {
         if (branch.ParentBranchName == "")
         {   // branch has no parent or parent is remote of this branch, lets use it
-            return BranchNameColor(branch.DisplayName, 0);
+            return BranchNameColor(branch.CommonName, 0);
         }
 
         var parentBranch = repo.BranchByName[branch.ParentBranchName];
 
-        if (branch.RemoteName == parentBranch.Name)
+        if (branch.CommonName == parentBranch.CommonName)
         {
-            // Parent is remote of this branch, lets use parent color
+            // Parent is remote or this branch is a pull merge, lets use parent color
             return GetColor(repo, parentBranch);
         }
 
-        Color color = BranchNameColor(branch.DisplayName, 0);
-        Color parentColor = BranchNameColor(parentBranch.DisplayName, 0);
+        Color color = BranchNameColor(branch.CommonName, 0);
+        Color parentColor = BranchNameColor(parentBranch.CommonName, 0);
 
         if (color == parentColor)
         {   // branch got same color as parent, lets change branch color one step
-            color = BranchNameColor(branch.DisplayName, 1);
+            color = BranchNameColor(branch.CommonName, 1);
         }
 
         return color;

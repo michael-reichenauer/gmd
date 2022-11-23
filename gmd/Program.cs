@@ -14,6 +14,10 @@ namespace gmd;
 
 class Program
 {
+    // Current major.minor version
+    public const int MajorVersion = 0;
+    public const int MinorVersion = 30;
+
     private static DependencyInjection? dependencyInjection;
     private readonly IMainView mainView;
     private readonly IGit git;
@@ -25,7 +29,7 @@ class Program
     {
         if (args.Length > 0 && args[0] == "--version")
         {
-            Console.WriteLine($"{Utils.Util.BuildVersion()}");
+            Console.WriteLine($"{Build.Version()}");
             return;
         }
 
@@ -90,8 +94,9 @@ class Program
 
     async Task LogInfoAsync()
     {
-        Log.Info($"Version: {Util.BuildVersion()}");
-        Log.Info($"Build    {Util.BuildTime().ToUniversalTime().Iso()}");
+        Log.Info($"Version: {Build.Version()}");
+        Log.Info($"Build    {Build.Time().ToUniversalTime().Iso()}Z");
+        Log.Info($"Sha:     {Build.Sha()}");
         if (!Try(out var gitVersion, out var e, await git.Version()))
         {
             Log.Error($"No git command detected, {e}");
@@ -101,6 +106,7 @@ class Program
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
+        Log.Info($"Time:  '{DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")}+00:00'");
     }
 }
 

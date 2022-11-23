@@ -42,6 +42,7 @@ class Converter : IConverter
             Index: index,
 
             BranchName: c.Branch!.Name,
+            BranchCommonName: c.Branch.CommonName,
             ChildIds: c.ChildIds,
             Tags: c.Tags,
             BranchTips: c.BranchTips,
@@ -70,6 +71,7 @@ class Converter : IConverter
             LocalName: b.LocalName,
 
             ParentBranchName: b.ParentBranch?.Name ?? "",
+            PullMergeBranchName: b.PullMergeBranch?.Name ?? "",
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
@@ -81,7 +83,8 @@ class Converter : IConverter
             HasAheadCommits: b.HasLocalOnly,
             HasBehindCommits: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTipId,
-            AmbiguousBranchNames: b.AmbiguousBranchNames);
+            AmbiguousBranchNames: b.AmbiguousBranchNames,
+            PullMergeBranchNames: b.PullMergeBranches.Select(b => b.Name).ToList());
     }
 }
 

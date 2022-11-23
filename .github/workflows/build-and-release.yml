@@ -18,6 +18,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # Update .env and manifest file with current build time and git sha id to support
+      # version handling of the web site to automatically upgrade to latest version faster
+      - name: Update git sha and build time
+        shell: bash
+        run: |
+          BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo Build $BUILD_TIME ${{github.sha}}
+          sed -i "s/BUILD_TIME/$BUILD_TIME/g" gmd/Build.cs
+          sed -i "s/BUILD_SHA/${{github.sha}}/g" gmd/Build.cs
+          git log -3 --format=full
+
       - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@v3
         with:
@@ -71,6 +82,17 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./gmd_windows
           asset_name: gmd_windows
+          asset_content_type: application/octet-stream
+
+      - name: Upload OSX/Mac artifact
+        if: steps.check-branch.outputs.isRelease == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./gmd_osx
+          asset_name: gmd_osx
           asset_content_type: application/octet-stream
 
       # - name: Upload Windows setup file

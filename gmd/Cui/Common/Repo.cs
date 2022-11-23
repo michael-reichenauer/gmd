@@ -145,7 +145,7 @@ class RepoImpl : IRepo
         var typeText = releases.IsPreview ? "(preview)" : "(stable)";
         string msg = $"A new release is available:\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"Current Version: {Util.BuildVersion()}\n\n" +
+            $"Current Version: {Build.Version()}\n\n" +
             "Do you want to update?";
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
         if (button != 0)
@@ -190,6 +190,7 @@ class RepoImpl : IRepo
         {
             return R.Error($"Failed to switch to {branchName}", e);
         }
+        Refresh();
         return R.Ok;
     });
 
@@ -261,6 +262,8 @@ class RepoImpl : IRepo
 
     public void PushCurrentBranch() => Do(async () =>
     {
+        if (!CanPushCurrentBranch()) return R.Ok;
+
         var branch = Repo.Branches.First(b => b.IsCurrent);
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, Repo.Path)))
@@ -297,6 +300,8 @@ class RepoImpl : IRepo
 
     public void PullCurrentBranch() => Do(async () =>
     {
+        if (!CanPullCurrentBranch()) return R.Ok;
+
         if (!Try(out var e, await server.PullCurrentBranchAsync(Repo.Path)))
         {
             return R.Error($"Failed to pull current branch", e);
@@ -322,7 +327,17 @@ class RepoImpl : IRepo
     public bool CanPullCurrentBranch()
     {
         var branch = Repo.Branches.FirstOrDefault(b => b.IsCurrent);
-        return Repo.Status.IsOk && branch != null && branch.HasRemoteOnly;
+        if (branch == null)
+        {
+            return false;
+        }
+        if (branch.RemoteName != "")
+        {
+            var remoteBranch = Repo.BranchByName[branch.RemoteName];
+            return Repo.Status.IsOk && branch != null && branch.HasRemoteOnly;
+        }
+        return false;
+
     }
 
 
@@ -369,19 +384,21 @@ class RepoImpl : IRepo
     });
 
     public void ShowAbout() => Do(async () =>
-     {
-         var gmdVersion = Util.BuildVersion();
-         var gmdBuildTime = Util.BuildTime().ToUniversalTime().Iso();
-         if (!Try(out var gitVersion, out var e, await git.Version())) return e;
+    {
+        var gmdVersion = Build.Version();
+        var gmdBuildTime = Build.Time().ToUniversalTime().Iso();
+        var gmdSha = Build.Sha();
+        if (!Try(out var gitVersion, out var e, await git.Version())) return e;
 
-         var msg =
-             $"Version: {gmdVersion}\n" +
-             $"Built:   {gmdBuildTime}\n" +
-             $"Git:     {gitVersion}";
+        var msg =
+            $"Version: {gmdVersion}\n" +
+            $"Built:   {gmdBuildTime}Z\n" +
+            $"Git:     {gitVersion}\n" +
+            $"Sha:     {gmdSha}\n";
 
-         UI.InfoMessage("About", msg);
-         return R.Ok;
-     });
+        UI.InfoMessage("About", msg);
+        return R.Ok;
+    });
 
 
     public void DeleteBranch(string name) => Do(async () =>

@@ -32,6 +32,7 @@ class Converter : IConverter
 
         Index: index,
         BranchName: c.BranchName,
+        BranchCommonName: c.BranchCommonName,
         ParentIds: c.ParentIds,
         ChildIds: c.ChildIds,
         Tags: ToTags(c.Tags),
@@ -60,6 +61,7 @@ class Converter : IConverter
         LocalName: b.LocalName,
 
         ParentBranchName: b.ParentBranchName,
+        PullMergeBranchName: b.PullMergeBranchName,
         IsGitBranch: b.IsGitBranch,
         IsDetached: b.IsDetached,
 
@@ -73,6 +75,7 @@ class Converter : IConverter
 
         AmbiguousTipId: b.AmbiguousTipId,
         AmbiguousBranchNames: b.AmbiguousBranchNames,
+        PullMergeBranchNames: b.PullMergeBranchNames,
 
         X: 0,
         IsIn: false,

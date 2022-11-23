@@ -47,7 +47,7 @@ class Updater : IUpdater
     {
         this.states = states;
         this.cmd = cmd;
-        buildVersion = Util.BuildVersion();
+        buildVersion = Build.Version();
     }
 
     public async Task CheckUpdateAvailableAsync()

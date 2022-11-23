@@ -132,7 +132,7 @@ class RepoViewMenus : IRepoViewMenus
             .Where(b => !b.IsRemote && !b.IsCurrent && b.HasLocalOnly && !b.HasRemoteOnly)
             .Select(b => (Item($"Push {ToShowName(b)}", "", () => repo.PushBranch(b.Name)))));
 
-        return items;
+        return items.DistinctBy(b => b.Title);
     }
 
 
@@ -160,9 +160,8 @@ class RepoViewMenus : IRepoViewMenus
         }
         items.AddRange(repo.GetShownBranches()
             .Where(b => b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
-            .Select(b => (Item($"Pull {ToShowName(b)}", "", () => repo.PullBranch(b.Name)))));
-
-        return items;
+            .Select(b => (Item($"{ToShowName(b)}", "", () => repo.PullBranch(b.Name)))));
+        return items.DistinctBy(b => b.Title);
     }
 
     IEnumerable<MenuItem> GetShowItems()
