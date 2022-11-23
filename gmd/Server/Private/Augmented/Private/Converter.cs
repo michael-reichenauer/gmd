@@ -83,8 +83,8 @@ class Converter : IConverter
             HasAheadCommits: b.HasLocalOnly,
             HasBehindCommits: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTipId,
-            AmbiguousBranchNames: b.AmbiguousBranchNames,
-            PullMergeBranchNames: b.PullMergeBranches.Select(b => b.Name).ToList());
+            AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
+            PullMergeBranchNames: b.PullMergeBranches.Select(bb => bb.Name).ToList());
     }
 }
 

@@ -11,7 +11,7 @@ interface IServer
     IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter);
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
-    Repo ShowBranch(Repo repo, string branchName);
+    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous);
     Repo HideBranch(Repo repo, string name);
 
     // Git commands

@@ -246,11 +246,19 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].Index)
             .Take(15);
 
-        return EnumerableEx.From(
-            SubMenu("Recent Branches", "", ToShowBranchesItems(recentBranches)),
-            SubMenu("Live Branches", "", ToShowBranchesItems(liveBranches)),
-            SubMenu("Live and Deleted Branches", "", ToShowBranchesItems(liveAndDeletedBranches))
+        var ambiguousBranches = allBranches
+            .Where(b => b.AmbiguousTipId != "")
+            .OrderBy(b => b.CommonName);
+
+        var items = EnumerableEx.From(
+            SubMenu("Recent", "", ToShowBranchesItems(recentBranches)),
+            SubMenu("Live", "", ToShowBranchesItems(liveBranches)),
+            SubMenu("Live and Deleted", "", ToShowBranchesItems(liveAndDeletedBranches))
         );
+
+        return ambiguousBranches.Any()
+            ? items.Append(SubMenu("Ambiguous", "", ToShowBranchesItems(ambiguousBranches, false, true)))
+            : items;
     }
 
 
@@ -275,30 +283,31 @@ class RepoViewMenus : IRepoViewMenus
         repo.GetUncommittedFiles().Select(f => Item(f, "", () => repo.UndoUncommittedFile(f)));
 
 
-    IEnumerable<MenuItem> ToShowBranchesItems(IEnumerable<Branch> branches, bool canBeOutside = false)
+    IEnumerable<MenuItem> ToShowBranchesItems(
+        IEnumerable<Branch> branches, bool canBeOutside = false, bool includeAmbiguous = false)
     {
         var cic = repo.CurrentIndexCommit;
         return branches
             .DistinctBy(b => b.CommonName)
-            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => repo.ShowBranch(b.Name)));
+            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => repo.ShowBranch(b.Name, includeAmbiguous)));
     }
 
     string ToShowName(Branch branch, Commit cic, bool canBeOutside)
     {
         bool isBranchIn = false;
         bool isBranchOut = false;
-        if (canBeOutside &&
-            !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
+        if (canBeOutside && !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
         {
+            // The branch is currently not shown
             if (repo.Repo.AugmentedRepo.BranchByName.TryGetValue(branch.Name, out var b))
             {
                 // The branch is not shown, but does exist
                 if (cic.ParentIds.Count > 1 && cic.ParentIds[1] == b.TipId)
-                {
+                {   // Is a branch in '╮' branch                     
                     isBranchIn = true;
                 }
                 else if (cic.ChildIds.Contains(b.BottomId))
-                {
+                {   // Is branch out '╯' branch
                     isBranchOut = true;
                 }
             }

@@ -26,7 +26,7 @@ interface IRepo
     void ShowBrowseDialog();
     void Filter();
 
-    void ShowBranch(string name);
+    void ShowBranch(string name, bool includeAmbiguous);
     void HideBranch(string name);
     IReadOnlyList<Server.Branch> GetAllBranches();
     IReadOnlyList<Server.Branch> GetShownBranches();
@@ -171,9 +171,9 @@ class RepoImpl : IRepo
         return R.Ok;
     });
 
-    public void ShowBranch(string name)
+    public void ShowBranch(string name, bool includeAmbiguous)
     {
-        Server.Repo newRepo = server.ShowBranch(Repo, name);
+        Server.Repo newRepo = server.ShowBranch(Repo, name, includeAmbiguous);
         UpdateRepoTo(newRepo, name);
 
     }

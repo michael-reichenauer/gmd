@@ -444,7 +444,7 @@ class Augmenter : IAugmenter
 
     private bool TryHasOneChildInDeletedBranch(WorkCommit c, out WorkBranch? branch)
     {
-        if (c.Branches.Count == 0 && c.Children.Count == 1)
+        if (c.Branches.Count == 0 && c.Children.Count == 1 && !c.Children[0].IsAmbiguous)
         {   // Commit has no branch, but it has one child commit, use that child commit branch
             branch = c.Children[0].Branch;
             c.IsAmbiguous = c.Children[0].IsAmbiguous;
@@ -568,7 +568,7 @@ class Augmenter : IAugmenter
                 current.Branch.AmbiguousTipId = "";
                 current.Branch.IsAmbiguousBranch = false;
                 current.Branch.AmbiguousBranches.Clear();
-                current.Branch.AmbiguousBranchNames.Clear();
+
             }
 
             current.Branch = branch;
@@ -630,7 +630,6 @@ class Augmenter : IAugmenter
                 current.Branch.AmbiguousTipId = "";
                 current.Branch.IsAmbiguousBranch = false;
                 current.Branch.AmbiguousBranches.Clear();
-                current.Branch.AmbiguousBranchNames.Clear();
             }
         }
 
@@ -673,7 +672,17 @@ class Augmenter : IAugmenter
         }
 
         // Try find a branch with the display name
-        return c.Branches.Find(b => b.CommonName == name);
+        var branch = c.Branches.Find(b => b.DisplayName == name);
+        if (branch == null)
+        {
+            if (c.Children.Count == 1)
+            {
+                // Check if the child has a ambigous branch with possible branches.
+                branch = c.Children[0].Branch!.AmbiguousBranches.Find(b => b.DisplayName == name);
+            }
+        }
+
+        return branch;
     }
     private bool TryHasOnlyOneChild(WorkCommit c, out WorkBranch? branch)
     {
@@ -814,7 +823,7 @@ class Augmenter : IAugmenter
             {
                 oldestChild = cc;
             }
-            childBranches.Add(c.Branch!);
+            childBranches.Add(cc.Branch!);
         }
 
         var likelyBranch2 = oldestChild.Branch!;

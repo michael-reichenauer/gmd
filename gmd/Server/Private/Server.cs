@@ -98,10 +98,16 @@ class Server : IServer
     }
 
 
-    public Repo ShowBranch(Repo repo, string branchName)
+    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous)
     {
-        var branchNames = repo.Branches.Select(b => b.Name).Append(branchName).ToArray();
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
+        var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
+        if (includeAmbiguous)
+        {
+            var branch = repo.AugmentedRepo.BranchByName[branchName];
+            branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
+        }
+
+        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray());
     }
 
 
