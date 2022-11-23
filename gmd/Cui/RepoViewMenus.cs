@@ -92,6 +92,7 @@ class RepoViewMenus : IRepoViewMenus
                 () => repo.CommitFromMenu(),
                 () => !repo.Repo.Status.IsOk),
             Item("Commit Diff ...", "D", () => repo.ShowCurrentRowDiff()),
+            SubMenu("Undo", "", GetUndoItems()),
 
             UI.MenuSeparator("Branches"),
             SubMenu("Show Branch", "->", GetShowBranchItems()),
@@ -111,6 +112,11 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Open Repo", "", GetOpenRepoItems()),
             Item("About ...", "A", () => repo.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
+    }
+
+    private IEnumerable<MenuItem> GetUndoItems()
+    {
+        return Enumerable.Empty<MenuItem>();
     }
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
