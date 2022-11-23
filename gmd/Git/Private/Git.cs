@@ -11,6 +11,7 @@ internal class Git : IGit
     readonly IDiffService diffService;
     readonly IRemoteService remoteService;
     readonly ITagService tagService;
+    private readonly IKeyValueService keyValueService;
     readonly ICmd cmd;
 
     public Git(
@@ -21,6 +22,7 @@ internal class Git : IGit
         IDiffService diffService,
         IRemoteService remoteService,
         ITagService tagService,
+        IKeyValueService keyValueService,
         ICmd cmd)
     {
         this.logService = logService;
@@ -30,6 +32,7 @@ internal class Git : IGit
         this.diffService = diffService;
         this.remoteService = remoteService;
         this.tagService = tagService;
+        this.keyValueService = keyValueService;
         this.cmd = cmd;
     }
 
@@ -64,9 +67,7 @@ internal class Git : IGit
         branchService.DeleteLocalBranchAsync(name, isForced, wd);
     public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
         remoteService.DeleteRemoteBranchAsync(name, wd);
-    public Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd) =>
-        tagService.GetTagsAsync(wd);
-
+    public Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd) => tagService.GetTagsAsync(wd);
     public Task<R> UndoAllUncommittedChangesAsync(string wd) =>
         commitService.UndoAllUncommittedChangesAsync(wd);
     public Task<R> UndoUncommittedFileAsync(string path, string wd) =>
@@ -74,6 +75,14 @@ internal class Git : IGit
     public Task<R> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
     public Task<R> UndoCommitAsync(string id, string wd) => commitService.UndoCommitAsync(id, wd);
     public Task<R> UncommitLastCommitAsync(string wd) => commitService.UncommitLastCommitAsync(wd);
+    public Task<R<string>> GetValueAsync(string key, string wd) =>
+       keyValueService.GetValueAsync(key, wd);
+    public Task<R> SetValueAsync(string key, string value, string wd) =>
+        keyValueService.SetValueAsync(key, value, wd);
+    public Task<R> PushValueAsync(string key, string wd) =>
+        keyValueService.PushValueAsync(key, wd);
+    public Task<R> PullValueAsync(string key, string wd) =>
+        keyValueService.PullValueAsync(key, wd);
 
 
     public async Task<R<string>> Version()

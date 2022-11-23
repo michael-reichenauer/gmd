@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 
 
 namespace gmd.Utils;
-
 public class Timing
 {
     private readonly Stopwatch stopwatch;

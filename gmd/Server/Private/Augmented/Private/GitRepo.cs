@@ -34,3 +34,8 @@ class GitRepo
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T: {Tags.Count}, S:{Status}";
 }
+
+public class MetaData
+{
+    public Dictionary<string, List<string>> BranchesChildren { get; set; } = new Dictionary<string, List<string>>();
+}

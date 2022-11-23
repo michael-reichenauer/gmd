@@ -14,6 +14,7 @@ namespace gmd.Server.Private.Augmented.Private;
 class AugmentedService : IAugmentedService
 {
     const int maxCommitCount = 30000; // Increase performance in case of very large repos
+    const string metaDatakey = "data";
 
     private readonly IGit git;
     private readonly IAugmenter augmenter;
@@ -62,6 +63,22 @@ class AugmentedService : IAugmentedService
         return GetUpdatedAugmentedRepoStatus(repo, gitStatus);
     }
 
+    public async Task<R> PullMetaDataAsync(string path)
+    {
+        if (!Try(out var e, await git.PullValueAsync(metaDatakey, path)))
+        {
+            // Could not pull value, if the reason is key does not exist, then lets set it
+            if (e.ErrorMessage.Contains("couldn't find remote ref"))
+            {
+                if (!Try(out var metaData, await GetGitMetaDataAsync(path))) return e;
+                return await git.PushValueAsync(metaDatakey, path);
+            }
+
+            return e;
+        }
+
+        return R.Ok;
+    }
 
     // GetGitRepoAsync returns a fresh git repo info object with commits, branches, ...
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
@@ -73,19 +90,44 @@ class AugmentedService : IAugmentedService
         var branchesTask = git.GetBranchesAsync(path);
         var tagsTask = git.GetTagsAsync(path);
         var statusTask = git.GetStatusAsync(path);
+        var metaDataTask = GetGitMetaDataAsync(path);
 
-        await Task.WhenAll(logTask, branchesTask, statusTask);
+        await Task.WhenAll(logTask, branchesTask, statusTask, metaDataTask);
 
         if (!Try(out var log, out var e, logTask.Result)) return e;
         if (!Try(out var branches, out e, branchesTask.Result)) return e;
         if (!Try(out var tags, out e, tagsTask.Result)) return e;
         if (!Try(out var status, out e, statusTask.Result)) return e;
+        if (!Try(out var metaData, out e, metaDataTask.Result)) return e;
 
         // Combine all git info into one git repo info object
         var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status);
 
         Log.Info($"{t} {gitRepo}");
         return gitRepo;
+    }
+
+
+    async Task<R<MetaData>> GetGitMetaDataAsync(string path)
+    {
+        if (!Try(out var json, out var e, await git.GetValueAsync(metaDatakey, path)))
+        {   // Failed to read, probably first time, so init for next time
+            var metaData = new MetaData();
+            if (!Try(out e, await SetGitMetaDataAsync(path, metaData))) return e;
+            return metaData;
+        };
+
+        if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
+
+        return data;
+    }
+
+    async Task<R> SetGitMetaDataAsync(string path, MetaData metaData)
+    {
+        string json = Json.Serilize(metaData);
+        if (!Try(out var e, await git.SetValueAsync(metaDatakey, json, path))) return e;
+
+        return await git.PushValueAsync(metaDatakey, path);
     }
 
 

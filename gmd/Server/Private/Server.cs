@@ -124,12 +124,24 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 
-    public async Task<R> FetchAsync(string wd) =>
-        await git.FetchAsync(wd);
+    public async Task<R> FetchAsync(string wd)
+    {
+        // pull meta data, but ignore error, if error is key not exist, it can be ignored,
+        // if error is remote error, the following fetch will handle that
 
-    public async Task<R> CommitAllChangesAsync(string message, string wd) =>
-         await git.CommitAllChangesAsync(message, wd);
+        // Start both tasks in paralell and await later
+        var metaDataTask = augmentedRepoService.PullMetaDataAsync(wd);
+        var fetchTask = git.FetchAsync(wd);
 
+        await Task.WhenAll(metaDataTask, fetchTask);
+
+        // Return the result of the fetch task (ignoring the metaData result)
+        return fetchTask.Result;
+    }
+
+
+    public Task<R> CommitAllChangesAsync(string message, string wd) =>
+          git.CommitAllChangesAsync(message, wd);
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {

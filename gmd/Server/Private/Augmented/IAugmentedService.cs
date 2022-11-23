@@ -18,4 +18,6 @@ interface IAugmentedService
 
     // GetRepoAsync returns the updated augmented repo with git status ...
     Task<R<Repo>> UpdateStatusRepoAsync(Repo augRepo);
+
+    Task<R> PullMetaDataAsync(string path);
 }
