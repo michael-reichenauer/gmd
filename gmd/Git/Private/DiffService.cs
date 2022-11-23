@@ -361,13 +361,8 @@ class DiffService : IDiffService
         foreach (var name in status.AddedFiles)
         {
             string filePath = Path.Join(dirPath, name);
-            string file = "";
 
-            try
-            {
-                file = File.ReadAllText(filePath);
-            }
-            catch (Exception e)
+            if (!Try(out var file, out var e, Files.ReadAllText(filePath)))
             {
                 file = $"<Error reading File {e.ToString()}";
             }

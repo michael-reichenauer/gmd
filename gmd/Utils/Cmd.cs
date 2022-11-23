@@ -6,7 +6,7 @@ namespace gmd.Utils;
 
 interface ICmd
 {
-    CmdResult RunCmd(string path, string args, string workingDirectory, bool skipLog = false);
+    CmdResult Run(string path, string args, string workingDirectory, bool skipLog = false);
     Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLog = false);
 }
 
@@ -37,9 +37,9 @@ class CmdResult : R<string>
 class Cmd : ICmd
 {
     public Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLog = false) =>
-        Task.Run(() => RunCmd(path, args, workingDirectory, skipLog));
+        Task.Run(() => Run(path, args, workingDirectory, skipLog));
 
-    public CmdResult RunCmd(string path, string args, string workingDirectory, bool skipLog = false)
+    public CmdResult Run(string path, string args, string workingDirectory, bool skipLog = false)
     {
         var t = Timing.Start;
         try
