@@ -145,7 +145,7 @@ class RepoImpl : IRepo
         var typeText = releases.IsPreview ? "(preview)" : "(stable)";
         string msg = $"A new release is available:\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"Current Version: {Util.BuildVersion()}\n\n" +
+            $"Current Version: {Build.Version()}\n\n" +
             "Do you want to update?";
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
         if (button != 0)
@@ -385,13 +385,13 @@ class RepoImpl : IRepo
 
     public void ShowAbout() => Do(async () =>
      {
-         var gmdVersion = Util.BuildVersion();
-         var gmdBuildTime = Util.BuildTime().ToUniversalTime().Iso();
+         var gmdVersion = Build.Version();
+         var gmdBuildTime = Build.Time().ToUniversalTime().Iso();
          if (!Try(out var gitVersion, out var e, await git.Version())) return e;
 
          var msg =
              $"Version: {gmdVersion}\n" +
-             $"Built:   {gmdBuildTime}\n" +
+             $"Built:   {gmdBuildTime}Z\n" +
              $"Git:     {gitVersion}";
 
          UI.InfoMessage("About", msg);
