@@ -55,6 +55,7 @@ interface IRepo
     bool CanUndoUncommitted();
     IReadOnlyList<string> GetUncommittedFiles();
     void UndoUncommittedFile(string path);
+    void UndoAllUncommittedChanged();
 }
 
 class RepoImpl : IRepo
@@ -480,10 +481,20 @@ class RepoImpl : IRepo
     public void UndoUncommittedFile(string path) => Do(async () =>
     {
 
-        if (!Try(out var e,
-            await server.UndoUncommittedFileAsync(path, Repo.Path)))
+        if (!Try(out var e, await server.UndoUncommittedFileAsync(path, Repo.Path)))
         {
             return R.Error($"Failed to undo {path}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void UndoAllUncommittedChanged() => Do(async () =>
+    {
+        if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(Repo.Path)))
+        {
+            return R.Error($"Failed to undo all changes", e);
         }
 
         Refresh();
