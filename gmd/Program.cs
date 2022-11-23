@@ -96,6 +96,7 @@ class Program
     {
         Log.Info($"Version: {Build.Version()}");
         Log.Info($"Build    {Build.Time().ToUniversalTime().Iso()}Z");
+        Log.Info($"Sha:     {Build.Sha()}");
         if (!Try(out var gitVersion, out var e, await git.Version()))
         {
             Log.Error($"No git command detected, {e}");

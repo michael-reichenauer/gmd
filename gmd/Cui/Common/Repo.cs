@@ -384,19 +384,21 @@ class RepoImpl : IRepo
     });
 
     public void ShowAbout() => Do(async () =>
-     {
-         var gmdVersion = Build.Version();
-         var gmdBuildTime = Build.Time().ToUniversalTime().Iso();
-         if (!Try(out var gitVersion, out var e, await git.Version())) return e;
+    {
+        var gmdVersion = Build.Version();
+        var gmdBuildTime = Build.Time().ToUniversalTime().Iso();
+        var gmdSha = Build.Sha();
+        if (!Try(out var gitVersion, out var e, await git.Version())) return e;
 
-         var msg =
-             $"Version: {gmdVersion}\n" +
-             $"Built:   {gmdBuildTime}Z\n" +
-             $"Git:     {gitVersion}";
+        var msg =
+            $"Version: {gmdVersion}\n" +
+            $"Built:   {gmdBuildTime}Z\n" +
+            $"Git:     {gitVersion}\n" +
+            $"Sha:     {gmdSha}\n";
 
-         UI.InfoMessage("About", msg);
-         return R.Ok;
-     });
+        UI.InfoMessage("About", msg);
+        return R.Ok;
+    });
 
 
     public void DeleteBranch(string name) => Do(async () =>

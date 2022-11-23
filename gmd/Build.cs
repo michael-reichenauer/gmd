@@ -6,6 +6,7 @@ namespace gmd.Utils;
 static class Build
 {
     static readonly string CiCdBuildTimeText = "BUILD_TIME";
+    static readonly string CiCdBuildShaText = "BUILD_SHA";
 
     // Base build time (currently start of project)
     const string BaseBuildTimeText = "2022-10-30T00:00:00Z";
@@ -14,6 +15,8 @@ static class Build
 
     internal static Version Version()
     {
+        Log.Info($"{CiCdBuildTimeText}, {CiCdBuildShaText}");
+
         // The versin is always increasing using the base build time for last 2 version numbers
         (int daysSinceBase, int minutesSinceMidnight) = GetTimeSinceBaseTime();
 
@@ -36,6 +39,9 @@ static class Build
 
         return default;
     }
+
+    internal static string Sha() => CiCdBuildShaText.Substring(0, 6);
+
 
     static (int, int) GetTimeSinceBaseTime()
     {

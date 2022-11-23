@@ -18,6 +18,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # Update .env and manifest file with current build time and git sha id to support
+      # version handling of the web site to automatically upgrade to latest version faster
+      - name: Update git sha and build time
+        shell: bash
+        run: |
+          BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo Build $BUILD_TIME ${{github.sha}}
+          sed -i "s/BUILD_TIME/$BUILD_TIME/g" gmd/Build.cs
+          sed -i "s/BUILD_SHA/${{github.sha}}/g" gmd/Build.cs
+          git log -3 --format=full
+
       - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@v3
         with:
