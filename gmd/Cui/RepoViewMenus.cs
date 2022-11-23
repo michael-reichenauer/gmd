@@ -114,11 +114,6 @@ class RepoViewMenus : IRepoViewMenus
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
-    private IEnumerable<MenuItem> GetUndoItems()
-    {
-        return Enumerable.Empty<MenuItem>();
-    }
-
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
         new MenuBarItem(title, key == "" ? "" : key + " ", null, canExecute) { Children = children.ToArray() };
 
@@ -257,6 +252,19 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Live and Deleted Branches", "", ToShowBranchesItems(liveAndDeletedBranches))
         );
     }
+
+
+    IEnumerable<MenuItem> GetUndoItems()
+    {
+        return EnumerableEx.From(
+            SubMenu("Undo/Restore Uncommitted File", "", GetUncommittedFileItems(), () => repo.CanUndoUncommitted())
+        );
+
+    }
+
+    private IEnumerable<MenuItem> GetUncommittedFileItems() =>
+        repo.GetUncommittedFiles().Select(f => Item(f, "", () => repo.UndoUncommittedFile(f)));
+
 
     IEnumerable<MenuItem> ToShowBranchesItems(IEnumerable<Branch> branches, bool canBeOutside = false)
     {

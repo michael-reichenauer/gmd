@@ -31,7 +31,9 @@ class StatusService : IStatusService
         int added = 0;
         List<string> addedFiles = new List<string>();
         int deleted = 0;
+        List<string> deletedFiles = new List<string>();
         int modified = 0;
+        List<string> modifiedFiles = new List<string>();
 
         foreach (var lineText in lines)
         {
@@ -76,16 +78,18 @@ class StatusService : IStatusService
             else if (line.StartsWith(" D ") || line.StartsWith("D"))
             {
                 deleted++;
+                deletedFiles.Add(line.Substring(3));
             }
             else
             {
                 modified++;
+                modifiedFiles.Add(line.Substring(3));
             }
         }
         (string mergeMessage, bool isMerging) = GetMergeStatus(wd);
 
         return new Status(modified, added, deleted, conflicted, isMerging, mergeMessage,
-            addedFiles.ToArray(), conflictsFiles.ToArray());
+            modifiedFiles.ToArray(), addedFiles.ToArray(), deletedFiles.ToArray(), conflictsFiles.ToArray());
     }
 
     (string, bool) GetMergeStatus(string wd)

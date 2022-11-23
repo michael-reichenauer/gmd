@@ -52,6 +52,9 @@ interface IRepo
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
     void UpdateRelease();
+    bool CanUndoUncommitted();
+    IReadOnlyList<string> GetUncommittedFiles();
+    void UndoUncommittedFile(string path);
 }
 
 class RepoImpl : IRepo
@@ -464,5 +467,27 @@ class RepoImpl : IRepo
         });
     }
 
+    public bool CanUndoUncommitted() => !Repo.Status.IsOk;
+
+    public IReadOnlyList<string> GetUncommittedFiles() =>
+        Repo.Status.ModifiedFiles
+        .Concat(Repo.Status.AddedFiles)
+        .Concat(Repo.Status.DeleteddFiles)
+        .Concat(Repo.Status.ConflictsFiles)
+        .OrderBy(f => f)
+        .ToList();
+
+    public void UndoUncommittedFile(string path) => Do(async () =>
+    {
+
+        if (!Try(out var e,
+            await server.UndoUncommittedFileAsync(path, Repo.Path)))
+        {
+            return R.Error($"Failed to undo {path}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
 }
 

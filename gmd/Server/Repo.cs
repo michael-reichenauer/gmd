@@ -132,7 +132,9 @@ public record Status(
     int Conflicted,
     bool IsMerging,
     string MergeMessage,
+    string[] ModifiedFiles,
     string[] AddedFiles,
+    string[] DeleteddFiles,
     string[] ConflictsFiles
 )
 {
