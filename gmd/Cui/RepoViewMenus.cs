@@ -108,7 +108,7 @@ class RepoViewMenus : IRepoViewMenus
              UI.MenuSeparator("More"),
              Item("Seach/Filter ...", "F", () => repo.Filter()),
              SubMenu("Open Repo", "", GetOpenRepoItems()),
-             Item("About ...", "", () => repo.ShowAbout()),
+             Item("About ...", "A", () => repo.ShowAbout()),
              Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
