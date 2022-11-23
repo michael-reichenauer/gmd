@@ -1,10 +1,10 @@
 #!/bin/bash
 
 echo "Cleaning ..."
-rm gmd.exe
-rm gmd_linux
-rm gmd_osx
-rm gmd_windows
+rm gmd.exe 2>/dev/null
+rm gmd_linux 2>/dev/null
+rm gmd_osx 2>/dev/null
+rm gmd_windows 2>/dev/null
 
 if test -f "gmd.exe"; then
     echo "Error: gmd.exe was not deleted!";
