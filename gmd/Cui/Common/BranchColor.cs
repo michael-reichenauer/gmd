@@ -14,7 +14,7 @@ class BranchColorService : IBranchColorService
     public Color GetColor(Server.Repo repo, Server.Branch branch)
     {
         if (branch.ParentBranchName == "")
-        {   // branch has no parent or parent is remote of this branch, lets use it
+        {   // branch has no parent or parent is remote of this branch, lets use it.
             return BranchNameColor(branch.DisplayName, 0);
         }
 

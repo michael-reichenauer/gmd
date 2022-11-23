@@ -88,6 +88,7 @@ record FileDiff(
     string PathBefore,
     string PathAfter,
     bool IsRenamed,
+    bool IsBinary,
     DiffMode DiffMode,
     IReadOnlyList<SectionDiff> SectionDiffs
 );
