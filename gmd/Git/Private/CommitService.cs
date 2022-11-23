@@ -75,7 +75,7 @@ class CommitService : ICommitService
 
     public async Task<R> UndoCommitAsync(string id, string wd)
     {
-        return await cmd.RunAsync("git", "revert --no-commit", wd);
+        return await cmd.RunAsync("git", $"revert --no-commit {id}", wd);
     }
 
     public async Task<R> UncommitLastCommitAsync(string wd)
