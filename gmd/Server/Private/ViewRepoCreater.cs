@@ -154,7 +154,7 @@ class ViewRepoCreater : IViewRepoCreater
 
             if (commit.ParentIds.Count > 1)
             {
-                var mergeParent = filterdCommits.FirstOrDefault(c => c.Id == c.ParentIds[1]);
+                var mergeParent = filterdCommits.FirstOrDefault(c => c.Id == commit.ParentIds[1]);
                 if (mergeParent != null && mergeParent.BranchName == localBranch.Name)
                 {   // Merge from local branch (into this remote branch)
                     break;
