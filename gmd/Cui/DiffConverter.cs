@@ -129,6 +129,10 @@ class DiffService : IDiffConverter
         {
             text.Cyan("  (Renamed)");
         }
+        if (fd.IsBinary)
+        {
+            text.Dark("  (Binary)");
+        }
         rows.Add(text);
 
         fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
@@ -262,6 +266,10 @@ class DiffService : IDiffConverter
         {
             return Text.New.Cyan(text);
         }
+        if (fd.IsBinary && !fd.SectionDiffs.Any())
+        {
+            return Text.New.Dark(text);
+        }
 
         switch (fd.DiffMode)
         {
@@ -284,6 +292,10 @@ class DiffService : IDiffConverter
         if (fd.IsRenamed && !fd.SectionDiffs.Any())
         {
             return "Renamed:";
+        }
+        if (fd.IsBinary && !fd.SectionDiffs.Any())
+        {
+            return "Binary:";
         }
 
         switch (fd.DiffMode)

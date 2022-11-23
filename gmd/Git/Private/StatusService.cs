@@ -31,7 +31,9 @@ class StatusService : IStatusService
         int added = 0;
         List<string> addedFiles = new List<string>();
         int deleted = 0;
+        List<string> deletedFiles = new List<string>();
         int modified = 0;
+        List<string> modifiedFiles = new List<string>();
 
         foreach (var lineText in lines)
         {
@@ -46,46 +48,48 @@ class StatusService : IStatusService
                 line.StartsWith("UA "))
             {   // How to reproduce this ???
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("UU "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("AA "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("UD "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("DU "))
             {
                 conflicted++;
-                conflictsFiles.Add(line.Substring(3));
+                conflictsFiles.Add(line.Substring(3).Trim());
             }
             else if (line.StartsWith("?? ") || line.StartsWith(" A "))
             {
                 added++;
-                addedFiles.Add(line.Substring(3));
+                addedFiles.Add(line.Substring(3).Trim());
             }
-            else if (line.StartsWith(" D ") || line.StartsWith("D"))
+            else if (line.StartsWith("D"))
             {
                 deleted++;
+                deletedFiles.Add(line.Substring(2).Trim());
             }
             else
             {
                 modified++;
+                modifiedFiles.Add(line.Substring(2).Trim());
             }
         }
         (string mergeMessage, bool isMerging) = GetMergeStatus(wd);
 
         return new Status(modified, added, deleted, conflicted, isMerging, mergeMessage,
-            addedFiles.ToArray(), conflictsFiles.ToArray());
+            modifiedFiles.ToArray(), addedFiles.ToArray(), deletedFiles.ToArray(), conflictsFiles.ToArray());
     }
 
     (string, bool) GetMergeStatus(string wd)

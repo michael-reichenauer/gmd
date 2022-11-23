@@ -92,6 +92,7 @@ class RepoViewMenus : IRepoViewMenus
                 () => repo.CommitFromMenu(),
                 () => !repo.Repo.Status.IsOk),
             Item("Commit Diff ...", "D", () => repo.ShowCurrentRowDiff()),
+            SubMenu("Undo", "", GetUndoItems()),
 
             UI.MenuSeparator("Branches"),
             SubMenu("Show Branch", "->", GetShowBranchItems()),
@@ -251,6 +252,28 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Live and Deleted Branches", "", ToShowBranchesItems(liveAndDeletedBranches))
         );
     }
+
+
+    IEnumerable<MenuItem> GetUndoItems()
+    {
+        string id = repo.CurrentIndexCommit.Id;
+        string sid = repo.CurrentIndexCommit.Sid;
+
+        return EnumerableEx.From(
+            SubMenu("Undo/Restore Uncommitted File", "", GetUncommittedFileItems(), () => repo.CanUndoUncommitted()),
+            Item($"Undo Commit {sid}", "", () => repo.UndoCommit(id), () => repo.CanUndoCommit()),
+            Item($"Uncommit Last Commit", "", () => repo.UncommitLastCommit(), () => repo.CanUncommitLastCommit()),
+            UI.MenuSeparator(),
+            Item("Undo/Restore all Uncommitted Changes", "",
+                () => repo.UndoAllUncommittedChanged(), () => repo.CanUndoUncommitted()),
+            Item("Clean/Restore Working Folder", "", () => repo.CleanWorkingFolder())
+        );
+
+    }
+
+    private IEnumerable<MenuItem> GetUncommittedFileItems() =>
+        repo.GetUncommittedFiles().Select(f => Item(f, "", () => repo.UndoUncommittedFile(f)));
+
 
     IEnumerable<MenuItem> ToShowBranchesItems(IEnumerable<Branch> branches, bool canBeOutside = false)
     {

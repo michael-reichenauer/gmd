@@ -26,6 +26,11 @@ interface IGit
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
+    Task<R> UndoAllUncommittedChangesAsync(string wd);
+    Task<R> UndoUncommittedFileAsync(string path, string wd);
+    Task<R> CleanWorkingFolderAsync(string wd);
+    Task<R> UndoCommitAsync(string id, string wd);
+    Task<R> UncommitLastCommitAsync(string wd);
 }
 
 
@@ -60,7 +65,9 @@ public record Status(
     int Conflicted,
     bool IsMerging,
     string MergeMessage,
+    string[] ModifiedFiles,
     string[] AddedFiles,
+    string[] DeleteddFiles,
     string[] ConflictsFiles
 )
 {
@@ -81,6 +88,7 @@ record FileDiff(
     string PathBefore,
     string PathAfter,
     bool IsRenamed,
+    bool IsBinary,
     DiffMode DiffMode,
     IReadOnlyList<SectionDiff> SectionDiffs
 );

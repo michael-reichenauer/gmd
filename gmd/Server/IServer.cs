@@ -27,6 +27,11 @@ interface IServer
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
+    Task<R> UndoAllUncommittedChangesAsync(string wd);
+    Task<R> UndoUncommittedFileAsync(string path, string wd);
+    Task<R> CleanWorkingFolderAsync(string wd);
+    Task<R> UndoCommitAsync(string id, string wd);
+    Task<R> UncommitLastCommitAsync(string wd);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);
