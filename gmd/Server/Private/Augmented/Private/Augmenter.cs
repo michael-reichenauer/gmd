@@ -255,7 +255,7 @@ class Augmenter : IAugmenter
     WorkBranch DetermineCommitBranch(WorkRepo repo, WorkCommit c, GitRepo gitRepo)
     {
         WorkBranch? branch;
-        if (TryIsBranchSetByUser(gitRepo, c, out branch))
+        if (TryIsBranchSetByUser(repo, gitRepo, c, out branch))
         {   // Commit branch was set/determined by user, 
             return branch!;
         }
@@ -268,15 +268,6 @@ class Augmenter : IAugmenter
             // Commit has only local and its remote branch, prefer remote remote branch
             return branch!;
         }
-        // else if (TryHasParentChildSetBranch(c, gitRepo, out branch))
-        // {   // The commit has several possible branches, and one is set as parent of the others by the user
-        //     return branch!;
-        // }
-        // else if (TryHasChildrenPriorityBranch(c, gitRepo, out branch))
-        // {   // The commit has several possible branches, and one of the children's branches is set as the
-        //     // the parent branch of the other children's branches
-        //     return branch!;
-        // }
         else if (TrySameChildrenBranches(c, out branch))
         {   // Commit has no branch but has 2 children with same branch
             return branch!;
@@ -333,27 +324,34 @@ class Augmenter : IAugmenter
         return AddAmbiguousCommit(repo, c);
     }
 
-    bool TryIsBranchSetByUser(GitRepo gitRepo, WorkCommit c, out WorkBranch? branch)
+    bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit c, out WorkBranch? branch)
     {
         branch = null;
-        if (c.Children.Count < 2)
-        {
-            return false;
-        }
-        if (!gitRepo.MetaData.CommitBranch.TryGetValue(c.Id, out var branchDisplayName))
+
+        if (!gitRepo.MetaData.TryGet(c.Sid, out var branchDisplayName, out var isSetByUser))
         {
             return false;
         }
 
-        var child = c.Children.FirstOrDefault(cc => cc.Branch!.DisplayName == branchDisplayName);
-        if (child == null)
+        var childrenBranches = c.Children.Select(cc => cc.Branch);
+        var tipBranches = c.BranchTips.Select(n => repo.Branches.First(b => b.Name == n));
+        var branches = childrenBranches.Concat(tipBranches).Where(b => b != null && b.DisplayName == branchDisplayName);
+        if (branches.Any())
         {
-            return false;
+            var remote = branches.FirstOrDefault(b => b != null && b.IsRemote);
+            if (remote != null)
+            {
+                c.IsBranchSetByUser = isSetByUser;
+                branch = remote;
+                return true;
+            }
+
+            c.IsBranchSetByUser = isSetByUser;
+            branch = branches.First();
+            return true;
         }
 
-        c.IsBranchSetByUser = true;
-        branch = child.Branch;
-        return true;
+        return false;
     }
 
     bool TryHasOnlyOneBranch(WorkCommit c, out WorkBranch? branch)
@@ -387,88 +385,6 @@ class Augmenter : IAugmenter
         branch = null;
         return false;
     }
-
-
-    // bool TryHasParentChildSetBranch(WorkCommit commit, GitRepo gitRepo, out WorkBranch? branch)
-    // {
-    //     foreach (var b in commit.Branches)
-    //     {
-    //         if (!gitRepo.MetaData.BranchesChildren.TryGetValue(b.DisplayName, out var childBranches))
-    //         {
-    //             // This branch has no children branches
-    //             continue;
-    //         }
-
-    //         // assume c.Branch is parent of all other children branches (cc.Branch)
-    //         bool assumeIsParent = true;
-    //         foreach (var bb in commit.Branches)
-    //         {
-    //             if (b.CommonName == bb.CommonName)
-    //             {
-    //                 continue;
-    //             }
-    //             if (!childBranches.Contains(bb.DisplayName))
-    //             {   // bb is not a child of b
-    //                 assumeIsParent = false;
-    //                 break;
-    //             }
-    //         }
-
-    //         if (assumeIsParent)
-    //         {   // b was parent of all other branches
-    //             branch = b;
-    //             return true;
-    //         }
-    //     }
-
-    //     branch = null;
-    //     return false;
-    // }
-
-    // // hasChildrenPriorityBranch iterates all children of commit and for each child
-    // //   - If child has a branch which is a parent of all other children branches,
-    // //     that branch is returned
-    // bool TryHasChildrenPriorityBranch(WorkCommit commit, GitRepo gitRepo, out WorkBranch? branch)
-    // {
-    //     branch = null;
-    //     if (commit.Children.Count < 2)
-    //     {
-    //         return false;
-    //     }
-
-    //     foreach (var c in commit.Children)
-    //     {
-    //         if (!gitRepo.MetaData.BranchesChildren.TryGetValue(c.Branch!.DisplayName, out var childBranches))
-    //         {   // This child branch has no children branches
-    //             continue;
-    //         }
-
-
-    //         // assume c.Branch is parent of all other children branches (cc.Branch)
-    //         bool assumeIsParent = true;
-
-    //         foreach (var cc in commit.Children)
-    //         {
-    //             if (c == cc)
-    //             {
-    //                 continue;
-    //             }
-    //             if (!childBranches.Contains(cc.Branch!.DisplayName))
-    //             {   // cc.Branch is not a child of c.Branch
-    //                 assumeIsParent = false;
-    //                 break;
-    //             }
-    //         }
-
-    //         if (assumeIsParent)
-    //         {   // c.Branch was parent of all other children branches
-    //             branch = c.Branch;
-    //             return true;
-    //         }
-    //     }
-
-    //     return false;
-    // }
 
 
     bool TrySameChildrenBranches(WorkCommit c, out WorkBranch? branch)

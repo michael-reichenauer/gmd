@@ -129,7 +129,7 @@ class AugmentedService : IAugmentedService
         // Get the latest meta data
         if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-        metaData.CommitBranch[commit.Id] = branch.DisplayName;
+        metaData.SetBranched(commit.Sid, branch.DisplayName);
         return await metaDataService.SetMetaDataAsync(wd, metaData);
     }
 
@@ -143,21 +143,20 @@ class AugmentedService : IAugmentedService
         // Get the latest meta data
         if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-        metaData.CommitBranch[commit.Id] = branch.DisplayName;
+        metaData.SetBranched(commit.Sid, branch.DisplayName);
         return await metaDataService.SetMetaDataAsync(wd, metaData);
     }
 
 
-    public async Task<R> SetAsParentAsync(Repo repo, string branchName, string parentName)
+    public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName)
     {
         var branch = repo.BranchByName[branchName];
-        var parentBranch = repo.BranchByName[parentName];
         var ambiguousTip = branch.AmbiguousTipId;
 
         // Get the latest meta data
         if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-        metaData.CommitBranch[ambiguousTip] = parentBranch.DisplayName;
+        metaData.SetCommitBranch(ambiguousTip.Substring(0, 6), setDisplayName);
         return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
     }
 
@@ -167,7 +166,7 @@ class AugmentedService : IAugmentedService
         // Get the latest meta data
         if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-        metaData.CommitBranch.Remove(commitId);
+        metaData.Remove(commitId.Substring(0, 6));
 
         return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
     }

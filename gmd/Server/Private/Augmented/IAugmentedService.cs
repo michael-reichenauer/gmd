@@ -23,6 +23,6 @@ interface IAugmentedService
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
 
-    Task<R> SetAsParentAsync(Repo repo, string name, string parentName);
+    Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName);
     Task<R> UnresolveAmbiguityAsync(Repo augmentedRepo, string commitId);
 }
