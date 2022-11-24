@@ -17,6 +17,8 @@ interface IServer
     Repo HideBranch(Repo repo, string name);
     Task<R> ResolveAmbiguityAsync(Repo repo, string name, string parentName);
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
+    Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
+    Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
 
     // Git commands
     Task<R> FetchAsync(string wd);
@@ -27,8 +29,6 @@ interface IServer
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(string branchName, string wd);
     Task<R> MergeBranch(string name, string wd);
-    Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
-    Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);

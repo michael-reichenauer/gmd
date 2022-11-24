@@ -366,7 +366,7 @@ class RepoImpl : IRepo
          var currentBranchName = GetCurrentBranch().Name;
          if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-         if (!Try(out var e, await server.CreateBranchAsync(name, true, Repo.Path)))
+         if (!Try(out var e, await server.CreateBranchAsync(Repo, name, true, Repo.Path)))
          {
              return R.Error($"Failed to create branch {name}", e);
          }
@@ -389,7 +389,7 @@ class RepoImpl : IRepo
         if (!Try(out var name, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
 
         if (!Try(out var e,
-            await server.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
+            await server.CreateBranchFromCommitAsync(Repo, name, commit.Id, true, Repo.Path)))
         {
             return R.Error($"Failed to create branch {name}", e);
         }

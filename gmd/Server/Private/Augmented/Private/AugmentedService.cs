@@ -110,6 +110,43 @@ class AugmentedService : IAugmentedService
     }
 
 
+    public async Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
+    {
+        var branch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        Commit? commit = null;
+        if (branch != null)
+        {
+            commit = repo.CommitById[branch.TipId];
+        }
+
+        if (!Try(out var e, await git.CreateBranchAsync(newBranchName, isCheckout, wd))) return e;
+
+        if (commit == null || branch == null)
+        {
+            return R.Ok;
+        }
+
+        // Get the latest meta data
+        if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
+
+        metaData.CommitBranch[commit.Id] = branch.DisplayName;
+        return await metaDataService.SetMetaDataAsync(wd, metaData);
+    }
+
+    public async Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd)
+    {
+        if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd))) return e;
+
+        Commit commit = repo.CommitById[sha];
+        var branch = repo.BranchByName[commit.BranchName];
+
+        // Get the latest meta data
+        if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
+
+        metaData.CommitBranch[commit.Id] = branch.DisplayName;
+        return await metaDataService.SetMetaDataAsync(wd, metaData);
+    }
+
 
     public async Task<R> SetAsParentAsync(Repo repo, string branchName, string parentName)
     {

@@ -151,6 +151,11 @@ class Server : IServer
         return diff;
     }
 
+    public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
+      augmentedRepoService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
+
+    public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
+        augmentedRepoService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, sha, isCheckout, wd);
 
     public Task<R> PushBranchAsync(string name, string wd) =>
         git.PushBranchAsync(name, wd);
@@ -167,11 +172,7 @@ class Server : IServer
     public Task<R> MergeBranch(string name, string wd) =>
         git.MergeBranch(name, wd);
 
-    public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
-        git.CreateBranchAsync(name, isCheckout, wd);
 
-    public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
-        git.CreateBranchFromCommitAsync(name, sha, isCheckout, wd);
 
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
