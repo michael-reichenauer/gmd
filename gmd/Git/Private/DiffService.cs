@@ -70,7 +70,7 @@ class DiffService : IDiffService
         var args = $"log --date=iso --patch --follow -- \"{path}\"";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
-        var commitDiffs = ParseCommitDiffs(output, "", false);
+        var commitDiffs = ParseCommitDiffs(output, path, false);
         if (!commitDiffs.Any())
         {
             return R.Error("Failed to parse diff");

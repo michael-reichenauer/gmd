@@ -51,7 +51,7 @@ interface IRepo
     bool CanPullCurrentBranch();
     void ShowUncommittedDiff();
     void ShowCurrentRowDiff();
-    void ShowFileHistory(string file);
+    void ShowFileHistory();
 
     void MergeBranch(string name);
     void CreateBranch();
@@ -276,10 +276,17 @@ class RepoImpl : IRepo
         return R.Ok;
     });
 
-
-    public void ShowFileHistory(string path) => Do(async () =>
+    public void ShowFileHistory() => Do(async () =>
     {
-        if (!Try(out var diffs, out var e, await server.GetFileDiffAsync(path, Repo.Path)))
+        if (!Try(out var files, out var e, await GetFilesAsync()))
+        {
+            return R.Error($"Failed to get files", e);
+        }
+
+        var browser = new FileBrowseDlg();
+        if (!Try(out var path, browser.Show(files))) return R.Ok;
+
+        if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, Repo.Path)))
         {
             return R.Error($"Failed to show file history", e);
         }

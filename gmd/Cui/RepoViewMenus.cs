@@ -110,26 +110,13 @@ class RepoViewMenus : IRepoViewMenus
             UI.MenuSeparator("More"),
             Item("Seach/Filter ...", "F", () => repo.Filter()),
             Item("Refresh/Reload", "R", () => repo.Refresh()),
-            Item("File History ...", "", () => ShowFileHistoryMenu(x, y)),
+            Item("File History ...", "", () => repo.ShowFileHistory()),
             SubMenu("Open Repo", "", GetOpenRepoItems()),
             Item("About ...", "A", () => repo.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
-    async void ShowFileHistoryMenu(int x, int y)
-    {
-        if (!Try(out var files, out var e, await repo.GetFilesAsync()))
-        {
-            UI.ErrorMessage($"Failed to get files:\n{e}");
-            return;
-        }
 
-        var items = files.Select(f => Item(f, "", () => repo!.ShowFileHistory(f)));
-
-        var menu = new ContextMenu(x, y, new MenuBarItem(items.ToArray()));
-        menu.Show();
-
-    }
 
     IEnumerable<MenuItem> GetAmbiguousItems()
     {
