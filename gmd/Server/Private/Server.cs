@@ -151,6 +151,11 @@ class Server : IServer
         return diff;
     }
 
+    public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
+      augmentedRepoService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
+
+    public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
+        augmentedRepoService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, sha, isCheckout, wd);
 
     public Task<R> PushBranchAsync(string name, string wd) =>
         git.PushBranchAsync(name, wd);
@@ -167,11 +172,7 @@ class Server : IServer
     public Task<R> MergeBranch(string name, string wd) =>
         git.MergeBranch(name, wd);
 
-    public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
-        git.CreateBranchAsync(name, isCheckout, wd);
 
-    public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
-        git.CreateBranchFromCommitAsync(name, sha, isCheckout, wd);
 
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
@@ -194,8 +195,8 @@ class Server : IServer
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
 
-    public Task<R> ResolveAmbiguityAsync(Repo repo, string name, string parentName) =>
-        augmentedRepoService.SetAsParentAsync(repo.AugmentedRepo, name, parentName);
+    public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName) =>
+        augmentedRepoService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setDisplayName);
 
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
         augmentedRepoService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);

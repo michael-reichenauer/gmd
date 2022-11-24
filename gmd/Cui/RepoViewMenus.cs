@@ -131,9 +131,9 @@ class RepoViewMenus : IRepoViewMenus
 
         var branch = repo.ViewedBranchByName(commit.BranchName);
         return items
-            .Concat(branch.AmbiguousBranchNames
-                .Select(name => Item(repo.AllBranchByName(name).DisplayName,
-                    "", () => repo.ResolveAmbiguity(branch, name))));
+            .Concat(branch.AmbiguousBranchNames.Select(n => repo.AllBranchByName(n))
+                .DistinctBy(b => b.DisplayName)
+                .Select(b => Item(b.DisplayName, "", () => repo.ResolveAmbiguity(branch, b.DisplayName))));
     }
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
