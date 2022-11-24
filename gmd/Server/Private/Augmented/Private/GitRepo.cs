@@ -15,7 +15,8 @@ class GitRepo
         IReadOnlyList<GitCommit> commits,
         IReadOnlyList<GitBranch> branches,
         IReadOnlyList<GitTag> tags,
-        GitStatus status)
+        GitStatus status,
+        MetaData metaData)
     {
         TimeStamp = timeStamp;
         Path = path;
@@ -23,6 +24,7 @@ class GitRepo
         Branches = branches;
         Tags = tags;
         Status = status;
+        MetaData = metaData;
     }
 
     public DateTime TimeStamp { get; }
@@ -31,6 +33,8 @@ class GitRepo
     public IReadOnlyList<GitBranch> Branches { get; }
     public IReadOnlyList<GitTag> Tags { get; }
     public GitStatus Status { get; }
+    public MetaData MetaData { get; }
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T: {Tags.Count}, S:{Status}";
 }
+

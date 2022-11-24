@@ -364,7 +364,9 @@ class RepoView : IRepoView
 
         if (isShowDetails)
         {
-            commitDetailsView.Set(repo!.Repo.Commits[i]);
+            var commit = repo!.Repo.Commits[i];
+            var branch = repo.ViewedBranchByName(commit.BranchName);
+            commitDetailsView.Set(repo.Repo, commit, branch);
         }
     }
 

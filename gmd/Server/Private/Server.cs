@@ -43,7 +43,7 @@ class Server : IServer
         var branches = repo.Branches.Select(b => b.Name).ToArray();
 
         if (!Try(out var augmentedRepo, out var e,
-            await augmentedRepoService.UpdateStatusRepoAsync(repo.AugmentedRepo)))
+            await augmentedRepoService.UpdateRepoStatusAsync(repo.AugmentedRepo)))
         {
             return e;
         }
@@ -54,6 +54,9 @@ class Server : IServer
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
         converter.ToBranches(repo.AugmentedRepo.Branches);
+
+    public Branch AllBanchByName(Repo repo, string name) =>
+        converter.ToBranch(repo.AugmentedRepo.BranchByName[name]);
 
 
     public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
@@ -98,10 +101,16 @@ class Server : IServer
     }
 
 
-    public Repo ShowBranch(Repo repo, string branchName)
+    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous)
     {
-        var branchNames = repo.Branches.Select(b => b.Name).Append(branchName).ToArray();
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
+        var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
+        if (includeAmbiguous)
+        {
+            var branch = repo.AugmentedRepo.BranchByName[branchName];
+            branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
+        }
+
+        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray());
     }
 
 
@@ -124,12 +133,11 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 
-    public async Task<R> FetchAsync(string wd) =>
-        await git.FetchAsync(wd);
+    public Task<R> FetchAsync(string wd) => augmentedRepoService.FetchAsync(wd);
 
-    public async Task<R> CommitAllChangesAsync(string message, string wd) =>
-         await git.CommitAllChangesAsync(message, wd);
 
+    public Task<R> CommitAllChangesAsync(string message, string wd) =>
+          git.CommitAllChangesAsync(message, wd);
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
@@ -185,5 +193,12 @@ class Server : IServer
 
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
+
+    public Task<R> ResolveAmbiguityAsync(Repo repo, string name, string parentName) =>
+        augmentedRepoService.SetAsParentAsync(repo.AugmentedRepo, name, parentName);
+
+    public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
+        augmentedRepoService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);
+
 }
 

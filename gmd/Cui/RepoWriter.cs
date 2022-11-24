@@ -125,6 +125,10 @@ class RepoWriter : IRepoWriter
             //     columnWidth -= 1;
             // }
         }
+        if (c.IsBranchSetByUser)
+        {
+            columnWidth -= 2;
+        }
 
         string subject = Txt(c.Subject, columnWidth);
 
@@ -139,6 +143,7 @@ class RepoWriter : IRepoWriter
         else { text.Dark(Txt(subject, columnWidth)); }
 
         if (tips != null) { WriteBranchTips(tips, maxTipWidth); }
+        if (c.IsBranchSetByUser) { text.Dark(" Ф"); }
     }
 
     void WriteBranchTips(Text tips, int maxWidth)

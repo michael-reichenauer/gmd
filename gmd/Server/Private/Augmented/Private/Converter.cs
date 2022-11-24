@@ -53,7 +53,8 @@ class Converter : IConverter
             IsBehind: c.IsBehind,
             IsPartialLogCommit: c.IsPartialLogCommit,
             IsAmbiguous: c.IsAmbiguous,
-            IsAmbiguousTip: c.IsAmbiguousTip);
+            IsAmbiguousTip: c.IsAmbiguousTip,
+            IsBranchSetByUser: c.IsBranchSetByUser);
     }
 
     Branch ToBranch(WorkBranch b)
@@ -83,8 +84,8 @@ class Converter : IConverter
             HasAheadCommits: b.HasLocalOnly,
             HasBehindCommits: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTipId,
-            AmbiguousBranchNames: b.AmbiguousBranchNames,
-            PullMergeBranchNames: b.PullMergeBranches.Select(b => b.Name).ToList());
+            AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
+            PullMergeBranchNames: b.PullMergeBranches.Select(bb => bb.Name).ToList());
     }
 }
 

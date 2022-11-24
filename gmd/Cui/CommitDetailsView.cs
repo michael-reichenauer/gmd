@@ -9,7 +9,7 @@ interface ICommitDetailsView
 {
     ContentView View { get; }
 
-    void Set(Commit commit);
+    void Set(Repo repo, Commit commit, Branch branch);
 
 }
 
@@ -20,8 +20,9 @@ class CommitDetailsView : ICommitDetailsView
     IReadOnlyList<Text> rows = new List<Text>();
 
     internal static readonly int ContentHeight = 8;
+    private readonly IBranchColorService branchColorService;
 
-    public CommitDetailsView()
+    public CommitDetailsView(IBranchColorService branchColorService)
     {
         contentView = new ContentView(OnGetContent)
         {
@@ -34,18 +35,21 @@ class CommitDetailsView : ICommitDetailsView
             IsFocus = false,
             // Height = Dim.Fill(),
         };
+
+        this.branchColorService = branchColorService;
     }
 
     public ContentView View => contentView!;
 
     public int TotalRows => rows.Count;
 
-    public void Set(Server.Commit commit) => UI.RunInBackground(async () =>
+    public void Set(Repo repo, Server.Commit commit, Branch branch) => UI.RunInBackground(async () =>
     {
         await Task.Yield();
 
         this.commit = commit;
         var id = commit.Id;
+        var color = branchColorService.GetColor(repo, branch);
 
         if (id == Repo.UncommittedId)
         {
@@ -64,7 +68,16 @@ class CommitDetailsView : ICommitDetailsView
             newRows.Add(Text.New.Dark("Id:         ").White(id));
         }
 
-        newRows.Add(Text.New.Dark("Branch:     ").White(commit.BranchName));
+        var branchName = branch.DisplayName;
+        if (commit.IsBranchSetByUser)
+        {
+            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName + "   Ф").Dark(" (set by user)"));
+        }
+        else
+        {
+            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName));
+        }
+
         newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>
             id == Repo.UncommittedId ? "" : id.Substring(0, 6)))));
         newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id =>

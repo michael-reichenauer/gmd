@@ -50,6 +50,7 @@ internal class WorkCommit
     public bool IsPartialLogCommit { get; set; }
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
+    public bool IsBranchSetByUser { get; set; }
 
     public List<string> ParentIds { get; }
     public WorkCommit? FirstParent { get; internal set; }
@@ -144,7 +145,6 @@ internal class WorkBranch
     public bool HasRemoteOnly { get; set; }
 
     public string AmbiguousTipId { get; set; } = "";
-    public List<string> AmbiguousBranchNames { get; } = new List<string>();
 
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
     public List<WorkBranch> PullMergeBranches = new List<WorkBranch>();

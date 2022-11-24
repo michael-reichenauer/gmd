@@ -105,6 +105,7 @@ class RepoViewMenus : IRepoViewMenus
             Item("Create Branch from commit ...", "",
                 () => repo.CreateBranchFromCommit(), () => repo.Repo.Status.IsOk),
             SubMenu("Delete Branch", "", GetDeleteItems()),
+            SubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any()),
 
             UI.MenuSeparator("More"),
             Item("Seach/Filter ...", "F", () => repo.Filter()),
@@ -112,6 +113,27 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Open Repo", "", GetOpenRepoItems()),
             Item("About ...", "A", () => repo.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
+    }
+
+    IEnumerable<MenuItem> GetAmbiguousItems()
+    {
+        var items = Enumerable.Empty<MenuItem>();
+        var commit = repo.CurrentIndexCommit;
+        if (!commit.IsAmbiguous && !commit.IsBranchSetByUser)
+        {
+            return items;
+        }
+
+        if (commit.IsBranchSetByUser)
+        {
+            items = items.Append(Item("Undo Resolved Ambiguity", "", () => repo.UnresolveAmbiguity(commit.Id)));
+        }
+
+        var branch = repo.ViewedBranchByName(commit.BranchName);
+        return items
+            .Concat(branch.AmbiguousBranchNames
+                .Select(name => Item(repo.AllBranchByName(name).DisplayName,
+                    "", () => repo.ResolveAmbiguity(branch, name))));
     }
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
@@ -246,11 +268,19 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].Index)
             .Take(15);
 
-        return EnumerableEx.From(
-            SubMenu("Recent Branches", "", ToShowBranchesItems(recentBranches)),
-            SubMenu("Live Branches", "", ToShowBranchesItems(liveBranches)),
-            SubMenu("Live and Deleted Branches", "", ToShowBranchesItems(liveAndDeletedBranches))
+        var ambiguousBranches = allBranches
+            .Where(b => b.AmbiguousTipId != "")
+            .OrderBy(b => b.CommonName);
+
+        var items = EnumerableEx.From(
+            SubMenu("Recent", "", ToShowBranchesItems(recentBranches)),
+            SubMenu("All Live", "", ToShowBranchesItems(liveBranches)),
+            SubMenu("All Live and Deleted", "", ToShowBranchesItems(liveAndDeletedBranches))
         );
+
+        return ambiguousBranches.Any()
+            ? items.Append(SubMenu("Ambiguous", "", ToShowBranchesItems(ambiguousBranches, false, true)))
+            : items;
     }
 
 
@@ -275,30 +305,31 @@ class RepoViewMenus : IRepoViewMenus
         repo.GetUncommittedFiles().Select(f => Item(f, "", () => repo.UndoUncommittedFile(f)));
 
 
-    IEnumerable<MenuItem> ToShowBranchesItems(IEnumerable<Branch> branches, bool canBeOutside = false)
+    IEnumerable<MenuItem> ToShowBranchesItems(
+        IEnumerable<Branch> branches, bool canBeOutside = false, bool includeAmbiguous = false)
     {
         var cic = repo.CurrentIndexCommit;
         return branches
             .DistinctBy(b => b.CommonName)
-            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => repo.ShowBranch(b.Name)));
+            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => repo.ShowBranch(b.Name, includeAmbiguous)));
     }
 
     string ToShowName(Branch branch, Commit cic, bool canBeOutside)
     {
         bool isBranchIn = false;
         bool isBranchOut = false;
-        if (canBeOutside &&
-            !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
+        if (canBeOutside && !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
         {
+            // The branch is currently not shown
             if (repo.Repo.AugmentedRepo.BranchByName.TryGetValue(branch.Name, out var b))
             {
                 // The branch is not shown, but does exist
                 if (cic.ParentIds.Count > 1 && cic.ParentIds[1] == b.TipId)
-                {
+                {   // Is a branch in '╮' branch                     
                     isBranchIn = true;
                 }
                 else if (cic.ChildIds.Contains(b.BottomId))
-                {
+                {   // Is branch out '╯' branch
                     isBranchOut = true;
                 }
             }

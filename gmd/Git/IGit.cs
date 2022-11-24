@@ -31,6 +31,10 @@ interface IGit
     Task<R> CleanWorkingFolderAsync(string wd);
     Task<R> UndoCommitAsync(string id, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
+    Task<R<string>> GetValueAsync(string key, string wd);
+    Task<R> SetValueAsync(string key, string value, string wd);
+    Task<R> PushValueAsync(string key, string wd);
+    Task<R> PullValueAsync(string key, string wd);
 }
 
 
