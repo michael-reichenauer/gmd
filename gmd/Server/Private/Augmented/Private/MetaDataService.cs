@@ -4,7 +4,35 @@ namespace gmd.Server.Private.Augmented.Private;
 
 public class MetaData
 {
-    public Dictionary<string, string> CommitBranch { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
+
+    internal void SetCommitBranch(string sid, string branchName) => CommitBranchBySid[sid] = "*" + branchName;
+
+    internal void SetBranched(string sid, string branchName) => CommitBranchBySid[sid] = branchName;
+
+    internal void Remove(string sid) => CommitBranchBySid.Remove(sid);
+
+    internal bool TryGet(string sid, out string branchName, out bool isSetByUser)
+    {
+        branchName = "";
+        isSetByUser = false;
+
+        if (CommitBranchBySid.TryGetValue(sid, out var name))
+        {
+            if (name.StartsWith("*"))
+            {
+                branchName = name.TrimPrefix("*");
+                isSetByUser = true;
+            }
+            else
+            {
+                branchName = name;
+            }
+
+            return true;
+        }
+        return false;
+    }
 }
 
 interface IMetaDataService

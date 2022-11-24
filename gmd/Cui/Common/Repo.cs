@@ -572,9 +572,9 @@ class RepoImpl : IRepo
         return Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
 
-    public void ResolveAmbiguity(Server.Branch branch, string parentName) => Do(async () =>
+    public void ResolveAmbiguity(Server.Branch branch, string branchName) => Do(async () =>
     {
-        if (!Try(out var e, await server.ResolveAmbiguityAsync(Repo, branch.Name, parentName)))
+        if (!Try(out var e, await server.ResolveAmbiguityAsync(Repo, branch.Name, branchName)))
         {
             return R.Error($"Failed to resolve ambiguity", e);
         }

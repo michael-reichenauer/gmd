@@ -71,7 +71,7 @@ class CommitDetailsView : ICommitDetailsView
         var branchName = branch.DisplayName;
         if (commit.IsBranchSetByUser)
         {
-            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName + "   Ф").Dark(" (set by user)"));
+            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName + "   Ф").Dark(" (ambiguity resolved by user)"));
         }
         else
         {
