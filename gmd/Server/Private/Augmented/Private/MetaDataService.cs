@@ -4,7 +4,35 @@ namespace gmd.Server.Private.Augmented.Private;
 
 public class MetaData
 {
-    public Dictionary<string, string> CommitBranch { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
+
+    internal void SetCommitBranch(string sid, string branchName) => CommitBranchBySid[sid] = "*" + branchName;
+
+    internal void SetBranched(string sid, string branchName) => CommitBranchBySid[sid] = branchName;
+
+    internal void Remove(string sid) => CommitBranchBySid.Remove(sid);
+
+    internal bool TryGet(string sid, out string branchName, out bool isSetByUser)
+    {
+        branchName = "";
+        isSetByUser = false;
+
+        if (CommitBranchBySid.TryGetValue(sid, out var name))
+        {
+            if (name.StartsWith("*"))
+            {
+                branchName = name.TrimPrefix("*");
+                isSetByUser = true;
+            }
+            else
+            {
+                branchName = name;
+            }
+
+            return true;
+        }
+        return false;
+    }
 }
 
 interface IMetaDataService
@@ -65,6 +93,7 @@ class MetaDataService : IMetaDataService
             return e;
         };
 
+        Log.Info($"Read:\n{json}");
         if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
 
         return data;
@@ -78,7 +107,7 @@ class MetaDataService : IMetaDataService
             isUpdating = true;
             string json = Json.SerilizePretty(metaData);
             if (!Try(out var e, await git.SetValueAsync(metaDatakey, json, path))) return e;
-
+            Log.Info($"Written:\n{json}");
             return await PushMetaDataAsync(path);
         }
         finally

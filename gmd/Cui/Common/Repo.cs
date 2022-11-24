@@ -366,7 +366,7 @@ class RepoImpl : IRepo
          var currentBranchName = GetCurrentBranch().Name;
          if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-         if (!Try(out var e, await server.CreateBranchAsync(name, true, Repo.Path)))
+         if (!Try(out var e, await server.CreateBranchAsync(Repo, name, true, Repo.Path)))
          {
              return R.Error($"Failed to create branch {name}", e);
          }
@@ -389,7 +389,7 @@ class RepoImpl : IRepo
         if (!Try(out var name, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
 
         if (!Try(out var e,
-            await server.CreateBranchFromCommitAsync(name, commit.Sid, true, Repo.Path)))
+            await server.CreateBranchFromCommitAsync(Repo, name, commit.Id, true, Repo.Path)))
         {
             return R.Error($"Failed to create branch {name}", e);
         }
@@ -572,9 +572,9 @@ class RepoImpl : IRepo
         return Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
 
-    public void ResolveAmbiguity(Server.Branch branch, string parentName) => Do(async () =>
+    public void ResolveAmbiguity(Server.Branch branch, string branchName) => Do(async () =>
     {
-        if (!Try(out var e, await server.ResolveAmbiguityAsync(Repo, branch.Name, parentName)))
+        if (!Try(out var e, await server.ResolveAmbiguityAsync(Repo, branch.Name, branchName)))
         {
             return R.Error($"Failed to resolve ambiguity", e);
         }
