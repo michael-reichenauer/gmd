@@ -71,6 +71,7 @@ public record Commit(
     bool IsPartialLogCommit,
     bool IsAmbiguous,
     bool IsAmbiguousTip,
+    bool IsBranchSetByUser,
 
     // View properties
     More More)

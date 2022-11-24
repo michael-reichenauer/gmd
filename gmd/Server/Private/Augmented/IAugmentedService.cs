@@ -16,8 +16,10 @@ interface IAugmentedService
     // GetRepoAsync returns an augmented repo based on new git info like branches, commits, ...
     Task<R<Repo>> GetRepoAsync(string path);
 
-    // GetRepoAsync returns the updated augmented repo with git status ...
-    Task<R<Repo>> UpdateStatusRepoAsync(Repo augRepo);
+    // UpdateRepoStatusAsync returns the repo with new fresh git status ...
+    Task<R<Repo>> UpdateRepoStatusAsync(Repo augRepo);
 
-    Task<R> PullMetaDataAsync(string path);
+    Task<R> FetchAsync(string path);
+
+    Task<R> SetAsParentAsync(Repo repo, string name, string parentName);
 }

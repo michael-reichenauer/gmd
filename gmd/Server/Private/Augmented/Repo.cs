@@ -56,7 +56,8 @@ public record Commit(
     bool IsBehind,
     bool IsPartialLogCommit,
     bool IsAmbiguous,
-    bool IsAmbiguousTip)
+    bool IsAmbiguousTip,
+    bool IsBranchSetByUser)
 {
     public override string ToString() => $"{Sid} {Subject} ({BranchName})";
 }

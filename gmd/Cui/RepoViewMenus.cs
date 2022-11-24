@@ -105,6 +105,7 @@ class RepoViewMenus : IRepoViewMenus
             Item("Create Branch from commit ...", "",
                 () => repo.CreateBranchFromCommit(), () => repo.Repo.Status.IsOk),
             SubMenu("Delete Branch", "", GetDeleteItems()),
+            SubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any()),
 
             UI.MenuSeparator("More"),
             Item("Seach/Filter ...", "F", () => repo.Filter()),
@@ -112,6 +113,19 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Open Repo", "", GetOpenRepoItems()),
             Item("About ...", "A", () => repo.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
+    }
+
+    IEnumerable<MenuItem> GetAmbiguousItems()
+    {
+        if (!repo.CurrentIndexCommit.IsAmbiguous)
+        {
+            return Enumerable.Empty<MenuItem>();
+        }
+
+        var branch = repo.ViewedBranchByName(repo.CurrentIndexCommit.BranchName);
+        return branch.AmbiguousBranchNames
+            .Select(name => Item(repo.AllBranchByName(name).DisplayName,
+                 "", () => repo.SetAsParent(branch, name)));
     }
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
@@ -252,8 +266,8 @@ class RepoViewMenus : IRepoViewMenus
 
         var items = EnumerableEx.From(
             SubMenu("Recent", "", ToShowBranchesItems(recentBranches)),
-            SubMenu("Live", "", ToShowBranchesItems(liveBranches)),
-            SubMenu("Live and Deleted", "", ToShowBranchesItems(liveAndDeletedBranches))
+            SubMenu("All Live", "", ToShowBranchesItems(liveBranches)),
+            SubMenu("All Live and Deleted", "", ToShowBranchesItems(liveAndDeletedBranches))
         );
 
         return ambiguousBranches.Any()

@@ -43,7 +43,7 @@ class Server : IServer
         var branches = repo.Branches.Select(b => b.Name).ToArray();
 
         if (!Try(out var augmentedRepo, out var e,
-            await augmentedRepoService.UpdateStatusRepoAsync(repo.AugmentedRepo)))
+            await augmentedRepoService.UpdateRepoStatusAsync(repo.AugmentedRepo)))
         {
             return e;
         }
@@ -54,6 +54,9 @@ class Server : IServer
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
         converter.ToBranches(repo.AugmentedRepo.Branches);
+
+    public Branch AllBanchByName(Repo repo, string name) =>
+        converter.ToBranch(repo.AugmentedRepo.BranchByName[name]);
 
 
     public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
@@ -130,20 +133,7 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 
-    public async Task<R> FetchAsync(string wd)
-    {
-        // pull meta data, but ignore error, if error is key not exist, it can be ignored,
-        // if error is remote error, the following fetch will handle that
-
-        // Start both tasks in paralell and await later
-        var metaDataTask = augmentedRepoService.PullMetaDataAsync(wd);
-        var fetchTask = git.FetchAsync(wd);
-
-        await Task.WhenAll(metaDataTask, fetchTask);
-
-        // Return the result of the fetch task (ignoring the metaData result)
-        return fetchTask.Result;
-    }
+    public Task<R> FetchAsync(string wd) => augmentedRepoService.FetchAsync(wd);
 
 
     public Task<R> CommitAllChangesAsync(string message, string wd) =>
@@ -203,5 +193,9 @@ class Server : IServer
 
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
+
+    public Task<R> SetAsParentAsync(Repo repo, string name, string parentName) =>
+        augmentedRepoService.SetAsParentAsync(repo.AugmentedRepo, name, parentName);
+
 }
 

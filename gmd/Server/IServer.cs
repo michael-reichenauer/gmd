@@ -11,8 +11,11 @@ interface IServer
     IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter);
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
+    Branch AllBanchByName(Repo repo, string name);
+
     Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous);
     Repo HideBranch(Repo repo, string name);
+    Task<R> SetAsParentAsync(Repo repo, string name, string parentName);
 
     // Git commands
     Task<R> FetchAsync(string wd);

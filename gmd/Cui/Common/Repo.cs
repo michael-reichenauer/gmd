@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Git;
 using gmd.Installation;
+using gmd.Server;
 using Terminal.Gui;
 
 
@@ -33,6 +34,9 @@ interface IRepo
     Server.Branch GetCurrentBranch();
     IReadOnlyList<Server.Branch> GetCommitBranches();
 
+    Server.Branch ViewedBranchByName(string name);
+    Server.Branch AllBranchByName(string name);
+
     void SwitchTo(string branchName);
     void Commit();
     void CommitFromMenu();
@@ -61,6 +65,7 @@ interface IRepo
     bool CanUndoCommit();
     void UncommitLastCommit();
     bool CanUncommitLastCommit();
+    void SetAsParent(Server.Branch branch, string parentName);
 }
 
 class RepoImpl : IRepo
@@ -107,15 +112,20 @@ class RepoImpl : IRepo
     }
 
     public Server.Repo Repo { get; init; }
-
-    public Graph Graph { get; init; }
-    public int TotalRows => Repo.Commits.Count;
-    public int CurrentIndex => repoView.CurrentIndex;
     public Server.Commit CurrentIndexCommit => Repo.Commits[CurrentIndex];
-    public int ContentWidth => repoView.ContentWidth;
-    public Point CurrentPoint => repoView.CurrentPoint;
     public bool HasUncommittedChanges => !Repo.Status.IsOk;
     public Server.Branch? CurrentBranch => Repo.Branches.FirstOrDefault(b => b.IsCurrent);
+    public Server.Branch ViewedBranchByName(string name) => Repo.BranchByName[name];
+    public Server.Branch AllBranchByName(string name) => server.AllBanchByName(Repo, name);
+
+
+    public Graph Graph { get; init; }
+
+    public int TotalRows => Repo.Commits.Count;
+    public int CurrentIndex => repoView.CurrentIndex;
+    public int ContentWidth => repoView.ContentWidth;
+    public Point CurrentPoint => repoView.CurrentPoint;
+
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
     public void UpdateRepoTo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
@@ -560,5 +570,16 @@ class RepoImpl : IRepo
         var b = Repo.BranchByName[Repo.Commits[0].BranchName];
         return Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
+
+    public void SetAsParent(Server.Branch branch, string parentName) => Do(async () =>
+    {
+        if (!Try(out var e, await server.SetAsParentAsync(Repo, branch.Name, parentName)))
+        {
+            return R.Error($"Failed to set parent", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
 }
 

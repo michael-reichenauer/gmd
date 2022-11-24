@@ -50,6 +50,7 @@ internal class WorkCommit
     public bool IsPartialLogCommit { get; set; }
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
+    public bool IsBranchSetByUser { get; set; }
 
     public List<string> ParentIds { get; }
     public WorkCommit? FirstParent { get; internal set; }

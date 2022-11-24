@@ -5,6 +5,7 @@ interface IConverter
     IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits);
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches);
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
+    Branch ToBranch(Augmented.Branch branch);
 }
 
 
@@ -22,7 +23,7 @@ class Converter : IConverter
         return new CommitDiff(d.Id, d.Author, d.Date, d.Message, ToFileDiffs(d.FileDiffs));
     }
 
-    Commit ToCommit(Augmented.Commit c, int index) => new Commit(
+    public Commit ToCommit(Augmented.Commit c, int index) => new Commit(
         Id: c.Id,
         Sid: c.Sid,
         Subject: c.Subject,
@@ -45,10 +46,11 @@ class Converter : IConverter
         IsPartialLogCommit: c.IsPartialLogCommit,
         IsAmbiguous: c.IsAmbiguous,
         IsAmbiguousTip: c.IsAmbiguousTip,
+        IsBranchSetByUser: c.IsBranchSetByUser,
 
         More: More.None);
 
-    Branch ToBranch(Augmented.Branch b) => new Branch(
+    public Branch ToBranch(Augmented.Branch b) => new Branch(
         Name: b.Name,
         CommonName: b.CommonName,
         DisplayName: b.DisplayName,

@@ -4,7 +4,6 @@ using GitStatus = gmd.Git.Status;
 
 namespace gmd.Server.Private.Augmented.Private;
 
-
 // AugmentedRepoService returns augmented repos of git repo information, The augmentations 
 // adds information not available in git directly, but can be inferred by parsing the 
 // git information. 
@@ -14,24 +13,25 @@ namespace gmd.Server.Private.Augmented.Private;
 class AugmentedService : IAugmentedService
 {
     const int maxCommitCount = 30000; // Increase performance in case of very large repos
-    const string metaDatakey = "data";
 
-    private readonly IGit git;
-    private readonly IAugmenter augmenter;
-    private readonly IConverter converter;
-    private readonly IFileMonitor fileMonitor;
+    readonly IGit git;
+    readonly IAugmenter augmenter;
+    readonly IConverter converter;
+    readonly IFileMonitor fileMonitor;
+    readonly IMetaDataService metaDataService;
 
-    public AugmentedService(
+    internal AugmentedService(
         IGit git,
         IAugmenter augmenter,
         IConverter converter,
-        IFileMonitor fileMonitor)
+        IFileMonitor fileMonitor,
+        IMetaDataService metaDataService)
     {
         this.git = git;
         this.augmenter = augmenter;
         this.converter = converter;
         this.fileMonitor = fileMonitor;
-
+        this.metaDataService = metaDataService;
         fileMonitor.FileChanged += e => StatusChange?.Invoke(e);
         fileMonitor.RepoChanged += e => RepoChange?.Invoke(e);
     }
@@ -54,7 +54,7 @@ class AugmentedService : IAugmentedService
 
 
     // GetRepoAsync returns the updated augmented repo with git status .
-    public async Task<R<Repo>> UpdateStatusRepoAsync(Repo repo)
+    public async Task<R<Repo>> UpdateRepoStatusAsync(Repo repo)
     {
         // Get latest git status
         if (!Try(out var gitStatus, out var e, await GetGitStatusAsync(repo.Path))) return e;
@@ -63,22 +63,24 @@ class AugmentedService : IAugmentedService
         return GetUpdatedAugmentedRepoStatus(repo, gitStatus);
     }
 
-    public async Task<R> PullMetaDataAsync(string path)
+    public async Task<R> FetchAsync(string path)
     {
-        if (!Try(out var e, await git.PullValueAsync(metaDatakey, path)))
-        {
-            // Could not pull value, if the reason is key does not exist, then lets set it
-            if (e.ErrorMessage.Contains("couldn't find remote ref"))
-            {
-                if (!Try(out var metaData, await GetGitMetaDataAsync(path))) return e;
-                return await git.PushValueAsync(metaDatakey, path);
-            }
+        // pull meta data, but ignore error, if error is key not exist, it can be ignored,
+        // if error is remote error, the following fetch will handle that
 
-            return e;
-        }
+        // Start both tasks in paralell and await later
+        var metaDataTask = metaDataService.FetchMetaDataAsync(path);
+        var fetchTask = git.FetchAsync(path);
 
-        return R.Ok;
+        await Task.WhenAll(metaDataTask, fetchTask);
+
+        // Return the result of the fetch task (ignoring the metaData result)
+        return fetchTask.Result;
     }
+
+
+    public Task<R> FetchMetaDataAsync(string path) => metaDataService.FetchMetaDataAsync(path);
+
 
     // GetGitRepoAsync returns a fresh git repo info object with commits, branches, ...
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
@@ -90,7 +92,7 @@ class AugmentedService : IAugmentedService
         var branchesTask = git.GetBranchesAsync(path);
         var tagsTask = git.GetTagsAsync(path);
         var statusTask = git.GetStatusAsync(path);
-        var metaDataTask = GetGitMetaDataAsync(path);
+        var metaDataTask = metaDataService.GetMetaDataAsync(path);
 
         await Task.WhenAll(logTask, branchesTask, statusTask, metaDataTask);
 
@@ -101,34 +103,27 @@ class AugmentedService : IAugmentedService
         if (!Try(out var metaData, out e, metaDataTask.Result)) return e;
 
         // Combine all git info into one git repo info object
-        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status);
+        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData);
 
         Log.Info($"{t} {gitRepo}");
         return gitRepo;
     }
 
 
-    async Task<R<MetaData>> GetGitMetaDataAsync(string path)
+
+    public async Task<R> SetAsParentAsync(Repo repo, string branchName, string parentName)
     {
-        if (!Try(out var json, out var e, await git.GetValueAsync(metaDatakey, path)))
-        {   // Failed to read, probably first time, so init for next time
-            var metaData = new MetaData();
-            if (!Try(out e, await SetGitMetaDataAsync(path, metaData))) return e;
-            return metaData;
-        };
+        var branch = repo.BranchByName[branchName];
+        var parentBranch = repo.BranchByName[parentName];
+        var ambiguousTip = branch.AmbiguousTipId;
 
-        if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
+        // Get the latest meta data
+        if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-        return data;
+        metaData.CommitBranch[ambiguousTip] = parentBranch.DisplayName;
+        return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
     }
 
-    async Task<R> SetGitMetaDataAsync(string path, MetaData metaData)
-    {
-        string json = Json.Serilize(metaData);
-        if (!Try(out var e, await git.SetValueAsync(metaDatakey, json, path))) return e;
-
-        return await git.PushValueAsync(metaDatakey, path);
-    }
 
 
     // GetGitStatusAsync returns a fresh git status

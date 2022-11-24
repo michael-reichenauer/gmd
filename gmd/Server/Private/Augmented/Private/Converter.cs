@@ -53,7 +53,8 @@ class Converter : IConverter
             IsBehind: c.IsBehind,
             IsPartialLogCommit: c.IsPartialLogCommit,
             IsAmbiguous: c.IsAmbiguous,
-            IsAmbiguousTip: c.IsAmbiguousTip);
+            IsAmbiguousTip: c.IsAmbiguousTip,
+            IsBranchSetByUser: c.IsBranchSetByUser);
     }
 
     Branch ToBranch(WorkBranch b)
