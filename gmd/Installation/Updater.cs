@@ -217,15 +217,8 @@ class Updater : IUpdater
             {
                 if (path.StartsWith(tmpPathPrefix))
                 {
-                    try
-                    {
-                        Log.Info($"Deleting {path}");
-                        File.Delete(path);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Info($"Failed to deleter {e}");
-                    }
+                    Log.Info($"Deleting {path}");
+                    if (!Try(out var e, Files.Delete(path))) Log.Info($"Failed to deleter {e}");
                 }
             }
         }
@@ -400,7 +393,7 @@ class Updater : IUpdater
             return R.Ok;
         }
 
-        return cmd.RunCmd("chmod", $"+x {path}", "");
+        return cmd.Run("chmod", $"+x {path}", "");
     }
 
     private bool IsDotNet()

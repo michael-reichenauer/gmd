@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Git;
 using gmd.Installation;
+using gmd.Server;
 using Terminal.Gui;
 
 
@@ -26,12 +27,15 @@ interface IRepo
     void ShowBrowseDialog();
     void Filter();
 
-    void ShowBranch(string name);
+    void ShowBranch(string name, bool includeAmbiguous);
     void HideBranch(string name);
     IReadOnlyList<Server.Branch> GetAllBranches();
     IReadOnlyList<Server.Branch> GetShownBranches();
     Server.Branch GetCurrentBranch();
     IReadOnlyList<Server.Branch> GetCommitBranches();
+
+    Server.Branch ViewedBranchByName(string name);
+    Server.Branch AllBranchByName(string name);
 
     void SwitchTo(string branchName);
     void Commit();
@@ -61,6 +65,8 @@ interface IRepo
     bool CanUndoCommit();
     void UncommitLastCommit();
     bool CanUncommitLastCommit();
+    void ResolveAmbiguity(Server.Branch branch, string parentName);
+    void UnresolveAmbiguity(string commitId);
 }
 
 class RepoImpl : IRepo
@@ -107,15 +113,20 @@ class RepoImpl : IRepo
     }
 
     public Server.Repo Repo { get; init; }
-
-    public Graph Graph { get; init; }
-    public int TotalRows => Repo.Commits.Count;
-    public int CurrentIndex => repoView.CurrentIndex;
     public Server.Commit CurrentIndexCommit => Repo.Commits[CurrentIndex];
-    public int ContentWidth => repoView.ContentWidth;
-    public Point CurrentPoint => repoView.CurrentPoint;
     public bool HasUncommittedChanges => !Repo.Status.IsOk;
     public Server.Branch? CurrentBranch => Repo.Branches.FirstOrDefault(b => b.IsCurrent);
+    public Server.Branch ViewedBranchByName(string name) => Repo.BranchByName[name];
+    public Server.Branch AllBranchByName(string name) => server.AllBanchByName(Repo, name);
+
+
+    public Graph Graph { get; init; }
+
+    public int TotalRows => Repo.Commits.Count;
+    public int CurrentIndex => repoView.CurrentIndex;
+    public int ContentWidth => repoView.ContentWidth;
+    public Point CurrentPoint => repoView.CurrentPoint;
+
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
     public void UpdateRepoTo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
@@ -171,9 +182,9 @@ class RepoImpl : IRepo
         return R.Ok;
     });
 
-    public void ShowBranch(string name)
+    public void ShowBranch(string name, bool includeAmbiguous)
     {
-        Server.Repo newRepo = server.ShowBranch(Repo, name);
+        Server.Repo newRepo = server.ShowBranch(Repo, name, includeAmbiguous);
         UpdateRepoTo(newRepo, name);
 
     }
@@ -560,5 +571,27 @@ class RepoImpl : IRepo
         var b = Repo.BranchByName[Repo.Commits[0].BranchName];
         return Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
+
+    public void ResolveAmbiguity(Server.Branch branch, string parentName) => Do(async () =>
+    {
+        if (!Try(out var e, await server.ResolveAmbiguityAsync(Repo, branch.Name, parentName)))
+        {
+            return R.Error($"Failed to resolve ambiguity", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void UnresolveAmbiguity(string commitId) => Do(async () =>
+    {
+        if (!Try(out var e, await server.UnresolveAmbiguityAsync(Repo, commitId)))
+        {
+            return R.Error($"Failed to unresolve ambiguity", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
 }
 

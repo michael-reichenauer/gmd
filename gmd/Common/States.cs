@@ -78,39 +78,25 @@ class States : IStates
 
     static void Write<T>(string path, T state)
     {
-        try
-        {
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            string json = JsonSerializer.Serialize(state, options);
-            File.WriteAllText(path, json);
-        }
-        catch (Exception e)
-        {
-            throw (Asserter.FailFast($"Error diffMode {e}"));
-        }
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        string json = JsonSerializer.Serialize(state, options);
+        if (!Try(out var e, Files.WriteAllText(path, json))) Asserter.FailFast(e.ErrorMessage);
     }
 
     static T Read<T>(string path)
     {
-        try
+        if (!Files.Exists(path))
         {
-            if (!File.Exists(path))
-            {
-                Write(path, new State());
-            }
-
-            string json = File.ReadAllText(path);
-            var state = JsonSerializer.Deserialize<T>(json);
-            if (state == null)
-            {
-                throw new Exception("Failed to deserialize state");
-            }
-
-            return state;
+            Write(path, new State());
         }
-        catch (Exception e)
+
+        if (!Try(out var json, out var e, Files.ReadAllText(path))) throw Asserter.FailFast(e.ErrorMessage);
+        var state = JsonSerializer.Deserialize<T>(json);
+        if (state == null)
         {
-            throw (Asserter.FailFast($"Error diffMode {e}"));
+            throw Asserter.FailFast("Failed to deserialize state");
         }
+
+        return state;
     }
 }

@@ -94,23 +94,15 @@ class StatusService : IStatusService
 
     (string, bool) GetMergeStatus(string wd)
     {
-        string mergeMessage = "";
         //mergeIpPath := path.Join(h.cmd.RepoPath(), ".git", "MERGE_HEAD")
         string mergeMsgPath = Path.Join(wd, ".git", "MERGE_MSG");
 
-        try
-        {
-            if (!File.Exists(mergeMsgPath))
-            {
-                return ("", false);
-            }
-
-            mergeMessage = File.ReadAllText(mergeMsgPath);
-        }
-        catch (Exception)
+        if (!Files.Exists(mergeMsgPath))
         {
             return ("", false);
         }
+
+        if (!Try(out var mergeMessage, out var e, Files.ReadAllText(mergeMsgPath))) return ("", false);
 
         var lines = mergeMessage.Split('\n');
 
