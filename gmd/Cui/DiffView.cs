@@ -7,6 +7,7 @@ namespace gmd.Cui;
 interface IDiffView
 {
     void Show(Server.CommitDiff diff, string commitId);
+    void Show(Server.CommitDiff[] diffs, string commitId = "");
 }
 
 
@@ -29,7 +30,9 @@ class DiffView : IDiffView
     }
 
 
-    public void Show(Server.CommitDiff diff, string commitId)
+    public void Show(Server.CommitDiff diff, string commitId) => Show(new[] { diff }, commitId);
+
+    public void Show(Server.CommitDiff[] diffs, string commitId)
     {
         this.commitId = commitId;
 
@@ -41,7 +44,7 @@ class DiffView : IDiffView
 
         RegisterShortcuts(contentView);
 
-        diffRows = diffService.ToDiffRows(diff);
+        diffRows = diffService.ToDiffRows(diffs);
         contentView.TriggerUpdateContent(diffRows.Rows.Count);
 
         UI.RunDialog(diffView);
