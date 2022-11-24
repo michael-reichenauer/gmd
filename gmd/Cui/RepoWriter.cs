@@ -325,7 +325,7 @@ class RepoWriter : IRepoWriter
             }
             else if (b.PullMergeBranchName != "")
             {
-                tipText.Color(color, "(>").Dark(branchName).Color(color, ")");
+                tipText.Color(color, "(").Dark(branchName).Color(color, ")");
             }
             else
             {
