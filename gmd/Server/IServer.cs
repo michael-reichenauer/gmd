@@ -15,7 +15,8 @@ interface IServer
 
     Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous);
     Repo HideBranch(Repo repo, string name);
-    Task<R> SetAsParentAsync(Repo repo, string name, string parentName);
+    Task<R> ResolveAmbiguityAsync(Repo repo, string name, string parentName);
+    Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
 
     // Git commands
     Task<R> FetchAsync(string wd);

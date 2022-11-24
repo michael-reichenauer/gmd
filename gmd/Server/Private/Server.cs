@@ -194,8 +194,11 @@ class Server : IServer
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
 
-    public Task<R> SetAsParentAsync(Repo repo, string name, string parentName) =>
+    public Task<R> ResolveAmbiguityAsync(Repo repo, string name, string parentName) =>
         augmentedRepoService.SetAsParentAsync(repo.AugmentedRepo, name, parentName);
+
+    public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
+        augmentedRepoService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);
 
 }
 

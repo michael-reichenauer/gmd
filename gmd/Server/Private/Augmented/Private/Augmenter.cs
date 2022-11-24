@@ -351,6 +351,7 @@ class Augmenter : IAugmenter
             return false;
         }
 
+        c.IsBranchSetByUser = true;
         branch = child.Branch;
         return true;
     }

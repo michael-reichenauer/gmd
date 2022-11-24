@@ -65,7 +65,8 @@ interface IRepo
     bool CanUndoCommit();
     void UncommitLastCommit();
     bool CanUncommitLastCommit();
-    void SetAsParent(Server.Branch branch, string parentName);
+    void ResolveAmbiguity(Server.Branch branch, string parentName);
+    void UnresolveAmbiguity(string commitId);
 }
 
 class RepoImpl : IRepo
@@ -571,11 +572,22 @@ class RepoImpl : IRepo
         return Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
 
-    public void SetAsParent(Server.Branch branch, string parentName) => Do(async () =>
+    public void ResolveAmbiguity(Server.Branch branch, string parentName) => Do(async () =>
     {
-        if (!Try(out var e, await server.SetAsParentAsync(Repo, branch.Name, parentName)))
+        if (!Try(out var e, await server.ResolveAmbiguityAsync(Repo, branch.Name, parentName)))
         {
-            return R.Error($"Failed to set parent", e);
+            return R.Error($"Failed to resolve ambiguity", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void UnresolveAmbiguity(string commitId) => Do(async () =>
+    {
+        if (!Try(out var e, await server.UnresolveAmbiguityAsync(Repo, commitId)))
+        {
+            return R.Error($"Failed to unresolve ambiguity", e);
         }
 
         Refresh();

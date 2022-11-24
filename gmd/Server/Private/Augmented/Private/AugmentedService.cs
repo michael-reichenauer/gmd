@@ -125,6 +125,16 @@ class AugmentedService : IAugmentedService
     }
 
 
+    public async Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId)
+    {
+        // Get the latest meta data
+        if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
+
+        metaData.CommitBranch.Remove(commitId);
+
+        return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+    }
+
 
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)

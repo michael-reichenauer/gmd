@@ -22,4 +22,5 @@ interface IAugmentedService
     Task<R> FetchAsync(string path);
 
     Task<R> SetAsParentAsync(Repo repo, string name, string parentName);
+    Task<R> UnresolveAmbiguityAsync(Repo augmentedRepo, string commitId);
 }

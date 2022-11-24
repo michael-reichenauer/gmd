@@ -117,15 +117,23 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetAmbiguousItems()
     {
-        if (!repo.CurrentIndexCommit.IsAmbiguous)
+        var items = Enumerable.Empty<MenuItem>();
+        var commit = repo.CurrentIndexCommit;
+        if (!commit.IsAmbiguous && !commit.IsBranchSetByUser)
         {
-            return Enumerable.Empty<MenuItem>();
+            return items;
         }
 
-        var branch = repo.ViewedBranchByName(repo.CurrentIndexCommit.BranchName);
-        return branch.AmbiguousBranchNames
-            .Select(name => Item(repo.AllBranchByName(name).DisplayName,
-                 "", () => repo.SetAsParent(branch, name)));
+        if (commit.IsBranchSetByUser)
+        {
+            items = items.Append(Item("Undo Resolved Ambiguity", "", () => repo.UnresolveAmbiguity(commit.Id)));
+        }
+
+        var branch = repo.ViewedBranchByName(commit.BranchName);
+        return items
+            .Concat(branch.AmbiguousBranchNames
+                .Select(name => Item(repo.AllBranchByName(name).DisplayName,
+                    "", () => repo.ResolveAmbiguity(branch, name))));
     }
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>

@@ -44,10 +44,8 @@ class MetaDataService : IMetaDataService
             }
 
             // Failed to fetch remote value, 
-            Log.Warn("Failed to fetch");
             return e;
         }
-        Log.Info("Fetched");
         return R.Ok;
     }
 
@@ -64,11 +62,9 @@ class MetaDataService : IMetaDataService
             }
 
             // Failed to get local value
-            Log.Warn("Failed to get local value");
             return e;
         };
 
-        Log.Info($"Read:\n{json}");
         if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
 
         return data;
@@ -82,7 +78,6 @@ class MetaDataService : IMetaDataService
             isUpdating = true;
             string json = Json.SerilizePretty(metaData);
             if (!Try(out var e, await git.SetValueAsync(metaDatakey, json, path))) return e;
-            Log.Info($"Wrote:\n{json}");
 
             return await PushMetaDataAsync(path);
         }
@@ -95,9 +90,7 @@ class MetaDataService : IMetaDataService
 
     async Task<R> PushMetaDataAsync(string path)
     {
-        Log.Info("Pushing ...");
         await git.PushValueAsync(metaDatakey, path);
-        Log.Info("Pushed");
         return R.Ok;
     }
 
