@@ -54,6 +54,11 @@ public class FileBrowseDlg
 
     private void ItemSelectedd(ObjectActivatedEventArgs<ITreeNode> obj)
     {
+        if (obj.ActivatedObject.Children.Any())
+        {   // Ignore selecting folders
+            return;
+        }
+
         selectedPath = ((string)obj.ActivatedObject.Tag).TrimPrefix("/");
         Application.RequestStop();
     }
