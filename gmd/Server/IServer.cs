@@ -21,9 +21,12 @@ interface IServer
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
 
     // Git commands
+    Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R> FetchAsync(string wd);
     Task<R> CommitAllChangesAsync(string message, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
+    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
+
     Task<R> PushBranchAsync(string name, string wd);
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
@@ -36,6 +39,7 @@ interface IServer
     Task<R> CleanWorkingFolderAsync(string wd);
     Task<R> UndoCommitAsync(string id, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
+
 }
 
 internal record ChangeEvent(DateTime TimeStamp);

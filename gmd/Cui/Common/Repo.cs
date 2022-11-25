@@ -33,6 +33,7 @@ interface IRepo
     IReadOnlyList<Server.Branch> GetShownBranches();
     Server.Branch GetCurrentBranch();
     IReadOnlyList<Server.Branch> GetCommitBranches();
+    Task<R<IReadOnlyList<string>>> GetFilesAsync();
 
     Server.Branch ViewedBranchByName(string name);
     Server.Branch AllBranchByName(string name);
@@ -50,6 +51,7 @@ interface IRepo
     bool CanPullCurrentBranch();
     void ShowUncommittedDiff();
     void ShowCurrentRowDiff();
+    void ShowFileHistory();
 
     void MergeBranch(string name);
     void CreateBranch();
@@ -155,6 +157,13 @@ class RepoImpl : IRepo
         }
         return R.Ok;
     });
+
+    public async Task<R<IReadOnlyList<string>>> GetFilesAsync()
+    {
+        var commit = CurrentIndexCommit;
+        var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
+        return await server.GetFileAsync(reference, Repo.Path);
+    }
 
 
     public void UpdateRelease() => Do(async () =>
@@ -264,6 +273,25 @@ class RepoImpl : IRepo
         }
 
         diffView.Show(diff, commitId);
+        return R.Ok;
+    });
+
+    public void ShowFileHistory() => Do(async () =>
+    {
+        if (!Try(out var files, out var e, await GetFilesAsync()))
+        {
+            return R.Error($"Failed to get files", e);
+        }
+
+        var browser = new FileBrowseDlg();
+        if (!Try(out var path, browser.Show(files))) return R.Ok;
+
+        if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, Repo.Path)))
+        {
+            return R.Error($"Failed to show file history", e);
+        }
+
+        diffView.Show(diffs);
         return R.Ok;
     });
 

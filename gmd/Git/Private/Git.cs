@@ -40,7 +40,8 @@ internal class Git : IGit
 
     public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
         logService.GetLogAsync(maxCount, wd);
-
+    public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
+        logService.GetFileAsync(reference, wd);
     public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) =>
         branchService.GetBranchesAsync(wd);
     public Task<R<Status>> GetStatusAsync(string wd) => statusService.GetStatusAsync(wd);
@@ -48,6 +49,8 @@ internal class Git : IGit
         commitService.CommitAllChangesAsync(message, wd);
     public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd) =>
         diffService.GetCommitDiffAsync(commitId, wd);
+    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) =>
+        diffService.GetFileDiffAsync(path, wd);
     public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
     public Task<R> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);

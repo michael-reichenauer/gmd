@@ -3,6 +3,7 @@ namespace gmd.Git.Private;
 internal interface ILogService
 {
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
+    Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
 }
 
 internal class LogService : ILogService
@@ -22,6 +23,17 @@ internal class LogService : ILogService
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return await Task.Run(() => ParseLines(output));
     }
+
+
+    public async Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd)
+    {
+        var args = $"ls-tree -r {reference} --name-only";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+
+        // Wrap parsing in separate task thread, since it might be a lot of commits to parse
+        return output.Split('\n').ToList();
+    }
+
 
     private R<IReadOnlyList<Commit>> ParseLines(string output)
     {

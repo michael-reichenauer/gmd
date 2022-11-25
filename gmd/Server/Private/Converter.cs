@@ -5,6 +5,7 @@ interface IConverter
     IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits);
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches);
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
+    CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
     Branch ToBranch(Augmented.Branch branch);
 }
 
@@ -16,6 +17,10 @@ class Converter : IConverter
 
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches) =>
            branches.Select(ToBranch).ToList();
+
+    public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
+        gitCommitDiffs.Select(ToCommitDiff).ToArray();
+
 
     public CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff)
     {

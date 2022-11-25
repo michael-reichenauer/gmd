@@ -27,7 +27,7 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowMainMenu()
     {
         int x = repo.ContentWidth / 2 - 10;
-        var menu = new ContextMenu(x, 0, SubMenu("", "", GetMainMenuItems()));
+        var menu = new ContextMenu(x, 0, SubMenu("", "", GetMainMenuItems(x, 0)));
         menu.Show();
     }
 
@@ -56,7 +56,7 @@ class RepoViewMenus : IRepoViewMenus
         }
 
         items.Add(SubMenu("Show Branch", "", GetShowBranchItems()));
-        items.Add(SubMenu("Main Menu", "M", GetMainMenuItems()));
+        items.Add(SubMenu("Main Menu", "M", GetMainMenuItems(repo.CurrentPoint.X, repo.CurrentPoint.Y)));
 
         var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
         menu.Show();
@@ -73,7 +73,7 @@ class RepoViewMenus : IRepoViewMenus
         menu.Show();
     }
 
-    IEnumerable<MenuItem> GetMainMenuItems()
+    IEnumerable<MenuItem> GetMainMenuItems(int x, int y)
     {
         var releases = states.Get().Releases;
         var items = EnumerableEx.From<MenuItem>();
@@ -110,10 +110,13 @@ class RepoViewMenus : IRepoViewMenus
             UI.MenuSeparator("More"),
             Item("Seach/Filter ...", "F", () => repo.Filter()),
             Item("Refresh/Reload", "R", () => repo.Refresh()),
+            Item("File History ...", "", () => repo.ShowFileHistory()),
             SubMenu("Open Repo", "", GetOpenRepoItems()),
             Item("About ...", "A", () => repo.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
+
+
 
     IEnumerable<MenuItem> GetAmbiguousItems()
     {

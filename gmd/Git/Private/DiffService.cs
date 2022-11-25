@@ -4,6 +4,7 @@ interface IDiffService
 {
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
+    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
 }
 
 class DiffService : IDiffService
@@ -56,37 +57,27 @@ class DiffService : IDiffService
         output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);
-        if (commitDiffs.Count == 0)
+        if (!commitDiffs.Any())
         {
             return R.Error("Failed to parse diff");
         }
 
         return commitDiffs[0];
-
-
-        // var commitDiff = commitDiffs[0];
-
-        // if (!Try(out var status, out var e, await statusService.GetStatusAsync()))
-        // {
-        //     return e;
-        // }
-
-        // var fileDiffs = commitDiff.FileDiffs.ToList();
-
-        // // If status know files are conflicted, the diff mode property needs to be adjusted
-        // fileDiffs = SetConflictsFilesMode(fileDiffs, status);
-
-        // // Add file diffs for new/added files
-        // var addedFileDiffs = GetAddedFilesDiffs(status, cmd.WorkingDirectory);
-        // if (addedFileDiffs.Any())
-        // {
-        //     fileDiffs = fileDiffs.Concat(addedFileDiffs).OrderBy(d => d.PathAfter.ToLower()).ToList();
-        //     return commitDiff with { FileDiffs = fileDiffs };
-        // }
-
-        //return commitDiff;
     }
 
+    public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
+    {
+        var args = $"log --date=iso --patch --follow -- \"{path}\"";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+
+        var commitDiffs = ParseCommitDiffs(output, path, false);
+        if (!commitDiffs.Any())
+        {
+            return R.Error("Failed to parse diff");
+        }
+
+        return commitDiffs.ToArray();
+    }
 
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)
     {
@@ -201,6 +192,10 @@ class DiffService : IDiffService
         if (i < lines.Length && lines[i].StartsWith("\\ No newline at end of file"))
         {
             i++;  // Skip git diff comment
+        }
+        if (i < lines.Length && lines[i] == "")
+        {   // Skip empty last line
+            i++;
         }
 
         return (new FileDiff(before, after, isRenamed, isBinary, diffMode, sectionDiffs), i, true);
