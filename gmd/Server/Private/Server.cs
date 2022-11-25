@@ -147,9 +147,15 @@ class Server : IServer
 
         if (!Try(out var gitCommitDiff, out var e, await diffTask)) return e;
 
-        var diff = converter.ToCommitDiff(gitCommitDiff);
-        return diff;
+        return converter.ToCommitDiff(gitCommitDiff);
     }
+
+    public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
+    {
+        if (!Try(out var gitCommitDiffs, out var e, await git.GetFileDiffAsync(path, wd))) return e;
+        return converter.ToCommitDiffs(gitCommitDiffs);
+    }
+
 
     public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
       augmentedRepoService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
@@ -200,6 +206,9 @@ class Server : IServer
 
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
         augmentedRepoService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);
+
+    public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
+        git.GetFileAsync(reference, wd);
 
 }
 
