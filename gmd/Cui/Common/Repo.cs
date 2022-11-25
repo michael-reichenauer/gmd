@@ -8,28 +8,29 @@ namespace gmd.Cui.Common;
 interface IRepo
 {
     IRepoCommands Cmd { get; }
+
     Server.Repo Repo { get; }
+    string RepoPath { get; }
     Server.Status Status { get; }
     IReadOnlyList<Server.Branch> Branches { get; }
+    IReadOnlyList<Server.Commit> Commits { get; }
     Server.Branch Branch(string branchName);
     Server.Commit Commit(string commitId);
-    IReadOnlyList<Server.Commit> Commits { get; }
+
     Graph Graph { get; }
 
     int TotalRows { get; }
     int CurrentRow { get; }
-    Server.Commit RowCommit { get; }
-    Server.Branch? CurrentBranch { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
-    string RepoPath { get; }
+    Server.Commit RowCommit { get; }
+    Server.Branch? CurrentBranch { get; }
 
     IReadOnlyList<Server.Branch> GetAllBranches();
     Server.Branch GetCurrentBranch();
     IReadOnlyList<Server.Branch> GetCommitBranches();
     Task<R<IReadOnlyList<string>>> GetFilesAsync();
     IReadOnlyList<string> GetUncommittedFiles();
-
     Server.Branch AllBranchByName(string name);
 }
 
@@ -68,18 +69,12 @@ class RepoImpl : IRepo
     public Server.Branch? CurrentBranch => Branches.FirstOrDefault(b => b.IsCurrent);
     public Server.Branch AllBranchByName(string name) => server.AllBanchByName(Repo, name);
 
-
     public Graph Graph { get; init; }
 
     public int TotalRows => Commits.Count;
     public int CurrentRow => repoView.CurrentIndex;
     public int ContentWidth => repoView.ContentWidth;
     public Point CurrentPoint => repoView.CurrentPoint;
-
-
-    public void UpdateRepoTo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
-    public void ToggleDetails() => repoView.ToggleDetails();
-
 
     public async Task<R<IReadOnlyList<string>>> GetFilesAsync()
     {
@@ -94,7 +89,6 @@ class RepoImpl : IRepo
 
     public IReadOnlyList<Server.Branch> GetCommitBranches() =>
         server.GetCommitBranches(Repo, RowCommit.Id);
-
 
     public IReadOnlyList<string> GetUncommittedFiles() =>
         Status.ModifiedFiles
