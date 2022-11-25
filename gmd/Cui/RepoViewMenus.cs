@@ -16,11 +16,13 @@ interface IRepoViewMenus
 class RepoViewMenus : IRepoViewMenus
 {
     readonly IRepo repo;
+    readonly IRepoCommands cmds;
     private readonly IStates states;
 
     internal RepoViewMenus(IRepo repo, IStates states)
     {
         this.repo = repo;
+        this.cmds = repo.Cmd;
         this.states = states;
     }
 
@@ -211,7 +213,7 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
-        return branches.Select(b => Item(b.DisplayName, "", () => repo.SwitchTo(b.Name)));
+        return branches.Select(b => Item(b.DisplayName, "", () => cmds.SwitchTo(b.Name)));
     }
 
     IEnumerable<MenuItem> GetDeleteItems()
@@ -250,7 +252,7 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => b.CommonName);
 
         return branches.Select(b =>
-            Item(b.DisplayName, "", () => repo.Cmd.HideBranch(b.Name)));
+            Item(b.DisplayName, "", () => cmds.HideBranch(b.Name)));
     }
 
 
@@ -314,7 +316,7 @@ class RepoViewMenus : IRepoViewMenus
         var cic = repo.CurrentIndexCommit;
         return branches
             .DistinctBy(b => b.CommonName)
-            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => repo.Cmd.ShowBranch(b.Name, includeAmbiguous)));
+            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => cmds.ShowBranch(b.Name, includeAmbiguous)));
     }
 
     string ToShowName(Branch branch, Commit cic, bool canBeOutside)

@@ -40,7 +40,6 @@ interface IRepo
     Server.Branch ViewedBranchByName(string name);
     Server.Branch AllBranchByName(string name);
 
-    void SwitchTo(string branchName);
     void Commit();
     void CommitFromMenu();
     void PushCurrentBranch();
@@ -205,17 +204,6 @@ class RepoImpl : IRepo
 
     public IReadOnlyList<Server.Branch> GetCommitBranches() =>
         server.GetCommitBranches(Repo, CurrentIndexCommit.Id);
-
-
-    public void SwitchTo(string branchName) => Do(async () =>
-    {
-        if (!Try(out var e, await server.SwitchToAsync(branchName, Repo.Path)))
-        {
-            return R.Error($"Failed to switch to {branchName}", e);
-        }
-        Refresh();
-        return R.Ok;
-    });
 
 
     public void Filter() => Do(async () =>
