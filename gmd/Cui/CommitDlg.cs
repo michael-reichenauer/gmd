@@ -52,7 +52,7 @@ class CommitDlg : ICommitDlg
             (key) => OnKey(repo, key))
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = ColorSchemes.DialogColorScheme,
+            ColorScheme = CommitColorScheme,
         };
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
@@ -64,6 +64,15 @@ class CommitDlg : ICommitDlg
         message = GetMessage(subjectField, messageView);
         return isOk;
     }
+
+    readonly ColorScheme CommitColorScheme = new ColorScheme()
+    {
+        Normal = TextColor.White,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
+    };
 
 
     private bool OnKey(IRepo repo, Key key)
