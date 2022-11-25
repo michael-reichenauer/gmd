@@ -248,8 +248,10 @@ class RepoImpl : IRepo
 
     public void Commit() => Do(async () =>
     {
-        if (!commitDlg.Show(this, out var message)) return R.Ok;
+        if (!HasUncommittedChanges) return R.Ok;
+        if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 
+        if (!commitDlg.Show(this, out var message)) return R.Ok;
 
         if (!Try(out var e, await server.CommitAllChangesAsync(message, Repo.Path)))
         {
@@ -259,6 +261,7 @@ class RepoImpl : IRepo
         Refresh();
         return R.Ok;
     });
+
 
 
     public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
@@ -510,6 +513,37 @@ class RepoImpl : IRepo
                 }
             }
         });
+    }
+
+    bool CheckBinaryOrLargeAddedFiles()
+    {
+        var addFiles = Repo.Status.AddedFiles.ToList();
+
+        var binaryFiles = addFiles.Where(f => !Files.IsText(Path.Join(Repo.Path, f))).ToList();
+        var largeFiles = addFiles
+            .Where(f => !binaryFiles.Contains(f))
+            .Where(f => Files.IsLarger(Path.Join(Repo.Path, f), 100 * 1000)).ToList();
+        var msg = "";
+        if (binaryFiles.Any())
+        {
+            msg += $"\nBinary files ({binaryFiles.Count}):\n  {string.Join("\n  ", binaryFiles)}";
+        }
+        if (largeFiles.Any())
+        {
+            msg += $"\nLarge files ({largeFiles.Count}):  \n{string.Join("\n  ", largeFiles)}";
+        }
+
+        if (msg != "")
+        {
+            msg = $"Som binary or large files seems to be included:{msg}" +
+                "\n\nDo you want to continue?";
+            if (0 != UI.InfoMessage("Binay or Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public bool CanUndoUncommitted() => !Repo.Status.IsOk;

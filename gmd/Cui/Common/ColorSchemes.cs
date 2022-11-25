@@ -17,18 +17,18 @@ static class ColorSchemes
     internal static readonly ColorScheme DialogColorScheme = new ColorScheme()
     {
         Normal = TextColor.White,
-        Focus = TextColor.White,
+        Focus = TextColor.Make(Color.White, Color.DarkGray),
         HotNormal = TextColor.White,
-        HotFocus = TextColor.White,
+        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
         Disabled = TextColor.Dark,
     };
 
     internal static readonly ColorScheme ErrorDialogColorScheme = new ColorScheme()
     {
         Normal = TextColor.BrightRed,
-        Focus = TextColor.White,
+        Focus = TextColor.Make(Color.White, Color.DarkGray),
         HotNormal = TextColor.White,
-        HotFocus = TextColor.White,
+        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
         Disabled = TextColor.Dark,
     };
 
