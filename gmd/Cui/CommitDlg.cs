@@ -79,7 +79,7 @@ class CommitDlg : ICommitDlg
     {
         if (key == (Key.D | Key.CtrlMask))
         {
-            repo.ShowUncommittedDiff();
+            repo.Cmd.ShowUncommittedDiff();
             return true;
         }
 

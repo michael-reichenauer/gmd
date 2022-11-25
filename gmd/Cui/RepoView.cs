@@ -41,6 +41,7 @@ class RepoView : IRepoView
 
     // State data
     IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo().
+    IRepoCommands Cmd => repo!.Cmd;
     IRepoViewMenus? menuService;
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
@@ -195,25 +196,25 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, () => Refresh());
         contentView.RegisterKeyHandler(Key.R, () => Refresh());
-        contentView.RegisterKeyHandler(Key.c, () => repo!.Commit());
-        contentView.RegisterKeyHandler(Key.C, () => repo!.Commit());
-        contentView.RegisterKeyHandler(Key.b, () => repo!.CreateBranch());
-        contentView.RegisterKeyHandler(Key.B, () => repo!.CreateBranch());
-        contentView.RegisterKeyHandler(Key.d, () => repo!.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.D, () => repo!.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => repo!.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
-        contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
-        contentView.RegisterKeyHandler(Key.u, () => repo!.PullCurrentBranch());
-        contentView.RegisterKeyHandler(Key.U, () => repo!.PullCurrentBranch());
-        contentView.RegisterKeyHandler(Key.a, () => repo!.ShowAbout());
-        contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
+        contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit());
+        contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit());
+        contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
+        contentView.RegisterKeyHandler(Key.B, () => Cmd.CreateBranch());
+        contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.D, () => Cmd.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
+        contentView.RegisterKeyHandler(Key.P, () => Cmd.PushCurrentBranch());
+        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
+        contentView.RegisterKeyHandler(Key.U, () => Cmd.PullCurrentBranch());
+        contentView.RegisterKeyHandler(Key.a, () => Cmd.ShowAbout());
+        contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
 
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
-        commitDetailsView.View.RegisterKeyHandler(Key.d, () => repo!.ShowCurrentRowDiff());
+        commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
     }
 
 
