@@ -34,7 +34,6 @@ class RepoView : IRepoView
     private readonly IStates states;
     private readonly IProgress progress;
     private readonly ICommitDetailsView commitDetailsView;
-    readonly Func<IRepo, IDiffView> newDiffView;
     private readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView contentView;
     readonly IRepoWriter repoWriter;
@@ -51,7 +50,6 @@ class RepoView : IRepoView
 
     internal RepoView(
         Server.IServer server,
-        Func<IRepo, IDiffView> newDiffView,
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
@@ -60,7 +58,6 @@ class RepoView : IRepoView
         ICommitDetailsView commitDetailsView) : base()
     {
         this.server = server;
-        this.newDiffView = newDiffView;
         this.newRepoWriter = newRepoWriter;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
@@ -251,13 +248,13 @@ class RepoView : IRepoView
 
             var t = Timing.Start;
 
-            var branchNames = repo!.GetShownBranches().Select(b => b.Name).ToList();
+            var branchNames = repo!.Branches.Select(b => b.Name).ToList();
             if (addBranchName != "")
             {
                 branchNames.Add(addBranchName);
             }
 
-            if (!Try(out var viewRepo, out var e, await GetRepoAsync(repo!.Repo.Path, branchNames)))
+            if (!Try(out var viewRepo, out var e, await GetRepoAsync(repo!.RepoPath, branchNames)))
             {
                 UI.ErrorMessage($"Failed to refresh:\n{e}");
                 return;
@@ -277,7 +274,7 @@ class RepoView : IRepoView
             Log.Info($"{t} {viewRepo}");
         }
 
-        server.FetchAsync(repo.Repo.Path).RunInBackground();
+        server.FetchAsync(repo.RepoPath).RunInBackground();
     }
 
     async Task ShowUpdatedStatusRepoAsync()
@@ -305,7 +302,7 @@ class RepoView : IRepoView
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
-        var names = repo.GetShownBranches().Select(b => b.Name).ToList();
+        var names = repo.Branches.Select(b => b.Name).ToList();
         states.SetRepo(serverRepo.Path, s => s.Branches = names);
     }
 
@@ -314,10 +311,10 @@ class RepoView : IRepoView
     {
         if (branchName != "")
         {
-            var branch = repo!.Repo.Branches.FirstOrDefault(b => b.Name == branchName);
+            var branch = repo!.Branches.FirstOrDefault(b => b.Name == branchName);
             if (branch != null)
             {
-                var tip = repo.Repo.CommitById[branch.TipId];
+                var tip = repo.Commit(branch.TipId);
                 contentView.ScrollToShowIndex(tip.Index);
             }
         }
@@ -326,7 +323,7 @@ class RepoView : IRepoView
 
     void ScrollToCommit(string commitId)
     {
-        var commit = repo!.Repo.Commits.FirstOrDefault(c => c.Id == commitId);
+        var commit = repo!.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
             contentView.ScrollToShowIndex(commit.Index);
@@ -352,16 +349,10 @@ class RepoView : IRepoView
 
     void OnCurrentIndexChange()
     {
-        var i = contentView.CurrentIndex;
-        if (i >= repo!.Repo.Commits.Count)
-        {
-            return;
-        }
-
         if (isShowDetails)
         {
-            var commit = repo!.Repo.Commits[i];
-            var branch = repo.ViewedBranchByName(commit.BranchName);
+            var commit = repo!.RowCommit;
+            var branch = repo.Branch(commit.BranchName);
             commitDetailsView.Set(repo.Repo, commit, branch);
         }
     }
@@ -369,7 +360,7 @@ class RepoView : IRepoView
 
     bool FetchFromRemote()
     {
-        server.FetchAsync(repo!.Repo.Path).RunInBackground();
+        server.FetchAsync(repo!.RepoPath).RunInBackground();
         return true;
     }
 

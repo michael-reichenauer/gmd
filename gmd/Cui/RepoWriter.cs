@@ -32,9 +32,9 @@ class RepoWriter : IRepoWriter
     {
         var branchTips = GetBranchTips(repo);
 
-        var crc = repo.Repo.Commits[repo.CurrentIndex];
-        var crb = repo.Repo.BranchByName[crc.BranchName];
-        var isUncommitted = repo.HasUncommittedChanges; //repo.Repo.Status.IsOk;
+        var crc = repo.RowCommit;
+        var crb = repo.Branch(crc.BranchName);
+        var isUncommitted = !repo.Status.IsOk;
 
         text.Reset();
         int graphWidth = repo.Graph.Width;
@@ -44,7 +44,7 @@ class RepoWriter : IRepoWriter
 
         for (int i = firstRow; i < firstRow + rowCount; i++)
         {
-            var c = repo.Repo.Commits[i];
+            var c = repo.Commits[i];
             var graphRow = repo.Graph.GetRow(i);
             WriteGraph(graphRow);
             WriteCurrentMarker(c, isUncommitted);
@@ -225,7 +225,7 @@ class RepoWriter : IRepoWriter
     {
         var branchTips = new Dictionary<string, Text>();
 
-        foreach (var b in repo.Repo.Branches)
+        foreach (var b in repo.Branches)
         {
             if (!branchTips.TryGetValue(b.TipId, out var tipText))
             {   //  Commit has no tip yet, crating tip text
@@ -265,7 +265,7 @@ class RepoWriter : IRepoWriter
                 {
                     if (b.LocalName != "")
                     {
-                        var local = repo.Repo.Branches.First(bb => bb.Name == b.LocalName);
+                        var local = repo.Branches.First(bb => bb.Name == b.LocalName);
                         if (local.TipId == b.TipId)
                         {
                             // Both local and remote tips on same commit, combine them
@@ -292,7 +292,7 @@ class RepoWriter : IRepoWriter
                 {
                     if (b.RemoteName != "")
                     {
-                        var remote = repo.Repo.Branches.First(bb => bb.Name == b.RemoteName);
+                        var remote = repo.Branches.First(bb => bb.Name == b.RemoteName);
                         if (remote.TipId == b.TipId)
                         {
                             // Both local and remote tips on same commit, handled by the remote branch

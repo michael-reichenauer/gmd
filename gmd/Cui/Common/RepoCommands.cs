@@ -154,7 +154,7 @@ class RepoCommands : IRepoCommands
 
     public void Commit() => Do(async () =>
     {
-        if (!repo.HasUncommittedChanges) return R.Ok;
+        if (repo.Status.IsOk) return R.Ok;
         if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 
         if (!commitDlg.Show(repo, out var message)) return R.Ok;
@@ -313,7 +313,7 @@ class RepoCommands : IRepoCommands
 
     public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
 
-    public void ShowCurrentRowDiff() => ShowDiff(repo.CurrentIndexCommit.Id);
+    public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
 
     public void ShowDiff(string commitId) => Do(async () =>
     {
@@ -388,7 +388,7 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public bool CanPush() => serverRepo.Status.IsOk && repo.GetShownBranches().Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
+    public bool CanPush() => serverRepo.Status.IsOk && repo.Branches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 
     public bool CanPushCurrentBranch()
     {
@@ -424,7 +424,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public bool CanPull() => status.IsOk && repo.GetShownBranches().Any(b => b.HasRemoteOnly);
+    public bool CanPull() => status.IsOk && repo.Branches.Any(b => b.HasRemoteOnly);
 
     public bool CanPullCurrentBranch()
     {
@@ -464,7 +464,7 @@ class RepoCommands : IRepoCommands
 
     public void CreateBranchFromCommit() => Do(async () =>
     {
-        var commit = repo.CurrentIndexCommit;
+        var commit = repo.RowCommit;
         var branchName = commit.BranchName;
 
         if (!Try(out var name, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
