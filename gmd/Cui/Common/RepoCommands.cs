@@ -10,7 +10,6 @@ interface IRepoCommands
     void ShowBranch(string name, bool includeAmbiguous);
     void HideBranch(string name);
     void SwitchTo(string branchName);
-
     void ToggleDetails();
     void ShowAbout();
     void ShowBrowseDialog();
@@ -29,7 +28,7 @@ interface IRepoCommands
     bool CanPull();
     void CreateBranchFromCommit();
     void ShowFileHistory();
-    void UnresolveAmbiguity(string id);
+    void UnresolveAmbiguity(string commitId);
     void ResolveAmbiguity(Server.Branch branch, string displayName);
     bool CanPushCurrentBranch();
     void PushBranch(string name);
@@ -44,7 +43,7 @@ interface IRepoCommands
     bool CanUncommitLastCommit();
     void UndoAllUncommittedChanged();
     void CleanWorkingFolder();
-    void UndoUncommittedFile(string f);
+    void UndoUncommittedFile(string path);
 }
 
 class RepoCommands : IRepoCommands
@@ -398,8 +397,6 @@ class RepoCommands : IRepoCommands
     }
 
 
-
-
     public void PullCurrentBranch() => Do(async () =>
     {
         if (!CanPullCurrentBranch()) return R.Ok;
@@ -559,13 +556,6 @@ class RepoCommands : IRepoCommands
 
         return R.Ok;
     });
-
-
-
-
-
-
-
 
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
