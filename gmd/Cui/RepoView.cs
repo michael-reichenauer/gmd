@@ -154,9 +154,6 @@ class RepoView : IRepoView
             return;
         }
 
-        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Debug($"New    : {e.TimeStamp.Iso()}");
-
         if (e.TimeStamp - repo!.Repo.TimeStamp < minRepoUpdateInterval)
         {
             Log.Debug("New repo event to soon, skipping update");
@@ -172,8 +169,6 @@ class RepoView : IRepoView
         {
             return;
         }
-        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Debug($"New    : {e.TimeStamp.Iso()}");
 
         if (e.TimeStamp - repo!.Repo.TimeStamp < minStatusUpdateInterval)
         {

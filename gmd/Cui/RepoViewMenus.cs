@@ -250,7 +250,7 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => b.CommonName);
 
         return branches.Select(b =>
-            Item(b.DisplayName, "", () => repo.HideBranch(b.Name)));
+            Item(b.DisplayName, "", () => repo.Cmd.HideBranch(b.Name)));
     }
 
 
@@ -314,7 +314,7 @@ class RepoViewMenus : IRepoViewMenus
         var cic = repo.CurrentIndexCommit;
         return branches
             .DistinctBy(b => b.CommonName)
-            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => repo.ShowBranch(b.Name, includeAmbiguous)));
+            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => repo.Cmd.ShowBranch(b.Name, includeAmbiguous)));
     }
 
     string ToShowName(Branch branch, Commit cic, bool canBeOutside)

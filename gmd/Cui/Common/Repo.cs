@@ -10,6 +10,7 @@ namespace gmd.Cui.Common;
 
 interface IRepo
 {
+    IRepoCommands Cmd { get; }
     Server.Repo Repo { get; }
     Graph Graph { get; }
     int TotalRows { get; }
@@ -27,13 +28,14 @@ interface IRepo
     void ShowBrowseDialog();
     void Filter();
 
-    void ShowBranch(string name, bool includeAmbiguous);
-    void HideBranch(string name);
+    // void ShowBranch(string name, bool includeAmbiguous);
+    // void HideBranch(string name);
     IReadOnlyList<Server.Branch> GetAllBranches();
     IReadOnlyList<Server.Branch> GetShownBranches();
     Server.Branch GetCurrentBranch();
     IReadOnlyList<Server.Branch> GetCommitBranches();
     Task<R<IReadOnlyList<string>>> GetFilesAsync();
+    IReadOnlyList<string> GetUncommittedFiles();
 
     Server.Branch ViewedBranchByName(string name);
     Server.Branch AllBranchByName(string name);
@@ -59,7 +61,6 @@ interface IRepo
     void DeleteBranch(string name);
     void UpdateRelease();
     bool CanUndoUncommitted();
-    IReadOnlyList<string> GetUncommittedFiles();
     void UndoUncommittedFile(string path);
     void UndoAllUncommittedChanged();
     void CleanWorkingFolder();
@@ -74,20 +75,22 @@ interface IRepo
 class RepoImpl : IRepo
 {
     readonly IRepoView repoView;
-    private readonly IGraphService graphService;
+    readonly IGraphService graphService;
     readonly Server.IServer server;
-    private readonly ICommitDlg commitDlg;
-    private readonly IDiffView diffView;
-    private readonly ICreateBranchDlg createBranchDlg;
-    private readonly IProgress progress;
-    private readonly IFilterDlg filterDlg;
-    private readonly IStates states;
-    private readonly IGit git;
-    private readonly IUpdater updater;
+    readonly ICommitDlg commitDlg;
+    readonly IDiffView diffView;
+    readonly ICreateBranchDlg createBranchDlg;
+    readonly IProgress progress;
+    readonly IFilterDlg filterDlg;
+    readonly IStates states;
+    readonly IGit git;
+    readonly IUpdater updater;
+    readonly IRepoCommands repoCommands;
 
     internal RepoImpl(
+        Func<IRepo, Server.Repo, IRepoView, IRepoCommands> newRepoCommands,
         IRepoView repoView,
-        Server.Repo repo,
+        Server.Repo serverRepo,
         IGraphService graphService,
         Server.IServer server,
         ICommitDlg commitDlg,
@@ -100,7 +103,8 @@ class RepoImpl : IRepo
         IUpdater updater)
     {
         this.repoView = repoView;
-        Repo = repo;
+        Repo = serverRepo;
+        repoCommands = newRepoCommands(this, serverRepo, repoView);
         this.graphService = graphService;
         this.server = server;
         this.commitDlg = commitDlg;
@@ -111,8 +115,10 @@ class RepoImpl : IRepo
         this.states = states;
         this.git = git;
         this.updater = updater;
-        Graph = graphService.CreateGraph(repo);
+        Graph = graphService.CreateGraph(serverRepo);
     }
+
+    public IRepoCommands Cmd => repoCommands;
 
     public Server.Repo Repo { get; init; }
     public Server.Commit CurrentIndexCommit => Repo.Commits[CurrentIndex];
@@ -191,18 +197,6 @@ class RepoImpl : IRepo
         return R.Ok;
     });
 
-    public void ShowBranch(string name, bool includeAmbiguous)
-    {
-        Server.Repo newRepo = server.ShowBranch(Repo, name, includeAmbiguous);
-        UpdateRepoTo(newRepo, name);
-
-    }
-
-    public void HideBranch(string name)
-    {
-        Server.Repo newRepo = server.HideBranch(Repo, name);
-        UpdateRepoTo(newRepo);
-    }
 
     public Server.Branch GetCurrentBranch() => GetAllBranches().First(b => b.IsCurrent);
 
