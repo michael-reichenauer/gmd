@@ -72,7 +72,7 @@ Filename: "{app}\{#AppExeName}"; Flags: nowait postinstall skipifsilent; Descrip
 
 [UninstallRun]
 ; Delete update and renew tasks (regardless of version)
-Filename: "{app}\{#AppExeName}"; Parameters: "--uninstall"; Flags: runhidden runminimized;
+; Filename: "{app}\{#AppExeName}"; Parameters: "-uninstall"; Flags: runhidden runminimized;
 
 [UninstallDelete]
 ; Delete application program files and program data folders
