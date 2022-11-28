@@ -50,6 +50,9 @@ class Updater : IUpdater
         buildVersion = Build.Version();
     }
 
+    internal Updater()
+        : this(new States(), new Cmd()) { Log.Info("internal !!!!!!!!!!!!"); }
+
     public async Task CheckUpdateAvailableAsync()
     {
         if (IsDotNet()) return;
@@ -156,7 +159,7 @@ class Updater : IUpdater
 
         if (!IsLeftNewer(release.Version, buildVersion.ToString()))
         {
-            Log.Info("No new remote release available");
+            Log.Debug("No new remote release available");
             states.Set(s => s.Releases.IsUpdateAvailable = false);
             return false;
         }
@@ -399,7 +402,6 @@ class Updater : IUpdater
     private bool IsDotNet()
     {
         var thisPath = Environment.ProcessPath ?? "gmd";
-        Log.Info($"This {thisPath}");
         return Path.GetFileNameWithoutExtension(thisPath) == "dotnet";
     }
 }
