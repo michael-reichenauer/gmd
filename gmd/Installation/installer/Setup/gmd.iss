@@ -65,14 +65,14 @@ Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 
 [Run]
 ; Run install helper tasks 
-Filename: "{app}\{#AppExeName}"; Parameters: "-update"; Flags: runhidden runminimized
+Filename: "{app}\{#AppExeName}"; Parameters: "--update"; Flags: runhidden runminimized
 
 ; Start program (unless silent or unchecked)
 Filename: "{app}\{#AppExeName}"; Flags: nowait postinstall skipifsilent; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"
 
 [UninstallRun]
 ; Delete update and renew tasks (regardless of version)
-Filename: "{app}\{#AppExeName}"; Parameters: "-uninstall"; Flags: runhidden runminimized;
+Filename: "{app}\{#AppExeName}"; Parameters: "--uninstall"; Flags: runhidden runminimized;
 
 [UninstallDelete]
 ; Delete application program files and program data folders
