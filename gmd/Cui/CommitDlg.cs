@@ -8,6 +8,7 @@ interface ICommitDlg
 {
     bool Show(IRepo repo, out string message);
 }
+
 class CommitDlg : ICommitDlg
 {
     public bool Show(IRepo repo, out string message)
