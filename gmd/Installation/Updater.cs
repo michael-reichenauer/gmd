@@ -9,7 +9,7 @@ namespace gmd.Installation;
 interface IUpdater
 {
     Task CheckUpdateAvailableAsync();
-    Task<R> UpdateAsync();
+    Task<R<string>> UpdateAsync();
 }
 
 public class GitRelease
@@ -72,9 +72,9 @@ class Updater : IUpdater
         }
     }
 
-    public async Task<R> UpdateAsync()
+    public async Task<R<string>> UpdateAsync()
     {
-        if (IsDotNet()) return R.Ok;
+        if (IsDotNet()) return "Debug, update not supported";
 
         if (!Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()))
         {
@@ -85,7 +85,7 @@ class Updater : IUpdater
         if (!isAvailable)
         {
             Log.Info("Already at latest release");
-            return R.Ok;
+            return $"Is Latest: {buildVersion}";
         }
 
         if (!Try(out var newPath, out e, await DownloadBinaryAsync()))
@@ -100,7 +100,9 @@ class Updater : IUpdater
             return e;
         }
 
-        return R.Ok;
+        var release = SelectRelease();
+
+        return $"Updated {buildVersion} -> {release.Version}";
     }
 
 

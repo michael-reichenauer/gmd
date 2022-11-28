@@ -33,6 +33,14 @@ class Program
             return;
         }
 
+        if (args.Length > 0 && args[0] == "--update")
+        {
+            Console.WriteLine($"Trying to update: {Build.Version()} ...");
+            var updater = new Updater();
+
+            return;
+        }
+
         var t = Timing.Start;
         Log.Info($"Starting gmd ...");
 
