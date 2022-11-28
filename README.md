@@ -22,6 +22,8 @@ Download some version of `gmd_linux`, `gmd_widows` or `gmd_osx` and the run `> g
 `> gmd --update`  
 
 #### Windows:
+Download setup file from [releases](https://github.com/michael-reichenauer/gmd/releases)  
+or:  
 `> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/download/v0.30.29.632/gmdSetup.exe`  
 `> gmdSetup`  
 
@@ -31,7 +33,7 @@ Download some version of `gmd_linux`, `gmd_widows` or `gmd_osx` and the run `> g
 ## Build
 Use build script:  
 `> ./build`  
-or    
+or:    
  `> Build.bat`
 
 or use dotnet:  
