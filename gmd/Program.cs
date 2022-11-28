@@ -4,10 +4,9 @@ using System.Runtime.CompilerServices;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
-// using Microsoft.Extensions.Configuration;
 
-[assembly: InternalsVisibleTo("gmdTest")]
-[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
+[assembly: InternalsVisibleTo("gmdTest")]                   // Tests access
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]  // DI access
 
 
 namespace gmd;
@@ -23,25 +22,20 @@ class Program
     private readonly IGit git;
     private readonly IUpdater updater;
 
-    // static readonly string configPath = "/workspaces/gmd/config.json";
 
-    static void Main(string[] args)
+    static async Task<int> Main(string[] args)
     {
         if (args.Length > 0 && args[0] == "--version")
         {
-            Console.WriteLine($"{Build.Version()}");
-            return;
+            return ShowVersion();
+        }
+        if (args.Length > 0 && args[0] == "--update")
+        {
+            return await UpdateAsync();
         }
 
         var t = Timing.Start;
         Log.Info($"Starting gmd ...");
-
-        // IConfigurationRoot config = new ConfigurationBuilder()
-        //     .AddJsonFile(configPath)
-        //     .AddEnvironmentVariables()
-        //     .AddCommandLine(args)
-        //     .Build();
-        //Log.Info($"{config["greetingds"]}");
 
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
@@ -49,11 +43,13 @@ class Program
         dependencyInjection.RegisterDependencyInjectionTypes();
 
         Program program = dependencyInjection.Resolve<Program>();
-        Threading.AssertIsMainThread();
         program.Main();
+
         Log.Info($"Done, running for {t}");
         ConfigLogger.CloseAsync().Wait();
+        return 0;
     }
+
 
     internal Program(IMainView mainView, IGit git, IUpdater updater)
     {
@@ -108,6 +104,32 @@ class Program
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
         Log.Info($"Time:    {DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")}+00:00");
+    }
+
+    static int ShowVersion()
+    {
+        Console.WriteLine($"{Build.Version()}");
+        return 0;
+    }
+
+    static async Task<int> UpdateAsync()
+    {
+        var currentVersion = Build.Version();
+        Console.WriteLine($"Trying to update: {currentVersion} ...");
+        var updater = new Updater();
+        if (!Try(out var newVersion, out var e, await updater.UpdateAsync()))
+        {
+            Console.WriteLine($"Failed to update: {e}");
+            return -1;
+        }
+        if (newVersion == currentVersion)
+        {
+            Console.WriteLine($"Is already latest version.");
+            return 0;
+        }
+
+        Console.WriteLine($"Updated {currentVersion} -> {newVersion}");
+        return 0;
     }
 }
 
