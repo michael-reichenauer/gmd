@@ -34,13 +34,13 @@ class RepoView : IRepoView
     private readonly IStates states;
     private readonly IProgress progress;
     private readonly ICommitDetailsView commitDetailsView;
-    readonly Func<IRepo, IDiffView> newDiffView;
     private readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView contentView;
     readonly IRepoWriter repoWriter;
 
     // State data
     IRepo? repo; // Is set once the repo has been retrieved the first time in ShowRepo().
+    IRepoCommands Cmd => repo!.Cmd;
     IRepoViewMenus? menuService;
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
@@ -50,7 +50,6 @@ class RepoView : IRepoView
 
     internal RepoView(
         Server.IServer server,
-        Func<IRepo, IDiffView> newDiffView,
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
@@ -59,14 +58,13 @@ class RepoView : IRepoView
         ICommitDetailsView commitDetailsView) : base()
     {
         this.server = server;
-        this.newDiffView = newDiffView;
         this.newRepoWriter = newRepoWriter;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
         this.states = states;
         this.progress = progress;
         this.commitDetailsView = commitDetailsView;
-        contentView = new ContentView(onDrawRepoContent)
+        contentView = new ContentView(onGetContent)
         {
             X = 0,
             Y = 0,
@@ -154,9 +152,6 @@ class RepoView : IRepoView
             return;
         }
 
-        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Debug($"New    : {e.TimeStamp.Iso()}");
-
         if (e.TimeStamp - repo!.Repo.TimeStamp < minRepoUpdateInterval)
         {
             Log.Debug("New repo event to soon, skipping update");
@@ -172,8 +167,6 @@ class RepoView : IRepoView
         {
             return;
         }
-        Log.Debug($"Current: {repo!.Repo.TimeStamp.Iso()}");
-        Log.Debug($"New    : {e.TimeStamp.Iso()}");
 
         if (e.TimeStamp - repo!.Repo.TimeStamp < minStatusUpdateInterval)
         {
@@ -200,36 +193,36 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, () => Refresh());
         contentView.RegisterKeyHandler(Key.R, () => Refresh());
-        contentView.RegisterKeyHandler(Key.c, () => repo!.Commit());
-        contentView.RegisterKeyHandler(Key.C, () => repo!.Commit());
-        contentView.RegisterKeyHandler(Key.b, () => repo!.CreateBranch());
-        contentView.RegisterKeyHandler(Key.B, () => repo!.CreateBranch());
-        contentView.RegisterKeyHandler(Key.d, () => repo!.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.D, () => repo!.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => repo!.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.p, () => repo!.PushCurrentBranch());
-        contentView.RegisterKeyHandler(Key.P, () => repo!.PushCurrentBranch());
-        contentView.RegisterKeyHandler(Key.u, () => repo!.PullCurrentBranch());
-        contentView.RegisterKeyHandler(Key.U, () => repo!.PullCurrentBranch());
-        contentView.RegisterKeyHandler(Key.a, () => repo!.ShowAbout());
-        contentView.RegisterKeyHandler(Key.f, () => repo!.Filter());
+        contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit());
+        contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit());
+        contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
+        contentView.RegisterKeyHandler(Key.B, () => Cmd.CreateBranch());
+        contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.D, () => Cmd.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
+        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
+        contentView.RegisterKeyHandler(Key.P, () => Cmd.PushCurrentBranch());
+        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
+        contentView.RegisterKeyHandler(Key.U, () => Cmd.PullCurrentBranch());
+        contentView.RegisterKeyHandler(Key.a, () => Cmd.ShowAbout());
+        contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
 
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
-        commitDetailsView.View.RegisterKeyHandler(Key.d, () => repo!.ShowCurrentRowDiff());
+        commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
     }
 
 
-    void onDrawRepoContent(int firstIndex, int count, int currentIndex, int width)
+    IEnumerable<Text> onGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         if (repo == null)
         {
-            return;
+            return Enumerable.Empty<Text>();
         }
 
-        repoWriter.WriteRepoPage(repo, firstIndex, count);
+        return repoWriter.ToPage(repo, firstIndex, count, currentIndex, width);
     }
 
 
@@ -255,13 +248,13 @@ class RepoView : IRepoView
 
             var t = Timing.Start;
 
-            var branchNames = repo!.GetShownBranches().Select(b => b.Name).ToList();
+            var branchNames = repo!.Branches.Select(b => b.Name).ToList();
             if (addBranchName != "")
             {
                 branchNames.Add(addBranchName);
             }
 
-            if (!Try(out var viewRepo, out var e, await GetRepoAsync(repo!.Repo.Path, branchNames)))
+            if (!Try(out var viewRepo, out var e, await GetRepoAsync(repo!.RepoPath, branchNames)))
             {
                 UI.ErrorMessage($"Failed to refresh:\n{e}");
                 return;
@@ -281,7 +274,7 @@ class RepoView : IRepoView
             Log.Info($"{t} {viewRepo}");
         }
 
-        server.FetchAsync(repo.Repo.Path).RunInBackground();
+        server.FetchAsync(repo.RepoPath).RunInBackground();
     }
 
     async Task ShowUpdatedStatusRepoAsync()
@@ -309,7 +302,7 @@ class RepoView : IRepoView
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
-        var names = repo.GetShownBranches().Select(b => b.Name).ToList();
+        var names = repo.Branches.Select(b => b.Name).ToList();
         states.SetRepo(serverRepo.Path, s => s.Branches = names);
     }
 
@@ -318,10 +311,10 @@ class RepoView : IRepoView
     {
         if (branchName != "")
         {
-            var branch = repo!.Repo.Branches.FirstOrDefault(b => b.Name == branchName);
+            var branch = repo!.Branches.FirstOrDefault(b => b.Name == branchName);
             if (branch != null)
             {
-                var tip = repo.Repo.CommitById[branch.TipId];
+                var tip = repo.Commit(branch.TipId);
                 contentView.ScrollToShowIndex(tip.Index);
             }
         }
@@ -330,7 +323,7 @@ class RepoView : IRepoView
 
     void ScrollToCommit(string commitId)
     {
-        var commit = repo!.Repo.Commits.FirstOrDefault(c => c.Id == commitId);
+        var commit = repo!.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
             contentView.ScrollToShowIndex(commit.Index);
@@ -356,16 +349,10 @@ class RepoView : IRepoView
 
     void OnCurrentIndexChange()
     {
-        var i = contentView.CurrentIndex;
-        if (i >= repo!.Repo.Commits.Count)
-        {
-            return;
-        }
-
         if (isShowDetails)
         {
-            var commit = repo!.Repo.Commits[i];
-            var branch = repo.ViewedBranchByName(commit.BranchName);
+            var commit = repo!.RowCommit;
+            var branch = repo.Branch(commit.BranchName);
             commitDetailsView.Set(repo.Repo, commit, branch);
         }
     }
@@ -373,7 +360,7 @@ class RepoView : IRepoView
 
     bool FetchFromRemote()
     {
-        server.FetchAsync(repo!.Repo.Path).RunInBackground();
+        server.FetchAsync(repo!.RepoPath).RunInBackground();
         return true;
     }
 
