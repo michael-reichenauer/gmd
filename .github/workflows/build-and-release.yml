@@ -95,16 +95,16 @@ jobs:
           asset_name: gmd_osx
           asset_content_type: application/octet-stream
 
-      # - name: Upload Windows setup file
-      #   if: steps.check-branch.outputs.isRelease == 'true'
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ github.token }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ./installation/installer/gmdSetup.exe
-      #     asset_name: gmdSetup.exe
-      #     asset_content_type: application/octet-stream
+      - name: Upload Windows setup file
+        if: steps.check-branch.outputs.isRelease == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./installation/installer/gmdSetup.exe
+          asset_name: gmdSetup.exe
+          asset_content_type: application/octet-stream
 
       # - name: Upload Windows artifact (gmd.exe zipped)
       #   if: steps.check-branch.outputs.isRelease == 'true'
