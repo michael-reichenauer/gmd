@@ -549,7 +549,7 @@ class RepoCommands : IRepoCommands
             return R.Ok;
         }
         Log.Info($"Updating release ...");
-        if (!Try(out var e, await updater.UpdateAsync())) return e;
+        if (!Try(out var _, out var e, await updater.UpdateAsync())) return e;
 
         UI.InfoMessage("Restart Requiered", "A program restart is required,\nplease start gmd again.");
         UI.Shutdown();
