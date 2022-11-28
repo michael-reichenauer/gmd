@@ -92,7 +92,7 @@ partial class MainView : IMainView
 
         items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
         items.Add(new MenuItem("Clone ...", "", () => { }, () => false));
-        items.Add(new MenuItem("About ...", "A ", () => aboutDlg.Show()));
+        items.Add(new MenuItem("About ...", "", () => aboutDlg.Show()));
         items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
 
         var menu = new ContextMenu(4, 0, new MenuBarItem(items.ToArray()));
