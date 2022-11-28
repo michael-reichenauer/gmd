@@ -9,6 +9,12 @@ gmd_windows
 gmd_mac
 gmd_osx
 *.tmp*
+*.zip
+nuget.exe
+gmd/installation/installer/tools/Addins
+gmd/installation/installer/tools/Cake
+gmd/installation/installer/tools/Tools*
+
 
 # User-specific files
 *.suo
@@ -335,3 +341,6 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+# Keep installer
+!gmdSetup.exe
