@@ -51,7 +51,7 @@ DisableReadyMemo=True
 
 [Files]
 ; Copy all release output files to version folder
-Source: "..\..\..\gmd.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\..\..\gmd.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
