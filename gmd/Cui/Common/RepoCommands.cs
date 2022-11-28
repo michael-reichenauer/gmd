@@ -53,6 +53,7 @@ class RepoCommands : IRepoCommands
     readonly IFilterDlg filterDlg;
     readonly ICommitDlg commitDlg;
     readonly ICreateBranchDlg createBranchDlg;
+    readonly IAboutDlg aboutDlg;
     readonly IDiffView diffView;
     readonly IStates states;
     readonly IUpdater updater;
@@ -73,6 +74,7 @@ class RepoCommands : IRepoCommands
         IFilterDlg filterDlg,
         ICommitDlg commitDlg,
         ICreateBranchDlg createBranchDlg,
+        IAboutDlg aboutDlg,
         IDiffView diffView,
         IStates states,
         IUpdater updater,
@@ -86,6 +88,7 @@ class RepoCommands : IRepoCommands
         this.filterDlg = filterDlg;
         this.commitDlg = commitDlg;
         this.createBranchDlg = createBranchDlg;
+        this.aboutDlg = aboutDlg;
         this.diffView = diffView;
         this.states = states;
         this.updater = updater;
@@ -120,23 +123,7 @@ class RepoCommands : IRepoCommands
        return R.Ok;
    });
 
-    public void ShowAbout() => Do(async () =>
-    {
-        var gmdVersion = Build.Version();
-        var gmdBuildTime = Build.Time().ToUniversalTime().Iso();
-        var gmdSha = Build.Sha();
-        if (!Try(out var gitVersion, out var e, await git.Version())) return e;
-
-        var msg =
-            $"Version: {gmdVersion}\n" +
-            $"Built:   {gmdBuildTime}Z\n" +
-            $"Git:     {gitVersion}\n" +
-            $"Sha:     {gmdSha}\n";
-
-        UI.InfoMessage("About", msg);
-        return R.Ok;
-    });
-
+    public void ShowAbout() => aboutDlg.Show();
 
     public void CommitFromMenu()
     {
