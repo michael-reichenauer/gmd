@@ -38,3 +38,4 @@ copy gmd\bin\Release\net6.0\osx-x64\publish\gmd gmd_osx
 
 echo "Version:"
 gmd.exe --version
+pause
