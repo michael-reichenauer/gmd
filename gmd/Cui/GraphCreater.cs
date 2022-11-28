@@ -4,7 +4,7 @@ using Color = Terminal.Gui.Attribute;
 
 namespace gmd.Cui;
 
-// https://code-maze.com/csharp-flags-attribute-for-enum/
+
 [Flags]
 enum Sign
 {
@@ -28,22 +28,22 @@ enum Sign
 
 
 
-interface IGraphService
+interface IGraphCreater
 {
-    Graph CreateGraph(Server.Repo repo);
+    Graph Create(Server.Repo repo);
 }
 
 
-class GraphService : IGraphService
+class GraphCreater : IGraphCreater
 {
     private readonly IBranchColorService branchColorService;
 
-    public GraphService(IBranchColorService branchColorService)
+    public GraphCreater(IBranchColorService branchColorService)
     {
         this.branchColorService = branchColorService;
     }
 
-    public Graph CreateGraph(Server.Repo repo)
+    public Graph Create(Server.Repo repo)
     {
         var t = Timing.Start;
         var branches = ToGraphBranches(repo);
@@ -366,5 +366,4 @@ class GraphService : IGraphService
             (bottom2 >= top1 && bottom2 <= bottom1) ||
             (top2 <= top1 && bottom2 >= bottom1);
     }
-
 }

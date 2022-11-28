@@ -17,13 +17,13 @@ class CommitDlg : ICommitDlg
 
         (string subjectText, string messageText) = ParseMessage(repo);
 
-        var commit = repo.Repo.Commits[0];
-        if (commit.Id != Server.Repo.UncommittedId)
+        if (repo.Status.IsOk)
         {
             return false;
         }
 
-        int filesCount = repo.Repo.Status.ChangesCount;
+        var commit = repo.Commits[0];
+        int filesCount = repo.Status.ChangesCount;
         string branchName = commit.BranchName;
 
         Label infoLabel = new Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
@@ -52,7 +52,7 @@ class CommitDlg : ICommitDlg
             (key) => OnKey(repo, key))
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = ColorSchemes.DialogColorScheme,
+            ColorScheme = CommitColorScheme,
         };
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
@@ -65,12 +65,21 @@ class CommitDlg : ICommitDlg
         return isOk;
     }
 
+    readonly ColorScheme CommitColorScheme = new ColorScheme()
+    {
+        Normal = TextColor.White,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
+    };
+
 
     private bool OnKey(IRepo repo, Key key)
     {
         if (key == (Key.D | Key.CtrlMask))
         {
-            repo.ShowUncommittedDiff();
+            repo.Cmd.ShowUncommittedDiff();
             return true;
         }
 
@@ -80,7 +89,7 @@ class CommitDlg : ICommitDlg
 
     (string, string) ParseMessage(IRepo repo)
     {
-        string msg = repo.Repo.Status.MergeMessage;
+        string msg = repo.Status.MergeMessage;
 
         if (msg.Trim() == "")
         {

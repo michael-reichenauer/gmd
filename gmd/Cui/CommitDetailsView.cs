@@ -69,6 +69,10 @@ class CommitDetailsView : ICommitDetailsView
         }
 
         var branchName = branch.DisplayName;
+        if (branch.IsRemote)
+        {
+            branchName = "^origin/" + branchName;
+        }
         if (commit.IsBranchSetByUser)
         {
             newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName + "   Ф").Dark(" (ambiguity resolved by user)"));

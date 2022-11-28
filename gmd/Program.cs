@@ -103,10 +103,11 @@ class Program
         }
         Log.Info($"Git:     {gitVersion}");
         Log.Info($"Cmd:     {Environment.CommandLine}");
+        Log.Info($"Process: {Environment.ProcessPath}");
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
-        Log.Info($"Time:  '{DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")}+00:00'");
+        Log.Info($"Time:    {DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")}+00:00");
     }
 }
 
