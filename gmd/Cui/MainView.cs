@@ -14,14 +14,16 @@ partial class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IGit git;
-    private readonly IStates states;
+    readonly IStates states;
+    readonly IAboutDlg aboutDlg;
     readonly Lazy<View> toplevel;
 
-    MainView(IRepoView repoView, IGit git, IStates states) : base()
+    MainView(IRepoView repoView, IGit git, IStates states, IAboutDlg aboutDlg) : base()
     {
         this.repoView = repoView;
         this.git = git;
         this.states = states;
+        this.aboutDlg = aboutDlg;
         toplevel = new Lazy<View>(CreateView);
     }
 
@@ -83,8 +85,14 @@ partial class MainView : IMainView
         items.Add(UI.MenuSeparator("Open Repo"));
         items.AddRange(GetRecentRepoItems());
 
+        if (items.Any())
+        {
+            items.Add(UI.MenuSeparator());
+        }
+
         items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
         items.Add(new MenuItem("Clone ...", "", () => { }, () => false));
+        items.Add(new MenuItem("About ...", "A ", () => aboutDlg.Show()));
         items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
 
         var menu = new ContextMenu(4, 0, new MenuBarItem(items.ToArray()));
