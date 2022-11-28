@@ -15,7 +15,7 @@ var configuration = Argument("configuration", "Release");
 // Define paths.
 var name = "gmd";
 
-var baseVersion = "0.58";
+var baseVersion = "0.30";
 var outputPath = $"{name}.exe";
 var setupPath = $"{name}Setup.exe";
 var issPath = $"./Setup/{name}.iss";
