@@ -64,7 +64,7 @@ class RepoView : IRepoView
         this.states = states;
         this.progress = progress;
         this.commitDetailsView = commitDetailsView;
-        contentView = new ContentView(onDrawRepoContent)
+        contentView = new ContentView(onGetContent)
         {
             X = 0,
             Y = 0,
@@ -215,14 +215,14 @@ class RepoView : IRepoView
     }
 
 
-    void onDrawRepoContent(int firstIndex, int count, int currentIndex, int width)
+    IEnumerable<Text> onGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         if (repo == null)
         {
-            return;
+            return Enumerable.Empty<Text>();
         }
 
-        repoWriter.WriteRepoPage(repo, firstIndex, count);
+        return repoWriter.ToPage(repo, firstIndex, count, currentIndex, width);
     }
 
 

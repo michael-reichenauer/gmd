@@ -1,85 +1,122 @@
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
 
 namespace gmd.Cui;
 
 interface IRepoWriter
 {
-    void WriteRepoPage(IRepo repo, int firstRow, int rowCount);
+    IEnumerable<Text> ToPage(IRepo repo, int firstRow, int rowCount, int currentIndex, int width);
+    bool IShowSid { get; set; }
 }
 
 class RepoWriter : IRepoWriter
 {
     static readonly int maxTipNameLength = 16;
     static readonly int maxTipsLength = 41;
+    const int markersWidth = 3; //  1 current marker and 1 ahead/behind and one space
 
-    private readonly ColorText text;
-    private readonly IBranchColorService branchColorService;
-    private IGraphWriter graphWriter;
+    readonly IBranchColorService branchColorService;
+    readonly IGraphWriter graphWriter;
 
     record Columns(int Subject, int Sid, int Author, int Time);
 
-    public RepoWriter(View view, int startX, IBranchColorService branchColorService)
+    public RepoWriter(IBranchColorService branchColorService, IGraphWriter graphWriter)
     {
         this.branchColorService = branchColorService;
-        this.text = new ColorText(view, startX);
-        graphWriter = new GraphWriter(text);
+        this.graphWriter = graphWriter;
     }
 
+    public bool IShowSid { get; set; } = false;
 
-    public void WriteRepoPage(IRepo repo, int firstRow, int rowCount)
+
+    public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex, int width)
     {
+        List<Text> rows = new List<Text>();
         var branchTips = GetBranchTips(repo);
 
         var crc = repo.RowCommit;
         var crb = repo.Branch(crc.BranchName);
         var isUncommitted = !repo.Status.IsOk;
 
-        text.Reset();
-        int graphWidth = repo.Graph.Width;
-        int markersWidth = 3; //  1 current marker and 1 ahead/behind
+        Columns cw = ColumnWidths(repo, width);
 
-        Columns cw = ColumnWidths(repo.ContentWidth - (graphWidth + markersWidth));
-
-        for (int i = firstRow; i < firstRow + rowCount; i++)
+        for (int i = firstRow; i < firstRow + count; i++)
         {
+            Text text = Text.New;
             var c = repo.Commits[i];
             var graphRow = repo.Graph.GetRow(i);
-            WriteGraph(graphRow);
-            WriteCurrentMarker(c, isUncommitted);
-            WriteAheadBehindMarker(c);
-            WriteSubject(cw, c, crb, branchTips);
-            WriteSid(cw, c);
-            WriteAuthor(cw, c);
-            WriteTime(cw, c);
-            text.EoL();
+
+            WriteGraph(text, graphRow);
+            WriteCurrentMarker(text, c, isUncommitted);
+            WriteAheadBehindMarker(text, c);
+            WriteSubject(text, cw, c, crb, branchTips);
+            WriteSid(text, cw, c);
+            WriteAuthor(text, cw, c);
+            WriteTime(text, cw, c);
+
+            rows.Add(text);
         }
+
+        return rows;
     }
 
-
-    void WriteGraph(GraphRow graphRow)
+    Columns ColumnWidths(IRepo repo, int width)
     {
-        graphWriter.Write(graphRow);
+        int graphWidth = repo.Graph.Width;
+
+        // Normal columns when content width is wide enough
+        int commitWidth = width - (graphWidth + markersWidth);
+        int authorWidth = 15;
+        int timeWidth = 15;
+        int sidWidth = IShowSid ? 7 : 0;
+
+        if (commitWidth < 70)
+        {   // Disabled sid, author and time if very narrow view  
+            sidWidth = 0;
+            authorWidth = 0;
+            timeWidth = 0;
+        }
+        else if (commitWidth < 100)
+        {   // Reducing sid, author and and time if narrow view
+            sidWidth = 0;
+            authorWidth = 10;
+            timeWidth = 9;
+        }
+
+        int subjectWidth = commitWidth - sidWidth - authorWidth - timeWidth;
+        if (subjectWidth < 0)
+        {
+            subjectWidth = 0;
+        }
+
+        return new Columns(subjectWidth, sidWidth, authorWidth, timeWidth);
     }
 
-    void WriteCurrentMarker(Commit c, bool isUncommitted)
+
+    void WriteGraph(Text text, GraphRow graphRow)
+    {
+        text.Add(graphWriter.ToText(graphRow));
+    }
+
+
+    void WriteCurrentMarker(Text text, Commit c, bool isUncommitted)
     {
         if (c.IsCurrent && !isUncommitted)
-        {
+        {   // No uncommitted changes, so the is shown at the current commit
             text.White(" ●");
             return;
         }
         if (c.Id == Repo.UncommittedId)
-        {
+        {   // There are uncommicted chaned, so the current marker is at the uncommitted commit
             text.White(" ●");
             return;
         }
 
-        text.White("  ");
+        text.Black("  ");
     }
 
-    void WriteAheadBehindMarker(Commit c)
+
+    void WriteAheadBehindMarker(Text text, Commit c)
     {
         if (c.IsAhead)
         {
@@ -92,10 +129,10 @@ class RepoWriter : IRepoWriter
             return;
         }
 
-        text.White(" ");
+        text.Black(" ");
     }
 
-    void WriteSubject(Columns cw, Commit c, Branch currentRowBranch,
+    void WriteSubject(Text text, Columns cw, Commit c, Branch currentRowBranch,
         IReadOnlyDictionary<string, Text> branchTips)
     {
         int width = cw.Subject;
@@ -120,10 +157,6 @@ class RepoWriter : IRepoWriter
         {
             columnWidth -= (Math.Min(tips.Length, maxTipsLength));
             columnWidth -= 1;
-            // if (tips.Length >= maxTipWidth)
-            // {
-            //     columnWidth -= 1;
-            // }
         }
         if (c.IsBranchSetByUser)
         {
@@ -142,26 +175,26 @@ class RepoWriter : IRepoWriter
         }
         else { text.Dark(Txt(subject, columnWidth)); }
 
-        if (tips != null) { WriteBranchTips(tips, maxTipWidth); }
+        if (tips != null) { WriteBranchTips(text, tips, maxTipWidth); }
         if (c.IsBranchSetByUser) { text.Dark(" Ф"); }
     }
 
-    void WriteBranchTips(Text tips, int maxWidth)
+    void WriteBranchTips(Text text, Text tips, int maxWidth)
     {
         if (tips.Length > maxWidth - 1)
         {
             maxWidth -= 2;
         }
 
-        Text.New.Black(" ").Draw();
-        tips.Draw(0, maxWidth - 1);
+        text.Black(" ");
+        text.Add(tips.Subtext(0, maxWidth - 1));
         if (tips.Length > maxWidth - 1)
         {
-            Text.New.Dark("┅").Draw();
+            text.Dark("┅");
         }
     }
 
-    void WriteSid(Columns cw, Commit c)
+    void WriteSid(Text text, Columns cw, Commit c)
     {
         if (c.IsUncommitted)
         {
@@ -171,12 +204,12 @@ class RepoWriter : IRepoWriter
         text.Dark(Txt(" " + c.Sid, cw.Sid));
     }
 
-    void WriteAuthor(Columns cw, Commit c)
+    void WriteAuthor(Text text, Columns cw, Commit c)
     {
         text.Dark(Txt(" " + c.Author, cw.Author));
     }
 
-    void WriteTime(Columns cw, Commit c)
+    void WriteTime(Text text, Columns cw, Commit c)
     {
         text.Dark(Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
     }
@@ -190,35 +223,6 @@ class RepoWriter : IRepoWriter
 
         return text.Substring(0, width);
     }
-
-    Columns ColumnWidths(int commitWidth)
-    {
-        int authorWidth = 15;
-        int timeWidth = 15;
-        int sidWidth = 7;
-
-        if (commitWidth < 70)
-        {   // Disabled sid, author and time if very narrow view  
-            sidWidth = 0;
-            authorWidth = 0;
-            timeWidth = 0;
-        }
-        else if (commitWidth < 100)
-        {   // Reducing sid, author and and time if narrow view
-            sidWidth = 0;
-            authorWidth = 10;
-            timeWidth = 9;
-        }
-
-        int subjectWidth = commitWidth - sidWidth - authorWidth - timeWidth;
-        if (subjectWidth < 0)
-        {
-            subjectWidth = 0;
-        }
-
-        return new Columns(subjectWidth, sidWidth, authorWidth, timeWidth);
-    }
-
 
 
     IReadOnlyDictionary<string, Text> GetBranchTips(IRepo repo)

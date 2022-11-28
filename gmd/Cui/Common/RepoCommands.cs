@@ -170,14 +170,14 @@ class RepoCommands : IRepoCommands
     public void ShowBranch(string name, bool includeAmbiguous)
     {
         Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous);
-        UpdateRepoTo(newRepo, name);
+        SetRepo(newRepo, name);
 
     }
 
     public void HideBranch(string name)
     {
         Server.Repo newRepo = server.HideBranch(serverRepo, name);
-        UpdateRepoTo(newRepo);
+        SetRepo(newRepo);
     }
 
     public void SwitchTo(string branchName) => Do(async () =>
@@ -560,7 +560,7 @@ class RepoCommands : IRepoCommands
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 
-    void UpdateRepoTo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
+    void SetRepo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
 
     void Do(Func<Task<R>> action)
     {

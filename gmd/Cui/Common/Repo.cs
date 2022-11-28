@@ -45,14 +45,14 @@ class RepoImpl : IRepo
         IRepoView repoView,
         Server.Repo serverRepo,
         Func<IRepo, Server.Repo, IRepoView, IRepoCommands> newRepoCommands,
-        IGraphService graphService,
+        IGraphCreater graphService,
         Server.IServer server)
     {
         this.repoView = repoView;
         this.serverRepo = serverRepo;
         this.repoCommands = newRepoCommands(this, serverRepo, repoView);
         this.server = server;
-        this.Graph = graphService.CreateGraph(serverRepo);
+        this.Graph = graphService.Create(serverRepo);
     }
 
     public IRepoCommands Cmd => repoCommands;

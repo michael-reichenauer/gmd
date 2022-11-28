@@ -4,20 +4,14 @@ namespace gmd.Cui;
 
 interface IGraphWriter
 {
-    void Write(GraphRow row);
+    Text ToText(GraphRow row);
 }
 
 class GraphWriter : IGraphWriter
 {
-    private readonly ColorText text;
-
-    internal GraphWriter(ColorText text)
+    public Text ToText(GraphRow row)
     {
-        this.text = text;
-    }
-
-    public void Write(GraphRow row)
-    {
+        Text text = Text.New;
         for (int i = 0; i < row.Width; i++)
         {
             // Colors
@@ -37,7 +31,7 @@ class GraphWriter : IGraphWriter
                 connectColor = TextColor.Ambiguous;
             }
 
-            text.Add(ConnectRune(row[i].Connect), connectColor);
+            text.Color(connectColor, ConnectRune(row[i].Connect));
 
             // Draw the branch rune
             if (row[i].Branch == Sign.Pass &&
@@ -50,98 +44,100 @@ class GraphWriter : IGraphWriter
             {
                 branchColor = TextColor.Ambiguous;
             }
-            text.Add(BranchRune(row[i].Branch), branchColor);
+            text.Color(branchColor, BranchRune(row[i].Branch));
         }
+
+        return text;
     }
 
 
-    Rune BranchRune(Sign bm)
+    string BranchRune(Sign bm)
     {
         // commit of a branch with only one commit (tip==bottom)
         if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom)
-            && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return '┺';
+            && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "┺";
 
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return '╼';
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "╼";
 
         // commit is tip
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return '╊';
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip)) return '┣';
-        if (bm.HasFlag(Sign.Tip) && hasLeft(bm)) return '┲';
-        if (bm.HasFlag(Sign.Tip)) return '┏';
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "╊";
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip)) return "┣";
+        if (bm.HasFlag(Sign.Tip) && hasLeft(bm)) return "┲";
+        if (bm.HasFlag(Sign.Tip)) return "┏";
 
         // commit is bottom
-        if (bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return '┺';
-        if (bm.HasFlag(Sign.Bottom)) return '┚';
+        if (bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "┺";
+        if (bm.HasFlag(Sign.Bottom)) return "┚";
 
         // commit is within branch
-        if (bm.HasFlag(Sign.Commit) && hasLeft(bm)) return '╊';
-        if (bm.HasFlag(Sign.Commit)) return '┣';
+        if (bm.HasFlag(Sign.Commit) && hasLeft(bm)) return "╊";
+        if (bm.HasFlag(Sign.Commit)) return "┣";
 
         // commit is not part of branch
-        if (bm.HasFlag(Sign.BLine) && hasLeft(bm)) return '╂';
-        if (bm.HasFlag(Sign.BLine)) return '┃';
+        if (bm.HasFlag(Sign.BLine) && hasLeft(bm)) return "╂";
+        if (bm.HasFlag(Sign.BLine)) return "┃";
 
-        if (bm == Sign.Pass) return '─';
-        if (bm == Sign.Blank) return ' ';
+        if (bm == Sign.Pass) return "─";
+        if (bm == Sign.Blank) return " ";
 
         Log.Warn($"Unknown branch rune {bm}");
-        return '*';
+        return "*";
     }
 
 
 
-    Rune ConnectRune(Sign bm)
+    string ConnectRune(Sign bm)
     {
         switch (bm)
         {
             case Sign.MergeFromRight:
-                return '╮';
+                return "╮";
             case Sign.MergeFromRight | Sign.Pass:
-                return '┬';
+                return "┬";
             case Sign.MergeFromRight | Sign.ConnectLine:
-                return '┤';
+                return "┤";
             case Sign.MergeFromRight | Sign.BranchToRight:
-                return '┤';
+                return "┤";
             case Sign.MergeFromRight | Sign.BranchToRight | Sign.Pass:
-                return '┴';
+                return "┴";
             case Sign.MergeFromRight | Sign.BranchToRight | Sign.ConnectLine:
-                return '┤';
+                return "┤";
             case Sign.BranchToRight:
-                return '╯';
+                return "╯";
             case Sign.BranchToRight | Sign.ConnectLine | Sign.Pass:
-                return '┼';
+                return "┼";
             case Sign.BranchToRight | Sign.ConnectLine | Sign.Pass | Sign.MergeFromRight:
-                return '┼';
+                return "┼";
 
             case Sign.BranchToRight | Sign.Pass:
-                return '┴';
+                return "┴";
             case Sign.BranchToRight | Sign.ConnectLine:
-                return '┤';
+                return "┤";
             case Sign.MergeFromLeft:
-                return '╭';
+                return "╭";
             case Sign.MergeFromLeft | Sign.BranchToLeft:
-                return '├';
+                return "├";
             case Sign.MergeFromLeft | Sign.ConnectLine:
-                return '├';
+                return "├";
             case Sign.MergeFromLeft | Sign.ConnectLine | Sign.BranchToLeft:
-                return '├';
+                return "├";
             case Sign.BranchToLeft:
-                return '╰';
+                return "╰";
             case Sign.BranchToLeft | Sign.ConnectLine:
-                return '├';
+                return "├";
             case Sign.ConnectLine | Sign.Pass:
-                return '┼';
+                return "┼";
             case Sign.ConnectLine | Sign.Pass | Sign.MergeFromLeft:
-                return '┼';
+                return "┼";
             case Sign.ConnectLine:
-                return '│';
+                return "│";
             case Sign.Pass:
-                return '─';
+                return "─";
             case Sign.Blank:
-                return ' ';
+                return " ";
             default:
                 Log.Warn($"Unknown Connect rune {bm}");
-                return '*';
+                return "*";
         }
     }
 
