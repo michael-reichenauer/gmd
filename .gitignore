@@ -10,6 +10,7 @@ gmd_mac
 gmd_osx
 *.tmp*
 *.zip
+nuget.exe
 gmd/installation/installer/tools/Addins
 gmd/installation/installer/tools/Cake
 gmd/installation/installer/tools/Tools*
