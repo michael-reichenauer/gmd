@@ -50,7 +50,7 @@ partial class MainView : IMainView
     {
         Threading.SetUp();
 
-        string path = "";
+        string path = "/workspaces/Dependitor";
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
             if (path != "")

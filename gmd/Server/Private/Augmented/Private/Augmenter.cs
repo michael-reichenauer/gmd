@@ -537,7 +537,10 @@ class Augmenter : IAugmenter
         foreach (var name in DefaultBranchPriority)
         {
             branch = c.Branches.Find(b => b.Name == name);
-            return branch != null;
+            if (branch != null)
+            {
+                return true;
+            }
         }
 
         branch = null;
