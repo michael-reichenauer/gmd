@@ -151,9 +151,11 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
+        items.Add(Item("Push All", "P", () => cmds.PushAllBranches()));
+
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToShowName(repo.CurrentBranch), "P",
+            items.Add(Item(ToShowName(repo.CurrentBranch), "",
                     () => cmds.PushCurrentBranch(),
                     () => cmds.CanPushCurrentBranch()));
         }
@@ -181,9 +183,10 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetPullItems()
     {
         List<MenuItem> items = new List<MenuItem>();
+        items.Add(Item("Update/Pull All", "U", () => cmds.PullAllBranches()));
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToShowName(repo.CurrentBranch), "U",
+            items.Add(Item(ToShowName(repo.CurrentBranch), "",
                     () => cmds.PullCurrentBranch(),
                     () => cmds.CanPullCurrentBranch()));
         }

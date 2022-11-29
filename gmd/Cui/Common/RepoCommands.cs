@@ -32,8 +32,10 @@ interface IRepoCommands
     void ResolveAmbiguity(Server.Branch branch, string displayName);
     bool CanPushCurrentBranch();
     void PushBranch(string name);
+    void PushAllBranches();
     bool CanPullCurrentBranch();
     void PullBranch(string name);
+    void PullAllBranches();
     void DeleteBranch(string name);
     void MergeBranch(string name);
     bool CanUndoUncommitted();
@@ -423,8 +425,57 @@ class RepoCommands : IRepoCommands
             return status.IsOk && branch != null && branch.HasRemoteOnly;
         }
         return false;
-
     }
+
+    public void PushAllBranches() => Do(async () =>
+    {
+        if (!CanPush()) return R.Ok;
+
+        var branches = repo.Branches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
+            .DistinctBy(b => b.CommonName);
+
+        foreach (var b in branches)
+        {
+            if (!Try(out var e, await server.PushBranchAsync(b.Name, repoPath)))
+            {
+                Refresh();
+                return R.Error($"Failed to push branch {b.Name}", e);
+            }
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void PullAllBranches() => Do(async () =>
+    {
+        if (!CanPull()) return R.Ok;
+
+        if (CanPullCurrentBranch())
+        {
+            // Need to treat crurrent branch separately
+            if (!Try(out var e, await server.PullCurrentBranchAsync(repoPath)))
+            {
+                return R.Error($"Failed to pull current branch", e);
+            }
+        }
+
+        var branches = repo.Branches.Where(b => b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
+            .DistinctBy(b => b.CommonName);
+        foreach (var b in branches)
+        {
+            if (!Try(out var e, await server.PullBranchAsync(b.Name, repoPath)))
+            {
+                Refresh();
+                return R.Error($"Failed to pull branch {b.Name}", e);
+            }
+
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
 
     public void CreateBranch() => Do(async () =>
      {
