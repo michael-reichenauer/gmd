@@ -453,6 +453,7 @@ class RepoCommands : IRepoCommands
 
         if (!CanPull()) return R.Ok;
 
+        var currentRemoteName = "";
         if (CanPullCurrentBranch())
         {
             Log.Info("Pull current");
@@ -461,9 +462,11 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to pull current branch", e);
             }
+            currentRemoteName = repo.CurrentBranch?.RemoteName ?? "";
         }
 
-        var branches = repo.Branches.Where(b => b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
+        var branches = repo.Branches
+            .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
             .DistinctBy(b => b.CommonName);
 
         Log.Info($"Pull {string.Join(", ", branches)}");

@@ -88,7 +88,7 @@ static class UI
 
     internal static int ErrorMessage(string message, int defaultButton = 0, params string[] buttons)
     {
-        return ErrorMessage("Error", message, defaultButton, buttons);
+        return ErrorMessage("Error !", message, defaultButton, buttons);
     }
 
     internal static int ErrorMessage(string title, string message, int defaultButton = 0, params string[] buttons)
