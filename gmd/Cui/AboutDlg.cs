@@ -27,10 +27,9 @@ class AboudDlg : IAboutDlg
             if (!Try(out var gitVersion, out var e, await git.Version())) gitVersion = "0.0";
 
             var msg =
-                $"Version: {gmdVersion}\n" +
-                $"Built:   {gmdBuildTime}Z\n" +
-                $"Git:     {gitVersion}\n" +
-                $"Sha:     {gmdSha}\n";
+                $"Version: {gmdVersion} ({gmdSha}) \n" +
+                $"Built:   {gmdBuildTime}Z \n" +
+                $"Git:     {gitVersion} ";
 
             UI.InfoMessage("About", msg);
         });

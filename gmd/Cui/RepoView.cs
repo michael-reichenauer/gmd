@@ -91,8 +91,6 @@ class RepoView : IRepoView
     public async Task<R> ShowInitialRepoAsync(string path)
     {
         if (!Try(out var e, await ShowRepoAsync(path))) return e;
-
-        FetchFromRemote();
         UI.AddTimeout(fetchIntervall, (_) => FetchFromRemote());
 
         RegisterShortcuts();
@@ -104,6 +102,7 @@ class RepoView : IRepoView
         Log.Info($"Show '{path}'");
         var branches = states.GetRepo(path).Branches;
         if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
+        FetchFromRemote();
 
         RememberRepoPaths(path);
 
@@ -200,10 +199,10 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.D, () => Cmd.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
-        contentView.RegisterKeyHandler(Key.P, () => Cmd.PushCurrentBranch());
-        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
-        contentView.RegisterKeyHandler(Key.U, () => Cmd.PullCurrentBranch());
+        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushAllBranches());
+        contentView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
+        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullAllBranches());
+        contentView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
         contentView.RegisterKeyHandler(Key.a, () => Cmd.ShowAbout());
         contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());

@@ -151,9 +151,11 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
+        items.Add(Item("Push All Branches", "P", () => cmds.PushAllBranches()));
+
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToShowName(repo.CurrentBranch), "P",
+            items.Add(Item(ToShowName(repo.CurrentBranch), "",
                     () => cmds.PushCurrentBranch(),
                     () => cmds.CanPushCurrentBranch()));
         }
@@ -181,9 +183,10 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetPullItems()
     {
         List<MenuItem> items = new List<MenuItem>();
+        items.Add(Item("Update/Pull All Branches", "U", () => cmds.PullAllBranches()));
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToShowName(repo.CurrentBranch), "U",
+            items.Add(Item(ToShowName(repo.CurrentBranch), "",
                     () => cmds.PullCurrentBranch(),
                     () => cmds.CanPullCurrentBranch()));
         }
@@ -195,7 +198,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetShowItems()
     {
-        // Get current branch, commit branch in/out and all shown branches.
+        // Get current branch, commit branch in/out and all shown branches
         var branches =
             new[] { repo.GetCurrentBranch() }
             .Concat(repo.GetCommitBranches())

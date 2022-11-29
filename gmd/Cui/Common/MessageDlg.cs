@@ -6,40 +6,17 @@ namespace gmd.Cui.Common;
 
 static class MessageDlg
 {
-    static readonly ColorScheme dialogColorScheme = new ColorScheme()
-    {
-        Normal = TextColor.BrightMagenta,
-        Focus = TextColor.Make(Color.White, Color.DarkGray),
-        HotNormal = TextColor.White,
-        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
-        Disabled = TextColor.Dark,
-    };
-
-    static readonly ColorScheme errorDialogColorScheme = new ColorScheme()
-    {
-        Normal = TextColor.BrightRed,
-        Focus = TextColor.Make(Color.White, Color.DarkGray),
-        HotNormal = TextColor.White,
-        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
-        Disabled = TextColor.Dark,
-    };
-
-    static readonly ColorScheme textColorScheme = new ColorScheme()
-    {
-        Normal = TextColor.White,
-        Focus = TextColor.Make(Color.White, Color.DarkGray),
-        HotNormal = TextColor.White,
-        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
-        Disabled = TextColor.Dark,
-    };
-
     internal static int ShowInfo(ustring title, ustring message,
-            int defaultButton = 0, params string[] buttons) =>
-                ShowFull(false, 0, 0, title, message, defaultButton, buttons);
+        int defaultButton = 0, params string[] buttons) =>
+            ShowFull(false, 0, 0, title, message, defaultButton, buttons);
 
     internal static int ShowError(ustring message,
-            int defaultButton = 0, params string[] buttons) =>
-                ShowFull(true, 0, 0, "Error", message, defaultButton, buttons);
+         int defaultButton = 0, params string[] buttons) =>
+                ShowFull(true, 0, 0, "Error !", message, defaultButton, buttons);
+
+    internal static int ShowError(ustring title, ustring message,
+        int defaultButton = 0, params string[] buttons) =>
+            ShowFull(true, 0, 0, title, message, defaultButton, buttons);
 
 
     static int ShowFull(bool useErrorColors, int width, int height, ustring title, ustring message,
@@ -78,7 +55,7 @@ static class MessageDlg
         }
         foreach (var s in buttons!)
         {
-            var b = new Button(s);
+            var b = new Button(s) { ColorScheme = ColorSchemes.Button };
             if (count == defaultButton)
             {
                 b.IsDefault = true;
@@ -94,7 +71,7 @@ static class MessageDlg
             d = new Dialog(title, buttonList.ToArray())
             {
                 Height = msgboxHeight,
-                ColorScheme = dialogColorScheme,
+                ColorScheme = ColorSchemes.Dialog,
             };
         }
         else
@@ -109,7 +86,7 @@ static class MessageDlg
 
         if (useErrorColors)
         {
-            d.ColorScheme = errorDialogColorScheme;
+            d.ColorScheme = ColorSchemes.ErrorDialog;
         }
 
         if (message != null)
@@ -123,7 +100,7 @@ static class MessageDlg
                 Width = Dim.Fill(),
                 Height = Dim.Fill(1),
                 AutoSize = false,
-                ColorScheme = textColorScheme,
+                ColorScheme = ColorSchemes.Label,
             };
             d.Add(l);
         }

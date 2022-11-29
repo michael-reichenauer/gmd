@@ -22,13 +22,9 @@ public class FolderBrowseDlg
 
         Button cancelButton = new Button("Cancel", false);
         cancelButton.Clicked += () => Application.RequestStop();
-        cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
+        cancelButton.ColorScheme = ColorSchemes.Button;
 
-        Dialog dialog = new Dialog("Select Working Folder", 50, 15, new[] { cancelButton })
-        {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = ColorSchemes.DialogColorScheme,
-        };
+        Dialog dialog = Components.Dialog("Select Working Folder", 50, 15, cancelButton);
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(folderView);
 
@@ -67,7 +63,7 @@ public class FolderBrowseDlg
         var yellow = new ColorScheme
         {
             Focus = new Terminal.Gui.Attribute(Color.White, Color.DarkGray),
-            Normal = new Terminal.Gui.Attribute(Color.Green, Color.Black),
+            Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
         };
 
         treeView.ColorGetter = m => m is DirectoryInfo ? yellow : null;

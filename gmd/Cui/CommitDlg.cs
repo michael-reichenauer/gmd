@@ -1,5 +1,4 @@
 using gmd.Cui.Common;
-using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -27,14 +26,13 @@ class CommitDlg : ICommitDlg
         int filesCount = repo.Status.ChangesCount;
         string branchName = commit.BranchName;
 
-        Label infoLabel = new Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
+        Label infoLabel = Components.Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
 
-        TextField subjectField = new TextField(1, 2, 50, "") { Text = subjectText };
-        Label sep1 = new Label(0, 3, "└" + new string('─', 49) + "┘");
+        TextField subjectField = Components.TextField(1, 2, 50, subjectText);
+        Label sep1 = Components.TextIndicator(subjectField);
 
-        MessageTextView messageView = new MessageTextView()
-        { X = 1, Y = 4, Width = 69, Height = 10, Text = messageText };
-        Label sep3 = new Label(0, 14, "└" + new string('─', 67) + "┘");
+        TextView messageView = Components.TextView(1, 4, 70, 10, messageText);
+        var sep3 = Components.TextIndicator(messageView);
 
         Button okButton = Buttons.OK(true, () =>
         {
@@ -49,12 +47,7 @@ class CommitDlg : ICommitDlg
             return true;
         });
 
-        Dialog dialog = new CustomDialog("Commit", 72, 18, new[] { okButton, Buttons.Cancel() },
-            (key) => OnKey(repo, key))
-        {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = CommitColorScheme,
-        };
+        Dialog dialog = Components.Dialog("Commit", 74, 18, (key) => OnKey(repo, key), okButton, Buttons.Cancel());
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
 
@@ -65,16 +58,6 @@ class CommitDlg : ICommitDlg
         message = GetMessage(subjectField, messageView);
         return isOk;
     }
-
-    readonly ColorScheme CommitColorScheme = new ColorScheme()
-    {
-        Normal = TextColor.White,
-        Focus = TextColor.White,
-        HotNormal = TextColor.White,
-        HotFocus = TextColor.White,
-        Disabled = TextColor.Dark,
-    };
-
 
     private bool OnKey(IRepo repo, Key key)
     {
@@ -120,7 +103,7 @@ class CommitDlg : ICommitDlg
     string SubjectText(TextField subjectField) => subjectField!.Text.ToString()?.Trim() ?? "";
 
 
-    string GetMessage(TextField subjectField, MessageTextView messageView)
+    string GetMessage(TextField subjectField, TextView messageView)
     {
         string subjectText = SubjectText(subjectField);
         string msgText = messageView!.Text.ToString()?.TrimEnd() ?? "";
@@ -139,33 +122,6 @@ class CommitDlg : ICommitDlg
         }
 
         return msgText;
-    }
-
-    class MessageTextView : TextView
-    {
-        public override bool ProcessKey(KeyEvent keyEvent)
-        {
-            if (keyEvent.Key == Key.Tab)
-            {   // Ensure tab sets focus on next control and not insert tab in text
-                return false;
-            }
-            return base.ProcessKey(keyEvent);
-        }
-
-        public override Border Border { get => new Border() { }; set => base.Border = value; }
-    }
-
-    class CustomDialog : Dialog
-    {
-        private readonly Func<Key, bool> onKey;
-
-        public CustomDialog(ustring title, int width, int height, Button[] buttons, Func<Key, bool> onKey)
-        : base(title, width, height, buttons)
-        {
-            this.onKey = onKey;
-        }
-
-        public override bool ProcessHotKey(KeyEvent keyEvent) => onKey(keyEvent.Key);
     }
 }
 

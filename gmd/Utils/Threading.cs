@@ -13,7 +13,7 @@ static class Threading
         sctx = SynchronizationContext.Current!;
     }
 
-    internal static void Post(Action action)
+    internal static void PostOnMain(Action action)
     {
         sctx.Post((o) => action(), null);
     }

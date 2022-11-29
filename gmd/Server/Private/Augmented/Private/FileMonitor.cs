@@ -273,7 +273,7 @@ class FileMonitor : IFileMonitor
         }
 
         Log.Info("File changed");
-        gmd.Cui.Common.UI.Post(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
+        Threading.PostOnMain(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
     }
 
 
@@ -291,6 +291,6 @@ class FileMonitor : IFileMonitor
         }
 
         Log.Info("Repo changed");
-        gmd.Cui.Common.UI.Post(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
+        Threading.PostOnMain(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
     }
 }
