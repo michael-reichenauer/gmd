@@ -18,12 +18,10 @@ class CreateBranchDlg : ICreateBranchDlg
         var from = commitSid != "" ? $"{branchName} at {commitSid}" : branchName;
         var title = commitSid != "" ? $"Create Branch at Commit" : "Create Branch";
 
-        Label infoLabel = new Label(1, 0, $"From: {from}") { ColorScheme = ColorSchemes.Label };
+        Label infoLabel = Components.Label(1, 0, $"From: {from}");
 
-        nameField = new TextField(1, 2, 40, "");
-        Label sep1 = new Label(nameField.Frame.X - 1, nameField.Frame.Y + 1,
-            "└" + new string('─', nameField.Frame.Width) + "┘")
-        { ColorScheme = ColorSchemes.Indicator };
+        nameField = Components.TextField(1, 2, 40, "");
+        var indicator = Components.TextIndicator(nameField);
 
         bool isOk = false;
         Button okButton = Buttons.OK(true, () =>
@@ -38,13 +36,9 @@ class CreateBranchDlg : ICreateBranchDlg
         });
 
 
-        var dialog = new Dialog(title, 44, 9, new[] { okButton, Buttons.Cancel() })
-        {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-            ColorScheme = ColorSchemes.Dialog,
-        };
+        var dialog = Components.Dialog(title, 44, 9, okButton, Buttons.Cancel());
         dialog.Closed += e => UI.HideCursor();
-        dialog.Add(infoLabel, nameField, sep1);
+        dialog.Add(infoLabel, nameField, indicator);
 
         nameField.SetFocus();
         UI.ShowCursor();
