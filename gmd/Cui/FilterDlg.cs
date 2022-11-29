@@ -98,7 +98,6 @@ class FilterDlg : IFilterDlg
         commits.Skip(firstIndex).Take(count).Select(c => Text.New
             .White($"{c.Subject.Max(50),-50}")
             .Dark($"{c.Sid} {c.Author.Max(15),-15} {c.AuthorTime.ToString("yy-MM-dd")}"));
-
 }
 
 

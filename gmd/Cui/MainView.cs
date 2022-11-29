@@ -42,13 +42,6 @@ partial class MainView : IMainView
         mainView.Add(repoView.View, repoView.DetailsView);
         repoView.View.SetFocus();
 
-
-        //Application.Current.Added += (v) => Log.Info($"View added {v}");
-        //     Application.Current.Removed += (v) =>
-        //    {
-        //        Log.Info($"View removed {v}");
-        //    };
-
         return mainView;
     }
 
@@ -56,18 +49,13 @@ partial class MainView : IMainView
     void OnReady()
     {
         Threading.SetUp();
-        // UI.AddTimeout(TimeSpan.FromMilliseconds(1000), (f) =>
-        // {
-        //     Log.Info("Ui callback");
-        //     return true;
-        // });
 
         string path = "";
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
             if (path != "")
             {
-                // User specified an invalid folder
+                // User specified an invalid folder on command line
                 UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
             }
 
