@@ -575,7 +575,7 @@ class Augmenter : IAugmenter
             return true;
         }
 
-        if (branch.BottomID != "")
+        if (branch.BottomID != "" && branch.AmbiguousTipId == "")
         {   // Found an existing branch with that name, set commits from bottom of that branch
             // down to the c commit;
             if (SetBranchForAmbiguousCommits(repo, branch, c))
@@ -594,7 +594,6 @@ class Augmenter : IAugmenter
                 current.Branch.AmbiguousTipId = "";
                 current.Branch.IsAmbiguousBranch = false;
                 current.Branch.AmbiguousBranches.Clear();
-
             }
 
             current.Branch = branch;
@@ -809,6 +808,7 @@ class Augmenter : IAugmenter
 
         c.IsAmbiguous = true;
         c.Branch = branch;
+        c.Branch.IsAmbiguousBranch = true;
         c.Branch.AmbiguousTipId = c.Id;
         c.Branch.AmbiguousBranches = ambiguousBranches;
 
@@ -859,30 +859,30 @@ class Augmenter : IAugmenter
     }
 
 
-    internal WorkBranch AddAmbiguousBranch(WorkRepo repo, WorkCommit c)
-    {
-        var name = $"ambiguous:{c.Sid}";
-        WorkBranch branch = new WorkBranch(
-            name: name,
-            commonName: name,
-            displayName: name,
-            tipID: c.Id);
+    // internal WorkBranch AddAmbiguousBranch(WorkRepo repo, WorkCommit c)
+    // {
+    //     var name = $"ambiguous:{c.Sid}";
+    //     WorkBranch branch = new WorkBranch(
+    //         name: name,
+    //         commonName: name,
+    //         displayName: name,
+    //         tipID: c.Id);
 
-        branch.IsAmbiguousBranch = true;
+    //     branch.IsAmbiguousBranch = true;
 
-        foreach (var cc in c.Children)
-        {
-            if (cc.Branch == null)
-            {
-                continue;
-            }
+    //     foreach (var cc in c.Children)
+    //     {
+    //         if (cc.Branch == null)
+    //         {
+    //             continue;
+    //         }
 
-            branch.AmbiguousBranches.Add(cc.Branch);
-        }
+    //         branch.AmbiguousBranches.Add(cc.Branch);
+    //     }
 
-        repo.Branches.Add(branch);
-        return branch;
-    }
+    //     repo.Branches.Add(branch);
+    //     return branch;
+    // }
 
 
 
