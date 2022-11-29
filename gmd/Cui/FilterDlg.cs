@@ -32,9 +32,8 @@ class FilterDlg : IFilterDlg
     {
         this.repo = repo;
 
-        nameField = new TextField(1, 0, 30, "");
-        Label sep1 = new Label(nameField.Frame.X - 1, nameField.Frame.Y + 1,
-            "└" + new string('─', nameField.Frame.Width) + "┘");
+        nameField = Components.TextField(1, 0, 30, "");
+        Label sep1 = Components.TextIndicator(nameField);
 
         contentView = new ContentView(OnGetContent)
         { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
@@ -42,12 +41,8 @@ class FilterDlg : IFilterDlg
 
         var width = 85;
 
-        var dialog = new Dialog("Search/Filter", width, 20)
-        {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-            ColorScheme = ColorSchemes.Dialog,
-            Y = 0,
-        };
+        var dialog = Components.Dialog("Search/Filter", width, 20);
+        dialog.Y = 0;
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(nameField, sep1, contentView);
 
