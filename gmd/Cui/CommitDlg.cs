@@ -27,14 +27,15 @@ class CommitDlg : ICommitDlg
         int filesCount = repo.Status.ChangesCount;
         string branchName = commit.BranchName;
 
-        Label infoLabel = new Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
+        Label infoLabel = new Label(1, 0, $"Commit {filesCount} changes on '{branchName}':")
+        { ColorScheme = ColorSchemes.Label };
 
-        TextField subjectField = new TextField(1, 2, 50, "") { Text = subjectText };
-        Label sep1 = new Label(0, 3, "└" + new string('─', 49) + "┘");
+        TextField subjectField = new TextField(1, 2, 50, "") { Text = subjectText, ColorScheme = ColorSchemes.TextField };
+        Label sep1 = new Label(0, 3, "└" + new string('─', 49) + "┘") { ColorScheme = ColorSchemes.Indicator };
 
         MessageTextView messageView = new MessageTextView()
-        { X = 1, Y = 4, Width = 69, Height = 10, Text = messageText };
-        Label sep3 = new Label(0, 14, "└" + new string('─', 67) + "┘");
+        { X = 1, Y = 4, Width = 69, Height = 10, Text = messageText, ColorScheme = ColorSchemes.TextField };
+        Label sep3 = new Label(0, 14, "└" + new string('─', 67) + "┘") { ColorScheme = ColorSchemes.Indicator };
 
         Button okButton = Buttons.OK(true, () =>
         {
@@ -53,7 +54,7 @@ class CommitDlg : ICommitDlg
             (key) => OnKey(repo, key))
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = CommitColorScheme,
+            ColorScheme = ColorSchemes.Dialog,
         };
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
@@ -65,16 +66,6 @@ class CommitDlg : ICommitDlg
         message = GetMessage(subjectField, messageView);
         return isOk;
     }
-
-    readonly ColorScheme CommitColorScheme = new ColorScheme()
-    {
-        Normal = TextColor.White,
-        Focus = TextColor.White,
-        HotNormal = TextColor.White,
-        HotFocus = TextColor.White,
-        Disabled = TextColor.Dark,
-    };
-
 
     private bool OnKey(IRepo repo, Key key)
     {

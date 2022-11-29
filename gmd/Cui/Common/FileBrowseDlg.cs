@@ -25,14 +25,14 @@ public class FileBrowseDlg
 
         Button cancelButton = new Button("Cancel", false);
         cancelButton.Clicked += () => Application.RequestStop();
-        cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
+        cancelButton.ColorScheme = ColorSchemes.Button;
 
         Label sep1 = new Label(0, height - 4, new string('─', width - 2));
 
         Dialog dialog = new Dialog("Select File", width, height, new[] { cancelButton })
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = ColorSchemes.DialogColorScheme,
+            ColorScheme = ColorSchemes.Dialog,
         };
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(folderView, sep1);

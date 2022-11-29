@@ -22,12 +22,12 @@ public class FolderBrowseDlg
 
         Button cancelButton = new Button("Cancel", false);
         cancelButton.Clicked += () => Application.RequestStop();
-        cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
+        cancelButton.ColorScheme = ColorSchemes.Button;
 
         Dialog dialog = new Dialog("Select Working Folder", 50, 15, new[] { cancelButton })
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = ColorSchemes.DialogColorScheme,
+            ColorScheme = ColorSchemes.Dialog,
         };
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(folderView);

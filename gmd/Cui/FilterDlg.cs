@@ -45,7 +45,7 @@ class FilterDlg : IFilterDlg
         var dialog = new Dialog("Search/Filter", width, 20)
         {
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-            ColorScheme = ColorSchemes.DialogColorScheme,
+            ColorScheme = ColorSchemes.Dialog,
             Y = 0,
         };
         dialog.Closed += e => UI.HideCursor();

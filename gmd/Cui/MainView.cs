@@ -32,12 +32,12 @@ partial class MainView : IMainView
     View CreateView()
     {
         // Adjust some global color schemes
-        Terminal.Gui.Colors.Dialog = ColorSchemes.DialogColorScheme;
-        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialogColorScheme;
-        Terminal.Gui.Colors.Menu = ColorSchemes.MenuColorScheme;
+        Terminal.Gui.Colors.Dialog = ColorSchemes.Dialog;
+        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialog;
+        Terminal.Gui.Colors.Menu = ColorSchemes.Menu;
 
         var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
-        mainView.ColorScheme = ColorSchemes.WindowColorScheme;
+        mainView.ColorScheme = ColorSchemes.Window;
 
         mainView.Add(repoView.View, repoView.DetailsView);
         repoView.View.SetFocus();

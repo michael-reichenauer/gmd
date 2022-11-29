@@ -85,18 +85,19 @@ static class UI
         }
     }
 
-    internal static int ErrorMessage(string message, params string[] buttons)
-    {
-        return ErrorMessage(message, 0, buttons);
-    }
 
     internal static int ErrorMessage(string message, int defaultButton = 0, params string[] buttons)
+    {
+        return ErrorMessage("Error", message, defaultButton, buttons);
+    }
+
+    internal static int ErrorMessage(string title, string message, int defaultButton = 0, params string[] buttons)
     {
         buttons = buttons.Length == 0 ? new string[] { "OK" } : buttons;
 
         using (EnableInput())
         {
-            return MessageDlg.ShowError(message, defaultButton, buttons);
+            return MessageDlg.ShowError(title, message, defaultButton, buttons);
         }
     }
 
