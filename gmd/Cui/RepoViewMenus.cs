@@ -198,7 +198,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetShowItems()
     {
-        // Get current branch, commit branch in/out and all shown branches.
+        // Get current branch, commit branch in/out and all shown branches
         var branches =
             new[] { repo.GetCurrentBranch() }
             .Concat(repo.GetCommitBranches())
