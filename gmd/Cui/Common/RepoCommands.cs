@@ -449,10 +449,13 @@ class RepoCommands : IRepoCommands
 
     public void PullAllBranches() => Do(async () =>
     {
+        Log.Info("Pull all");
+
         if (!CanPull()) return R.Ok;
 
         if (CanPullCurrentBranch())
         {
+            Log.Info("Pull current");
             // Need to treat crurrent branch separately
             if (!Try(out var e, await server.PullCurrentBranchAsync(repoPath)))
             {
@@ -462,6 +465,8 @@ class RepoCommands : IRepoCommands
 
         var branches = repo.Branches.Where(b => b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
             .DistinctBy(b => b.CommonName);
+
+        Log.Info($"Pull {string.Join(", ", branches)}");
         foreach (var b in branches)
         {
             if (!Try(out var e, await server.PullBranchAsync(b.Name, repoPath)))
