@@ -91,8 +91,6 @@ class RepoView : IRepoView
     public async Task<R> ShowInitialRepoAsync(string path)
     {
         if (!Try(out var e, await ShowRepoAsync(path))) return e;
-
-        FetchFromRemote();
         UI.AddTimeout(fetchIntervall, (_) => FetchFromRemote());
 
         RegisterShortcuts();
@@ -104,6 +102,7 @@ class RepoView : IRepoView
         Log.Info($"Show '{path}'");
         var branches = states.GetRepo(path).Branches;
         if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
+        FetchFromRemote();
 
         RememberRepoPaths(path);
 
