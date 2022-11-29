@@ -32,22 +32,15 @@ partial class MainView : IMainView
     View CreateView()
     {
         // Adjust some global color schemes
-        Terminal.Gui.Colors.Dialog = ColorSchemes.DialogColorScheme;
-        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialogColorScheme;
-        Terminal.Gui.Colors.Menu = ColorSchemes.MenuColorScheme;
+        Terminal.Gui.Colors.Dialog = ColorSchemes.Dialog;
+        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialog;
+        Terminal.Gui.Colors.Menu = ColorSchemes.Menu;
 
         var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
-        mainView.ColorScheme = ColorSchemes.WindowColorScheme;
+        mainView.ColorScheme = ColorSchemes.Window;
 
         mainView.Add(repoView.View, repoView.DetailsView);
         repoView.View.SetFocus();
-
-
-        //Application.Current.Added += (v) => Log.Info($"View added {v}");
-        //     Application.Current.Removed += (v) =>
-        //    {
-        //        Log.Info($"View removed {v}");
-        //    };
 
         return mainView;
     }
@@ -56,18 +49,13 @@ partial class MainView : IMainView
     void OnReady()
     {
         Threading.SetUp();
-        // UI.AddTimeout(TimeSpan.FromMilliseconds(1000), (f) =>
-        // {
-        //     Log.Info("Ui callback");
-        //     return true;
-        // });
 
         string path = "";
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
             if (path != "")
             {
-                // User specified an invalid folder
+                // User specified an invalid folder on command line
                 UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
             }
 

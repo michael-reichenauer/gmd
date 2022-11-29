@@ -5,25 +5,16 @@ namespace gmd.Cui.Common;
 
 static class ColorSchemes
 {
-    internal static readonly ColorScheme ButtonColorScheme = new ColorScheme()
+    internal static readonly ColorScheme Dialog = new ColorScheme()
     {
-        Normal = TextColor.Black,
-        Focus = TextColor.Make(Color.White, Color.DarkGray),
-        HotNormal = TextColor.Blue,
-        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
-        Disabled = TextColor.Dark,
-    };
-
-    internal static readonly ColorScheme DialogColorScheme = new ColorScheme()
-    {
-        Normal = TextColor.White,
+        Normal = TextColor.BrightMagenta,
         Focus = TextColor.Make(Color.White, Color.DarkGray),
         HotNormal = TextColor.White,
         HotFocus = TextColor.Make(Color.White, Color.DarkGray),
         Disabled = TextColor.Dark,
     };
 
-    internal static readonly ColorScheme ErrorDialogColorScheme = new ColorScheme()
+    internal static readonly ColorScheme ErrorDialog = new ColorScheme()
     {
         Normal = TextColor.BrightRed,
         Focus = TextColor.Make(Color.White, Color.DarkGray),
@@ -32,7 +23,25 @@ static class ColorSchemes
         Disabled = TextColor.Dark,
     };
 
-    internal static readonly ColorScheme WindowColorScheme = new ColorScheme()
+    internal static readonly ColorScheme Label = new ColorScheme()
+    {
+        Normal = TextColor.White,
+        Focus = TextColor.Make(Color.White, Color.DarkGray),
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
+        Disabled = TextColor.Dark,
+    };
+
+    internal static readonly ColorScheme Indicator = new ColorScheme()
+    {
+        Normal = TextColor.Dark,
+        Focus = TextColor.Dark,
+        HotNormal = TextColor.Dark,
+        HotFocus = TextColor.Dark,
+        Disabled = TextColor.Dark,
+    };
+
+    internal static readonly ColorScheme TextField = new ColorScheme()
     {
         Normal = TextColor.White,
         Focus = TextColor.White,
@@ -41,7 +50,25 @@ static class ColorSchemes
         Disabled = TextColor.Dark,
     };
 
-    internal static readonly ColorScheme MenuColorScheme = new ColorScheme()
+    internal static readonly ColorScheme Button = new ColorScheme()
+    {
+        Normal = TextColor.White,
+        Focus = TextColor.Make(Color.White, Color.DarkGray),
+        HotNormal = TextColor.Blue,
+        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
+        Disabled = TextColor.Dark,
+    };
+
+    internal static readonly ColorScheme Window = new ColorScheme()
+    {
+        Normal = TextColor.White,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
+    };
+
+    internal static readonly ColorScheme Menu = new ColorScheme()
     {
         Normal = TextColor.White,
         Focus = TextColor.Make(Color.White, Color.DarkGray),

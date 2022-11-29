@@ -1,12 +1,8 @@
 ﻿using Terminal.Gui;
 using gmd.Cui;
-using System.Runtime.CompilerServices;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
-
-[assembly: InternalsVisibleTo("gmdTest")]                   // Tests access
-[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]  // DI access
 
 
 namespace gmd;
@@ -25,11 +21,11 @@ class Program
 
     static async Task<int> Main(string[] args)
     {
-        if (args.Length > 0 && args[0] == "--version")
+        if (args.Contains("--version"))
         {
             return ShowVersion();
         }
-        if (args.Length > 0 && args[0] == "--update")
+        if (args.Contains("--update"))
         {
             return await UpdateAsync();
         }
@@ -115,7 +111,8 @@ class Program
     static async Task<int> UpdateAsync()
     {
         var currentVersion = Build.Version();
-        Console.WriteLine($"Trying to update: {currentVersion} ...");
+        Console.WriteLine($"Trying to update current version {currentVersion} ...");
+
         var updater = new Updater();
         if (!Try(out var newVersion, out var e, await updater.UpdateAsync()))
         {

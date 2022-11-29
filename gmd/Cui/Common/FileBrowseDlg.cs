@@ -25,15 +25,11 @@ public class FileBrowseDlg
 
         Button cancelButton = new Button("Cancel", false);
         cancelButton.Clicked += () => Application.RequestStop();
-        cancelButton.ColorScheme = ColorSchemes.ButtonColorScheme;
+        cancelButton.ColorScheme = ColorSchemes.Button;
 
         Label sep1 = new Label(0, height - 4, new string('─', width - 2));
 
-        Dialog dialog = new Dialog("Select File", width, height, new[] { cancelButton })
-        {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded, BorderBrush = Color.Blue },
-            ColorScheme = ColorSchemes.DialogColorScheme,
-        };
+        Dialog dialog = Components.Dialog("Select File", width, height, cancelButton);
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(folderView, sep1);
 
@@ -90,7 +86,7 @@ public class FileBrowseDlg
         var scheme = new ColorScheme
         {
             Focus = new Terminal.Gui.Attribute(Color.White, Color.DarkGray),
-            Normal = new Terminal.Gui.Attribute(Color.Green, Color.Black),
+            Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
         };
 
         treeView.ColorGetter = m => scheme;
