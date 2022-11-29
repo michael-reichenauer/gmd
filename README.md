@@ -2,7 +2,7 @@
 
 Gmd is a cross-platform console UI Git client, which makes it easier to use Git, especially when using a branch model similar to e.g. GitFlow. Gmd makes it easy to toggle which branches to show and hide and simplifies using the most common git commands. It is like having dynamic squash, but without having to rewrite history to get clean history.
 
-<img src="Media/gmd.gif" width="860">
+<img src="media/gmd.png" width="860">
 
 ## Background
 
@@ -22,6 +22,8 @@ Download some version of `gmd_linux`, `gmd_widows` or `gmd_osx` and the run `> g
 `> gmd --update`  
 
 #### Windows:
+Download setup file from [releases](https://github.com/michael-reichenauer/gmd/releases)  
+or:  
 `> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/download/v0.30.29.632/gmdSetup.exe`  
 `> gmdSetup`  
 
@@ -31,7 +33,7 @@ Download some version of `gmd_linux`, `gmd_widows` or `gmd_osx` and the run `> g
 ## Build
 Use build script:  
 `> ./build`  
-or    
+or:    
  `> Build.bat`
 
 or use dotnet:  
