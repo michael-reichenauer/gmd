@@ -256,9 +256,8 @@ class RepoWriter : IRepoWriter
 
             if (branchName.Length > maxTipNameLength)
             {   // Branch name to long, shorten it
-
                 branchName = branchName.Substring(branchName.Length - maxTipNameLength);
-                branchName = splitIndex == -1 ? "┅" + branchName : branchName;
+                branchName = "┅" + branchName;
             }
 
             var color = branchColorService.GetColor(repo.Repo, b);
