@@ -29,6 +29,7 @@ public class MetaData
                 branchName = name;
             }
 
+            // The value kan exist, but be empty if user removed the value (marked removed)
             return branchName != "";
         }
         return false;
