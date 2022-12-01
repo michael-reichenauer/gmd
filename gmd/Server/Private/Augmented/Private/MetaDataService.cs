@@ -10,7 +10,7 @@ public class MetaData
 
     internal void SetBranched(string sid, string branchName) => CommitBranchBySid[sid] = branchName;
 
-    internal void Remove(string sid) => CommitBranchBySid[sid] = "*"; // Marked as deleted
+    internal void Remove(string sid) => SetCommitBranch(sid, "");  // Mark as removed to support sync
 
     internal bool TryGet(string sid, out string branchName, out bool isSetByUser)
     {
