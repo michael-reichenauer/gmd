@@ -10,7 +10,7 @@ public class MetaData
 
     internal void SetBranched(string sid, string branchName) => CommitBranchBySid[sid] = branchName;
 
-    internal void Remove(string sid) => CommitBranchBySid.Remove(sid);
+    internal void Remove(string sid) => SetCommitBranch(sid, "");  // Mark as removed to support sync
 
     internal bool TryGet(string sid, out string branchName, out bool isSetByUser)
     {
@@ -29,7 +29,7 @@ public class MetaData
                 branchName = name;
             }
 
-            return true;
+            return branchName != "";
         }
         return false;
     }
@@ -42,18 +42,21 @@ interface IMetaDataService
     Task<R> SetMetaDataAsync(string path, MetaData metaData);
 }
 
+
 [SingleInstance]
 class MetaDataService : IMetaDataService
 {
     const string metaDatakey = "data";
+    readonly IGit git;
+
     bool isUpdating = false;
 
-    readonly IGit git;
 
     internal MetaDataService(IGit git)
     {
         this.git = git;
     }
+
 
     public async Task<R> FetchMetaDataAsync(string path)
     {
@@ -62,18 +65,29 @@ class MetaDataService : IMetaDataService
             return R.Ok;
         }
 
-        if (!Try(out var e, await git.PullValueAsync(metaDatakey, path)))
+        // Lets get current local value so we can merge local and remote values
+        if (!Try(out var localMetaData, out var e, await GetMetaDataAsync(path))) return e;
+
+        // Pull latest data from remote server
+        if (!Try(out e, await git.PullValueAsync(metaDatakey, path)))
         {
             // Could not pull remote value,
             if (IsNoRemoteKey(e))
-            {   //  Key does not exist on remote server, lets push local value up
-                if (!Try(out var _, await GetMetaDataAsync(path))) return e;
+            {   // Key does not exist on remote server, lets push local value up
+                if (!Try(out var _, out e, await GetMetaDataAsync(path))) return e;
                 return await PushMetaDataAsync(path);
             }
 
             // Failed to fetch remote value, 
             return e;
         }
+
+        // Lets get remote value after remote server pull
+        if (!Try(out var remoteMetaData, out e, await GetMetaDataAsync(path))) return e;
+
+        // Merge previous local and new remote data
+        if (!Try(out e, await MergeLocalAndRemote(path, localMetaData, remoteMetaData))) return e;
+
         return R.Ok;
     }
 
@@ -115,6 +129,46 @@ class MetaDataService : IMetaDataService
             isUpdating = false;
         }
     }
+
+
+    async Task<R> MergeLocalAndRemote(string path,
+          MetaData localMetaData, MetaData remoteMetaData)
+    {
+        // We will merge before and after values and if different we will then push it
+
+        // Check if metadata count has changed
+        bool hasChanged = remoteMetaData.CommitBranchBySid.Count
+            != localMetaData.CommitBranchBySid.Count;
+
+        // Merge data, we prefer remote data. Let iterate all remote data first
+        foreach (var pair in remoteMetaData.CommitBranchBySid)
+        {
+            var key = pair.Key;
+            var remoteValue = pair.Value;
+
+            if (!localMetaData.CommitBranchBySid.TryGetValue(key, out var localValue))
+            {  // The local is missing a value for that key, setting remote value
+                localMetaData.CommitBranchBySid[key] = remoteValue;
+                localValue = remoteValue;
+                hasChanged = true;
+            }
+
+            if (remoteValue != localValue)
+            {   // The remote value has changed (unusual)
+                localMetaData.CommitBranchBySid[key] = remoteValue;
+                hasChanged = true;
+            }
+        }
+
+        if (hasChanged)
+        {   // The local meta data had some new values, or remote was different,
+            // We need to set and push the merged collection;
+            if (!Try(out var e, await SetMetaDataAsync(path, localMetaData))) return e;
+        }
+
+        return R.Ok;
+    }
+
 
 
     async Task<R> PushMetaDataAsync(string path)
