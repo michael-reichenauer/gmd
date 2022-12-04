@@ -1,0 +1,6 @@
+#!/bin/bash
+
+echo "Restoring ..."
+dotnet restore ./gmd/gmd.csproj
+dotnet restore ./gmdTest/gmdTest.csproj
+echo "Restored"
