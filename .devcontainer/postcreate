@@ -1,6 +1,16 @@
 #!/bin/bash
 
+echo "Install mc and lnav ..."
+sudo apt update -y
+sudo apt install mc -y
+sudo apt install lnav -y
+
+echo "Install gmd ..."
+mkdir ~/gmd; wget -q -O ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/download/v0.30.29.632/gmd_linux" && chmod +x ~/gmd/gmd
+echo 'export PATH=$PATH:~/gmd' >>~/.profile
+. ~/.profile
+gmd --update
+
 echo "Restoring ..."
 dotnet restore ./gmd/gmd.csproj
 dotnet restore ./gmdTest/gmdTest.csproj
-echo "Restored"
