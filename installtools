@@ -17,7 +17,3 @@ echo 'export PATH=$PATH:~/gmd' >>~/.profile
 . ~/.profile
 gmd --update
 
-echo ""
-echo "Restoring nuget packages ..."
-dotnet restore ./gmd/gmd.csproj
-dotnet restore ./gmdTest/gmdTest.csproj

@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Git;
+using gmd.Server;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -15,14 +16,27 @@ partial class MainView : IMainView
     readonly IRepoView repoView;
     readonly IGit git;
     readonly IStates states;
+    private readonly ICloneDlg cloneDlg;
+    private readonly IServer server;
+    private readonly IProgress progress;
     readonly IAboutDlg aboutDlg;
     readonly Lazy<View> toplevel;
 
-    MainView(IRepoView repoView, IGit git, IStates states, IAboutDlg aboutDlg) : base()
+    MainView(
+        IRepoView repoView,
+        IGit git,
+        IStates states,
+        ICloneDlg cloneDlg,
+        IServer server,
+        IProgress progress,
+        IAboutDlg aboutDlg) : base()
     {
         this.repoView = repoView;
         this.git = git;
         this.states = states;
+        this.cloneDlg = cloneDlg;
+        this.server = server;
+        this.progress = progress;
         this.aboutDlg = aboutDlg;
         toplevel = new Lazy<View>(CreateView);
     }
@@ -79,7 +93,7 @@ partial class MainView : IMainView
         }
 
         items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
-        items.Add(new MenuItem("Clone ...", "", () => { }, () => false));
+        items.Add(new MenuItem("Clone ...", "", () => Clone()));
         items.Add(new MenuItem("About ...", "", () => aboutDlg.Show()));
         items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
 
@@ -107,6 +121,26 @@ partial class MainView : IMainView
             repoView.View.SetFocus();
         });
     }
+
+    async void Clone()
+    {
+        // Parent folders to recent work folders, usually other repos there as well
+        var recentFolders = states.Get().RecentParentFolders;
+        if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return;
+        (var uri, var path) = r;
+
+        using (progress.Show())
+        {
+            if (!Try(out e, await server.CloneAsync(uri, path, "")))
+            {
+                UI.ErrorMessage($"Failed to clone:\n{uri}:\n{e}");
+                return;
+            }
+        }
+
+        ShowRepo(path);
+    }
+
 
 
     void ShowBrowseDialog()

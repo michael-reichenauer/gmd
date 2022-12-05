@@ -46,6 +46,7 @@ interface IRepoCommands
     void UndoAllUncommittedChanged();
     void CleanWorkingFolder();
     void UndoUncommittedFile(string path);
+    void Clone();
 }
 
 class RepoCommands : IRepoCommands
@@ -54,6 +55,7 @@ class RepoCommands : IRepoCommands
     readonly IProgress progress;
     readonly IFilterDlg filterDlg;
     readonly ICommitDlg commitDlg;
+    readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
     readonly IAboutDlg aboutDlg;
     readonly IDiffView diffView;
@@ -75,6 +77,7 @@ class RepoCommands : IRepoCommands
         IProgress progress,
         IFilterDlg filterDlg,
         ICommitDlg commitDlg,
+        ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
         IAboutDlg aboutDlg,
         IDiffView diffView,
@@ -89,6 +92,7 @@ class RepoCommands : IRepoCommands
         this.progress = progress;
         this.filterDlg = filterDlg;
         this.commitDlg = commitDlg;
+        this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
         this.aboutDlg = aboutDlg;
         this.diffView = diffView;
@@ -155,6 +159,28 @@ class RepoCommands : IRepoCommands
         Refresh();
         return R.Ok;
     });
+
+
+    public void Clone() => Do(async () =>
+    {
+        // Parent folders to recent work folders, usually other repos there as well
+        var recentFolders = states.Get().RecentParentFolders;
+
+        if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return R.Ok;
+        (var uri, var path) = r;
+
+        if (!Try(out e, await server.CloneAsync(uri, path, repoPath)))
+        {
+            return R.Error($"Failed to clone", e);
+        }
+
+        if (!Try(out e, await repoView.ShowRepoAsync(path)))
+        {
+            return R.Error($"Failed to open repo at {path}", e);
+        }
+        return R.Ok;
+    });
+
 
     public void ShowBranch(string name, bool includeAmbiguous)
     {

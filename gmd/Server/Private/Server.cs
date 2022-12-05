@@ -210,5 +210,7 @@ class Server : IServer
     public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         git.GetFileAsync(reference, wd);
 
+    public Task<R> CloneAsync(string uri, string path, string wd) =>
+        git.CloneAsync(uri, path, wd);
 }
 
