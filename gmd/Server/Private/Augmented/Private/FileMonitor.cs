@@ -21,6 +21,7 @@ class FileMonitor : IFileMonitor
     static readonly TimeSpan RepositoryDelayTriggerTime = TimeSpan.FromSeconds(1);
 
     const string GitFolder = ".git";
+    const string GitFolderPath = ".git/";
     const string GitRefsFolder = "refs";
     static readonly string GitHeadFile = Path.Combine(GitFolder, "HEAD");
     const NotifyFilters NotifyFilters =
@@ -122,7 +123,7 @@ class FileMonitor : IFileMonitor
 
         // Log.Info($"'{path}', '{fullPath}'");
 
-        if (path == null || !path.StartsWith(GitFolder))
+        if (path == null || !path.StartsWith(GitFolderPath))
         {
             if (path != null && IsIgnored(path))
             {
