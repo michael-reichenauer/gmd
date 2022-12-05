@@ -51,7 +51,7 @@ class Updater : IUpdater
     }
 
     internal Updater()
-        : this(new States(), new Cmd()) { Log.Info("internal !!!!!!!!!!!!"); }
+        : this(new States(), new Cmd()) { }
 
     public async Task CheckUpdateAvailableAsync()
     {
