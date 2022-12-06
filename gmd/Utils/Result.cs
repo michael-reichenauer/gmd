@@ -223,19 +223,11 @@ public class ErrorResult : R
     internal ErrorResult(Exception e, string memberName, string sourceFilePath, int sourceLineNumber)
          : base(AddStackTrace(e, ToStackTrace(memberName, sourceFilePath, sourceLineNumber)))
     {
-        if (e != NoError && e != NoValueError)
-        {
-            Log.Debug($"Result {this}");
-        }
     }
 
     private ErrorResult(Exception e, string stackTrace)
         : base(AddStackTrace(e, stackTrace))
     {
-        if (e != NoError && e != NoValueError)
-        {
-            Log.Debug($"Result {this}");
-        }
     }
 
 

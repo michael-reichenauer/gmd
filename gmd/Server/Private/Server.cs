@@ -129,7 +129,6 @@ class Server : IServer
             .Select(b => b.Name)
             .ToArray();
 
-        Log.Info($"Show names {branchNames}");
         return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 

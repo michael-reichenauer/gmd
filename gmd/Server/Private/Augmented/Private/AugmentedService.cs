@@ -65,9 +65,10 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> FetchAsync(string path)
     {
+        Log.Info($"Fetch {path} ...");
+
         // pull meta data, but ignore error, if error is key not exist, it can be ignored,
         // if error is remote error, the following fetch will handle that
-
         // Start both tasks in paralell and await later
         var metaDataTask = metaDataService.FetchMetaDataAsync(path);
         var fetchTask = git.FetchAsync(path);

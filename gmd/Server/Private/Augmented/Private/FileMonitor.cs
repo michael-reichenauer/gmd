@@ -234,9 +234,9 @@ class FileMonitor : IFileMonitor
             {
                 patterns.Add(new Glob(pattern));
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                Log.Debug($"Failed to add pattern {pattern}, {e.Message}");
+                // Log.Debug($"Failed to add pattern {pattern}, {e.Message}");
             }
         }
 

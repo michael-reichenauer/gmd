@@ -39,8 +39,7 @@ class TagService : ITagService
             var name = line.Substring(51);
 
             // Seems that some client add a suffix for some reason
-            name = name.TrimPrefix("^{}");
-
+            name = name.TrimSuffix("^{}");
 
             tags.Add(new Tag(name, commitID));
         }
