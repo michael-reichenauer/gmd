@@ -192,6 +192,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, () => Refresh());
         contentView.RegisterKeyHandler(Key.R, () => Refresh());
+        contentView.RegisterKeyHandler(Key.F5, () => Refresh());
         contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit());
         contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit());
         contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
