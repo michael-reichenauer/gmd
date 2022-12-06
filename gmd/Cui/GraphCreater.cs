@@ -1,4 +1,5 @@
 using gmd.Cui.Common;
+using gmd.Server;
 using Color = Terminal.Gui.Attribute;
 
 
@@ -36,7 +37,8 @@ interface IGraphCreater
 
 class GraphCreater : IGraphCreater
 {
-    private readonly IBranchColorService branchColorService;
+    static readonly Color MoreColor = TextColor.Dark;
+    readonly IBranchColorService branchColorService;
 
     public GraphCreater(IBranchColorService branchColorService)
     {
@@ -188,22 +190,25 @@ class GraphCreater : IGraphCreater
             }
         }
         else
-        {
-            // Drawing a dark  ╮
-            int x = commitBranch.X;
-            int y = commit.Index;
-            Color color = TextColor.Dark;
-            graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color);  //   ╮     
+        {   // Drawing a more  ╮
+            DrawMoreMergeIn(graph, commit, commitBranch);
         }
+    }
+
+    private static void DrawMoreMergeIn(Graph graph, Commit commit, GraphBranch commitBranch)
+    {
+        // Drawing a more marker  ╮
+        int x = commitBranch.X;
+        int y = commit.Index;
+        graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, MoreColor);  //   ╮     
     }
 
     void DrawMoreBranchOut(Graph graph, Server.Commit commit, GraphBranch commitBranch)
     {
-        // Drawing a dark   ╯
+        // Drawing a more marker  ╯
         int x = commitBranch.X;
         int y = commit.Index;
-        Color color = TextColor.Dark;
-        graph.SetGraphConnect(x + 1, y, Sign.BranchToRight, color);  //   ╯    
+        graph.SetGraphConnect(x + 1, y, Sign.BranchToRight, MoreColor);  //   ╯    
     }
 
     private void DrawMergeFromParentBranch(Graph graph, Server.Repo repo,
