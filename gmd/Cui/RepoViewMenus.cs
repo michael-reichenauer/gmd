@@ -113,7 +113,7 @@ class RepoViewMenus : IRepoViewMenus
             Item("Seach/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
-            SubMenu("Open Repo", "", GetOpenRepoItems()),
+            SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("About ...", "A", () => cmds.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
