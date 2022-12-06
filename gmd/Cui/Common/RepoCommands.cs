@@ -117,7 +117,7 @@ class RepoCommands : IRepoCommands
     public void ShowBrowseDialog() => Do(async () =>
    {
        // Parent folders to recent work folders, usually other repos there as well
-       var recentFolders = states.Get().RecentParentFolders;
+       var recentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
 
        var browser = new FolderBrowseDlg();
        if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
@@ -164,7 +164,7 @@ class RepoCommands : IRepoCommands
     public void Clone() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders;
+        var recentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
 
         if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return R.Ok;
         (var uri, var path) = r;

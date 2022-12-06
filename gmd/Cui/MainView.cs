@@ -104,6 +104,7 @@ partial class MainView : IMainView
 
     MenuItem[] GetRecentRepoItems() =>
         states.Get().RecentFolders
+            .Where(Files.DirExists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
             .ToArray();
 
@@ -125,7 +126,7 @@ partial class MainView : IMainView
     async void Clone()
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders;
+        var recentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
         if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return;
         (var uri, var path) = r;
 
@@ -146,7 +147,7 @@ partial class MainView : IMainView
     void ShowBrowseDialog()
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders;
+        var recentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
 
         var browser = new FolderBrowseDlg();
         if (!Try(out var path, browser.Show(recentFolders)))
