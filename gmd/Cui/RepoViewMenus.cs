@@ -177,7 +177,7 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
-        states.Get().RecentFolders.Select(path => Item(path, "", () => cmds.ShowRepo(path)));
+        states.Get().RecentFolders.Where(Files.DirExists).Select(path => Item(path, "", () => cmds.ShowRepo(path)));
 
 
     IEnumerable<MenuItem> GetPullItems()

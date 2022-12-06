@@ -368,14 +368,14 @@ class RepoView : IRepoView
     {
         // Rember recent repo paths
         states.Set(s => s.RecentFolders = s.RecentFolders
-            .Prepend(path).Distinct().Take(MaxRecentFolders).ToList());
+            .Prepend(path).Distinct().Where(Files.DirExists).Take(MaxRecentFolders).ToList());
 
         // Rember parent folder to paths to be used when browsing
         var parent = Path.GetDirectoryName(path);
         if (parent != null)
         {
             states.Set(s => s.RecentParentFolders = s.RecentParentFolders
-               .Prepend(parent).Distinct().Take(MaxRecentParentFolders).ToList());
+               .Prepend(parent).Distinct().Where(Files.DirExists).Take(MaxRecentParentFolders).ToList());
         }
     }
 

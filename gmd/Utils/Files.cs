@@ -43,7 +43,7 @@ static class Files
     }
 
     public static bool Exists(string path) => File.Exists(path);
-
+    public static bool DirExists(string path) => Directory.Exists(path);
 
 
     public static bool IsLarger(string path, int maxSixe)
