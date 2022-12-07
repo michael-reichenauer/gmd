@@ -919,7 +919,25 @@ class Augmenter : IAugmenter
             }
         }
 
-        var rootBranch = repo.Branches.First(b => b.ParentBranch == null);
+        // A repo can have several root branches
+        var rootBranches = repo.Branches.Where(b => b.ParentBranch == null).ToList();
+        if (!rootBranches.Any())
+        {   // No root branches (empty repo)
+            return;
+        }
+
+        // Select most likley root branch (but prioritize)
+        var rootBranch = rootBranches.First();
+        foreach (var name in DefaultBranchPriority)
+        {
+            var branch = rootBranches.FirstOrDefault(b => b.Name == name);
+            if (branch != null)
+            {
+                rootBranch = branch;
+                break;
+            }
+        }
+
         rootBranch.IsMainBranch = true;
         if (rootBranch.LocalName != "")
         {

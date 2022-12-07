@@ -2,6 +2,9 @@
 
 DOTNET="net7.0"
 
+ISBUILDLINUX="$1" 
+
+
 echo "Cleaning ..."
 rm gmd.exe 2>/dev/null
 rm gmd_linux 2>/dev/null
@@ -29,6 +32,12 @@ echo ""
 echo "Building linux ..."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux
+
+if [ $ISBUILDLINUX == "-l" ] ; then
+  echo "Built only linux."
+  ./gmd_linux --version 
+  exit 0
+fi
 
 echo "Building widows ..."
 dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
