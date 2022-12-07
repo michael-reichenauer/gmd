@@ -56,7 +56,6 @@ class CommitDetailsView : ICommitDetailsView
             id = "Uncommitted";
         }
 
-
         var newRows = new List<Text>();
 
         if (commit.Id == Repo.UncommittedId)
@@ -73,13 +72,21 @@ class CommitDetailsView : ICommitDetailsView
         {
             branchName = "^origin/" + branchName;
         }
+
         if (commit.IsBranchSetByUser)
         {
             newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName + "   Ф").Dark(" (ambiguity resolved by user)"));
         }
         else
         {
-            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName));
+            if (commit.IsAmbiguous)
+            {
+                newRows.Add(Text.New.Dark("Branch:     ").White(branchName + "   (ambiguous)"));
+            }
+            else
+            {
+                newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName));
+            }
         }
 
         newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>

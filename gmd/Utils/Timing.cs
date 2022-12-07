@@ -4,20 +4,39 @@ using System.Runtime.CompilerServices;
 
 
 namespace gmd.Utils;
-public class Timing
+public class Timing : IDisposable
 {
-    private readonly Stopwatch stopwatch;
-    private TimeSpan lastTimeSpan = TimeSpan.Zero;
-    private int count = 0;
+    readonly Stopwatch stopwatch;
+    readonly string msg;
+    readonly string msgMember;
+    readonly string msgSourceFilePath;
+    readonly int msgSourceLineNumber;
 
-    public Timing()
+    TimeSpan lastTimeSpan = TimeSpan.Zero;
+    int count = 0;
+
+    public Timing(
+        string msg = "",
+        [CallerMemberName] string memberName = "",
+        [CallerMemberName] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0)
     {
         stopwatch = new Stopwatch();
         stopwatch.Start();
+        this.msg = msg;
+        this.msgMember = memberName;
+        this.msgSourceFilePath = sourceFilePath;
+        this.msgSourceLineNumber = sourceLineNumber;
+
     }
 
 
     public static Timing Start => new Timing();
+
+    public void Dispose()
+    {
+        Utils.Logging.Log.Info($"{msg} {ToString()}", msgMember, msgSourceFilePath, msgSourceLineNumber);
+    }
 
     public TimeSpan Stop()
     {

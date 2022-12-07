@@ -105,7 +105,8 @@ class GraphCreater : IGraphCreater
                     DrawMoreBranchOut(graph, c, b); // Drawing  ╯
                 }
 
-                if (c.ParentIds.Count > 0 && repo.CommitById[c.ParentIds[0]].BranchName != c.BranchName)
+                // !!!!! Should not need to use TryGetValue here !!!!!!!!!!!!
+                if (c.ParentIds.Count > 0 && repo.CommitById.TryGetValue(c.ParentIds[0], out var fpc) && fpc.BranchName != c.BranchName)
                 {   // Commit parent is on other branch (i.e. commit is first/bottom commit on this branch)
                     // Draw branched from parent branch  ╯ or ╰
                     DrawBranchFromParent(graph, repo, c, b);

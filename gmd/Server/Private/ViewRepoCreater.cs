@@ -274,6 +274,12 @@ class ViewRepoCreater : IViewRepoCreater
             b.PullMergeBranchNames.ForEach(bb => branches.Add(repo.BranchByName[bb]));
         }
 
+        // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
+        foreach (var b in branches.ToList())
+        {
+            branches.Add(repo.BranchByName[repo.CommitById[b.TipId].BranchName]);
+        }
+
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
