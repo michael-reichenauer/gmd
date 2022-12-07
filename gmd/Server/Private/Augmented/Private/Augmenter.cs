@@ -859,33 +859,6 @@ class Augmenter : IAugmenter
     }
 
 
-    // internal WorkBranch AddAmbiguousBranch(WorkRepo repo, WorkCommit c)
-    // {
-    //     var name = $"ambiguous:{c.Sid}";
-    //     WorkBranch branch = new WorkBranch(
-    //         name: name,
-    //         commonName: name,
-    //         displayName: name,
-    //         tipID: c.Id);
-
-    //     branch.IsAmbiguousBranch = true;
-
-    //     foreach (var cc in c.Children)
-    //     {
-    //         if (cc.Branch == null)
-    //         {
-    //             continue;
-    //         }
-
-    //         branch.AmbiguousBranches.Add(cc.Branch);
-    //     }
-
-    //     repo.Branches.Add(branch);
-    //     return branch;
-    // }
-
-
-
     private void DetermineBranchHierarchy(WorkRepo repo)
     {
         foreach (var b in repo.Branches)
