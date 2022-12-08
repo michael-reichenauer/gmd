@@ -39,6 +39,7 @@ internal class WorkCommit
     public DateTime AuthorTime { get; }
 
     // Augmented properties
+    public int Index { get; internal set; }
     public List<Tag> Tags { get; } = new List<Tag>();
     public List<string> BranchTips { get; } = new List<string>();
 
@@ -64,8 +65,6 @@ internal class WorkCommit
     public WorkBranch? Branch { get; internal set; }
 
     public bool IsLikely { get; internal set; }
-
-
 
     public WorkCommit(GitCommit c)
     {
@@ -111,7 +110,7 @@ internal class WorkCommit
         }
     }
 
-    public override string ToString() => $"{Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
+    public override string ToString() => $"#{Index} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
 }
 
 internal class WorkBranch
@@ -165,7 +164,7 @@ internal class WorkBranch
         IsRemoteMissing = b.IsRemoteMissing;
         RemoteName = b.RemoteName;
         LocalName = "";
-        BottomID = "";
+        BottomID = b.TipID;
     }
 
     // Called when creating a branched based on a name, usually from a deleted branch
@@ -175,6 +174,7 @@ internal class WorkBranch
         CommonName = commonName;
         DisplayName = displayName;
         TipID = tipID;
+        BottomID = tipID;
     }
 
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";

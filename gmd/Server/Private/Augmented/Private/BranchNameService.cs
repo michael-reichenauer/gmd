@@ -110,9 +110,9 @@ class BranchNameService : IBranchNameService
         {
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
             return new FromInto(
-            From: TrimBranchName(match.Groups[indexes.from].Value),
-            Into: TrimBranchName(match.Groups[indexes.from].Value),
-            true);
+                From: TrimBranchName(match.Groups[indexes.from].Value),
+                Into: TrimBranchName(match.Groups[indexes.from].Value),
+                true);
         }
 
         return new FromInto(

@@ -64,7 +64,7 @@ partial class MainView : IMainView
     {
         Threading.SetUp();
 
-        string path = "/workspaces/Terminal.Gui";
+        string path = GetWorkingFolder();
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
             if (path != "")
@@ -78,6 +78,18 @@ partial class MainView : IMainView
         }
 
         ShowRepo(rootPath);
+    }
+
+    string GetWorkingFolder()
+    {
+        var path = "";
+        var args = Environment.GetCommandLineArgs();
+        int i = args.ToList().FindIndex(n => n == "-d");
+        if (i != -1 && args.Length >= i + 2)
+        {
+            path = args[i + 1];
+        }
+        return path;
     }
 
 

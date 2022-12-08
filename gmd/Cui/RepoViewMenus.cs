@@ -37,12 +37,12 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
         var showItems = GetShowItems();
+        var scrollItems = GetScrollToItems();
         var switchToItems = GetSwitchToItems();
-
 
         if (showItems.Any())
         {
-            items.Add(UI.MenuSeparator("Show"));
+            items.Add(UI.MenuSeparator("Open"));
             items.AddRange(showItems);
         }
 
@@ -50,6 +50,12 @@ class RepoViewMenus : IRepoViewMenus
         {
             items.Add(UI.MenuSeparator("Switch to"));
             items.AddRange(switchToItems);
+        }
+
+        if (scrollItems.Any())
+        {
+            items.Add(UI.MenuSeparator("Scroll to"));
+            items.AddRange(scrollItems);
         }
 
         if (items.Any())
@@ -68,7 +74,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         List<MenuItem> items = new List<MenuItem>();
 
-        items.Add(UI.MenuSeparator("Hide"));
+        items.Add(UI.MenuSeparator("Close/Hide"));
         items.AddRange(GetHideItems());
 
         var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
@@ -97,8 +103,8 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Undo", "", GetUndoItems()),
 
             UI.MenuSeparator("Branches"),
-            SubMenu("Show Branch", "->", GetShowBranchItems()),
-            SubMenu("Hide Branch", "<-", GetHideItems()),
+            SubMenu("Open/Show Branch", "->", GetShowBranchItems()),
+            SubMenu("Close/Hide Branch", "<-", GetHideItems()),
             SubMenu("Switch/Checkout", "", GetSwitchToItems()),
             SubMenu("Push", "", GetPushItems(), () => cmds.CanPush()),
             SubMenu("Update/Pull", "", GetPullItems(), () => cmds.CanPull()),
@@ -199,10 +205,24 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetShowItems()
     {
         // Get current branch, commit branch in/out and all shown branches
+        var shownBranches = repo.Branches;
         var branches =
             new[] { repo.GetCurrentBranch() }
             .Concat(repo.GetCommitBranches())
-            .Concat(repo.Branches);
+            .Concat(repo.Branches)
+            .Where(b => !repo.Branches.ContainsBy(bb => bb.CommonName == b.CommonName));
+
+        return ToShowBranchesItems(branches, true);
+    }
+
+    IEnumerable<MenuItem> GetScrollToItems()
+    {
+        // Get current branch, commit branch in/out and all shown branches
+        var branches =
+            new[] { repo.GetCurrentBranch() }
+            .Concat(repo.GetCommitBranches())
+            .Concat(repo.Branches)
+            .Where(b => repo.Branches.Contains(b));
 
         return ToShowBranchesItems(branches, true);
     }
@@ -325,8 +345,7 @@ class RepoViewMenus : IRepoViewMenus
         bool isBranchIn = false;
         bool isBranchOut = false;
         if (canBeOutside && !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
-        {
-            // The branch is currently not shown
+        {   // The branch is currently not shown
             if (repo.Repo.AugmentedRepo.BranchByName.TryGetValue(branch.Name, out var b))
             {
                 // The branch is not shown, but does exist
@@ -346,8 +365,8 @@ class RepoViewMenus : IRepoViewMenus
 
     string ToShowName(Branch branch, bool isBranchIn = false, bool isBranchOut = false)
     {
-        string name = branch.DisplayName;
-        name = branch.IsGitBranch ? " " + name : "~" + name;
+        string name = branch.CommonName;
+        name = branch.IsGitBranch ? " " + branch.DisplayName : "~" + name;
         name = isBranchIn ? "╮" + name : name;
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;

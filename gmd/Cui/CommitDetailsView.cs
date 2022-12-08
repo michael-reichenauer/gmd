@@ -67,7 +67,7 @@ class CommitDetailsView : ICommitDetailsView
             newRows.Add(Text.New.Dark("Id:         ").White(id));
         }
 
-        var branchName = branch.DisplayName;
+        var branchName = branch.DisplayName + $"  ({branch.Name})";
         if (branch.IsRemote)
         {
             branchName = "^origin/" + branchName;

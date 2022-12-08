@@ -243,19 +243,19 @@ class ViewRepoCreater : IViewRepoCreater
             var current = repo.Branches.FirstOrDefault(b => b.IsCurrent);
             if (current != null)
             {
-                branches.Add(current);
+                branches.TryAdd(current);
             }
         }
 
 
         // Ensure that main branch is always included 
         var main = repo.Branches.First(b => b.IsMainBranch);
-        branches.Add(main);
+        branches.TryAdd(main);
 
         // Ensure all ancestors are included
         foreach (var b in branches.ToList())
         {
-            Ancestors(repo, b).ForEach(bb => branches.Add(bb));
+            Ancestors(repo, b).ForEach(bb => branches.TryAdd(bb));
         }
 
         // Ensure all local branches of remote branches are included 
@@ -264,20 +264,20 @@ class ViewRepoCreater : IViewRepoCreater
         {
             if (b.IsRemote && b.LocalName != "")
             {
-                branches.Add(repo.BranchByName[b.LocalName]);
+                branches.TryAdd(repo.BranchByName[b.LocalName]);
             }
         }
 
         // Ensure all pull merger branches of a branch are included 
         foreach (var b in branches.ToList())
         {
-            b.PullMergeBranchNames.ForEach(bb => branches.Add(repo.BranchByName[bb]));
+            b.PullMergeBranchNames.ForEach(bb => branches.TryAdd(repo.BranchByName[bb]));
         }
 
         // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
         foreach (var b in branches.ToList())
         {
-            branches.Add(repo.BranchByName[repo.CommitById[b.TipId].BranchName]);
+            branches.TryAdd(repo.BranchByName[repo.CommitById[b.TipId].BranchName]);
         }
 
         // Remove duplicates (ToList(), since Sort works inline)
