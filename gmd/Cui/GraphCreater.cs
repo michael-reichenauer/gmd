@@ -330,11 +330,13 @@ class GraphCreater : IGraphCreater
     void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
     {
         // Iterating in the order of the view repo branches
+        var bb = branches[0];
+        Log.Info($"Branch {bb.X} '{bb.B}' '{bb.B.DisplayName}', '{bb.B.CommonName}', Parent: {bb.B.ParentBranchName}");
         for (int i = 1; i < branches.Count; i++)
         {
             var b = branches[i];
             b.X = i;
-            Log.Info($"Branch {b.X} '{b.B}' '{b.B.DisplayName}', '{b.B.CommonName}'");
+            Log.Info($"Branch {b.X} '{b.B}' '{b.B.DisplayName}', '{b.B.CommonName}', Parent: {b.B.ParentBranchName}");
 
 
             // b.X = 0;

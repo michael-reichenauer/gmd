@@ -89,27 +89,6 @@ internal class WorkCommit
         ParentIds = new List<string>(parentIds.AsEnumerable<string>());
     }
 
-    // internal void TryAddToBranches(WorkBranch branch)
-    // {
-    //     if (Branches.Exists(b => b.Name == branch.Name))
-    //     {
-    //         return;
-    //     }
-    //     Branches.TryAdd(branch);
-    // }
-
-    // internal void TryAddToBranches(IEnumerable<WorkBranch> branches)
-    // {
-    //     foreach (var branch in branches)
-    //     {
-    //         if (Branches.Exists(b => b.Name == branch.Name))
-    //         {
-    //             continue;
-    //         }
-    //         Branches.Add(branch);
-    //     }
-    // }
-
     public override string ToString() => $"#{Index} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
 }
 

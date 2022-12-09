@@ -1007,7 +1007,7 @@ class Augmenter : IAugmenter
             return;
         }
 
-        // Select most likley root branch (but prioritize)
+        // Select most likely root branch (but prioritize)
         var rootBranch = rootBranches.First();
         foreach (var name in DefaultBranchPriority)
         {
