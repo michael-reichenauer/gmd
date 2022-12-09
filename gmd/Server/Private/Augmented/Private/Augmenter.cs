@@ -275,11 +275,6 @@ class Augmenter : IAugmenter
             commit.Branches.Clear();
             return branch!;
         }
-        // else if (TrySameChildrenBranches(commit, out branch)) // Not possible any more
-        // {   // Commit has no branch but has 2 children with same branch
-        //     commit.Branches.Clear();
-        //     return branch!;
-        // }
         else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
         {   // Commit has no branches and no children, but has a merge child.
             // The commit is a tip of a deleted branch. It might be a deleted remote branch.
@@ -292,6 +287,10 @@ class Augmenter : IAugmenter
             // The commit is a tip of a deleted remote branch.
             // Lets try determine branch name based on merge child's subject 
             // or use a generic branch name based on commit id
+            return branch!;
+        }
+        else if (TryHasMainBranch(commit, out branch))
+        {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
             return branch!;
         }
         else if (TryHasBranchNameInSubject(repo, commit, out branch))
@@ -313,15 +312,14 @@ class Augmenter : IAugmenter
         {   // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
             return branch!;
         }
-        else if (TryHasMainBranch(commit, out branch))
-        {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
-            return branch!;
-        }
-
         else if (TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
         {   // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
             return branch!;
         }
+        // else if (TryAllChildrenArePullRequests(repo, commit, out branch))
+        // {
+        //     return branch!;
+        // }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
         {   // one of the commit children is a an ambiguous commit, reuse same branch
             return branch!;
@@ -333,6 +331,21 @@ class Augmenter : IAugmenter
         return AddAmbiguousCommit(repo, commit);
     }
 
+    bool TryAllChildrenArePullRequests(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        foreach (var c in commit.Children)
+        {
+            if (commit.Children.Where(cc => cc != c)
+                .All(cc => cc.Branch!.PullRequestParent == c.Branch!.Name))
+            {
+                branch = c.Branch!;
+                return TrySetBranch(repo, commit, branch);
+            }
+        }
+
+        return false;
+    }
 
     bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
@@ -353,12 +366,12 @@ class Augmenter : IAugmenter
         {
             commit.IsBranchSetByUser = isSetByUser;
             branch = remote;
-            return true;
+            return TrySetBranch(repo, commit, branch);
         }
 
         commit.IsBranchSetByUser = isSetByUser;
         branch = branches.First();
-        return true;
+        return TrySetBranch(repo, commit, branch);
     }
 
     bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch)
@@ -437,6 +450,12 @@ class Augmenter : IAugmenter
                 }
 
                 branch = AddNamedBranch(repo, commit, name);
+
+                if (branchNameService.IsPullRequest(mergeChild))
+                {
+                    branch.PullRequestParent = mergeChild.Branch!.Name;
+                }
+
                 return true;
             }
 
@@ -554,7 +573,7 @@ class Augmenter : IAugmenter
         return false;
     }
 
-    private bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
 
@@ -571,6 +590,12 @@ class Augmenter : IAugmenter
             return false;
         }
 
+        return TrySetBranch(repo, commit, branch);
+    }
+
+
+    bool TrySetBranch(WorkRepo repo, WorkCommit commit, WorkBranch branch)
+    {
         // Lets use that as a branch name and also let children (commits above)
         // use that branch if they are an ambiguous branch
         if (branch.TipID == commit.Id)
@@ -646,12 +671,6 @@ class Augmenter : IAugmenter
             current.Branches.Clear();
             current.Branches.TryAdd(branch);
 
-            // if (current.FirstParent != null &&
-            //     current.FirstParent.Branch != null &&
-            //     current.FirstParent.Branch != branch)
-            // {
-            //     current.FirstParent.Branch.BottomID = current.Id;
-            // }
             if (current == commit)
             {
                 break;
@@ -661,91 +680,7 @@ class Augmenter : IAugmenter
         } while (current != null);
 
         return true;
-
-
-
-
-        // // Lets iterate upp (first child) as long as commits are ambiguous and the branch exists
-        // var current = c;
-        // var currentBranch = branch;
-        // while (true)
-        // {
-        //     if (current.Branch != null && current.Branch.AmbiguousTipId == current.Id)
-        //     {   // Branch is no longer ambiguous all ambigous commits have been cleared.
-        //         current.Branch.AmbiguousTipId = "";
-        //         current.Branch.IsAmbiguousBranch = false;
-        //         current.Branch.AmbiguousBranches.Clear();
-        //     }
-
-        //     current.Branch = branch;
-        //     current.IsAmbiguous = false;
-        //     current.IsAmbiguousTip = false;
-        //     current.IsLikely = true;
-        //     current.TryAddToBranches(branch);
-
-        //     var child = current.Children
-        //         .FirstOrDefault(cc => cc.IsAmbiguous && (cc.Branch! == currentBranch)
-        //             || null != cc.Branch!.AmbiguousBranches.FirstOrDefault(bb => bb == currentBranch));
-        //     if (child == null)
-        //     {   // No ambiguous commit with that branch, cannot step up further
-        //         return true;
-        //     }
-
-        //     // Step the ambiguous branch bottom upp since current belongs branch
-        //     child.Branch!.BottomID = child.Id;
-
-        //     if (current.Id == branch.TipID)
-        //     {   // Found the commit tip of the branch no commits above that.
-        //         return true;
-        //     }
-
-        //     // Go to upp to child
-        //     current = child;
-        // }
     }
-
-    // bool SetBranchForAmbiguousCommits(WorkRepo repo, WorkBranch branch, WorkCommit endCommit)
-    // {
-    //     // Found an existing branch with that name, set lowest known commit to the bottom
-    //     // of that known branch
-    //     if (!repo.CommitsById.TryGetValue(branch.BottomID, out var current))
-    //     {
-    //         return false;
-    //     }
-
-    //     // Step current down one step, since current is already the last commit on that branch
-    //     current = current.FirstParent;
-
-    //     if (current != null)
-    //     {
-    //         // Current is now the first commit after the c.Subject named brach
-    //         // Adjust the current child branch bottom id to be the 'first' child of current
-    //         var otherChild = current.Children.FirstOrDefault(cc => cc.Branch == current.Branch);
-    //         if (otherChild != null)
-    //         {
-    //             current.Branch!.BottomID = otherChild.Id;
-    //         }
-
-    //         if (current.Branch?.AmbiguousTipId == current.Id)
-    //         {   // Branch is no longer ambiguous all ambigous commits have been cleared.
-    //             current.Branch.AmbiguousTipId = "";
-    //             current.Branch.IsAmbiguousBranch = false;
-    //             current.Branch.AmbiguousBranches.Clear();
-    //         }
-    //     }
-
-    //     // Set all commits to the branch below the current until reaching the commit after c
-    //     for (; current != null && current != endCommit.FirstParent; current = current.FirstParent)
-    //     {
-    //         current.Branch = branch;
-    //         current.IsAmbiguous = false;
-    //         current.IsAmbiguousTip = false;
-    //         current.TryAddToBranches(branch);
-    //         current.IsLikely = true;
-    //     }
-
-    //     return true;
-    // }
 
 
     WorkBranch? TryGetBranchFromName(WorkCommit commit, string name)
@@ -946,7 +881,7 @@ class Augmenter : IAugmenter
             var likelyBranch = likelyChild.Branch!;
             ambiguousBranches = ambiguousBranches
                 .Concat(commit.Children.Select(c => c.Branch!))
-                .DistinctBy(b => b.Name).ToList();
+                .Distinct().ToList();
 
             return (likelyBranch, ambiguousBranches);
         }
@@ -964,7 +899,7 @@ class Augmenter : IAugmenter
         }
 
         var likelyBranch2 = oldestChild.Branch!;
-        ambiguousBranches = ambiguousBranches.Concat(childBranches).DistinctBy(b => b.Name).ToList();
+        ambiguousBranches = ambiguousBranches.Concat(childBranches).Distinct().ToList();
 
         return (likelyBranch2, ambiguousBranches);
     }

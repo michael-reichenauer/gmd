@@ -8,11 +8,12 @@ interface IBranchNameService
 {
     FromInto ParseCommit(WorkCommit c);
     bool IsPullMerge(WorkCommit c);
+    bool IsPullRequest(WorkCommit c);
     string GetBranchName(string commitId);
 }
 
 
-record FromInto(string From, string Into, bool IsPullMerge);
+record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
 record Indexes(int from, int into, int direction);
 
 
@@ -21,7 +22,7 @@ class BranchNameService : IBranchNameService
     readonly Dictionary<string, FromInto> parsedCommits = new Dictionary<string, FromInto>();
     readonly Dictionary<string, string> branchNames = new Dictionary<string, string>();
 
-    readonly FromInto noNames = new FromInto("", "", false);
+    readonly FromInto noNames = new FromInto("", "", false, false);
 
     static readonly string[] prefixes = { "refs/remotes/origin/", "remotes/origin/", "origin/" };
 
@@ -53,6 +54,12 @@ class BranchNameService : IBranchNameService
     {
         var fi = ParseCommit(c);
         return fi.IsPullMerge;
+    }
+
+    public bool IsPullRequest(WorkCommit c)
+    {
+        var fi = ParseCommit(c);
+        return fi.IsPullRequest;
     }
 
     public FromInto ParseCommit(WorkCommit c)
@@ -112,13 +119,25 @@ class BranchNameService : IBranchNameService
             return new FromInto(
                 From: TrimBranchName(match.Groups[indexes.from].Value),
                 Into: TrimBranchName(match.Groups[indexes.from].Value),
+                true,
+                false);
+        }
+
+        if (IsMatchPullRequest(match))
+        {
+            // Subject is a pull request
+            return new FromInto(
+                From: TrimBranchName(match.Groups[indexes.from].Value),
+                Into: TrimBranchName(match.Groups[indexes.into].Value),
+                false,
                 true);
         }
 
         return new FromInto(
-        From: TrimBranchName(match.Groups[indexes.from].Value),
-        Into: TrimBranchName(match.Groups[indexes.into].Value),
-        false);
+            From: TrimBranchName(match.Groups[indexes.from].Value),
+            Into: TrimBranchName(match.Groups[indexes.into].Value),
+            false,
+            false);
     }
 
     private string TrimBranchName(string name)
@@ -147,6 +166,16 @@ class BranchNameService : IBranchNameService
 
         if (match.Groups[indexes.from].Value != "" && match.Groups[indexes.into].Value != "" &&
             TrimBranchName(match.Groups[indexes.from].Value) == TrimBranchName(match.Groups[indexes.into].Value))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsMatchPullRequest(Match match)
+    {
+        if (match.Groups[0].Value.StartsWith("Merge pull request"))
         {
             return true;
         }

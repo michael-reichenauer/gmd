@@ -123,6 +123,7 @@ internal class WorkBranch
     public bool HasRemoteOnly { get; set; }
 
     public string AmbiguousTipId { get; set; } = "";
+    public string PullRequestParent { get; internal set; } = "";
 
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
     public List<WorkBranch> PullMergeBranches = new List<WorkBranch>();

@@ -283,8 +283,8 @@ class ViewRepoCreater : IViewRepoCreater
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
-        // Sort on branch hierarchy
-        branches.Sort((b1, b2) => CompareBranches(repo, b1, b2));
+        // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
+        Sorter.Sort(branches, (b1, b2) => CompareBranches(repo, b1, b2));
         return branches;
     }
 
@@ -366,7 +366,7 @@ class ViewRepoCreater : IViewRepoCreater
         filteredCommits[tipCommitIndex] = newTipCommit;
     }
 
-    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
+    int CompareBranchesxxx(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
     {
         return IsFirstAncestorOfSecond(repo, b1, b2) ? -1 :
             IsFirstAncestorOfSecond(repo, b2, b1) ? 1 : 0;
@@ -384,5 +384,32 @@ class ViewRepoCreater : IViewRepoCreater
         }
 
         return ancestors;
+    }
+
+
+    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
+    {
+        if (b1 == b2) return 0;
+        if (b1.Name == b2.ParentBranchName) return -1;   // b1 is parent of b2
+        if (b2.Name == b1.ParentBranchName) return 1;   // b2 is parent of b1
+
+        // Check if b1 is ancestor of b2
+        var current = b2.ParentBranchName != "" ? repo.BranchByName[b2.ParentBranchName] : null;
+        while (current != null)
+        {
+            if (b1 == current) return -1;
+            current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
+        }
+
+        // Check if b2 is ancestor of b1
+        current = b1.ParentBranchName != "" ? repo.BranchByName[b1.ParentBranchName] : null;
+        while (current != null)
+        {
+            if (b2 == current) return 1;
+            current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
+        }
+
+        // Not related
+        return 0;
     }
 }

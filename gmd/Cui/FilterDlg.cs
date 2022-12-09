@@ -39,9 +39,11 @@ class FilterDlg : IFilterDlg
         { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView.RegisterKeyHandler(Key.Enter, () => OnEnter());
 
-        var width = 85;
+        var width = 86;
 
         var dialog = Components.Dialog("Search/Filter", width, 20);
+        dialog.ColorScheme.Focus = TextColor.White;
+        dialog.ColorScheme.Normal = TextColor.BrightMagenta;
         dialog.Y = 0;
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(nameField, sep1, contentView);
@@ -97,7 +99,7 @@ class FilterDlg : IFilterDlg
     IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
         commits.Skip(firstIndex).Take(count).Select(c => Text.New
             .White($"{c.Subject.Max(50),-50}")
-            .Dark($"{c.Sid} {c.Author.Max(15),-15} {c.AuthorTime.ToString("yy-MM-dd")}"));
+            .Dark($" {c.Sid} {c.Author.Max(15),-15} {c.AuthorTime.ToString("yy-MM-dd")}"));
 }
 
 

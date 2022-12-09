@@ -330,45 +330,40 @@ class GraphCreater : IGraphCreater
     {
         // Iterating in the order of the view repo branches
         var bb = branches[0];
-        Log.Info($"Branch {bb.X} '{bb.B}' '{bb.B.DisplayName}', '{bb.B.CommonName}', Parent: {bb.B.ParentBranchName}");
         for (int i = 1; i < branches.Count; i++)
         {
             var b = branches[i];
-            b.X = i;
-            Log.Info($"Branch {b.X} '{b.B}' '{b.B.DisplayName}', '{b.B.CommonName}', Parent: {b.B.ParentBranchName}");
+            b.X = 0;
 
+            // Ensure parent branches are to the left of child branches
+            if (b.ParentBranch != null)
+            {
+                if (b.B.Name == b.ParentBranch.B.LocalName)
+                {   // The local branch of a remote branch
+                    b.X = b.ParentBranch.X + 1;
+                }
+                else if (b.B.PullMergeBranchName == b.ParentBranch.B.Name)
+                {   // The pull merger sub part of a branch
+                    b.X = b.ParentBranch.X + 1;
+                }
+                else
+                {   // Some other child branch
+                    b.X = b.ParentBranch.X + 2;
+                }
+            }
 
-            // b.X = 0;
+            // Ensure that siblings do not overlap (with a little margin)
+            while (true)
+            {
+                if (null == branches.FirstOrDefault(v =>
+                    v.B.Name != b.B.Name && v.X == b.X &&
+                    IsOverlapping(v.TipIndex, v.BottomIndex, b.TipIndex - 1, b.BottomIndex + 1)))
+                {
+                    break;
+                }
 
-            // // Ensure parent branches are to the left of child branches
-            // if (b.ParentBranch != null)
-            // {
-            //     if (b.B.Name == b.ParentBranch.B.LocalName)
-            //     {   // The local branch of a remote branch
-            //         b.X = b.ParentBranch.X + 1;
-            //     }
-            //     else if (b.B.PullMergeBranchName == b.ParentBranch.B.Name)
-            //     {   // The pull merger sub part of a branch
-            //         b.X = b.ParentBranch.X + 1;
-            //     }
-            //     else
-            //     {   // Some other child branch
-            //         b.X = b.ParentBranch.X + 2;
-            //     }
-            // }
-
-            // // Ensure that siblings do not overlap (with a little margin)
-            // while (true)
-            // {
-            //     if (null == branches.FirstOrDefault(v =>
-            //         v.B.Name != b.B.Name && v.X == b.X &&
-            //         IsOverlapping(v.TipIndex, v.BottomIndex, b.TipIndex - 1, b.BottomIndex + 1)))
-            //     {
-            //         break;
-            //     }
-
-            //     b.X++;
-            // }
+                b.X++;
+            }
         }
     }
 
