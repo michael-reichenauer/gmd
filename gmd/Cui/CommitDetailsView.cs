@@ -64,7 +64,7 @@ class CommitDetailsView : ICommitDetailsView
         }
         else
         {
-            newRows.Add(Text.New.Dark("Id:         ").White(id));
+            newRows.Add(Text.New.Dark("Id:         ").White(id).Dark($"  (#{commit.GitIndex})"));
         }
 
         var branchName = branch.DisplayName + $"  ({branch.Name})";

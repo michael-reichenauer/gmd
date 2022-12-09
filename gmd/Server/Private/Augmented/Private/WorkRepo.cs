@@ -39,7 +39,7 @@ internal class WorkCommit
     public DateTime AuthorTime { get; }
 
     // Augmented properties
-    public int Index { get; internal set; }
+    public int GitIndex { get; internal set; }
     public List<Tag> Tags { get; } = new List<Tag>();
     public List<string> BranchTips { get; } = new List<string>();
 
@@ -89,7 +89,7 @@ internal class WorkCommit
         ParentIds = new List<string>(parentIds.AsEnumerable<string>());
     }
 
-    public override string ToString() => $"#{Index} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
+    public override string ToString() => $"#{GitIndex} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
 }
 
 internal class WorkBranch

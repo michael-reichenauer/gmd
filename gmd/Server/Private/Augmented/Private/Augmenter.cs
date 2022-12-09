@@ -119,7 +119,7 @@ class Augmenter : IAugmenter
                 }
             }
 
-            commit.Index = i;
+            commit.GitIndex = i;
             repo.Commits.Add(commit);
             repo.CommitsById[commit.Id] = commit;
         }
@@ -132,7 +132,7 @@ class Augmenter : IAugmenter
                 id: Repo.PartialLogCommitID, subject: msg, message: msg,
                 author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0]);
             pc.IsPartialLogCommit = true;
-            pc.Index = repo.Commits.Count;
+            pc.GitIndex = repo.Commits.Count;
             repo.Commits.Add(pc);
             repo.CommitsById[pc.Id] = pc;
         }

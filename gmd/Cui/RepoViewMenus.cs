@@ -291,7 +291,7 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => b.CommonName);
 
         var recentBranches = liveAndDeletedBranches
-            .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].Index)
+            .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
             .Take(15);
 
         var ambiguousBranches = allBranches

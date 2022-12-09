@@ -316,7 +316,7 @@ class ViewRepoCreater : IViewRepoCreater
                 uncommitted = new Augmented.Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Substring(0, 6),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    Index: 0, currentBranch.Name, currentBranch.CommonName,
+                    GitIndex: 0, currentBranch.Name, currentBranch.CommonName,
                     ParentIds: parentIds, ChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
