@@ -435,18 +435,16 @@ class Augmenter : IAugmenter
             {   // Managed to parse a branch-name 
                 var mergeChild = commit.MergeChildren[0];
 
-                if (branchNameService.IsPullMerge(mergeChild))
+                if (branchNameService.IsPullMerge(mergeChild) &&
+                    mergeChild.Branch!.DisplayName == name)
                 {
-                    if (mergeChild.Branch!.DisplayName == name)
-                    {
-                        // The merge child is a pull merge, so this commit is on a "dead" branch part,
-                        // which used to be the local branch of the pull merge commit.
-                        // We need to connect this branch with the actual branch.
-                        var pullMergeBranch = mergeChild.Branch;
-                        branch = AddPullMergeBranch(repo, commit, name, pullMergeBranch!);
-                        pullMergeBranch!.PullMergeBranches.TryAdd(branch);
-                        return true;
-                    }
+                    // The merge child is a pull merge, so this commit is on a "dead" branch part,
+                    // which used to be the local branch of the pull merge commit.
+                    // We need to connect this branch with the actual branch.
+                    var pullMergeBranch = mergeChild.Branch;
+                    branch = AddPullMergeBranch(repo, commit, name, pullMergeBranch!);
+                    pullMergeBranch!.PullMergeBranches.TryAdd(branch);
+                    return true;
                 }
 
                 branch = AddNamedBranch(repo, commit, name);
@@ -609,6 +607,7 @@ class Augmenter : IAugmenter
         // Lets iterate upp (first child) as long as commits are ambiguous and the branch exists
         var namedBranch = branch;
         var current = commit;
+        Dictionary<string, string> bottoms = new Dictionary<string, string>();
         while (current.Id != branch.TipID)
         {
             var child = current.Children
@@ -618,6 +617,8 @@ class Augmenter : IAugmenter
             {   // No ambiguous child commit with that branch, cannot step up further
                 break;
             }
+            // Remember highest known id of each branch, to later be used to set branch bottom id
+            bottoms[child.Branch!.Name] = child.Id;
 
             // Step upp to child
             current = child;
@@ -633,24 +634,30 @@ class Augmenter : IAugmenter
         branch.IsAmbiguousBranch = false;
         branch.AmbiguousBranches.Clear();
 
-        if (current.Branch != null && current.Branch != branch)
-        {   // Need to move bottom of current branch upp to current child since current will
-            // belong to other branch
-            if (current.Children.Any())
-            {   // Sett branch bottom to child
-                var firstOtherChild = current.Children.FirstOrDefault(c => c.Branch == current.Branch);
-                if (firstOtherChild != null)
-                {
-                    current.Branch!.BottomID = firstOtherChild.Id;
+        // Adjust bottom id of seen branches since commits have been moved to new branch
+        foreach (var pair in bottoms)
+        {
+            var com = repo.CommitsById[pair.Value];
+            if (com.Branch != branch)
+            {
+                // Need to move bottom of current branch upp to current child since current will
+                // belong to other branch
+                if (com.Children.Any())
+                {   // Sett branch bottom to child
+                    var firstOtherChild = com.Children.FirstOrDefault(c => c.Branch == com.Branch);
+                    if (firstOtherChild != null)
+                    {
+                        com.Branch!.BottomID = firstOtherChild.Id;
+                    }
+                    else
+                    {   // Must have been a tip on current
+                        com.Branch!.BottomID = com.Id;
+                    }
                 }
                 else
-                {   // Must have been a tip on current
-                    current.Branch!.BottomID = current.Id;
+                {   // Has no children, set to current
+                    com.Branch!.BottomID = com.Id;
                 }
-            }
-            else
-            {   // Has no children, set to current
-                current.Branch!.BottomID = current.Id;
             }
         }
 
