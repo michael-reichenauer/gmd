@@ -36,6 +36,18 @@ public static class EnumerableExtensions
         source.Add(item);
     }
 
+    public static void TryAddAll<TSource>(this List<TSource> source, IEnumerable<TSource> items)
+    {
+        foreach (var item in items)
+        {
+            if (source.Contains(item))
+            {
+                continue;
+            }
+            source.Add(item);
+        }
+    }
+
     public static void TryAddBy<TSource>(this List<TSource> source, Func<TSource, bool> predicate, TSource item)
     {
         if (null != source.FirstOrDefault(predicate))
