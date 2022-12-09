@@ -349,11 +349,13 @@ class RepoViewMenus : IRepoViewMenus
             if (repo.Repo.AugmentedRepo.BranchByName.TryGetValue(branch.Name, out var b))
             {
                 // The branch is not shown, but does exist
-                if (cic.ParentIds.Count > 1 && cic.ParentIds[1] == b.TipId)
-                {   // Is a branch in '╮' branch                     
+                if (cic.ParentIds.Count > 1 &&
+                    repo.Repo.AugmentedRepo.CommitById[cic.ParentIds[1]].BranchName == b.Name)
+                {   // Is a branch merge in '╮' branch                     
                     isBranchIn = true;
                 }
-                else if (cic.ChildIds.Contains(b.BottomId))
+                else if (cic.ChildIds.ContainsBy(id =>
+                     repo.Repo.AugmentedRepo.CommitById[id].BranchName == b.Name))
                 {   // Is branch out '╯' branch
                     isBranchOut = true;
                 }
