@@ -67,7 +67,7 @@ class CommitDetailsView : ICommitDetailsView
             newRows.Add(Text.New.Dark("Id:         ").White(id).Dark($"  (#{commit.GitIndex})"));
         }
 
-        var branchName = branch.DisplayName + $"  ({branch.Name})";
+        var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
         if (branch.IsRemote)
         {
             branchName = "^origin/" + branchName;

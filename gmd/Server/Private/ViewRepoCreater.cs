@@ -268,6 +268,12 @@ class ViewRepoCreater : IViewRepoCreater
             }
         }
 
+        // Ensure all related branches are included
+        foreach (var b in branches.ToList())
+        {
+            branches.TryAddAll(repo.Branches.Where(bb => bb.CommonName == b.CommonName));
+        }
+
         // Ensure all pull merger branches of a branch are included 
         foreach (var b in branches.ToList())
         {

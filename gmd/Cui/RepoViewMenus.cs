@@ -143,8 +143,8 @@ class RepoViewMenus : IRepoViewMenus
         var branch = repo.Branch(commit.BranchName);
         return items
             .Concat(branch.AmbiguousBranchNames.Select(n => repo.AllBranchByName(n))
-                .DistinctBy(b => b.DisplayName)
-                .Select(b => Item(b.DisplayName, "", () => cmds.ResolveAmbiguity(branch, b.DisplayName))));
+                .DistinctBy(b => b.CommonName)
+                .Select(b => Item(ToBranchMenuName(b), "", () => cmds.ResolveAmbiguity(branch, b.DisplayName))));
     }
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
@@ -161,13 +161,13 @@ class RepoViewMenus : IRepoViewMenus
 
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToShowName(repo.CurrentBranch), "",
+            items.Add(Item(ToBranchMenuName(repo.CurrentBranch), "",
                     () => cmds.PushCurrentBranch(),
                     () => cmds.CanPushCurrentBranch()));
         }
         items.AddRange(repo.Branches
             .Where(b => !b.IsRemote && !b.IsCurrent && b.HasLocalOnly && !b.HasRemoteOnly)
-            .Select(b => (Item($"Push {ToShowName(b)}", "", () => cmds.PushBranch(b.Name)))));
+            .Select(b => (Item($"Push {ToBranchMenuName(b)}", "", () => cmds.PushBranch(b.Name)))));
 
         return items.DistinctBy(b => b.Title);
     }
@@ -192,13 +192,13 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(Item("Update/Pull All Branches", "U", () => cmds.PullAllBranches()));
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToShowName(repo.CurrentBranch), "",
+            items.Add(Item(ToBranchMenuName(repo.CurrentBranch), "",
                     () => cmds.PullCurrentBranch(),
                     () => cmds.CanPullCurrentBranch()));
         }
         items.AddRange(repo.Branches
             .Where(b => b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
-            .Select(b => (Item($"{ToShowName(b)}", "", () => cmds.PullBranch(b.Name)))));
+            .Select(b => (Item($"{ToBranchMenuName(b)}", "", () => cmds.PullBranch(b.Name)))));
         return items.DistinctBy(b => b.Title);
     }
 
@@ -245,7 +245,7 @@ class RepoViewMenus : IRepoViewMenus
             .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
             .DistinctBy(b => b.CommonName)
             .OrderBy(b => b.CommonName)
-            .Select(b => Item(b.DisplayName, "", () => cmds.DeleteBranch(b.Name)));
+            .Select(b => Item(ToBranchMenuName(b), "", () => cmds.DeleteBranch(b.Name)));
     }
 
 
@@ -262,18 +262,19 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
-        return branches.Select(b => Item(b.DisplayName, "", () => cmds.MergeBranch(b.Name)));
+        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
     }
 
     IEnumerable<MenuItem> GetHideItems()
     {
+        var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
-            .Where(b => !b.IsMainBranch)
+            .Where(b => !b.IsMainBranch && b.CommonName != mainBranch.CommonName)
             .DistinctBy(b => b.CommonName)
             .OrderBy(b => b.CommonName);
 
         return branches.Select(b =>
-            Item(b.DisplayName, "", () => cmds.HideBranch(b.Name)));
+            Item(ToBranchMenuName(b), "", () => cmds.HideBranch(b.Name)));
     }
 
 
@@ -337,10 +338,10 @@ class RepoViewMenus : IRepoViewMenus
         var cic = repo.RowCommit;
         return branches
             .DistinctBy(b => b.CommonName)
-            .Select(b => Item(ToShowName(b, cic, canBeOutside), "", () => cmds.ShowBranch(b.Name, includeAmbiguous)));
+            .Select(b => Item(ToBranchMenuName(b, cic, canBeOutside), "", () => cmds.ShowBranch(b.Name, includeAmbiguous)));
     }
 
-    string ToShowName(Branch branch, Commit cic, bool canBeOutside)
+    string ToBranchMenuName(Branch branch, Commit cic, bool canBeOutside)
     {
         bool isBranchIn = false;
         bool isBranchOut = false;
@@ -362,10 +363,10 @@ class RepoViewMenus : IRepoViewMenus
             }
         }
 
-        return ToShowName(branch, isBranchIn, isBranchOut);
+        return ToBranchMenuName(branch, isBranchIn, isBranchOut);
     }
 
-    string ToShowName(Branch branch, bool isBranchIn = false, bool isBranchOut = false)
+    string ToBranchMenuName(Branch branch, bool isBranchIn = false, bool isBranchOut = false)
     {
         string name = branch.CommonName;
         name = branch.IsGitBranch ? " " + branch.DisplayName : "~" + name;
@@ -374,7 +375,7 @@ class RepoViewMenus : IRepoViewMenus
         name = isBranchIn || isBranchOut ? name : " " + name;
         name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
 
-        return name;
+        return name.Replace('_', '-');
     }
 
     string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Substring(0, 6);
