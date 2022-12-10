@@ -15,8 +15,8 @@ interface IAugmenter
 
 class Augmenter : IAugmenter
 {
-    readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master" };
-
+    readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master", "origin/trunk", "trunk" };
+    const string partialBranchName = "<partial-branch>";
     readonly IBranchNameService branchNameService;
 
 
@@ -124,18 +124,7 @@ class Augmenter : IAugmenter
             repo.CommitsById[commit.Id] = commit;
         }
 
-        if (isPartialNeeded)
-        {
-            // Add a virtual/fake partial commit, which some commits will have as a parent
-            string msg = "...    (more commits)";
-            WorkCommit pc = new WorkCommit(
-                id: Repo.PartialLogCommitID, subject: msg, message: msg,
-                author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0]);
-            pc.IsPartialLogCommit = true;
-            pc.GitIndex = repo.Commits.Count;
-            repo.Commits.Add(pc);
-            repo.CommitsById[pc.Id] = pc;
-        }
+
 
         // Set current commit if there is a current branch with an existing tip
         GitBranch? currentBranch = gitRepo.Branches.FirstOrDefault(b => b.IsCurrent);
@@ -148,6 +137,19 @@ class Augmenter : IAugmenter
         }
 
         repo.Commits.Reverse();
+
+        if (isPartialNeeded)
+        {
+            // Add a virtual/fake partial commit, which some commits will have as a parent
+            string msg = "< ... log truncated, more commits exists ... >";
+            WorkCommit pc = new WorkCommit(
+                id: Repo.PartialLogCommitID, subject: msg, message: msg,
+                author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0]);
+            pc.IsPartialLogCommit = true;
+            pc.GitIndex = repo.Commits.Count;
+            repo.Commits.Add(pc);
+            repo.CommitsById[pc.Id] = pc;
+        }
     }
 
 
@@ -261,7 +263,12 @@ class Augmenter : IAugmenter
         var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
 
         WorkBranch? branch;
-        if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
+        if (commit.Id == Repo.PartialLogCommitID)
+        {
+            commit.Branches.Clear();
+            return AddPartialBranch(repo);
+        }
+        else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
         {   // Commit branch was set/determined by user,
             commit.Branches.Clear();
             return branch!;
@@ -826,8 +833,8 @@ class Augmenter : IAugmenter
         }
     }
 
-    private WorkBranch AddPullMergeBranch(
-        WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeBranch)
+    WorkBranch AddPullMergeBranch(
+       WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeBranch)
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
         var displayName = name != "" ? name : $"branch@{c.Sid}";
@@ -842,7 +849,21 @@ class Augmenter : IAugmenter
         return branch;
     }
 
-    private WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
+    WorkBranch AddPartialBranch(WorkRepo repo)
+    {
+        var branchName = partialBranchName;
+        var displayName = partialBranchName;
+        var branch = new WorkBranch(
+            name: branchName,
+            commonName: branchName,
+            displayName: displayName,
+            tipID: Repo.PartialLogCommitID);
+
+        repo.Branches.Add(branch);
+        return branch;
+    }
+
+    WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
         var displayName = name != "" ? name : $"branch@{c.Sid}";
@@ -859,11 +880,6 @@ class Augmenter : IAugmenter
     internal WorkBranch AddAmbiguousCommit(WorkRepo repo, WorkCommit c)
     {
         (var branch, var ambiguousBranches) = GetLikelyBranches(c);
-        if (ambiguousBranches.Count < 2)
-        {
-            Log.Info("ambiguous count <2");
-            (var bb, var amb) = GetLikelyBranches(c);
-        }
 
         c.IsAmbiguous = true;
         c.Branch = branch;
@@ -954,7 +970,8 @@ class Augmenter : IAugmenter
         }
 
         // A repo can have several root branches
-        var rootBranches = repo.Branches.Where(b => b.ParentBranch == null).ToList();
+        var partialBranch = repo.Branches.FirstOrDefault(b => b.Name == partialBranchName);
+        var rootBranches = repo.Branches.Where(b => b.ParentBranch == null || b.ParentBranch == partialBranch).ToList();
         if (!rootBranches.Any())
         {   // No root branches (empty repo)
             return;
@@ -970,6 +987,18 @@ class Augmenter : IAugmenter
                 rootBranch = branch;
                 break;
             }
+        }
+
+        if (partialBranch != null)
+        {
+            var partialCommit = repo.CommitsById[Repo.PartialLogCommitID];
+            partialCommit.Branch = rootBranch;
+            rootBranch.ParentBranch = null;
+            rootBranch.BottomID = partialCommit.Id;
+            repo.Branches.Remove(partialBranch);
+            repo.Branches
+                .Where(b => b.ParentBranch == partialBranch)
+                .ForEach(b => b.ParentBranch = rootBranch);
         }
 
         rootBranch.IsMainBranch = true;
