@@ -176,9 +176,13 @@ class GraphCreater : IGraphCreater
         {
             var parentBranch = graph.BranchByName(mergeParent.BranchName);
             // Commit is a merge commit, has 2 parents
-            if (parentBranch.Index < commitBranch.Index)
-            {   // Other branch is on the left side, merged from parent parent branch ╭
+            if (parentBranch.X < commitBranch.X)
+            {   // Other branch is on the left side, merged from parent branch ╭
                 DrawMergeFromParentBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
+            }
+            else if (parentBranch.X == commitBranch.X)
+            {   // Other branch is on the same column, merged from sibling branch │
+                DrawMergeFromSiblingBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
             }
             else
             {
@@ -234,6 +238,38 @@ class GraphCreater : IGraphCreater
         graph.DrawHorizontalLine(x2 + 1, x, y2, color);            // ──
     }
 
+    private void DrawMergeFromSiblingBranch(
+        Graph graph, Server.Repo repo,
+        Server.Commit commit, GraphBranch commitBranch,
+        Server.Commit mergeParent, GraphBranch parentBranch)
+    {
+        // Commit is a merge commit, has 2 parents
+        int x = commitBranch.X;
+        int y = commit.Index;
+        int x2 = parentBranch.X;
+        int y2 = mergeParent.Index;
+
+        // Other branch is on same column merged from sibling branch,  │
+        Color color = parentBranch.Color;
+
+        if (mergeParent.IsAmbiguous)
+        {
+            color = TextColor.Ambiguous;
+        }
+
+        if (commitBranch != parentBranch)
+        {
+            graph.SetGraphConnect(x2, y, Sign.MergeFromRight, color); //   ╮
+            graph.DrawVerticalLine(x2, y + 1, y2, color); //               │
+            graph.SetGraphBranch(x2, y2, Sign.BranchToRight, color); //    ╯
+            graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
+        }
+        else
+        {
+            graph.SetGraphBranch(x2, y2, Sign.Commit, color); //           ┣
+        }
+    }
+
     private void DrawMergeFromChildBranch(
         Graph graph, Server.Repo repo,
         Server.Commit commit, GraphBranch commitBranch,
@@ -284,7 +320,7 @@ class GraphCreater : IGraphCreater
             color = TextColor.Ambiguous;
         }
 
-        if (parentBranch.Index < commitBranch.Index)
+        if (parentBranch.X < commitBranch.X)
         {   // Other branch is left side  ╭
             graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color);
             graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);  //      ╭
