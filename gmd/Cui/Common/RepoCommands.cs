@@ -402,11 +402,22 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public bool CanPush() => serverRepo.Status.IsOk && repo.Branches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
+    public bool CanPush() => serverRepo.Status.IsOk &&
+         repo.Branches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 
     public bool CanPushCurrentBranch()
     {
         var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        if (branch == null)
+        {
+            return false;
+        }
+        if (branch.RemoteName != "")
+        {
+            var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
+            return status.IsOk && remoteBranch != null && !remoteBranch.HasRemoteOnly;
+        }
+
         return serverRepo.Status.IsOk &&
             branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
     }
