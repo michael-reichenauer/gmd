@@ -33,7 +33,7 @@ echo "Building linux ..."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux
 
-if [ $ISBUILDLINUX == "-l" ] ; then
+if [[ $ISBUILDLINUX == "-l" ]] ; then
   echo "Built only linux."
   ./gmd_linux --version 
   exit 0
