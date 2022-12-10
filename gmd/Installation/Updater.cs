@@ -10,6 +10,7 @@ interface IUpdater
 {
     Task CheckUpdateAvailableAsync();
     Task<R<Version>> UpdateAsync();
+    Task<R<(bool, Version)>> IsUpdateAvailableAsync();
 }
 
 public class GitRelease
@@ -85,7 +86,7 @@ class Updater : IUpdater
             return e;
         }
 
-        if (!isAvailable)
+        if (!isAvailable.Item1)
         {
             Log.Info("Already at latest release");
             return buildVersion;
@@ -133,7 +134,7 @@ class Updater : IUpdater
         }
     }
 
-    async Task<R<bool>> IsUpdateAvailableAsync()
+    public async Task<R<(bool, Version)>> IsUpdateAvailableAsync()
     {
         if (!Try(out var release, out var e, await GetRemoteInfoAsync()))
         {
@@ -144,13 +145,13 @@ class Updater : IUpdater
         if (release.Version == "")
         {
             Log.Info("No remote release available");
-            return false;
+            return (false, buildVersion);
         }
 
         if (!release.Assets.Any())
         {
             Log.Warn($"No remote binaries for {release.Version}");
-            return false;
+            return (false, buildVersion);
         }
         states.Set(s =>
         {
@@ -162,12 +163,12 @@ class Updater : IUpdater
         {
             Log.Debug("No new remote release available");
             states.Set(s => s.Releases.IsUpdateAvailable = false);
-            return false;
+            return (false, buildVersion);
         }
         Log.Info($"Update available, local {buildVersion} < {release.Version} remote (preview={release.IsPreview})");
         states.Set(s => s.Releases.IsUpdateAvailable = true);
 
-        return true;
+        return (true, new Version(release.Version));
     }
 
 
