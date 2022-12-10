@@ -448,7 +448,7 @@ class RepoCommands : IRepoCommands
         if (branch.RemoteName != "")
         {
             var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
-            return status.IsOk && branch != null && branch.HasRemoteOnly;
+            return status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
         }
         return false;
     }
