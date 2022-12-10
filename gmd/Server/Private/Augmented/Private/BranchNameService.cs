@@ -8,11 +8,13 @@ interface IBranchNameService
 {
     FromInto ParseCommit(WorkCommit c);
     bool IsPullMerge(WorkCommit c);
+    bool IsPullRequest(WorkCommit c);
     string GetBranchName(string commitId);
+    FromInto ParseSubject(string subject);
 }
 
 
-record FromInto(string From, string Into, bool IsPullMerge);
+record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
 record Indexes(int from, int into, int direction);
 
 
@@ -21,7 +23,7 @@ class BranchNameService : IBranchNameService
     readonly Dictionary<string, FromInto> parsedCommits = new Dictionary<string, FromInto>();
     readonly Dictionary<string, string> branchNames = new Dictionary<string, string>();
 
-    readonly FromInto noNames = new FromInto("", "", false);
+    readonly FromInto noNames = new FromInto("", "", false, false);
 
     static readonly string[] prefixes = { "refs/remotes/origin/", "remotes/origin/", "origin/" };
 
@@ -55,6 +57,12 @@ class BranchNameService : IBranchNameService
         return fi.IsPullMerge;
     }
 
+    public bool IsPullRequest(WorkCommit c)
+    {
+        var fi = ParseCommit(c);
+        return fi.IsPullRequest;
+    }
+
     public FromInto ParseCommit(WorkCommit c)
     {
         if (c.ParentIds.Count != 2)
@@ -68,13 +76,24 @@ class BranchNameService : IBranchNameService
             return fi;
         }
 
-        fi = ParseMergeBranchNames(c.Subject);
+        fi = ParseSubject(c.Subject);
 
         // set the branch name of the commit and merge parent.
         // could actually be several names, but lets ignore that
         parsedCommits[c.Id] = fi;
 
-        branchNames[c.Id] = fi.Into;
+        if (fi.Into != "")
+        {   // Prioritize commits own subject
+            branchNames[c.Id] = fi.Into;
+        }
+        else
+        {   // Commit subject did not have an into value, some child might already have
+            // info about this commits branch name so we do not clear that info
+            if (!branchNames.TryGetValue(c.Id, out var name) || name == "")
+            {
+                branchNames[c.Id] = fi.Into;
+            }
+        }
 
         if (!IsPullMergeCommit(fi))
         {
@@ -89,12 +108,8 @@ class BranchNameService : IBranchNameService
         return fi;
     }
 
-    private bool IsPullMergeCommit(FromInto fi)
-    {
-        return fi.From != "" && fi.From == fi.Into;
-    }
 
-    private FromInto ParseMergeBranchNames(string subject)
+    public FromInto ParseSubject(string subject)
     {
         subject = subject.Trim();
         //var matches = nameRegExp.FindAllStringSubmatch(subject, -1);
@@ -110,18 +125,36 @@ class BranchNameService : IBranchNameService
         {
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
             return new FromInto(
-            From: TrimBranchName(match.Groups[indexes.from].Value),
-            Into: TrimBranchName(match.Groups[indexes.from].Value),
-            true);
+                From: TrimBranchName(match.Groups[indexes.from].Value),
+                Into: TrimBranchName(match.Groups[indexes.from].Value),
+                true,
+                false);
+        }
+
+        if (IsMatchPullRequest(match))
+        {
+            // Subject is a pull request
+            return new FromInto(
+                From: TrimBranchName(match.Groups[indexes.from].Value),
+                Into: TrimBranchName(match.Groups[indexes.into].Value),
+                false,
+                true);
         }
 
         return new FromInto(
-        From: TrimBranchName(match.Groups[indexes.from].Value),
-        Into: TrimBranchName(match.Groups[indexes.into].Value),
-        false);
+            From: TrimBranchName(match.Groups[indexes.from].Value),
+            Into: TrimBranchName(match.Groups[indexes.into].Value),
+            false,
+            false);
     }
 
-    private string TrimBranchName(string name)
+
+    bool IsPullMergeCommit(FromInto fi)
+    {
+        return fi.From != "" && fi.From == fi.Into;
+    }
+
+    string TrimBranchName(string name)
     {
         foreach (var prefix in prefixes)
         {
@@ -135,7 +168,7 @@ class BranchNameService : IBranchNameService
         return name;
     }
 
-    private bool IsMatchPullMerge(Match match)
+    bool IsMatchPullMerge(Match match)
     {
         if (match.Groups[indexes.from].Value != "" &&
             match.Groups[indexes.direction].Value != "" &&
@@ -147,6 +180,16 @@ class BranchNameService : IBranchNameService
 
         if (match.Groups[indexes.from].Value != "" && match.Groups[indexes.into].Value != "" &&
             TrimBranchName(match.Groups[indexes.from].Value) == TrimBranchName(match.Groups[indexes.into].Value))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool IsMatchPullRequest(Match match)
+    {
+        if (match.Groups[0].Value.StartsWith("Merge pull request"))
         {
             return true;
         }

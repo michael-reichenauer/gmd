@@ -169,11 +169,12 @@ class RepoWriter : IRepoWriter
         else if (c.IsUncommitted) { text.BrightYellow(subject); }
         else if (c.IsAhead) { text.BrightGreen(subject); }
         else if (c.IsBehind) { text.BrightBlue(subject); }
+        else if (c.Id == Repo.PartialLogCommitID) { text.Dark(subject); }
         else if (c.BranchCommonName == currentRowBranch.CommonName)
         {
-            text.White(Txt(subject, columnWidth));
+            text.White(subject);
         }
-        else { text.Dark(Txt(subject, columnWidth)); }
+        else { text.Dark(subject); }
 
         if (tips != null) { WriteBranchTips(text, tips, maxTipWidth); }
         if (c.IsBranchSetByUser) { text.Dark(" Ф"); }

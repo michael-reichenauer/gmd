@@ -41,10 +41,10 @@ class Cmd : ICmd
 
     public CmdResult Run(string path, string args, string workingDirectory, bool skipLog = false)
     {
-        var t = Timing.Start;
+        var t = Timing.Start();
         try
         {
-            Log.Debug($"{path} {args} ({workingDirectory})");
+            Log.Debug($"Start: {path} {args} ({workingDirectory})");
             var outputLines = new List<string>();
             var errorLines = new List<string>();
 
@@ -80,17 +80,14 @@ class Cmd : ICmd
                 var output = string.Join('\n', outputLines).Replace("\r", "").TrimEnd();
                 var error = string.Join('\n', errorLines).Replace("\r", "").TrimEnd();
 
-                if (!skipLog)
-                {
-                    Log.Info($"{path} {args} ({workingDirectory}) {t}");
-                }
-
                 if (process.ExitCode != 0)
                 {
-                    Log.Warn($"Error: {path} {args} ({workingDirectory}) {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    if (!skipLog) Log.Warn($"Error: {path} {args} ({workingDirectory}) {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    if (skipLog) Log.Debug($"Error: {path} {args} ({workingDirectory}) {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
                     return new CmdResult(process.ExitCode, output, error);
                 }
 
+                Log.Debug($"OK: {path} {args} ({workingDirectory}) {t}");
                 return new CmdResult(output, error);
             }
         }

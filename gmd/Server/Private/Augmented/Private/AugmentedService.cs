@@ -65,17 +65,19 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> FetchAsync(string path)
     {
-        // pull meta data, but ignore error, if error is key not exist, it can be ignored,
-        // if error is remote error, the following fetch will handle that
+        using (Timing.Start("Fetched"))
+        {
+            // pull meta data, but ignore error, if error is key not exist, it can be ignored,
+            // if error is remote error, the following fetch will handle that
+            // Start both tasks in parallel and await later
+            var metaDataTask = metaDataService.FetchMetaDataAsync(path);
+            var fetchTask = git.FetchAsync(path);
 
-        // Start both tasks in paralell and await later
-        var metaDataTask = metaDataService.FetchMetaDataAsync(path);
-        var fetchTask = git.FetchAsync(path);
+            await Task.WhenAll(metaDataTask, fetchTask);
 
-        await Task.WhenAll(metaDataTask, fetchTask);
-
-        // Return the result of the fetch task (ignoring the metaData result)
-        return fetchTask.Result;
+            // Return the result of the fetch task (ignoring the metaData result)
+            return fetchTask.Result;
+        }
     }
 
 
@@ -85,7 +87,7 @@ class AugmentedService : IAugmentedService
     // GetGitRepoAsync returns a fresh git repo info object with commits, branches, ...
     async Task<R<GitRepo>> GetGitRepoAsync(string path)
     {
-        Timing t = Timing.Start;
+        Timing t = Timing.Start();
 
         // Start some git commands in parallel to get commits, branches, status, ...
         var logTask = git.GetLogAsync(maxCommitCount, path);
@@ -175,7 +177,7 @@ class AugmentedService : IAugmentedService
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
-        Timing t = Timing.Start;
+        Timing t = Timing.Start();
 
         if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path))) return e;
 
@@ -189,7 +191,7 @@ class AugmentedService : IAugmentedService
     {
         fileMonitor.Monitor(gitRepo.Path);
 
-        Timing t = Timing.Start;
+        Timing t = Timing.Start();
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
         Threading.AssertIsMainThread();
 

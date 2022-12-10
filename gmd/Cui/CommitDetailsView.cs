@@ -56,7 +56,6 @@ class CommitDetailsView : ICommitDetailsView
             id = "Uncommitted";
         }
 
-
         var newRows = new List<Text>();
 
         if (commit.Id == Repo.UncommittedId)
@@ -65,21 +64,34 @@ class CommitDetailsView : ICommitDetailsView
         }
         else
         {
-            newRows.Add(Text.New.Dark("Id:         ").White(id));
+            newRows.Add(Text.New.Dark("Id:         ").White(id).Dark($"  (#{commit.GitIndex})"));
         }
 
-        var branchName = branch.DisplayName;
+        var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
         if (branch.IsRemote)
         {
             branchName = "^origin/" + branchName;
         }
+
         if (commit.IsBranchSetByUser)
         {
             newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName + "   Ф").Dark(" (ambiguity resolved by user)"));
         }
         else
         {
-            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName));
+            if (commit.IsAmbiguous)
+            {
+                var ambBranches = string.Join(", ", branch.AmbiguousBranchNames.Take(3));
+                if (branch.AmbiguousBranchNames.Count > 3)
+                {
+                    ambBranches += ",┅";
+                }
+                newRows.Add(Text.New.Dark("Branch:     ").White(branchName + $" (ambiguous: {ambBranches})"));
+            }
+            else
+            {
+                newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName));
+            }
         }
 
         newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>

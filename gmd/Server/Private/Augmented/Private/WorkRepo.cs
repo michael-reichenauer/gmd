@@ -39,6 +39,7 @@ internal class WorkCommit
     public DateTime AuthorTime { get; }
 
     // Augmented properties
+    public int GitIndex { get; internal set; }
     public List<Tag> Tags { get; } = new List<Tag>();
     public List<string> BranchTips { get; } = new List<string>();
 
@@ -65,8 +66,6 @@ internal class WorkCommit
 
     public bool IsLikely { get; internal set; }
 
-
-
     public WorkCommit(GitCommit c)
     {
         Id = c.Id;
@@ -90,28 +89,7 @@ internal class WorkCommit
         ParentIds = new List<string>(parentIds.AsEnumerable<string>());
     }
 
-    internal void TryAddToBranches(WorkBranch branch)
-    {
-        if (Branches.Exists(b => b.Name == branch.Name))
-        {
-            return;
-        }
-        Branches.Add(branch);
-    }
-
-    internal void TryAddToBranches(IEnumerable<WorkBranch> branches)
-    {
-        foreach (var branch in branches)
-        {
-            if (Branches.Exists(b => b.Name == branch.Name))
-            {
-                continue;
-            }
-            Branches.Add(branch);
-        }
-    }
-
-    public override string ToString() => $"{Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
+    public override string ToString() => $"#{GitIndex} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
 }
 
 internal class WorkBranch
@@ -145,6 +123,7 @@ internal class WorkBranch
     public bool HasRemoteOnly { get; set; }
 
     public string AmbiguousTipId { get; set; } = "";
+    public string PullRequestParent { get; internal set; } = "";
 
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
     public List<WorkBranch> PullMergeBranches = new List<WorkBranch>();
@@ -165,7 +144,7 @@ internal class WorkBranch
         IsRemoteMissing = b.IsRemoteMissing;
         RemoteName = b.RemoteName;
         LocalName = "";
-        BottomID = "";
+        BottomID = b.TipID;
     }
 
     // Called when creating a branched based on a name, usually from a deleted branch
@@ -175,6 +154,7 @@ internal class WorkBranch
         CommonName = commonName;
         DisplayName = displayName;
         TipID = tipID;
+        BottomID = tipID;
     }
 
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";

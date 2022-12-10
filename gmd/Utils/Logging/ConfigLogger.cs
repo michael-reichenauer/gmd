@@ -148,7 +148,13 @@ static class ConfigLogger
         int lineNumber)
     {
         string timeStamp = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
-        string filePath = sourceFilePath.Substring(prefixLength).Replace(";", "");
+        int trimLength = prefixLength;
+        if (prefixLength >= sourceFilePath.Length - 1)
+        {
+            trimLength = 0;
+        }
+
+        string filePath = sourceFilePath.Substring(trimLength).Replace(";", "");
 
         int classStartIndex = filePath.LastIndexOf(Path.DirectorySeparatorChar);
         if (classStartIndex == -1)

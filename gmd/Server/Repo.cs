@@ -56,6 +56,7 @@ public record Commit(
 
     // Augmented properties
     int Index,
+    int GitIndex,
     string BranchName,
     string BranchCommonName,
     IReadOnlyList<string> ParentIds,

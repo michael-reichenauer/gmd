@@ -21,7 +21,7 @@ class FileMonitor : IFileMonitor
     static readonly TimeSpan RepositoryDelayTriggerTime = TimeSpan.FromSeconds(1);
 
     const string GitFolder = ".git";
-    const string GitFolderPath = ".git/";
+    static readonly string GitFolderPath = ".git" + Path.DirectorySeparatorChar;
     const string GitRefsFolder = "refs";
     static readonly string GitHeadFile = Path.Combine(GitFolder, "HEAD");
     const NotifyFilters NotifyFilters =
@@ -122,7 +122,6 @@ class FileMonitor : IFileMonitor
         }
 
         // Log.Info($"'{path}', '{fullPath}'");
-
         if (path == null || !path.StartsWith(GitFolderPath))
         {
             if (path != null && IsIgnored(path))
@@ -149,7 +148,7 @@ class FileMonitor : IFileMonitor
 
             if (!fileChangedTimer.Enabled)
             {
-                Log.Info("File changing ...");
+                Log.Info($"File changing for '{fullPath}' ...");
                 fileChangedTimer.Enabled = true;
             }
         }
@@ -234,9 +233,9 @@ class FileMonitor : IFileMonitor
             {
                 patterns.Add(new Glob(pattern));
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                Log.Debug($"Failed to add pattern {pattern}, {e.Message}");
+                // Log.Debug($"Failed to add pattern {pattern}, {e.Message}");
             }
         }
 

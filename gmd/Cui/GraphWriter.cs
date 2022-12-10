@@ -121,6 +121,16 @@ class GraphWriter : IGraphWriter
                 return "├";
             case Sign.MergeFromLeft | Sign.ConnectLine | Sign.BranchToLeft:
                 return "├";
+            case Sign.MergeFromLeft | Sign.MergeFromRight | Sign.BranchToLeft:
+                return "├";
+            case Sign.MergeFromLeft | Sign.MergeFromRight | Sign.BranchToRight:
+                return "├";
+            case Sign.MergeFromLeft | Sign.MergeFromRight:
+                return "├";
+            case Sign.MergeFromLeft | Sign.MergeFromRight | Sign.ConnectLine:
+                return "├";
+            case Sign.MergeFromLeft | Sign.BranchToRight:
+                return "├";
             case Sign.BranchToLeft:
                 return "╰";
             case Sign.BranchToLeft | Sign.ConnectLine:
@@ -128,6 +138,8 @@ class GraphWriter : IGraphWriter
             case Sign.ConnectLine | Sign.Pass:
                 return "┼";
             case Sign.ConnectLine | Sign.Pass | Sign.MergeFromLeft:
+                return "┼";
+            case Sign.ConnectLine | Sign.Pass | Sign.MergeFromRight:
                 return "┼";
             case Sign.ConnectLine:
                 return "│";
@@ -148,6 +160,5 @@ class GraphWriter : IGraphWriter
             bm.HasFlag(Sign.MergeFromLeft) ||
             bm.HasFlag(Sign.Pass);
     }
-
 }
 

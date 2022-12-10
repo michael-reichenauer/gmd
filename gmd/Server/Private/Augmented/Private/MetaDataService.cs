@@ -74,9 +74,8 @@ class MetaDataService : IMetaDataService
         {
             // Could not pull remote value,
             if (IsNoRemoteKey(e))
-            {   // Key does not exist on remote server, lets push local value up
-                if (!Try(out var _, out e, await GetMetaDataAsync(path))) return e;
-                return await PushMetaDataAsync(path);
+            {   // Key does not exist on remote server,
+                return R.Ok;
             }
 
             // Failed to fetch remote value, 
@@ -98,10 +97,8 @@ class MetaDataService : IMetaDataService
         if (!Try(out var json, out var e, await git.GetValueAsync(metaDatakey, path)))
         {   // Failed to read local value
             if (IsNoLocalKey(e))
-            {   // No local key, probably first time, so set default value for next time
-                var metaData = new MetaData();
-                if (!Try(out e, await SetMetaDataAsync(path, metaData))) return e;
-                return metaData;
+            {   // No local key,
+                return new MetaData();
             }
 
             // Failed to get local value

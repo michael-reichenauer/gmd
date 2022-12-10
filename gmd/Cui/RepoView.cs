@@ -192,6 +192,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, () => Refresh());
         contentView.RegisterKeyHandler(Key.R, () => Refresh());
+        contentView.RegisterKeyHandler(Key.F5, () => Refresh());
         contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit());
         contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit());
         contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
@@ -229,7 +230,7 @@ class RepoView : IRepoView
     {
         using (progress.Show())
         {
-            var t = Timing.Start;
+            var t = Timing.Start();
             if (!Try(out var viewRepo, out var e, await GetRepoAsync(path, showBranches))) return e;
 
             ShowRepo(viewRepo);
@@ -245,7 +246,7 @@ class RepoView : IRepoView
         {
             Log.Info($"show refreshed repo with {addBranchName} ...");
 
-            var t = Timing.Start;
+            var t = Timing.Start();
 
             var branchNames = repo!.Branches.Select(b => b.Name).ToList();
             if (addBranchName != "")
@@ -280,7 +281,7 @@ class RepoView : IRepoView
     {
         using (progress.Show())
         {
-            var t = Timing.Start;
+            var t = Timing.Start();
             if (!Try(out var viewRepo, out var e, await GetUpdateStatusRepoAsync(repo!.Repo)))
             {
                 UI.ErrorMessage($"Failed to update status:\n{e}");
