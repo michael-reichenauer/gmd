@@ -27,6 +27,42 @@ public static class EnumerableExtensions
         return source;
     }
 
+    public static void TryAdd<TSource>(this List<TSource> source, TSource item)
+    {
+        if (source.Contains(item))
+        {
+            return;
+        }
+        source.Add(item);
+    }
+
+    public static void TryAddAll<TSource>(this List<TSource> source, IEnumerable<TSource> items)
+    {
+        foreach (var item in items)
+        {
+            if (source.Contains(item))
+            {
+                continue;
+            }
+            source.Add(item);
+        }
+    }
+
+    public static void TryAddBy<TSource>(this List<TSource> source, Func<TSource, bool> predicate, TSource item)
+    {
+        if (null != source.FirstOrDefault(predicate))
+        {
+            return;
+        }
+        source.Add(item);
+    }
+
+    public static bool ContainsBy<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+    {
+        return null != source.FirstOrDefault(predicate);
+    }
+
+
     public static IReadOnlyList<TSource> ToReadOnlyList<TSource>(this IEnumerable<TSource> enumeration)
     {
         return enumeration.ToList();

@@ -37,6 +37,7 @@ class Converter : IConverter
         AuthorTime: c.AuthorTime,
 
         Index: index,
+        GitIndex: c.GitIndex,
         BranchName: c.BranchName,
         BranchCommonName: c.BranchCommonName,
         ParentIds: c.ParentIds,

@@ -40,7 +40,7 @@ public record Commit(
     string Message,
     string Author,
     DateTime AuthorTime,
-    int Index,
+    int GitIndex,
 
     string BranchName,
     string BranchCommonName,

@@ -29,7 +29,7 @@ class Converter : IConverter
           s.IsMerging, s.MergeMessage, s.ModifiedFiles, s.AddedFiles, s.DeleteddFiles, s.ConflictsFiles);
     }
 
-    Commit ToCommit(WorkCommit c, int index)
+    Commit ToCommit(WorkCommit c, int gitIndex)
     {
         return new Commit(
             Id: c.Id,
@@ -39,7 +39,7 @@ class Converter : IConverter
             Author: c.Author,
             AuthorTime: c.AuthorTime,
             ParentIds: c.ParentIds,
-            Index: index,
+            GitIndex: gitIndex,
 
             BranchName: c.Branch!.Name,
             BranchCommonName: c.Branch.CommonName,

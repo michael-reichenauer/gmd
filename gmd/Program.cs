@@ -30,7 +30,7 @@ class Program
             return await UpdateAsync();
         }
 
-        var t = Timing.Start;
+        var t = Timing.Start();
         Log.Info($"Starting gmd ...");
 
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
@@ -56,7 +56,7 @@ class Program
 
     void Main()
     {
-        var t = Timing.Start;
+        var t = Timing.Start();
         StartAsync().RunInBackground();
 
         Application.Init();

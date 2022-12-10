@@ -20,7 +20,7 @@ class ViewRepoCreater : IViewRepoCreater
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches)
     {
-        var t = Timing.Start;
+        var t = Timing.Start();
         var filteredBranches = FilterOutViewBranches(augRepo, showBranches);
 
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
@@ -243,19 +243,19 @@ class ViewRepoCreater : IViewRepoCreater
             var current = repo.Branches.FirstOrDefault(b => b.IsCurrent);
             if (current != null)
             {
-                branches.Add(current);
+                branches.TryAdd(current);
             }
         }
 
 
         // Ensure that main branch is always included 
         var main = repo.Branches.First(b => b.IsMainBranch);
-        branches.Add(main);
+        branches.TryAdd(main);
 
         // Ensure all ancestors are included
         foreach (var b in branches.ToList())
         {
-            Ancestors(repo, b).ForEach(bb => branches.Add(bb));
+            Ancestors(repo, b).ForEach(bb => branches.TryAdd(bb));
         }
 
         // Ensure all local branches of remote branches are included 
@@ -264,21 +264,33 @@ class ViewRepoCreater : IViewRepoCreater
         {
             if (b.IsRemote && b.LocalName != "")
             {
-                branches.Add(repo.BranchByName[b.LocalName]);
+                branches.TryAdd(repo.BranchByName[b.LocalName]);
             }
+        }
+
+        // Ensure all related branches are included
+        foreach (var b in branches.ToList())
+        {
+            branches.TryAddAll(repo.Branches.Where(bb => bb.CommonName == b.CommonName));
         }
 
         // Ensure all pull merger branches of a branch are included 
         foreach (var b in branches.ToList())
         {
-            b.PullMergeBranchNames.ForEach(bb => branches.Add(repo.BranchByName[bb]));
+            b.PullMergeBranchNames.ForEach(bb => branches.TryAdd(repo.BranchByName[bb]));
+        }
+
+        // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
+        foreach (var b in branches.ToList())
+        {
+            branches.TryAdd(repo.BranchByName[repo.CommitById[b.TipId].BranchName]);
         }
 
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
-        // Sort on branch hierarchy
-        branches.Sort((b1, b2) => CompareBranches(repo, b1, b2));
+        // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
+        Sorter.Sort(branches, (b1, b2) => CompareBranches(repo, b1, b2));
         return branches;
     }
 
@@ -310,7 +322,7 @@ class ViewRepoCreater : IViewRepoCreater
                 uncommitted = new Augmented.Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Substring(0, 6),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    Index: 0, currentBranch.Name, currentBranch.CommonName,
+                    GitIndex: 0, currentBranch.Name, currentBranch.CommonName,
                     ParentIds: parentIds, ChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
@@ -360,7 +372,7 @@ class ViewRepoCreater : IViewRepoCreater
         filteredCommits[tipCommitIndex] = newTipCommit;
     }
 
-    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
+    int CompareBranchesxxx(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
     {
         return IsFirstAncestorOfSecond(repo, b1, b2) ? -1 :
             IsFirstAncestorOfSecond(repo, b2, b1) ? 1 : 0;
@@ -378,5 +390,32 @@ class ViewRepoCreater : IViewRepoCreater
         }
 
         return ancestors;
+    }
+
+
+    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
+    {
+        if (b1 == b2) return 0;
+        if (b1.Name == b2.ParentBranchName) return -1;   // b1 is parent of b2
+        if (b2.Name == b1.ParentBranchName) return 1;   // b2 is parent of b1
+
+        // Check if b1 is ancestor of b2
+        var current = b2.ParentBranchName != "" ? repo.BranchByName[b2.ParentBranchName] : null;
+        while (current != null)
+        {
+            if (b1 == current) return -1;
+            current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
+        }
+
+        // Check if b2 is ancestor of b1
+        current = b1.ParentBranchName != "" ? repo.BranchByName[b1.ParentBranchName] : null;
+        while (current != null)
+        {
+            if (b2 == current) return 1;
+            current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
+        }
+
+        // Not related
+        return 0;
     }
 }

@@ -47,7 +47,6 @@ class GraphCreater : IGraphCreater
 
     public Graph Create(Server.Repo repo)
     {
-        var t = Timing.Start;
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);
@@ -57,8 +56,6 @@ class GraphCreater : IGraphCreater
 
         Graph graph = new Graph(width, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
-
-        Log.Debug($"{t}");
         return graph;
     }
 
@@ -99,13 +96,13 @@ class GraphCreater : IGraphCreater
                     DrawMerge(graph, repo, c, b);
                 }
 
-                if (c.ChildIds.Count > 1 &&
-                    null != c.ChildIds.FirstOrDefault(id => !repo.CommitById.ContainsKey(id)))
+                if (null != c.ChildIds.FirstOrDefault(id => !repo.CommitById.ContainsKey(id)))
                 {
                     DrawMoreBranchOut(graph, c, b); // Drawing  ╯
                 }
 
-                if (c.ParentIds.Count > 0 && repo.CommitById[c.ParentIds[0]].BranchName != c.BranchName)
+                // !!!!! Should not need to use TryGetValue here !!!!!!!!!!!!
+                if (c.ParentIds.Count > 0 && repo.CommitById.TryGetValue(c.ParentIds[0], out var fpc) && fpc.BranchName != c.BranchName)
                 {   // Commit parent is on other branch (i.e. commit is first/bottom commit on this branch)
                     // Draw branched from parent branch  ╯ or ╰
                     DrawBranchFromParent(graph, repo, c, b);
@@ -179,9 +176,13 @@ class GraphCreater : IGraphCreater
         {
             var parentBranch = graph.BranchByName(mergeParent.BranchName);
             // Commit is a merge commit, has 2 parents
-            if (parentBranch.Index < commitBranch.Index)
-            {   // Other branch is on the left side, merged from parent parent branch ╭
+            if (parentBranch.X < commitBranch.X)
+            {   // Other branch is on the left side, merged from parent branch ╭
                 DrawMergeFromParentBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
+            }
+            else if (parentBranch.X == commitBranch.X)
+            {   // Other branch is on the same column, merged from sibling branch │
+                DrawMergeFromSiblingBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
             }
             else
             {
@@ -237,6 +238,38 @@ class GraphCreater : IGraphCreater
         graph.DrawHorizontalLine(x2 + 1, x, y2, color);            // ──
     }
 
+    private void DrawMergeFromSiblingBranch(
+        Graph graph, Server.Repo repo,
+        Server.Commit commit, GraphBranch commitBranch,
+        Server.Commit mergeParent, GraphBranch parentBranch)
+    {
+        // Commit is a merge commit, has 2 parents
+        int x = commitBranch.X;
+        int y = commit.Index;
+        int x2 = parentBranch.X;
+        int y2 = mergeParent.Index;
+
+        // Other branch is on same column merged from sibling branch,  │
+        Color color = parentBranch.Color;
+
+        if (mergeParent.IsAmbiguous)
+        {
+            color = TextColor.Ambiguous;
+        }
+
+        if (commitBranch != parentBranch)
+        {
+            graph.SetGraphConnect(x2, y, Sign.MergeFromRight, color); //   ╮
+            graph.DrawVerticalLine(x2, y + 1, y2, color); //               │
+            graph.SetGraphBranch(x2, y2, Sign.BranchToRight, color); //    ╯
+            graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
+        }
+        else
+        {
+            graph.SetGraphBranch(x2, y2, Sign.Commit, color); //           ┣
+        }
+    }
+
     private void DrawMergeFromChildBranch(
         Graph graph, Server.Repo repo,
         Server.Commit commit, GraphBranch commitBranch,
@@ -287,7 +320,7 @@ class GraphCreater : IGraphCreater
             color = TextColor.Ambiguous;
         }
 
-        if (parentBranch.Index < commitBranch.Index)
+        if (parentBranch.X < commitBranch.X)
         {   // Other branch is left side  ╭
             graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color);
             graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);  //      ╭
@@ -327,6 +360,7 @@ class GraphCreater : IGraphCreater
     void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
     {
         // Iterating in the order of the view repo branches
+        var bb = branches[0];
         for (int i = 1; i < branches.Count; i++)
         {
             var b = branches[i];

@@ -41,7 +41,7 @@ class Cmd : ICmd
 
     public CmdResult Run(string path, string args, string workingDirectory, bool skipLog = false)
     {
-        var t = Timing.Start;
+        var t = Timing.Start();
         try
         {
             Log.Debug($"Start: {path} {args} ({workingDirectory})");

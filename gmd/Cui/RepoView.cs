@@ -230,7 +230,7 @@ class RepoView : IRepoView
     {
         using (progress.Show())
         {
-            var t = Timing.Start;
+            var t = Timing.Start();
             if (!Try(out var viewRepo, out var e, await GetRepoAsync(path, showBranches))) return e;
 
             ShowRepo(viewRepo);
@@ -246,7 +246,7 @@ class RepoView : IRepoView
         {
             Log.Info($"show refreshed repo with {addBranchName} ...");
 
-            var t = Timing.Start;
+            var t = Timing.Start();
 
             var branchNames = repo!.Branches.Select(b => b.Name).ToList();
             if (addBranchName != "")
@@ -281,7 +281,7 @@ class RepoView : IRepoView
     {
         using (progress.Show())
         {
-            var t = Timing.Start;
+            var t = Timing.Start();
             if (!Try(out var viewRepo, out var e, await GetUpdateStatusRepoAsync(repo!.Repo)))
             {
                 UI.ErrorMessage($"Failed to update status:\n{e}");
