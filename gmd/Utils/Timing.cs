@@ -15,11 +15,11 @@ public class Timing : IDisposable
     TimeSpan lastTimeSpan = TimeSpan.Zero;
     int count = 0;
 
-    public Timing(
-        string msg = "",
-        [CallerMemberName] string memberName = "",
-        [CallerMemberName] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0)
+    private Timing(
+        string msg,
+        string memberName,
+        string sourceFilePath,
+        int sourceLineNumber)
     {
         stopwatch = new Stopwatch();
         stopwatch.Start();
@@ -27,15 +27,18 @@ public class Timing : IDisposable
         this.msgMember = memberName;
         this.msgSourceFilePath = sourceFilePath;
         this.msgSourceLineNumber = sourceLineNumber;
-
     }
 
-
-    public static Timing Start => new Timing();
+    public static Timing Start(string msg = "",
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0) => new Timing(
+            msg, memberName, sourceFilePath, sourceLineNumber);
 
     public void Dispose()
     {
-        Utils.Logging.Log.Info($"{msg} {ToString()}", msgMember, msgSourceFilePath, msgSourceLineNumber);
+        var text = msg != "" ? $"{msg} {ToString()}" : ToString();
+        Utils.Logging.Log.Info(text, msgMember, msgSourceFilePath, msgSourceLineNumber);
     }
 
     public TimeSpan Stop()

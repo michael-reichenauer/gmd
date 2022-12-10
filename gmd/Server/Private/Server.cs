@@ -211,7 +211,7 @@ class Server : IServer
 
     public async Task<R> CloneAsync(string uri, string path, string wd)
     {
-        using (new Timing()) return await git.CloneAsync(uri, path, wd);
+        using (Timing.Start()) return await git.CloneAsync(uri, path, wd);
     }
 }
 

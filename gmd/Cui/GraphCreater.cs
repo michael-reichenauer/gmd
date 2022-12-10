@@ -47,7 +47,6 @@ class GraphCreater : IGraphCreater
 
     public Graph Create(Server.Repo repo)
     {
-        var t = Timing.Start;
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);
@@ -57,8 +56,6 @@ class GraphCreater : IGraphCreater
 
         Graph graph = new Graph(width, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
-
-        Log.Debug($"{t}");
         return graph;
     }
 
