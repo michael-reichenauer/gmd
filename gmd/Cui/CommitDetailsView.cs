@@ -81,7 +81,12 @@ class CommitDetailsView : ICommitDetailsView
         {
             if (commit.IsAmbiguous)
             {
-                newRows.Add(Text.New.Dark("Branch:     ").White(branchName + "   (ambiguous)"));
+                var ambBranches = string.Join(", ", branch.AmbiguousBranchNames.Take(3));
+                if (branch.AmbiguousBranchNames.Count > 3)
+                {
+                    ambBranches += ",┅";
+                }
+                newRows.Add(Text.New.Dark("Branch:     ").White(branchName + $" (ambiguous: {ambBranches})"));
             }
             else
             {
