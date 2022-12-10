@@ -416,6 +416,13 @@ class Augmenter : IAugmenter
         if (commit.Branches.Count == 2 && commit.Children.Count == 2 &&
             commit.Children[0].Branch!.CommonName == commit.Children[1].Branch!.CommonName)
         {   // Commit has 2 children with same branch use that
+            if (commit.Children[0].Branch!.PullMergeBranch == commit.Children[1].Branch)
+            {   // child branch 0 is a pull merge of child branch 1, prefer parent 1
+                branch = commit.Children[1].Branch;
+                commit.IsAmbiguous = commit.Children[1].IsAmbiguous;
+                return true;
+            }
+
             branch = commit.Children[0].Branch;
             commit.IsAmbiguous = commit.Children[0].IsAmbiguous;
             return true;
