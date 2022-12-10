@@ -320,6 +320,10 @@ class Augmenter : IAugmenter
         // {
         //     return branch!;
         // }
+        else if (TrySameChildrenBranches(commit, out branch))
+        {   // For e.g. pull merges, a commit can have two children with same logical branch
+            return branch!;
+        }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
         {   // one of the commit children is a an ambiguous commit, reuse same branch
             return branch!;
@@ -407,19 +411,19 @@ class Augmenter : IAugmenter
     }
 
 
-    // bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
-    // {
-    //     if (commit.Branches.Count == 0 && commit.Children.Count == 2 &&
-    //         commit.Children[0].Branch == commit.Children[1].Branch)
-    //     {   // Commit has no branch but has 2 children with same branch use that
-    //         branch = commit.Children[0].Branch;
-    //         commit.IsAmbiguous = commit.Children[0].IsAmbiguous;
-    //         return true;
-    //     }
+    bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
+    {
+        if (commit.Branches.Count == 2 && commit.Children.Count == 2 &&
+            commit.Children[0].Branch!.CommonName == commit.Children[1].Branch!.CommonName)
+        {   // Commit has 2 children with same branch use that
+            branch = commit.Children[0].Branch;
+            commit.IsAmbiguous = commit.Children[0].IsAmbiguous;
+            return true;
+        }
 
-    //     branch = null;
-    //     return false;
-    // }
+        branch = null;
+        return false;
+    }
 
     private bool TryIsMergedDeletedRemoteBranchTip(
         WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
