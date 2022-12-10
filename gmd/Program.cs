@@ -112,17 +112,24 @@ class Program
     {
         var currentVersion = Build.Version();
         Console.WriteLine($"Trying to update current version {currentVersion} ...");
-
         var updater = new Updater();
-        if (!Try(out var newVersion, out var e, await updater.UpdateAsync()))
+
+        if (!Try(out var available, out var e, await updater.IsUpdateAvailableAsync()))
+        {
+            Console.WriteLine($"Failed to check for updates: {e}");
+            return -1;
+        }
+        if (!available.Item1)
+        {
+            Console.WriteLine($"{available.Item2} is already latest version.");
+            return 0;
+        }
+
+        Console.WriteLine($"Downloading {available.Item2} ...");
+        if (!Try(out var newVersion, out e, await updater.UpdateAsync()))
         {
             Console.WriteLine($"Failed to update: {e}");
             return -1;
-        }
-        if (newVersion == currentVersion)
-        {
-            Console.WriteLine($"Is already latest version.");
-            return 0;
         }
 
         Console.WriteLine($"Updated {currentVersion} -> {newVersion}");
