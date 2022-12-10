@@ -47,8 +47,6 @@ class GraphCreater : IGraphCreater
 
     public Graph Create(Server.Repo repo)
     {
-        Log.Info($"Repo: {repo}");
-        Log.Info($"{string.Join(",", repo.Branches.Select(b => b.Name))}");
         var t = Timing.Start;
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
