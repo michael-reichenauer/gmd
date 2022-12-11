@@ -152,6 +152,35 @@ class AugmentedService : IAugmentedService
     }
 
 
+    public async Task<R> MergeBranchAsync(Repo repo, string branchName, string wd)
+    {
+        var branch = repo.BranchByName[branchName];
+        var tip = repo.CommitById[branch.TipId];
+        var mergeName = branch.Name;
+
+        if (branch.LocalName != "")
+        {   // Branch is a remote branch with an existing local branch, which might have a younger tip
+            var localBranch = repo.BranchByName[branch.LocalName];
+            var localTip = repo.CommitById[localBranch.TipId];
+            if (localTip.AuthorTime <= tip.AuthorTime)
+            {   // The local branch is younger or same, use that.
+                mergeName = localBranch.Name;
+            }
+        }
+        else if (branch.RemoteName != "")
+        {   // Branch is a local branch with an existing remote branch, which might have a younger tip
+            var remoteBranch = repo.BranchByName[branch.RemoteName];
+            var remoteTip = repo.CommitById[remoteBranch.TipId];
+            if (remoteTip.AuthorTime <= tip.AuthorTime)
+            {   // The remote branch is younger or same, use that.
+                mergeName = remoteBranch.Name;
+            }
+        }
+
+        return await git.MergeBranchAsync(mergeName, wd);
+    }
+
+
     public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName)
     {
         var branch = repo.BranchByName[branchName];

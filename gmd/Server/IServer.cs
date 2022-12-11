@@ -31,7 +31,7 @@ interface IServer
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(string branchName, string wd);
-    Task<R> MergeBranch(string name, string wd);
+    Task<R> MergeBranchAsync(Repo repo, string branchName, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);
