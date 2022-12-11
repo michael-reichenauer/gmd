@@ -68,7 +68,7 @@ class Updater : IUpdater
         var releases = states.Get().Releases;
         if (releases.AllowPreview)
         {
-            Log.Info($"Running: {buildVersion}, PreRelase: {releases.PreRelease.Version} (Stable: {releases.StableRelease.Version})");
+            Log.Info($"Running: {buildVersion}, PreRelease: {releases.PreRelease.Version} (Stable: {releases.StableRelease.Version})");
         }
         else
         {
@@ -181,7 +181,7 @@ class Updater : IUpdater
                 string downloadUrl = SelectBinaryPath();
                 if (downloadUrl == "")
                 {
-                    return R.Error("No binay available");
+                    return R.Error("No binary available");
                 }
 
                 var targetPath = GetTempPath();
@@ -223,7 +223,7 @@ class Updater : IUpdater
                 if (path.StartsWith(tmpPathPrefix))
                 {
                     Log.Info($"Deleting {path}");
-                    if (!Try(out var e, Files.Delete(path))) Log.Info($"Failed to deleter {e}");
+                    if (!Try(out var e, Files.Delete(path))) Log.Info($"Failed to delete {e}");
                 }
             }
         }

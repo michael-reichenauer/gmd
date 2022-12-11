@@ -20,7 +20,7 @@ public class FileBrowseDlg
         folderView.Style.ExpandableSymbol = '+';
         folderView.Style.CollapseableSymbol = null;
         folderView.MultiSelect = false;
-        folderView.ObjectActivated += ItemSelectedd;
+        folderView.ObjectActivated += ItemSelected;
         SetCustomColors(folderView);
 
         Button cancelButton = new Button("Cancel", false);
@@ -48,7 +48,7 @@ public class FileBrowseDlg
         return selectedPath;
     }
 
-    private void ItemSelectedd(ObjectActivatedEventArgs<ITreeNode> obj)
+    private void ItemSelected(ObjectActivatedEventArgs<ITreeNode> obj)
     {
         if (obj.ActivatedObject.Children.Any())
         {   // Ignore selecting folders

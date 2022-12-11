@@ -255,7 +255,7 @@ class RepoCommands : IRepoCommands
 
         if (!Try(out var e, await server.CleanWorkingFolderAsync(repoPath)))
         {
-            return R.Error($"Failed to clean workin folder", e);
+            return R.Error($"Failed to clean working folder", e);
         }
 
         Refresh();
@@ -494,7 +494,7 @@ class RepoCommands : IRepoCommands
         if (CanPullCurrentBranch())
         {
             Log.Info("Pull current");
-            // Need to treat crurrent branch separately
+            // Need to treat current branch separately
             if (!Try(out var e, await server.PullCurrentBranchAsync(repoPath)))
             {
                 return R.Error($"Failed to pull current branch", e);
@@ -587,7 +587,7 @@ class RepoCommands : IRepoCommands
         {   // Branch is a remote branch 
             remoteBranch = branch;
             if (branch.LocalName != "")
-            {   // with a coresponding local branch
+            {   // with a corresponding local branch
                 localBranch = allBranches.First(b => b.Name == branch.LocalName);
             }
         }
@@ -628,13 +628,13 @@ class RepoCommands : IRepoCommands
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
         if (button != 0)
         {
-            Log.Info($"Skip udate");
+            Log.Info($"Skip update");
             return R.Ok;
         }
         Log.Info($"Updating release ...");
         if (!Try(out var _, out var e, await updater.UpdateAsync())) return e;
 
-        UI.InfoMessage("Restart Requiered", "A program restart is required,\nplease start gmd again.");
+        UI.InfoMessage("Restart Required", "A program restart is required,\nplease start gmd again.");
         UI.Shutdown();
 
         return R.Ok;
@@ -681,7 +681,7 @@ class RepoCommands : IRepoCommands
         {
             msg = $"Som binary or large files seems to be included:{msg}" +
                 "\n\nDo you want to continue?";
-            if (0 != UI.InfoMessage("Binay or Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
+            if (0 != UI.InfoMessage("Binary or Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
             {
                 return false;
             }
