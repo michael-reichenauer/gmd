@@ -162,7 +162,7 @@ class AugmentedService : IAugmentedService
         {   // Branch is a remote branch with an existing local branch, which might have a younger tip
             var localBranch = repo.BranchByName[branch.LocalName];
             var localTip = repo.CommitById[localBranch.TipId];
-            if (localTip.AuthorTime <= tip.AuthorTime)
+            if (localTip.AuthorTime >= tip.AuthorTime)
             {   // The local branch is younger or same, use that.
                 mergeName = localBranch.Name;
             }
@@ -171,7 +171,7 @@ class AugmentedService : IAugmentedService
         {   // Branch is a local branch with an existing remote branch, which might have a younger tip
             var remoteBranch = repo.BranchByName[branch.RemoteName];
             var remoteTip = repo.CommitById[remoteBranch.TipId];
-            if (remoteTip.AuthorTime <= tip.AuthorTime)
+            if (remoteTip.AuthorTime >= tip.AuthorTime)
             {   // The remote branch is younger or same, use that.
                 mergeName = remoteBranch.Name;
             }
