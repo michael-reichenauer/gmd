@@ -197,7 +197,7 @@ class RepoCommands : IRepoCommands
 
     public void SwitchTo(string branchName) => Do(async () =>
     {
-        if (!Try(out var e, await server.SwitchToAsync(branchName, repoPath)))
+        if (!Try(out var e, await server.SwitchToAsync(serverRepo, branchName)))
         {
             return R.Error($"Failed to switch to {branchName}", e);
         }
@@ -362,7 +362,7 @@ class RepoCommands : IRepoCommands
 
     public void MergeBranch(string branchName) => Do(async () =>
     {
-        if (!Try(out var e, await server.MergeBranchAsync(serverRepo, branchName, repoPath)))
+        if (!Try(out var e, await server.MergeBranchAsync(serverRepo, branchName)))
         {
             return R.Error($"Failed to merge branch {branchName}", e);
         }

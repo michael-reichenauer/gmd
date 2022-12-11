@@ -13,17 +13,17 @@ class Server : IServer
 
     public Server(
         IGit git,
-        IAugmentedService augmentedRepoService,
+        IAugmentedService augmentedService,
         IConverter converter,
         IViewRepoCreater viewRepoCreater)
     {
         this.git = git;
-        this.augmentedService = augmentedRepoService;
+        this.augmentedService = augmentedService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
 
-        augmentedRepoService.RepoChange += e => RepoChange?.Invoke(e);
-        augmentedRepoService.StatusChange += e => StatusChange?.Invoke(e);
+        augmentedService.RepoChange += e => RepoChange?.Invoke(e);
+        augmentedService.StatusChange += e => StatusChange?.Invoke(e);
     }
 
     public event Action<ChangeEvent>? RepoChange;
@@ -177,11 +177,11 @@ class Server : IServer
     public Task<R> PullBranchAsync(string name, string wd) =>
         git.PullBranchAsync(name, wd);
 
-    public Task<R> SwitchToAsync(string branchName, string wd) =>
-        git.CheckoutAsync(branchName, wd);
+    public Task<R> SwitchToAsync(Repo repo, string branchName) =>
+        augmentedService.SwitchToAsync(repo.AugmentedRepo, branchName);
 
-    public Task<R> MergeBranchAsync(Repo repo, string branchName, string wd) =>
-        augmentedService.MergeBranchAsync(repo.AugmentedRepo, branchName, wd);
+    public Task<R> MergeBranchAsync(Repo repo, string branchName) =>
+        augmentedService.MergeBranchAsync(repo.AugmentedRepo, branchName);
 
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);

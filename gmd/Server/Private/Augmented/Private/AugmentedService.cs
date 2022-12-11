@@ -152,7 +152,7 @@ class AugmentedService : IAugmentedService
     }
 
 
-    public async Task<R> MergeBranchAsync(Repo repo, string branchName, string wd)
+    public async Task<R> MergeBranchAsync(Repo repo, string branchName)
     {
         var branch = repo.BranchByName[branchName];
         var tip = repo.CommitById[branch.TipId];
@@ -177,7 +177,21 @@ class AugmentedService : IAugmentedService
             }
         }
 
-        return await git.MergeBranchAsync(mergeName, wd);
+        return await git.MergeBranchAsync(mergeName, repo.Path);
+    }
+
+    public async Task<R> SwitchToAsync(Repo repo, string branchName)
+    {
+        var branch = repo.BranchByName[branchName];
+        if (branch.IsGitBranch)
+        {
+            return await git.CheckoutAsync(branchName, repo.Path);
+        }
+
+        // Not a git branch so the branch was deleted, lets recreate it
+        var tip = repo.CommitById[branch.TipId];
+
+        return await CreateBranchFromCommitAsync(repo, branch.DisplayName, tip.Id, true, repo.Path);
     }
 
 

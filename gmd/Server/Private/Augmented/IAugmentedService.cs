@@ -26,5 +26,6 @@ interface IAugmentedService
     Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName);
     Task<R> UnresolveAmbiguityAsync(Repo augmentedRepo, string commitId);
     Task<R> PushMetaDataAsync(string wd);
-    Task<R> MergeBranchAsync(Repo repo, string branchName, string wd);
+    Task<R> MergeBranchAsync(Repo repo, string branchName);
+    Task<R> SwitchToAsync(Repo repo, string branchName);
 }
