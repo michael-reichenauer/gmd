@@ -168,7 +168,6 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> PushMetaDataAsync(string path)
     {
-        Log.Info("Pushing meta data ...");
         await git.PushValueAsync(metaDataKey, path);
         return R.Ok;
     }
