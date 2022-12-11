@@ -93,49 +93,49 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
     void SetAheadBehind(
-        List<Augmented.Branch> filterdBranches,
+        List<Augmented.Branch> filteredBranches,
         List<Augmented.Commit> filteredCommits)
     {
-        foreach (var b in filterdBranches.ToList())  // ToList() since SetBehind/SetAhead modifies branches
+        foreach (var b in filteredBranches.ToList())  // ToList() since SetBehind/SetAhead modifies branches
         {
             if (b.IsRemote && b.LocalName != "")
             {
                 // Remote branch with ahead commits (remote only commits)
-                SetBehindCommits(b, filterdBranches, filteredCommits);
+                SetBehindCommits(b, filteredBranches, filteredCommits);
             }
             else if (!b.IsRemote && b.RemoteName != "")
             {
                 // Local branch with behind commits (local only commits)
-                SetAheadCommits(b, filterdBranches, filteredCommits);
+                SetAheadCommits(b, filteredBranches, filteredCommits);
             }
         }
     }
 
     void SetBehindCommits(
         Augmented.Branch remoteBranch,
-        List<Augmented.Branch> filterdBranches,
-        List<Augmented.Commit> filterdCommits)
+        List<Augmented.Branch> filteredBranches,
+        List<Augmented.Commit> filteredCommits)
     {
-        int remoteBranchIndex = filterdBranches.FindIndex(b => b.Name == remoteBranch.Name);
-        int localBranchIndex = filterdBranches.FindIndex(b => b.Name == remoteBranch.LocalName);
+        int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.Name);
+        int localBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.LocalName);
 
-        var localBranch = filterdBranches[localBranchIndex];
+        var localBranch = filteredBranches[localBranchIndex];
         if (localBranch.TipId == remoteBranch.TipId)
         {
             // Local branch tip on same commit as remote branch tip (i.e. synced)
             return;
         }
 
-        var localTip = filterdCommits.First(c => c.Id == localBranch.TipId);
-        var localBottom = filterdCommits.First(c => c.Id == localBranch.BottomId);
-        var localBase = filterdCommits.First(c => c.Id == localBottom.ParentIds[0]);
+        var localTip = filteredCommits.First(c => c.Id == localBranch.TipId);
+        var localBottom = filteredCommits.First(c => c.Id == localBranch.BottomId);
+        var localBase = filteredCommits.First(c => c.Id == localBottom.ParentIds[0]);
 
         bool hasBehindCommits = false;
         int count = 0;
-        int commitIndex = filterdCommits.FindIndex(c => c.Id == remoteBranch.TipId);
+        int commitIndex = filteredCommits.FindIndex(c => c.Id == remoteBranch.TipId);
         while (commitIndex != -1)
         {
-            var commit = filterdCommits[commitIndex];
+            var commit = filteredCommits[commitIndex];
             count++;
             if (commit.BranchName != remoteBranch.Name || count > 50)
             {   // Other branch or to many ahead commits
@@ -154,7 +154,7 @@ class ViewRepoCreater : IViewRepoCreater
 
             if (commit.ParentIds.Count > 1)
             {
-                var mergeParent = filterdCommits.FirstOrDefault(c => c.Id == commit.ParentIds[1]);
+                var mergeParent = filteredCommits.FirstOrDefault(c => c.Id == commit.ParentIds[1]);
                 if (mergeParent != null && mergeParent.BranchName == localBranch.Name)
                 {   // Merge from local branch (into this remote branch)
                     break;
@@ -162,38 +162,38 @@ class ViewRepoCreater : IViewRepoCreater
             }
 
             // Commit is(behind)
-            filterdCommits[commitIndex] = commit with { IsBehind = true };
+            filteredCommits[commitIndex] = commit with { IsBehind = true };
             hasBehindCommits = true;
 
             if (commit.ParentIds.Count == 0)
             {   // Reach last commit
                 break;
             }
-            commitIndex = filterdCommits.FindIndex(c => c.Id == commit.ParentIds[0]);
+            commitIndex = filteredCommits.FindIndex(c => c.Id == commit.ParentIds[0]);
         }
 
         if (hasBehindCommits)
         {
-            filterdBranches[remoteBranchIndex] = remoteBranch with { HasBehindCommits = true };
-            filterdBranches[localBranchIndex] = localBranch with { HasBehindCommits = true };
+            filteredBranches[remoteBranchIndex] = remoteBranch with { HasBehindCommits = true };
+            filteredBranches[localBranchIndex] = localBranch with { HasBehindCommits = true };
         }
     }
 
     void SetAheadCommits(
         Augmented.Branch localBranch,
-        List<Augmented.Branch> filterdBranches,
-        List<Augmented.Commit> filterdCommits)
+        List<Augmented.Branch> filteredBranches,
+        List<Augmented.Commit> filteredCommits)
     {
-        int localBranchIndex = filterdBranches.FindIndex(b => b.Name == localBranch.Name);
-        int remoteBranchIndex = filterdBranches.FindIndex(b => b.Name == localBranch.RemoteName);
-        var remoteBranch = filterdBranches[remoteBranchIndex];
+        int localBranchIndex = filteredBranches.FindIndex(b => b.Name == localBranch.Name);
+        int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == localBranch.RemoteName);
+        var remoteBranch = filteredBranches[remoteBranchIndex];
         bool hasAheadCommits = false;
         int count = 0;
-        int commitIndex = filterdCommits.FindIndex(c => c.Id == localBranch.TipId);
+        int commitIndex = filteredCommits.FindIndex(c => c.Id == localBranch.TipId);
         while (commitIndex != -1)
         {
             count++;
-            var commit = filterdCommits[commitIndex];
+            var commit = filteredCommits[commitIndex];
 
             if (commit.BranchName != localBranch.Name || count > 50)
             {
@@ -203,7 +203,7 @@ class ViewRepoCreater : IViewRepoCreater
             if (commit.Id != Repo.UncommittedId)
             {
                 // Commit is ahead
-                filterdCommits[commitIndex] = commit with { IsAhead = true };
+                filteredCommits[commitIndex] = commit with { IsAhead = true };
                 hasAheadCommits = true;
             }
 
@@ -211,20 +211,20 @@ class ViewRepoCreater : IViewRepoCreater
             {   // Reach last commit
                 break;
             }
-            commitIndex = filterdCommits.FindIndex(c => c.Id == commit.ParentIds[0]);
+            commitIndex = filteredCommits.FindIndex(c => c.Id == commit.ParentIds[0]);
         }
 
         if (hasAheadCommits)
         {
-            filterdBranches[localBranchIndex] = localBranch with { HasAheadCommits = true };
-            filterdBranches[remoteBranchIndex] = remoteBranch with { HasAheadCommits = true };
+            filteredBranches[localBranchIndex] = localBranch with { HasAheadCommits = true };
+            filteredBranches[remoteBranchIndex] = remoteBranch with { HasAheadCommits = true };
         }
     }
 
     List<Augmented.Commit> FilterOutViewCommits(
         Augmented.Repo repo, IReadOnlyList<Augmented.Branch> filteredBranches)
     {
-        // Return filterd commits, where commit branch does is in filtered branches to be viewed.
+        // Return filtered commits, where commit branch does is in filtered branches to be viewed.
         return repo.Commits
             .Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
             .ToList();
@@ -370,12 +370,6 @@ class ViewRepoCreater : IViewRepoCreater
         var childIds = tipCommit.ChildIds.Append(uncommitted.Id).ToList();
         var newTipCommit = tipCommit with { ChildIds = childIds };
         filteredCommits[tipCommitIndex] = newTipCommit;
-    }
-
-    int CompareBranchesxxx(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
-    {
-        return IsFirstAncestorOfSecond(repo, b1, b2) ? -1 :
-            IsFirstAncestorOfSecond(repo, b2, b1) ? 1 : 0;
     }
 
     IReadOnlyList<Augmented.Branch> Ancestors(Augmented.Repo repo, Augmented.Branch branch)

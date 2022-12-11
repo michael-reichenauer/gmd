@@ -73,7 +73,7 @@ public record Status(
     string MergeMessage,
     string[] ModifiedFiles,
     string[] AddedFiles,
-    string[] DeleteddFiles,
+    string[] DeletedFiles,
     string[] ConflictsFiles
 )
 {
