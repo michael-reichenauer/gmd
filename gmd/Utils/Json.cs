@@ -9,7 +9,7 @@ class Json
         return JsonSerializer.Serialize(value);
     }
 
-    internal static string SerilizePretty<T>(T value)
+    internal static string SerializePretty<T>(T value)
     {
         var options = new JsonSerializerOptions { WriteIndented = true };
         return JsonSerializer.Serialize(value, options);

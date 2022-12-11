@@ -174,6 +174,10 @@ class AugmentedService : IAugmentedService
     }
 
 
+    public Task<R> PushMetaDataAsync(string wd) =>
+        metaDataService.PushMetaDataAsync(wd);
+
+
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
