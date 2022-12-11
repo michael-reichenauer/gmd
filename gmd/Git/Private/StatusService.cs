@@ -86,29 +86,35 @@ class StatusService : IStatusService
                 modifiedFiles.Add(line.Substring(2).Trim());
             }
         }
-        (string mergeMessage, bool isMerging) = GetMergeStatus(wd);
+        (string mergeMessage, string mergeHeadId, bool isMerging) = GetMergeStatus(wd);
 
-        return new Status(modified, added, deleted, conflicted, isMerging, mergeMessage,
+        return new Status(modified, added, deleted, conflicted, isMerging, mergeMessage, mergeHeadId,
             modifiedFiles.ToArray(), addedFiles.ToArray(), deletedFiles.ToArray(), conflictsFiles.ToArray());
     }
 
-    (string, bool) GetMergeStatus(string wd)
+    (string, string, bool) GetMergeStatus(string wd)
     {
-        //mergeIpPath := path.Join(h.cmd.RepoPath(), ".git", "MERGE_HEAD")
+        string mergeHeadPath = Path.Join(wd, ".git", "MERGE_HEAD");
         string mergeMsgPath = Path.Join(wd, ".git", "MERGE_MSG");
 
         if (!Files.Exists(mergeMsgPath))
         {
-            return ("", false);
+            return ("", "", false);
         }
 
-        if (!Try(out var mergeMessage, out var e, Files.ReadAllText(mergeMsgPath))) return ("", false);
+        // Read the merge message
+        if (!Try(out var mergeMessage, out var e, Files.ReadAllText(mergeMsgPath))) return ("", "", false);
 
         var lines = mergeMessage.Split('\n');
-
         mergeMessage = lines[0].Trim();
 
-        return (mergeMessage, true);
+        // Read the merge head id (from commit)
+        if (Try(out var mergeHeadId, out e, Files.ReadAllText(mergeHeadPath)))
+        {
+            mergeHeadId = mergeHeadId.Trim();
+        }
+
+        return (mergeMessage, mergeHeadId ?? "", true);
     }
 
     internal static bool IsMergeInProgress(string wd) =>

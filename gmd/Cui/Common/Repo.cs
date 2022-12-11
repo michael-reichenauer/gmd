@@ -93,7 +93,7 @@ class RepoImpl : IRepo
     public IReadOnlyList<string> GetUncommittedFiles() =>
         Status.ModifiedFiles
         .Concat(Status.AddedFiles)
-        .Concat(Status.DeleteddFiles)
+        .Concat(Status.DeletedFiles)
         .Concat(Status.ConflictsFiles)
         .OrderBy(f => f)
         .ToList();
