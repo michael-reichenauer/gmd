@@ -180,10 +180,8 @@ class Server : IServer
     public Task<R> SwitchToAsync(string branchName, string wd) =>
         git.CheckoutAsync(branchName, wd);
 
-    public Task<R> MergeBranch(string name, string wd) =>
-        git.MergeBranch(name, wd);
-
-
+    public Task<R> MergeBranchAsync(Repo repo, string branchName, string wd) =>
+        augmentedService.MergeBranchAsync(repo.AugmentedRepo, branchName, wd);
 
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);

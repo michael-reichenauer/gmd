@@ -360,11 +360,11 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void MergeBranch(string name) => Do(async () =>
+    public void MergeBranch(string branchName) => Do(async () =>
     {
-        if (!Try(out var e, await server.MergeBranch(name, repoPath)))
+        if (!Try(out var e, await server.MergeBranchAsync(serverRepo, branchName, repoPath)))
         {
-            return R.Error($"Failed to merge branch {name}", e);
+            return R.Error($"Failed to merge branch {branchName}", e);
         }
 
         Refresh();

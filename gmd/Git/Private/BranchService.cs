@@ -9,8 +9,7 @@ interface IBranchService
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
-    Task<R> MergeBranch(string name, string wd);
-
+    Task<R> MergeBranchAsync(string name, string wd);
 }
 
 class BranchService : IBranchService
@@ -68,9 +67,9 @@ class BranchService : IBranchService
     }
 
 
-    public async Task<R> MergeBranch(string name, string wd)
+    public async Task<R> MergeBranchAsync(string name, string wd)
     {
-        name = RemoteService.TrimRemotePrefix(name);
+        //  name = RemoteService.TrimRemotePrefix(name);
         return await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
         // if strings.Contains(err.Error(), "exit status 1") &&
         //     strings.Contains(output, "CONFLICT") {

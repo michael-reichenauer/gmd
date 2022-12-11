@@ -61,7 +61,7 @@ internal class Git : IGit
     public Task<R> CloneAsync(string uri, string path, string wd) =>
         remoteService.CloneAsync(uri, path, wd);
     public Task<R> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
-    public Task<R> MergeBranch(string name, string wd) => branchService.MergeBranch(name, wd);
+    public Task<R> MergeBranchAsync(string name, string wd) => branchService.MergeBranchAsync(name, wd);
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
         branchService.CreateBranchAsync(name, isCheckout, wd);
     public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
