@@ -184,13 +184,13 @@ class Augmenter : IAugmenter
             {
                 // A branch tip id, which commit id does not exist in the repo
                 // Store that branch name so it can be removed from the list below
-                invalidBranches.Add(b.Name);
+                invalidBranches.TryAdd(b.Name);
                 continue;
             }
 
             // Adding the branch to the branch tip commit
             tip.Branches.TryAdd(b);
-            tip.BranchTips.Add(b.Name);
+            tip.BranchTips.TryAdd(b.Name);
             b.BottomID = b.TipID; // We initialize the bottomId to same as tip
         }
 
@@ -223,8 +223,6 @@ class Augmenter : IAugmenter
                 c.FirstParent = firstParent;
                 firstParent.Children.Add(c);
                 firstParent.ChildIds.Add(c.Id);
-                // Adding the child branches to the parent branches (inherited down)
-                //firstParent.TryAddToBranches(c.Branches);
             }
 
             if (c.ParentIds.Count > 1 && repo.CommitsById.TryGetValue(c.ParentIds[1], out var mergeParent))
@@ -232,7 +230,6 @@ class Augmenter : IAugmenter
                 c.MergeParent = mergeParent;
                 mergeParent.MergeChildren.Add(c);
                 mergeParent.ChildIds.Add(c.Id);
-                // Note: merge parent do not inherit child branches
             }
         }
     }
