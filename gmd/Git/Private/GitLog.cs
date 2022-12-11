@@ -58,10 +58,6 @@ internal class LogService : ILogService
 
     private R<Commit> ParseRow(string row)
     {
-        if (row.Contains("Merge #11484"))
-        {
-            Log.Info("");
-        }
         var rowParts = row.Split('|');
         if (rowParts.Length < 6)
         {

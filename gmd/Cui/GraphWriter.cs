@@ -4,15 +4,16 @@ namespace gmd.Cui;
 
 interface IGraphWriter
 {
-    Text ToText(GraphRow row);
+    Text ToText(GraphRow row, int maxWidth);
 }
 
 class GraphWriter : IGraphWriter
 {
-    public Text ToText(GraphRow row)
+    public Text ToText(GraphRow row, int maxWidth)
     {
         Text text = Text.New;
-        for (int i = 0; i < row.Width; i++)
+        int width = Math.Min(row.Width, maxWidth / 2);
+        for (int i = 0; i < width; i++)
         {
             // Colors
             var branchColor = row[i].BranchColor;

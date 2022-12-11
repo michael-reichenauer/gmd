@@ -240,6 +240,10 @@ class Augmenter : IAugmenter
         {
             var branch = DetermineCommitBranch(repo, c, gitRepo);
             c.Branch = branch;
+            if (!c.IsAmbiguous)
+            {
+                c.Branches.Clear();
+            }
             c.Branches.TryAdd(branch);
 
             string name = branchNameService.GetBranchName(c.Id);
@@ -888,7 +892,17 @@ class Augmenter : IAugmenter
 
     internal WorkBranch AddAmbiguousCommit(WorkRepo repo, WorkCommit c)
     {
-        (var branch, var ambiguousBranches) = GetLikelyBranches(c);
+        WorkBranch? branch = null;
+        List<WorkBranch>? ambiguousBranches = null;
+        if (!c.Branches.Any())
+        {
+            branch = AddNamedBranch(repo, c, "ambiguous");
+            ambiguousBranches = new List<WorkBranch>() { branch };
+        }
+        else
+        {
+            (branch, ambiguousBranches) = GetLikelyBranches(c);
+        }
 
         c.IsAmbiguous = true;
         c.Branch = branch;

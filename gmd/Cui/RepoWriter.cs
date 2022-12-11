@@ -18,7 +18,7 @@ class RepoWriter : IRepoWriter
     readonly IBranchColorService branchColorService;
     readonly IGraphWriter graphWriter;
 
-    record Columns(int Subject, int Sid, int Author, int Time);
+    record Columns(int Subject, int Sid, int Author, int Time, int GraphWidth);
 
     public RepoWriter(IBranchColorService branchColorService, IGraphWriter graphWriter)
     {
@@ -46,7 +46,7 @@ class RepoWriter : IRepoWriter
             var c = repo.Commits[i];
             var graphRow = repo.Graph.GetRow(i);
 
-            WriteGraph(text, graphRow);
+            WriteGraph(text, graphRow, cw.GraphWidth);
             WriteCurrentMarker(text, c, isUncommitted);
             WriteAheadBehindMarker(text, c);
             WriteSubject(text, cw, c, crb, branchTips);
@@ -62,7 +62,7 @@ class RepoWriter : IRepoWriter
 
     Columns ColumnWidths(IRepo repo, int width)
     {
-        int graphWidth = repo.Graph.Width;
+        int graphWidth = Math.Max(0, Math.Min(repo.Graph.Width, width - 20));
 
         // Normal columns when content width is wide enough
         int commitWidth = width - (graphWidth + markersWidth);
@@ -89,13 +89,13 @@ class RepoWriter : IRepoWriter
             subjectWidth = 0;
         }
 
-        return new Columns(subjectWidth, sidWidth, authorWidth, timeWidth);
+        return new Columns(subjectWidth, sidWidth, authorWidth, timeWidth, graphWidth);
     }
 
 
-    void WriteGraph(Text text, GraphRow graphRow)
+    void WriteGraph(Text text, GraphRow graphRow, int maxGraphWidth)
     {
-        text.Add(graphWriter.ToText(graphRow));
+        text.Add(graphWriter.ToText(graphRow, maxGraphWidth));
     }
 
 
@@ -107,7 +107,7 @@ class RepoWriter : IRepoWriter
             return;
         }
         if (c.Id == Repo.UncommittedId)
-        {   // There are uncommicted chaned, so the current marker is at the uncommitted commit
+        {   // There are uncommitted changes, so the current marker is at the uncommitted commit
             text.White(" ●");
             return;
         }
@@ -146,7 +146,7 @@ class RepoWriter : IRepoWriter
         }
 
         int columnWidth = width;
-        int maxTipWidth = maxTipsLength;
+        int maxTipWidth = Math.Min(maxTipsLength, columnWidth - 5);
 
         if (maxTipWidth < columnWidth - c.Subject.Length)
         {
@@ -155,7 +155,7 @@ class RepoWriter : IRepoWriter
 
         if (branchTips.TryGetValue(c.Id, out var tips))
         {
-            columnWidth -= (Math.Min(tips.Length, maxTipsLength));
+            columnWidth -= Math.Min(tips.Length, maxTipWidth);
             columnWidth -= 1;
         }
         if (c.IsBranchSetByUser)

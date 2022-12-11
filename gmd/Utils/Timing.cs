@@ -86,7 +86,7 @@ public class Timing : IDisposable
     {
         count++;
 
-        Utils.Logging.Log.Debug(
+        Utils.Logging.Log.Info(
             $"{count}: {message}: {this}", memberName, sourceFilePath, sourceLineNumber);
     }
 
@@ -98,7 +98,7 @@ public class Timing : IDisposable
     {
         count++;
 
-        Utils.Logging.Log.Debug($"At {count}: {this}", memberName, sourceFilePath, sourceLineNumber);
+        Utils.Logging.Log.Info($"At {count}: {this}", memberName, sourceFilePath, sourceLineNumber);
     }
 
 
