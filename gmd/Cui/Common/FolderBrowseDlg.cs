@@ -11,6 +11,9 @@ public class FolderBrowseDlg
 
     internal R<string> Show(IReadOnlyList<string> recentFolders)
     {
+        const int width = 50;
+        const int height = 20;
+
         var folderView = new TreeView<FileSystemInfo>() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2, };
 
         folderView.Style.ShowBranchLines = true;
@@ -24,9 +27,11 @@ public class FolderBrowseDlg
         cancelButton.Clicked += () => Application.RequestStop();
         cancelButton.ColorScheme = ColorSchemes.Button;
 
-        Dialog dialog = Components.Dialog("Select Working Folder", 50, 15, cancelButton);
+        Label sep1 = new Label(0, height - 4, new string('─', width - 2));
+
+        Dialog dialog = Components.Dialog("Select Working Folder", width, height, cancelButton);
         dialog.Closed += e => UI.HideCursor();
-        dialog.Add(folderView);
+        dialog.Add(folderView, sep1);
 
         SetupFileTree(folderView, recentFolders);
         SetupScrollBar(folderView);

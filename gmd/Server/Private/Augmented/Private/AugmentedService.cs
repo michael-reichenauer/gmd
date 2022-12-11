@@ -114,6 +114,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
     {
+        Log.Info($"Create branch {newBranchName} ...");
         var branch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
         Commit? commit = null;
         if (branch != null)
@@ -137,6 +138,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd)
     {
+        Log.Info($"Create branch {newBranchName} from {sha} ...");
         if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd))) return e;
 
         Commit commit = repo.CommitById[sha];
@@ -154,6 +156,7 @@ class AugmentedService : IAugmentedService
     {
         var branch = repo.BranchByName[branchName];
         var ambiguousTip = branch.AmbiguousTipId;
+        Log.Info($"Resolve {ambiguousTip.Substring(0, 6)} of {branchName} to {setDisplayName} ...");
 
         // Get the latest meta data
         if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
@@ -173,6 +176,9 @@ class AugmentedService : IAugmentedService
         return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
     }
 
+
+    public Task<R> PushMetaDataAsync(string wd) =>
+        metaDataService.PushMetaDataAsync(wd);
 
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)

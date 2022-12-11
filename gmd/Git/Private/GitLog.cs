@@ -94,7 +94,7 @@ internal class LogService : ILogService
         var message = rowParts[5];
         if (rowParts.Length > 6)
         {
-            message = string.Join('|', rowParts.Skip(4).ToArray());
+            message = string.Join('|', rowParts.Skip(5).ToArray());
         }
 
         return message.TrimEnd();

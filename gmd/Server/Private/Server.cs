@@ -7,7 +7,7 @@ namespace gmd.Server.Private;
 class Server : IServer
 {
     private readonly IGit git;
-    private readonly IAugmentedService augmentedRepoService;
+    private readonly IAugmentedService augmentedService;
     private readonly IConverter converter;
     private readonly IViewRepoCreater viewRepoCreater;
 
@@ -18,7 +18,7 @@ class Server : IServer
         IViewRepoCreater viewRepoCreater)
     {
         this.git = git;
-        this.augmentedRepoService = augmentedRepoService;
+        this.augmentedService = augmentedRepoService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
 
@@ -33,7 +33,7 @@ class Server : IServer
     public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         if (!Try(out var augmentedRepo, out var e,
-            await augmentedRepoService.GetRepoAsync(path))) return e;
+            await augmentedService.GetRepoAsync(path))) return e;
 
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
     }
@@ -43,7 +43,7 @@ class Server : IServer
         var branches = repo.Branches.Select(b => b.Name).ToArray();
 
         if (!Try(out var augmentedRepo, out var e,
-            await augmentedRepoService.UpdateRepoStatusAsync(repo.AugmentedRepo)))
+            await augmentedService.UpdateRepoStatusAsync(repo.AugmentedRepo)))
         {
             return e;
         }
@@ -132,7 +132,7 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
     }
 
-    public Task<R> FetchAsync(string wd) => augmentedRepoService.FetchAsync(wd);
+    public Task<R> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
 
 
     public Task<R> CommitAllChangesAsync(string message, string wd) =>
@@ -157,13 +157,19 @@ class Server : IServer
 
 
     public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
-      augmentedRepoService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
+      augmentedService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
 
     public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
-        augmentedRepoService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, sha, isCheckout, wd);
+        augmentedService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, sha, isCheckout, wd);
 
-    public Task<R> PushBranchAsync(string name, string wd) =>
-        git.PushBranchAsync(name, wd);
+    public async Task<R> PushBranchAsync(string name, string wd)
+    {
+        Log.Info($"Pushing branch {name} ...");
+        if (!Try(out var e, await augmentedService.PushMetaDataAsync(wd))) return e;
+
+        return await git.PushBranchAsync(name, wd);
+    }
+
 
     public Task<R> PullCurrentBranchAsync(string wd) =>
         git.PullCurrentBranchAsync(wd);
@@ -201,10 +207,10 @@ class Server : IServer
         git.UncommitLastCommitAsync(wd);
 
     public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName) =>
-        augmentedRepoService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setDisplayName);
+        augmentedService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setDisplayName);
 
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
-        augmentedRepoService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);
+        augmentedService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);
 
     public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         git.GetFileAsync(reference, wd);

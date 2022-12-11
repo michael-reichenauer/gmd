@@ -38,16 +38,17 @@ public class MetaData
 
 interface IMetaDataService
 {
-    Task<R> FetchMetaDataAsync(string path);
     Task<R<MetaData>> GetMetaDataAsync(string path);
     Task<R> SetMetaDataAsync(string path, MetaData metaData);
+    Task<R> FetchMetaDataAsync(string path);
+    Task<R> PushMetaDataAsync(string path);
 }
 
 
 [SingleInstance]
 class MetaDataService : IMetaDataService
 {
-    const string metaDatakey = "data";
+    const string metaDataKey = "data";
     readonly IGit git;
 
     bool isUpdating = false;
@@ -70,7 +71,7 @@ class MetaDataService : IMetaDataService
         if (!Try(out var localMetaData, out var e, await GetMetaDataAsync(path))) return e;
 
         // Pull latest data from remote server
-        if (!Try(out e, await git.PullValueAsync(metaDatakey, path)))
+        if (!Try(out e, await git.PullValueAsync(metaDataKey, path)))
         {
             // Could not pull remote value,
             if (IsNoRemoteKey(e))
@@ -94,7 +95,7 @@ class MetaDataService : IMetaDataService
 
     public async Task<R<MetaData>> GetMetaDataAsync(string path)
     {
-        if (!Try(out var json, out var e, await git.GetValueAsync(metaDatakey, path)))
+        if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
         {   // Failed to read local value
             if (IsNoLocalKey(e))
             {   // No local key,
@@ -117,10 +118,8 @@ class MetaDataService : IMetaDataService
         try
         {
             isUpdating = true;
-            string json = Json.SerilizePretty(metaData);
-            if (!Try(out var e, await git.SetValueAsync(metaDatakey, json, path))) return e;
-            // Log.Info($"Written:\n{json}");
-            return await PushMetaDataAsync(path);
+            string json = Json.SerializePretty(metaData);
+            return await git.SetValueAsync(metaDataKey, json, path);
         }
         finally
         {
@@ -167,11 +166,9 @@ class MetaDataService : IMetaDataService
         return R.Ok;
     }
 
-
-
-    async Task<R> PushMetaDataAsync(string path)
+    public async Task<R> PushMetaDataAsync(string path)
     {
-        await git.PushValueAsync(metaDatakey, path);
+        await git.PushValueAsync(metaDataKey, path);
         return R.Ok;
     }
 

@@ -48,7 +48,7 @@ class Augmenter : IAugmenter
     {
         var s = repo.Status;
         return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
-          s.IsMerging, s.MergeMessage, s.ModifiedFiles, s.AddedFiles, s.DeleteddFiles, s.ConflictsFiles);
+          s.IsMerging, s.MergeMessage, s.ModifiedFiles, s.AddedFiles, s.DeletedFiles, s.ConflictsFiles);
     }
 
     void SetAugBranches(WorkRepo repo, GitRepo gitRepo)
@@ -184,13 +184,13 @@ class Augmenter : IAugmenter
             {
                 // A branch tip id, which commit id does not exist in the repo
                 // Store that branch name so it can be removed from the list below
-                invalidBranches.Add(b.Name);
+                invalidBranches.TryAdd(b.Name);
                 continue;
             }
 
             // Adding the branch to the branch tip commit
             tip.Branches.TryAdd(b);
-            tip.BranchTips.Add(b.Name);
+            tip.BranchTips.TryAdd(b.Name);
             b.BottomID = b.TipID; // We initialize the bottomId to same as tip
         }
 
@@ -223,8 +223,6 @@ class Augmenter : IAugmenter
                 c.FirstParent = firstParent;
                 firstParent.Children.Add(c);
                 firstParent.ChildIds.Add(c.Id);
-                // Adding the child branches to the parent branches (inherited down)
-                //firstParent.TryAddToBranches(c.Branches);
             }
 
             if (c.ParentIds.Count > 1 && repo.CommitsById.TryGetValue(c.ParentIds[1], out var mergeParent))
@@ -232,7 +230,6 @@ class Augmenter : IAugmenter
                 c.MergeParent = mergeParent;
                 mergeParent.MergeChildren.Add(c);
                 mergeParent.ChildIds.Add(c.Id);
-                // Note: merge parent do not inherit child branches
             }
         }
     }
@@ -243,6 +240,10 @@ class Augmenter : IAugmenter
         {
             var branch = DetermineCommitBranch(repo, c, gitRepo);
             c.Branch = branch;
+            if (!c.IsAmbiguous)
+            {
+                c.Branches.Clear();
+            }
             c.Branches.TryAdd(branch);
 
             string name = branchNameService.GetBranchName(c.Id);
@@ -331,6 +332,10 @@ class Augmenter : IAugmenter
         {   // For e.g. pull merges, a commit can have two children with same logical branch
             return branch!;
         }
+        else if (TryIsMergedBranchesToParent(repo, commit, out branch))
+        {
+            return branch!;
+        }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
         {   // one of the commit children is a an ambiguous commit, reuse same branch
             return branch!;
@@ -342,21 +347,54 @@ class Augmenter : IAugmenter
         return AddAmbiguousCommit(repo, commit);
     }
 
-    bool TryAllChildrenArePullRequests(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    // Checks if a commit with 2 children and if the one child branch is merged into the 
+    // other child branch. E.g. like a pull request or feature branch
+    bool TryIsMergedBranchesToParent(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        foreach (var c in commit.Children)
+        if (commit.Children.Count == 2) // Could support more children as well
         {
-            if (commit.Children.Where(cc => cc != c)
-                .All(cc => cc.Branch!.PullRequestParent == c.Branch!.Name))
+            var b1 = commit.Children[0].Branch!;
+            var b1MergeChildren = repo.CommitsById[b1.TipID].MergeChildren;
+            var b1Bottom = repo.CommitsById[b1.BottomID];
+            var b2 = commit.Children[1].Branch!;
+            var b2MergeChildren = repo.CommitsById[b2.TipID].MergeChildren;
+            var b2Bottom = repo.CommitsById[b2.BottomID];
+
+            if (!b2.IsGitBranch && b2Bottom.FirstParent == commit &&
+                b2MergeChildren.Count == 1 &&
+                b2MergeChildren[0].Branch == b1)
             {
-                branch = c.Branch!;
-                return TrySetBranch(repo, commit, branch);
+                branch = b1;
+                return true;
+            }
+            if (!b1.IsGitBranch && b1Bottom.FirstParent == commit &&
+                b1MergeChildren.Count == 1 &&
+                b1MergeChildren[0].Branch == b2)
+            {
+                branch = b2;
+                return true;
             }
         }
 
         return false;
     }
+
+    // bool TryAllChildrenArePullRequests(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    // {
+    //     branch = null;
+    //     foreach (var c in commit.Children)
+    //     {
+    //         if (commit.Children.Where(cc => cc != c)
+    //             .All(cc => cc.Branch!.PullRequestParent == c.Branch!.Name))
+    //         {
+    //             branch = c.Branch!;
+    //             return TrySetBranch(repo, commit, branch);
+    //         }
+    //     }
+
+    //     return false;
+    // }
 
     bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
@@ -772,38 +810,6 @@ class Augmenter : IAugmenter
     }
 
 
-    // private bool TryHasOnlyOneChild(WorkCommit c, out WorkBranch? branch)
-    // {
-    //     if (c.Children.Count == 1)//  Why is was this needed??? && c.MergeChildren.Count == 0)
-    //     {   // Commit has only one child, ensure commit has same branches
-    //         var child = c.Children[0];
-    //         if (c.Branches.Count != child.Branches.Count)
-    //         {
-    //             // Number of branches have changed
-    //             branch = null;
-    //             return false;
-    //         }
-
-    //         for (int i = 0; i < c.Branches.Count; i++)
-    //         {
-    //             if (c.Branches[i].Name != child.Branches[i].Name)
-    //             {
-    //                 branch = null;
-    //                 return false;
-    //             }
-    //         }
-
-    //         // Commit has one child commit, use that child commit branch
-    //         branch = child.Branch;
-    //         c.IsAmbiguous = child.IsAmbiguous;
-    //         return true;
-    //     }
-
-    //     branch = null;
-    //     return false;
-    // }
-
-
     private bool TryIsChildAmbiguousCommit(WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
@@ -886,7 +892,17 @@ class Augmenter : IAugmenter
 
     internal WorkBranch AddAmbiguousCommit(WorkRepo repo, WorkCommit c)
     {
-        (var branch, var ambiguousBranches) = GetLikelyBranches(c);
+        WorkBranch? branch = null;
+        List<WorkBranch>? ambiguousBranches = null;
+        if (!c.Branches.Any())
+        {
+            branch = AddNamedBranch(repo, c, "ambiguous");
+            ambiguousBranches = new List<WorkBranch>() { branch };
+        }
+        else
+        {
+            (branch, ambiguousBranches) = GetLikelyBranches(c);
+        }
 
         c.IsAmbiguous = true;
         c.Branch = branch;
