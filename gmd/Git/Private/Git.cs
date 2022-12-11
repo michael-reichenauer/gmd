@@ -106,8 +106,8 @@ internal class Git : IGit
             return R.Error($"Folder does not exist: '{path}'");
         }
 
-        var current = path;
-        if (path.EndsWith(".git") || path.EndsWith(".git/") || path.EndsWith(".git\\"))
+        var current = path.TrimSuffix("/").TrimSuffix("\\");
+        if (path.EndsWith(".git"))
         {
             current = IOPath.GetDirectoryName(path) ?? path;
         }

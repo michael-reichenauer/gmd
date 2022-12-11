@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Git;
 using Terminal.Gui;
 
 
@@ -24,17 +25,18 @@ class RepoView : IRepoView
 {
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
-    static readonly TimeSpan fetchIntervall = TimeSpan.FromMinutes(5);
+    static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
     static readonly int MaxRecentFolders = 10;
     static readonly int MaxRecentParentFolders = 5;
 
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
-    private readonly Func<IRepo, IRepoViewMenus> newMenuService;
-    private readonly IStates states;
-    private readonly IProgress progress;
-    private readonly ICommitDetailsView commitDetailsView;
-    private readonly Func<View, int, IRepoWriter> newRepoWriter;
+    readonly Func<IRepo, IRepoViewMenus> newMenuService;
+    readonly IStates states;
+    readonly IProgress progress;
+    readonly IGit git;
+    readonly ICommitDetailsView commitDetailsView;
+    readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView contentView;
     readonly IRepoWriter repoWriter;
 
@@ -55,6 +57,7 @@ class RepoView : IRepoView
         Func<IRepo, IRepoViewMenus> newMenuService,
         IStates states,
         IProgress progress,
+        IGit git,
         ICommitDetailsView commitDetailsView) : base()
     {
         this.server = server;
@@ -63,6 +66,7 @@ class RepoView : IRepoView
         this.newMenuService = newMenuService;
         this.states = states;
         this.progress = progress;
+        this.git = git;
         this.commitDetailsView = commitDetailsView;
         contentView = new ContentView(onGetContent)
         {
@@ -91,7 +95,7 @@ class RepoView : IRepoView
     public async Task<R> ShowInitialRepoAsync(string path)
     {
         if (!Try(out var e, await ShowRepoAsync(path))) return e;
-        UI.AddTimeout(fetchIntervall, (_) => FetchFromRemote());
+        UI.AddTimeout(fetchInterval, (_) => FetchFromRemote());
 
         RegisterShortcuts();
         return R.Ok;
@@ -99,12 +103,14 @@ class RepoView : IRepoView
 
     public async Task<R> ShowRepoAsync(string path)
     {
-        Log.Info($"Show '{path}'");
-        var branches = states.GetRepo(path).Branches;
-        if (!Try(out var e, await ShowNewRepoAsync(path, branches))) return e;
+        if (!Try(out var rootDir, out var e, git.RootPath(path))) return e;
+        Log.Info($"Show '{rootDir} ({path})'");
+
+        var branches = states.GetRepo(rootDir).Branches;
+        if (!Try(out e, await ShowNewRepoAsync(rootDir, branches))) return e;
         FetchFromRemote();
 
-        RememberRepoPaths(path);
+        RememberRepoPaths(rootDir);
 
         return R.Ok;
     }
