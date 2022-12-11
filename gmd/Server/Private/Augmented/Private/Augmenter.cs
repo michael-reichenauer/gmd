@@ -48,7 +48,8 @@ class Augmenter : IAugmenter
     {
         var s = repo.Status;
         return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
-          s.IsMerging, s.MergeMessage, s.ModifiedFiles, s.AddedFiles, s.DeletedFiles, s.ConflictsFiles);
+            s.IsMerging, s.MergeMessage, s.MergeHeadId, s.ModifiedFiles, s.AddedFiles,
+            s.DeletedFiles, s.ConflictsFiles);
     }
 
     void SetAugBranches(WorkRepo repo, GitRepo gitRepo)

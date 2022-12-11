@@ -87,7 +87,8 @@ class Cmd : ICmd
                     return new CmdResult(process.ExitCode, output, error);
                 }
 
-                Log.Debug($"OK: {path} {args} ({workingDirectory}) {t}");
+                if (!skipLog) Log.Info($"OK: {path} {args} ({workingDirectory}) {t}");
+                if (skipLog) Log.Debug($"OK: {path} {args} ({workingDirectory}) {t}");
                 return new CmdResult(output, error);
             }
         }

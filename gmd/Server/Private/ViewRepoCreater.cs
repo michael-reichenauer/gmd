@@ -318,6 +318,13 @@ class ViewRepoCreater : IViewRepoCreater
                 {
                     subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
                 }
+                if (repo.Status.MergeHeadId != "")
+                {   // Add the source merge id as a merge parent to the uncommitted commit
+                    if (repo.CommitById.TryGetValue(repo.Status.MergeHeadId, out var mergeHead))
+                    {
+                        parentIds.Add(repo.Status.MergeHeadId);
+                    }
+                }
 
                 uncommitted = new Augmented.Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Substring(0, 6),
