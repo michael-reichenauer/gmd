@@ -66,6 +66,7 @@ partial class MainView : IMainView
 
         string path = GetWorkingFolder();
         //  path = "/workspaces/Terminal.Gui";
+        path = "/workspaces/pulumi";
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
             if (path != "")
