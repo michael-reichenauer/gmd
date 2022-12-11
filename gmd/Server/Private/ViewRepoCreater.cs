@@ -315,7 +315,7 @@ class ViewRepoCreater : IViewRepoCreater
                     subject = $"{repo.Status.MergeMessage}, {subject}";
                 }
                 if (repo.Status.Conflicted > 0)
-                {
+                {   // .
                     subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
                 }
 
