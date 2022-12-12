@@ -372,8 +372,6 @@ class RepoCommands : IRepoCommands
     });
 
 
-
-
     public void PushCurrentBranch() => Do(async () =>
     {
         if (!CanPushCurrentBranch()) return R.Ok;

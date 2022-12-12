@@ -40,28 +40,16 @@ class RepoViewMenus : IRepoViewMenus
         var scrollItems = GetScrollToItems();
         var switchToItems = GetSwitchToItems();
 
-        if (showItems.Any())
-        {
-            items.Add(UI.MenuSeparator("Open"));
-            items.AddRange(showItems);
-        }
+        items.Add(UI.MenuSeparator("Open"));
+        items.AddRange(showItems);
 
-        if (switchToItems.Any())
-        {
-            items.Add(UI.MenuSeparator("Switch to"));
-            items.AddRange(switchToItems);
-        }
+        items.Add(UI.MenuSeparator("Switch to"));
+        items.AddRange(switchToItems);
 
-        if (scrollItems.Any())
-        {
-            items.Add(UI.MenuSeparator("Scroll to"));
-            items.AddRange(scrollItems);
-        }
+        items.Add(UI.MenuSeparator("Scroll to"));
+        items.AddRange(scrollItems);
 
-        if (items.Any())
-        {
-            items.Add(UI.MenuSeparator("More"));
-        }
+        items.Add(UI.MenuSeparator("More"));
 
         items.Add(SubMenu("Show Branch", "", GetShowBranchItems()));
         items.Add(SubMenu("Main Menu", "M", GetMainMenuItems(repo.CurrentPoint.X, repo.CurrentPoint.Y)));
