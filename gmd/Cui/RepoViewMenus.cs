@@ -76,7 +76,7 @@ class RepoViewMenus : IRepoViewMenus
 
         if (releases.IsUpdateAvailable)
         {
-            items = items.Add(UI.MenuSeparator("New Release !!!"),
+            items = items.Add(UI.MenuSeparator("New Release Available !!!"),
             Item("Update to Latest ...", "", () => cmds.UpdateRelease()),
             UI.MenuSeparator());
         }
