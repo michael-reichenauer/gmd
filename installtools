@@ -12,8 +12,7 @@ sudo apt install -q lnav -y 1>/dev/null
 
 echo ""
 echo "Install gmd ..."
-mkdir ~/gmd; wget -q -O ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/download/v0.30.29.632/gmd_linux" && chmod +x ~/gmd/gmd
+curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd
 echo 'export PATH=$PATH:~/gmd' >>~/.profile
 . ~/.profile
-gmd --update
 

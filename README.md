@@ -15,17 +15,22 @@ Gmd provides a user experience, where the visualization of branches and commits 
 ## Install
 Download some version of `gmd_linux`, `gmd_widows` or `gmd_osx` and the run `> gmd --update` to get the latest version. For Winows it is easiest to just download the installer and run it. If you have gmd in a user folder, you do not need `sudo` to update. Gmd can automatically check for new versions and in the menu notify and offer option to upgrade.
 
-#### Linux:
-`> mkdir ~/gmd; wget -q -O ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/download/v0.30.29.632/gmd_linux" && chmod +x ~/gmd/gmd`  
+#### Linux
+`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`  
 `> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
 `> . ~/.profile`  
-`> gmd --update`  
 
 #### Windows:
 Download setup file from [releases](https://github.com/michael-reichenauer/gmd/releases)  
 or:  
-`> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/download/v0.30.29.632/gmdSetup.exe`  
+`> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe`  
 `> gmdSetup`  
+
+#### OSX/Mac
+`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_osx" && chmod +x ~/gmd/gmd`  
+`> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
+`> . ~/.profile`  
+
 
 ## Run with dotnet
 `> dotnet run --project gmd/gmd.csproj`

@@ -152,9 +152,14 @@ class AugmentedService : IAugmentedService
     }
 
 
-    public async Task<R> MergeBranchAsync(Repo repo, string branchName)
+    public async Task<R> MergeBranchAsync(Repo repo, string name)
     {
-        var branch = repo.BranchByName[branchName];
+        if (repo.CommitById.TryGetValue(name, out var commit))
+        {   // Merging from a commit
+            return await git.MergeBranchAsync(commit.Id, repo.Path);
+        }
+
+        var branch = repo.BranchByName[name];
         var tip = repo.CommitById[branch.TipId];
         var mergeName = branch.Name;
 
