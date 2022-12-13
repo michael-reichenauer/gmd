@@ -3,10 +3,10 @@
 set DOTNET="net7.0"
 
 echo "Cleaning"
-del "gmd.exe"
-del "gmd_linux"
-del "gmd_osx"
-del "gmd_windows"
+del "gmd.exe" 2> nul
+del "gmd_linux" 2> nul
+del "gmd_osx" 2> nul
+del "gmd_windows" 2> nul
 
 
 if exist "gmd.exe" (

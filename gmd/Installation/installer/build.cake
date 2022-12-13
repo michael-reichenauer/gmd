@@ -1,4 +1,4 @@
-#tool nuget:?package=Tools.InnoSetup&version=5.5.9
+#tool nuget:?package=Tools.InnoSetup&version=6.2.1
 
 //////////////////////////////////////////////////////////////////////
 // ARGUMENTS
@@ -20,7 +20,7 @@ var outputPath = $"{name}.exe";
 var setupPath = $"{name}Setup.exe";
 var issPath = $"./Setup/{name}.iss";
 var uninstallerPath = $"Setup/Sign/Uninstaller.exe";
-var signedUninstallerPath = $"Setup/Sign/uninst-5.5.9 (u)-44666f8110.e32";
+//var signedUninstallerPath = $"Setup/Sign/uninst-5.5.9 (u)-44666f8110.e32";
 
 
 
