@@ -73,6 +73,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var releases = states.Get().Releases;
         var items = EnumerableEx.From<MenuItem>();
+        var branchName = repo.Branch(repo.RowCommit.BranchName).DisplayName;
 
         if (releases.IsUpdateAvailable)
         {
@@ -96,7 +97,7 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Switch/Checkout", "", GetSwitchToItems()),
             SubMenu("Push", "", GetPushItems(), () => cmds.CanPush()),
             SubMenu("Update/Pull", "", GetPullItems(), () => cmds.CanPull()),
-            SubMenu("Merge", "", GetMergeItems()),
+            SubMenu($"Merge into {branchName} from", "", GetMergeItems(), () => GetMergeItems().Any()),
             Item("Create Branch ...", "B", () => cmds.CreateBranch()),
             Item("Create Branch from commit ...", "",
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
@@ -200,6 +201,7 @@ class RepoViewMenus : IRepoViewMenus
             .Concat(repo.Branches)
             .Where(b => !repo.Branches.ContainsBy(bb => bb.CommonName == b.CommonName));
 
+
         return ToShowBranchesItems(branches, true);
     }
 
@@ -243,14 +245,15 @@ class RepoViewMenus : IRepoViewMenus
         {
             return Enumerable.Empty<MenuItem>();
         }
-
+        var commit = repo.RowCommit;
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
              .Where(b => b.CommonName != currentName)
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
-        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
+        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
+            .Concat(new[] { Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id)) });
     }
 
     IEnumerable<MenuItem> GetHideItems()
