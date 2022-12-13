@@ -245,6 +245,7 @@ class RepoViewMenus : IRepoViewMenus
         {
             return Enumerable.Empty<MenuItem>();
         }
+
         var commit = repo.RowCommit;
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
@@ -252,8 +253,12 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
+        var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
+            ? new[] { Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id)) }
+            : Enumerable.Empty<MenuItem>();
+
         return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
-            .Concat(new[] { Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id)) });
+            .Concat(commitItems);
     }
 
     IEnumerable<MenuItem> GetHideItems()
