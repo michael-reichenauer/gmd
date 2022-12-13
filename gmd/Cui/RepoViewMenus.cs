@@ -73,7 +73,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var releases = states.Get().Releases;
         var items = EnumerableEx.From<MenuItem>();
-        var branchName = repo.Branch(repo.RowCommit.BranchName).DisplayName;
+        var branchName = repo.CurrentBranch?.DisplayName ?? "";
 
         if (releases.IsUpdateAvailable)
         {
