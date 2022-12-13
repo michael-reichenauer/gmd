@@ -1,5 +1,7 @@
 @echo off&setlocal
 
+set DOTNET="net7.0"
+
 echo "Cleaning"
 del "gmd.exe"
 del "gmd_linux"
@@ -27,14 +29,14 @@ if exist "gmd_osx" (
 
 echo "Building ...."
 dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-copy gmd\bin\Release\net6.0\win-x64\publish\gmd.exe gmd.exe
-copy gmd\bin\Release\net6.0\win-x64\publish\gmd.exe gmd_windows
+copy gmd\bin\Release\%DOTNET%\win-x64\publish\gmd.exe gmd.exe
+copy gmd\bin\Release\%DOTNET%\win-x64\publish\gmd.exe gmd_windows
 
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-copy gmd\bin\Release\net6.0\linux-x64\publish\gmd gmd_linux
+copy gmd\bin\Release\%DOTNET%\linux-x64\publish\gmd gmd_linux
 
 dotnet publish gmd/gmd.csproj -c Release -r osx-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-copy gmd\bin\Release\net6.0\osx-x64\publish\gmd gmd_osx
+copy gmd\bin\Release\%DOTNET%\osx-x64\publish\gmd gmd_osx
 
 echo "Version:"
 gmd.exe --version
