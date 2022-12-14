@@ -39,6 +39,7 @@ class Updater : IUpdater
     const string binNameMac = "gmd_mac";
     const string tmpSuffix = ".tmp";
     const string UserAgent = "gmd";
+    const string tmpRandomSuffix = "RTXZERT";
 
     private readonly IStates states;
     private readonly ICmd cmd;
@@ -74,6 +75,11 @@ class Updater : IUpdater
         {
             Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version} (Preview: {releases.PreRelease.Version})");
         }
+
+        if (isAvailable.Item1)
+        {   // An update is available, trigger download (if not already downloaded)
+            DownloadBinaryAsync().RunInBackground();
+        }
     }
 
     public async Task<R<Version>> UpdateAsync()
@@ -92,13 +98,13 @@ class Updater : IUpdater
             return buildVersion;
         }
 
-        if (!Try(out var newPath, out e, await DownloadBinaryAsync()))
+        if (!Try(out var downloadedPath, out e, await DownloadBinaryAsync()))
         {
             Log.Warn($"Failed to download new version, {e}");
             return e;
         }
 
-        if (!Try(out e, Install(newPath)))
+        if (!Try(out e, Install(downloadedPath)))
         {
             Log.Warn($"Failed to install new version, {e}");
             return e;
@@ -109,12 +115,15 @@ class Updater : IUpdater
     }
 
 
-    private R Install(string newPath)
+    private R Install(string downloadedPath)
     {
         if (IsDotNet()) return R.Ok;
 
         try
         {
+            // Move downloaded file next to this process file (replace must be on same volume)
+            var newPath = GetTempPath();
+            File.Move(downloadedPath, newPath);
             Log.Info($"Install {newPath} ...");
             if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
 
@@ -178,13 +187,18 @@ class Updater : IUpdater
         {
             using (HttpClient httpClient = GetHttpClient())
             {
-                string downloadUrl = SelectBinaryPath();
+                (string downloadUrl, string version) = SelectBinaryPath();
                 if (downloadUrl == "")
                 {
                     return R.Error("No binary available");
                 }
 
-                var targetPath = GetTempPath();
+                var targetPath = GetDownloadFilePath(version);
+                if (Files.Exists(targetPath))
+                {
+                    Log.Info($"Already downloaded {targetPath}");
+                    return targetPath;
+                }
 
                 Log.Info($"Downloading from {downloadUrl} ...");
 
@@ -202,6 +216,14 @@ class Updater : IUpdater
             return R.Error("Failed to download latest binary", e);
         }
     }
+
+    string GetDownloadFilePath(string version)
+    {
+        var name = $"gmd.{version}.{tmpRandomSuffix}";
+        var tmpFolderPath = Path.GetTempPath();
+        return Path.Combine(tmpFolderPath, name);
+    }
+
 
     string GetTempPath()
     {
@@ -234,7 +256,7 @@ class Updater : IUpdater
     }
 
 
-    string SelectBinaryPath()
+    (string, string) SelectBinaryPath()
     {
         string name = "";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -253,14 +275,14 @@ class Updater : IUpdater
         }
         else
         {
-            return "";
+            return ("", "");
         }
 
         var release = SelectRelease();
         var binaryPath = release.Assets.FirstOrDefault(a => a.Name == name)?.Url ?? "";
-        Log.Info($"{release.Version} Preview: {release.IsPreview}, {binaryPath}");
+        Log.Debug($"{release.Version} Preview: {release.IsPreview}, {binaryPath}");
 
-        return binaryPath;
+        return (binaryPath, release.Version);
     }
 
 
@@ -275,7 +297,6 @@ class Updater : IUpdater
         }
         return releases.StableRelease;
     }
-
 
     async Task<R<Release>> GetRemoteInfoAsync()
     {
