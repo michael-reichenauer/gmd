@@ -51,7 +51,9 @@ DisableReadyMemo=True
 
 [Files]
 ; Copy all release output files to version folder
-Source: "..\..\..\..\gmd.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Source: "..\..\..\..\gmd.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{tmp}\gmd.exe"; DestDir: "{app}"; Flags: external ignoreversion
+
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -61,12 +63,9 @@ Name: {commonappdata}\{#AppName}; Permissions: users-modify; Flags: uninsalwaysu
 
 [Icons]
 Name: "{userstartmenu}\{#AppName}"; Filename: "{app}\{#AppExeName}"     
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 
 [Run]
-; Run install helper tasks 
-Filename: "{app}\{#AppExeName}"; Parameters: "--update"; Flags: runhidden runminimized
-
 ; Start program (unless silent or unchecked)
 Filename: "{app}\{#AppExeName}"; Flags: nowait postinstall skipifsilent; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"
 
@@ -78,4 +77,46 @@ Filename: "{app}\{#AppExeName}"; Flags: nowait postinstall skipifsilent; Descrip
 ; Delete application program files and program data folders
 Type: filesandordirs; Name: "{app}"
 Type: filesandordirs; Name: "{commonappdata}\{#AppName}"
+
+
+[Code]
+var
+  DownloadPage: TDownloadWizardPage;
+  
+function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
+begin
+  if Progress = ProgressMax then
+    Log(Format('Successfully downloaded file to {tmp}: %s', [FileName]));
+  Result := True;
+end;
+
+procedure InitializeWizard;
+begin
+  DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  if CurPageID = wpReady then begin
+    DownloadPage.Clear;
+    DownloadPage.Add('https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_windows', 'gmd.exe', '');
+   
+    DownloadPage.Show;
+    try
+      try
+        DownloadPage.Download; // This downloads the files to {tmp}
+        Result := True;
+      except
+        if DownloadPage.AbortedByUser then
+          Log('Aborted by user.')
+        else
+          SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
+        Result := False;
+      end;
+    finally
+      DownloadPage.Hide;
+    end;
+  end else
+    Result := True;
+end;
 
