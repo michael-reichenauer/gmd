@@ -66,9 +66,6 @@ Name: "{userstartmenu}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 
 [Run]
-; Run install helper tasks 
-Filename: "{app}\{#AppExeName}"; Parameters: "--update"; Flags: runhidden runminimized
-
 ; Start program (unless silent or unchecked)
 Filename: "{app}\{#AppExeName}"; Flags: nowait postinstall skipifsilent; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"
 
