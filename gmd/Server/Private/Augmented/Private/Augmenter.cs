@@ -689,6 +689,7 @@ class Augmenter : IAugmenter
         }
 
         if (current.Children.Any() &&
+            current.Id != branch.TipID &&
             null == current.Children.FirstOrDefault(c => !c.IsAmbiguous && c.Branch == namedBranch))
         {   // Failed to reach last not ambiguous branch part of named branch
             return false;
@@ -919,7 +920,7 @@ class Augmenter : IAugmenter
     {
         var ambiguousBranches = commit.Branches;
 
-        if (!commit.Children.Any())
+        if (commit.Children.Count < 2)
         {
             // Commit has no children (i.e.must a branch tip with multiple possible tips)
             // Prefer remote branch if possible
