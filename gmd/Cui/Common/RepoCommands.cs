@@ -618,7 +618,7 @@ class RepoCommands : IRepoCommands
         await Task.Yield();
 
         var releases = states.Get().Releases;
-        var typeText = releases.IsPreview ? "(preview)" : "(stable)";
+        var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available:\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
             $"Current Version: {Build.Version()}\n\n" +
