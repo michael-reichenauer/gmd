@@ -63,7 +63,7 @@ Name: {commonappdata}\{#AppName}; Permissions: users-modify; Flags: uninsalwaysu
 
 [Icons]
 Name: "{userstartmenu}\{#AppName}"; Filename: "{app}\{#AppExeName}"     
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 
 [Run]
 ; Run install helper tasks 
