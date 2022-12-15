@@ -46,7 +46,6 @@ class HelpDlg : IHelpDlg
             if (row.StartsWith("* "))
             {
                 row = "● " + row.Substring(2);
-
             }
 
             if (row.StartsWith("#"))
@@ -55,29 +54,41 @@ class HelpDlg : IHelpDlg
             }
 
             var text = Text.New;
-
             int index = 0;
             while (index < row.Length)
             {
-                int i1 = row.IndexOf('`', index);
-                if (i1 != -1)
-                {   // Maybe a code fragment
-                    int i2 = row.IndexOf('`', i1 + 1);
-                    if (i1 != -1)
-                    {   // I a code fragment
-                        text.White(row.Substring(index, i1 - index));
-                        text.Yellow(row.Substring(i1 + 1, i2 - i1 - 1));
-                        index = i2 + 1;
-                        continue;
-                    }
-                }
-                text.White(row.Substring(index));
-                break;
+                (var fragment, index) = GetFragment(row, index);
+                text.Add(fragment);
             }
 
             return text;
         });
 
         return rows;
+    }
+
+    (Text, int) GetFragment(string row, int index)
+    {
+        char[] chars = new[] { '`', '*' };
+        int i1 = row.IndexOfAny(chars, index);
+        if (i1 == -1)
+        {
+            return (Text.New.White(row.Substring(index)), row.Length);
+        }
+        char c = row[i1];
+        int i2 = row.IndexOf(c, i1 + 1);
+        if (i2 == -1)
+        {
+            return (Text.New.White(row.Substring(index)), row.Length);
+        }
+
+        int l = i2 - i1 - 1;
+        Text text = Text.New.White(row.Substring(index, i1 - index));
+        return c switch
+        {
+            '`' => (text.Yellow(row.Substring(i1 + 1, l)), i1 + l + 2),
+            '*' => (text.Blue(row.Substring(i1 + 1, l)), i1 + l + 2),
+            _ => throw Asserter.FailFast("Unexpected char")
+        };
     }
 }
