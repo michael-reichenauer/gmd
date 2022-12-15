@@ -12,6 +12,10 @@ Some clients try to reduce the branching complexity by hiding commits. The gmd a
 
 Gmd provides a user experience, where the visualization of branches and commits history is understandable and usable without the need for rebasing or squashing. Gmd also simplifies the usage of the most common commands by providing context menus and simplified dialogs. Gmd console window supports key-based navigation.
 
+## Help File
+The gmd [help file](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md) is available at:\
+[https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md)
+
 ## Install
 Download some version of `gmd_linux`, `gmd_widows` or `gmd_osx` and the run `> gmd --update` to get the latest version. For Winows it is easiest to just download the installer and run it. If you have gmd in a user folder, you do not need `sudo` to update. Gmd can automatically check for new versions and in the menu notify and offer option to upgrade.
 
@@ -32,7 +36,7 @@ or:
 `> . ~/.profile`  
 
 
-## Run with dotnet
+## Run Sources with dotnet
 `> dotnet run --project gmd/gmd.csproj`
 
 ## Build
