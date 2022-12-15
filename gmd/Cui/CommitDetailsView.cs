@@ -94,6 +94,11 @@ class CommitDetailsView : ICommitDetailsView
             }
         }
 
+        if (commit.Author != "")
+        {
+            newRows.Add(Text.New.Dark("Author:     ").White($"{commit.Author}").Dark(", time: ").White(commit.AuthorTime.Iso()));
+        }
+
         newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>
             id == Repo.UncommittedId ? "" : id.Substring(0, 6)))));
         newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id =>
