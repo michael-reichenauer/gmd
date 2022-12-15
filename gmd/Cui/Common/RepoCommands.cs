@@ -12,6 +12,7 @@ interface IRepoCommands
     void SwitchTo(string branchName);
     void ToggleDetails();
     void ShowAbout();
+    void ShowHelp();
     void ShowBrowseDialog();
     void Filter();
     void ShowRepo(string path);
@@ -58,6 +59,7 @@ class RepoCommands : IRepoCommands
     readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
     readonly IAboutDlg aboutDlg;
+    readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
     readonly IStates states;
     readonly IUpdater updater;
@@ -80,6 +82,7 @@ class RepoCommands : IRepoCommands
         ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
         IAboutDlg aboutDlg,
+        IHelpDlg helpDlg,
         IDiffView diffView,
         IStates states,
         IUpdater updater,
@@ -95,6 +98,7 @@ class RepoCommands : IRepoCommands
         this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
         this.aboutDlg = aboutDlg;
+        this.helpDlg = helpDlg;
         this.diffView = diffView;
         this.states = states;
         this.updater = updater;
@@ -130,6 +134,7 @@ class RepoCommands : IRepoCommands
    });
 
     public void ShowAbout() => aboutDlg.Show();
+    public void ShowHelp() => helpDlg.Show();
 
     public void CommitFromMenu()
     {

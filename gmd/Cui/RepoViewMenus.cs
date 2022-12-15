@@ -109,6 +109,7 @@ class RepoViewMenus : IRepoViewMenus
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
+            Item("Help ...", "H", () => cmds.ShowHelp()),
             Item("About ...", "A", () => cmds.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
