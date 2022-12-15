@@ -8,18 +8,18 @@ static class ColorSchemes
     internal static readonly ColorScheme Dialog = new ColorScheme()
     {
         Normal = TextColor.BrightMagenta,
-        Focus = TextColor.Make(Color.White, Color.DarkGray),
+        Focus = TextColor.White,
         HotNormal = TextColor.White,
-        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
+        HotFocus = TextColor.White,
         Disabled = TextColor.Dark,
     };
 
     internal static readonly ColorScheme ErrorDialog = new ColorScheme()
     {
         Normal = TextColor.BrightRed,
-        Focus = TextColor.Make(Color.White, Color.DarkGray),
+        Focus = TextColor.White,
         HotNormal = TextColor.White,
-        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
+        HotFocus = TextColor.White,
         Disabled = TextColor.Dark,
     };
 

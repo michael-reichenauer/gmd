@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace gmd.Utils;
 
 static class Files
@@ -13,7 +15,6 @@ static class Files
         {
             return R.Error(e);
         }
-
     }
 
     public static R<string> ReadAllText(string path)
@@ -65,6 +66,32 @@ static class Files
     {
         if (!Try(out var isBinary, out var e, IsBinary(path))) return false;
         return !isBinary;
+    }
+
+
+    public static R<string> GetEmbeddedFileContentText(string name)
+    {
+        try
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            if (assembly == null) return R.Error("No GetExecutingAssembly");
+
+            // var names = asm.GetManifestResourceNames();
+            var stream = assembly.GetManifestResourceStream(name);
+            if (stream == null) return R.Error($"Embedded file '{name}'");
+
+            using (stream)
+            {
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            return R.Error(e);
+        }
     }
 
 

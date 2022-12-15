@@ -8,11 +8,11 @@ interface IAboutDlg
     void Show();
 }
 
-class AboudDlg : IAboutDlg
+class AboutDlg : IAboutDlg
 {
     readonly IGit git;
 
-    public AboudDlg(IGit git)
+    public AboutDlg(IGit git)
     {
         this.git = git;
     }

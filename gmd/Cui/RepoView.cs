@@ -211,6 +211,8 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.u, () => Cmd.PullAllBranches());
         contentView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
         contentView.RegisterKeyHandler(Key.a, () => Cmd.ShowAbout());
+        contentView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
+        contentView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());

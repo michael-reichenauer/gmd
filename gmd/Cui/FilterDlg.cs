@@ -4,7 +4,6 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-
 interface IFilterDlg
 {
     R<Server.Commit> Show(IRepo repo);

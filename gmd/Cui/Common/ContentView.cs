@@ -21,6 +21,7 @@ class ContentView : View
     const int verticalScrollbarWidth = 1;
     const int contentXMargin = cursorWidth + verticalScrollbarWidth;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
+    readonly IReadOnlyList<Text>? content;
     int currentIndex = 0;
 
     internal ContentView(DrawContentCallback onDrawContent)
@@ -33,6 +34,11 @@ class ContentView : View
         this.onGetContent = onGetContent;
     }
 
+    internal ContentView(IEnumerable<Text> content)
+    {
+        this.content = content.ToList();
+        this.TriggerUpdateContent(this.content.Count);
+    }
 
     internal bool IsFocus { get; set; } = true;
     internal int FirstIndex { get; private set; } = 0;
@@ -183,7 +189,12 @@ class ContentView : View
         var topMargin = IsTopBorder ? topBorderHeight : 0;
         var drawCount = Math.Min(ContentHeight, Count - FirstIndex);
 
-        if (onDrawContent != null)
+        if (content != null)
+        {
+            int y = ContentY;
+            content.Skip(FirstIndex).Take(drawCount).ForEach(row => row.Draw(this, ContentX, y++));
+        }
+        else if (onDrawContent != null)
         {
             onDrawContent(FirstIndex, drawCount, CurrentIndex, ContentWidth);
         }

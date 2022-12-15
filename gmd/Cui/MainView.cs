@@ -16,9 +16,10 @@ partial class MainView : IMainView
     readonly IRepoView repoView;
     readonly IGit git;
     readonly IStates states;
-    private readonly ICloneDlg cloneDlg;
-    private readonly IServer server;
-    private readonly IProgress progress;
+    readonly ICloneDlg cloneDlg;
+    readonly IHelpDlg helpDlg;
+    readonly IServer server;
+    readonly IProgress progress;
     readonly IAboutDlg aboutDlg;
     readonly Lazy<View> toplevel;
 
@@ -27,6 +28,7 @@ partial class MainView : IMainView
         IGit git,
         IStates states,
         ICloneDlg cloneDlg,
+        IHelpDlg helpDlg,
         IServer server,
         IProgress progress,
         IAboutDlg aboutDlg) : base()
@@ -35,6 +37,7 @@ partial class MainView : IMainView
         this.git = git;
         this.states = states;
         this.cloneDlg = cloneDlg;
+        this.helpDlg = helpDlg;
         this.server = server;
         this.progress = progress;
         this.aboutDlg = aboutDlg;
@@ -107,6 +110,7 @@ partial class MainView : IMainView
 
         items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
         items.Add(new MenuItem("Clone ...", "", () => Clone()));
+        items.Add(new MenuItem("Help ...", "", () => helpDlg.Show()));
         items.Add(new MenuItem("About ...", "", () => aboutDlg.Show()));
         items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
 
