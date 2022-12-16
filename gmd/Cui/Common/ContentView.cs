@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Terminal.Gui;
 
 
@@ -154,16 +155,17 @@ class ContentView : View
     public override bool MouseEvent(MouseEvent ev)
     {
         // Log.Info($"Mouse: {ev}");
-        // if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
-        // {
-        //     Log.Info("Scroll down");
-        //     Scroll(1);
-        // }
-        // if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        // {
-        //     Log.Info("Scroll upp");
-        //     Scroll(-1);
-        // }
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+            {
+                Scroll(1);
+            }
+            if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
+            {
+                Scroll(-1);
+            }
+        }
 
         return false;
         // if (!ev.Flags.HasFlag(MouseFlags.Button1Clicked) && !ev.Flags.HasFlag(MouseFlags.Button1Pressed)
