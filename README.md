@@ -17,7 +17,7 @@ The gmd [help file](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc
 [https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md)
 
 ## Install
-Download some version of `gmd_linux`, `gmd_windows` or `gmd_osx` and the run `> gmd --update` to get the latest version. For Windows it is easiest to just download the installer and run it. If you have gmd in a user folder, you do not need `sudo` to update. Gmd can automatically check for new versions and in the menu notify and offer option to upgrade.
+Download either `gmd_linux`, `gmd_windows` or `gmd_osx` from [releases](https://github.com/michael-reichenauer/gmd/releases). For Windows it is easiest to just download the installer and run it. If you have gmd in a user folder, you do not need `sudo` to update. Gmd can automatically check for new versions and in the menu notify and offer option to upgrade.
 
 #### Linux
 `> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`  
