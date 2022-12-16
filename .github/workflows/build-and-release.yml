@@ -59,7 +59,7 @@ jobs:
           tag_name: v${{ steps.build.outputs.version }}
           release_name: Version ${{ steps.build.outputs.version }}
           draft: false
-          prerelease: true
+          prerelease: false
           body: ${{ github.event.head_commit.message }}
 
       - name: Upload Linux artifact
