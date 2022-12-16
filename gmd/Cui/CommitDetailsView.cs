@@ -19,7 +19,7 @@ class CommitDetailsView : ICommitDetailsView
     Server.Commit? commit;
     IReadOnlyList<Text> rows = new List<Text>();
 
-    internal static readonly int ContentHeight = 8;
+    internal static readonly int ContentHeight = 9;
     private readonly IBranchColorService branchColorService;
 
     public CommitDetailsView(IBranchColorService branchColorService)
@@ -112,6 +112,7 @@ class CommitDetailsView : ICommitDetailsView
             newRows.Add(Text.New.Dark("Remote:   ").Blue("▼ pullable"));
         }
         newRows.AddRange(commit.Message.Split('\n').Select(l => Text.New.White(l)));
+        newRows.Add(Text.New.Black(""));
 
         rows = newRows;
         contentView!.TriggerUpdateContent(rows.Count);
