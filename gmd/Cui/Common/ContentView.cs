@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Terminal.Gui;
 
@@ -9,6 +10,7 @@ internal delegate void DrawContentCallback(int firstIndex, int count, int curren
 internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int width);
 
 internal delegate void OnKeyCallback();
+internal delegate void OnMouseCallback(int x, int y);
 
 
 class ContentView : View
@@ -16,6 +18,7 @@ class ContentView : View
     readonly DrawContentCallback? onDrawContent;
     readonly GetContentCallback? onGetContent;
     readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
+    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
 
     const int topBorderHeight = 1;
     const int cursorWidth = 1;
@@ -24,6 +27,9 @@ class ContentView : View
     readonly bool isMoveUpDownWrap = false;  // Not used yet
     readonly IReadOnlyList<Text>? content;
     int currentIndex = 0;
+    int mouseEventX = -1;
+    int mouseEventY = -1;
+
 
     internal ContentView(DrawContentCallback onDrawContent)
     {
@@ -76,6 +82,11 @@ class ContentView : View
     internal void RegisterKeyHandler(Key key, OnKeyCallback callback)
     {
         keys[key] = callback;
+    }
+
+    internal void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
+    {
+        mouses[mouseFlags] = callback;
     }
 
     internal void ScrollToShowIndex(int index)
@@ -154,18 +165,46 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        // Log.Info($"Mouse: {ev}");
+        //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+
+        // On linux (dev container console), there is a bug that sends same last mouse event
+        // whenever mouse is moved, to still support scroll, we check mouse position.
+        bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
+        mouseEventX = ev.X;
+        mouseEventY = ev.Y;
+
+        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) && isSamePos)
+        {
+            Scroll(1);
+            return true;
+        }
+        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp) && isSamePos)
+        {
+            Scroll(-1);
+            return true;
+        }
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+            if (mouses.TryGetValue(ev.Flags, out var callback))
             {
-                Scroll(1);
-            }
-            if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-            {
-                Scroll(-1);
+                callback(ev.X, ev.Y);
+                return true;
             }
         }
+
+
+        // if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        // {
+        //     if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        //     {
+        //         Scroll(1);
+        //     }
+        //     if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        //     {
+        //         Scroll(-1);
+        //     }
+        // }
 
         return false;
         // if (!ev.Flags.HasFlag(MouseFlags.Button1Clicked) && !ev.Flags.HasFlag(MouseFlags.Button1Pressed)
@@ -285,6 +324,13 @@ class ContentView : View
     }
 
     internal void MoveToTop() => Move(-FirstIndex);
+
+    internal void SetIndex(int y)
+    {
+        int currentY = CurrentIndex - FirstIndex;
+
+        Move(y - currentY);
+    }
 
     internal void Move(int move)
     {
