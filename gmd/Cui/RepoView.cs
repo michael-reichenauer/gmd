@@ -215,13 +215,26 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
-        contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
+        contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
+
+        contentView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
+        contentView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
 
         // Keys on commit details view.
-        commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocous());
+        commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
     }
 
+    void DoubleClicked(int x, int y)
+    {
+        contentView.SetIndex(y);
+        ToggleDetails();
+    }
+
+    void Clicked(int x, int y)
+    {
+        contentView.SetIndex(y);
+    }
 
     IEnumerable<Text> onGetContent(int firstIndex, int count, int currentIndex, int width)
     {
@@ -339,7 +352,7 @@ class RepoView : IRepoView
     }
 
 
-    private void ToggleDetailsFocous()
+    private void ToggleDetailsFocus()
     {
         if (!isShowDetails)
         {
