@@ -15,10 +15,10 @@ static class Build
 
     internal static Version Version()
     {
-        // The versin is always increasing using the base build time for last 2 version numbers
+        // The version is always increasing using the base build time for last 2 version numbers
         (int daysSinceBase, int minutesSinceMidnight) = GetTimeSinceBaseTime();
 
-        // Return version based on major version and time diff betweend first and lates build
+        // Return version based on major version and time diff between first and latest build
         return new Version(Program.MajorVersion, Program.MinorVersion, daysSinceBase, minutesSinceMidnight);
     }
 

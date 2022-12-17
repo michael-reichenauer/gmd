@@ -359,7 +359,7 @@ class RepoView : IRepoView
             return;
         }
 
-        // Shift focus (unfortionatley SetFocus() does not seem to work)
+        // Shift focus (unfortunately SetFocus() does not seem to work)
         contentView.IsFocus = !contentView.IsFocus;
         commitDetailsView.View.IsFocus = !commitDetailsView.View.IsFocus;
 
@@ -388,11 +388,11 @@ class RepoView : IRepoView
 
     void RememberRepoPaths(string path)
     {
-        // Rember recent repo paths
+        // Remember recent repo paths
         states.Set(s => s.RecentFolders = s.RecentFolders
             .Prepend(path).Distinct().Where(Files.DirExists).Take(MaxRecentFolders).ToList());
 
-        // Rember parent folder to paths to be used when browsing
+        // Remember parent folder to paths to be used when browsing
         var parent = Path.GetDirectoryName(path);
         if (parent != null)
         {

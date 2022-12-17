@@ -41,17 +41,13 @@ jobs:
           ./build
           echo "version=$(./gmd_linux --version)" >> $GITHUB_OUTPUT
           echo Version: $(./gmd_linux --version)
-
-      - name: Check if release branch
-        id: check-branch
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo Branch ${{ github.ref }}
-          echo "isRelease=true" >> $GITHUB_OUTPUT
+          echo "isRelease=${{ github.ref == 'refs/heads/main' }}" >> $GITHUB_OUTPUT
+          echo "isPreRelease=${{ github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
+          echo "isPublish=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
-        if: steps.check-branch.outputs.isRelease == 'true'
+        if: steps.build.outputs.isPublish == 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,11 +55,11 @@ jobs:
           tag_name: v${{ steps.build.outputs.version }}
           release_name: Version ${{ steps.build.outputs.version }}
           draft: false
-          prerelease: true
+          prerelease: ${{steps.build.outputs.isPreRelease == 'true'}}
           body: ${{ github.event.head_commit.message }}
 
       - name: Upload Linux artifact
-        if: steps.check-branch.outputs.isRelease == 'true'
+        if: steps.build.outputs.isPublish == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -74,7 +70,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Windows artifact
-        if: steps.check-branch.outputs.isRelease == 'true'
+        if: steps.build.outputs.isPublish == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -85,7 +81,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload OSX/Mac artifact
-        if: steps.check-branch.outputs.isRelease == 'true'
+        if: steps.build.outputs.isPublish == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -96,7 +92,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Windows setup file
-        if: steps.check-branch.outputs.isRelease == 'true'
+        if: steps.build.outputs.isPublish == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
