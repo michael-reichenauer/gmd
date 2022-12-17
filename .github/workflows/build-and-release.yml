@@ -42,16 +42,23 @@ jobs:
           echo "version=$(./gmd_linux --version)" >> $GITHUB_OUTPUT
           echo Version: $(./gmd_linux --version)
 
-      - name: Check if release branch
+      - name: Check if Release branch
         id: check-branch
         if: github.ref == 'refs/heads/main'
         run: |
           echo Branch ${{ github.ref }}
           echo "isRelease=true" >> $GITHUB_OUTPUT
 
+      - name: Check if PreRelease branch
+        id: check-branch
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          echo Branch ${{ github.ref }}
+          echo "isPreRelease=true" >> $GITHUB_OUTPUT
+
       - name: Create Release
         id: create_release
-        if: steps.check-branch.outputs.isRelease == 'true'
+        if: steps.check-branch.outputs.isRelease == 'true' || steps.check-branch.outputs.isPreRelease == 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,7 +66,7 @@ jobs:
           tag_name: v${{ steps.build.outputs.version }}
           release_name: Version ${{ steps.build.outputs.version }}
           draft: false
-          prerelease: false
+          prerelease: steps.check-branch.outputs.isPreRelease == 'true'
           body: ${{ github.event.head_commit.message }}
 
       - name: Upload Linux artifact
