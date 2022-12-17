@@ -21,7 +21,7 @@ public class Releases
     public bool IsUpdateAvailable { get; set; } = false;
     public string LatestVersion { get; set; } = "";
     public bool IsPreview { get; set; } = false;
-    public bool AllowPreview { get; set; } = true;
+    public bool AllowPreview { get; set; } = false;
     public Release PreRelease { get; set; } = new Release();
     public Release StableRelease { get; set; } = new Release();
     public string Etag { get; set; } = "";
