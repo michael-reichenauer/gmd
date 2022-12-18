@@ -27,7 +27,7 @@ class RemoteService : IRemoteService
     public async Task<R> FetchAsync(string wd)
     {
         var args = "fetch --force --prune --tags --prune-tags origin";
-        return await cmd.RunAsync("git", args, wd);
+        return await cmd.RunAsync("git", args, wd, true);
     }
 
     public async Task<R> PushBranchAsync(string name, string wd)
