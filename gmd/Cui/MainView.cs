@@ -69,6 +69,7 @@ partial class MainView : IMainView
 
         string path = GetWorkingFolder();
         //  path = "/workspaces/Terminal.Gui";
+        // path = "/workspaces/gt2";
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
             if (path != "")

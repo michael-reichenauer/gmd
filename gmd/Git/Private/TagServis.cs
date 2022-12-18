@@ -18,7 +18,14 @@ class TagService : ITagService
     public async Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd)
     {
         var args = "show-ref --dereference --tags";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+        {
+            if (e.ErrorMessage == "")
+            {   // Empty tag list (no tags yet)
+                return new List<Tag>();
+            }
+            return e;
+        }
 
         return ParseTags(output);
     }
