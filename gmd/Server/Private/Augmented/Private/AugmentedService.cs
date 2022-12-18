@@ -106,11 +106,14 @@ class AugmentedService : IAugmentedService
 
         // Combine all git info into one git repo info object
         var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData);
-
         Log.Info($"{t} {gitRepo}");
+
+        if (gitRepo.Commits.Count == 0)
+        {
+            return EmptyRepo(path, tags, status, metaData);
+        }
         return gitRepo;
     }
-
 
     public async Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
     {
@@ -260,5 +263,18 @@ class AugmentedService : IAugmentedService
     {
         var status = converter.ToStatus(gitStatus);
         return repo with { Status = status };
+    }
+
+    R<GitRepo> EmptyRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
+    {
+        var id = Repo.PartialLogCommitID;
+        var msg = "<... empty repo ...>";
+        var branchName = "main";
+        var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Substring(0,6),
+            new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
+        var branches = new List<Git.Branch>() { new Git.Branch(branchName, branchName, id,
+             true, false, "", false, 0, 0, false) };
+
+        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData);
     }
 }
