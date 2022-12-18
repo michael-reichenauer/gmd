@@ -17,9 +17,12 @@ The gmd [help file](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc
 [https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md)
 
 ## Install
-Download either `gmd_linux`, `gmd_windows` or `gmd_osx` from [releases](https://github.com/michael-reichenauer/gmd/releases). For Windows it is easiest to just download the installer and run it. If you have gmd in a user folder, you do not need `sudo` to update. Gmd can automatically check for new versions and in the menu notify and offer option to upgrade.
+Download either `gmd_linux`, `gmd_windows` or `gmd_osx` from [releases](https://github.com/michael-reichenauer/gmd/releases). For Windows it is easiest to just download the installer and run it. If you have gmd in a user folder, you do not need `sudo` to update. Gmd can automatically check for new versions and in the menu notify and offer option to upgrade.\
+*Note:* The files are not signed.
 
 #### Linux
+If you to be able to use gmd from any folder, you might consider download the binary to some
+folder, e.g. `~/gmd/' and then add to the PATH like in: 
 `> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`  
 `> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
 `> . ~/.profile`  
@@ -31,15 +34,20 @@ or:
 `> gmdSetup`  
 
 #### OSX/Mac
+If you to be able to use gmd from any folder, you might consider download the binary to some
+folder, e.g. `~/gmd/' and then add to the PATH like in: 
 `> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_osx" && chmod +x ~/gmd/gmd`  
 `> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
 `> . ~/.profile`  
 
+## Use Devcontainer or GitHub CodeSpaces
+Gmd is prepared for using Devcontainers and GigHub CodeSpaces with VS Code. With CodeSpaces you can
+build and run within the browser, no need to install anything. Or use Docker and VS Code for devcontainers.
 
-## Run Sources with dotnet
+### Run Sources with dotnet
 `> dotnet run --project gmd/gmd.csproj`
 
-## Build
+### Build
 Use build script:  
 `> ./build`  
 or:    
