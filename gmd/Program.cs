@@ -21,6 +21,10 @@ class Program
 
     static async Task<int> Main(string[] args)
     {
+        if (args.Contains("-h") || args.Contains("--help") || args.Contains("-?"))
+        {
+            return ShowHelp();
+        }
         if (args.Contains("--version"))
         {
             return ShowVersion();
@@ -45,7 +49,6 @@ class Program
         ConfigLogger.CloseAsync().Wait();
         return 0;
     }
-
 
     internal Program(IMainView mainView, IGit git, IUpdater updater)
     {
@@ -133,6 +136,23 @@ class Program
         }
 
         Console.WriteLine($"Updated {currentVersion} -> {newVersion}");
+        return 0;
+    }
+
+    static int ShowHelp()
+    {
+        var msg = $"""
+        gmd ({Build.Version()})
+        Usage gmd [options] [arguments]
+
+        options:
+          --version       Show current version
+          --update        Update gmd to latest version (downloading from GitHub)
+          -d <path>       Show repo for working folder specified by <path>
+          --help|-h|-?    Show command line help.
+          
+        """;
+        Console.WriteLine(msg);
         return 0;
     }
 }
