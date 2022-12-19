@@ -261,7 +261,7 @@ class Updater : IUpdater
         string name = "";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            name = "gmd_mac";
+            name = "gmd_osx";
         }
         else
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
