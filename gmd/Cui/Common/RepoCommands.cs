@@ -537,7 +537,8 @@ class RepoCommands : IRepoCommands
 
          if (!Try(out e, await server.PushBranchAsync(name, repoPath)))
          {
-             return R.Error($"Failed to push branch {name} to remote server", e);
+             UI.InfoMessage($"Create Branch", "Branch was not pushed to remote server,\n{e}");
+             // return R.Error($"Failed to push branch {name} to remote server", e);
          }
 
          Refresh(name);
@@ -560,7 +561,8 @@ class RepoCommands : IRepoCommands
 
         if (!Try(out e, await server.PushBranchAsync(name, repoPath)))
         {
-            return R.Error($"Failed to push branch {name} to remote server", e);
+            UI.InfoMessage($"Create Branch", "Branch was not pushed to remote server,\n{e}");
+            // return R.Error($"Failed to push branch {name} to remote server", e);
         }
 
         Refresh(name);
