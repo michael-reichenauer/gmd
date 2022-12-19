@@ -535,15 +535,10 @@ class RepoCommands : IRepoCommands
              return R.Error($"Failed to create branch {rsp.Name}", e);
          }
 
-         if (rsp.IsPush)
+         if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
          {
-             if (!Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
-             {
-                 UI.InfoMessage("Create Branch", $"Branch was not pushed to remote server,\n{e}");
-                 // return R.Error($"Failed to push branch {name} to remote server", e);
-             }
+             return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
          }
-
 
          Refresh(rsp.Name);
          return R.Ok;
@@ -563,19 +558,14 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to create branch {rsp.Name}", e);
         }
 
-        if (rsp.IsPush)
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
         {
-            if (!Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
-            {
-                UI.InfoMessage("Create Branch", $"Branch was not pushed to remote server,\n{e}");
-                // return R.Error($"Failed to push branch {name} to remote server", e);
-            }
+            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
         }
 
         Refresh(rsp.Name);
         return R.Ok;
     });
-
 
 
     public void DeleteBranch(string name) => Do(async () =>
