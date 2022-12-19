@@ -50,6 +50,15 @@ static class ColorSchemes
         Disabled = TextColor.Dark,
     };
 
+    internal static readonly ColorScheme CheckBox = new ColorScheme()
+    {
+        Normal = TextColor.White,
+        Focus = TextColor.Make(Color.White, Color.DarkGray),
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.Make(Color.White, Color.DarkGray),
+        Disabled = TextColor.Dark,
+    };
+
     internal static readonly ColorScheme Button = new ColorScheme()
     {
         Normal = TextColor.White,
