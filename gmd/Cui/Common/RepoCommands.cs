@@ -528,19 +528,19 @@ class RepoCommands : IRepoCommands
     public void CreateBranch() => Do(async () =>
      {
          var currentBranchName = repo.GetCurrentBranch().Name;
-         if (!Try(out var name, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
+         if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-         if (!Try(out var e, await server.CreateBranchAsync(serverRepo, name, true, repoPath)))
+         if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, repoPath)))
          {
-             return R.Error($"Failed to create branch {name}", e);
+             return R.Error($"Failed to create branch {rsp.Name}", e);
          }
 
-         if (!Try(out e, await server.PushBranchAsync(name, repoPath)))
+         if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
          {
-             return R.Error($"Failed to push branch {name} to remote server", e);
+             return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
          }
 
-         Refresh(name);
+         Refresh(rsp.Name);
          return R.Ok;
      });
 
@@ -550,23 +550,22 @@ class RepoCommands : IRepoCommands
         var commit = repo.RowCommit;
         var branchName = commit.BranchName;
 
-        if (!Try(out var name, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
+        if (!Try(out var rsp, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
 
         if (!Try(out var e,
-            await server.CreateBranchFromCommitAsync(serverRepo, name, commit.Id, true, repoPath)))
+            await server.CreateBranchFromCommitAsync(serverRepo, rsp.Name, commit.Id, rsp.IsCheckout, repoPath)))
         {
-            return R.Error($"Failed to create branch {name}", e);
+            return R.Error($"Failed to create branch {rsp.Name}", e);
         }
 
-        if (!Try(out e, await server.PushBranchAsync(name, repoPath)))
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
         {
-            return R.Error($"Failed to push branch {name} to remote server", e);
+            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
         }
 
-        Refresh(name);
+        Refresh(rsp.Name);
         return R.Ok;
     });
-
 
 
     public void DeleteBranch(string name) => Do(async () =>

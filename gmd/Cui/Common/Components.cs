@@ -30,11 +30,14 @@ static class Components
         new CustomTextView()
         { X = x, Y = y, Width = w, Height = h, Text = text, ColorScheme = ColorSchemes.TextField };
 
-
     internal static Label TextIndicator(View textField) =>
         new Label(textField.Frame.X - 1, textField.Frame.Y + textField.Frame.Height,
             "└" + new string('─', textField.Frame.Width) + "┘")
         { ColorScheme = ColorSchemes.Indicator };
+
+    internal static CheckBox CheckBox(string name, bool isChecked, int x, int y) =>
+        new CheckBox(name, isChecked)
+        { X = x, Y = y, ColorScheme = ColorSchemes.CheckBox };
 
 
     class CustomDialog : Dialog
