@@ -2,8 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 
-namespace gmd.Utils;
 
+namespace gmd.Utils;
 
 public static class Result
 {
@@ -15,6 +15,15 @@ public static class Result
         return R.Try(out value, out e, result);
     }
 
+
+    public static bool Try(
+    [NotNullWhen(false)] out ErrorResult? e,
+     R result)
+    {
+        return R.Try(out e, result);
+    }
+
+
     public static bool Try<T>(
        [NotNullWhen(true)] out T? value,
        R<T> result)
@@ -22,16 +31,48 @@ public static class Result
         return R.Try(out value, result);
     }
 
-    public static bool Try(
-        [NotNullWhen(false)] out ErrorResult? e,
-         R result)
-    {
-        return R.Try(out e, result);
-    }
 
     public static bool Try(R result)
     {
         return R.Try(result);
+    }
+
+
+    public static bool Try<T>(
+        [NotNullWhen(true)] out T? value,
+        [NotNullWhen(false)] out ErrorResult? e,
+       Func<T> func)
+    {
+        try
+        {
+            value = func()!;
+            e = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            e = R.Error(ex);
+            value = default;
+            return false;
+        }
+    }
+
+
+    public static bool Try(
+        [NotNullWhen(false)] out ErrorResult? e,
+         Action action)
+    {
+        try
+        {
+            e = null;
+            return true;
+
+        }
+        catch (Exception ex)
+        {
+            e = R.Error(ex);
+            return false;
+        }
     }
 }
 
