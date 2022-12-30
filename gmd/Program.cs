@@ -3,7 +3,7 @@ using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
-
+using System.Runtime.InteropServices;
 
 namespace gmd;
 
@@ -62,7 +62,11 @@ class Program
         var t = Timing.Start();
         StartAsync().RunInBackground();
 
-        Application.UseSystemConsole = true;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {   // Trying to solve issues with mouse events on some linux env
+            Application.UseSystemConsole = true;
+        }
+
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         UI.HideCursor();
