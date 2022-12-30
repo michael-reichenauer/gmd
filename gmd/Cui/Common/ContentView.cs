@@ -165,7 +165,7 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
         // On linux (dev container console), there is a bug that sends same last mouse event
         // whenever mouse is moved, to still support scroll, we check mouse position.
@@ -184,7 +184,7 @@ class ContentView : View
             return true;
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        // if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             if (mouses.TryGetValue(ev.Flags, out var callback))
             {

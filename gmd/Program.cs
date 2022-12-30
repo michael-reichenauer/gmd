@@ -62,6 +62,7 @@ class Program
         var t = Timing.Start();
         StartAsync().RunInBackground();
 
+        Application.UseSystemConsole = true;
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         UI.HideCursor();
