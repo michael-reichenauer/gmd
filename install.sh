@@ -8,3 +8,4 @@ fi
 
 . ~/.profile
 echo "gmd version: $(gmd --version)"
+echo 'To enable, run: . ~/.profile'
