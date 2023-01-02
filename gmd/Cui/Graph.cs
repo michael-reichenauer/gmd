@@ -72,7 +72,14 @@ class GraphColumn
     internal void SetConnect(Sign sign, Color color)
     {
         Connect |= sign;
-        ConnectColor = color;
+        if (ConnectColor == TextColor.None)
+        {
+            ConnectColor = color;
+        }
+        else if (ConnectColor != color)
+        {
+            ConnectColor = TextColor.Ambiguous;
+        }
     }
 
     internal void SetBranch(Sign sign, Color color)
