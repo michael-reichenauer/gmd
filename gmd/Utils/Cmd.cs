@@ -12,22 +12,25 @@ interface ICmd
 
 class CmdResult : R<string>
 {
-    public CmdResult(int exitCode, string output, string errorOutput)
-        : base(new Exception(errorOutput))
+    public CmdResult(string cmd, int exitCode, string output, string errorOutput)
+        : base(new Exception($"${errorOutput}\nCommand: ${cmd}"))
     {
+        Cmd = cmd;
         ExitCode = exitCode;
         Output = output;
         ErrorOutput = errorOutput;
     }
 
-    public CmdResult(string output, string errorOutput)
+    public CmdResult(string cmd, string output, string errorOutput)
         : base(output)
     {
         ExitCode = 0;
+        Cmd = cmd;
         Output = output;
         ErrorOutput = errorOutput;
     }
 
+    public string Cmd { get; }
     public int ExitCode { get; }
     public string Output { get; }
     public string ErrorOutput { get; }
@@ -41,6 +44,7 @@ class Cmd : ICmd
 
     public CmdResult Run(string path, string args, string workingDirectory, bool skipLog = false)
     {
+        var cmdText = $"{path} {args} ({workingDirectory})";
         var t = Timing.Start();
         try
         {
@@ -82,20 +86,20 @@ class Cmd : ICmd
 
                 if (process.ExitCode != 0)
                 {
-                    if (!skipLog) Log.Warn($"Error: {path} {args} ({workingDirectory}) {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
-                    if (skipLog) Log.Debug($"Error: {path} {args} ({workingDirectory}) {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
-                    return new CmdResult(process.ExitCode, output, error);
+                    if (!skipLog) Log.Warn($"Error: {cmdText} {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    if (skipLog) Log.Debug($"Error: {cmdText} {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    return new CmdResult(cmdText, process.ExitCode, output, error);
                 }
 
-                Log.Info($"OK: {path} {args} ({workingDirectory}) {t}");
+                Log.Info($"OK: {cmdText} {t}");
                 //if (skipLog) Log.Debug($"OK: {path} {args} ({workingDirectory}) {t}");
-                return new CmdResult(output, error);
+                return new CmdResult(cmdText, output, error);
             }
         }
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Error($"Failed: {path} {args} {t}\n{e.Message}");
-            return new CmdResult(-1, "", e.Message);
+            return new CmdResult(cmdText, -1, "", e.Message);
         }
     }
 }
