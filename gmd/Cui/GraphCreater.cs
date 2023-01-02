@@ -259,10 +259,9 @@ class GraphCreater : IGraphCreater
 
         if (commitBranch != parentBranch)
         {
-            graph.SetGraphConnect(x2, y, Sign.MergeFromLeft, color); //    ╭ 
-            graph.DrawVerticalLine(x2, y + 1, y2, color); //               │
-            graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color); //     ╰
-            graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
+            graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); //  ╮  
+            graph.DrawVerticalLine(x + 1, y + 1, y2, color); //              │
+            graph.SetGraphConnect(x2 + 1, y2, Sign.BranchToRight, color); // ╯
         }
         else
         {
