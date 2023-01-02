@@ -165,6 +165,7 @@ class RepoWriter : IRepoWriter
 
         string subject = Txt(c.Subject, columnWidth);
 
+        //
         if (c.IsUncommitted && isCurrent) { text.YellowSelected(subject); }
         else if (isCurrent) { text.WhiteSelected(subject); }
         else if (c.IsConflicted) { text.BrightRed(subject); }
