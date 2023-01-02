@@ -49,7 +49,7 @@ class RepoWriter : IRepoWriter
             WriteGraph(text, graphRow, cw.GraphWidth);
             WriteCurrentMarker(text, c, isUncommitted);
             WriteAheadBehindMarker(text, c);
-            WriteSubject(text, cw, c, crb, branchTips);
+            WriteSubject(text, cw, c, crb, branchTips, i == currentIndex);
             WriteSid(text, cw, c);
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c);
@@ -133,7 +133,7 @@ class RepoWriter : IRepoWriter
     }
 
     void WriteSubject(Text text, Columns cw, Commit c, Branch currentRowBranch,
-        IReadOnlyDictionary<string, Text> branchTips)
+        IReadOnlyDictionary<string, Text> branchTips, bool isCurrent)
     {
         int width = cw.Subject;
         if (c.Tags.Any())
@@ -165,7 +165,9 @@ class RepoWriter : IRepoWriter
 
         string subject = Txt(c.Subject, columnWidth);
 
-        if (c.IsConflicted) { text.BrightRed(subject); }
+        if (c.IsUncommitted && isCurrent) { text.YellowSelected(subject); }
+        else if (isCurrent) { text.WhiteSelected(subject); }
+        else if (c.IsConflicted) { text.BrightRed(subject); }
         else if (c.IsUncommitted) { text.BrightYellow(subject); }
         else if (c.IsAhead) { text.BrightGreen(subject); }
         else if (c.IsBehind) { text.BrightBlue(subject); }

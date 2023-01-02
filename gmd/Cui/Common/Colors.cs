@@ -24,6 +24,9 @@ static class TextColor
     public static readonly Terminal.Gui.Attribute None = Make(Terminal.Gui.Color.Black);
     public static readonly Terminal.Gui.Attribute Ambiguous = Make(Terminal.Gui.Color.White);
 
+    public static readonly Terminal.Gui.Attribute WhiteSelected = HighMake(Terminal.Gui.Color.White);
+    public static readonly Terminal.Gui.Attribute YellowSelected = HighMake(Terminal.Gui.Color.BrightYellow);
+
     internal static readonly Terminal.Gui.Attribute[] BranchColors = { Blue, Green, Cyan, Red, Yellow };
 
 
