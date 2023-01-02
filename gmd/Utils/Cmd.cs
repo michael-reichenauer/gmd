@@ -13,7 +13,7 @@ interface ICmd
 class CmdResult : R<string>
 {
     public CmdResult(string cmd, int exitCode, string output, string errorOutput)
-        : base(new Exception($"${errorOutput}\nCommand: ${cmd}"))
+        : base(new Exception($"{errorOutput}\nCommand: {cmd}"))
     {
         Cmd = cmd;
         ExitCode = exitCode;
