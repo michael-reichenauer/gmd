@@ -106,7 +106,7 @@ class MetaDataService : IMetaDataService
             return e;
         };
 
-        Log.Info($"Read:\n{json}");
+        // Log.Info($"Read:\n{json}");
         if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
 
         return data;
@@ -120,7 +120,7 @@ class MetaDataService : IMetaDataService
             isUpdating = true;
             string json = Json.SerializePretty(metaData);
             if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
-            Log.Info($"Wrote:\n{json}");
+            // Log.Info($"Wrote:\n{json}");
             return R.Ok;
         }
         finally
