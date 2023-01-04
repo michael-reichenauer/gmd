@@ -16,7 +16,7 @@ class Text
 
     internal Text Red(string text) => Color(TextColor.Red, text);
     internal Text Blue(string text) => Color(TextColor.Blue, text);
-    internal Text White(string text) => Color(TextColor.White, text);
+    internal Text White(string text, bool isHiglight = false) => Color(TextColor.White, text);
     internal Text Magenta(string text) => Color(TextColor.Magenta, text);
     internal Text BrightBlue(string text) => Color(TextColor.BrightBlue, text);
     internal Text BrightCyan(string text) => Color(TextColor.BrightCyan, text);
@@ -29,6 +29,9 @@ class Text
     internal Text Green(string text) => Color(TextColor.Green, text);
     internal Text Yellow(string text) => Color(TextColor.Yellow, text);
     internal Text Black(string text) => Color(TextColor.Black, text);
+
+    internal Text WhiteSelected(string text) => Color(TextColor.WhiteSelected, text);
+    internal Text YellowSelected(string text) => Color(TextColor.YellowSelected, text);
 
     internal Text Add(Text text)
     {

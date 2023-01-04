@@ -157,13 +157,11 @@ class FileMonitor : IFileMonitor
 
     private void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        // Log.Info($"'{fullPath}'");
+        // Log.Debug($"'{fullPath}'");
 
-        if (Path.GetExtension(fullPath) == ".lock")
-        {
-            return;
-        }
-        else if (Directory.Exists(fullPath))
+        if (Path.GetExtension(fullPath) == ".lock" ||
+            Directory.Exists(fullPath) ||
+            fullPath.Contains("gmd-metadata-key-value"))
         {
             return;
         }

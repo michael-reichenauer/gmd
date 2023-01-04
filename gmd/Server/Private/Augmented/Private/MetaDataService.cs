@@ -119,7 +119,9 @@ class MetaDataService : IMetaDataService
         {
             isUpdating = true;
             string json = Json.SerializePretty(metaData);
-            return await git.SetValueAsync(metaDataKey, json, path);
+            if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
+            // Log.Info($"Wrote:\n{json}");
+            return R.Ok;
         }
         finally
         {

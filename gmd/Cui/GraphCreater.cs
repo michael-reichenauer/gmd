@@ -232,7 +232,7 @@ class GraphCreater : IGraphCreater
         graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);
         if (commitBranch != parentBranch)
         {
-            graph.DrawVerticalLine(x, y + 1, y2, color); //             │
+            graph.DrawVerticalLine(x, y + 1, y2, color); //           │
         }
         graph.SetGraphConnect(x, y2, Sign.BranchToRight, color); //   ╯
         graph.DrawHorizontalLine(x2 + 1, x, y2, color);            // ──
@@ -259,10 +259,9 @@ class GraphCreater : IGraphCreater
 
         if (commitBranch != parentBranch)
         {
-            graph.SetGraphConnect(x2, y, Sign.MergeFromRight, color); //   ╮
-            graph.DrawVerticalLine(x2, y + 1, y2, color); //               │
-            graph.SetGraphBranch(x2, y2, Sign.BranchToRight, color); //    ╯
-            graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
+            graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); //  ╮  
+            graph.DrawVerticalLine(x + 1, y + 1, y2, color); //              │
+            graph.SetGraphConnect(x2 + 1, y2, Sign.BranchToRight, color); // ╯
         }
         else
         {
