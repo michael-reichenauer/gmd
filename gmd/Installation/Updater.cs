@@ -75,7 +75,7 @@ class Updater : IUpdater
         Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version}, (PreRelease: {releases.PreRelease.Version}, allow: {releases.AllowPreview})");
 
         if (isAvailable.Item1)
-        {   // An update is available, trigger download (if not already downloaded)
+        {   // An update is available, trigger download (if not already downloaded).
             DownloadBinaryAsync().RunInBackground();
         }
     }
