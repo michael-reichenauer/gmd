@@ -41,9 +41,13 @@ class Updater : IUpdater
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
 
-    private readonly IStates states;
-    private readonly ICmd cmd;
+    readonly IStates states;
+    readonly ICmd cmd;
     readonly Version buildVersion;
+
+    // Data for download binary tasks to avoud multiple paralell tasks
+    string requestingUri = "";
+    Task<byte[]>? getBytesTask = null;
 
     internal Updater(IStates states, ICmd cmd)
     {
@@ -196,7 +200,7 @@ class Updater : IUpdater
 
                 Log.Info($"Downloading from {downloadUrl} ...");
 
-                byte[] remoteFileData = await httpClient.GetByteArrayAsync(downloadUrl);
+                byte[] remoteFileData = await GetByteArrayAsync(httpClient, downloadUrl);
 
                 File.WriteAllBytes(targetPath, remoteFileData);
 
@@ -210,6 +214,21 @@ class Updater : IUpdater
             return R.Error("Failed to download latest binary", e);
         }
     }
+
+    Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
+    {
+        if (releasesUri == requestingUri && getBytesTask != null)
+        {   // A request for this uri has already been started, lets reuse task
+            Log.Info($"Reusing download task for {requestUri}");
+            return getBytesTask;
+        }
+
+        // Start download task and remember task in case multiple requests for same request
+        requestingUri = requestUri;
+        getBytesTask = httpClient.GetByteArrayAsync(requestUri);
+        return getBytesTask;
+    }
+
 
     string GetDownloadFilePath(string version)
     {
