@@ -218,7 +218,7 @@ class Updater : IUpdater
     Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
     {
         if (releasesUri == requestingUri && getBytesTask != null)
-        {   // A request for this uri has already been started, lets reuse task
+        {   // A request for this uri has already been started, lets reuse task,
             Log.Info($"Reusing download task for {requestUri}");
             return getBytesTask;
         }
