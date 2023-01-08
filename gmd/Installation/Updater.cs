@@ -30,6 +30,8 @@ public class GitAsset
     public string browser_download_url { get; set; } = "";
 }
 
+
+[SingleInstance]
 class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
@@ -198,8 +200,6 @@ class Updater : IUpdater
                     return targetPath;
                 }
 
-                Log.Info($"Downloading from {downloadUrl} ...");
-
                 byte[] remoteFileData = await GetByteArrayAsync(httpClient, downloadUrl);
 
                 File.WriteAllBytes(targetPath, remoteFileData);
@@ -224,6 +224,7 @@ class Updater : IUpdater
         }
 
         // Start download task and remember task in case multiple requests for same request
+        Log.Info($"Downloading from {requestUri} ...");
         requestingUri = requestUri;
         getBytesTask = httpClient.GetByteArrayAsync(requestUri);
         return getBytesTask;
