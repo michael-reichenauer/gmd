@@ -218,7 +218,7 @@ class Updater : IUpdater
     {
         if (requestingUri == requestUri && getBytesTask != null)
         {   // A request for this uri has already been started, lets reuse task,
-            Log.Info($"Reusing download task for {requestUri}");
+            Log.Info($"Download already started for {requestUri}");
             return getBytesTask;
         }
 
