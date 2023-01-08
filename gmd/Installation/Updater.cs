@@ -31,7 +31,6 @@ public class GitAsset
 }
 
 
-[SingleInstance]
 class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
@@ -48,8 +47,8 @@ class Updater : IUpdater
     readonly Version buildVersion;
 
     // Data for download binary tasks to avoud multiple paralell tasks
-    string requestingUri = "";
-    Task<byte[]>? getBytesTask = null;
+    static string requestingUri = "";
+    static Task<byte[]>? getBytesTask = null;
 
     internal Updater(IStates states, ICmd cmd)
     {
