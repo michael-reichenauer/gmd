@@ -74,6 +74,7 @@ class RepoViewMenus : IRepoViewMenus
         var releases = states.Get().Releases;
         var items = EnumerableEx.From<MenuItem>();
         var branchName = repo.CurrentBranch?.DisplayName ?? "";
+        var commit = repo.RowCommit;
 
         if (releases.IsUpdateAvailable)
         {
@@ -90,6 +91,7 @@ class RepoViewMenus : IRepoViewMenus
                 () => !repo.Status.IsOk),
             Item("Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff()),
             SubMenu("Undo", "", GetUndoItems()),
+            Item($"Cherry Pic into {branchName}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk),
 
             UI.MenuSeparator("Branches"),
             SubMenu("Open/Show Branch", "->", GetShowBranchItems()),
