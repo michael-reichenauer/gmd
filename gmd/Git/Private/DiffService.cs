@@ -145,6 +145,15 @@ class DiffService : IDiffService
         var fileDiffs = new List<FileDiff>();
         while (i < lines.Length)
         {
+            if (lines[i].StartsWith("commit "))
+            {   // Next commit
+                break;
+            }
+            if (!lines[i].StartsWith("diff --"))
+            {   // between file diffs, let try next line
+                i++;
+                continue;
+            }
             (var fileDiff, i, bool ok) = ParseFileDiff(i, lines);
             if (!ok)
             {
@@ -188,15 +197,6 @@ class DiffService : IDiffService
         (i, var isBinary) = ParsePossibleIndexRows(i, lines);
 
         (var sectionDiffs, i) = ParseSectionDiffs(i, lines);
-
-        if (i < lines.Length && lines[i].StartsWith("\\ No newline at end of file"))
-        {
-            i++;  // Skip git diff comment
-        }
-        if (i < lines.Length && lines[i] == "")
-        {   // Skip empty last line
-            i++;
-        }
 
         return (new FileDiff(before, after, isRenamed, isBinary, diffMode, sectionDiffs), i, true);
     }
