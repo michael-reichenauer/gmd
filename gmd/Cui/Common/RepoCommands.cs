@@ -48,6 +48,7 @@ interface IRepoCommands
     void CleanWorkingFolder();
     void UndoUncommittedFile(string path);
     void Clone();
+    void CherryPic(string id);
 }
 
 class RepoCommands : IRepoCommands
@@ -370,6 +371,17 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.MergeBranchAsync(serverRepo, branchName)))
         {
             return R.Error($"Failed to merge branch {branchName}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void CherryPic(string id) => Do(async () =>
+    {
+        if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
+        {
+            return R.Error($"Failed to cherry pic {id.Substring(0, 6)}", e);
         }
 
         Refresh();

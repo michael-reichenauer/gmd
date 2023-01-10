@@ -10,6 +10,7 @@ interface IBranchService
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> MergeBranchAsync(string name, string wd);
+    Task<R> CherryPickAsync(string sha, string wd);
 }
 
 class BranchService : IBranchService
@@ -74,6 +75,11 @@ class BranchService : IBranchService
         // if strings.Contains(err.Error(), "exit status 1") &&
         //     strings.Contains(output, "CONFLICT") {
         //     return ErrConflicts
+    }
+
+    public async Task<R> CherryPickAsync(string sha, string wd)
+    {
+        return await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
     }
 
 

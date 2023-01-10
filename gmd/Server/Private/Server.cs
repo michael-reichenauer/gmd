@@ -183,6 +183,9 @@ class Server : IServer
     public Task<R> MergeBranchAsync(Repo repo, string branchName) =>
         augmentedService.MergeBranchAsync(repo.AugmentedRepo, branchName);
 
+    public Task<R> CherryPickAsync(string sha, string wd) =>
+        git.CherryPickAsync(sha, wd);
+
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
 
