@@ -30,6 +30,7 @@ public class GitAsset
     public string browser_download_url { get; set; } = "";
 }
 
+
 class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
@@ -41,9 +42,13 @@ class Updater : IUpdater
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
 
-    private readonly IStates states;
-    private readonly ICmd cmd;
+    readonly IStates states;
+    readonly ICmd cmd;
     readonly Version buildVersion;
+
+    // Data for download binary tasks to avoud multiple paralell tasks.
+    static string requestingUri = "";
+    static Task<byte[]>? getBytesTask = null;
 
     internal Updater(IStates states, ICmd cmd)
     {
@@ -71,7 +76,7 @@ class Updater : IUpdater
         Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version}, (PreRelease: {releases.PreRelease.Version}, allow: {releases.AllowPreview})");
 
         if (isAvailable.Item1)
-        {   // An update is available, trigger download (if not already downloaded)
+        {   // An update is available, trigger download (if not already downloaded).
             DownloadBinaryAsync().RunInBackground();
         }
     }
@@ -194,9 +199,7 @@ class Updater : IUpdater
                     return targetPath;
                 }
 
-                Log.Info($"Downloading from {downloadUrl} ...");
-
-                byte[] remoteFileData = await httpClient.GetByteArrayAsync(downloadUrl);
+                byte[] remoteFileData = await GetByteArrayAsync(httpClient, downloadUrl);
 
                 File.WriteAllBytes(targetPath, remoteFileData);
 
@@ -210,6 +213,22 @@ class Updater : IUpdater
             return R.Error("Failed to download latest binary", e);
         }
     }
+
+    Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
+    {
+        if (requestingUri == requestUri && getBytesTask != null)
+        {   // A request for this uri has already been started, lets reuse task
+            Log.Info($"Download already started for {requestUri}");
+            return getBytesTask;
+        }
+
+        // Start download task and remember task in case multiple requests for same request
+        Log.Info($"Downloading from {requestUri} ...");
+        requestingUri = requestUri;
+        getBytesTask = httpClient.GetByteArrayAsync(requestUri);
+        return getBytesTask;
+    }
+
 
     string GetDownloadFilePath(string version)
     {
