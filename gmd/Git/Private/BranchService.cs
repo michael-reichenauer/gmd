@@ -71,15 +71,23 @@ class BranchService : IBranchService
     public async Task<R> MergeBranchAsync(string name, string wd)
     {
         //  name = RemoteService.TrimRemotePrefix(name);
-        return await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
-        // if strings.Contains(err.Error(), "exit status 1") &&
-        //     strings.Contains(output, "CONFLICT") {
-        //     return ErrConflicts
+        var rsp = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
+        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        {
+            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+        }
+        return rsp;
     }
+
 
     public async Task<R> CherryPickAsync(string sha, string wd)
     {
-        return await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
+        var rsp = await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
+        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        {
+            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+        }
+        return rsp;
     }
 
 
