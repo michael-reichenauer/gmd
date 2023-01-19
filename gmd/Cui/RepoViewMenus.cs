@@ -17,9 +17,9 @@ class RepoViewMenus : IRepoViewMenus
 {
     readonly IRepo repo;
     readonly IRepoCommands cmds;
-    private readonly IStates states;
+    private readonly IState states;
 
-    internal RepoViewMenus(IRepo repo, IStates states)
+    internal RepoViewMenus(IRepo repo, IState states)
     {
         this.repo = repo;
         this.cmds = repo.Cmd;

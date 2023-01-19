@@ -42,7 +42,7 @@ class Updater : IUpdater
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
 
-    readonly IStates states;
+    readonly IState states;
     readonly ICmd cmd;
     readonly Version buildVersion;
 
@@ -50,15 +50,13 @@ class Updater : IUpdater
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
-    internal Updater(IStates states, ICmd cmd)
+    internal Updater(IState states, ICmd cmd)
     {
         this.states = states;
         this.cmd = cmd;
         buildVersion = Build.Version();
     }
 
-    internal Updater()
-        : this(new States(), new Cmd()) { }
 
     public async Task CheckUpdateAvailableAsync()
     {
