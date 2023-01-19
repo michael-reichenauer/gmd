@@ -109,7 +109,7 @@ class RepoView : IRepoView
         if (!Try(out var rootDir, out var e, git.RootPath(path))) return e;
         Log.Info($"Show '{rootDir}' ({path})");
 
-        var branches = repoState.GetRepo(rootDir).Branches;
+        var branches = repoState.Get(rootDir).Branches;
         if (!Try(out e, await ShowNewRepoAsync(rootDir, branches))) return e;
         FetchFromRemote();
 
@@ -327,7 +327,7 @@ class RepoView : IRepoView
 
         // Remember shown branch for next restart of program
         var names = repo.Branches.Select(b => b.Name).ToList();
-        repoState.SetRepo(serverRepo.Path, s => s.Branches = names);
+        repoState.Set(serverRepo.Path, s => s.Branches = names);
     }
 
 

@@ -7,8 +7,8 @@ public class RepoState
 
 interface IRepoState
 {
-    RepoState GetRepo(string rootPath);
-    void SetRepo(string rootPath, Action<RepoState> set);
+    RepoState Get(string rootPath);
+    void Set(string rootPath, Action<RepoState> set);
 }
 
 class RepoStateImpl : IRepoState
@@ -18,9 +18,9 @@ class RepoStateImpl : IRepoState
 
     public RepoStateImpl(IFileStore store) => this.store = store;
 
-    public RepoState GetRepo(string path) => store.Get<RepoState>(RepoPath(path));
+    public RepoState Get(string path) => store.Get<RepoState>(RepoPath(path));
 
-    public void SetRepo(string path, Action<RepoState> set) => store.Set(RepoPath(path), set);
+    public void Set(string path, Action<RepoState> set) => store.Set(RepoPath(path), set);
 
     string RepoPath(string path) => Path.Join(path, ".git", FileName);
 }
