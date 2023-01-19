@@ -2,7 +2,10 @@ using static System.Environment;
 
 namespace gmd.Common;
 
-class Config { }
+class Config
+{
+    public bool AllowPreview { get; set; } = false;
+}
 
 interface IConfig
 {
@@ -13,13 +16,13 @@ interface IConfig
 
 class ConfigImpl : IConfig
 {
-    static string StatePath = Path.Join(Environment.GetFolderPath(
+    static string FilePath = Path.Join(Environment.GetFolderPath(
         SpecialFolder.UserProfile), ".gmdconfig.json");
     private readonly IFileStore store;
 
     internal ConfigImpl(IFileStore store) => this.store = store;
 
-    public Config Get() => store.Get<Config>(StatePath);
+    public Config Get() => store.Get<Config>(FilePath);
 
-    public void Set(Action<Config> setState) => store.Set(StatePath, setState);
+    public void Set(Action<Config> set) => store.Set(FilePath, set);
 }

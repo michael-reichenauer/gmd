@@ -21,7 +21,6 @@ public class Releases
     public bool IsUpdateAvailable { get; set; } = false;
     public string LatestVersion { get; set; } = "";
     public bool IsPreview { get; set; } = false;
-    public bool AllowPreview { get; set; } = false;
     public Release PreRelease { get; set; } = new Release();
     public Release StableRelease { get; set; } = new Release();
     public string Etag { get; set; } = "";
@@ -38,19 +37,19 @@ public class State
 interface IState
 {
     State Get();
-    void Set(Action<State> setState);
+    void Set(Action<State> set);
 }
 
 
 class StateImpl : IState
 {
-    static string StatePath = Path.Join(Environment.GetFolderPath(
+    static string FilePath = Path.Join(Environment.GetFolderPath(
         SpecialFolder.UserProfile), ".gmdstate.json");
     private readonly IFileStore store;
 
     internal StateImpl(IFileStore store) => this.store = store;
 
-    public State Get() => store.Get<State>(StatePath);
+    public State Get() => store.Get<State>(FilePath);
 
-    public void Set(Action<State> setState) => store.Set(StatePath, setState);
+    public void Set(Action<State> set) => store.Set(FilePath, set);
 }
