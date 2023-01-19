@@ -128,7 +128,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var path = repo.RepoPath;
         var previewTxt = config.Get().AllowPreview ? "Disable Preview Releases" : "Enable Preview Releases";
-        var metaSyncTxt = repoConfig.Get(path).SyncMetaData ? "Disable Sync this Repo Metadata" : "Enable Sync this Repo Metadata";
+        var metaSyncTxt = repoConfig.Get(path).SyncMetaData ? "Disable this Repo Sync Metadata" : "Enable this Repo Sync Metadata";
 
         return EnumerableEx.From(
              Item(previewTxt, "", () =>
