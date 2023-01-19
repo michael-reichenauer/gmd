@@ -156,7 +156,7 @@ class DiffService : IDiffConverter
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.Dark("=== Start of conflict"));
+                    rows.AddToBoth(Text.New.BrightMagenta("=== Start of conflict"));
                     break;
 
                 case DiffMode.DiffConflictSplit:
@@ -166,7 +166,7 @@ class DiffService : IDiffConverter
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.Dark("=== End of conflict"));
+                    rows.AddToBoth(Text.New.BrightMagenta("=== End of conflict"));
                     break;
 
                 case DiffMode.DiffRemoved:
