@@ -42,7 +42,8 @@ class Updater : IUpdater
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
 
-    readonly IStates states;
+    readonly IState states;
+    private readonly IConfig configs;
     readonly ICmd cmd;
     readonly Version buildVersion;
 
@@ -50,15 +51,14 @@ class Updater : IUpdater
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
-    internal Updater(IStates states, ICmd cmd)
+    internal Updater(IState states, IConfig configs, ICmd cmd)
     {
         this.states = states;
+        this.configs = configs;
         this.cmd = cmd;
         buildVersion = Build.Version();
     }
 
-    internal Updater()
-        : this(new States(), new Cmd()) { }
 
     public async Task CheckUpdateAvailableAsync()
     {
@@ -72,8 +72,9 @@ class Updater : IUpdater
         }
 
         var releases = states.Get().Releases;
+        var allowPreview = configs.Get().AllowPreview;
 
-        Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version}, (PreRelease: {releases.PreRelease.Version}, allow: {releases.AllowPreview})");
+        Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version}, (PreRelease: {releases.PreRelease.Version}, allow: {allowPreview})");
 
         if (isAvailable.Item1)
         {   // An update is available, trigger download (if not already downloaded).
@@ -302,8 +303,9 @@ class Updater : IUpdater
     Release SelectRelease()
     {
         var releases = states.Get().Releases;
+        var allowPreview = configs.Get().AllowPreview;
 
-        if (releases.AllowPreview && releases.PreRelease.Assets.Any() &&
+        if (allowPreview && releases.PreRelease.Assets.Any() &&
             IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version))
         {   // user allow preview versions, and the preview version is newer
             return releases.PreRelease;
@@ -368,7 +370,6 @@ class Updater : IUpdater
         Releases releases = new Releases()
         {
             Etag = eTag,
-            AllowPreview = states.Get().Releases.AllowPreview,
             StableRelease = ToRelease(stable),
             PreRelease = ToRelease(preview)
         };
