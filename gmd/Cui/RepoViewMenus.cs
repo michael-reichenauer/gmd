@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Installation;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -17,13 +18,17 @@ class RepoViewMenus : IRepoViewMenus
 {
     readonly IRepo repo;
     readonly IRepoCommands cmds;
-    private readonly IState states;
+    readonly IState states;
+    readonly IConfig config;
+    readonly IUpdater updater;
 
-    internal RepoViewMenus(IRepo repo, IState states)
+    internal RepoViewMenus(IRepo repo, IState states, IConfig config, IUpdater updater)
     {
         this.repo = repo;
         this.cmds = repo.Cmd;
         this.states = states;
+        this.config = config;
+        this.updater = updater;
     }
 
     public void ShowMainMenu()
@@ -112,11 +117,23 @@ class RepoViewMenus : IRepoViewMenus
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
+            SubMenu("Config", "", GetConfigItems()),
             Item("About ...", "A", () => cmds.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
+    IEnumerable<MenuItem> GetConfigItems()
+    {
+        var previewTxt = config.Get().AllowPreview ? "Disable Preview Releases" : "Enable Preview Releases";
 
+        return EnumerableEx.From(
+             Item(previewTxt, "", () =>
+             {
+                 config.Set(c => c.AllowPreview = !c.AllowPreview);
+                 updater.CheckUpdateAvailableAsync().RunInBackground();
+             })
+        );
+    }
 
     IEnumerable<MenuItem> GetAmbiguousItems()
     {
