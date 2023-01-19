@@ -20,14 +20,16 @@ class RepoViewMenus : IRepoViewMenus
     readonly IRepoCommands cmds;
     readonly IState states;
     readonly IConfig config;
+    readonly IRepoConfig repoConfig;
     readonly IUpdater updater;
 
-    internal RepoViewMenus(IRepo repo, IState states, IConfig config, IUpdater updater)
+    internal RepoViewMenus(IRepo repo, IState states, IConfig config, IRepoConfig repoConfig, IUpdater updater)
     {
         this.repo = repo;
         this.cmds = repo.Cmd;
         this.states = states;
         this.config = config;
+        this.repoConfig = repoConfig;
         this.updater = updater;
     }
 
@@ -124,14 +126,17 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetConfigItems()
     {
+        var path = repo.RepoPath;
         var previewTxt = config.Get().AllowPreview ? "Disable Preview Releases" : "Enable Preview Releases";
+        var metaSyncTxt = repoConfig.Get(path).SyncMetaData ? "Disable Sync this Repo Metadata" : "Enable Sync this Repo Metadata";
 
         return EnumerableEx.From(
              Item(previewTxt, "", () =>
              {
                  config.Set(c => c.AllowPreview = !c.AllowPreview);
                  updater.CheckUpdateAvailableAsync().RunInBackground();
-             })
+             }),
+             Item(metaSyncTxt, "", () => repoConfig.Set(path, c => c.SyncMetaData = !c.SyncMetaData))
         );
     }
 
