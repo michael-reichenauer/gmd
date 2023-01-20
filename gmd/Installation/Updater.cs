@@ -11,6 +11,7 @@ interface IUpdater
     Task CheckUpdateAvailableAsync();
     Task<R<Version>> UpdateAsync();
     Task<R<(bool, Version)>> IsUpdateAvailableAsync();
+    Task CheckUpdatesRegularly();
 }
 
 public class GitRelease
@@ -42,7 +43,8 @@ class Updater : IUpdater
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
 
-    readonly IStates states;
+    readonly IState states;
+    private readonly IConfig configs;
     readonly ICmd cmd;
     readonly Version buildVersion;
 
@@ -50,15 +52,14 @@ class Updater : IUpdater
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
-    internal Updater(IStates states, ICmd cmd)
+    internal Updater(IState states, IConfig configs, ICmd cmd)
     {
         this.states = states;
+        this.configs = configs;
         this.cmd = cmd;
         buildVersion = Build.Version();
     }
 
-    internal Updater()
-        : this(new States(), new Cmd()) { }
 
     public async Task CheckUpdateAvailableAsync()
     {
@@ -72,14 +73,16 @@ class Updater : IUpdater
         }
 
         var releases = states.Get().Releases;
+        var allowPreview = configs.Get().AllowPreview;
 
-        Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version}, (PreRelease: {releases.PreRelease.Version}, allow: {releases.AllowPreview})");
+        Log.Info($"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})");
 
         if (isAvailable.Item1)
         {   // An update is available, trigger download (if not already downloaded).
             DownloadBinaryAsync().RunInBackground();
         }
     }
+
 
     public async Task<R<Version>> UpdateAsync()
     {
@@ -114,33 +117,15 @@ class Updater : IUpdater
     }
 
 
-    private R Install(string downloadedPath)
+    public async Task CheckUpdatesRegularly()
     {
-        if (IsDotNet()) return R.Ok;
-
-        try
+        while (true)
         {
-            // Move downloaded file next to this process file (replace must be on same volume)
-            var newPath = GetTempPath();
-            File.Move(downloadedPath, newPath);
-            Log.Info($"Install {newPath} ...");
-            if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
-
-            var thisPath = Environment.ProcessPath ?? "gmd";
-            var newThisPath = GetTempPath();
-
-            File.Move(thisPath, newThisPath);
-            Log.Info($"Moved {thisPath} to {newThisPath}");
-            File.Move(newPath, thisPath);
-            Log.Info($"Installed {newPath}");
-            return R.Ok;
-        }
-        catch (Exception e) when (e.IsNotFatal())
-        {
-            Log.Exception(e, "Failed install new file");
-            return R.Error("Failed to install new file", e);
+            await CheckUpdateAvailableAsync();
+            await Task.Delay(checkUpdateInterval);
         }
     }
+
 
     public async Task<R<(bool, Version)>> IsUpdateAvailableAsync()
     {
@@ -177,6 +162,35 @@ class Updater : IUpdater
         states.Set(s => s.Releases.IsUpdateAvailable = true);
 
         return (true, new Version(release.Version));
+    }
+
+
+    R Install(string downloadedPath)
+    {
+        if (IsDotNet()) return R.Ok;
+
+        try
+        {
+            // Move downloaded file next to this process file (replace must be on same volume)
+            var newPath = GetTempPath();
+            File.Move(downloadedPath, newPath);
+            Log.Info($"Install {newPath} ...");
+            if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
+
+            var thisPath = Environment.ProcessPath ?? "gmd";
+            var newThisPath = GetTempPath();
+
+            File.Move(thisPath, newThisPath);
+            Log.Info($"Moved {thisPath} to {newThisPath}");
+            File.Move(newPath, thisPath);
+            Log.Info($"Installed {newPath}");
+            return R.Ok;
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            Log.Exception(e, "Failed install new file");
+            return R.Error("Failed to install new file", e);
+        }
     }
 
 
@@ -302,8 +316,9 @@ class Updater : IUpdater
     Release SelectRelease()
     {
         var releases = states.Get().Releases;
+        var allowPreview = configs.Get().AllowPreview;
 
-        if (releases.AllowPreview && releases.PreRelease.Assets.Any() &&
+        if (allowPreview && releases.PreRelease.Assets.Any() &&
             IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version))
         {   // user allow preview versions, and the preview version is newer
             return releases.PreRelease;
@@ -368,7 +383,6 @@ class Updater : IUpdater
         Releases releases = new Releases()
         {
             Etag = eTag,
-            AllowPreview = states.Get().Releases.AllowPreview,
             StableRelease = ToRelease(stable),
             PreRelease = ToRelease(preview)
         };

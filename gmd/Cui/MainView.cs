@@ -15,7 +15,7 @@ partial class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IGit git;
-    readonly IStates states;
+    readonly IState states;
     readonly ICloneDlg cloneDlg;
     readonly IHelpDlg helpDlg;
     readonly IServer server;
@@ -26,7 +26,7 @@ partial class MainView : IMainView
     MainView(
         IRepoView repoView,
         IGit git,
-        IStates states,
+        IState states,
         ICloneDlg cloneDlg,
         IHelpDlg helpDlg,
         IServer server,

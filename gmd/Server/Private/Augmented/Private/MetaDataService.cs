@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 
 namespace gmd.Server.Private.Augmented.Private;
@@ -50,13 +51,14 @@ class MetaDataService : IMetaDataService
 {
     const string metaDataKey = "data";
     readonly IGit git;
-
+    readonly IRepoConfig repoConfig;
     bool isUpdating = false;
 
 
-    internal MetaDataService(IGit git)
+    internal MetaDataService(IGit git, IRepoConfig repoConfig)
     {
         this.git = git;
+        this.repoConfig = repoConfig;
     }
 
 
@@ -170,6 +172,12 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> PushMetaDataAsync(string path)
     {
+        if (!repoConfig.Get(path).SyncMetaData)
+        {
+            Log.Warn("Repo sync disabled");
+            return R.Ok;
+        }
+
         await git.PushValueAsync(metaDataKey, path);
         return R.Ok;
     }

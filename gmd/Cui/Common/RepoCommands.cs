@@ -62,7 +62,7 @@ class RepoCommands : IRepoCommands
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
-    readonly IStates states;
+    readonly IState states;
     readonly IUpdater updater;
     readonly IGit git;
     readonly IRepo repo;
@@ -85,7 +85,7 @@ class RepoCommands : IRepoCommands
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
-        IStates states,
+        IState states,
         IUpdater updater,
         IGit git)
     {

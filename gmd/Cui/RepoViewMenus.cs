@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Installation;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -17,13 +18,19 @@ class RepoViewMenus : IRepoViewMenus
 {
     readonly IRepo repo;
     readonly IRepoCommands cmds;
-    private readonly IStates states;
+    readonly IState states;
+    readonly IConfig config;
+    readonly IRepoConfig repoConfig;
+    readonly IUpdater updater;
 
-    internal RepoViewMenus(IRepo repo, IStates states)
+    internal RepoViewMenus(IRepo repo, IState states, IConfig config, IRepoConfig repoConfig, IUpdater updater)
     {
         this.repo = repo;
         this.cmds = repo.Cmd;
         this.states = states;
+        this.config = config;
+        this.repoConfig = repoConfig;
+        this.updater = updater;
     }
 
     public void ShowMainMenu()
@@ -112,11 +119,26 @@ class RepoViewMenus : IRepoViewMenus
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
+            SubMenu("Config", "", GetConfigItems()),
             Item("About ...", "A", () => cmds.ShowAbout()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
+    IEnumerable<MenuItem> GetConfigItems()
+    {
+        var path = repo.RepoPath;
+        var previewTxt = config.Get().AllowPreview ? "Disable Preview Releases" : "Enable Preview Releases";
+        var metaSyncTxt = repoConfig.Get(path).SyncMetaData ? "Disable this Repo Sync Metadata" : "Enable this Repo Sync Metadata";
 
+        return EnumerableEx.From(
+             Item(previewTxt, "", () =>
+             {
+                 config.Set(c => c.AllowPreview = !c.AllowPreview);
+                 updater.CheckUpdateAvailableAsync().RunInBackground();
+             }),
+             Item(metaSyncTxt, "", () => repoConfig.Set(path, c => c.SyncMetaData = !c.SyncMetaData))
+        );
+    }
 
     IEnumerable<MenuItem> GetAmbiguousItems()
     {
