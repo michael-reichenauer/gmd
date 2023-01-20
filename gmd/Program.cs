@@ -83,7 +83,7 @@ class Program
     async Task StartAsync()
     {
         await LogInfoAsync();
-        await updater.CheckUpdateAvailableAsync();
+        updater.CheckUpdatesRegularly().RunInBackground();
     }
 
     async Task LogInfoAsync()

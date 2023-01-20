@@ -11,6 +11,7 @@ interface IUpdater
     Task CheckUpdateAvailableAsync();
     Task<R<Version>> UpdateAsync();
     Task<R<(bool, Version)>> IsUpdateAvailableAsync();
+    Task CheckUpdatesRegularly();
 }
 
 public class GitRelease
@@ -74,13 +75,14 @@ class Updater : IUpdater
         var releases = states.Get().Releases;
         var allowPreview = configs.Get().AllowPreview;
 
-        Log.Info($"Running: {buildVersion}, Stable: {releases.StableRelease.Version}, (PreRelease: {releases.PreRelease.Version}, allow: {allowPreview})");
+        Log.Info($"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})");
 
         if (isAvailable.Item1)
         {   // An update is available, trigger download (if not already downloaded).
             DownloadBinaryAsync().RunInBackground();
         }
     }
+
 
     public async Task<R<Version>> UpdateAsync()
     {
@@ -115,33 +117,15 @@ class Updater : IUpdater
     }
 
 
-    private R Install(string downloadedPath)
+    public async Task CheckUpdatesRegularly()
     {
-        if (IsDotNet()) return R.Ok;
-
-        try
+        while (true)
         {
-            // Move downloaded file next to this process file (replace must be on same volume)
-            var newPath = GetTempPath();
-            File.Move(downloadedPath, newPath);
-            Log.Info($"Install {newPath} ...");
-            if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
-
-            var thisPath = Environment.ProcessPath ?? "gmd";
-            var newThisPath = GetTempPath();
-
-            File.Move(thisPath, newThisPath);
-            Log.Info($"Moved {thisPath} to {newThisPath}");
-            File.Move(newPath, thisPath);
-            Log.Info($"Installed {newPath}");
-            return R.Ok;
-        }
-        catch (Exception e) when (e.IsNotFatal())
-        {
-            Log.Exception(e, "Failed install new file");
-            return R.Error("Failed to install new file", e);
+            await CheckUpdateAvailableAsync();
+            await Task.Delay(checkUpdateInterval);
         }
     }
+
 
     public async Task<R<(bool, Version)>> IsUpdateAvailableAsync()
     {
@@ -178,6 +162,35 @@ class Updater : IUpdater
         states.Set(s => s.Releases.IsUpdateAvailable = true);
 
         return (true, new Version(release.Version));
+    }
+
+
+    R Install(string downloadedPath)
+    {
+        if (IsDotNet()) return R.Ok;
+
+        try
+        {
+            // Move downloaded file next to this process file (replace must be on same volume)
+            var newPath = GetTempPath();
+            File.Move(downloadedPath, newPath);
+            Log.Info($"Install {newPath} ...");
+            if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
+
+            var thisPath = Environment.ProcessPath ?? "gmd";
+            var newThisPath = GetTempPath();
+
+            File.Move(thisPath, newThisPath);
+            Log.Info($"Moved {thisPath} to {newThisPath}");
+            File.Move(newPath, thisPath);
+            Log.Info($"Installed {newPath}");
+            return R.Ok;
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            Log.Exception(e, "Failed install new file");
+            return R.Error("Failed to install new file", e);
+        }
     }
 
 
