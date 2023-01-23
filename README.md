@@ -22,7 +22,7 @@ Download either `gmd_linux`, `gmd_windows` or `gmd_osx` from [releases](https://
 
 #### Linux
 If you to be able to use gmd from any folder, you might consider download the binary to some
-folder, e.g. `~/gmd/' and then add to the PATH like in: 
+folder, e.g. `~/gmd/` and then add to the PATH like in: 
 `> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`  
 `> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
 `> . ~/.profile`  
@@ -35,7 +35,7 @@ or:
 
 #### OSX/Mac
 If you to be able to use gmd from any folder, you might consider download the binary to some
-folder, e.g. `~/gmd/' and then add to the PATH like in: 
+folder, e.g. `~/gmd/` and then add to the PATH like in: 
 `> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_osx" && chmod +x ~/gmd/gmd`  
 `> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
 `> . ~/.profile`  
