@@ -15,6 +15,7 @@ gmd/installation/installer/tools/Addins
 gmd/installation/installer/tools/Cake
 gmd/installation/installer/tools/Tools*
 
+tmp
 
 # User-specific files
 *.suo
