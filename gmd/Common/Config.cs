@@ -17,7 +17,7 @@ interface IConfig
 class ConfigImpl : IConfig
 {
     static string FilePath = Path.Join(Environment.GetFolderPath(
-        SpecialFolder.UserProfile), ".gmdconfig.json");
+        SpecialFolder.UserProfile), ".gmdconfig");
     private readonly IFileStore store;
 
     internal ConfigImpl(IFileStore store) => this.store = store;

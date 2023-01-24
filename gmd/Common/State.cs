@@ -44,7 +44,7 @@ interface IState
 class StateImpl : IState
 {
     static string FilePath = Path.Join(Environment.GetFolderPath(
-        SpecialFolder.UserProfile), ".gmdstate.json");
+        SpecialFolder.UserProfile), ".gmdstate");
     private readonly IFileStore store;
 
     internal StateImpl(IFileStore store) => this.store = store;

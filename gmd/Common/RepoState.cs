@@ -13,7 +13,7 @@ interface IRepoState
 
 class RepoStateImpl : IRepoState
 {
-    static readonly string FileName = ".gmdstate.json";
+    static readonly string FileName = ".gmdstate";
     private readonly IFileStore store;
 
     public RepoStateImpl(IFileStore store) => this.store = store;
