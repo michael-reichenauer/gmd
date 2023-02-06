@@ -8,19 +8,19 @@ class Upgrader
     {
         string oldStatePath = Path.Join(Environment.GetFolderPath(
             SpecialFolder.UserProfile), ".gmdstate.json");
-        if (File.Exists(oldStatePath))
-        {
-            string newStatePath = Path.Join(Environment.GetFolderPath(
+        string newStatePath = Path.Join(Environment.GetFolderPath(
            SpecialFolder.UserProfile), ".gmdstate");
+        if (File.Exists(oldStatePath) && !File.Exists(newStatePath))
+        {
             File.Move(oldStatePath, newStatePath);
         }
 
         string oldConfigPath = Path.Join(Environment.GetFolderPath(
             SpecialFolder.UserProfile), ".gmdconfig.json");
-        if (File.Exists(oldConfigPath))
+        string newConfigPath = Path.Join(Environment.GetFolderPath(
+           SpecialFolder.UserProfile), ".gmdconfig");
+        if (File.Exists(oldConfigPath) && !File.Exists(newConfigPath))
         {
-            string newConfigPath = Path.Join(Environment.GetFolderPath(
-                SpecialFolder.UserProfile), ".gmdconfig");
             File.Move(oldConfigPath, newConfigPath);
         }
     }
