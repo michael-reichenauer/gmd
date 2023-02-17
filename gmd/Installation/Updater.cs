@@ -49,7 +49,7 @@ class Updater : IUpdater
     readonly ICmd cmd;
     readonly Version buildVersion;
 
-    // Data for download binary tasks to avoud multiple paralell tasks.
+    // Data for download binary tasks to avoud multiple paralell tasks
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
