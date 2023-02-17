@@ -125,12 +125,14 @@ class Updater : IUpdater
                 {
                     if (Try(out var update, out e, await UpdateAsync()))
                     {
-                        UI.InfoMessage("Restart Required",
-                            $"Gmd has been updated to: {update}\n" +
-                            "and a program restart is required.\n" +
-                            "Please start gmd again.");
-                        UI.Shutdown();
-                        return;
+                        UI.Post(() =>
+                        {
+                            UI.InfoMessage("Restart Required",
+                                $"Gmd has been updated to: {update}\n" +
+                                "and a program restart is required.\n" +
+                                "Please start gmd again.");
+                            UI.Shutdown();
+                        });
                     }
                 }
             }
