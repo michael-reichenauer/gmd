@@ -22,8 +22,10 @@ class RepoViewMenus : IRepoViewMenus
     readonly IConfig config;
     readonly IRepoConfig repoConfig;
     readonly IUpdater updater;
+    private readonly IConfigDlg configDlg;
 
-    internal RepoViewMenus(IRepo repo, IState states, IConfig config, IRepoConfig repoConfig, IUpdater updater)
+    internal RepoViewMenus(IRepo repo, IState states, IConfig config, 
+    IRepoConfig repoConfig, IUpdater updater, IConfigDlg configDlg)
     {
         this.repo = repo;
         this.cmds = repo.Cmd;
@@ -31,6 +33,7 @@ class RepoViewMenus : IRepoViewMenus
         this.config = config;
         this.repoConfig = repoConfig;
         this.updater = updater;
+        this.configDlg = configDlg;
     }
 
     public void ShowMainMenu()
@@ -113,15 +116,22 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Delete Branch", "", GetDeleteItems()),
             SubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any()),
 
-            UI.MenuSeparator("More"),
+            UI.MenuSeparator(""),
+            SubMenu("More", "", GetMoreItems()),
+            Item("Quit", "Esc", () => UI.Shutdown()));
+    }
+
+    IEnumerable<MenuItem> GetMoreItems()
+    {
+        return EnumerableEx.From( 
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
-            SubMenu("Config", "", GetConfigItems()),
-            Item("About ...", "A", () => cmds.ShowAbout()),
-            Item("Quit", "Esc", () => UI.Shutdown()));
+            Item("Config ...", "", ()=> configDlg.Show(repo.RepoPath)),
+            Item("About ...", "A", () => cmds.ShowAbout())
+        );
     }
 
     IEnumerable<MenuItem> GetConfigItems()

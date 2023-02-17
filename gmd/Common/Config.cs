@@ -4,6 +4,8 @@ namespace gmd.Common;
 
 class Config
 {
+    public bool CheckUpdates { get; set; } = true;
+    public bool AutoUpdate { get; set; } = false;
     public bool AllowPreview { get; set; } = false;
 }
 
