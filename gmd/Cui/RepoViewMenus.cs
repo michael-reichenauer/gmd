@@ -113,15 +113,22 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Delete Branch", "", GetDeleteItems()),
             SubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any()),
 
-            UI.MenuSeparator("More"),
+            UI.MenuSeparator(""),
+            SubMenu("More", "", GetMoreItems()),
+            Item("Quit", "Esc", () => UI.Shutdown()));
+    }
+
+    IEnumerable<MenuItem> GetMoreItems()
+    {
+        return EnumerableEx.From( 
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
             SubMenu("Config", "", GetConfigItems()),
-            Item("About ...", "A", () => cmds.ShowAbout()),
-            Item("Quit", "Esc", () => UI.Shutdown()));
+            Item("About ...", "A", () => cmds.ShowAbout())
+        );
     }
 
     IEnumerable<MenuItem> GetConfigItems()
