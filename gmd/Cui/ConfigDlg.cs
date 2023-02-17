@@ -31,7 +31,7 @@ class ConfigDlg : IConfigDlg
 
         // Repo specific config
         var repoInfoinfo = Components.Label(1, 0, $"Repo '{repoPath}':");
-        var isSyncMetaData = Components.CheckBox("Push/Sync local branch structure meta data to server",
+        var isSyncMetaData = Components.CheckBox("Push/Sync branch structure metadata to server",
             repoConfig.Get(repoPath).SyncMetaData, 1, 1);
 
 
