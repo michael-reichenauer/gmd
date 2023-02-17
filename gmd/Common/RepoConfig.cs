@@ -13,7 +13,7 @@ interface IRepoConfig
 
 class RepoConfigImpl : IRepoConfig
 {
-    static readonly string FileName = ".gmdconfig.json";
+    static readonly string FileName = ".gmdconfig";
     private readonly IFileStore store;
 
     public RepoConfigImpl(IFileStore store) => this.store = store;

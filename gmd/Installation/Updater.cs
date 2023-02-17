@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using gmd.Common;
+using gmd.Cui.Common;
 
 namespace gmd.Installation;
 
@@ -48,7 +49,7 @@ class Updater : IUpdater
     readonly ICmd cmd;
     readonly Version buildVersion;
 
-    // Data for download binary tasks to avoud multiple paralell tasks.
+    // Data for download binary tasks to avoud multiple paralell tasks
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
@@ -76,11 +77,6 @@ class Updater : IUpdater
         var allowPreview = configs.Get().AllowPreview;
 
         Log.Info($"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})");
-
-        if (isAvailable.Item1)
-        {   // An update is available, trigger download (if not already downloaded).
-            DownloadBinaryAsync().RunInBackground();
-        }
     }
 
 
@@ -122,6 +118,25 @@ class Updater : IUpdater
         while (true)
         {
             await CheckUpdateAvailableAsync();
+
+            if (configs.Get().AutoUpdate)
+            {
+                if (Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()) && isAvailable.Item1)
+                {
+                    if (Try(out var update, out e, await UpdateAsync()))
+                    {
+                        UI.Post(() =>
+                        {
+                            UI.InfoMessage("Restart Required",
+                                $"Gmd has been updated to: {update}\n" +
+                                "and a program restart is required.\n" +
+                                "Please start gmd again.");
+                            UI.Shutdown();
+                        });
+                    }
+                }
+            }
+
             await Task.Delay(checkUpdateInterval);
         }
     }
@@ -129,6 +144,12 @@ class Updater : IUpdater
 
     public async Task<R<(bool, Version)>> IsUpdateAvailableAsync()
     {
+        if (!configs.Get().CheckUpdates)
+        {
+            Log.Info("Check for updates is disabled");
+            return (false, buildVersion);
+        }
+
         if (!Try(out var release, out var e, await GetRemoteInfoAsync()))
         {
             Log.Info($"Failed to get remote info, {e}");

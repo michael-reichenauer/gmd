@@ -3,7 +3,7 @@ using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
-
+using gmd.Common;
 
 namespace gmd;
 
@@ -23,6 +23,8 @@ class Program
     {
         var t = Timing.Start();
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
+
+        new Upgrader().UpdradeData();
 
         dependencyInjection = new DependencyInjection();
         dependencyInjection.RegisterDependencyInjectionTypes();

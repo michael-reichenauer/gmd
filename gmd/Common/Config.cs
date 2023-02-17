@@ -4,6 +4,8 @@ namespace gmd.Common;
 
 class Config
 {
+    public bool CheckUpdates { get; set; } = true;
+    public bool AutoUpdate { get; set; } = false;
     public bool AllowPreview { get; set; } = false;
 }
 
@@ -17,7 +19,7 @@ interface IConfig
 class ConfigImpl : IConfig
 {
     static string FilePath = Path.Join(Environment.GetFolderPath(
-        SpecialFolder.UserProfile), ".gmdconfig.json");
+        SpecialFolder.UserProfile), ".gmdconfig");
     private readonly IFileStore store;
 
     internal ConfigImpl(IFileStore store) => this.store = store;
