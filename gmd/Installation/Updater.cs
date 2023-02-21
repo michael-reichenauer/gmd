@@ -127,11 +127,10 @@ class Updater : IUpdater
                     {
                         UI.Post(() =>
                         {
-                            UI.InfoMessage("Restart Required",
+                            UI.InfoMessage("Restart for New Version ",
                                 $"Gmd has been updated to: {update}\n" +
-                                "and a program restart is required.\n" +
-                                "Please start gmd again.");
-                            UI.Shutdown();
+                                "and will run the next time the program starts.\n" +
+                                "Please restart gmd to run updated version.");
                         });
                     }
                 }
