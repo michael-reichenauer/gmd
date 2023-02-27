@@ -130,7 +130,7 @@ class Updater : IUpdater
                             UI.InfoMessage("Restart for New Version ",
                                 $"Gmd has been updated to: {update}\n" +
                                 "and will run the next time the program starts.\n" +
-                                "Please restart gmd to run updated version.");
+                                "Restart gmd if you want to run the updated version.");
                         });
                     }
                 }
