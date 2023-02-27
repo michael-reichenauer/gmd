@@ -81,7 +81,8 @@ class DiffService : IDiffService
 
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)
     {
-        var lines = output.Split('\n');
+        // Split string and ignore some lines
+        var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
         var commitDiffs = new List<CommitDiff>();
         int index = 0;
         while (index < lines.Length)
