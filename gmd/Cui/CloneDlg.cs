@@ -74,47 +74,66 @@ class CloneDlg : ICloneDlg
         return (Uri(), PathText());
     }
 
-    private void UpdatePath()
+    string Uri() => uriField!.Text.ToString()?.Trim() ?? "";
+
+    string PathText() => pathField!.Text.ToString()?.Trim() ?? "";
+
+
+    // Update path field when uri changes
+    void UpdatePath()
     {
         if (!basePath.EndsWith(Path.DirectorySeparatorChar)) return;
 
         var uri = Uri();
-        var name = ParseName(uri);
-        if (name == "") return;
+        if (!Try(out var name, TryParseRepoName(uri))) return;
 
-        pathField!.Text = Path.Combine(basePath, name);
-        pathField!.SetNeedsDisplay();
+        UpdatePathField(name);
     }
 
-    string Uri() => uriField!.Text.ToString()?.Trim() ?? "";
-    string PathText() => pathField!.Text.ToString()?.Trim() ?? "";
 
+    // Update path after user has browsed target folders
     void SetBrowsedPath(string path)
     {
         path = path.Trim();
 
-        // Try repo name from uri
         var uri = Uri();
-        string name = ParseName(uri);
-        if (name == "") return;
+        if (!Try(out var name, TryParseRepoName(uri))) return;
 
         basePath = path + Path.DirectorySeparatorChar;
 
-        pathField!.Text = Path.Combine(path, name);
+        UpdatePathField(name);
+    }
+
+
+    void UpdatePathField(string name)
+    {
+        var newName = name;
+        var path = Path.Combine(basePath, newName);
+        for (int i = 1; i < 50; i++)
+        {
+            if (!Directory.Exists(path) && !File.Exists(path))
+            {
+                break;
+            }
+            newName = $"{name}-{i}";
+            path = Path.Combine(basePath, newName);
+        }
+
+        pathField!.Text = path;
         pathField!.SetNeedsDisplay();
     }
 
-    static string ParseName(string uri)
+
+    // Try to extract git repo name
+    static R<string> TryParseRepoName(string uri)
     {
         var name = "";
-        if (uri.EndsWith(".git") && uri.Length > 7)
-        {
-            var i = uri.LastIndexOf('/');
-            if (i > -1)
-            {
-                name = uri.Substring(i + 1).TrimSuffix(".git");
-            }
-        }
+        if (!uri.EndsWith(".git") && uri.Length > 7) return R.Error();
+
+        var i = uri.LastIndexOf('/');
+        if (i == -1) return R.Error();
+
+        name = uri.Substring(i + 1).TrimSuffix(".git");
 
         return name;
     }
