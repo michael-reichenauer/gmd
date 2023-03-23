@@ -7,7 +7,7 @@ namespace gmd.Cui;
 
 interface ICloneDlg
 {
-    R<(string, string)> Show(IReadOnlyList<string> recentFolders);
+    R<(string, string)> Show(IReadOnlyList<string> recentParentFolders);
 }
 
 class CloneDlg : ICloneDlg
@@ -15,25 +15,32 @@ class CloneDlg : ICloneDlg
     TextField? uriField;
     TextField? pathField;
 
+    string basePath = "";
 
-    public R<(string, string)> Show(IReadOnlyList<string> recentFolders)
+
+    public R<(string, string)> Show(IReadOnlyList<string> recentParentFolders)
     {
+        basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
+
         const int width = 55;
         Label uriLabel = Components.Label(1, 0, "Uri:");
         uriField = Components.TextField(1, 1, width, "");
         var uriIndicator = Components.TextIndicator(uriField);
+        uriField.KeyUp += _ => UpdatePath();
+
+
         Label pathLabel = Components.Label(1, 3, "Path:");
-        pathField = Components.TextField(1, 4, width, "");
+        pathField = Components.TextField(1, 4, width, basePath);
         var pathIdicator = Components.TextIndicator(pathField);
 
         Button browseButton = Buttons.Button("Browse ...", () =>
         {
             FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-            if (!Try(out var path, browseDlg.Show(recentFolders)) || path == "")
+            if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "")
             {
                 return;
             }
-            SetPath(path);
+            SetBrowsedPath(path);
         });
         browseButton.X = width - 13;
         browseButton.Y = 3;
@@ -68,26 +75,67 @@ class CloneDlg : ICloneDlg
     }
 
     string Uri() => uriField!.Text.ToString()?.Trim() ?? "";
+
     string PathText() => pathField!.Text.ToString()?.Trim() ?? "";
 
-    void SetPath(string path)
+
+    // Update path field when uri changes
+    void UpdatePath()
+    {
+        if (!basePath.EndsWith(Path.DirectorySeparatorChar)) return;
+
+        var uri = Uri();
+        if (!Try(out var name, TryParseRepoName(uri))) return;
+
+        UpdatePathField(name);
+    }
+
+
+    // Update path after user has browsed target folders
+    void SetBrowsedPath(string path)
     {
         path = path.Trim();
 
-        // Try repo name from uri
-        var name = "";
         var uri = Uri();
-        if (uri.EndsWith(".git") && uri.Length > 7)
+        if (!Try(out var name, TryParseRepoName(uri))) return;
+
+        basePath = path + Path.DirectorySeparatorChar;
+
+        UpdatePathField(name);
+    }
+
+
+    void UpdatePathField(string name)
+    {
+        var newName = name;
+        var path = Path.Combine(basePath, newName);
+        for (int i = 1; i < 50; i++)
         {
-            var i = uri.LastIndexOf('/');
-            if (i > -1)
+            if (!Directory.Exists(path) && !File.Exists(path))
             {
-                name = uri.Substring(i + 1).TrimSuffix(".git");
+                break;
             }
+            newName = $"{name}-{i}";
+            path = Path.Combine(basePath, newName);
         }
 
-        pathField!.Text = Path.Combine(path, name);
+        pathField!.Text = path;
         pathField!.SetNeedsDisplay();
+    }
+
+
+    // Try to extract git repo name
+    static R<string> TryParseRepoName(string uri)
+    {
+        var name = "";
+        if (!uri.EndsWith(".git") && uri.Length > 7) return R.Error();
+
+        var i = uri.LastIndexOf('/');
+        if (i == -1) return R.Error();
+
+        name = uri.Substring(i + 1).TrimSuffix(".git");
+
+        return name;
     }
 }
 
