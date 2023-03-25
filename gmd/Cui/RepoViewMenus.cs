@@ -110,7 +110,8 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Push", "", GetPushItems(), () => cmds.CanPush()),
             SubMenu("Update/Pull", "", GetPullItems(), () => cmds.CanPull()),
             SubMenu($"Merge from", "", GetMergeItems(), () => GetMergeItems().Any()),
-            SubMenu($"Preview Diff Merge to", "", GetPreviewMergeItems(), () => GetMergeItems().Any()),
+            SubMenu($"Preview Diff Merge Branch to", "", GetPreviewMergeItems(), () => GetMergeItems().Any()),
+            SubMenu($"Preview Diff Merge  {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true), () => GetPreviewMergeItems(true).Any()),
             Item("Create Branch ...", "B", () => cmds.CreateBranch()),
             Item("Create Branch from commit ...", "",
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
@@ -297,7 +298,7 @@ class RepoViewMenus : IRepoViewMenus
             .Concat(commitItems);
     }
 
-    IEnumerable<MenuItem> GetPreviewMergeItems()
+    IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit = false)
     {
         if (!repo.Status.IsOk)
         {
@@ -311,12 +312,7 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
-        var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
-            ? new[] { Item($"Commit {commit.Sid}", "", () => cmds.PreviewMergeBranch(commit.Id)) }
-            : Enumerable.Empty<MenuItem>();
-
-        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.PreviewMergeBranch(b.Name)))
-            .Concat(commitItems);
+        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.PreviewMergeBranch(b.Name, isFromCurrentCommit)));
     }
 
     IEnumerable<MenuItem> GetHideItems()
