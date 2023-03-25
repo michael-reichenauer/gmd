@@ -381,8 +381,8 @@ class RepoCommands : IRepoCommands
     public void PreviewMergeBranch(string branchName) => Do(async () =>
     {
         if (repo.CurrentBranch == null) return R.Ok;
-        var sha1 = repo.CurrentBranch.TipId;
-        var sha2 = repo.Branch(branchName).TipId;
+        var sha1 = repo.Branch(branchName).TipId;
+        var sha2 = repo.CurrentBranch.TipId;
 
         if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, repoPath)))
         {
