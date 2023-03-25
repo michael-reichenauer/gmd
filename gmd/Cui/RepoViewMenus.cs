@@ -24,7 +24,7 @@ class RepoViewMenus : IRepoViewMenus
     readonly IUpdater updater;
     private readonly IConfigDlg configDlg;
 
-    internal RepoViewMenus(IRepo repo, IState states, IConfig config, 
+    internal RepoViewMenus(IRepo repo, IState states, IConfig config,
     IRepoConfig repoConfig, IUpdater updater, IConfigDlg configDlg)
     {
         this.repo = repo;
@@ -109,7 +109,8 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Switch/Checkout", "", GetSwitchToItems()),
             SubMenu("Push", "", GetPushItems(), () => cmds.CanPush()),
             SubMenu("Update/Pull", "", GetPullItems(), () => cmds.CanPull()),
-            SubMenu($"Merge into {branchName} from", "", GetMergeItems(), () => GetMergeItems().Any()),
+            SubMenu($"Merge from", "", GetMergeItems(), () => GetMergeItems().Any()),
+            SubMenu($"Preview Diff Merge to", "", GetPreviewMergeItems(), () => GetMergeItems().Any()),
             Item("Create Branch ...", "B", () => cmds.CreateBranch()),
             Item("Create Branch from commit ...", "",
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
@@ -123,13 +124,13 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetMoreItems()
     {
-        return EnumerableEx.From( 
+        return EnumerableEx.From(
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
-            Item("Config ...", "", ()=> configDlg.Show(repo.RepoPath)),
+            Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
             Item("About ...", "A", () => cmds.ShowAbout())
         );
     }
@@ -275,6 +276,28 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> GetMergeItems()
+    {
+        if (!repo.Status.IsOk)
+        {
+            return Enumerable.Empty<MenuItem>();
+        }
+
+        var commit = repo.RowCommit;
+        var currentName = repo.CurrentBranch?.CommonName ?? "";
+        var branches = repo.Branches
+             .Where(b => b.CommonName != currentName)
+             .DistinctBy(b => b.CommonName)
+             .OrderBy(b => b.CommonName);
+
+        var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
+            ? new[] { Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id)) }
+            : Enumerable.Empty<MenuItem>();
+
+        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
+            .Concat(commitItems);
+    }
+
+    IEnumerable<MenuItem> GetPreviewMergeItems()
     {
         if (!repo.Status.IsOk)
         {
