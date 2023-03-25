@@ -112,6 +112,10 @@ class DiffService : IDiffConverter
             {
                 text.Cyan(" (Renamed)");
             }
+            if (fd.IsBinary)
+            {
+                text.Dark(" (Binary)");
+            }
             rows.Add(text);
         });
     }
@@ -292,10 +296,6 @@ class DiffService : IDiffConverter
         if (fd.IsRenamed && !fd.SectionDiffs.Any())
         {
             return "Renamed:";
-        }
-        if (fd.IsBinary && !fd.SectionDiffs.Any())
-        {
-            return "Binary:";
         }
 
         switch (fd.DiffMode)
