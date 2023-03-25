@@ -109,9 +109,7 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Switch/Checkout", "", GetSwitchToItems()),
             SubMenu("Push", "", GetPushItems(), () => cmds.CanPush()),
             SubMenu("Update/Pull", "", GetPullItems(), () => cmds.CanPull()),
-            SubMenu($"Merge from", "", GetMergeItems(), () => GetMergeItems().Any()),
-            SubMenu($"Preview Diff Merge Branch to", "", GetPreviewMergeItems(), () => GetMergeItems().Any()),
-            SubMenu($"Preview Diff Merge {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true), () => GetPreviewMergeItems(true).Any()),
+            SubMenu("Merge", "", GetMergeItems()),
             Item("Create Branch ...", "B", () => cmds.CreateBranch()),
             Item("Create Branch from commit ...", "",
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
@@ -276,7 +274,15 @@ class RepoViewMenus : IRepoViewMenus
     }
 
 
-    IEnumerable<MenuItem> GetMergeItems()
+    IEnumerable<MenuItem> GetMergeItems() =>
+        EnumerableEx.From(
+            SubMenu($"Merge from", "", GetMergeFromItems(), () => GetMergeFromItems().Any()),
+            SubMenu($"Preview Diff Merge Branch to", "", GetPreviewMergeItems(), () => GetPreviewMergeItems().Any()),
+            SubMenu($"Preview Diff Merge {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true), () => GetPreviewMergeItems(true).Any())
+        );
+
+
+    IEnumerable<MenuItem> GetMergeFromItems()
     {
         if (!repo.Status.IsOk)
         {
