@@ -5,6 +5,7 @@ interface IDiffService
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
+    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd);
 }
 
 class DiffService : IDiffService
@@ -18,7 +19,7 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
-        var args = "show --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
+        var args = "show --date=iso --first-parent --root --patch --no-color" +
             $" --find-renames --unified=6 {commitId}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
@@ -43,7 +44,7 @@ class DiffService : IDiffService
             needReset = true;
         }
 
-        var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
+        var args = "diff --date=iso --first-parent --root --patch --no-color" +
             " --find-renames --unified=6 HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
@@ -77,6 +78,24 @@ class DiffService : IDiffService
         }
 
         return commitDiffs.ToArray();
+    }
+
+    public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd)
+    {
+        var args = $"diff  --find-renames --unified=6 --full-index {sha1} {sha2}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+
+        return ParseDiff(output, "");
+    }
+
+    CommitDiff ParseDiff(string output, string path)
+    {
+        // Split string and ignore some lines
+        var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
+
+        (var fileDiffs, var i) = ParseFileDiffs(0, lines);
+
+        return new CommitDiff(Id: "", Author: "", Date: DateTime.Now.Iso(), Message: "", FileDiffs: fileDiffs);
     }
 
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)
