@@ -85,13 +85,17 @@ class DiffService : IDiffService
         var args = $"diff  --find-renames --unified=6 --full-index {sha1} {sha2}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
-        var commitDiffs = ParseCommitDiffs(output, "", false);
-        if (commitDiffs.Count == 0)
-        {
-            return R.Error("Failed to parse diff");
-        }
+        return ParseDiff(output, "");
+    }
 
-        return commitDiffs[0];
+    CommitDiff ParseDiff(string output, string path)
+    {
+        // Split string and ignore some lines
+        var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
+
+        (var fileDiffs, var i) = ParseFileDiffs(0, lines);
+
+        return new CommitDiff(Id: "", Author: "", Date: DateTime.Now.Iso(), Message: "", FileDiffs: fileDiffs);
     }
 
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)
