@@ -141,7 +141,7 @@ class RepoWriter : IRepoWriter
         {
             string tags = "";
             c.Tags.ForEach(t => tags += $"[{t.Name}]");
-            tags = tags.Max(Math.Max(0, width - 10)) + " ";
+            tags = tags.Max(Math.Max(0, width - 10));
             tagsText.Green(tags);
             width = width - tags.Length;
         }
