@@ -136,12 +136,13 @@ class RepoWriter : IRepoWriter
         IReadOnlyDictionary<string, Text> branchTips, bool isCurrent)
     {
         int width = cw.Subject;
+        Text tagsText = Text.New;
         if (c.Tags.Any())
         {
             string tags = "";
             c.Tags.ForEach(t => tags += $"[{t.Name}]");
             tags = tags.Max(Math.Max(0, width - 10)) + " ";
-            text.Green(tags);
+            tagsText.Green(tags);
             width = width - tags.Length;
         }
 
@@ -177,6 +178,7 @@ class RepoWriter : IRepoWriter
             text.White(subject);
         }
         else { text.Dark(subject); }
+        text.Add(tagsText);
 
         if (tips != null) { WriteBranchTips(text, tips, maxTipWidth); }
         if (c.IsBranchSetByUser) { text.Dark(" Ф"); }
