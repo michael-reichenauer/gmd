@@ -312,10 +312,10 @@ class RepoViewMenus : IRepoViewMenus
              .OrderBy(b => b.CommonName);
 
         var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
-            ? new[] { Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id)) }
+            ? new[] { Item($"Commit {commit.Sid}", "", () => cmds.PreviewMergeBranch(commit.Id)) }
             : Enumerable.Empty<MenuItem>();
 
-        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
+        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.PreviewMergeBranch(b.Name)))
             .Concat(commitItems);
     }
 
