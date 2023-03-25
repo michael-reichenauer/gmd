@@ -19,7 +19,7 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
-        var args = "show --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
+        var args = "show --date=iso --first-parent --root --patch --no-color" +
             $" --find-renames --unified=6 {commitId}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
@@ -44,7 +44,7 @@ class DiffService : IDiffService
             needReset = true;
         }
 
-        var args = "diff --date=iso --first-parent --root --patch --ignore-space-change --no-color" +
+        var args = "diff --date=iso --first-parent --root --patch --no-color" +
             " --find-renames --unified=6 HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
