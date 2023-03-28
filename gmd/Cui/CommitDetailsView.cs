@@ -19,7 +19,7 @@ class CommitDetailsView : ICommitDetailsView
     Server.Commit? commit;
     IReadOnlyList<Text> rows = new List<Text>();
 
-    internal static readonly int ContentHeight = 9;
+    internal static readonly int ContentHeight = 11;
     private readonly IBranchColorService branchColorService;
 
     public CommitDetailsView(IBranchColorService branchColorService)
@@ -47,6 +47,8 @@ class CommitDetailsView : ICommitDetailsView
     {
         await Task.Yield();
 
+        var tags = commit.Tags;
+
         this.commit = commit;
         var id = commit.Id;
         var color = branchColorService.GetColor(repo, branch);
@@ -68,10 +70,6 @@ class CommitDetailsView : ICommitDetailsView
         }
 
         var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
-        if (branch.IsRemote)
-        {
-            branchName = "^origin/" + branchName;
-        }
 
         if (commit.IsBranchSetByUser)
         {
@@ -110,6 +108,16 @@ class CommitDetailsView : ICommitDetailsView
         if (commit.IsBehind)
         {
             newRows.Add(Text.New.Dark("Remote:   ").Blue("▼ pullable"));
+        }
+        if (commit.Tags.Any())
+        {
+            var tagText = "[" + string.Join("][", commit.Tags.Select(t => t.Name)) + "]";
+            newRows.Add(Text.New.Dark("Tags:       ").Green(tagText));
+        }
+        if (commit.BranchTips.Any())
+        {
+            var tipText = "(" + string.Join(")(", commit.BranchTips) + ")";
+            newRows.Add(Text.New.Dark("Tips:       ").White(tipText));
         }
         newRows.AddRange(commit.Message.Split('\n').Select(l => Text.New.White(l)));
         newRows.Add(Text.New.Black(""));
