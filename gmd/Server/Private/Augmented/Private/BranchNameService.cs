@@ -31,7 +31,7 @@ class BranchNameService : IBranchNameService
     static readonly string regExText =
         @"[Mm]erged?" + //                                 'Merge' or 'merged' word
         @"(\s+remote-tracking)?" + //                      'remote-tracking' optional word when merging remote branches
-        @"(\s+(pull request #[0-9]+ from|from branch|branch|commit|from))?" + //     'branch'|'commit'|'from' word
+        @"(\s+(pull request #[0-9]+ from|PR [0-9]+: |from branch|branch|commit|from))?" + //     'branch'|'commit'|'from' word
         @"\s+'?(?<from>[0-9A-Za-z_/-]+)'?" + //           the <from> branch name
         @"(?<direction>\s+of\s+[^\s]+)?" + //             the optional 'of repo url'
         @"(\s+(into|to)\s+(?<into>[0-9A-Za-z_/-]+))?"; // the <into> branch name
