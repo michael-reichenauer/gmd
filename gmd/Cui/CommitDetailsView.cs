@@ -114,10 +114,15 @@ class CommitDetailsView : ICommitDetailsView
             var tagText = "[" + string.Join("][", commit.Tags.Select(t => t.Name)) + "]";
             newRows.Add(Text.New.Dark("Tags:       ").Green(tagText));
         }
-        if (commit.BranchTips.Any())
+        var tips = repo.Branches.Where(b => b.TipId == commit.Id);
+        if (tips.Any())
         {
-            var tipText = "(" + string.Join(")(", commit.BranchTips) + ")";
-            newRows.Add(Text.New.Dark("Tips:       ").White(tipText));
+            var tipText = Text.New;
+            tips.ForEach(t => tipText.Add(
+                Text.New.Color(branchColorService.GetColor(repo, t),
+                $"({t.Name})")));
+            // var tipText = "(" + string.Join(")(", commit.BranchTips) + ")";
+            newRows.Add(Text.New.Dark("Tips:       ").Add(tipText));
         }
         newRows.AddRange(commit.Message.Split('\n').Select(l => Text.New.White(l)));
         newRows.Add(Text.New.Black(""));
