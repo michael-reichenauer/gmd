@@ -31,7 +31,7 @@ class BranchNameService : IBranchNameService
     static readonly string regExText =
         @"[Mm]erged?" + //                                 'Merge' or 'merged' word
         @"(\s+remote-tracking)?" + //                      'remote-tracking' optional word when merging remote branches
-        @"(\s+(pull request #[0-9]+ from|PR [0-9]+: |from branch|branch|commit|from))?" + //     'branch'|'commit'|'from' word
+        @"(\s+(pull request #[0-9]+ from|PR|from branch|branch|commit|from))?" + //     'branch'|'commit'|'from' word
         @"\s+'?(?<from>[0-9A-Za-z_/-]+)'?" + //           the <from> branch name
         @"(?<direction>\s+of\s+[^\s]+)?" + //             the optional 'of repo url'
         @"(\s+(into|to)\s+(?<into>[0-9A-Za-z_/-]+))?"; // the <into> branch name
@@ -134,8 +134,14 @@ class BranchNameService : IBranchNameService
         if (IsMatchPullRequest(match))
         {
             // Subject is a pull request
+            var fr = TrimBranchName(match.Groups[indexes.from].Value);
+            if (match.Groups[3].Value == "PR")
+            {
+                fr = "PR" + fr;
+
+            }
             return new FromInto(
-                From: TrimBranchName(match.Groups[indexes.from].Value),
+                From: fr,
                 Into: TrimBranchName(match.Groups[indexes.into].Value),
                 false,
                 true);
@@ -190,6 +196,10 @@ class BranchNameService : IBranchNameService
     bool IsMatchPullRequest(Match match)
     {
         if (match.Groups[0].Value.StartsWith("Merge pull request"))
+        {
+            return true;
+        }
+        if (match.Groups[0].Value.StartsWith("Merged PR "))
         {
             return true;
         }
