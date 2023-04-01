@@ -252,19 +252,7 @@ class RepoWriter : IRepoWriter
                 branchTips[b.AmbiguousTipId] = ambiguousTipText;
             }
 
-            string branchName = b.DisplayName;
-            int splitIndex = branchName.LastIndexOf('/');
-            if (splitIndex != -1)
-            {
-                branchName = "┅" + branchName.Substring(splitIndex);
-            }
-
-            if (branchName.Length > maxTipNameLength)
-            {   // Branch name to long, shorten it
-                branchName = branchName.Substring(branchName.Length - maxTipNameLength);
-                branchName = "┅" + branchName;
-            }
-
+            string branchName = ToShortBranchName(b);
             var color = branchColorService.GetColor(repo.Repo, b);
 
             if (b.IsGitBranch)
@@ -279,20 +267,20 @@ class RepoWriter : IRepoWriter
                             // Both local and remote tips on same commit, combine them
                             if (local.IsCurrent)
                             {
-                                tipText.Color(color, $"(^").Dark("|").White("● ").Color(color, $"{branchName})");
+                                tipText.Color(color, $"(^)(").White("● ").Color(color, $"{branchName})");
                             }
                             else
                             {
-                                tipText.Color(color, $"(^").Dark("|").Color(color, $"{branchName})");
+                                tipText.Color(color, $"(^)({branchName})");
                             }
                         }
                         else
-                        {
+                        {   // Remote and local on different commits, (local banch will add itself)
                             tipText.Color(color, $"(^/{branchName})");
                         }
                     }
                     else
-                    {
+                    {   // Only remote, no local branch
                         tipText.Color(color, $"(^/{branchName})");
                     }
                 }
@@ -302,12 +290,11 @@ class RepoWriter : IRepoWriter
                     {
                         var remote = repo.Branches.First(bb => bb.Name == b.RemoteName);
                         if (remote.TipId == b.TipId)
-                        {
-                            // Both local and remote tips on same commit, handled by the remote branch
+                        {   // Both local and remote tips on same commit, handled by the remote branch
                             continue;
                         }
                         else
-                        {
+                        {   // Local branch on different commit as remote, remote will add itself
                             if (b.IsCurrent)
                             {
                                 tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
@@ -319,7 +306,7 @@ class RepoWriter : IRepoWriter
                         }
                     }
                     else
-                    {
+                    {   // Only local branch (no remote branch)
                         if (b.IsCurrent)
                         {
                             tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
@@ -344,6 +331,16 @@ class RepoWriter : IRepoWriter
         }
 
         return branchTips;
+    }
+
+    string ToShortBranchName(Branch branch)
+    {
+        var name = branch.DisplayName;
+        if (name.Length > maxTipNameLength)
+        {   // Branch name to long, shorten it
+            name = "┅" + name.Substring(name.Length - maxTipNameLength);
+        }
+        return name;
     }
 }
 
