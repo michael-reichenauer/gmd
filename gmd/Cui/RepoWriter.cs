@@ -173,7 +173,7 @@ class RepoWriter : IRepoWriter
         // Add a 'Branch set by user mark to subject if needed
         if (c.IsBranchSetByUser) { subjectWidth -= 2; }
         WriteSubText(text, subjectText, subjectWidth);
-        if (c.IsBranchSetByUser) { text.White(" Ф"); }
+        if (c.IsBranchSetByUser) { text.White(" ╠"); }
 
         WriteSubText(text, tipsText, tipsWidth);
         WriteSubText(text, tagsText, tagsWidth);
