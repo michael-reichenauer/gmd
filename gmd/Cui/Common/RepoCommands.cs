@@ -677,7 +677,10 @@ class RepoCommands : IRepoCommands
 
     public void ChangeBranchColor()
     {
-        branchColorService.ChangeColor(repo.Repo, repo.Branch(repo.RowCommit.BranchName));
+        var b = repo.Branch(repo.RowCommit.BranchName);
+        if (b.IsMainBranch) return;
+
+        branchColorService.ChangeColor(repo.Repo, b);
         Refresh();
     }
 
