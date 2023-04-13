@@ -9,8 +9,12 @@ interface IFileStore
     void Set<T>(string path, Action<T> set);
 }
 
+[SingleInstance]
 class FileStore : IFileStore
 {
+    readonly JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
+    Dictionary<string, object> cache = new Dictionary<string, object>();
+
     public T Get<T>(string path) => Read<T>(path);
 
     public void Set<T>(string path, Action<T> set) => SetValue(path, set);
@@ -26,9 +30,9 @@ class FileStore : IFileStore
     {
         try
         {
-            var options = new JsonSerializerOptions { WriteIndented = true };
             string json = JsonSerializer.Serialize(state, options);
             if (!Try(out var e, Files.WriteAllText(path, json))) Asserter.FailFast(e.ErrorMessage);
+            cache[path] = state!;
         }
         catch (Exception e)
         {
@@ -40,6 +44,11 @@ class FileStore : IFileStore
     {
         try
         {
+            if (cache.TryGetValue(path, out var cached))
+            {
+                return (T)cached;
+            }
+
             if (!Files.Exists(path))
             {
                 Write(path, new State());
@@ -52,6 +61,7 @@ class FileStore : IFileStore
                 throw Asserter.FailFast($"Failed to deserialize '{path}'");
             }
 
+            cache[path] = state;
             return state;
         }
         catch (Exception e)
