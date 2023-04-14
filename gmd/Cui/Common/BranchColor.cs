@@ -6,6 +6,7 @@ using gmd.Server;
 namespace gmd.Cui.Common;
 using Color = Terminal.Gui.Attribute;
 
+// Mangages brach colors
 interface IBranchColorService
 {
     Color GetColor(Server.Repo repo, Server.Branch branch);
