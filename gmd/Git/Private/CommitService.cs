@@ -48,7 +48,8 @@ class CommitService : ICommitService
             if (IsFileUnknown(e, path))
             {
                 // Was an unkown (new/added) file, we just remove it
-                if (!Try(out e, Files.Delete(path))) return R.Error("Failed to reset", e);
+                var fullPath = Path.Combine(wd, path);
+                if (!Try(out e, Files.Delete(fullPath))) return R.Error("Failed to reset", e);
                 return R.Ok;
             }
 

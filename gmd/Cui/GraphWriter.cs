@@ -77,6 +77,7 @@ class GraphWriter : IGraphWriter
         // commit is not part of branch
         if (bm.HasFlag(Sign.BLine) && hasLeft(bm)) return "╂";
         if (bm.HasFlag(Sign.BLine)) return "┃";
+        if (bm.HasFlag(Sign.Resolve)) return "Φ";
 
         if (bm == Sign.Pass) return "─";
         if (bm == Sign.Blank) return " ";

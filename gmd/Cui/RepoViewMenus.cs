@@ -123,11 +123,13 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetMoreItems()
     {
+
         return EnumerableEx.From(
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
+            Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
             Item("Help ...", "H", () => cmds.ShowHelp()),
             Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
             Item("About ...", "A", () => cmds.ShowAbout())
@@ -261,7 +263,7 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
-        return branches.Select(b => Item(b.DisplayName, "", () => cmds.SwitchTo(b.Name)));
+        return ToSwitchBranchesItems(branches);
     }
 
     IEnumerable<MenuItem> GetDeleteItems()
@@ -395,6 +397,14 @@ class RepoViewMenus : IRepoViewMenus
         return branches
             .DistinctBy(b => b.CommonName)
             .Select(b => Item(ToBranchMenuName(b, cic, canBeOutside), "", () => cmds.ShowBranch(b.Name, includeAmbiguous)));
+    }
+
+    IEnumerable<MenuItem> ToSwitchBranchesItems(IEnumerable<Branch> branches)
+    {
+        var cic = repo.RowCommit;
+        return branches
+            .DistinctBy(b => b.CommonName)
+            .Select(b => Item(ToBranchMenuName(b, cic, false), "", () => cmds.SwitchTo(b.Name)));
     }
 
     string ToBranchMenuName(Branch branch, Commit cic, bool canBeOutside)

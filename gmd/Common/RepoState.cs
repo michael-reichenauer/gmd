@@ -3,6 +3,8 @@ namespace gmd.Common;
 public class RepoState
 {
     public List<string> Branches { get; set; } = new List<string>();
+    public Dictionary<string, int> BranchColors { get; set; } = new Dictionary<string, int>();
+
 }
 
 interface IRepoState

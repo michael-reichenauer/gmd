@@ -50,6 +50,7 @@ interface IRepoCommands
     void UndoUncommittedFile(string path);
     void Clone();
     void CherryPic(string id);
+    void ChangeBranchColor();
 }
 
 class RepoCommands : IRepoCommands
@@ -66,6 +67,7 @@ class RepoCommands : IRepoCommands
     readonly IState states;
     readonly IUpdater updater;
     readonly IGit git;
+    readonly IBranchColorService branchColorService;
     readonly IRepo repo;
     readonly Repo serverRepo;
     readonly IRepoView repoView;
@@ -88,7 +90,8 @@ class RepoCommands : IRepoCommands
         IDiffView diffView,
         IState states,
         IUpdater updater,
-        IGit git)
+        IGit git,
+        IBranchColorService branchColorService)
     {
         this.repo = repo;
         this.serverRepo = serverRepo;
@@ -105,6 +108,7 @@ class RepoCommands : IRepoCommands
         this.states = states;
         this.updater = updater;
         this.git = git;
+        this.branchColorService = branchColorService;
     }
 
     public void Refresh() => repoView.Refresh();
@@ -670,6 +674,15 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+
+    public void ChangeBranchColor()
+    {
+        var b = repo.Branch(repo.RowCommit.BranchName);
+        if (b.IsMainBranch) return;
+
+        branchColorService.ChangeColor(repo.Repo, b);
+        Refresh();
+    }
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 
