@@ -44,7 +44,7 @@ class BranchColorService : IBranchColorService
         }
 
         Color color = BranchNameColor(branch.DisplayName, 0);
-        Color parentColor = BranchNameColor(parentBranch.DisplayName, 0);
+        Color parentColor = GetColor(repo, parentBranch);
 
         if (color == parentColor)
         {   // branch got same color as parent, lets change branch color one step
