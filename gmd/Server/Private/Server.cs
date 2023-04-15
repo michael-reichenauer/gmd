@@ -229,6 +229,7 @@ class Server : IServer
         using (Timing.Start()) return await git.CloneAsync(uri, path, wd);
     }
 
-    public Task<R> StashAsync(string wd) => git.Stash(wd);
+    public Task<R> StashAsync(string commitId, string message, string wd) =>
+        git.Stash(commitId, message, wd);
 }
 

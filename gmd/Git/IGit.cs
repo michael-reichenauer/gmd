@@ -39,7 +39,7 @@ interface IGit
     Task<R> SetValueAsync(string key, string value, string wd);
     Task<R> PushValueAsync(string key, string wd);
     Task<R> PullValueAsync(string key, string wd);
-    Task<R> Stash(string wd);
+    Task<R> Stash(string commitId, string message, string wd);
 }
 
 
@@ -85,6 +85,8 @@ public record Status(
 }
 
 public record Tag(string Name, string CommitId);
+
+public record Stash(string Id, string Branch, string CommitId, string Message);
 
 record CommitDiff(
     string Id,

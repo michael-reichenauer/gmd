@@ -8,7 +8,6 @@ interface ICommitService
     Task<R> CleanWorkingFolderAsync(string wd);
     Task<R> UndoCommitAsync(string id, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
-    Task<R> Stash(string wd);
 }
 
 class CommitService : ICommitService
@@ -75,11 +74,6 @@ class CommitService : ICommitService
     public async Task<R> UncommitLastCommitAsync(string wd)
     {
         return await cmd.RunAsync("git", "reset HEAD~1", wd);
-    }
-
-    public async Task<R> Stash(string wd)
-    {
-        return await cmd.RunAsync("git", "stash -u", wd);
     }
 
     bool IsFileUnknown(ErrorResult error, string path)
