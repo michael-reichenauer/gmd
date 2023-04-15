@@ -220,6 +220,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         contentView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
+        contentView.RegisterKeyHandler(Key.s, () => Cmd.Stash());
 
         contentView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
         contentView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));

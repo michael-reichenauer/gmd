@@ -125,6 +125,7 @@ class RepoViewMenus : IRepoViewMenus
     {
 
         return EnumerableEx.From(
+            Item("Stash Changes", "S", () => cmds.Stash(), () => !repo.Status.IsOk),
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),

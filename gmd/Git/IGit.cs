@@ -39,6 +39,7 @@ interface IGit
     Task<R> SetValueAsync(string key, string value, string wd);
     Task<R> PushValueAsync(string key, string wd);
     Task<R> PullValueAsync(string key, string wd);
+    Task<R> Stash(string wd);
 }
 
 

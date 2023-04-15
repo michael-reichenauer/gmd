@@ -89,7 +89,7 @@ internal class Git : IGit
         keyValueService.PushValueAsync(key, wd);
     public Task<R> PullValueAsync(string key, string wd) =>
         keyValueService.PullValueAsync(key, wd);
-
+    public Task<R> Stash(string wd) => commitService.Stash(wd);
 
     public async Task<R<string>> Version()
     {

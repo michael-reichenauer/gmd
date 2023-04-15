@@ -51,6 +51,7 @@ interface IRepoCommands
     void Clone();
     void CherryPic(string id);
     void ChangeBranchColor();
+    void Stash();
 }
 
 class RepoCommands : IRepoCommands
@@ -596,6 +597,19 @@ class RepoCommands : IRepoCommands
         }
 
         Refresh(rsp.Name);
+        return R.Ok;
+    });
+
+    public void Stash() => Do(async () =>
+    {
+        if (repo.Status.IsOk) return R.Ok;
+
+        if (!Try(out var e, await server.StashAsync(repoPath)))
+        {
+            return R.Error($"Failed to stash changes", e);
+        }
+
+        Refresh();
         return R.Ok;
     });
 
