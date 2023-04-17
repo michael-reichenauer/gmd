@@ -126,6 +126,7 @@ class RepoViewMenus : IRepoViewMenus
 
         return EnumerableEx.From(
             Item("Stash Changes", "S", () => cmds.Stash(), () => !repo.Status.IsOk),
+            SubMenu("Stash Pop", "", GetStashItems(), () => repo.Status.IsOk && GetStashItems().Any()),
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
@@ -135,6 +136,12 @@ class RepoViewMenus : IRepoViewMenus
             Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
             Item("About ...", "A", () => cmds.ShowAbout())
         );
+    }
+
+    IEnumerable<MenuItem> GetStashItems()
+    {
+        return repo.Repo.Stashes.Select(s =>
+            Item($"{s.Message}", "", () => cmds.StashPop(s.Name)));
     }
 
     IEnumerable<MenuItem> GetConfigItems()

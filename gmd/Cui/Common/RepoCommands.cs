@@ -52,6 +52,7 @@ interface IRepoCommands
     void CherryPic(string id);
     void ChangeBranchColor();
     void Stash();
+    void StashPop(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -607,6 +608,19 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.StashAsync(repoPath)))
         {
             return R.Error($"Failed to stash changes", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void StashPop(string name) => Do(async () =>
+    {
+        if (repo.Status.IsOk) return R.Ok;
+
+        if (!Try(out var e, await server.StashPopAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to pop stash {name}", e);
         }
 
         Refresh();

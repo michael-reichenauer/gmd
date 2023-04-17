@@ -2,8 +2,9 @@ namespace gmd.Git.Private;
 
 interface IStashService
 {
-    Task<R> Stash(string wd);
-    Task<R<IReadOnlyList<Stash>>> GetStashes(string wd);
+    Task<R> StashAsync(string wd);
+    Task<R> PopAsync(string name, string wd);
+    Task<R<IReadOnlyList<Stash>>> ListAsync(string wd);
 }
 
 class StashService : IStashService
@@ -17,13 +18,17 @@ class StashService : IStashService
         this.logService = logService;
     }
 
-    public async Task<R> Stash(string wd)
+    public async Task<R> StashAsync(string wd)
     {
-        return await cmd.RunAsync("git", $"stash -u", wd);
+        return await cmd.RunAsync("git", "stash -u", wd);
     }
 
+    public async Task<R> PopAsync(string name, string wd)
+    {
+        return await cmd.RunAsync("git", $"stash pop {name}", wd);
+    }
 
-    public async Task<R<IReadOnlyList<Stash>>> GetStashes(string wd)
+    public async Task<R<IReadOnlyList<Stash>>> ListAsync(string wd)
     {
         if (!Try(out var stashes, out var e, await logService.GetStashListAsync(wd))) return e;
 
