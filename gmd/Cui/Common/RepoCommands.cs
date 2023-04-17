@@ -616,7 +616,7 @@ class RepoCommands : IRepoCommands
 
     public void StashPop(string name) => Do(async () =>
     {
-        if (repo.Status.IsOk) return R.Ok;
+        if (!repo.Status.IsOk) return R.Ok;
 
         if (!Try(out var e, await server.StashPopAsync(name, repoPath)))
         {
