@@ -14,6 +14,8 @@ class WorkRepo
     internal List<WorkBranch> Branches { get; } = new List<WorkBranch>();
     internal List<Tag> Tags { get; } = new List<Tag>();
     internal Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
+    internal List<Stash> Stashes { get; } = new List<Stash>();
+    internal Dictionary<string, Stash> StashById { get; } = new Dictionary<string, Stash>();
 
     public WorkRepo(
         DateTime timeStamp,

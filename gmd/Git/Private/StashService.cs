@@ -2,82 +2,50 @@ namespace gmd.Git.Private;
 
 interface IStashService
 {
-    Task<R> Stash(string commitId, string message, string wd);
+    Task<R> Stash(string wd);
     Task<R<IReadOnlyList<Stash>>> GetStashes(string wd);
 }
 
 class StashService : IStashService
 {
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
+    readonly ILogService logService;
 
-    public StashService(ICmd cmd)
+    public StashService(ICmd cmd, ILogService logService)
     {
         this.cmd = cmd;
+        this.logService = logService;
     }
 
-    public async Task<R> Stash(string commitId, string message, string wd)
+    public async Task<R> Stash(string wd)
     {
-        var msg = $"\"{message}: {commitId}\"";
-        return await cmd.RunAsync("git", $"stash save -u {msg}", wd);
+        return await cmd.RunAsync("git", $"stash -u", wd);
     }
 
 
     public async Task<R<IReadOnlyList<Stash>>> GetStashes(string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "stach list", wd, true)))
-        {
-            if (e.ErrorMessage.StartsWith("\n"))
-            {   // Empty tag list (no tags yet)
-                return new List<Stash>();
-            }
-            Log.Warn($"Failed to list staches, {e}");
-            return e;
-        }
+        if (!Try(out var stashes, out var e, await logService.GetStashListAsync(wd))) return e;
 
-        return ParseStashes(output);
+        return stashes.Select(ToStash).ToList();
     }
 
-    R<IReadOnlyList<Stash>> ParseStashes(string output)
+    Stash ToStash(Commit c)
     {
-        List<Stash> staches = new List<Stash>();
-        var lines = output.Split('\n');
+        var id = c.Id;
+        var parentId = c.ParentIds[0];
+        var indexId = c.ParentIds[1];
+        var parts = c.Subject.Split(':');
+        var name = parts[0].Trim();
+        var message = parts[2].Trim();
 
-        foreach (var line in lines)
+        var branch = parts[1].Trim();
+        var start = branch.LastIndexOf(' ');
+        if (start != -1)
         {
-            var parts = line.Split(':');
-            if (parts.Length < 3) continue;
-
-            var id = parts[0].Trim();
-            var branch = parts[1];
-            if (branch.StartsWith(" On "))
-            {
-                branch = branch.Substring(4);
-            }
-            else if (branch.StartsWith(" WIP on "))
-            {
-                branch = branch.Substring(8);
-            }
-            else
-            {
-                continue;
-            }
-
-            var message = parts[2].Trim();
-            var commitId = "";
-            if (parts.Length > 3)
-            {
-                commitId = parts[3].Trim();
-            }
-
-            var commitID = line.Substring(0, 40);
-            var name = line.Substring(51);
-
-            // Seems that some client add a suffix for some reason
-            name = name.TrimSuffix("^{}");
-
-            staches.Add(new Stash(id, branch, commitId, message));
+            branch = branch.Substring(start).Trim();
         }
 
-        return staches;
+        return new Stash(id, name, branch, parentId, indexId, message);
     }
 }

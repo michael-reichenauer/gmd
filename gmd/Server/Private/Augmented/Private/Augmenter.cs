@@ -35,6 +35,7 @@ class Augmenter : IAugmenter
         Threading.AssertIsOtherThread();
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, ToStatus(gitRepo));
 
+        SetAugStashes(repo, gitRepo);
         SetAugBranches(repo, gitRepo);
         SetAugCommits(repo, gitRepo, partialMax);
         SetCommitBranches(repo, gitRepo);
@@ -93,6 +94,11 @@ class Augmenter : IAugmenter
         for (var i = gitCommits.Count - 1; i >= 0; i--)
         {
             GitCommit gc = gitCommits[i];
+            if (repo.StashById.ContainsKey(gc.Id))
+            {
+                // Skip stash commits, will not be shown in log view 
+                continue;
+            }
             WorkCommit commit = new WorkCommit(gc);
 
             if (isPartialPossible)
@@ -163,6 +169,18 @@ class Augmenter : IAugmenter
             {
                 c.Tags.Add(tag);
             }
+        });
+    }
+
+
+    void SetAugStashes(WorkRepo repo, GitRepo gitRepo)
+    {
+        gitRepo.Stashes.ForEach(s =>
+        {
+            var stash = new Stash(s.Id, s.Name, s.Branch, s.parentId, s.indexId, s.Message);
+            repo.Stashes.Add(stash);
+            repo.StashById[s.Id] = stash;
+            repo.StashById[s.indexId] = stash;
         });
     }
 

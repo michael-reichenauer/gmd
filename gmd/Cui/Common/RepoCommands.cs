@@ -603,10 +603,8 @@ class RepoCommands : IRepoCommands
     public void Stash() => Do(async () =>
     {
         if (repo.Status.IsOk) return R.Ok;
-        var commit = repo.RowCommit;
-        var message = $"WIP on {commit.Subject}";
 
-        if (!Try(out var e, await server.StashAsync(commit.Id, message, repoPath)))
+        if (!Try(out var e, await server.StashAsync(repoPath)))
         {
             return R.Error($"Failed to stash changes", e);
         }

@@ -95,3 +95,12 @@ public record Branch(
 }
 
 public record Tag(string Name, string CommitId);
+
+public record Stash(
+    string Id,
+    string Name,
+    string Branch,
+    string parentId,
+    string indexId,
+    string Message
+);

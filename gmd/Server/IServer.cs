@@ -19,7 +19,7 @@ interface IServer
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
-    Task<R> StashAsync(string commitId, string message, string wd);
+    Task<R> StashAsync(string wd);
 
     // Git commands
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
