@@ -3,6 +3,7 @@ namespace gmd.Git.Private;
 interface IDiffService
 {
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
+    Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd);
@@ -21,6 +22,21 @@ class DiffService : IDiffService
     {
         var args = "show --date=iso --first-parent --root --patch --no-color" +
             $" --find-renames --unified=6 {commitId}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+
+        var commitDiffs = ParseCommitDiffs(output, "", false);
+        if (commitDiffs.Count == 0)
+        {
+            return R.Error("Failed to parse diff");
+        }
+
+        return commitDiffs[0];
+    }
+
+    public async Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd)
+    {
+        var args = "stash show -u --date=iso --first-parent --root --patch --no-color" +
+            $" --find-renames --unified=6 {name}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);
