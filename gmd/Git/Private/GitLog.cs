@@ -27,7 +27,7 @@ internal class LogService : ILogService
 
     public async Task<R<IReadOnlyList<Commit>>> GetStashListAsync(string wd)
     {
-        var args = $"stash list --pretty=\"%H|%ai|%ci|%an|%P|%gd:%B\"";
+        var args = $"stash list -z --pretty=\"%H|%ai|%ci|%an|%P|%gd:%B\"";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
