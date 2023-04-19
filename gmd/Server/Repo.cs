@@ -19,6 +19,7 @@ record Repo
         AugmentedRepo augRepo,
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
+        IReadOnlyList<Stash> stashes,
         Status status)
     {
         TimeStamp = timeStamp;
@@ -26,6 +27,7 @@ record Repo
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
         Branches = branches;
+        Stashes = stashes;
         Status = status;
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
@@ -35,6 +37,7 @@ record Repo
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
+    public IReadOnlyList<Stash> Stashes { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
     public Status Status { get; init; }
 
@@ -126,6 +129,15 @@ public record Branch(
 }
 
 public record Tag(string Name, string CommitId);
+
+public record Stash(
+    string Id,
+    string Name,
+    string Branch,
+    string parentId,
+    string indexId,
+    string Message
+);
 
 public record Status(
     int Modified,

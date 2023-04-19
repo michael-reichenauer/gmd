@@ -3,7 +3,8 @@ namespace gmd.Server.Private;
 interface IConverter
 {
     IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits);
-    public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches);
+    IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches);
+    IReadOnlyList<Stash> ToStashes(IReadOnlyList<Augmented.Stash> stashes);
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
     Branch ToBranch(Augmented.Branch branch);
@@ -18,9 +19,11 @@ class Converter : IConverter
     public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches) =>
            branches.Select(ToBranch).ToList();
 
+    public IReadOnlyList<Stash> ToStashes(IReadOnlyList<Augmented.Stash> stashes) =>
+        stashes.Select(ToStash).ToList();
+
     public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
         gitCommitDiffs.Select(ToCommitDiff).ToArray();
-
 
     public CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff)
     {
@@ -88,6 +91,10 @@ class Converter : IConverter
         X: 0,
         IsIn: false,
         IsOut: false);
+
+
+    Stash ToStash(Augmented.Stash s) =>
+        new Stash(s.Id, s.Name, s.Branch, s.parentId, s.indexId, s.Message);
 
     IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
         tags.Select(t => new Tag(t.Name, t.CommitId)).ToList();

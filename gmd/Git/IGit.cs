@@ -39,6 +39,11 @@ interface IGit
     Task<R> SetValueAsync(string key, string value, string wd);
     Task<R> PushValueAsync(string key, string wd);
     Task<R> PullValueAsync(string key, string wd);
+    Task<R> StashAsync(string wd);
+    Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
+    Task<R> StashPopAsync(string name, string wd);
+    Task<R> StashDropAsync(string name, string wd);
+    Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
 }
 
 
@@ -84,6 +89,15 @@ public record Status(
 }
 
 public record Tag(string Name, string CommitId);
+
+public record Stash(
+    string Id,
+    string Name,
+    string Branch,
+    string parentId,
+    string indexId,
+    string Message
+);
 
 record CommitDiff(
     string Id,

@@ -84,6 +84,4 @@ class BranchColorService : IBranchColorService
             return Math.Abs(BitConverter.ToInt32(bytes, 0));
         }
     }
-
-
 }

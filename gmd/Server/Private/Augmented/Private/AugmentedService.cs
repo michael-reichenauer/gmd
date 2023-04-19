@@ -95,17 +95,19 @@ class AugmentedService : IAugmentedService
         var tagsTask = git.GetTagsAsync(path);
         var statusTask = git.GetStatusAsync(path);
         var metaDataTask = metaDataService.GetMetaDataAsync(path);
+        var stashesTask = git.GetStashesAsync(path);
 
-        await Task.WhenAll(logTask, branchesTask, statusTask, metaDataTask);
+        await Task.WhenAll(logTask, branchesTask, statusTask, metaDataTask, stashesTask);
 
         if (!Try(out var log, out var e, logTask.Result)) return e;
         if (!Try(out var branches, out e, branchesTask.Result)) return e;
         if (!Try(out var tags, out e, tagsTask.Result)) return e;
         if (!Try(out var status, out e, statusTask.Result)) return e;
         if (!Try(out var metaData, out e, metaDataTask.Result)) return e;
+        if (!Try(out var stashes, out e, stashesTask.Result)) return e;
 
         // Combine all git info into one git repo info object
-        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData);
+        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData, stashes);
         Log.Info($"{t} {gitRepo}");
 
         if (gitRepo.Commits.Count == 0)
@@ -274,7 +276,8 @@ class AugmentedService : IAugmentedService
             new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
         var branches = new List<Git.Branch>() { new Git.Branch(branchName, branchName, id,
              true, false, "", false, 0, 0, false) };
+        var stashes = new List<Git.Stash>();
 
-        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData);
+        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes);
     }
 }
