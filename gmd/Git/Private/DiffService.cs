@@ -39,13 +39,7 @@ class DiffService : IDiffService
             $" --find-renames --unified=6 {name}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
-        var commitDiffs = ParseCommitDiffs(output, "", false);
-        if (commitDiffs.Count == 0)
-        {
-            return R.Error("Failed to parse diff");
-        }
-
-        return commitDiffs[0];
+        return ParseDiff(output, "", $"Diff of stash {name}");
     }
 
 
@@ -104,14 +98,14 @@ class DiffService : IDiffService
         return ParseDiff(output, "");
     }
 
-    CommitDiff ParseDiff(string output, string path)
+    CommitDiff ParseDiff(string output, string path, string message = "")
     {
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
 
         (var fileDiffs, var i) = ParseFileDiffs(0, lines);
 
-        return new CommitDiff(Id: "", Author: "", Date: DateTime.Now.Iso(), Message: "", FileDiffs: fileDiffs);
+        return new CommitDiff(Id: message, Author: "", Date: DateTime.Now.Iso(), Message: "", FileDiffs: fileDiffs);
     }
 
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)

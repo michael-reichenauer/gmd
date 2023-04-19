@@ -5,17 +5,20 @@ interface IStashService
     Task<R> StashAsync(string wd);
     Task<R> PopAsync(string name, string wd);
     Task<R<IReadOnlyList<Stash>>> ListAsync(string wd);
+    Task<R<CommitDiff>> GetDiffAsync(string name, string wd);
 }
 
 class StashService : IStashService
 {
     readonly ICmd cmd;
     readonly ILogService logService;
+    readonly IDiffService diffService;
 
-    public StashService(ICmd cmd, ILogService logService)
+    public StashService(ICmd cmd, ILogService logService, IDiffService diffService)
     {
         this.cmd = cmd;
         this.logService = logService;
+        this.diffService = diffService;
     }
 
     public async Task<R> StashAsync(string wd)
@@ -53,4 +56,7 @@ class StashService : IStashService
 
         return new Stash(id, name, branch, parentId, indexId, message);
     }
+
+    public Task<R<CommitDiff>> GetDiffAsync(string name, string wd) =>
+        diffService.GetStashDiffAsync(name, wd);
 }

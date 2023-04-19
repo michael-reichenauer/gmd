@@ -95,6 +95,8 @@ internal class Git : IGit
     public Task<R> StashAsync(string wd) => stashService.StashAsync(wd);
     public Task<R> StashPopAsync(string name, string wd) => stashService.PopAsync(name, wd);
     public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
+    public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) =>
+        diffService.GetStashDiffAsync(name, wd);
 
     public async Task<R<string>> Version()
     {

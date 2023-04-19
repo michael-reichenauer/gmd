@@ -53,6 +53,7 @@ interface IRepoCommands
     void ChangeBranchColor();
     void Stash();
     void StashPop(string name);
+    void StashDiff(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -334,9 +335,6 @@ class RepoCommands : IRepoCommands
         Refresh();
         return R.Ok;
     });
-
-
-
 
     public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
 
@@ -624,6 +622,17 @@ class RepoCommands : IRepoCommands
         }
 
         Refresh();
+        return R.Ok;
+    });
+
+    public void StashDiff(string name) => Do(async () =>
+    {
+        if (!Try(out var diff, out var e, await server.GetStashDiffAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to diff stash {name}", e);
+        }
+
+        diffView.Show(diff, name);
         return R.Ok;
     });
 
