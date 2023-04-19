@@ -56,9 +56,6 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(UI.MenuSeparator("Switch to"));
         items.AddRange(switchToItems);
 
-        items.Add(UI.MenuSeparator("Scroll to"));
-        items.AddRange(scrollItems);
-
         items.Add(UI.MenuSeparator("More"));
 
         items.Add(SubMenu("Show Branch", "", GetShowBranchItems()));
