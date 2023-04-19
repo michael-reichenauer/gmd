@@ -94,6 +94,7 @@ internal class Git : IGit
         keyValueService.PullValueAsync(key, wd);
     public Task<R> StashAsync(string wd) => stashService.StashAsync(wd);
     public Task<R> StashPopAsync(string name, string wd) => stashService.PopAsync(name, wd);
+    public Task<R> StashDropAsync(string name, string wd) => stashService.DropAsync(name, wd);
     public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
     public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) =>
         diffService.GetStashDiffAsync(name, wd);

@@ -46,6 +46,7 @@ interface IServer
     Task<R> UncommitLastCommitAsync(string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
+    Task<R> StashDropAsync(string name, string wd);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);

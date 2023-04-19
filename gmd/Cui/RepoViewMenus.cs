@@ -115,12 +115,15 @@ class RepoViewMenus : IRepoViewMenus
             Item("Create Branch from commit ...", "",
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
             SubMenu("Delete Branch", "", GetDeleteItems()),
+            SubMenu("Stash", "", GetStashMenuItems()),
             SubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any()),
 
             UI.MenuSeparator(""),
             SubMenu("More", "", GetMoreItems()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
+
+
 
     private IEnumerable<MenuItem> GetDiffItems()
     {
@@ -135,8 +138,6 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetMoreItems()
     {
         return EnumerableEx.From(
-            Item("Stash Changes", "S", () => cmds.Stash(), () => !repo.Status.IsOk),
-            SubMenu("Stash Pop", "", GetStashItems(), () => repo.Status.IsOk && GetStashItems().Any()),
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
@@ -148,10 +149,26 @@ class RepoViewMenus : IRepoViewMenus
         );
     }
 
-    IEnumerable<MenuItem> GetStashItems()
+    private IEnumerable<MenuItem> GetStashMenuItems()
+    {
+        return EnumerableEx.From(
+            Item("Stash Changes", "S", () => cmds.Stash(), () => !repo.Status.IsOk),
+            SubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Status.IsOk && GetStashPopItems().Any()),
+            SubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any()),
+            SubMenu("Stash Drop", "", GetStashDropItems(), () => GetStashDropItems().Any())
+        );
+    }
+
+    IEnumerable<MenuItem> GetStashPopItems()
     {
         return repo.Repo.Stashes.Select(s =>
             Item($"{s.Message}", "", () => cmds.StashPop(s.Name)));
+    }
+
+    IEnumerable<MenuItem> GetStashDropItems()
+    {
+        return repo.Repo.Stashes.Select(s =>
+            Item($"{s.Message}", "", () => cmds.StashDrop(s.Name)));
     }
 
     IEnumerable<MenuItem> GetStashDiffItems()

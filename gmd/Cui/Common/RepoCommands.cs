@@ -54,6 +54,7 @@ interface IRepoCommands
     void Stash();
     void StashPop(string name);
     void StashDiff(string name);
+    void StashDrop(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -636,6 +637,16 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+    public void StashDrop(string name) => Do(async () =>
+    {
+        if (!Try(out var e, await server.StashDropAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to drop stash {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
 
     public void DeleteBranch(string name) => Do(async () =>
     {

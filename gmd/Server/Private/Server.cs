@@ -238,5 +238,7 @@ class Server : IServer
         if (!Try(out var diff, out var e, await git.GetStashDiffAsync(name, wd))) return e;
         return converter.ToCommitDiff(diff);
     }
+
+    public Task<R> StashDropAsync(string name, string wd) => git.StashDropAsync(name, wd);
 }
 

@@ -4,6 +4,7 @@ interface IStashService
 {
     Task<R> StashAsync(string wd);
     Task<R> PopAsync(string name, string wd);
+    Task<R> DropAsync(string name, string wd);
     Task<R<IReadOnlyList<Stash>>> ListAsync(string wd);
     Task<R<CommitDiff>> GetDiffAsync(string name, string wd);
 }
@@ -29,6 +30,11 @@ class StashService : IStashService
     public async Task<R> PopAsync(string name, string wd)
     {
         return await cmd.RunAsync("git", $"stash pop {name}", wd);
+    }
+
+    public async Task<R> DropAsync(string name, string wd)
+    {
+        return await cmd.RunAsync("git", $"stash drop {name}", wd);
     }
 
     public async Task<R<IReadOnlyList<Stash>>> ListAsync(string wd)
@@ -59,4 +65,6 @@ class StashService : IStashService
 
     public Task<R<CommitDiff>> GetDiffAsync(string name, string wd) =>
         diffService.GetStashDiffAsync(name, wd);
+
+
 }

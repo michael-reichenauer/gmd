@@ -42,6 +42,7 @@ interface IGit
     Task<R> StashAsync(string wd);
     Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
     Task<R> StashPopAsync(string name, string wd);
+    Task<R> StashDropAsync(string name, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
 }
 
