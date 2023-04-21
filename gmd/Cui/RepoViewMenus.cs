@@ -149,7 +149,7 @@ class RepoViewMenus : IRepoViewMenus
     private IEnumerable<MenuItem> GetStashMenuItems()
     {
         return EnumerableEx.From(
-            Item("Stash Changes", "S", () => cmds.Stash(), () => !repo.Status.IsOk),
+            Item("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk),
             SubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Status.IsOk && GetStashPopItems().Any()),
             SubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any()),
             SubMenu("Stash Drop", "", GetStashDropItems(), () => GetStashDropItems().Any())
