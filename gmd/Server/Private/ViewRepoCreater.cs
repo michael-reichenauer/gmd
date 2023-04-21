@@ -37,6 +37,7 @@ class ViewRepoCreater : IViewRepoCreater
             augRepo,
             converter.ToCommits(filteredCommits),
             converter.ToBranches(filteredBranches),
+            converter.ToStashes(augRepo.Stashes),
             augRepo.Status);
 
         Log.Info($"{t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");

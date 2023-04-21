@@ -228,5 +228,17 @@ class Server : IServer
     {
         using (Timing.Start()) return await git.CloneAsync(uri, path, wd);
     }
+
+    public Task<R> StashAsync(string wd) => git.StashAsync(wd);
+
+    public Task<R> StashPopAsync(string name, string wd) => git.StashPopAsync(name, wd);
+
+    public async Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd)
+    {
+        if (!Try(out var diff, out var e, await git.GetStashDiffAsync(name, wd))) return e;
+        return converter.ToCommitDiff(diff);
+    }
+
+    public Task<R> StashDropAsync(string name, string wd) => git.StashDropAsync(name, wd);
 }
 

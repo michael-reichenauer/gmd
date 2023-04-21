@@ -51,6 +51,10 @@ interface IRepoCommands
     void Clone();
     void CherryPic(string id);
     void ChangeBranchColor();
+    void Stash();
+    void StashPop(string name);
+    void StashDiff(string name);
+    void StashDrop(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -333,9 +337,6 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-
-
-
     public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
 
     public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
@@ -599,6 +600,53 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+    public void Stash() => Do(async () =>
+    {
+        if (repo.Status.IsOk) return R.Ok;
+
+        if (!Try(out var e, await server.StashAsync(repoPath)))
+        {
+            return R.Error($"Failed to stash changes", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void StashPop(string name) => Do(async () =>
+    {
+        if (!repo.Status.IsOk) return R.Ok;
+
+        if (!Try(out var e, await server.StashPopAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to pop stash {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void StashDiff(string name) => Do(async () =>
+    {
+        if (!Try(out var diff, out var e, await server.GetStashDiffAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to diff stash {name}", e);
+        }
+
+        diffView.Show(diff, name);
+        return R.Ok;
+    });
+
+    public void StashDrop(string name) => Do(async () =>
+    {
+        if (!Try(out var e, await server.StashDropAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to drop stash {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
 
     public void DeleteBranch(string name) => Do(async () =>
     {

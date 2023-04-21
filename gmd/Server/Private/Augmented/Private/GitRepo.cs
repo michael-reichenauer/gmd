@@ -4,6 +4,7 @@ using GitCommit = gmd.Git.Commit;
 using GitBranch = gmd.Git.Branch;
 using GitTag = gmd.Git.Tag;
 using GitStatus = gmd.Git.Status;
+using GitStash = gmd.Git.Stash;
 
 namespace gmd.Server.Private.Augmented.Private;
 
@@ -16,7 +17,8 @@ class GitRepo
         IReadOnlyList<GitBranch> branches,
         IReadOnlyList<GitTag> tags,
         GitStatus status,
-        MetaData metaData)
+        MetaData metaData,
+        IReadOnlyList<GitStash> stashes)
     {
         TimeStamp = timeStamp;
         Path = path;
@@ -25,6 +27,7 @@ class GitRepo
         Tags = tags;
         Status = status;
         MetaData = metaData;
+        Stashes = stashes;
     }
 
     public DateTime TimeStamp { get; }
@@ -34,6 +37,7 @@ class GitRepo
     public IReadOnlyList<GitTag> Tags { get; }
     public GitStatus Status { get; }
     public MetaData MetaData { get; }
+    public IReadOnlyList<GitStash> Stashes { get; }
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T: {Tags.Count}, S:{Status}";
 }

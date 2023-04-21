@@ -19,6 +19,8 @@ interface IServer
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<R> StashAsync(string wd);
+    Task<R> StashPopAsync(string name, string wd);
 
     // Git commands
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
@@ -43,6 +45,8 @@ interface IServer
     Task<R> UndoCommitAsync(string id, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
+    Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
+    Task<R> StashDropAsync(string name, string wd);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);
