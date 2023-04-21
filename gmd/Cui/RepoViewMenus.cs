@@ -50,11 +50,11 @@ class RepoViewMenus : IRepoViewMenus
         var scrollItems = GetScrollToItems();
         var switchToItems = GetSwitchToItems();
 
-        items.Add(UI.MenuSeparator("Open"));
-        items.AddRange(showItems);
-
         items.Add(UI.MenuSeparator("Switch to"));
         items.AddRange(switchToItems);
+
+        items.Add(UI.MenuSeparator("Open"));
+        items.AddRange(showItems);
 
         items.Add(UI.MenuSeparator("More"));
 
