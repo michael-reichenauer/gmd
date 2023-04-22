@@ -309,7 +309,7 @@ class RepoViewMenus : IRepoViewMenus
             .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
             .DistinctBy(b => b.CommonName)
             .OrderBy(b => b.CommonName)
-            .Select(b => Item(ToBranchMenuName(b), "", () => cmds.DeleteBranch(b.Name)));
+            .Select(b => Item($"{ToBranchMenuName(b)} ...", "", () => cmds.DeleteBranch(b.Name)));
     }
 
 

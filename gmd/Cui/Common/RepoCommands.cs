@@ -65,6 +65,7 @@ class RepoCommands : IRepoCommands
     readonly ICommitDlg commitDlg;
     readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
+    readonly IDeleteBranchDlg deleteBranchDlg;
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
@@ -89,6 +90,7 @@ class RepoCommands : IRepoCommands
         ICommitDlg commitDlg,
         ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
+        IDeleteBranchDlg deleteBranchDlg,
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
@@ -106,6 +108,7 @@ class RepoCommands : IRepoCommands
         this.commitDlg = commitDlg;
         this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
+        this.deleteBranchDlg = deleteBranchDlg;
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
         this.diffView = diffView;
@@ -685,19 +688,22 @@ class RepoCommands : IRepoCommands
             }
         }
 
-        if (localBranch != null)
+        var isLocal = localBranch != null;
+        var isRemote = remoteBranch != null;
+        if (!Try(out var rsp, deleteBranchDlg.Show(name, isLocal, isRemote))) return R.Ok;
+
+
+        if (rsp.IsLocal && localBranch != null)
         {
-            if (!Try(out var e,
-                await server.DeleteLocalBranchAsync(branch.Name, false, repoPath)))
+            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repoPath)))
             {
-                return R.Error($"Failed to delete branch {branch.Name}", e);
+                return R.Error($"Failed to delete local branch {branch.Name}", e);
             }
         }
 
-        if (remoteBranch != null)
+        if (rsp.IsRemote && remoteBranch != null)
         {
-            if (!Try(out var e,
-                await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
+            if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
             {
                 return R.Error($"Failed to delete remote branch {branch.Name}", e);
             }
