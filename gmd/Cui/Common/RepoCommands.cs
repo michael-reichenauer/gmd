@@ -39,7 +39,7 @@ interface IRepoCommands
     void PullAllBranches();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void PreviewMergeBranch(string name, bool isFromCurrentCommit);
+    void PreviewMergeBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
     bool CanUndoUncommitted();
     bool CanUndoCommit();
     void UndoCommit(string id);
@@ -383,11 +383,22 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void PreviewMergeBranch(string branchName, bool isFromCurrentCommit) => Do(async () =>
+    public void PreviewMergeBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
         if (repo.CurrentBranch == null) return R.Ok;
         var sha1 = repo.Branch(branchName).TipId;
         var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
+        if (sha2 == Repo.UncommittedId)
+        {
+            sha2 = repo.Commit(sha2).ParentIds[0];
+        }
+
+        if (isSwitchOrder)
+        {
+            var sh = sha1;
+            sha1 = sha2;
+            sha2 = sh;
+        }
 
         if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, repoPath)))
         {
