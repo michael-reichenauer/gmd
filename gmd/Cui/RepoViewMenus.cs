@@ -120,16 +120,14 @@ class RepoViewMenus : IRepoViewMenus
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
-
-
     private IEnumerable<MenuItem> GetDiffItems()
     {
         return EnumerableEx.From(
             Item("Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff()),
-            SubMenu($"Preview Diff Merge Branch to", "", GetPreviewMergeItems(false, false), () => GetPreviewMergeItems(false, false).Any()),
-            SubMenu($"Preview Diff Merge {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true, false), () => GetPreviewMergeItems(true, false).Any()),
-            SubMenu($"Preview Diff Merge Branch from", "", GetPreviewMergeItems(false, true), () => GetPreviewMergeItems(false, true).Any()),
-            Item($"Preview Diff Merge {Sid(repo.RowCommit.Id)} from", "", () => cmds.PreviewMergeBranch(repo.RowCommit.BranchName, true, true)),
+            SubMenu($"Diff Branch to", "", GetPreviewMergeItems(false, false), () => GetPreviewMergeItems(false, false).Any()),
+            SubMenu($"Diff {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true, false), () => GetPreviewMergeItems(true, false).Any()),
+            SubMenu($"Diff Branch from", "", GetPreviewMergeItems(false, true), () => GetPreviewMergeItems(false, true).Any()),
+            Item($"Diff {Sid(repo.RowCommit.Id)} from", "", () => cmds.PreviewMergeBranch(repo.RowCommit.BranchName, true, true)),
             SubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any())
         );
     }
