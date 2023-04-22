@@ -346,7 +346,7 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
-        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.PreviewMergeBranch(b.Name, isFromCurrentCommit, false)));
+        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.PreviewMergeBranch(b.Name, isFromCurrentCommit, isSwitch)));
     }
 
     IEnumerable<MenuItem> GetHideItems()
