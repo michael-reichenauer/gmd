@@ -692,26 +692,30 @@ class RepoCommands : IRepoCommands
         var isRemote = remoteBranch != null;
         if (!Try(out var rsp, deleteBranchDlg.Show(name, isLocal, isRemote))) return R.Ok;
 
-
-        if (rsp.IsLocal && localBranch != null)
-        {
-            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repoPath)))
-            {
-                return R.Error($"Failed to delete local branch {localBranch.Name}", e);
-            }
-        }
-
         if (rsp.IsRemote && remoteBranch != null)
         {
             var tip = repo.Commit(remoteBranch.TipId);
             if (!tip.ChildIds.Any() && !rsp.IsForce)
             {
-                return R.Error($"Remote branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
+                return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
             }
 
             if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
+            }
+        }
+
+        if (rsp.IsLocal && localBranch != null)
+        {
+            var tip = repo.Commit(localBranch.TipId);
+            if (!tip.ChildIds.Any() && !rsp.IsForce)
+            {
+                return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
+            }
+            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repoPath)))
+            {
+                return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
         }
 
