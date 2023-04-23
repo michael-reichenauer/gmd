@@ -4,6 +4,7 @@ using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Common;
+using gmd.Server;
 
 namespace gmd;
 
@@ -17,7 +18,7 @@ class Program
     private readonly IMainView mainView;
     private readonly IGit git;
     private readonly IUpdater updater;
-
+    private readonly IServer server;
 
     static async Task<int> Main(string[] args)
     {
@@ -41,6 +42,14 @@ class Program
         {
             return await UpdateAsync(dependencyInjection.Resolve<IUpdater>());
         }
+        if (args.Contains("--changelog"))
+        {
+            return ShowShangeLog(dependencyInjection.Resolve<IServer>());
+        }
+        if (args.Contains("--updatechangelog"))
+        {
+            return UpdateShangeLog(dependencyInjection.Resolve<IServer>());
+        }
 
         Log.Info($"Starting gmd ...");
         Program program = dependencyInjection.Resolve<Program>();
@@ -51,11 +60,12 @@ class Program
         return 0;
     }
 
-    internal Program(IMainView mainView, IGit git, IUpdater updater)
+    internal Program(IMainView mainView, IGit git, IUpdater updater, IServer server)
     {
         this.mainView = mainView;
         this.git = git;
         this.updater = updater;
+        this.server = server;
     }
 
     void Main()
@@ -153,6 +163,42 @@ class Program
           
         """;
         Console.WriteLine(msg);
+        return 0;
+    }
+
+
+    static int ShowShangeLog(IServer server)
+    {
+        Task.Run(async () =>
+        {
+            Console.WriteLine($"# Change Log for Gmd\n--------------------");
+            if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
+            {
+                Log.Error($"Failed to get change log, {e}");
+                Console.WriteLine($"Failed to get change log, {e}");
+            }
+
+            Console.WriteLine($"{log}");
+        })
+        .Wait();
+
+        return 0;
+    }
+
+    static int UpdateShangeLog(IServer server)
+    {
+        Task.Run(async () =>
+        {
+            Console.WriteLine($"Generating change log ...");
+            if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
+            {
+                Log.Error($"Failed to get change log, {e}");
+            }
+
+            File.WriteAllText("CHANGELOG.md", $"# Change Log for Gmd\n--------------------\n{log}");
+            Console.WriteLine($"Generated change log");
+        })
+        .Wait();
         return 0;
     }
 }

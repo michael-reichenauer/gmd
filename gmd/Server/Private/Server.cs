@@ -1,3 +1,4 @@
+using System.Text;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -240,5 +241,45 @@ class Server : IServer
     }
 
     public Task<R> StashDropAsync(string name, string wd) => git.StashDropAsync(name, wd);
+
+    public async Task<R<string>> GetChangeLogAsync()
+    {
+        if (!Try(out var repo, out var e, await GetRepoAsync("", new[] { "main" }))) return e;
+
+        var nextTag = "Current";
+        var nestTagDate = DateTime.UtcNow;
+        var totalText = new StringBuilder();
+        var text = "";
+        foreach (Commit c in repo.Commits)
+        {
+            var message = c.Message;
+            var parts = c.Message.Split('\n');
+            if (c.ParentIds.Count() > 1 && parts.Length > 2 && parts[1].Trim() == "")
+            {
+                message = string.Join('\n', parts.Skip(2));
+            }
+            else if (parts.Length == 1)
+            {
+                message = $"- {parts[0]}";
+            }
+
+            var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name.Substring(1), out var _));
+            if (tag != null)
+            {   // New version
+                if (text.Trim() != "")
+                {
+                    totalText.Append($"\n## [{nextTag}] - {nestTagDate.Iso()}\n{text}\n");
+                }
+
+                nextTag = tag.Name;
+                nestTagDate = c.AuthorTime;
+                text = "";
+            }
+
+            text += message;
+        }
+
+        return totalText.ToString();
+    }
 }
 

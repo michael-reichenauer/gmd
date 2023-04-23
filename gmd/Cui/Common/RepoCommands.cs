@@ -39,7 +39,7 @@ interface IRepoCommands
     void PullAllBranches();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void PreviewMergeBranch(string name, bool isFromCurrentCommit);
+    void PreviewMergeBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
     bool CanUndoUncommitted();
     bool CanUndoCommit();
     void UndoCommit(string id);
@@ -65,6 +65,7 @@ class RepoCommands : IRepoCommands
     readonly ICommitDlg commitDlg;
     readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
+    readonly IDeleteBranchDlg deleteBranchDlg;
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
@@ -89,6 +90,7 @@ class RepoCommands : IRepoCommands
         ICommitDlg commitDlg,
         ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
+        IDeleteBranchDlg deleteBranchDlg,
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
@@ -106,6 +108,7 @@ class RepoCommands : IRepoCommands
         this.commitDlg = commitDlg;
         this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
+        this.deleteBranchDlg = deleteBranchDlg;
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
         this.diffView = diffView;
@@ -383,11 +386,22 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void PreviewMergeBranch(string branchName, bool isFromCurrentCommit) => Do(async () =>
+    public void PreviewMergeBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
         if (repo.CurrentBranch == null) return R.Ok;
         var sha1 = repo.Branch(branchName).TipId;
         var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
+        if (sha2 == Repo.UncommittedId)
+        {
+            sha2 = repo.Commit(sha2).ParentIds[0];
+        }
+
+        if (isSwitchOrder)
+        {
+            var sh = sha1;
+            sha1 = sha2;
+            sha2 = sh;
+        }
 
         if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, repoPath)))
         {
@@ -674,21 +688,34 @@ class RepoCommands : IRepoCommands
             }
         }
 
-        if (localBranch != null)
+        var isLocal = localBranch != null;
+        var isRemote = remoteBranch != null;
+        if (!Try(out var rsp, deleteBranchDlg.Show(name, isLocal, isRemote))) return R.Ok;
+
+        if (rsp.IsRemote && remoteBranch != null)
         {
-            if (!Try(out var e,
-                await server.DeleteLocalBranchAsync(branch.Name, false, repoPath)))
+            var tip = repo.Commit(remoteBranch.TipId);
+            if (!tip.ChildIds.Any() && !rsp.IsForce)
             {
-                return R.Error($"Failed to delete branch {branch.Name}", e);
+                return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
+            }
+
+            if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
+            {
+                return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
         }
 
-        if (remoteBranch != null)
+        if (rsp.IsLocal && localBranch != null)
         {
-            if (!Try(out var e,
-                await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
+            var tip = repo.Commit(localBranch.TipId);
+            if (!tip.ChildIds.Any() && !rsp.IsForce)
             {
-                return R.Error($"Failed to delete remote branch {branch.Name}", e);
+                return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
+            }
+            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repoPath)))
+            {
+                return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
         }
 

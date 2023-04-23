@@ -252,7 +252,6 @@ class AugmentedService : IAugmentedService
 
         Timing t = Timing.Start();
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
-        Threading.AssertIsMainThread();
 
         var repo = converter.ToRepo(augRepo);
         Log.Info($"{t} {repo}");

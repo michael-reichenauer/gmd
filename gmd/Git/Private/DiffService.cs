@@ -92,7 +92,7 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd)
     {
-        var args = $"diff  --find-renames --unified=6 --full-index {sha1} {sha2}";
+        var args = $"diff --find-renames --unified=6 --full-index {sha1} {sha2}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         return ParseDiff(output, "");
