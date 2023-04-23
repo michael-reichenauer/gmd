@@ -10,7 +10,7 @@ git tag -l | sort -u -r -V | while read TAG ; do
     else
         echo "[Current]"
     fi
-    GIT_PAGER=cat git log --no-merges --format=" * %s" $TAG..$NEXT
+    GIT_PAGER=cat git log main --first-parent --format=" * %s" $TAG..$NEXT
     NEXT=$TAG
 done
 # FIRST=$(git tag -l | head -1)

@@ -41,6 +41,10 @@ class Program
         {
             return await UpdateAsync(dependencyInjection.Resolve<IUpdater>());
         }
+        if (args.Contains("--changelog"))
+        {
+            return ShowShangeLog(dependencyInjection.Resolve<IGit>());
+        }
 
         Log.Info($"Starting gmd ...");
         Program program = dependencyInjection.Resolve<Program>();
@@ -153,6 +157,24 @@ class Program
           
         """;
         Console.WriteLine(msg);
+        return 0;
+    }
+
+
+    static int ShowShangeLog(IGit git)
+    {
+        Task.Run(async () =>
+        {
+            Console.WriteLine($"hej", git.Version());
+            if (!Try(out var gitVersion, out var e, await git.Version()))
+            {
+                Log.Error($"No git command detected, {e}");
+            }
+
+            Console.WriteLine($"Version: {gitVersion}");
+        })
+        .Wait();
+
         return 0;
     }
 }
