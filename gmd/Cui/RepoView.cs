@@ -32,7 +32,8 @@ class RepoView : IRepoView
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     readonly Func<IRepo, IRepoViewMenus> newMenuService;
-    readonly IStates states;
+    readonly IState states;
+    readonly IRepoState repoState;
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
@@ -55,7 +56,8 @@ class RepoView : IRepoView
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
-        IStates states,
+        IState states,
+        IRepoState repoState,
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView) : base()
@@ -65,6 +67,7 @@ class RepoView : IRepoView
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
         this.states = states;
+        this.repoState = repoState;
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
@@ -106,7 +109,7 @@ class RepoView : IRepoView
         if (!Try(out var rootDir, out var e, git.RootPath(path))) return e;
         Log.Info($"Show '{rootDir}' ({path})");
 
-        var branches = states.GetRepo(rootDir).Branches;
+        var branches = repoState.Get(rootDir).Branches;
         if (!Try(out e, await ShowNewRepoAsync(rootDir, branches))) return e;
         FetchFromRemote();
 
@@ -216,6 +219,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
         contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
+        contentView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
 
         contentView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
         contentView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
@@ -324,7 +328,7 @@ class RepoView : IRepoView
 
         // Remember shown branch for next restart of program
         var names = repo.Branches.Select(b => b.Name).ToList();
-        states.SetRepo(serverRepo.Path, s => s.Branches = names);
+        repoState.Set(serverRepo.Path, s => s.Branches = names);
     }
 
 

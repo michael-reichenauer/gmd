@@ -15,7 +15,7 @@ partial class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IGit git;
-    readonly IStates states;
+    readonly IState states;
     readonly ICloneDlg cloneDlg;
     readonly IHelpDlg helpDlg;
     readonly IServer server;
@@ -26,7 +26,7 @@ partial class MainView : IMainView
     MainView(
         IRepoView repoView,
         IGit git,
-        IStates states,
+        IState states,
         ICloneDlg cloneDlg,
         IHelpDlg helpDlg,
         IServer server,
@@ -70,6 +70,10 @@ partial class MainView : IMainView
         string path = GetWorkingFolder();
         // path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
+        // path = "/workspaces/Dependitor";
+        // path = "/workspaces/gmd/tmp/Dependitor";
+        // path = "/workspaces/GitMind";
+
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
             if (path != "")
@@ -144,8 +148,8 @@ partial class MainView : IMainView
     async void Clone()
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
-        if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return;
+        var recentParentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
+        if (!Try(out var r, out var e, cloneDlg.Show(recentParentFolders))) return;
         (var uri, var path) = r;
 
         using (progress.Show())

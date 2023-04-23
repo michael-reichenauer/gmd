@@ -18,6 +18,7 @@ class Converter : IConverter
             workRepo.Path,
             workRepo.Commits.Select((WorkCommit c, int index) => ToCommit(c, index)).ToList(),
             workRepo.Branches.Select(ToBranch).ToList(),
+            workRepo.Stashes.ToList(),
             workRepo.Status
         );
     }

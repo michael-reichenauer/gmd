@@ -39,6 +39,7 @@ interface IRepoCommands
     void PullAllBranches();
     void DeleteBranch(string name);
     void MergeBranch(string name);
+    void PreviewMergeBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
     bool CanUndoUncommitted();
     bool CanUndoCommit();
     void UndoCommit(string id);
@@ -49,6 +50,11 @@ interface IRepoCommands
     void UndoUncommittedFile(string path);
     void Clone();
     void CherryPic(string id);
+    void ChangeBranchColor();
+    void Stash();
+    void StashPop(string name);
+    void StashDiff(string name);
+    void StashDrop(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -59,12 +65,14 @@ class RepoCommands : IRepoCommands
     readonly ICommitDlg commitDlg;
     readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
+    readonly IDeleteBranchDlg deleteBranchDlg;
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
-    readonly IStates states;
+    readonly IState states;
     readonly IUpdater updater;
     readonly IGit git;
+    readonly IBranchColorService branchColorService;
     readonly IRepo repo;
     readonly Repo serverRepo;
     readonly IRepoView repoView;
@@ -82,12 +90,14 @@ class RepoCommands : IRepoCommands
         ICommitDlg commitDlg,
         ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
+        IDeleteBranchDlg deleteBranchDlg,
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
-        IStates states,
+        IState states,
         IUpdater updater,
-        IGit git)
+        IGit git,
+        IBranchColorService branchColorService)
     {
         this.repo = repo;
         this.serverRepo = serverRepo;
@@ -98,12 +108,14 @@ class RepoCommands : IRepoCommands
         this.commitDlg = commitDlg;
         this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
+        this.deleteBranchDlg = deleteBranchDlg;
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
         this.diffView = diffView;
         this.states = states;
         this.updater = updater;
         this.git = git;
+        this.branchColorService = branchColorService;
     }
 
     public void Refresh() => repoView.Refresh();
@@ -328,9 +340,6 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-
-
-
     public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
 
     public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
@@ -374,6 +383,32 @@ class RepoCommands : IRepoCommands
         }
 
         Refresh();
+        return R.Ok;
+    });
+
+    public void PreviewMergeBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
+    {
+        if (repo.CurrentBranch == null) return R.Ok;
+        var sha1 = repo.Branch(branchName).TipId;
+        var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
+        if (sha2 == Repo.UncommittedId)
+        {
+            sha2 = repo.Commit(sha2).ParentIds[0];
+        }
+
+        if (isSwitchOrder)
+        {
+            var sh = sha1;
+            sha1 = sha2;
+            sha2 = sh;
+        }
+
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, repoPath)))
+        {
+            return R.Error($"Failed to get diff", e);
+        }
+
+        diffView.Show(diff, sha1);
         return R.Ok;
     });
 
@@ -579,6 +614,53 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+    public void Stash() => Do(async () =>
+    {
+        if (repo.Status.IsOk) return R.Ok;
+
+        if (!Try(out var e, await server.StashAsync(repoPath)))
+        {
+            return R.Error($"Failed to stash changes", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void StashPop(string name) => Do(async () =>
+    {
+        if (!repo.Status.IsOk) return R.Ok;
+
+        if (!Try(out var e, await server.StashPopAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to pop stash {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void StashDiff(string name) => Do(async () =>
+    {
+        if (!Try(out var diff, out var e, await server.GetStashDiffAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to diff stash {name}", e);
+        }
+
+        diffView.Show(diff, name);
+        return R.Ok;
+    });
+
+    public void StashDrop(string name) => Do(async () =>
+    {
+        if (!Try(out var e, await server.StashDropAsync(name, repoPath)))
+        {
+            return R.Error($"Failed to drop stash {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
 
     public void DeleteBranch(string name) => Do(async () =>
     {
@@ -606,21 +688,34 @@ class RepoCommands : IRepoCommands
             }
         }
 
-        if (localBranch != null)
+        var isLocal = localBranch != null;
+        var isRemote = remoteBranch != null;
+        if (!Try(out var rsp, deleteBranchDlg.Show(name, isLocal, isRemote))) return R.Ok;
+
+        if (rsp.IsRemote && remoteBranch != null)
         {
-            if (!Try(out var e,
-                await server.DeleteLocalBranchAsync(branch.Name, false, repoPath)))
+            var tip = repo.Commit(remoteBranch.TipId);
+            if (!tip.ChildIds.Any() && !rsp.IsForce)
             {
-                return R.Error($"Failed to delete branch {branch.Name}", e);
+                return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
+            }
+
+            if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
+            {
+                return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
         }
 
-        if (remoteBranch != null)
+        if (rsp.IsLocal && localBranch != null)
         {
-            if (!Try(out var e,
-                await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
+            var tip = repo.Commit(localBranch.TipId);
+            if (!tip.ChildIds.Any() && !rsp.IsForce)
             {
-                return R.Error($"Failed to delete remote branch {branch.Name}", e);
+                return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
+            }
+            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repoPath)))
+            {
+                return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
         }
 
@@ -654,6 +749,15 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+
+    public void ChangeBranchColor()
+    {
+        var b = repo.Branch(repo.RowCommit.BranchName);
+        if (b.IsMainBranch) return;
+
+        branchColorService.ChangeColor(repo.Repo, b);
+        Refresh();
+    }
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 

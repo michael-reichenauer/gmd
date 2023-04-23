@@ -25,6 +25,7 @@ enum Sign
     BranchToLeft = 256,   // ╰
     BranchToRight = 512,  // ╯
     ConnectLine = 1024,   // │
+    Resolve = 2048        // Φ
 }
 
 
@@ -152,6 +153,11 @@ class GraphCreater : IGraphCreater
             return;
         }
 
+        if (c.IsBranchSetByUser)
+        {
+            graph.SetGraphBranch(x, y, Sign.Resolve, TextColor.Ambiguous); //       Φ   (Resolved/set by user)
+            return;
+        }
         if (c.Id == b.B.TipId)
         {
             graph.SetGraphBranch(x, y, Sign.Tip, color); //       ┏   (branch tip)

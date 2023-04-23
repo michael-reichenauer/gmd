@@ -3,7 +3,7 @@ using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
-
+using gmd.Common;
 
 namespace gmd;
 
@@ -21,6 +21,14 @@ class Program
 
     static async Task<int> Main(string[] args)
     {
+        var t = Timing.Start();
+        ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
+
+        new Upgrader().UpdradeData();
+
+        dependencyInjection = new DependencyInjection();
+        dependencyInjection.RegisterDependencyInjectionTypes();
+
         if (args.Contains("-h") || args.Contains("--help") || args.Contains("-?"))
         {
             return ShowHelp();
@@ -31,17 +39,10 @@ class Program
         }
         if (args.Contains("--update"))
         {
-            return await UpdateAsync();
+            return await UpdateAsync(dependencyInjection.Resolve<IUpdater>());
         }
 
-        var t = Timing.Start();
         Log.Info($"Starting gmd ...");
-
-        ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
-
-        dependencyInjection = new DependencyInjection();
-        dependencyInjection.RegisterDependencyInjectionTypes();
-
         Program program = dependencyInjection.Resolve<Program>();
         program.Main();
 
@@ -84,7 +85,7 @@ class Program
     async Task StartAsync()
     {
         await LogInfoAsync();
-        await updater.CheckUpdateAvailableAsync();
+        updater.CheckUpdatesRegularly().RunInBackground();
     }
 
     async Task LogInfoAsync()
@@ -111,11 +112,10 @@ class Program
         return 0;
     }
 
-    static async Task<int> UpdateAsync()
+    static async Task<int> UpdateAsync(IUpdater updater)
     {
         var currentVersion = Build.Version();
         Console.WriteLine($"Trying to update current version {currentVersion} ...");
-        var updater = new Updater();
 
         if (!Try(out var available, out var e, await updater.IsUpdateAvailableAsync()))
         {

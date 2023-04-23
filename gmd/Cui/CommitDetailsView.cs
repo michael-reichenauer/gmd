@@ -19,7 +19,7 @@ class CommitDetailsView : ICommitDetailsView
     Server.Commit? commit;
     IReadOnlyList<Text> rows = new List<Text>();
 
-    internal static readonly int ContentHeight = 9;
+    internal static readonly int ContentHeight = 11;
     private readonly IBranchColorService branchColorService;
 
     public CommitDetailsView(IBranchColorService branchColorService)
@@ -47,6 +47,8 @@ class CommitDetailsView : ICommitDetailsView
     {
         await Task.Yield();
 
+        var tags = commit.Tags;
+
         this.commit = commit;
         var id = commit.Id;
         var color = branchColorService.GetColor(repo, branch);
@@ -68,14 +70,10 @@ class CommitDetailsView : ICommitDetailsView
         }
 
         var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
-        if (branch.IsRemote)
-        {
-            branchName = "^origin/" + branchName;
-        }
 
         if (commit.IsBranchSetByUser)
         {
-            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName + "   Ф").Dark(" (ambiguity resolved by user)"));
+            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName).White("   Φ").Dark(" (ambiguity resolved by user)"));
         }
         else
         {
@@ -110,6 +108,21 @@ class CommitDetailsView : ICommitDetailsView
         if (commit.IsBehind)
         {
             newRows.Add(Text.New.Dark("Remote:   ").Blue("▼ pullable"));
+        }
+        if (commit.Tags.Any())
+        {
+            var tagText = "[" + string.Join("][", commit.Tags.Select(t => t.Name)) + "]";
+            newRows.Add(Text.New.Dark("Tags:       ").Green(tagText));
+        }
+        var tips = repo.Branches.Where(b => b.TipId == commit.Id);
+        if (tips.Any())
+        {
+            var tipText = Text.New;
+            tips.ForEach(t => tipText.Add(
+                Text.New.Color(branchColorService.GetColor(repo, t),
+                $"({t.Name})")));
+            // var tipText = "(" + string.Join(")(", commit.BranchTips) + ")";
+            newRows.Add(Text.New.Dark("Tips:       ").Add(tipText));
         }
         newRows.AddRange(commit.Message.Split('\n').Select(l => Text.New.White(l)));
         newRows.Add(Text.New.Black(""));

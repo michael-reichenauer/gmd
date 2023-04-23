@@ -22,22 +22,22 @@ Download either `gmd_linux`, `gmd_windows` or `gmd_osx` from [releases](https://
 
 #### Linux
 If you to be able to use gmd from any folder, you might consider download the binary to some
-folder, e.g. `~/gmd/' and then add to the PATH like in: 
-`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`  
+folder, e.g. `~/gmd/` and then add to the PATH like in:\
+`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`\
 `> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
 `> . ~/.profile`  
 
 #### Windows:
 Download setup file from [releases](https://github.com/michael-reichenauer/gmd/releases)  
-or:  
-`> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe`  
+or:\
+`> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe`\
 `> gmdSetup`  
 
 #### OSX/Mac
 If you to be able to use gmd from any folder, you might consider download the binary to some
-folder, e.g. `~/gmd/' and then add to the PATH like in: 
-`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_osx" && chmod +x ~/gmd/gmd`  
-`> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
+folder, e.g. `~/gmd/` and then add to the PATH like in:\
+`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_osx" && chmod +x ~/gmd/gmd`\
+`> echo 'export PATH=$PATH:~/gmd' >>~/.profile`\
 `> . ~/.profile`  
 
 ## Use Devcontainer or GitHub CodeSpaces

@@ -11,7 +11,8 @@ internal class Git : IGit
     readonly IDiffService diffService;
     readonly IRemoteService remoteService;
     readonly ITagService tagService;
-    private readonly IKeyValueService keyValueService;
+    readonly IKeyValueService keyValueService;
+    readonly IStashService stashService;
     readonly ICmd cmd;
 
     public Git(
@@ -23,6 +24,7 @@ internal class Git : IGit
         IRemoteService remoteService,
         ITagService tagService,
         IKeyValueService keyValueService,
+        IStashService stashService,
         ICmd cmd)
     {
         this.logService = logService;
@@ -33,6 +35,7 @@ internal class Git : IGit
         this.remoteService = remoteService;
         this.tagService = tagService;
         this.keyValueService = keyValueService;
+        this.stashService = stashService;
         this.cmd = cmd;
     }
 
@@ -51,6 +54,8 @@ internal class Git : IGit
         diffService.GetCommitDiffAsync(commitId, wd);
     public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) =>
         diffService.GetFileDiffAsync(path, wd);
+    public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd) =>
+        diffService.GetPreviewMergeDiffAsync(sha1, sha2, wd);
     public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
     public Task<R> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);
@@ -87,7 +92,12 @@ internal class Git : IGit
         keyValueService.PushValueAsync(key, wd);
     public Task<R> PullValueAsync(string key, string wd) =>
         keyValueService.PullValueAsync(key, wd);
-
+    public Task<R> StashAsync(string wd) => stashService.StashAsync(wd);
+    public Task<R> StashPopAsync(string name, string wd) => stashService.PopAsync(name, wd);
+    public Task<R> StashDropAsync(string name, string wd) => stashService.DropAsync(name, wd);
+    public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
+    public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) =>
+        diffService.GetStashDiffAsync(name, wd);
 
     public async Task<R<string>> Version()
     {

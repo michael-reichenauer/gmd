@@ -20,7 +20,7 @@ class TagService : ITagService
         var args = "show-ref --dereference --tags";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd, true)))
         {
-            if (e.ErrorMessage == "")
+            if (e.ErrorMessage.StartsWith("\n"))
             {   // Empty tag list (no tags yet)
                 return new List<Tag>();
             }
