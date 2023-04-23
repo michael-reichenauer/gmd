@@ -32,7 +32,6 @@ class Augmenter : IAugmenter
 
     private WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
     {
-        Threading.AssertIsOtherThread();
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, ToStatus(gitRepo));
 
         SetAugStashes(repo, gitRepo);
