@@ -1,6 +1,16 @@
 # Change Log for Gmd
 --------------------
 
+## [v0.50.176.217] - 2023-04-24 03:36:56
+- Added change log link to relases
+
+## [v0.50.175.562] - 2023-04-23 09:22:07
+Merge branch 'dev' into main
+
+- Added support for branches diff (to/from)
+- Added support for delete branch dlg with force option
+- Added support for change log file
+
 ## [v0.50.173.249] - 2023-04-21 04:09:18
 - Added support for Stash
 - Moved diff menu items to a sup menu
