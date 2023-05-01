@@ -107,7 +107,6 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Push", "", GetPushItems(), () => cmds.CanPush()),
             SubMenu("Update/Pull", "", GetPullItems(), () => cmds.CanPull()),
             SubMenu($"Merge from", "", GetMergeFromItems(), () => GetMergeFromItems().Any()),
-            Item($"Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk),
             Item("Create Branch ...", "B", () => cmds.CreateBranch()),
             Item("Create Branch from commit ...", "",
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
@@ -320,6 +319,7 @@ class RepoViewMenus : IRepoViewMenus
             return Enumerable.Empty<MenuItem>();
         }
 
+        var sidText = Sid(repo.RowCommit.Id);
         var commit = repo.RowCommit;
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
@@ -331,8 +331,13 @@ class RepoViewMenus : IRepoViewMenus
             ? new[] { Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id)) }
             : Enumerable.Empty<MenuItem>();
 
-        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
-            .Concat(commitItems);
+        var cherryPic = Item($"Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk);
+
+        var items = branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
+            .Concat(commitItems).Concat(new[] { cherryPic });
+
+        return items;
+
     }
 
     IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit, bool isSwitch)
