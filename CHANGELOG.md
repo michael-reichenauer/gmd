@@ -1,6 +1,10 @@
 # Change Log for Gmd
 --------------------
 
+## [v0.50.183.563] - 2023-05-01 09:18:23
+- Added support for amend cmd
+- Moved cherry pic menu item into merge menu
+
 ## [v0.50.176.232] - 2023-04-24 03:52:29
 - Updated change log
 

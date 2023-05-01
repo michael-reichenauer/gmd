@@ -97,7 +97,7 @@ class RepoViewMenus : IRepoViewMenus
             Item("Commit ...", "C",
                 () => cmds.CommitFromMenu(false),
                 () => !repo.Status.IsOk),
-            Item("Amend ...", "",
+            Item("Amend ...", "A",
                 () => cmds.CommitFromMenu(true),
                 () => repo.Commit(repo.GetCurrentBranch().TipId).IsAhead),
             SubMenu("Undo", "", GetUndoItems()),
@@ -144,7 +144,7 @@ class RepoViewMenus : IRepoViewMenus
             Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
             Item("Help ...", "H", () => cmds.ShowHelp()),
             Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
-            Item("About ...", "A", () => cmds.ShowAbout())
+            Item("About ...", "", () => cmds.ShowAbout())
         );
     }
 
