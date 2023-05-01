@@ -322,22 +322,29 @@ class RepoViewMenus : IRepoViewMenus
         var sidText = Sid(repo.RowCommit.Id);
         var commit = repo.RowCommit;
         var currentName = repo.CurrentBranch?.CommonName ?? "";
+
+        // Get all branches except current
         var branches = repo.Branches
              .Where(b => b.CommonName != currentName)
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
+        // Include commit if not on current branch
         var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
             ? new[] { Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id)) }
             : Enumerable.Empty<MenuItem>();
 
-        var cherryPic = Item($"Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk);
+        // Incluce cherry pic if not on current branch
+        var cherryPicItems = repo.RowCommit.Id != repo.CurrentBranch?.TipId
+            ? new[] { Item($"  Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk) }
+            : Enumerable.Empty<MenuItem>();
 
-        var items = branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
-            .Concat(commitItems).Concat(new[] { cherryPic });
+        var items = branches
+            .Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
+            .Concat(commitItems)
+            .Concat(cherryPicItems);
 
         return items;
-
     }
 
     IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit, bool isSwitch)
