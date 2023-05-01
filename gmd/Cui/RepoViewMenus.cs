@@ -97,6 +97,9 @@ class RepoViewMenus : IRepoViewMenus
             Item("Commit ...", "C",
                 () => cmds.CommitFromMenu(false),
                 () => !repo.Status.IsOk),
+            Item("Amend ...", "",
+                () => cmds.CommitFromMenu(true),
+                () => repo.Commit(repo.GetCurrentBranch().TipId).IsAhead),
             SubMenu("Undo", "", GetUndoItems()),
 
             UI.MenuSeparator("Branches"),
@@ -136,9 +139,6 @@ class RepoViewMenus : IRepoViewMenus
         return EnumerableEx.From(
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
-            Item("Amend ...", "",
-                () => cmds.CommitFromMenu(true),
-                () => repo.Commit(repo.GetCurrentBranch().TipId).IsAhead),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),

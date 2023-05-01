@@ -15,12 +15,12 @@ class CommitDlg : ICommitDlg
         message = "";
         bool isOk = false;
 
-        (string subjectText, string messageText) = ParseMessage(repo);
-
         if (!isAmend && repo.Status.IsOk)
         {
             return false;
         }
+
+        (string subjectText, string messageText) = ParseMessage(repo, isAmend);
 
         var commit = repo.Commits[0];
         int filesCount = repo.Status.ChangesCount;
@@ -72,9 +72,15 @@ class CommitDlg : ICommitDlg
     }
 
 
-    (string, string) ParseMessage(IRepo repo)
+    (string, string) ParseMessage(IRepo repo, bool isAmend)
     {
         string msg = repo.Status.MergeMessage;
+
+        if (isAmend)
+        {
+            var c = repo.Commit(repo.GetCurrentBranch().TipId);
+            msg = c.Message;
+        }
 
         if (msg.Trim() == "")
         {
