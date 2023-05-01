@@ -341,6 +341,7 @@ class RepoView : IRepoView
             {
                 var tip = repo.Commit(branch.TipId);
                 contentView.ScrollToShowIndex(tip.Index);
+                contentView.SetCurrentIndex(tip.Index);
             }
         }
     }
@@ -352,6 +353,7 @@ class RepoView : IRepoView
         if (commit != null)
         {
             contentView.ScrollToShowIndex(commit.Index);
+            contentView.SetCurrentIndex(commit.Index);
         }
     }
 

@@ -332,6 +332,13 @@ class ContentView : View
         Move(y - currentY);
     }
 
+    internal void SetCurrentIndex(int index)
+    {
+        CurrentIndex = index;
+        SetNeedsDisplay();
+    }
+
+
     internal void Move(int move)
     {
         if (IsNoCursor)
