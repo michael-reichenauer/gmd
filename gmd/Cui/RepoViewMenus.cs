@@ -336,7 +336,7 @@ class RepoViewMenus : IRepoViewMenus
 
         // Incluce cherry pic if not on current branch
         var cherryPicItems = repo.RowCommit.Id != repo.CurrentBranch?.TipId
-            ? new[] { Item($"  Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk) }
+            ? new[] { Item($"Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk) }
             : Enumerable.Empty<MenuItem>();
 
         var items = branches
