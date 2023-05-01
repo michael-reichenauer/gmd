@@ -48,7 +48,7 @@ class CommitDlg : ICommitDlg
             return true;
         });
 
-        Dialog dialog = Components.Dialog("Commit", 74, 18, (key) => OnKey(repo, key), okButton, Buttons.Cancel());
+        Dialog dialog = Components.Dialog(cmdText, 74, 18, (key) => OnKey(repo, key), okButton, Buttons.Cancel());
         dialog.Closed += e => UI.HideCursor();
         dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
 

@@ -1,7 +1,11 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-05-01 09:18:40
+## [Current]
+- Added short cut 'a' to amend command
+- Added post commit hoog sample file for changelog generation
+
+## [v0.50.183.563] - 2023-05-01 09:18:23
 - Added support for amend cmd
 - Moved cherry pic menu item into merge menu
 

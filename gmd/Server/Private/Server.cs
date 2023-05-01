@@ -247,7 +247,7 @@ class Server : IServer
         if (!Try(out var repo, out var e, await GetRepoAsync("", new[] { "main" }))) return e;
 
         var nextTag = "Current";
-        var nestTagDate = DateTime.UtcNow;
+        var nextTagDate = DateTime.UtcNow;
         var totalText = new StringBuilder();
         var text = "";
         foreach (Commit c in repo.Commits)
@@ -268,11 +268,18 @@ class Server : IServer
             {   // New version
                 if (text.Trim() != "")
                 {
-                    totalText.Append($"\n## [{nextTag}] - {nestTagDate.Iso()}\n{text}\n");
+                    if (nextTag == "Current")
+                    {
+                        totalText.Append($"\n## [{nextTag}]\n{text}\n");
+                    }
+                    else
+                    {
+                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.Iso()}\n{text}\n");
+                    }
                 }
 
                 nextTag = tag.Name;
-                nestTagDate = c.AuthorTime;
+                nextTagDate = c.AuthorTime;
                 text = "";
             }
 

@@ -17,3 +17,11 @@ echo 'export PATH=$PATH:~/gmd' >>~/.profile
 . ~/.profile
 echo "gmd version: $(gmd --version)"
 
+echo ""
+echo "Install git post commit hook ..."
+cp ./gmd/tools/post-commit-sample ./.git/hooks/post-commit
+chmod +x ./.git/hooks/post-commit
+
+echo ""
+echo "Done"
+

@@ -204,6 +204,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.F5, () => Refresh());
         contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
         contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit(false));
+        contentView.RegisterKeyHandler(Key.a, () => Cmd.Commit(true));
         contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
         contentView.RegisterKeyHandler(Key.B, () => Cmd.CreateBranch());
         contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
@@ -213,7 +214,6 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
         contentView.RegisterKeyHandler(Key.u, () => Cmd.PullAllBranches());
         contentView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
-        contentView.RegisterKeyHandler(Key.a, () => Cmd.ShowAbout());
         contentView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
         contentView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
