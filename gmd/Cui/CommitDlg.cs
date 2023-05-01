@@ -5,19 +5,19 @@ namespace gmd.Cui;
 
 interface ICommitDlg
 {
-    bool Show(IRepo repo, out string message);
+    bool Show(IRepo repo, bool isAmend, out string message);
 }
 
 class CommitDlg : ICommitDlg
 {
-    public bool Show(IRepo repo, out string message)
+    public bool Show(IRepo repo, bool isAmend, out string message)
     {
         message = "";
         bool isOk = false;
 
         (string subjectText, string messageText) = ParseMessage(repo);
 
-        if (repo.Status.IsOk)
+        if (!isAmend && repo.Status.IsOk)
         {
             return false;
         }
@@ -25,8 +25,9 @@ class CommitDlg : ICommitDlg
         var commit = repo.Commits[0];
         int filesCount = repo.Status.ChangesCount;
         string branchName = commit.BranchName;
+        var cmdText = isAmend ? "Amend" : "Commit";
 
-        Label infoLabel = Components.Label(1, 0, $"Commit {filesCount} changes on '{branchName}':");
+        Label infoLabel = Components.Label(1, 0, $"{cmdText} {filesCount} changes on '{branchName}':");
 
         TextField subjectField = Components.TextField(1, 2, 50, subjectText);
         Label sep1 = Components.TextIndicator(subjectField);

@@ -18,13 +18,13 @@ interface IRepoCommands
     void ShowRepo(string path);
     void Refresh();
     void ShowUncommittedDiff();
-    void Commit();
+    void Commit(bool isAmend);
+    void CommitFromMenu(bool isAmend);
     void CreateBranch();
     void ShowCurrentRowDiff();
     void PushCurrentBranch();
     void PullCurrentBranch();
     void UpdateRelease();
-    void CommitFromMenu();
     bool CanPush();
     bool CanPull();
     void CreateBranchFromCommit();
@@ -149,27 +149,28 @@ class RepoCommands : IRepoCommands
     public void ShowAbout() => aboutDlg.Show();
     public void ShowHelp() => helpDlg.Show();
 
-    public void CommitFromMenu()
+    public void CommitFromMenu(bool isAmend)
     {
         // For some unknown reason, calling commit directly from the menu will
         // Show the commit dialog, but diff will not work since async/await does not seem to work
         // However wrapping with a timeout seems to work as desired.
         UI.AddTimeout(TimeSpan.FromMilliseconds(100), (_) =>
         {
-            Commit();
+            Commit(isAmend);
             return false;
         });
     }
 
-
-    public void Commit() => Do(async () =>
+    public void Commit(bool isAmend) => Do(async () =>
     {
-        if (repo.Status.IsOk) return R.Ok;
+        if (!isAmend && repo.Status.IsOk) return R.Ok;
+        if (isAmend && !repo.Commit(repo.GetCurrentBranch().TipId).IsAhead) return R.Ok;
+
         if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 
-        if (!commitDlg.Show(repo, out var message)) return R.Ok;
+        if (!commitDlg.Show(repo, isAmend, out var message)) return R.Ok;
 
-        if (!Try(out var e, await server.CommitAllChangesAsync(message, repoPath)))
+        if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, repoPath)))
         {
             return R.Error($"Failed to commit", e);
         }

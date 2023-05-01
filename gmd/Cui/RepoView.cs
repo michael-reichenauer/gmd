@@ -202,8 +202,8 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.r, () => Refresh());
         contentView.RegisterKeyHandler(Key.R, () => Refresh());
         contentView.RegisterKeyHandler(Key.F5, () => Refresh());
-        contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit());
-        contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit());
+        contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
+        contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit(false));
         contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
         contentView.RegisterKeyHandler(Key.B, () => Cmd.CreateBranch());
         contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());

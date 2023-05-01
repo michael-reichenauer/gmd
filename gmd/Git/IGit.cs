@@ -10,7 +10,7 @@ interface IGit
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<R<Status>> GetStatusAsync(string wd);
-    Task<R> CommitAllChangesAsync(string message, string wd);
+    Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);

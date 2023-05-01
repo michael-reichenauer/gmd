@@ -25,7 +25,7 @@ interface IServer
     // Git commands
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R> FetchAsync(string wd);
-    Task<R> CommitAllChangesAsync(string message, string wd);
+    Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd);

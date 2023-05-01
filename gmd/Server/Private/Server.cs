@@ -136,8 +136,8 @@ class Server : IServer
     public Task<R> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
 
 
-    public Task<R> CommitAllChangesAsync(string message, string wd) =>
-          git.CommitAllChangesAsync(message, wd);
+    public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
+          git.CommitAllChangesAsync(message, isAmend, wd);
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {

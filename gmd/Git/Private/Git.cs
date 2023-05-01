@@ -48,8 +48,8 @@ internal class Git : IGit
     public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) =>
         branchService.GetBranchesAsync(wd);
     public Task<R<Status>> GetStatusAsync(string wd) => statusService.GetStatusAsync(wd);
-    public Task<R> CommitAllChangesAsync(string message, string wd) =>
-        commitService.CommitAllChangesAsync(message, wd);
+    public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
+        commitService.CommitAllChangesAsync(message, isAmend, wd);
     public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd) =>
         diffService.GetCommitDiffAsync(commitId, wd);
     public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) =>
