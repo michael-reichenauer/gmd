@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 interface ICommitService
 {
-    Task<R> CommitAllChangesAsync(string message, string wd);
+    Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);
     Task<R> UndoUncommittedFileAsync(string path, string wd);
     Task<R> CleanWorkingFolderAsync(string wd);
@@ -19,7 +19,7 @@ class CommitService : ICommitService
         this.cmd = cmd;
     }
 
-    public async Task<R> CommitAllChangesAsync(string message, string wd)
+    public async Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd)
     {
         // Encode '"' chars
         message = message.Replace("\"", "\\\"");
@@ -29,7 +29,8 @@ class CommitService : ICommitService
             if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd))) return e;
         }
 
-        return await cmd.RunAsync("git", $"commit -am \"{message}\"", wd);
+        var amendText = isAmend ? "--amend" : "";
+        return await cmd.RunAsync("git", $"commit {amendText} -am \"{message}\"", wd);
     }
 
 
