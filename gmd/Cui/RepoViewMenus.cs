@@ -83,6 +83,7 @@ class RepoViewMenus : IRepoViewMenus
         var branchName = repo.CurrentBranch?.DisplayName ?? "";
         var commit = repo.RowCommit;
         var sidText = Sid(repo.RowCommit.Id);
+        var currentSidText = Sid(repo.GetCurrentCommit().Sid);
 
         if (releases.IsUpdateAvailable)
         {
@@ -92,23 +93,21 @@ class RepoViewMenus : IRepoViewMenus
         }
 
         return items.Add(
-            UI.MenuSeparator($"Commit {sidText}"),
             Item("Toggle Details ...", "Enter", () => cmds.ToggleDetails()),
             Item("Commit ...", "C",
                 () => cmds.CommitFromMenu(false),
                 () => !repo.Status.IsOk),
-            Item("Amend ...", "A",
+            Item($"Amend {currentSidText} ...", "A",
                 () => cmds.CommitFromMenu(true),
-                () => repo.Commit(repo.GetCurrentBranch().TipId).IsAhead),
+                () => repo.GetCurrentCommit().IsAhead),
             SubMenu("Undo", "", GetUndoItems()),
 
-            UI.MenuSeparator("Branches"),
             SubMenu("Diff", "", GetDiffItems()),
             SubMenu("Open/Show Branch", "->", GetShowBranchItems()),
-            SubMenu("Close/Hide Branch", "<-", GetHideItems()),
+            SubMenu("Hide Branch", "<-", GetHideItems()),
             SubMenu("Switch/Checkout", "", GetSwitchToItems()),
-            SubMenu("Push", "", GetPushItems(), () => cmds.CanPush()),
-            SubMenu("Update/Pull", "", GetPullItems(), () => cmds.CanPull()),
+            SubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush()),
+            SubMenu("Pull/Update", "", GetPullItems(), () => cmds.CanPull()),
             SubMenu($"Merge from", "", GetMergeFromItems(), () => GetMergeFromItems().Any()),
             Item("Create Branch ...", "B", () => cmds.CreateBranch()),
             Item("Create Branch from commit ...", "",

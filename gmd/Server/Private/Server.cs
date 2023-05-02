@@ -59,6 +59,8 @@ class Server : IServer
     public Branch AllBanchByName(Repo repo, string name) =>
         converter.ToBranch(repo.AugmentedRepo.BranchByName[name]);
 
+    public Commit GetCommit(Repo repo, string commitId) =>
+        converter.ToCommit(repo.AugmentedRepo.CommitById[commitId]);
 
     public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
     {
