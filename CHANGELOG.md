@@ -2,6 +2,9 @@
 --------------------
 
 ## [Current]
+- Highligting searched row
+
+## [v0.50.183.675] - 2023-05-01 11:07:29
 - Added short cut 'a' to amend command
 - Added post commit hoog sample file for changelog generation
 
