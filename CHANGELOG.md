@@ -2,6 +2,9 @@
 --------------------
 
 ## [Current]
+- Added support for hierarchical branch names i show branch
+
+## [v0.50.184.216] - 2023-05-02 03:35:36
 - Highligting searched row
 
 ## [v0.50.183.675] - 2023-05-01 11:07:29

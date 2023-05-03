@@ -78,7 +78,7 @@ class CommitDlg : ICommitDlg
 
         if (isAmend)
         {
-            var c = repo.Commit(repo.GetCurrentBranch().TipId);
+            var c = repo.GetCurrentCommit();
             msg = c.Message;
         }
 

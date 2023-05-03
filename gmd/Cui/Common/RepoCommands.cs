@@ -164,7 +164,7 @@ class RepoCommands : IRepoCommands
     public void Commit(bool isAmend) => Do(async () =>
     {
         if (!isAmend && repo.Status.IsOk) return R.Ok;
-        if (isAmend && !repo.Commit(repo.GetCurrentBranch().TipId).IsAhead) return R.Ok;
+        if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
 
         if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 

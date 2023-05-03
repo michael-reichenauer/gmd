@@ -12,6 +12,7 @@ interface IServer
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
     Branch AllBanchByName(Repo repo, string name);
+    Commit GetCommit(Repo repo, string commitId);
 
     Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous);
     Repo HideBranch(Repo repo, string name);
@@ -47,7 +48,6 @@ interface IServer
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R> StashDropAsync(string name, string wd);
-
     Task<R<string>> GetChangeLogAsync();
 }
 

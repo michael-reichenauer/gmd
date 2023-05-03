@@ -8,6 +8,7 @@ interface IConverter
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
     Branch ToBranch(Augmented.Branch branch);
+    Commit ToCommit(Augmented.Commit commit, int index = -1);
 }
 
 
@@ -31,7 +32,7 @@ class Converter : IConverter
         return new CommitDiff(d.Id, d.Author, d.Date, d.Message, ToFileDiffs(d.FileDiffs));
     }
 
-    public Commit ToCommit(Augmented.Commit c, int index) => new Commit(
+    public Commit ToCommit(Augmented.Commit c, int index = -1) => new Commit(
         Id: c.Id,
         Sid: c.Sid,
         Subject: c.Subject,
@@ -39,7 +40,7 @@ class Converter : IConverter
         Author: c.Author,
         AuthorTime: c.AuthorTime,
 
-        Index: index,
+        Index: index != -1 ? index : c.GitIndex,
         GitIndex: c.GitIndex,
         BranchName: c.BranchName,
         BranchCommonName: c.BranchCommonName,
