@@ -92,6 +92,8 @@ class RepoViewMenus : IRepoViewMenus
             Item("Update to Latest ...", "", () => cmds.UpdateRelease()),
             UI.MenuSeparator());
         }
+        var curcom = repo.GetCurrentCommit();
+        var isAhead = repo.GetCurrentCommit().IsAhead;
 
         return items.Add(
             Item("Toggle Details ...", "Enter", () => cmds.ToggleDetails()),

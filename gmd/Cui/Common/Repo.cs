@@ -89,7 +89,15 @@ class RepoImpl : IRepo
     public Server.Commit GetCurrentCommit() => GetCommit(GetCurrentBranch().TipId);
 
     public IReadOnlyList<Server.Branch> GetAllBranches() => server.GetAllBranches(Repo);
-    public Server.Commit GetCommit(string commitId) => server.GetCommit(Repo, commitId);
+    public Server.Commit GetCommit(string commitId)
+    {
+        if (Repo.CommitById.TryGetValue(commitId, out var commit))
+        {
+            return commit;
+        }
+
+        return server.GetCommit(Repo, commitId); ;
+    }
 
     public IReadOnlyList<Server.Branch> GetCommitBranches() =>
         server.GetCommitBranches(Repo, RowCommit.Id);
