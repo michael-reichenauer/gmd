@@ -446,7 +446,7 @@ class RepoViewMenus : IRepoViewMenus
         return groups.Select(g =>
             g.Count() == 1
                 ? Item(ToBranchMenuName(g.First(), cic, false), "", () => cmds.ShowBranch(g.First().Name, false))
-                : SubMenu($"   {g.Key}", "", ToShowBranchesItems(g, false, false)));
+                : SubMenu($"   {g.Key}/┅", "", ToShowBranchesItems(g, false, false)));
     }
 
     IEnumerable<MenuItem> ToShowBranchesItems(
