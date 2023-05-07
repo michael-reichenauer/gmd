@@ -49,6 +49,8 @@ interface IServer
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R> StashDropAsync(string name, string wd);
     Task<R<string>> GetChangeLogAsync();
+    Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
+    Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);

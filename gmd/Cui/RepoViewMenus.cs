@@ -117,12 +117,29 @@ class RepoViewMenus : IRepoViewMenus
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
             SubMenu("Delete Branch", "", GetDeleteItems()),
             SubMenu("Stash", "", GetStashMenuItems()),
+            SubMenu("Tag", "", GetTagItems()),
             SubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any()),
 
             UI.MenuSeparator(""),
             SubMenu("More", "", GetMoreItems()),
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
+
+    private IEnumerable<MenuItem> GetTagItems()
+    {
+        return EnumerableEx.From(
+            Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
+        // SubMenu("Remove Tag ...", "", () => GetDeleteTagItems(), () => GetDeleteTagItems().Any()),
+        );
+    }
+
+    // private IEnumerable<MenuItem> GetDeleteTagItems() {
+    //     return EnumerableEx.From(
+    //         Item("Delete Tag ...", "", () => cmds.DeleteTag()),
+    //         Item("Delete All Tags ...", "", () => cmds.DeleteAllTags()),
+    //     );
+    // }
+
 
     private IEnumerable<MenuItem> GetDiffItems()
     {

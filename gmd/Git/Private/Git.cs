@@ -98,6 +98,10 @@ internal class Git : IGit
     public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
     public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) =>
         diffService.GetStashDiffAsync(name, wd);
+    public Task<R> AddTagAsync(string name, string comitId, bool hasRemoteBranch, string wd) =>
+        tagService.AddTagAsync(name, comitId, hasRemoteBranch, wd);
+    public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
+        tagService.RemoveTagAsync(name, hasRemoteBranch, wd);
 
     public async Task<R<string>> Version()
     {

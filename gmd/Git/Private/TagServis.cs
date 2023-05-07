@@ -3,16 +3,20 @@ namespace gmd.Git.Private;
 interface ITagService
 {
     Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
+    Task<R> AddTagAsync(string name, string commitID, bool hasRemoteBranch, string wd);
+    Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
 }
 
 
 class TagService : ITagService
 {
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
+    readonly IRemoteService remoteService;
 
-    internal TagService(ICmd cmd)
+    internal TagService(ICmd cmd, IRemoteService remoteService)
     {
         this.cmd = cmd;
+        this.remoteService = remoteService;
     }
 
     public async Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd)
@@ -31,7 +35,25 @@ class TagService : ITagService
         return ParseTags(output);
     }
 
-    private R<IReadOnlyList<Tag>> ParseTags(string output)
+    public async Task<R> AddTagAsync(string name, string commitID, bool hasRemoteBranch, string wd)
+    {
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", $"tag {name} {commitID}", wd, true))) return e;
+
+        if (!hasRemoteBranch) return R.Ok;
+
+        return await remoteService.PushTagAsync(name, wd);
+    }
+
+    public async Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd)
+    {
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", $"tag -d {name}", wd, true))) return e;
+
+        if (!hasRemoteBranch) return R.Ok;
+
+        return await remoteService.DeleteRemoteTagAsync(name, wd);
+    }
+
+    R<IReadOnlyList<Tag>> ParseTags(string output)
     {
         List<Tag> tags = new List<Tag>();
         var lines = output.Split('\n');
