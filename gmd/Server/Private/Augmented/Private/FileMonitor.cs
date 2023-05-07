@@ -120,18 +120,18 @@ class FileMonitor : IFileMonitor
         System.Threading.Monitor.Enter(pauseLock);
         Log.Info("Pause file monitor ...");
 
-        return new Disposable(() => { System.Threading.Monitor.Exit(pauseLock); Log.Info("Resume file monitor ..."); });
+        return new Disposable(() =>
+        {
+            System.Threading.Monitor.Exit(pauseLock);
+            Log.Info("Resume file monitor");
+        });
     }
 
-    void PausIfNeeded()
-    {
-        System.Threading.Monitor.Enter(pauseLock);
-        System.Threading.Monitor.Exit(pauseLock);
-    }
 
     private void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        PausIfNeeded();
+        WaitIfPaused();
+
         if (path == GitHeadFile)
         {
             RepoChange(fullPath, path, changeType);
@@ -157,7 +157,8 @@ class FileMonitor : IFileMonitor
 
     private void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        PausIfNeeded();
+        WaitIfPaused();
+
         // Log.Debug($"'{fullPath}'");
 
         if (Path.GetExtension(fullPath) == ".lock" ||
@@ -182,6 +183,12 @@ class FileMonitor : IFileMonitor
         }
     }
 
+    void WaitIfPaused()
+    {
+        System.Threading.Monitor.Enter(pauseLock);
+        System.Threading.Monitor.Exit(pauseLock);
+    }
+
 
     private void FileChange(string fullPath)
     {
@@ -198,7 +205,6 @@ class FileMonitor : IFileMonitor
             }
         }
     }
-
 
 
     private IReadOnlyList<Glob> GetMatches(string workingFolder)
