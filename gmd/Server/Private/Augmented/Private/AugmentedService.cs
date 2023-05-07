@@ -233,6 +233,30 @@ class AugmentedService : IAugmentedService
     public Task<R> PushMetaDataAsync(string wd) =>
         metaDataService.PushMetaDataAsync(wd);
 
+
+    public async Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.AddTagAsync(name, commitId, wd))) return e;
+            if (!hasRemoteBranch) return R.Ok;
+            return await git.PushTagAsync(name, wd);
+        }
+    }
+
+
+    public async Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.RemoveTagAsync(name, wd))) return e;
+            if (!hasRemoteBranch) return R.Ok;
+            return await git.DeleteRemoteTagAsync(name, wd);
+        }
+    }
+
+
+
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {

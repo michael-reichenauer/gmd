@@ -292,10 +292,9 @@ class Server : IServer
     }
 
     public Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>
-        git.AddTagAsync(name, commitId, hasRemoteBranch, wd);
-
+        augmentedService.AddTagAsync(name, commitId, hasRemoteBranch, wd);
 
     public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
-        git.RemoveTagAsync(name, hasRemoteBranch, wd);
+        augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
 }
 

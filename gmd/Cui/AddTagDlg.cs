@@ -16,7 +16,8 @@ class AddTagDlg : IAddTagDlg
     public R<string> Show()
     {
         Label infoLabel = Components.Label(1, 0, "Tag Name:");
-        nameField = Components.TextField(1, 1, 40, "");
+        nameField = Components.TextField(1, 1, 25, "");
+        var indicator = Components.TextIndicator(nameField);
 
         bool isOk = false;
         Button okButton = Buttons.OK(true, () =>
@@ -30,9 +31,9 @@ class AddTagDlg : IAddTagDlg
             return true;
         });
 
-        var dialog = Components.Dialog("Add Tag", 44, 11, okButton, Buttons.Cancel());
+        var dialog = Components.Dialog("Add Tag", 29, 7, okButton, Buttons.Cancel());
         dialog.Closed += e => UI.HideCursor();
-        dialog.Add(infoLabel, nameField);
+        dialog.Add(infoLabel, indicator, nameField);
 
         nameField.SetFocus();
         UI.ShowCursor();
