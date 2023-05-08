@@ -222,7 +222,7 @@ class RepoViewMenus : IRepoViewMenus
 
         if (commit.IsBranchSetByUser)
         {
-            items = items.Append(Item("Undo Resolved Ambiguity", "", () => cmds.UnresolveAmbiguity(commit.Id)));
+            items = items.Append(Item("Undo Set Branch", "", () => cmds.UndoSetBranch(commit.Id)));
         }
 
         var branch = repo.Branch(commit.BranchName);
@@ -237,10 +237,14 @@ class RepoViewMenus : IRepoViewMenus
     {
         var items = Enumerable.Empty<MenuItem>();
         var commit = repo.RowCommit;
-        items = items.Append(Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync()));
+
+        if (commit.ChildIds.Count() > 1)
+        {
+            items = items.Append(Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync()));
+        }
         if (commit.IsBranchSetByUser)
         {
-            items = items.Append(Item("Undo Set Branch", "", () => cmds.UnresolveAmbiguity(commit.Id)));
+            items = items.Append(Item("Undo Set Branch", "", () => cmds.UndoSetBranch(commit.Id)));
         }
 
         return items;

@@ -29,7 +29,7 @@ interface IRepoCommands
     bool CanPull();
     void CreateBranchFromCommit();
     void ShowFileHistory();
-    void UnresolveAmbiguity(string commitId);
+    void UndoSetBranch(string commitId);
     void ResolveAmbiguity(Server.Branch branch, string displayName);
     bool CanPushCurrentBranch();
     void PushBranch(string name);
@@ -339,7 +339,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void UnresolveAmbiguity(string commitId) => Do(async () =>
+    public void UndoSetBranch(string commitId) => Do(async () =>
     {
         if (!Try(out var e, await server.UnresolveAmbiguityAsync(serverRepo, commitId)))
         {
