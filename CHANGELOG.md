@@ -2,6 +2,9 @@
 --------------------
 
 ## [Current]
+- Added support for add and remove tags
+
+## [v0.50.185.224] - 2023-05-03 03:34:04
 - Added support for hierarchical branch names i show branch
 
 ## [v0.50.184.216] - 2023-05-02 03:35:36

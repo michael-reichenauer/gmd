@@ -127,33 +127,39 @@ class AugmentedService : IAugmentedService
             commit = repo.CommitById[branch.TipId];
         }
 
-        if (!Try(out var e, await git.CreateBranchAsync(newBranchName, isCheckout, wd))) return e;
-
-        if (commit == null || branch == null)
+        using (fileMonitor.Pause())
         {
-            return R.Ok;
+            if (!Try(out var e, await git.CreateBranchAsync(newBranchName, isCheckout, wd))) return e;
+
+            if (commit == null || branch == null)
+            {
+                return R.Ok;
+            }
+
+            // Get the latest meta data
+            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
+
+            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
-
-        // Get the latest meta data
-        if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
-
-        metaData.SetBranched(commit.Sid, branch.DisplayName);
-        return await metaDataService.SetMetaDataAsync(wd, metaData);
     }
 
     public async Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd)
     {
         Log.Info($"Create branch {newBranchName} from {sha} ...");
-        if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd))) return e;
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd))) return e;
 
-        Commit commit = repo.CommitById[sha];
-        var branch = repo.BranchByName[commit.BranchName];
+            Commit commit = repo.CommitById[sha];
+            var branch = repo.BranchByName[commit.BranchName];
 
-        // Get the latest meta data
-        if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
+            // Get the latest meta data
+            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-        metaData.SetBranched(commit.Sid, branch.DisplayName);
-        return await metaDataService.SetMetaDataAsync(wd, metaData);
+            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            return await metaDataService.SetMetaDataAsync(wd, metaData);
+        }
     }
 
 
@@ -211,27 +217,56 @@ class AugmentedService : IAugmentedService
         var ambiguousTip = branch.AmbiguousTipId;
         Log.Info($"Resolve {ambiguousTip.Substring(0, 6)} of {branchName} to {setDisplayName} ...");
 
-        // Get the latest meta data
-        if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
+        using (fileMonitor.Pause())
+        {
+            // Get the latest meta data
+            if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-        metaData.SetCommitBranch(ambiguousTip.Substring(0, 6), setDisplayName);
-        return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            metaData.SetCommitBranch(ambiguousTip.Substring(0, 6), setDisplayName);
+            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+        }
     }
 
 
     public async Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId)
     {
-        // Get the latest meta data
-        if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
+        using (fileMonitor.Pause())
+        {
+            // Get the latest meta data
+            if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-        metaData.Remove(commitId.Substring(0, 6));
+            metaData.Remove(commitId.Substring(0, 6));
 
-        return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+        }
     }
 
 
     public Task<R> PushMetaDataAsync(string wd) =>
         metaDataService.PushMetaDataAsync(wd);
+
+
+    public async Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.AddTagAsync(name, commitId, wd))) return e;
+            if (!hasRemoteBranch) return R.Ok;
+            return await git.PushTagAsync(name, wd);
+        }
+    }
+
+
+    public async Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.RemoveTagAsync(name, wd))) return e;
+            if (!hasRemoteBranch) return R.Ok;
+            return await git.DeleteRemoteTagAsync(name, wd);
+        }
+    }
+
 
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)

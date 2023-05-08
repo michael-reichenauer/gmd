@@ -55,6 +55,8 @@ interface IRepoCommands
     void StashPop(string name);
     void StashDiff(string name);
     void StashDrop(string name);
+    void AddTag();
+    void DeleteTag(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -66,6 +68,7 @@ class RepoCommands : IRepoCommands
     readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
     readonly IDeleteBranchDlg deleteBranchDlg;
+    readonly IAddTagDlg addTagDlg;
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
@@ -91,6 +94,7 @@ class RepoCommands : IRepoCommands
         ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
         IDeleteBranchDlg deleteBranchDlg,
+        IAddTagDlg addTagDlg,
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
@@ -109,6 +113,7 @@ class RepoCommands : IRepoCommands
         this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
         this.deleteBranchDlg = deleteBranchDlg;
+        this.addTagDlg = addTagDlg;
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
         this.diffView = diffView;
@@ -808,5 +813,39 @@ class RepoCommands : IRepoCommands
 
         return true;
     }
+
+    public void AddTag() => Do(async () =>
+    {
+        var commit = repo.RowCommit;
+        var branch = repo.Branch(commit.BranchName);
+        var isPushable = branch.IsRemote || branch.RemoteName != "";
+
+        if (commit.IsUncommitted) return R.Ok;
+
+        if (!Try(out var tag, addTagDlg.Show())) return R.Ok;
+
+        if (!Try(out var e, await server.AddTagAsync(tag, commit.Id, isPushable, repoPath)))
+        {
+            return R.Error($"Failed to add tag {tag}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void DeleteTag(string name) => Do(async () =>
+    {
+        var commit = repo.RowCommit;
+        var branch = repo.Branch(commit.BranchName);
+        var isPushable = branch.IsRemote || branch.RemoteName != "";
+
+        if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, repoPath)))
+        {
+            return R.Error($"Failed to delete tag {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
 }
 

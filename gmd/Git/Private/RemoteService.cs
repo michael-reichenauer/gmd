@@ -11,6 +11,8 @@ interface IRemoteService
     Task<R> PushRefForceAsync(string name, string wd);
     Task<R> PullRefAsync(string name, string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
+    Task<R> PushTagAsync(string name, string wd);
+    Task<R> DeleteRemoteTagAsync(string name, string wd);
 }
 
 class RemoteService : IRemoteService
@@ -80,5 +82,15 @@ class RemoteService : IRemoteService
     {
         var args = $"clone {uri} {path}";
         return await cmd.RunAsync("git", args, wd);
+    }
+
+    public async Task<R> PushTagAsync(string name, string wd)
+    {
+        return await cmd.RunAsync("git", $"push --porcelain origin {name}", wd);
+    }
+
+    public async Task<R> DeleteRemoteTagAsync(string name, string wd)
+    {
+        return await cmd.RunAsync("git", $"push --porcelain origin --delete {name}", wd);
     }
 }
