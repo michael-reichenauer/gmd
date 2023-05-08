@@ -210,6 +210,19 @@ class AugmentedService : IAugmentedService
         return await CreateBranchFromCommitAsync(repo, branch.DisplayName, tip.Id, true, repo.Path);
     }
 
+    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName)
+    {
+        Log.Info($"Set {commitId.Substring(0, 6)} to {setDisplayName} ...");
+
+        using (fileMonitor.Pause())
+        {
+            // Get the latest meta data
+            if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
+
+            metaData.SetCommitBranch(commitId.Substring(0, 6), setDisplayName);
+            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+        }
+    }
 
     public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName)
     {

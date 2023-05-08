@@ -57,6 +57,7 @@ interface IRepoCommands
     void StashDrop(string name);
     void AddTag();
     void DeleteTag(string name);
+    void SetBranchManuallyAsync();
 }
 
 class RepoCommands : IRepoCommands
@@ -69,6 +70,7 @@ class RepoCommands : IRepoCommands
     readonly ICreateBranchDlg createBranchDlg;
     readonly IDeleteBranchDlg deleteBranchDlg;
     readonly IAddTagDlg addTagDlg;
+    readonly ISetBranchDlg setBranchDlg;
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
@@ -95,6 +97,7 @@ class RepoCommands : IRepoCommands
         ICreateBranchDlg createBranchDlg,
         IDeleteBranchDlg deleteBranchDlg,
         IAddTagDlg addTagDlg,
+        ISetBranchDlg setBranchDlg,
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
@@ -114,6 +117,7 @@ class RepoCommands : IRepoCommands
         this.createBranchDlg = createBranchDlg;
         this.deleteBranchDlg = deleteBranchDlg;
         this.addTagDlg = addTagDlg;
+        this.setBranchDlg = setBranchDlg;
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
         this.diffView = diffView;
@@ -842,6 +846,21 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, repoPath)))
         {
             return R.Error($"Failed to delete tag {name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void SetBranchManuallyAsync() => Do(async () =>
+    {
+        var commit = repo.RowCommit;
+
+        if (!Try(out var name, setBranchDlg.Show())) return R.Ok;
+
+        if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
+        {
+            return R.Error($"Failed to set branch name manually", e);
         }
 
         Refresh();
