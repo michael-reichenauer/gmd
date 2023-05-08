@@ -125,23 +125,22 @@ class RepoViewMenus : IRepoViewMenus
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
-    private IEnumerable<MenuItem> GetTagItems()
+    IEnumerable<MenuItem> GetTagItems()
     {
         return EnumerableEx.From(
-            Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
-        // SubMenu("Remove Tag ...", "", () => GetDeleteTagItems(), () => GetDeleteTagItems().Any()),
+            Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted),
+            SubMenu("Remove Tag", "", GetDeleteTagItems(), () => GetDeleteTagItems().Any())
         );
     }
 
-    // private IEnumerable<MenuItem> GetDeleteTagItems() {
-    //     return EnumerableEx.From(
-    //         Item("Delete Tag ...", "", () => cmds.DeleteTag()),
-    //         Item("Delete All Tags ...", "", () => cmds.DeleteAllTags()),
-    //     );
-    // }
+    IEnumerable<MenuItem> GetDeleteTagItems()
+    {
+        var commit = repo.RowCommit;
+        return commit.Tags.Select(t => Item(t.Name, "", () => cmds.DeleteTag(t.Name)));
+    }
 
 
-    private IEnumerable<MenuItem> GetDiffItems()
+    IEnumerable<MenuItem> GetDiffItems()
     {
         return EnumerableEx.From(
             Item("Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff()),

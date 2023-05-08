@@ -56,6 +56,7 @@ interface IRepoCommands
     void StashDiff(string name);
     void StashDrop(string name);
     void AddTag();
+    void DeleteTag(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -826,6 +827,21 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.AddTagAsync(tag, commit.Id, isPushable, repoPath)))
         {
             return R.Error($"Failed to add tag {tag}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void DeleteTag(string name) => Do(async () =>
+    {
+        var commit = repo.RowCommit;
+        var branch = repo.Branch(commit.BranchName);
+        var isPushable = branch.IsRemote || branch.RemoteName != "";
+
+        if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, repoPath)))
+        {
+            return R.Error($"Failed to delete tag {name}", e);
         }
 
         Refresh();

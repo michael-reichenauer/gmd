@@ -268,7 +268,6 @@ class AugmentedService : IAugmentedService
     }
 
 
-
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
