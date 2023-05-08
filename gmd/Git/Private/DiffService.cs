@@ -20,7 +20,7 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
-        var args = "show --date=iso --first-parent --root --patch --no-color" +
+        var args = "show -b --date=iso --first-parent --root --patch --no-color" +
             $" --find-renames --unified=6 {commitId}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
@@ -35,7 +35,7 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd)
     {
-        var args = "stash show -u --date=iso --first-parent --root --patch --no-color" +
+        var args = "stash show -b -u --date=iso --first-parent --root --patch --no-color" +
             $" --find-renames --unified=6 {name}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
@@ -54,7 +54,7 @@ class DiffService : IDiffService
             needReset = true;
         }
 
-        var args = "diff --date=iso --first-parent --root --patch --no-color" +
+        var args = "diff -b --date=iso --first-parent --root --patch --no-color" +
             " --find-renames --unified=6 HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
@@ -78,7 +78,7 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
     {
-        var args = $"log --date=iso --patch --follow -- \"{path}\"";
+        var args = $"log -b --date=iso --patch --follow -- \"{path}\"";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         var commitDiffs = ParseCommitDiffs(output, path, false);
@@ -92,7 +92,7 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd)
     {
-        var args = $"diff --find-renames --unified=6 --full-index {sha1} {sha2}";
+        var args = $"diff -b --find-renames --unified=6 --full-index {sha1} {sha2}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         return ParseDiff(output, "");
