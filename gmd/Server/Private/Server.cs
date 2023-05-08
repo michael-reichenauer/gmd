@@ -290,5 +290,11 @@ class Server : IServer
 
         return totalText.ToString();
     }
+
+    public Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>
+        augmentedService.AddTagAsync(name, commitId, hasRemoteBranch, wd);
+
+    public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
+        augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
 }
 

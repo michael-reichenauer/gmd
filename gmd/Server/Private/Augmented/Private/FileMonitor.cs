@@ -9,6 +9,7 @@ interface IFileMonitor
     event Action<ChangeEvent> RepoChanged;
 
     void Monitor(string workingFolder);
+    IDisposable Pause();
 }
 
 public delegate bool Ignorer(string path);
@@ -35,6 +36,7 @@ class FileMonitor : IFileMonitor
     IReadOnlyList<Glob> matchers = new List<Glob>();
 
     readonly object syncRoot = new object();
+    readonly object pauseLock = new object();
 
     private readonly Timer fileChangedTimer;
     private bool isFileChanged = false;
@@ -113,8 +115,23 @@ class FileMonitor : IFileMonitor
     }
 
 
+    public IDisposable Pause()
+    {
+        System.Threading.Monitor.Enter(pauseLock);
+        Log.Info("Pause file monitor ...");
+
+        return new Disposable(() =>
+        {
+            System.Threading.Monitor.Exit(pauseLock);
+            Log.Info("Resume file monitor");
+        });
+    }
+
+
     private void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
+        WaitIfPaused();
+
         if (path == GitHeadFile)
         {
             RepoChange(fullPath, path, changeType);
@@ -138,25 +155,10 @@ class FileMonitor : IFileMonitor
         }
     }
 
-    private void FileChange(string fullPath)
-    {
-        // Log.Info($"Status change '{fullPath}'");
-        lock (syncRoot)
-        {
-            isFileChanged = true;
-            statusChangeTime = DateTime.UtcNow;
-
-            if (!fileChangedTimer.Enabled)
-            {
-                Log.Info($"File changing for '{fullPath}' ...");
-                fileChangedTimer.Enabled = true;
-            }
-        }
-    }
-
-
     private void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
+        WaitIfPaused();
+
         // Log.Debug($"'{fullPath}'");
 
         if (Path.GetExtension(fullPath) == ".lock" ||
@@ -177,6 +179,29 @@ class FileMonitor : IFileMonitor
             {
                 Log.Info("Repo changing ...");
                 repoChangedTimer.Enabled = true;
+            }
+        }
+    }
+
+    void WaitIfPaused()
+    {
+        System.Threading.Monitor.Enter(pauseLock);
+        System.Threading.Monitor.Exit(pauseLock);
+    }
+
+
+    private void FileChange(string fullPath)
+    {
+        // Log.Info($"Status change '{fullPath}'");
+        lock (syncRoot)
+        {
+            isFileChanged = true;
+            statusChangeTime = DateTime.UtcNow;
+
+            if (!fileChangedTimer.Enabled)
+            {
+                Log.Info($"File changing for '{fullPath}' ...");
+                fileChangedTimer.Enabled = true;
             }
         }
     }

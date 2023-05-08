@@ -117,6 +117,7 @@ class RepoViewMenus : IRepoViewMenus
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
             SubMenu("Delete Branch", "", GetDeleteItems()),
             SubMenu("Stash", "", GetStashMenuItems()),
+            SubMenu("Tag", "", GetTagItems()),
             SubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any()),
 
             UI.MenuSeparator(""),
@@ -124,7 +125,22 @@ class RepoViewMenus : IRepoViewMenus
             Item("Quit", "Esc", () => UI.Shutdown()));
     }
 
-    private IEnumerable<MenuItem> GetDiffItems()
+    IEnumerable<MenuItem> GetTagItems()
+    {
+        return EnumerableEx.From(
+            Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted),
+            SubMenu("Remove Tag", "", GetDeleteTagItems(), () => GetDeleteTagItems().Any())
+        );
+    }
+
+    IEnumerable<MenuItem> GetDeleteTagItems()
+    {
+        var commit = repo.RowCommit;
+        return commit.Tags.Select(t => Item(t.Name, "", () => cmds.DeleteTag(t.Name)));
+    }
+
+
+    IEnumerable<MenuItem> GetDiffItems()
     {
         return EnumerableEx.From(
             Item("Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff()),
