@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using gmd.Common;
 
 namespace gmd.Server.Private;
 
@@ -11,11 +12,13 @@ interface IViewRepoCreater
 
 class ViewRepoCreater : IViewRepoCreater
 {
-    private readonly IConverter converter;
+    readonly IConverter converter;
+    readonly IRepoState repoState;
 
-    internal ViewRepoCreater(IConverter converter)
+    internal ViewRepoCreater(IConverter converter, IRepoState repoState)
     {
         this.converter = converter;
+        this.repoState = repoState;
     }
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches)
@@ -397,6 +400,19 @@ class ViewRepoCreater : IViewRepoCreater
 
     int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
     {
+        var orders = repoState.Get(repo.Path).BranchOrders;
+        if (orders.TryGetValue(b1.CommonName, out var other) && other == b2.CommonName)
+        {
+            return -1;
+        }
+        if (orders.TryGetValue(b2.CommonName, out other) && other == b1.CommonName)
+        {
+            return 1;
+        }
+
+        // if (b1.DisplayName == "dev" && b2.DisplayName == "branches/deletebranch") return 1;
+        // if (b1.DisplayName == "branches/deletebranch" && b2.DisplayName == "dev") return -1;
+
         if (b1 == b2) return 0;
         if (b1.Name == b2.ParentBranchName) return -1;   // b1 is parent of b2
         if (b2.Name == b1.ParentBranchName) return 1;   // b2 is parent of b1

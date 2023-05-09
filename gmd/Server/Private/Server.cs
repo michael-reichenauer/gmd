@@ -1,4 +1,6 @@
 using System.Text;
+using gmd.Common;
+using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -7,22 +9,24 @@ namespace gmd.Server.Private;
 [SingleInstance]
 class Server : IServer
 {
-    private readonly IGit git;
-    private readonly IAugmentedService augmentedService;
-    private readonly IConverter converter;
-    private readonly IViewRepoCreater viewRepoCreater;
+    readonly IGit git;
+    readonly IAugmentedService augmentedService;
+    readonly IConverter converter;
+    readonly IViewRepoCreater viewRepoCreater;
+    readonly IRepoState repoState;
 
     public Server(
         IGit git,
         IAugmentedService augmentedService,
         IConverter converter,
-        IViewRepoCreater viewRepoCreater)
+        IViewRepoCreater viewRepoCreater,
+        IRepoState repoState)
     {
         this.git = git;
         this.augmentedService = augmentedService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
-
+        this.repoState = repoState;
         augmentedService.RepoChange += e => RepoChange?.Invoke(e);
         augmentedService.StatusChange += e => StatusChange?.Invoke(e);
     }
@@ -299,5 +303,36 @@ class Server : IServer
 
     public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
         augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
+
+    public R MoveBranch(string name, int delta, Repo repo)
+    {
+        for (int i = 0; i < repo.Branches.Count; i++)
+        {
+            var branch = repo.Branches[i];
+            if (branch.Name == name)
+            {
+                if (delta < 0 && i > 0)
+                {
+                    // Get branch before the one to move (skip possible remote branch)
+                    var branch2 = repo.Branches[i];
+                    if (i > 1 && branch2.Name == branch.RemoteName) branch2 = repo.Branches[i - 1];
+
+                    repoState.Set(repo.Path, s => s.BranchOrders[branch.CommonName] = branch2.CommonName);
+                    return R.Ok;
+                }
+                if (delta > 0 && i < repo.Branches.Count - 1)
+                {
+                    // Get branch next to the one to move (skip possible local branch)
+                    var branch2 = repo.Branches[i + 1];
+                    if (i < repo.Branches.Count - 2 && branch2.Name == branch.LocalName) branch2 = repo.Branches[i + 2];
+
+                    repoState.Set(repo.Path, s => s.BranchOrders[branch2.CommonName] = branch.CommonName);
+                    return R.Ok;
+                }
+            }
+        }
+
+        return R.Error("Failed to move branch");
+    }
 }
 

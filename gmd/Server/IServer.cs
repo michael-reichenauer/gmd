@@ -1,3 +1,5 @@
+using gmd.Cui.Common;
+
 namespace gmd.Server;
 
 interface IServer
@@ -52,6 +54,7 @@ interface IServer
     Task<R<string>> GetChangeLogAsync();
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
     Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
+    R MoveBranch(string name, int delta, Repo repo);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);

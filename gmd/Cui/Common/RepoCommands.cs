@@ -58,6 +58,7 @@ interface IRepoCommands
     void AddTag();
     void DeleteTag(string name);
     void SetBranchManuallyAsync();
+    void MoveBranch(string name, int delta);
 }
 
 class RepoCommands : IRepoCommands
@@ -861,6 +862,18 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
         {
             return R.Error($"Failed to set branch name manually", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void MoveBranch(string name, int delta) => Do(async () =>
+    {
+        await Task.Yield();
+        if (!Try(out var e, server.MoveBranch(name, delta, repo.Repo)))
+        {
+            return R.Error($"Failed to move branch {name}", e);
         }
 
         Refresh();

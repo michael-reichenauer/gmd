@@ -4,7 +4,7 @@ public class RepoState
 {
     public List<string> Branches { get; set; } = new List<string>();
     public Dictionary<string, int> BranchColors { get; set; } = new Dictionary<string, int>();
-
+    public Dictionary<string, string> BranchOrders { get; set; } = new Dictionary<string, string>();
 }
 
 interface IRepoState
