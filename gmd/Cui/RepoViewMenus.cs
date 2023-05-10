@@ -161,7 +161,7 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
             SubMenu("Set Branch", "", GetSetBranchItems(), () => GetSetBranchItems().Any()),
-            SubMenu("Move Branch", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any()),
+            SubMenu($"Move {repo.RowBranch.DisplayName}", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
             Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
             Item("About ...", "", () => cmds.ShowAbout())
@@ -171,17 +171,16 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetMoveBranchItems()
     {
         var items = Enumerable.Empty<MenuItem>();
-        var commit = repo.RowCommit;
-        var branch = repo.Branch(commit.BranchName);
+        var branch = repo.RowBranch;
         var index = repo.Branches.ToList().IndexOf(branch);
 
         if (index > (branch.RemoteName != "" ? 1 : 0))
         {
-            items = items.Append(Item($"Move {branch.DisplayName} left", "", () => cmds.MoveBranch(branch.Name, -1)));
+            items = items.Append(Item($"Move left", "", () => cmds.MoveBranch(branch.Name, -1)));
         }
         if (index < repo.Branches.Count - (branch.LocalName != "" ? 2 : 1))
         {
-            items = items.Append(Item($"Move  {branch.DisplayName} Right", "", () => cmds.MoveBranch(branch.Name, +1)));
+            items = items.Append(Item($"Move Right", "", () => cmds.MoveBranch(branch.Name, +1)));
         }
         return items;
     }

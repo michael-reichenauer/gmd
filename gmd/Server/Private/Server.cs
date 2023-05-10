@@ -314,8 +314,8 @@ class Server : IServer
                 if (delta < 0 && i > 0)
                 {
                     // Get branch before the one to move (skip possible remote branch)
-                    var branch2 = repo.Branches[i];
-                    if (i > 1 && branch2.Name == branch.RemoteName) branch2 = repo.Branches[i - 1];
+                    var branch2 = repo.Branches[i - 1];
+                    if (i > 1 && branch2.Name == branch.RemoteName) branch2 = repo.Branches[i - 2];
 
                     repoState.Set(repo.Path, s => s.BranchOrders[branch.CommonName] = branch2.CommonName);
                     return R.Ok;

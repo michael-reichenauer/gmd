@@ -24,6 +24,7 @@ interface IRepo
     int ContentWidth { get; }
     Point CurrentPoint { get; }
     Server.Commit RowCommit { get; }
+    Server.Branch RowBranch { get; }
     Server.Branch? CurrentBranch { get; }
 
     IReadOnlyList<Server.Branch> GetAllBranches();
@@ -68,6 +69,7 @@ class RepoImpl : IRepo
     public Server.Commit Commit(string commitId) => serverRepo.CommitById[commitId];
 
     public Server.Commit RowCommit => Commits[CurrentRow];
+    public Server.Branch RowBranch => Branch(RowCommit.BranchName);
     public Server.Branch? CurrentBranch => Branches.FirstOrDefault(b => b.IsCurrent);
     public Server.Branch AllBranchByName(string name) => server.AllBanchByName(Repo, name);
 
