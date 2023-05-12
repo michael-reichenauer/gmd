@@ -51,8 +51,8 @@ class RepoWriter : IRepoWriter
             WriteAheadBehindMarker(text, c);
             WriteSubjectColumn(text, cw, c, crb, branchTips, i == currentIndex);
             WriteSid(text, cw, c);
-            WriteAuthor(text, cw, c);
-            WriteTime(text, cw, c);
+            WriteAuthor(text, cw, c, i == currentIndex);
+            WriteTime(text, cw, c, i == currentIndex);
 
             rows.Add(text);
         }
@@ -224,14 +224,28 @@ class RepoWriter : IRepoWriter
         text.Dark(Txt(" " + c.Sid, cw.Sid));
     }
 
-    void WriteAuthor(Text text, Columns cw, Commit c)
+    void WriteAuthor(Text text, Columns cw, Commit c, bool isCurrent)
     {
-        text.Dark(Txt(" " + c.Author, cw.Author));
+        var txt = Txt(" " + c.Author, cw.Author);
+        if (isCurrent)
+        {
+            text.WhiteSelected(txt);
+            return;
+        }
+
+        text.Dark(txt);
     }
 
-    void WriteTime(Text text, Columns cw, Commit c)
+    void WriteTime(Text text, Columns cw, Commit c, bool isCurrent)
     {
-        text.Dark(Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
+        var txt = Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time);
+        if (isCurrent)
+        {
+            text.WhiteSelected(txt);
+            return;
+        }
+
+        text.Dark(txt);
     }
 
     string Txt(string text, int width)
