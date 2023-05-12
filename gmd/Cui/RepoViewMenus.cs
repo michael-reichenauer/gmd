@@ -160,11 +160,13 @@ class RepoViewMenus : IRepoViewMenus
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
+            SubMenu("Set Branch", "", GetSetBranchItems(), () => GetSetBranchItems().Any()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
             Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
             Item("About ...", "", () => cmds.ShowAbout())
         );
     }
+
 
     private IEnumerable<MenuItem> GetStashMenuItems()
     {
@@ -220,7 +222,7 @@ class RepoViewMenus : IRepoViewMenus
 
         if (commit.IsBranchSetByUser)
         {
-            items = items.Append(Item("Undo Resolved Ambiguity", "", () => cmds.UnresolveAmbiguity(commit.Id)));
+            items = items.Append(Item("Undo Set Branch", "", () => cmds.UndoSetBranch(commit.Id)));
         }
 
         var branch = repo.Branch(commit.BranchName);
@@ -229,6 +231,25 @@ class RepoViewMenus : IRepoViewMenus
                 .DistinctBy(b => b.CommonName)
                 .Select(b => Item(ToBranchMenuName(b), "", () => cmds.ResolveAmbiguity(branch, b.DisplayName))));
     }
+
+
+    IEnumerable<MenuItem> GetSetBranchItems()
+    {
+        var items = Enumerable.Empty<MenuItem>();
+        var commit = repo.RowCommit;
+
+        if (commit.ChildIds.Count() > 1)
+        {
+            items = items.Append(Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync()));
+        }
+        if (commit.IsBranchSetByUser)
+        {
+            items = items.Append(Item("Undo Set Branch", "", () => cmds.UndoSetBranch(commit.Id)));
+        }
+
+        return items;
+    }
+
 
     MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
         new MenuBarItem(title, key == "" ? "" : key + " ", null, canExecute) { Children = children.ToArray() };

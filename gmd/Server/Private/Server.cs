@@ -221,6 +221,9 @@ class Server : IServer
     public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName) =>
         augmentedService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setDisplayName);
 
+    public Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName) =>
+        augmentedService.SetBranchManuallyAsync(repo.AugmentedRepo, commitId, setDisplayName);
+
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
         augmentedService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);
 

@@ -2,6 +2,10 @@
 --------------------
 
 ## [Current]
+- Ignoring white space in diffs
+- Added support for manualy set/determine branch of a commit
+
+## [v0.50.190.252] - 2023-05-08 04:10:59
 - Added support for add and remove tags
 
 ## [v0.50.185.224] - 2023-05-03 03:34:04
