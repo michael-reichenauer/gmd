@@ -10,6 +10,7 @@ class Text
     record Fragment(string Text, Color Color);
     readonly List<Fragment> fragments = new List<Fragment>();
     internal int Length { get; private set; } = 0;
+    internal int FragmentCount => fragments.Count;
 
     internal static Text None => new Text();
     internal static Text New => new Text();
@@ -33,10 +34,25 @@ class Text
     internal Text WhiteSelected(string text) => Color(TextColor.WhiteSelected, text);
     internal Text YellowSelected(string text) => Color(TextColor.YellowSelected, text);
 
+    internal Text Color(Color color, string text)
+    {
+        if (fragments.Count == 0 || fragments[^1].Color != color)
+        {
+            fragments.Add(new Fragment(text, color));
+        }
+        else
+        {
+            fragments[^1] = fragments[^1] with { Text = fragments[^1].Text + text };
+        }
+
+        Length += text.Length;
+        return this;
+    }
+
+
     internal Text Add(Text text)
     {
-        fragments.AddRange(text.fragments);
-        Length += text.Length;
+        text.fragments.ForEach(f => Color(f.Color, f.Text));
         return this;
     }
 
@@ -46,17 +62,11 @@ class Text
         int x = 0;
         foreach (var fragment in fragments)
         {
-            if (x >= length)
-            {
-                // Reached beyond last text to show
-                break;
-            }
-
             string text = fragment.Text;
             int end = x + text.Length;
             if (end < startIndex)
             {
-                // Text left of rowX 
+                // Text left of rowX s
                 x += text.Length;
                 continue;
             }
@@ -96,13 +106,6 @@ class Text
         }
 
         return Text.New.Color(fragments[0].Color, new string(fragments[0].Text[0], width));
-    }
-
-    internal Text Color(Color color, string text)
-    {
-        fragments.Add(new Fragment(text, color));
-        Length += text.Length;
-        return this;
     }
 
 
