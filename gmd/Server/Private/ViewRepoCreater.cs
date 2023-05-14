@@ -293,10 +293,35 @@ class ViewRepoCreater : IViewRepoCreater
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
-        // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
-        Sorter.Sort(branches, (b1, b2) => CompareBranches(repo, b1, b2));
-        return branches;
+        var sorted = SortBranches(repo, branches);
+        return sorted;
     }
+
+    List<Augmented.Branch> SortBranches(Augmented.Repo repo, List<Augmented.Branch> branches)
+    {
+        var sorted = branches.Where(b => b.RemoteName == "" && b.PullMergeBranchName == "").ToList();
+
+        var branchOrders = repoState.Get(repo.Path).BranchOrders;
+        // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
+        Sorter.Sort(sorted, (b1, b2) => CompareBranches(repo, b1, b2, branchOrders));
+
+        // Reinsert the pullmerge branches just after its parent branch
+        branches.Where(b => b.PullMergeBranchName != "").ForEach(b =>
+        {
+            var index = sorted.FindIndex(bb => bb.Name == b.PullMergeBranchName);
+            sorted.Insert(index + 1, b);
+        });
+
+        // Reinsert the local branches just after its remote branch
+        branches.Where(b => b.RemoteName != "").ForEach(b =>
+        {
+            var index = sorted.FindIndex(bb => bb.Name == b.RemoteName);
+            sorted.Insert(index + 1, b);
+        });
+
+        return sorted;
+    }
+
 
     bool TryGetUncommittedCommit(
       Augmented.Repo repo,
@@ -398,20 +423,20 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
 
-    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2)
+    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2,
+        Dictionary<string, string> branchOrders)
     {
-        var orders = repoState.Get(repo.Path).BranchOrders;
-        if (orders.TryGetValue(b1.CommonName, out var other) && other == b2.CommonName)
-        {
-            return -1;
-        }
-        if (orders.TryGetValue(b2.CommonName, out other) && other == b1.CommonName)
-        {
-            return 1;
-        }
+        // if (branchOrders.TryGetValue(b1.CommonName, out var other) && other == b2.CommonName)
+        // {
+        //     return -1;
+        // }
+        // if (branchOrders.TryGetValue(b2.CommonName, out other) && other == b1.CommonName)
+        // {
+        //     return 1;
+        // }
 
-        // if (b1.DisplayName == "dev" && b2.DisplayName == "branches/deletebranch") return 1;
-        // if (b1.DisplayName == "branches/deletebranch" && b2.DisplayName == "dev") return -1;
+        if (b1.DisplayName == "dev" && b2.DisplayName == "branches/deletebranch") return 1;
+        if (b1.DisplayName == "branches/deletebranch" && b2.DisplayName == "dev") return -1;
 
         if (b1 == b2) return 0;
         if (b1.Name == b2.ParentBranchName) return -1;   // b1 is parent of b2
@@ -422,7 +447,6 @@ class ViewRepoCreater : IViewRepoCreater
         while (current != null)
         {
             if (b1 == current) return -1; // Found a b1 in the hiarchy above b2 
-            if (b1.LocalName == current.Name) return -1; // Found a b1 local branch in the hiarchy above b2
             current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
         }
 
@@ -431,7 +455,6 @@ class ViewRepoCreater : IViewRepoCreater
         while (current != null)
         {
             if (b2 == current) return 1;
-            if (b2.LocalName == current.Name) return 1;
             current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
         }
 
