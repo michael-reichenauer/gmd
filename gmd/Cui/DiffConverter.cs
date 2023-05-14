@@ -290,10 +290,17 @@ class DiffService : IDiffConverter
         // Highlight characters that are different betweedn left and right
         var leftText = Text.New.Black(new string(' ', lL.text.Length - leftString.Length));
         var rightText = Text.New.Black(new string(' ', rL.text.Length - rightString.Length));
+        leftString = leftString.TrimEnd();
+        rightString = rightString.TrimEnd();
 
         var isDiff = false;
         int diffCount = 0;
         const int maxDiffCount = 4;
+
+        if (leftString.Length < 4 || rightString.Length < 4)
+        {   // Small lines, show as new lines to avoid to many diffs in a line
+            diffCount = maxDiffCount;
+        }
 
         for (int j = 0; j < Math.Max(leftString.Length, rightString.Length) && diffCount < maxDiffCount; j++)
         {
