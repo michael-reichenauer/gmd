@@ -261,7 +261,7 @@ class DiffService : IDiffConverter
             for (int i = rightBlock.Lines.Count; i < leftBlock.Lines.Count; i++)
             {
                 var lL = leftBlock.Lines[i];
-                Text lT = Text.New.Dark($"{lL.lineNbr,4} ").Color(lL.color, lL.text);
+                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Red("│").Color(lL.color, lL.text);
                 rows.Add(lT, NoLine);
             }
         }
@@ -272,7 +272,7 @@ class DiffService : IDiffConverter
             for (int i = leftBlock.Lines.Count; i < rightBlock.Lines.Count; i++)
             {
                 var rL = rightBlock.Lines[i];
-                Text rT = Text.New.Dark($"{rL.lineNbr,4} ").Color(rL.color, rL.text);
+                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Green("│").Color(rL.color, rL.text);
                 rows.Add(NoLine, rT);
             }
         }
@@ -304,17 +304,21 @@ class DiffService : IDiffConverter
 
         for (int j = 0; j < Math.Max(leftString.Length, rightString.Length) && diffCount < maxDiffCount; j++)
         {
-            var leftChar = j < leftString.Length ? leftString[j].ToString() : " ";
-            var rightChar = j < rightString.Length ? rightString[j].ToString() : " ";
+            var leftChar = j < leftString.Length ? leftString[j].ToString() : "";
+            var rightChar = j < rightString.Length ? rightString[j].ToString() : "";
 
             if (leftChar == rightChar)
             {
+                leftChar = leftChar == "" ? " " : leftChar;
+                rightChar = rightChar == "" ? " " : rightChar;
                 leftText.White(leftChar);
                 rightText.White(rightChar);
                 isDiff = false;
             }
             else
             {
+                leftChar = leftChar == "" ? " " : leftChar;
+                rightChar = rightChar == "" ? " " : rightChar;
                 leftText.Color(lL.color, leftChar);
                 rightText.Color(rL.color, rightChar);
 
@@ -323,17 +327,27 @@ class DiffService : IDiffConverter
             }
         }
 
-        if (diffCount < maxDiffCount)
-        {   // if there are a few diffs, show them
+
+        if (lL.color == TextColor.White && rL.color == TextColor.White)
+        {
             Text lT = Text.New.Dark($"{lL.lineNbr,4} ").Add(leftText);
             Text rT = Text.New.Dark($"{rL.lineNbr,4} ").Add(rightText);
             return (lT, rT);
         }
         else
-        {   // To many diffs, show as new lines
-            Text lT2 = Text.New.Dark($"{lL.lineNbr,4} ").Color(lL.color, lL.text);
-            Text rT2 = Text.New.Dark($"{rL.lineNbr,4} ").Color(rL.color, rL.text);
-            return (lT2, rT2);
+        {
+            if (diffCount < maxDiffCount)
+            {   // if there are a few diffs, show them
+                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan("│").Add(leftText);
+                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan("│").Add(rightText);
+                return (lT, rT);
+            }
+            else
+            {   // To many diffs, show as new lines
+                Text lT2 = Text.New.Dark($"{lL.lineNbr,4}").Cyan("│").Color(lL.color, lL.text);
+                Text rT2 = Text.New.Dark($"{rL.lineNbr,4}").Cyan("│").Color(rL.color, rL.text);
+                return (lT2, rT2);
+            }
         }
     }
 
