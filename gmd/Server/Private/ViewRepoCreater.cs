@@ -421,7 +421,8 @@ class ViewRepoCreater : IViewRepoCreater
         var current = b2.ParentBranchName != "" ? repo.BranchByName[b2.ParentBranchName] : null;
         while (current != null)
         {
-            if (b1 == current) return -1;
+            if (b1 == current) return -1; // Found a b1 in the hiarchy above b2 
+            if (b1.LocalName == current.Name) return -1; // Found a b1 local branch in the hiarchy above b2
             current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
         }
 
@@ -430,6 +431,7 @@ class ViewRepoCreater : IViewRepoCreater
         while (current != null)
         {
             if (b2 == current) return 1;
+            if (b2.LocalName == current.Name) return 1;
             current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
         }
 

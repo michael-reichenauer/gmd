@@ -1,6 +1,7 @@
 using gmd.Cui.Common;
 using gmd.Server;
-
+using Terminal.Gui;
+using Attribute = Terminal.Gui.Attribute;
 
 namespace gmd.Cui;
 
@@ -58,6 +59,16 @@ enum DiffRowMode
     Line,
 }
 
+record Line(int lineNbr, string text, Attribute color);
+
+class Block
+{
+    public List<Line> Lines { get; } = new List<Line>();
+    public void Add(int lineNbr, string text, Attribute color)
+    {
+        Lines.Add(new Line(lineNbr, text, color));
+    }
+}
 
 class DiffService : IDiffConverter
 {
@@ -147,8 +158,9 @@ class DiffService : IDiffConverter
         rows.Add(Text.None);
         rows.AddLine(Text.New.Dark("─"));
 
-        var leftBlock = new List<Text>();
-        var rightBlock = new List<Text>();
+        var leftBlock = new Block();
+        var rightBlock = new Block();
+
         var diffMode = DiffMode.DiffConflictEnd;
         int leftNr = sectionDiff.LeftLine;
         int rightNr = sectionDiff.RightLine;
@@ -176,15 +188,15 @@ class DiffService : IDiffConverter
                 case DiffMode.DiffRemoved:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(Text.New.Dark($"{leftNr,4}").Yellow($" {dl.Line}"));
+                        leftBlock.Add(leftNr, dl.Line, TextColor.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(Text.New.Dark($"{leftNr,4}").Yellow($" {dl.Line}"));
+                        rightBlock.Add(leftNr, dl.Line, TextColor.Yellow);
                     }
                     else
                     {
-                        leftBlock.Add(Text.New.Dark($"{leftNr,4}").Red($" {dl.Line}"));
+                        leftBlock.Add(leftNr, dl.Line, TextColor.Red);
                     }
 
                     leftNr++;
@@ -193,15 +205,15 @@ class DiffService : IDiffConverter
                 case DiffMode.DiffAdded:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        leftBlock.Add(rightNr, dl.Line, TextColor.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        rightBlock.Add(rightNr, dl.Line, TextColor.Yellow);
                     }
                     else
                     {
-                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").Green($" {dl.Line}"));
+                        rightBlock.Add(rightNr, dl.Line, TextColor.Green);
                     }
 
                     rightNr++;
@@ -210,17 +222,17 @@ class DiffService : IDiffConverter
                 case DiffMode.DiffSame:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        leftBlock.Add(rightNr, dl.Line, TextColor.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").Yellow($" {dl.Line}"));
+                        rightBlock.Add(rightNr, dl.Line, TextColor.Yellow);
                     }
                     else
                     {
                         AddBlocks(ref leftBlock, ref rightBlock, rows);
-                        leftBlock.Add(Text.New.Dark($"{leftNr,4}").White($" {dl.Line}"));
-                        rightBlock.Add(Text.New.Dark($"{rightNr,4}").White($" {dl.Line}"));
+                        leftBlock.Add(leftNr, dl.Line, TextColor.White);
+                        rightBlock.Add(rightNr, dl.Line, TextColor.White);
                     }
 
                     leftNr++;
@@ -233,36 +245,112 @@ class DiffService : IDiffConverter
         rows.AddLine(Text.New.Dark("─"));
     }
 
-    private void AddBlocks(ref List<Text> leftBlock, ref List<Text> rightBlock, DiffRows rows)
+    void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows)
     {
         // Add block parts where both block have lines
-        var minCount = Math.Min(leftBlock.Count, rightBlock.Count);
+        var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
         {
-            rows.Add(leftBlock[i], rightBlock[i]);
+            var (lT, rT) = GetDiffSides(leftBlock.Lines[i], rightBlock.Lines[i]);
+            rows.Add(lT, rT);
         }
 
         // Add left lines where no corresponding on right
-        if (leftBlock.Count > rightBlock.Count)
+        if (leftBlock.Lines.Count > rightBlock.Lines.Count)
         {
-            for (int i = rightBlock.Count; i < leftBlock.Count; i++)
+            for (int i = rightBlock.Lines.Count; i < leftBlock.Lines.Count; i++)
             {
-                rows.Add(leftBlock[i], NoLine);
+                var lL = leftBlock.Lines[i];
+                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Red("│").Color(lL.color, lL.text);
+                rows.Add(lT, NoLine);
             }
         }
 
         // Add right lines where no corresponding on left
-        if (rightBlock.Count > leftBlock.Count)
+        if (rightBlock.Lines.Count > leftBlock.Lines.Count)
         {
-            for (int i = leftBlock.Count; i < rightBlock.Count; i++)
+            for (int i = leftBlock.Lines.Count; i < rightBlock.Lines.Count; i++)
             {
-                rows.Add(NoLine, rightBlock[i]);
+                var rL = rightBlock.Lines[i];
+                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Green("│").Color(rL.color, rL.text);
+                rows.Add(NoLine, rT);
             }
         }
 
-        leftBlock.Clear();
-        rightBlock.Clear();
+        leftBlock.Lines.Clear();
+        rightBlock.Lines.Clear();
     }
+
+
+    (Text, Text) GetDiffSides(Line lL, Line rL)
+    {
+        var leftString = lL.text.TrimStart();
+        var rightString = rL.text.TrimStart();
+
+        // Highlight characters that are different betweedn left and right
+        var leftText = Text.New.Black(new string(' ', lL.text.Length - leftString.Length));
+        var rightText = Text.New.Black(new string(' ', rL.text.Length - rightString.Length));
+        leftString = leftString.TrimEnd();
+        rightString = rightString.TrimEnd();
+
+        var isDiff = false;
+        int diffCount = 0;
+        const int maxDiffCount = 4;
+
+        if (leftString.Length < 4 || rightString.Length < 4)
+        {   // Small lines, show as new lines to avoid to many diffs in a line
+            diffCount = maxDiffCount;
+        }
+
+        for (int j = 0; j < Math.Max(leftString.Length, rightString.Length) && diffCount < maxDiffCount; j++)
+        {
+            var leftChar = j < leftString.Length ? leftString[j].ToString() : "";
+            var rightChar = j < rightString.Length ? rightString[j].ToString() : "";
+
+            if (leftChar == rightChar)
+            {
+                leftChar = leftChar == "" ? " " : leftChar;
+                rightChar = rightChar == "" ? " " : rightChar;
+                leftText.White(leftChar);
+                rightText.White(rightChar);
+                isDiff = false;
+            }
+            else
+            {
+                leftChar = leftChar == "" ? " " : leftChar;
+                rightChar = rightChar == "" ? " " : rightChar;
+                leftText.Color(lL.color, leftChar);
+                rightText.Color(rL.color, rightChar);
+
+                if (!isDiff) diffCount++;
+                isDiff = true;
+            }
+        }
+
+
+        if (lL.color == TextColor.White && rL.color == TextColor.White)
+        {
+            Text lT = Text.New.Dark($"{lL.lineNbr,4} ").Add(leftText);
+            Text rT = Text.New.Dark($"{rL.lineNbr,4} ").Add(rightText);
+            return (lT, rT);
+        }
+        else
+        {
+            if (diffCount < maxDiffCount)
+            {   // if there are a few diffs, show them
+                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan("│").Add(leftText);
+                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan("│").Add(rightText);
+                return (lT, rT);
+            }
+            else
+            {   // To many diffs, show as new lines
+                Text lT2 = Text.New.Dark($"{lL.lineNbr,4}").Cyan("│").Color(lL.color, lL.text);
+                Text rT2 = Text.New.Dark($"{rL.lineNbr,4}").Cyan("│").Color(rL.color, rL.text);
+                return (lT2, rT2);
+            }
+        }
+    }
+
 
     Text ToColorText(string text, FileDiff fd)
     {
