@@ -72,6 +72,7 @@ class Block
 
 class DiffService : IDiffConverter
 {
+    const int maxLineDiffsCount = 3;
     const string diffMargin = "┃"; // │ ┃ ;
     static readonly Text NoLine = Text.New.Dark(new string('░', 100));
     public DiffRows ToDiffRows(CommitDiff commitDiff)
@@ -296,14 +297,13 @@ class DiffService : IDiffConverter
 
         var isDiff = false;
         int diffCount = 0;
-        const int maxDiffCount = 4;
 
         if (leftString.Length < 4 || rightString.Length < 4)
         {   // Small lines, show as new lines to avoid to many diffs in a line
-            diffCount = maxDiffCount;
+            diffCount = maxLineDiffsCount;
         }
 
-        for (int j = 0; j < Math.Max(leftString.Length, rightString.Length) && diffCount < maxDiffCount; j++)
+        for (int j = 0; j < Math.Max(leftString.Length, rightString.Length) && diffCount < maxLineDiffsCount; j++)
         {
             var leftChar = j < leftString.Length ? leftString[j].ToString() : "";
             var rightChar = j < rightString.Length ? rightString[j].ToString() : "";
@@ -337,7 +337,7 @@ class DiffService : IDiffConverter
         }
         else
         {
-            if (diffCount < maxDiffCount)
+            if (diffCount < maxLineDiffsCount)
             {   // if there are a few diffs, show them
                 Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
                 Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
