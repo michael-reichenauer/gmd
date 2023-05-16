@@ -482,19 +482,54 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(g => g.Key);
 
         // If only one item in group, then just show branch, otherwise show submenu
-        return groups.Select(g =>
+        return ToMaxBranchesItems(groups.Select(g =>
             g.Count() == 1
                 ? Item(ToBranchMenuName(g.First(), cic, false), "", () => cmds.ShowBranch(g.First().Name, false))
-                : SubMenu($"   {g.Key}/┅", "", ToShowBranchesItems(g, false, false)));
+                : SubMenu($"   {g.Key}/┅", "", ToShowBranchesItems(g, false, false))));
     }
 
     IEnumerable<MenuItem> ToShowBranchesItems(
         IEnumerable<Branch> branches, bool canBeOutside = false, bool includeAmbiguous = false)
     {
         var cic = repo.RowCommit;
-        return branches
+        return ToMaxBranchesItems(ToAdjustBrancheNamesItems(branches
             .DistinctBy(b => b.CommonName)
-            .Select(b => Item(ToBranchMenuName(b, cic, canBeOutside), "", () => cmds.ShowBranch(b.Name, includeAmbiguous)));
+            .Select(b => Item(ToBranchMenuName(b, cic, canBeOutside), "",
+                () => cmds.ShowBranch(b.Name, includeAmbiguous)))));
+    }
+
+    IEnumerable<MenuItem> ToAdjustBrancheNamesItems(IEnumerable<MenuItem> items)
+    {
+        Dictionary<string, int> counts = new Dictionary<string, int>();
+        List<MenuItem> newItems = new List<MenuItem>();
+
+        items.ForEach(i =>
+        {
+            var title = (string)i.Title;
+            if (counts.TryGetValue(title, out var count))
+            {
+                counts[title] = count + 1;
+                i.Title = i.Title + $" ({count})";
+            }
+            else
+            {
+                counts[title] = 2;
+            }
+            newItems.Add(i);
+        });
+
+        return newItems;
+    }
+
+    IEnumerable<MenuItem> ToMaxBranchesItems(IEnumerable<MenuItem> items)
+    {
+        if (items.Count() <= RecentCount)
+        {   // Too few branches to bother with submenus
+            return items;
+        }
+
+        return items.Take(RecentCount)
+            .Concat(new[] { SubMenu("More ...", "", ToMaxBranchesItems(items.Skip(RecentCount))) });
     }
 
     IEnumerable<MenuItem> ToSwitchBranchesItems(IEnumerable<Branch> branches)
@@ -532,7 +567,8 @@ class RepoViewMenus : IRepoViewMenus
 
     string ToBranchMenuName(Branch branch, bool isBranchIn = false, bool isBranchOut = false)
     {
-        string name = branch.CommonName;
+        string name = branch.DisplayName;
+
         name = branch.IsGitBranch ? " " + branch.DisplayName : "~" + name;
         name = isBranchIn ? "╮" + name : name;
         name = isBranchOut ? "╯" + name : name;
