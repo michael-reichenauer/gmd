@@ -72,6 +72,7 @@ class Block
 
 class DiffService : IDiffConverter
 {
+    const string diffMargin = "┃"; // │ ┃ ;
     static readonly Text NoLine = Text.New.Dark(new string('░', 100));
     public DiffRows ToDiffRows(CommitDiff commitDiff)
     {
@@ -261,7 +262,7 @@ class DiffService : IDiffConverter
             for (int i = rightBlock.Lines.Count; i < leftBlock.Lines.Count; i++)
             {
                 var lL = leftBlock.Lines[i];
-                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Red("│").Color(lL.color, lL.text);
+                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Red(diffMargin).Color(lL.color, lL.text);
                 rows.Add(lT, NoLine);
             }
         }
@@ -272,7 +273,7 @@ class DiffService : IDiffConverter
             for (int i = leftBlock.Lines.Count; i < rightBlock.Lines.Count; i++)
             {
                 var rL = rightBlock.Lines[i];
-                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Green("│").Color(rL.color, rL.text);
+                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Green(diffMargin).Color(rL.color, rL.text);
                 rows.Add(NoLine, rT);
             }
         }
@@ -338,14 +339,14 @@ class DiffService : IDiffConverter
         {
             if (diffCount < maxDiffCount)
             {   // if there are a few diffs, show them
-                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan("│").Add(leftText);
-                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan("│").Add(rightText);
+                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
+                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
                 return (lT, rT);
             }
             else
             {   // To many diffs, show as new lines
-                Text lT2 = Text.New.Dark($"{lL.lineNbr,4}").Cyan("│").Color(lL.color, lL.text);
-                Text rT2 = Text.New.Dark($"{rL.lineNbr,4}").Cyan("│").Color(rL.color, rL.text);
+                Text lT2 = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Color(lL.color, lL.text);
+                Text rT2 = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Color(rL.color, rL.text);
                 return (lT2, rT2);
             }
         }
