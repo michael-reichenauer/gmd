@@ -310,14 +310,18 @@ class Server : IServer
         {
             var branch = repo.Branches[i];
             if (branch.Name == name)
-            {
+            {   // Found branch to move
                 if (delta < 0 && i > 0)
                 {
                     // Get branch before the one to move (skip possible remote branch)
                     var branch2 = repo.Branches[i - 1];
                     if (i > 1 && branch2.Name == branch.RemoteName) branch2 = repo.Branches[i - 2];
 
-                    repoState.Set(repo.Path, s => s.BranchOrders[branch.CommonName] = branch2.CommonName);
+                    repoState.Set(repo.Path, s => s.BranchOrders[branch.CommonName] = new BranchOrder()
+                    {
+                        Branch = branch2.CommonName,
+                        Order = -1
+                    });
                     return R.Ok;
                 }
                 if (delta > 0 && i < repo.Branches.Count - 1)
@@ -326,7 +330,11 @@ class Server : IServer
                     var branch2 = repo.Branches[i + 1];
                     if (i < repo.Branches.Count - 2 && branch2.Name == branch.LocalName) branch2 = repo.Branches[i + 2];
 
-                    repoState.Set(repo.Path, s => s.BranchOrders[branch2.CommonName] = branch.CommonName);
+                    repoState.Set(repo.Path, s => s.BranchOrders[branch.CommonName] = new BranchOrder()
+                    {
+                        Branch = branch2.CommonName,
+                        Order = 1
+                    });
                     return R.Ok;
                 }
             }

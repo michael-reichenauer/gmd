@@ -1,10 +1,16 @@
 namespace gmd.Common;
 
+public class BranchOrder
+{
+    public string Branch { get; set; } = "";
+    public int Order { get; set; } = 0;
+}
+
 public class RepoState
 {
     public List<string> Branches { get; set; } = new List<string>();
     public Dictionary<string, int> BranchColors { get; set; } = new Dictionary<string, int>();
-    public Dictionary<string, string> BranchOrders { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, BranchOrder> BranchOrders { get; set; } = new Dictionary<string, BranchOrder>();
 }
 
 interface IRepoState

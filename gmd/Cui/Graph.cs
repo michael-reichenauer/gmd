@@ -1,4 +1,5 @@
 using gmd.Cui.Common;
+using System.Linq;
 using Color = Terminal.Gui.Attribute;
 
 
@@ -7,7 +8,7 @@ namespace gmd.Cui;
 class Graph
 {
     GraphRow[] rows;
-    private readonly IReadOnlyList<GraphBranch> branches;
+    readonly IReadOnlyList<GraphBranch> branches;
 
     internal int Width { get; private set; }
 
@@ -25,6 +26,11 @@ class Graph
     internal GraphRow GetRow(int index) => rows[index];
 
     internal GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
+
+    internal IReadOnlyList<GraphBranch> GetBranches(int rowIndex) =>
+        GetRow(rowIndex).columns
+        .Where(c => c.Branch != null)
+        .Select(c => c.Branch!).ToList();
 
 
     internal void DrawHorizontalLine(int x1, int x2, int y, Color color)
@@ -50,8 +56,8 @@ class Graph
 
 
 
-    internal void SetGraphBranch(int x, int y, Sign sign, Color color) =>
-        rows[y].SetBranch(x, sign, color);
+    internal void SetGraphBranch(int x, int y, Sign sign, Color color, GraphBranch branch) =>
+        rows[y].SetBranch(x, sign, color, branch);
 
     void SetGraphBranchPass(int x, int y, Sign sign, Color color) =>
         rows[y].SetGraphBranchPass(x, y, sign, color);
@@ -61,62 +67,9 @@ class Graph
 }
 
 
-class GraphColumn
-{
-    internal Sign Connect { get; private set; } = Sign.Blank;
-    internal Sign Branch { get; private set; } = Sign.Blank;
-    internal Color BranchColor { get; private set; } = TextColor.None;
-    internal Color ConnectColor { get; private set; } = TextColor.None;
-    internal Color PassColor { get; private set; } = TextColor.None;
-
-    internal void SetConnect(Sign sign, Color color)
-    {
-        Connect |= sign;
-        if (ConnectColor == TextColor.None)
-        {
-            ConnectColor = color;
-        }
-        else if (ConnectColor != color)
-        {
-            ConnectColor = TextColor.Ambiguous;
-        }
-    }
-
-    internal void SetBranch(Sign sign, Color color)
-    {
-        Branch |= sign;
-        BranchColor = color;
-    }
-
-    internal void SetGraphBranchPass(Sign sign, Color color)
-    {
-        Branch |= sign;
-
-        if (BranchColor == TextColor.None)
-        {
-            BranchColor = color;
-        }
-    }
-
-    internal void SetGraphPass(Sign sign, Color color)
-    {
-        Connect |= sign;
-
-        if (PassColor == TextColor.None)
-        {
-            PassColor = color;
-        }
-        else if (PassColor != color)
-        {
-            PassColor = TextColor.Ambiguous;
-        }
-    }
-}
-
-
 class GraphRow
 {
-    GraphColumn[] columns;
+    internal GraphColumn[] columns;
 
     internal int Width => columns.Length;
 
@@ -139,9 +92,9 @@ class GraphRow
         columns[x].SetConnect(sign, color);
     }
 
-    internal void SetBranch(int x, Sign sign, Color color)
+    internal void SetBranch(int x, Sign sign, Color color, GraphBranch branch)
     {
-        columns[x].SetBranch(sign, color);
+        columns[x].SetBranch(sign, color, branch);
     }
 
     internal void SetGraphBranchPass(int x, int y, Sign sign, Color color)
@@ -154,6 +107,62 @@ class GraphRow
         columns[x].SetGraphPass(sign, color);
     }
 }
+
+
+class GraphColumn
+{
+    internal Sign ConnectSign { get; private set; } = Sign.Blank;
+    internal Sign BranchSign { get; private set; } = Sign.Blank;
+    internal Color BranchColor { get; private set; } = TextColor.None;
+    internal Color ConnectColor { get; private set; } = TextColor.None;
+    internal Color PassColor { get; private set; } = TextColor.None;
+    internal GraphBranch? Branch { get; private set; }
+
+    internal void SetConnect(Sign sign, Color color)
+    {
+        ConnectSign |= sign;
+        if (ConnectColor == TextColor.None)
+        {
+            ConnectColor = color;
+        }
+        else if (ConnectColor != color)
+        {
+            ConnectColor = TextColor.Ambiguous;
+        }
+    }
+
+    internal void SetBranch(Sign sign, Color color, GraphBranch branch)
+    {
+        BranchSign |= sign;
+        BranchColor = color;
+        Branch = branch;
+    }
+
+    internal void SetGraphBranchPass(Sign sign, Color color)
+    {
+        BranchSign |= sign;
+
+        if (BranchColor == TextColor.None)
+        {
+            BranchColor = color;
+        }
+    }
+
+    internal void SetGraphPass(Sign sign, Color color)
+    {
+        ConnectSign |= sign;
+
+        if (PassColor == TextColor.None)
+        {
+            PassColor = color;
+        }
+        else if (PassColor != color)
+        {
+            PassColor = TextColor.Ambiguous;
+        }
+    }
+}
+
 
 class GraphBranch
 {

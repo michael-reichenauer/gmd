@@ -171,8 +171,10 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetMoveBranchItems()
     {
         var items = Enumerable.Empty<MenuItem>();
+
+        var branches = repo.Graph.GetBranches(repo.CurrentRow);
         var branch = repo.RowBranch;
-        var index = repo.Branches.ToList().IndexOf(branch);
+        var index = branches.ToList().FindIndex(b => b.B.CommonName == branch.CommonName);
 
         if (index > (branch.RemoteName != "" ? 1 : 0))
         {

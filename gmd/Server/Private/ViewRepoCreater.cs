@@ -424,19 +424,19 @@ class ViewRepoCreater : IViewRepoCreater
 
 
     int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2,
-        Dictionary<string, string> branchOrders)
+        Dictionary<string, BranchOrder> branchOrders)
     {
-        // if (branchOrders.TryGetValue(b1.CommonName, out var other) && other == b2.CommonName)
-        // {
-        //     return -1;
-        // }
-        // if (branchOrders.TryGetValue(b2.CommonName, out other) && other == b1.CommonName)
-        // {
-        //     return 1;
-        // }
+        if (branchOrders.TryGetValue(b1.CommonName, out var other) && other.Branch == b2.CommonName)
+        {
+            return other.Order;
+        }
+        if (branchOrders.TryGetValue(b2.CommonName, out other) && other.Branch == b1.CommonName)
+        {
+            return other.Order;
+        }
 
-        if (b1.DisplayName == "dev" && b2.DisplayName == "branches/deletebranch") return 1;
-        if (b1.DisplayName == "branches/deletebranch" && b2.DisplayName == "dev") return -1;
+        // if (b1.DisplayName == "dev" && b2.DisplayName == "branches/deletebranch") return 1;
+        // if (b1.DisplayName == "branches/deletebranch" && b2.DisplayName == "dev") return -1;
 
         if (b1 == b2) return 0;
         if (b1.Name == b2.ParentBranchName) return -1;   // b1 is parent of b2

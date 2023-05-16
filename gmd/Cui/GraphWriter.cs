@@ -21,31 +21,31 @@ class GraphWriter : IGraphWriter
             var passColor = row[i].PassColor;
 
             // Draw connect runes (left of the branch)
-            if (row[i].Connect == Sign.Pass &&
+            if (row[i].ConnectSign == Sign.Pass &&
                 passColor != TextColor.None &&
                 passColor != TextColor.Ambiguous)
             {
                 connectColor = passColor;
             }
-            else if (row[i].Connect.HasFlag(Sign.Pass))
+            else if (row[i].ConnectSign.HasFlag(Sign.Pass))
             {
                 connectColor = TextColor.Ambiguous;
             }
 
-            text.Color(connectColor, ConnectRune(row[i].Connect));
+            text.Color(connectColor, ConnectRune(row[i].ConnectSign));
 
             // Draw the branch rune
-            if (row[i].Branch == Sign.Pass &&
+            if (row[i].BranchSign == Sign.Pass &&
                 passColor != TextColor.None &&
                 passColor != TextColor.Ambiguous)
             {
                 branchColor = passColor;
             }
-            else if (row[i].Branch == Sign.Pass)
+            else if (row[i].BranchSign == Sign.Pass)
             {
                 branchColor = TextColor.Ambiguous;
             }
-            text.Color(branchColor, BranchRune(row[i].Branch));
+            text.Color(branchColor, BranchRune(row[i].BranchSign));
         }
 
         return text;
