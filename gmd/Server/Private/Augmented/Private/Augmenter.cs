@@ -39,17 +39,20 @@ class Augmenter : IAugmenter
         SetAugCommits(repo, gitRepo, partialMax);
         SetCommitBranches(repo, gitRepo);
         SetAugTags(repo, gitRepo);
+        SetBranchByName(repo);
         AdjustDisplayNames(repo);
 
         return repo;
     }
 
+    private void SetBranchByName(WorkRepo repo)
+    {
+        repo.Branches.ForEach(b => repo.BranchByName[b.Name] = b);
+    }
+
     void AdjustDisplayNames(WorkRepo repo)
     {
         Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
-
-        Log.Info("----");
-        repo.Branches.OrderBy(b => b.DisplayName).ForEach(b => Log.Info($"Branch: {b.DisplayName} - {b.Name}"));
 
         repo.Branches
             .Where(b => b.RemoteName == "" && b.PullMergeBranch == null)
@@ -59,13 +62,19 @@ class Augmenter : IAugmenter
             if (branchNameCount.TryGetValue(b.DisplayName, out var count))
             {
                 branchNameCount[b.DisplayName] = ++count;
-                b.DisplayName = $"{b.DisplayName}({count + 1})";
+                b.DisplayName = $"{b.DisplayName}({count})";
+                Log.Info($"Branch: {b.DisplayName} - {b.Name} - {count}");
+                if (b.LocalName != "")
+                {
+                    repo.BranchByName[b.LocalName]!.DisplayName = b.DisplayName;
+                }
+                b.PullMergeBranches.ForEach(pmb => repo.BranchByName[pmb.Name]!.DisplayName = b.DisplayName);
+            }
+            else
+            {
+                branchNameCount[b.DisplayName] = 1;
             }
         });
-        Log.Info("----");
-        repo.Branches.OrderBy(b => b.DisplayName).ForEach(b => Log.Info($"Branch: {b.DisplayName} - {b.Name}"));
-
-        Log.Info("----");
     }
 
     Status ToStatus(GitRepo repo)

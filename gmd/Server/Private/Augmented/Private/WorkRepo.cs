@@ -12,6 +12,7 @@ class WorkRepo
     internal List<WorkCommit> Commits { get; } = new List<WorkCommit>();
     internal Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
     internal List<WorkBranch> Branches { get; } = new List<WorkBranch>();
+    internal Dictionary<string, WorkBranch> BranchByName { get; } = new Dictionary<string, WorkBranch>();
     internal List<Tag> Tags { get; } = new List<Tag>();
     internal Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
     internal List<Stash> Stashes { get; } = new List<Stash>();
