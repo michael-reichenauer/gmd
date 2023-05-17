@@ -30,7 +30,7 @@ class Augmenter : IAugmenter
         return Task.Run(() => GetAugRepo(gitRepo, partialMax));
     }
 
-    private WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
+    WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
     {
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, ToStatus(gitRepo));
 
@@ -39,10 +39,43 @@ class Augmenter : IAugmenter
         SetAugCommits(repo, gitRepo, partialMax);
         SetCommitBranches(repo, gitRepo);
         SetAugTags(repo, gitRepo);
+        SetBranchByName(repo);
+        AdjustDisplayNames(repo);
 
         return repo;
     }
 
+    private void SetBranchByName(WorkRepo repo)
+    {
+        repo.Branches.ForEach(b => repo.BranchByName[b.Name] = b);
+    }
+
+    void AdjustDisplayNames(WorkRepo repo)
+    {
+        Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
+
+        repo.Branches
+            .Where(b => b.RemoteName == "" && b.PullMergeBranch == null)
+            .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
+            .ForEach(b =>
+        {
+            if (branchNameCount.TryGetValue(b.DisplayName, out var count))
+            {
+                branchNameCount[b.DisplayName] = ++count;
+                b.DisplayName = $"{b.DisplayName}({count})";
+                Log.Info($"Branch: {b.DisplayName} - {b.Name} - {count}");
+                if (b.LocalName != "")
+                {
+                    repo.BranchByName[b.LocalName]!.DisplayName = b.DisplayName;
+                }
+                b.PullMergeBranches.ForEach(pmb => repo.BranchByName[pmb.Name]!.DisplayName = b.DisplayName);
+            }
+            else
+            {
+                branchNameCount[b.DisplayName] = 1;
+            }
+        });
+    }
 
     Status ToStatus(GitRepo repo)
     {

@@ -329,14 +329,14 @@ class DiffService : IDiffConverter
         }
 
 
-        if (lL.color == TextColor.White && rL.color == TextColor.White)
-        {
-            Text lT = Text.New.Dark($"{lL.lineNbr,4} ").Add(leftText);
-            Text rT = Text.New.Dark($"{rL.lineNbr,4} ").Add(rightText);
+        if (lL.color == rL.color)
+        {   // Same on both sides
+            Text lT = Text.New.Dark($"{lL.lineNbr,4} ").Color(lL.color, lL.text);
+            Text rT = Text.New.Dark($"{rL.lineNbr,4} ").Color(rL.color, rL.text);
             return (lT, rT);
         }
         else
-        {
+        {   // Some Differens bethween left and right
             if (diffCount < maxLineDiffsCount)
             {   // if there are a few diffs, show them
                 Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
