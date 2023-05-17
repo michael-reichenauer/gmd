@@ -381,7 +381,7 @@ class RepoViewMenus : IRepoViewMenus
             : Enumerable.Empty<MenuItem>();
 
         var items = branches
-            .Select(b => Item(b.Name, "", () => cmds.MergeBranch(b.Name)))
+            .Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
             .Concat(commitItems)
             .Concat(cherryPicItems);
 
