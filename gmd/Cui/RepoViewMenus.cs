@@ -367,6 +367,7 @@ class RepoViewMenus : IRepoViewMenus
         // Get all branches except current
         var branches = repo.Branches
              .Where(b => b.CommonName != currentName && b.PullMergeBranchName == "")
+             .DistinctBy(b => b.TipId)
              .OrderBy(b => b.CommonName);
 
         // Include commit if not on current branch
