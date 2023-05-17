@@ -492,34 +492,35 @@ class RepoViewMenus : IRepoViewMenus
         IEnumerable<Branch> branches, bool canBeOutside = false, bool includeAmbiguous = false)
     {
         var cic = repo.RowCommit;
-        return ToMaxBranchesItems(ToAdjustBrancheNamesItems(branches
-            .DistinctBy(b => b.CommonName)
+        return ToMaxBranchesItems(
+            branches
+            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "") // skip local pull merge
             .Select(b => Item(ToBranchMenuName(b, cic, canBeOutside), "",
-                () => cmds.ShowBranch(b.Name, includeAmbiguous)))));
+                () => cmds.ShowBranch(b.Name, includeAmbiguous))));
     }
 
-    IEnumerable<MenuItem> ToAdjustBrancheNamesItems(IEnumerable<MenuItem> items)
-    {
-        Dictionary<string, int> counts = new Dictionary<string, int>();
-        List<MenuItem> newItems = new List<MenuItem>();
+    // IEnumerable<MenuItem> ToAdjustBrancheNamesItems(IEnumerable<MenuItem> items)
+    // {
+    //     Dictionary<string, int> counts = new Dictionary<string, int>();
+    //     List<MenuItem> newItems = new List<MenuItem>();
 
-        items.ForEach(i =>
-        {
-            var title = (string)i.Title;
-            if (counts.TryGetValue(title, out var count))
-            {
-                counts[title] = count + 1;
-                i.Title = i.Title + $" ({count})";
-            }
-            else
-            {
-                counts[title] = 2;
-            }
-            newItems.Add(i);
-        });
+    //     items.ForEach(i =>
+    //     {
+    //         var title = (string)i.Title;
+    //         if (counts.TryGetValue(title, out var count))
+    //         {
+    //             counts[title] = count + 1;
+    //             i.Title = i.Title + $" ({count})";
+    //         }
+    //         else
+    //         {
+    //             counts[title] = 2;
+    //         }
+    //         newItems.Add(i);
+    //     });
 
-        return newItems;
-    }
+    //     return newItems;
+    // }
 
     IEnumerable<MenuItem> ToMaxBranchesItems(IEnumerable<MenuItem> items)
     {
