@@ -367,7 +367,6 @@ class RepoViewMenus : IRepoViewMenus
         // Get all branches except current
         var branches = repo.Branches
              .Where(b => b.CommonName != currentName)
-             .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
         // Include commit if not on current branch
@@ -381,7 +380,7 @@ class RepoViewMenus : IRepoViewMenus
             : Enumerable.Empty<MenuItem>();
 
         var items = branches
-            .Select(b => Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
+            .Select(b => Item(b.Name, "", () => cmds.MergeBranch(b.Name)))
             .Concat(commitItems)
             .Concat(cherryPicItems);
 
