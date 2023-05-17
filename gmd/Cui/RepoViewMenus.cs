@@ -337,8 +337,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
-             .Where(b => b.CommonName != currentName)
-             .DistinctBy(b => b.CommonName)
+             .Where(b => b.CommonName != currentName && b.LocalName == "" && b.PullMergeBranchName == "")
              .OrderBy(b => b.CommonName);
 
         return ToSwitchBranchesItems(branches);
@@ -347,8 +346,8 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetDeleteItems()
     {
         return repo.GetAllBranches()
-            .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
-            .DistinctBy(b => b.CommonName)
+            .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent
+                && b.LocalName == "" && b.PullMergeBranchName == "")
             .OrderBy(b => b.CommonName)
             .Select(b => Item($"{ToBranchMenuName(b)} ...", "", () => cmds.DeleteBranch(b.Name)));
     }
@@ -515,7 +514,6 @@ class RepoViewMenus : IRepoViewMenus
     {
         var cic = repo.RowCommit;
         return branches
-            .DistinctBy(b => b.CommonName)
             .Select(b => Item(ToBranchMenuName(b, cic, false), "", () => cmds.SwitchTo(b.Name)));
     }
 
