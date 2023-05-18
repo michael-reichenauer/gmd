@@ -182,7 +182,6 @@ class RepoWriter : IRepoWriter
             }
         }
 
-        Log.Info($"{subjectText.Length}, {subjectWidth}");
         WriteSubText(text, subjectText, subjectWidth);
         WriteSubText(text, tipsText, tipsWidth);
         WriteSubText(text, tagsText, tagsWidth);
