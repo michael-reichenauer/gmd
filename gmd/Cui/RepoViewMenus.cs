@@ -397,7 +397,7 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.CommonName)
              .OrderBy(b => b.CommonName);
 
-        return branches.Select(b => Item(ToBranchMenuName(b), "", () => cmds.PreviewMergeBranch(b.Name, isFromCurrentCommit, isSwitch)));
+        return branches.Select(b => Item(ToBranchMenuName(b, false, false, false), "", () => cmds.PreviewMergeBranch(b.Name, isFromCurrentCommit, isSwitch)));
     }
 
     IEnumerable<MenuItem> GetHideItems()
@@ -409,7 +409,7 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => b.CommonName);
 
         return branches.Select(b =>
-            Item(ToBranchMenuName(b), "", () => cmds.HideBranch(b.Name)));
+            Item(ToBranchMenuName(b, false, false, false), "", () => cmds.HideBranch(b.Name)));
     }
 
 
