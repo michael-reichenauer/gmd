@@ -1,6 +1,4 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
-
 
 namespace gmd.Cui;
 
@@ -19,13 +17,13 @@ class CreateBranchDlg : ICreateBranchDlg
 
         var dlg = new UIDialog(title, 44, 11);
         dlg.AddLabel(1, 0, $"From: {from}");
-        var nameField = dlg.AddTextField(1, 2, 40);
+        var name = dlg.AddTextField(1, 2, 40);
         var isCheckout = dlg.AddCheckBox("Checkout", true, 1, 4);
         var isPush = dlg.AddCheckBox("Push", true, 1, 5);
 
         dlg.AddOK(true, () =>
         {
-            if (nameField.GetText() == "")
+            if (name.Text == "")
             {
                 UI.ErrorMessage("Empty branch name");
                 return false;
@@ -35,12 +33,12 @@ class CreateBranchDlg : ICreateBranchDlg
 
         dlg.AddCancel();
 
-        if (!dlg.Show(nameField))
+        if (!dlg.Show(name))
         {
             return R.Error();
         }
 
-        return new CreateBranchResult(nameField.GetText(), isCheckout.Checked, isPush.Checked);
+        return new CreateBranchResult(name.Text, isCheckout.Checked, isPush.Checked);
     }
 }
 

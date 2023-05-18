@@ -31,9 +31,9 @@ class UIDialog
         return label;
     }
 
-    internal TextField AddTextField(int x, int y, int w, string text = "")
+    internal UITextField AddTextField(int x, int y, int w, string text = "")
     {
-        var textField = new TextField(x, y, w, text) { ColorScheme = ColorSchemes.TextField };
+        var textField = new UITextField(x, y, w, text) { ColorScheme = ColorSchemes.TextField };
         views.Add(textField);
         var indicator = new Label(textField.Frame.X - 1, textField.Frame.Y + textField.Frame.Height,
             "└" + new string('─', textField.Frame.Width) + "┘")
@@ -105,11 +105,28 @@ class UIDialog
             setViewFocused.SetFocus();
         }
 
-        UI.ShowCursor();
+        Application.Driver.GetCursorVisibility(out var cursorVisible);
+        Application.Driver.SetCursorVisibility(CursorVisibility.Default);
         UI.RunDialog(dlg);
+        Application.Driver.SetCursorVisibility(cursorVisible);
         return IsOK;
     }
 }
 
+
+class UITextField : TextField
+{
+    internal UITextField(int x, int y, int w, string text = "")
+        : base(x, y, w, text)
+    {
+        ColorScheme = ColorSchemes.TextField;
+    }
+
+    public new string Text
+    {
+        get => base.Text?.ToString()?.Trim() ?? "";
+        set => base.Text = value;
+    }
+}
 
 

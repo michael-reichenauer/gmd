@@ -1,5 +1,4 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
 
 namespace gmd.Cui;
 
@@ -15,11 +14,11 @@ class AddTagDlg : IAddTagDlg
     {
         var dlg = new UIDialog("Add Tag", 29, 7);
         dlg.AddLabel(1, 0, "Tag Name:");
-        var nameField = dlg.AddTextField(1, 1, 25);
+        var name = dlg.AddTextField(1, 1, 25);
 
         dlg.AddOK(true, () =>
         {
-            if (nameField.GetText() == "")
+            if (name.Text == "")
             {
                 UI.ErrorMessage("Empty tag name");
                 return false;
@@ -29,12 +28,12 @@ class AddTagDlg : IAddTagDlg
 
         dlg.AddCancel();
 
-        if (!dlg.Show(nameField))
+        if (!dlg.Show(name))
         {
             return R.Error();
         }
 
-        return nameField.GetText();
+        return name.Text;
     }
 }
 
