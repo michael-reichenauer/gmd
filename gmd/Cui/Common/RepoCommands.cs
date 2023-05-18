@@ -426,7 +426,7 @@ class RepoCommands : IRepoCommands
     {
         if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
         {
-            return R.Error($"Failed to cherry pic {id.Substring(0, 6)}", e);
+            return R.Error($"Failed to cherry pic {id.Sid()}", e);
         }
 
         Refresh();
@@ -716,7 +716,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
-            newName = $"{remoteBranch.CommonName}:{remoteBranch.TipId.Substring(0, 6)}";
+            newName = $"{remoteBranch.CommonName}:{remoteBranch.TipId.Sid()}";
         }
 
         if (rsp.IsLocal && localBranch != null)
@@ -730,7 +730,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
-            newName = $"{localBranch.CommonName}:{localBranch.TipId.Substring(0, 6)}";
+            newName = $"{localBranch.CommonName}:{localBranch.TipId.Sid()}";
         }
 
         Refresh(newName);

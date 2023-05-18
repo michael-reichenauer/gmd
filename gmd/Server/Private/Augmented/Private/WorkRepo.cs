@@ -84,7 +84,7 @@ internal class WorkCommit
         DateTime authorTime, string[] parentIds)
     {
         Id = id;
-        Sid = id.Substring(0, 6);
+        Sid = id.Sid();
         Subject = subject;
         Message = message;
         Author = author;

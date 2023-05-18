@@ -41,7 +41,7 @@ static class Build
         return default;
     }
 
-    internal static string Sha() => CiCdBuildShaText.Substring(0, 6);
+    internal static string Sha() => CiCdBuildShaText.Sid();
 
     internal static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll");
 

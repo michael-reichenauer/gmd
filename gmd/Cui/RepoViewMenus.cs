@@ -557,5 +557,5 @@ class RepoViewMenus : IRepoViewMenus
         return name.Replace('_', '-');
     }
 
-    string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Substring(0, 6);
+    string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Sid();
 }
