@@ -702,6 +702,8 @@ class RepoCommands : IRepoCommands
         var isRemote = remoteBranch != null;
         if (!Try(out var rsp, deleteBranchDlg.Show(name, isLocal, isRemote))) return R.Ok;
 
+        var newName = "";
+
         if (rsp.IsRemote && remoteBranch != null)
         {
             var tip = repo.Commit(remoteBranch.TipId);
@@ -714,6 +716,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
+            newName = $"{remoteBranch.CommonName}:{remoteBranch.TipId.Substring(0, 6)}";
         }
 
         if (rsp.IsLocal && localBranch != null)
@@ -727,9 +730,10 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
+            newName = $"{localBranch.CommonName}:{localBranch.TipId.Substring(0, 6)}";
         }
 
-        Refresh();
+        Refresh(newName);
         return R.Ok;
     });
 
