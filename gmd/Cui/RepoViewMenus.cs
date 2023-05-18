@@ -484,7 +484,7 @@ class RepoViewMenus : IRepoViewMenus
         return ToMaxBranchesItems(groups.Select(g =>
             g.Count() == 1
                 ? Item(ToBranchMenuName(g.First(), cic, false), "", () => cmds.ShowBranch(g.First().Name, false))
-                : SubMenu($"   {g.Key}/┅", "", ToShowBranchesItems(g, false, false))));
+                : SubMenu($"    {g.Key}/┅", "", ToShowBranchesItems(g, false, false))));
     }
 
     IEnumerable<MenuItem> ToShowBranchesItems(
@@ -514,10 +514,10 @@ class RepoViewMenus : IRepoViewMenus
     {
         var cic = repo.RowCommit;
         return branches
-            .Select(b => Item(ToBranchMenuName(b, cic, false), "", () => cmds.SwitchTo(b.Name)));
+            .Select(b => Item(ToBranchMenuName(b, cic, false, false), "", () => cmds.SwitchTo(b.Name)));
     }
 
-    string ToBranchMenuName(Branch branch, Commit cic, bool canBeOutside)
+    string ToBranchMenuName(Branch branch, Commit cic, bool canBeOutside, bool isShowShown = true)
     {
         bool isBranchIn = false;
         bool isBranchOut = false;
@@ -539,11 +539,12 @@ class RepoViewMenus : IRepoViewMenus
             }
         }
 
-        return ToBranchMenuName(branch, isBranchIn, isBranchOut);
+        return ToBranchMenuName(branch, isBranchIn, isBranchOut, isShowShown);
     }
 
-    string ToBranchMenuName(Branch branch, bool isBranchIn = false, bool isBranchOut = false)
+    string ToBranchMenuName(Branch branch, bool isBranchIn = false, bool isBranchOut = false, bool isShowShown = true)
     {
+        var isShown = isShowShown && repo.Repo.BranchByName.TryGetValue(branch.Name, out var _);
         string name = branch.DisplayName;
 
         name = branch.IsGitBranch ? " " + branch.DisplayName : "~" + name;
@@ -551,6 +552,7 @@ class RepoViewMenus : IRepoViewMenus
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;
         name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
+        name = isShown ? "╾" + name : " " + name;
 
         return name.Replace('_', '-');
     }
