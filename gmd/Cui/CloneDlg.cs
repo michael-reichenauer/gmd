@@ -82,6 +82,8 @@ class CloneDlg : ICloneDlg
     // Update path field when uri changes
     void UpdatePath()
     {
+        Log.Debug("UpdatePath");
+
         if (!basePath.EndsWith(Path.DirectorySeparatorChar)) return;
 
         var uri = Uri();
@@ -128,12 +130,11 @@ class CloneDlg : ICloneDlg
     static R<string> TryParseRepoName(string uri)
     {
         var name = "";
-        if (!uri.EndsWith(".git") && uri.Length > 7) return R.Error();
 
         var i = uri.LastIndexOf('/');
         if (i == -1) return R.Error();
 
-        name = uri.Substring(i + 1).TrimSuffix(".git");
+        name = uri.Substring(i + 1).Trim().TrimSuffix(".git").Replace("%20", "");
 
         return name;
     }
