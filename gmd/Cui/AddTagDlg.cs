@@ -11,43 +11,31 @@ interface IAddTagDlg
 
 class AddTagDlg : IAddTagDlg
 {
-    TextField nameField = null!;
-
     public R<string> Show()
     {
-        Label infoLabel = Components.Label(1, 0, "Tag Name:");
-        nameField = Components.TextField(1, 1, 25, "");
-        var indicator = Components.TextIndicator(nameField);
+        var dlg = new UIDialog("Add Tag", 29, 7);
+        dlg.AddLabel(1, 0, "Tag Name:");
+        var nameField = dlg.AddTextField(1, 1, 25);
 
-        bool isOk = false;
-        Button okButton = Buttons.OK(true, () =>
+        dlg.AddOK(true, () =>
         {
-            if (Name() == "")
+            if (nameField.GetText() == "")
             {
                 UI.ErrorMessage("Empty tag name");
                 return false;
             }
-            isOk = true;
             return true;
         });
 
-        var dialog = Components.Dialog("Add Tag", 29, 7, okButton, Buttons.Cancel());
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(infoLabel, indicator, nameField);
+        dlg.AddCancel();
 
-        nameField.SetFocus();
-        UI.ShowCursor();
-        UI.RunDialog(dialog);
-
-        if (!isOk)
+        if (!dlg.Show(nameField))
         {
             return R.Error();
         }
 
-        return Name();
+        return nameField.GetText();
     }
-
-    private string Name() => nameField!.Text.ToString()?.Trim() ?? "";
 }
 
 

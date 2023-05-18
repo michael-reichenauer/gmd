@@ -12,8 +12,6 @@ interface ICreateBranchDlg
 
 class CreateBranchDlg : ICreateBranchDlg
 {
-    TextField? nameField;
-
     public R<CreateBranchResult> Show(string branchName, string commitSid)
     {
         var from = commitSid != "" ? $"{branchName} at {commitSid}" : branchName;
@@ -21,13 +19,13 @@ class CreateBranchDlg : ICreateBranchDlg
 
         var dlg = new UIDialog(title, 44, 11);
         dlg.AddLabel(1, 0, $"From: {from}");
-        nameField = dlg.AddTextField(1, 2, 40);
+        var nameField = dlg.AddTextField(1, 2, 40);
         var isCheckout = dlg.AddCheckBox("Checkout", true, 1, 4);
         var isPush = dlg.AddCheckBox("Push", true, 1, 5);
 
         dlg.AddOK(true, () =>
         {
-            if (Name() == "")
+            if (nameField.GetText() == "")
             {
                 UI.ErrorMessage("Empty branch name");
                 return false;
@@ -36,16 +34,13 @@ class CreateBranchDlg : ICreateBranchDlg
         });
 
         dlg.AddCancel();
-        dlg.Show(nameField);
 
         if (!dlg.Show(nameField))
         {
             return R.Error();
         }
 
-        return new CreateBranchResult(Name(), isCheckout.Checked, isPush.Checked);
+        return new CreateBranchResult(nameField.GetText(), isCheckout.Checked, isPush.Checked);
     }
-
-    private string Name() => nameField!.Text.ToString()?.Trim() ?? "";
 }
 

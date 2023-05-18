@@ -110,3 +110,6 @@ class UIDialog
         return IsOK;
     }
 }
+
+
+
