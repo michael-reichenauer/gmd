@@ -19,36 +19,26 @@ class CreateBranchDlg : ICreateBranchDlg
         var from = commitSid != "" ? $"{branchName} at {commitSid}" : branchName;
         var title = commitSid != "" ? $"Create Branch at Commit" : "Create Branch";
 
-        Label infoLabel = Components.Label(1, 0, $"From: {from}");
+        var dlg = new UIDialog(title, 44, 11);
+        dlg.AddLabel(1, 0, $"From: {from}");
+        nameField = dlg.AddTextField(1, 2, 40);
+        var isCheckout = dlg.AddCheckBox("Checkout", true, 1, 4);
+        var isPush = dlg.AddCheckBox("Push", true, 1, 5);
 
-        nameField = Components.TextField(1, 2, 40, "");
-        var indicator = Components.TextIndicator(nameField);
-
-        var isCheckout = Components.CheckBox("Checkout", true, 1, 4);
-        var isPush = Components.CheckBox("Push", true, 1, 5);
-
-        bool isOk = false;
-        Button okButton = Buttons.OK(true, () =>
+        dlg.AddOK(true, () =>
         {
             if (Name() == "")
             {
                 UI.ErrorMessage("Empty branch name");
                 return false;
             }
-            isOk = true;
             return true;
         });
 
+        dlg.AddCancel();
+        dlg.Show(nameField);
 
-        var dialog = Components.Dialog(title, 44, 11, okButton, Buttons.Cancel());
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(infoLabel, nameField, indicator, isCheckout, isPush);
-
-        nameField.SetFocus();
-        UI.ShowCursor();
-        UI.RunDialog(dialog);
-
-        if (!isOk)
+        if (!dlg.Show(nameField))
         {
             return R.Error();
         }
