@@ -170,6 +170,18 @@ class RepoWriter : IRepoWriter
             }
         }
 
+        if (subjectText.Length < subjectWidth)
+        {
+            if (c.IsUncommitted && isCurrent)
+            {
+                subjectText.YellowSelected(new string(' ', subjectWidth - subjectText.Length));
+            }
+            else if (isCurrent)
+            {
+                subjectText.WhiteSelected(new string(' ', subjectWidth - subjectText.Length));
+            }
+        }
+
         WriteSubText(text, subjectText, subjectWidth);
         WriteSubText(text, tipsText, tipsWidth);
         WriteSubText(text, tagsText, tagsWidth);
@@ -208,10 +220,10 @@ class RepoWriter : IRepoWriter
     }
 
     Text GetTagsText(Commit c) => c.Tags.Any()
-        ? Text.New.Green($" [{string.Join("][", c.Tags.Select(t => t.Name))}]") : Text.New;
+        ? Text.New.Green($"[{string.Join("][", c.Tags.Select(t => t.Name))}]") : Text.New;
 
     Text GetTipsText(Commit c, IReadOnlyDictionary<string, Text> branchTips) =>
-        branchTips.ContainsKey(c.Id) ? Text.New.Black(" ").Add(branchTips[c.Id]) : Text.New;
+        branchTips.ContainsKey(c.Id) ? Text.New.Add(branchTips[c.Id]) : Text.New;
 
 
     void WriteSid(Text text, Columns cw, Commit c)
