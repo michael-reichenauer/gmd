@@ -42,6 +42,7 @@ class CommitDlg : ICommitDlg
             }
             return true;
         });
+        dlg.AddCancel();
 
         dlg.Show(subject);
 
@@ -96,13 +97,10 @@ class CommitDlg : ICommitDlg
     }
 
 
-    string SubjectText(TextField subjectField) => subjectField!.Text.ToString()?.Trim() ?? "";
-
-
-    string GetMessage(TextField subjectField, TextView messageView)
+    string GetMessage(UITextField subject, TextView message)
     {
-        string subjectText = SubjectText(subjectField);
-        string msgText = messageView!.Text.ToString()?.TrimEnd() ?? "";
+        string subjectText = subject.Text;
+        string msgText = message.Text.ToString()?.TrimEnd() ?? "";
         if (msgText.Trim() == "")
         {
             msgText = "";

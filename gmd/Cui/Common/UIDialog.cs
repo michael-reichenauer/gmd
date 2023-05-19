@@ -43,9 +43,9 @@ class UIDialog
         return textField;
     }
 
-    internal TextView AddTextView(int x, int y, int w, int h, string text)
+    internal UITextView AddTextView(int x, int y, int w, int h, string text)
     {
-        var textView = new TextView()
+        var textView = new UITextView()
         { X = x, Y = y, Width = w, Height = h, Text = text, ColorScheme = ColorSchemes.TextField };
         views.Add(textView);
 
@@ -148,5 +148,28 @@ class UITextField : TextField
         set => base.Text = value;
     }
 }
+
+
+class UITextView : TextView
+{
+    public override bool ProcessKey(KeyEvent keyEvent)
+    {
+        if (keyEvent.Key == Key.Tab)
+        {   // Ensure tab sets focus on next control and not insert tab in text
+            return false;
+        }
+        return base.ProcessKey(keyEvent);
+    }
+
+    public new string Text
+    {
+        get => base.Text?.ToString()?.Trim() ?? "";
+        set => base.Text = value;
+    }
+
+    public override Border Border { get => new Border() { }; set => base.Border = value; }
+}
+
+
 
 
