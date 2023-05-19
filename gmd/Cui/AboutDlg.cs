@@ -27,15 +27,16 @@ class AboutDlg : IAboutDlg
             var releases = states.Get().Releases;
             var typeText = releases.IsPreview ? "(preview)" : "";
             var gmdVersion = Build.Version();
-            var gmdBuildTime = Build.Time().ToUniversalTime().Iso();
+            var gmdBuildTime = Build.Time().Iso();
             var gmdSha = Build.Sha();
+            var isAvailable = Build.Version() < Version.Parse(releases.LatestVersion);
             if (!Try(out var gitVersion, out var e, await git.Version())) gitVersion = "0.0";
 
             var msg =
-                $"Version: {gmdVersion} ({gmdSha}) \n" +
-                $"Built:   {gmdBuildTime}Z \n" +
-                $"Remote:  {releases.LatestVersion} {typeText}\n" +
-                $"Git:     {gitVersion} ";
+                $"Version:   {gmdVersion} ({gmdSha}) \n" +
+                $"Built:     {gmdBuildTime}\n" +
+                (isAvailable ? $"Available: {releases.LatestVersion} {typeText}\n" : "") +
+                $"Git:       {gitVersion} ";
 
             UI.InfoMessage("About", msg);
         });
