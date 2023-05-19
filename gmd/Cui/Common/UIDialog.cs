@@ -8,6 +8,7 @@ class UIDialog
     readonly List<Button> buttons = new List<Button>();
     readonly Dictionary<string, bool> buttonsClicked = new Dictionary<string, bool>();
     readonly Func<Key, bool>? onKey;
+    readonly Action<Dialog>? options;
 
     internal string Title { get; }
     internal int Width { get; }
@@ -16,12 +17,15 @@ class UIDialog
     internal bool IsOK => buttonsClicked.ContainsKey("OK");
     internal bool IsCanceled => buttonsClicked.ContainsKey("Cancel");
 
-    internal UIDialog(string title, int width, int height, Func<Key, bool>? onKey = null)
+
+    internal UIDialog(string title, int width, int height,
+    Func<Key, bool>? onKey = null, Action<Dialog>? options = null)
     {
         Title = title;
         Width = width;
         Height = height;
         this.onKey = onKey;
+        this.options = options;
     }
 
     internal Label AddLabel(int x, int y, string text)
@@ -55,6 +59,15 @@ class UIDialog
         views.Add(indicator);
 
         return textView;
+    }
+
+    internal ContentView AddContentView(int x, int y, Dim w, Dim h, GetContentCallback onGetContent)
+    {
+        var contentView = new ContentView(onGetContent)
+        { X = x, Y = y, Width = w, Height = h };
+
+        views.Add(contentView);
+        return contentView;
     }
 
     internal CheckBox AddCheckBox(int x, int y, string name, bool isChecked)
@@ -105,6 +118,10 @@ class UIDialog
             Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
             ColorScheme = ColorSchemes.Dialog,
         };
+        if (options != null)
+        {
+            options(dlg);
+        }
         dlg.Add(views.ToArray());
 
         if (setViewFocused != null)
@@ -122,6 +139,8 @@ class UIDialog
         Application.Driver.SetCursorVisibility(cursorVisible);
         return IsOK;
     }
+
+
 
     class CustomDialog : Dialog
     {
