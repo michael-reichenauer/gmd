@@ -32,7 +32,7 @@ class CloneDlg : ICloneDlg
         dlg.AddLabel(1, 3, "Path:");
         path = dlg.AddTextField(1, 4, width, basePath);
 
-        dlg.AddButton("Browse ...", width - 13, 3, () =>
+        dlg.AddButton(width - 13, 3, "Browse ...", () =>
         {
             FolderBrowseDlg browseDlg = new FolderBrowseDlg();
             if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "") return;
