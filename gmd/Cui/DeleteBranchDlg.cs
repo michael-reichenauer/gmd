@@ -14,29 +14,20 @@ class DeleteBranchDlg : IDeleteBranchDlg
 {
     public R<DeleteBranchResult> Show(string branchName, bool isLocal, bool isRemote)
     {
-        Label infoLabel = Components.Label(1, 0, $"Delete: {branchName}");
+        var dlg = new UIDialog("Delete Branch", 44, 11);
 
-        var isLocalCheck = Components.CheckBox("Delete Local", isLocal, 1, 2);
+        dlg.AddLabel(1, 0, $"Delete: {branchName}");
+
+        var isLocalCheck = dlg.AddCheckBox(1, 2, "Delete Local", isLocal);
         isLocalCheck.Enabled = isLocal;
-        var isRemoteCheck = Components.CheckBox("Delete Remote", isRemote, 1, 3);
+        var isRemoteCheck = dlg.AddCheckBox(1, 3, "Delete Remote", isRemote);
         isRemoteCheck.Enabled = isRemote;
-        var isForceCheck = Components.CheckBox("Force Delete", false, 1, 4);
+        var isForceCheck = dlg.AddCheckBox(1, 4, "Force Delete", false);
 
-        bool isOk = false;
-        Button okButton = Buttons.OK(true, () =>
-        {
-            isOk = true;
-            return true;
-        });
+        dlg.AddOK(true);
+        dlg.AddCancel();
 
-
-        var dialog = Components.Dialog("Delete Branch", 44, 11, okButton, Buttons.Cancel());
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(infoLabel, isLocalCheck, isRemoteCheck, isForceCheck);
-
-        UI.RunDialog(dialog);
-
-        if (!isOk)
+        if (!dlg.Show())
         {
             return R.Error();
         }
