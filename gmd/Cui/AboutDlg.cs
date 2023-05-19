@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Git;
 
@@ -11,16 +12,20 @@ interface IAboutDlg
 class AboutDlg : IAboutDlg
 {
     readonly IGit git;
+    private readonly IState states;
 
-    public AboutDlg(IGit git)
+    public AboutDlg(IGit git, IState states)
     {
         this.git = git;
+        this.states = states;
     }
 
     public void Show()
     {
         UI.Post(async () =>
         {
+            var releases = states.Get().Releases;
+            var typeText = releases.IsPreview ? "(preview)" : "";
             var gmdVersion = Build.Version();
             var gmdBuildTime = Build.Time().ToUniversalTime().Iso();
             var gmdSha = Build.Sha();
@@ -29,6 +34,7 @@ class AboutDlg : IAboutDlg
             var msg =
                 $"Version: {gmdVersion} ({gmdSha}) \n" +
                 $"Built:   {gmdBuildTime}Z \n" +
+                $"Remote:  {releases.LatestVersion} {typeText}\n" +
                 $"Git:     {gitVersion} ";
 
             UI.InfoMessage("About", msg);
