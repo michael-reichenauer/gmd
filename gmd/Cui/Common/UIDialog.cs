@@ -57,7 +57,7 @@ class UIDialog
         return textView;
     }
 
-    internal CheckBox AddCheckBox(string name, bool isChecked, int x, int y)
+    internal CheckBox AddCheckBox(int x, int y, string name, bool isChecked)
     {
         var checkBox = new CheckBox(name, isChecked)
         { X = x, Y = y, ColorScheme = ColorSchemes.CheckBox };
@@ -65,7 +65,7 @@ class UIDialog
         return checkBox;
     }
 
-    internal Button AddButton(string text, int x, int y, Action clicked)
+    internal Button AddButton(int x, int y, string text, Action clicked)
     {
         var button = Buttons.Button(text, clicked);
         button.X = x;
@@ -113,7 +113,11 @@ class UIDialog
         }
 
         Application.Driver.GetCursorVisibility(out var cursorVisible);
-        Application.Driver.SetCursorVisibility(CursorVisibility.Default);
+        if (setViewFocused is TextView || setViewFocused is TextField)
+        {
+            Application.Driver.SetCursorVisibility(CursorVisibility.Default);
+        }
+
         UI.RunDialog(dlg);
         Application.Driver.SetCursorVisibility(cursorVisible);
         return IsOK;

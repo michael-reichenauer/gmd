@@ -75,7 +75,9 @@ class Program
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
-        UI.HideCursor();
+        UI.HideCursor();                        // Hide cursor to avoid flickering
+        Application.Driver.Checked = '▣';      // Checked box characters
+        Application.Driver.UnChecked = '▢';
 
         Application.Top.Add(mainView.View);
 
