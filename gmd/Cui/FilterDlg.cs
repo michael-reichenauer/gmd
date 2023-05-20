@@ -43,10 +43,7 @@ class FilterDlg : IFilterDlg
 
         dlg.Show(filter);
 
-        if (commit == null)
-        {
-            return R.Error();
-        }
+        if (commit == null) return R.Error();
 
         return commit;
     }

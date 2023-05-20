@@ -128,6 +128,13 @@ class UIDialog
         => AddButton("Cancel", isDefault, clicked);
 
 
+    internal bool ShowOkCancel(View? setViewFocused = null)
+    {
+        AddOK();
+        AddCancel();
+        return Show(setViewFocused);
+    }
+
     internal bool Show(View? setViewFocused = null)
     {
         var dlg = onKey != null ?

@@ -21,22 +21,9 @@ class CreateBranchDlg : ICreateBranchDlg
         var isCheckout = dlg.AddCheckBox(1, 4, "Checkout", true);
         var isPush = dlg.AddCheckBox(1, 5, "Push", true);
 
-        dlg.AddOK(true, () =>
-        {
-            if (name.Text == "")
-            {
-                UI.ErrorMessage("Empty branch name");
-                return false;
-            }
-            return true;
-        });
+        dlg.Validate(() => name.Text != "", "Empty branch name");
 
-        dlg.AddCancel();
-
-        if (!dlg.Show(name))
-        {
-            return R.Error();
-        }
+        if (!dlg.ShowOkCancel(name)) return R.Error();
 
         return new CreateBranchResult(name.Text, isCheckout.Checked, isPush.Checked);
     }

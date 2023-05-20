@@ -19,13 +19,7 @@ class SetBranchDlg : ISetBranchDlg
 
         dlg.Validate(() => name.Text != "", "Empty branch name");
 
-        dlg.AddOK(true);
-        dlg.AddCancel();
-
-        if (!dlg.Show(name))
-        {
-            return R.Error();
-        }
+        if (!dlg.ShowOkCancel(name)) return R.Error();
 
         return name.Text;
     }
