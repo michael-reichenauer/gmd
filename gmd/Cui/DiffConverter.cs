@@ -90,7 +90,7 @@ class DiffService : IDiffConverter
             rows.Add(Text.New.White($"{commitDiffs.Length} Commits:"));
 
             commitDiffs.ForEach(diff => rows.Add(Text.New.White(
-                $"  {diff.Id.Sid(),6}  {diff.Date}  {diff.Message.Max(60, true)}  {diff.Author}")));
+                $"  {diff.Date}  {diff.Message.Max(60, true)}").Dark($"  {diff.Id.Sid(),6}  {diff.Author}")));
             rows.Add(Text.None);
         }
 
