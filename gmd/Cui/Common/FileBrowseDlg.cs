@@ -27,7 +27,7 @@ public class FileBrowseDlg
         dlg.Add(fileTreeView);
 
         dlg.AddLabel(0, height - 4, new string('─', width - 2));
-        dlg.AddCancel();
+        dlg.AddDlgCancel();
 
         dlg.Show(fileTreeView, () =>
         {

@@ -26,7 +26,7 @@ public class FolderBrowseDlg
 
         dlg.Add(folderView);
         dlg.AddLabel(0, height - 4, new string('─', width - 2));
-        dlg.AddCancel();
+        dlg.AddDlgCancel();
 
         dlg.Show(folderView, () =>
         {

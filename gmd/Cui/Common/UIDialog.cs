@@ -92,14 +92,16 @@ class UIDialog
 
     internal Button AddButton(int x, int y, string text, Action clicked)
     {
-        var button = Buttons.Button(text, clicked);
+        Button button = new Button(text) { ColorScheme = ColorSchemes.Button };
+        button.Clicked += () => clicked();
+
         button.X = x;
         button.Y = y;
         views.Add(button);
         return button;
     }
 
-    Button AddButton(string text, bool isDefault = false, Func<bool>? clicked = null, bool isValidateAll = false)
+    Button AddDlgButton(string text, bool isDefault = false, Func<bool>? clicked = null, bool isValidateAll = false)
     {
         Button button = new Button(text, isDefault) { ColorScheme = ColorSchemes.Button };
         button.Clicked += () =>
@@ -122,11 +124,11 @@ class UIDialog
     }
 
 
-    internal Button AddOK(bool isDefault = true, Func<bool>? clicked = null) =>
-        AddButton("OK", isDefault, clicked, true);
+    internal Button AddDlgOK(bool isDefault = true, Func<bool>? clicked = null) =>
+        AddDlgButton("OK", isDefault, clicked, true);
 
-    internal Button AddCancel(bool isDefault = false, Func<bool>? clicked = null)
-        => AddButton("Cancel", isDefault, clicked);
+    internal Button AddDlgCancel(bool isDefault = false, Func<bool>? clicked = null)
+        => AddDlgButton("Cancel", isDefault, clicked);
 
 
     internal void Add(View view)
@@ -137,8 +139,8 @@ class UIDialog
 
     internal bool ShowOkCancel(View? setViewFocused = null)
     {
-        AddOK();
-        AddCancel();
+        AddDlgOK();
+        AddDlgCancel();
         return Show(setViewFocused);
     }
 
