@@ -2,6 +2,11 @@
 --------------------
 
 ## [Current]
+- Highlight current whole row in log
+- Add support for diff within a line
+- Refactored dialogs
+
+## [v0.50.194.217] - 2023-05-12 03:36:39
 - Ignoring white space in diffs
 - Added support for manualy set/determine branch of a commit
 

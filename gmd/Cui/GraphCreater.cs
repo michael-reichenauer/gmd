@@ -364,8 +364,7 @@ class GraphCreater : IGraphCreater
 
     void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
     {
-        // Iterating in the order of the view repo branches
-        var bb = branches[0];
+        // Iterating in the order of the view repo branches, Skipping main/master branch
         for (int i = 1; i < branches.Count; i++)
         {
             var b = branches[i];
@@ -384,17 +383,22 @@ class GraphCreater : IGraphCreater
                 }
                 else
                 {   // Some other child branch
-                    b.X = b.ParentBranch.X + 2;
+                    if (b.ParentBranch.B.LocalName != "")
+                    {   // The parent has a local branch, so this branch should be to the right local
+                        b.X = b.ParentBranch.X + 2;
+                    }
+                    else
+                    {   // The parent has no local branch, so this branch should be to the right of the parent
+                        b.X = b.ParentBranch.X + 1;
+                    }
                 }
             }
 
             // Ensure that siblings do not overlap (with a little margin)
             while (true)
             {
-                if (null == branches.FirstOrDefault(v =>
-                    v.B.Name != b.B.Name && v.X == b.X &&
-                    IsOverlapping(v.TipIndex, v.BottomIndex, b.TipIndex - 1, b.BottomIndex + 1)))
-                {
+                if (null == branches.FirstOrDefault(v => IsOverlapping(v, b)))
+                {   // Found a free spot for the branch
                     break;
                 }
 
@@ -404,10 +408,22 @@ class GraphCreater : IGraphCreater
     }
 
 
-    bool IsOverlapping(int top1, int bottom1, int top2, int bottom2)
+    bool IsOverlapping(GraphBranch b1, GraphBranch b2)
     {
+        if (b2.B.Name == b1.B.Name ||       // Same branch
+            b2.X != b1.X)                   // Not on the same column
+        {
+            return false;
+        }
+
+        int top1 = b1.TipIndex;
+        int bottom1 = b1.BottomIndex;
+        int top2 = b2.TipIndex - 2;
+        int bottom2 = b2.BottomIndex + 2;
+
         return (top2 >= top1 && top2 <= bottom1) ||
             (bottom2 >= top1 && bottom2 <= bottom1) ||
             (top2 <= top1 && bottom2 >= bottom1);
     }
+
 }

@@ -74,7 +74,7 @@ internal class LogService : ILogService
         }
 
         var id = rowParts[0];
-        var sid = id.Substring(0, 6);
+        var sid = id.Sid();
         var authorTime = DateTime.Parse(rowParts[1]);
         var commitTime = DateTime.Parse(rowParts[2]);
         var author = rowParts[3];

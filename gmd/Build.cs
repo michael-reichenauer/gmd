@@ -3,8 +3,11 @@ using System.Reflection;
 
 namespace gmd.Utils;
 
+
+// Build contains build time and version information (do not move file)
 static class Build
 {
+    // Do not change or move these values, they are used by CI/CD (see .github/workflows/build-and-release.yml)
     static readonly string CiCdBuildTimeText = "BUILD_TIME";
     static readonly string CiCdBuildShaText = "BUILD_SHA";
 
@@ -38,8 +41,9 @@ static class Build
         return default;
     }
 
-    internal static string Sha() => CiCdBuildShaText.Substring(0, 6);
+    internal static string Sha() => CiCdBuildShaText.Sid();
 
+    internal static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll");
 
     static (int, int) GetTimeSinceBaseTime()
     {

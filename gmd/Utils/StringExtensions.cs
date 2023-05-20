@@ -5,6 +5,7 @@ namespace System
 {
     public static class StringExtensions
     {
+        const int SidLength = 6;
         /// <summary>
         /// Method that limits the length of text to a defined length.
         /// </summary>
@@ -44,6 +45,16 @@ namespace System
             }
 
             return source.Substring(0, source.Length - suffix.Length);
+        }
+
+        public static string Sid(this string source)
+        {
+            if (source.Length <= SidLength)
+            {
+                return source;
+            }
+
+            return source.Substring(0, SidLength);
         }
     }
 }

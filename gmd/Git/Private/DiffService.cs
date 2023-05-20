@@ -342,6 +342,9 @@ class DiffService : IDiffService
 
     (LineDiff?, int, bool) ParseLineDiff(int i, string[] lines)
     {
+        // Replace BOM if present
+        lines[i] = lines[i].Replace("\uFEFF", "");
+
         if (lines[i].StartsWith("+<<<<<<<"))
         {
             return (new LineDiff(DiffMode.DiffConflictStart, AsConflictLine(lines[i++])), i, true);

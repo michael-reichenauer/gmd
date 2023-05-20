@@ -51,8 +51,8 @@ class RepoWriter : IRepoWriter
             WriteAheadBehindMarker(text, c);
             WriteSubjectColumn(text, cw, c, crb, branchTips, i == currentIndex);
             WriteSid(text, cw, c);
-            WriteAuthor(text, cw, c);
-            WriteTime(text, cw, c);
+            WriteAuthor(text, cw, c, i == currentIndex);
+            WriteTime(text, cw, c, i == currentIndex);
 
             rows.Add(text);
         }
@@ -170,6 +170,18 @@ class RepoWriter : IRepoWriter
             }
         }
 
+        if (subjectText.Length < subjectWidth)
+        {
+            if (c.IsUncommitted && isCurrent)
+            {
+                subjectText.YellowSelected(new string(' ', subjectWidth - subjectText.Length));
+            }
+            else if (isCurrent)
+            {
+                subjectText.WhiteSelected(new string(' ', subjectWidth - subjectText.Length));
+            }
+        }
+
         WriteSubText(text, subjectText, subjectWidth);
         WriteSubText(text, tipsText, tipsWidth);
         WriteSubText(text, tagsText, tagsWidth);
@@ -208,10 +220,10 @@ class RepoWriter : IRepoWriter
     }
 
     Text GetTagsText(Commit c) => c.Tags.Any()
-        ? Text.New.Green($" [{string.Join("][", c.Tags.Select(t => t.Name))}]") : Text.New;
+        ? Text.New.Green($"[{string.Join("][", c.Tags.Select(t => t.Name))}]") : Text.New;
 
     Text GetTipsText(Commit c, IReadOnlyDictionary<string, Text> branchTips) =>
-        branchTips.ContainsKey(c.Id) ? Text.New.Black(" ").Add(branchTips[c.Id]) : Text.New;
+        branchTips.ContainsKey(c.Id) ? Text.New.Add(branchTips[c.Id]) : Text.New;
 
 
     void WriteSid(Text text, Columns cw, Commit c)
@@ -224,14 +236,28 @@ class RepoWriter : IRepoWriter
         text.Dark(Txt(" " + c.Sid, cw.Sid));
     }
 
-    void WriteAuthor(Text text, Columns cw, Commit c)
+    void WriteAuthor(Text text, Columns cw, Commit c, bool isCurrent)
     {
-        text.Dark(Txt(" " + c.Author, cw.Author));
+        var txt = Txt(" " + c.Author, cw.Author);
+        if (isCurrent)
+        {
+            text.WhiteSelected(txt);
+            return;
+        }
+
+        text.Dark(txt);
     }
 
-    void WriteTime(Text text, Columns cw, Commit c)
+    void WriteTime(Text text, Columns cw, Commit c, bool isCurrent)
     {
-        text.Dark(Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time));
+        var txt = Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time);
+        if (isCurrent)
+        {
+            text.WhiteSelected(txt);
+            return;
+        }
+
+        text.Dark(txt);
     }
 
     string Txt(string text, int width)
