@@ -419,12 +419,10 @@ class RepoViewMenus : IRepoViewMenus
 
         var liveBranches = allBranches
             .Where(b => b.IsGitBranch)
-            .DistinctBy(b => b.CommonName)
-            .OrderBy(b => b.CommonName);
+            .OrderBy(b => b.DisplayName);
 
         var liveAndDeletedBranches = allBranches
-            .DistinctBy(b => b.CommonName)
-            .OrderBy(b => b.CommonName);
+            .OrderBy(b => b.DisplayName);
 
         var recentBranches = liveAndDeletedBranches
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
@@ -432,7 +430,7 @@ class RepoViewMenus : IRepoViewMenus
 
         var ambiguousBranches = allBranches
             .Where(b => b.AmbiguousTipId != "")
-            .OrderBy(b => b.CommonName);
+            .OrderBy(b => b.DisplayName);
 
         var items = EnumerableEx.From(
             SubMenu("Recent", "", ToShowHiarchicalBranchesItems(recentBranches)),
