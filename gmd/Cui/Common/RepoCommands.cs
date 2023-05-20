@@ -427,7 +427,7 @@ class RepoCommands : IRepoCommands
     {
         if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
         {
-            return R.Error($"Failed to cherry pic {id.Substring(0, 6)}", e);
+            return R.Error($"Failed to cherry pic {id.Sid()}", e);
         }
 
         Refresh();
@@ -703,6 +703,8 @@ class RepoCommands : IRepoCommands
         var isRemote = remoteBranch != null;
         if (!Try(out var rsp, deleteBranchDlg.Show(name, isLocal, isRemote))) return R.Ok;
 
+        var newName = "";
+
         if (rsp.IsRemote && remoteBranch != null)
         {
             var tip = repo.Commit(remoteBranch.TipId);
@@ -715,6 +717,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
+            newName = $"{remoteBranch.CommonName}:{remoteBranch.TipId.Sid()}";
         }
 
         if (rsp.IsLocal && localBranch != null)
@@ -728,9 +731,10 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
+            newName = $"{localBranch.CommonName}:{localBranch.TipId.Sid()}";
         }
 
-        Refresh();
+        Refresh(newName);
         return R.Ok;
     });
 

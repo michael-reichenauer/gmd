@@ -29,24 +29,23 @@ class ConfigDlg : IConfigDlg
         int width = 60;
         int height = 15;
 
-        // Repo specific config
-        var repoInfoinfo = Components.Label(1, 0, $"Repo '{repoPath}':");
-        var isSyncMetaData = Components.CheckBox("Push/Sync branch structure metadata to server",
-            repoConfig.Get(repoPath).SyncMetaData, 1, 1);
+        var repoConf = repoConfig.Get(repoPath);
+        var conf = config.Get();
+        var dlg = new UIDialog("Config", width, height);
 
+        // Repo specific config
+        dlg.AddLabel(1, 0, $"Repo '{repoPath}':");
+        var isSyncMetaData = dlg.AddCheckBox(1, 1, "Push/Sync branch structure metadata to server", repoConf.SyncMetaData);
 
         // General config
-        var sep1 = new Label(0, 3, new string('─', width - 2));
-        var commoninfo = Components.Label(1, 4, $"General:");
-        var isCheckUpdates = Components.CheckBox("Check for new releases",
-          config.Get().CheckUpdates, 1, 5);
-        var isAutoUpdate = Components.CheckBox("Auto update when starting",
-            config.Get().AutoUpdate, 1, 6);
-        var isAllowPreview = Components.CheckBox("Allow preview releases",
-            config.Get().AllowPreview, 1, 7);
+        dlg.AddLine(1, 3, width - 2);
 
-        // Handle OK
-        Button okButton = Buttons.OK(true, () =>
+        dlg.AddLabel(1, 4, $"General:");
+        var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", conf.CheckUpdates);
+        var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
+        var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
+
+        if (dlg.ShowOkCancel())
         {
             // Update repo config
             repoConfig.Set(repoPath, c => c.SyncMetaData = isSyncMetaData.Checked);
@@ -58,19 +57,9 @@ class ConfigDlg : IConfigDlg
                 c.AutoUpdate = isAutoUpdate.Checked;
                 c.AllowPreview = isAllowPreview.Checked;
             });
+
             updater.CheckUpdateAvailableAsync().RunInBackground();
-
-            return true;
-        });
-
-
-        var dialog = Components.Dialog("Config", width, height, okButton, Buttons.Cancel());
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(repoInfoinfo, isSyncMetaData, sep1, commoninfo,
-            isCheckUpdates, isAutoUpdate, isAllowPreview);
-
-        UI.ShowCursor();
-        UI.RunDialog(dialog);
+        }
     }
 }
 

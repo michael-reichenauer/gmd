@@ -1,3 +1,5 @@
+using gmd.Common.Private;
+
 namespace gmd.Common;
 
 public class BranchOrder

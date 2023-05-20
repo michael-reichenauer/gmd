@@ -212,14 +212,14 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName)
     {
-        Log.Info($"Set {commitId.Substring(0, 6)} to {setDisplayName} ...");
+        Log.Info($"Set {commitId.Sid()} to {setDisplayName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(commitId.Substring(0, 6), setDisplayName);
+            metaData.SetCommitBranch(commitId.Sid(), setDisplayName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
@@ -228,14 +228,14 @@ class AugmentedService : IAugmentedService
     {
         var branch = repo.BranchByName[branchName];
         var ambiguousTip = branch.AmbiguousTipId;
-        Log.Info($"Resolve {ambiguousTip.Substring(0, 6)} of {branchName} to {setDisplayName} ...");
+        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setDisplayName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(ambiguousTip.Substring(0, 6), setDisplayName);
+            metaData.SetCommitBranch(ambiguousTip.Sid(), setDisplayName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
@@ -248,7 +248,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.Remove(commitId.Substring(0, 6));
+            metaData.Remove(commitId.Sid());
 
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
@@ -319,7 +319,7 @@ class AugmentedService : IAugmentedService
         var id = Repo.PartialLogCommitID;
         var msg = "<... empty repo ...>";
         var branchName = "main";
-        var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Substring(0,6),
+        var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),
             new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
         var branches = new List<Git.Branch>() { new Git.Branch(branchName, branchName, id,
              true, false, "", false, 0, 0, false) };

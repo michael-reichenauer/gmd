@@ -115,6 +115,12 @@ class Updater : IUpdater
 
     public async Task CheckUpdatesRegularly()
     {
+        if (Build.IsDevInstance())
+        {
+            Log.Info("Dev instance, no update check");
+            return;
+        }
+
         while (true)
         {
             await CheckUpdateAvailableAsync();

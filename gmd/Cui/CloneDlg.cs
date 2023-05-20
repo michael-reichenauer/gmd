@@ -12,100 +12,69 @@ interface ICloneDlg
 
 class CloneDlg : ICloneDlg
 {
-    TextField? uriField;
-    TextField? pathField;
+    const int width = 55;
 
-    string basePath = "";
+    UITextField? path;
 
 
     public R<(string, string)> Show(IReadOnlyList<string> recentParentFolders)
     {
-        basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
+        var basePath = recentParentFolders.Any() ?
+            recentParentFolders[0] + Path.DirectorySeparatorChar :
+            "";
 
-        const int width = 55;
-        Label uriLabel = Components.Label(1, 0, "Uri:");
-        uriField = Components.TextField(1, 1, width, "");
-        var uriIndicator = Components.TextIndicator(uriField);
-        uriField.KeyUp += _ => UpdatePath();
+        var dlg = new UIDialog("Clone Repo", width + 4, 10);
 
+        dlg.AddLabel(1, 0, "Uri:");
+        var uri = dlg.AddTextField(1, 1, width, "");
+        uri.KeyUp += _ => UpdatePath(basePath, uri.Text);
 
-        Label pathLabel = Components.Label(1, 3, "Path:");
-        pathField = Components.TextField(1, 4, width, basePath);
-        var pathIdicator = Components.TextIndicator(pathField);
+        dlg.AddLabel(1, 3, "Path:");
+        path = dlg.AddTextField(1, 4, width, basePath);
 
-        Button browseButton = Buttons.Button("Browse ...", () =>
+        dlg.AddButton(width - 13, 3, "Browse ...", () =>
         {
             FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-            if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "")
-            {
-                return;
-            }
-            SetBrowsedPath(path);
-        });
-        browseButton.X = width - 13;
-        browseButton.Y = 3;
-
-        bool isOk = false;
-        Button okButton = Buttons.OK(true, () =>
-        {
-            if (Uri() == "" || PathText() == "")
-            {
-                UI.ErrorMessage("Empty fields are not allowed.");
-                return false;
-            }
-            isOk = true;
-            return true;
+            if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "") return;
+            SetBrowsedPath(basePath, uri.Text, path);
         });
 
+        dlg.Validate(() => uri.Text != "", "Empty uri is not allowed");
+        dlg.Validate(() => path.Text != "", "Empty path is not allowed");
 
-        var dialog = Components.Dialog("Clone Repo", width + 4, 10, okButton, Buttons.Cancel());
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(uriLabel, uriField, uriIndicator, pathLabel, pathField, pathIdicator, browseButton);
+        if (!dlg.ShowOkCancel(uri)) return R.Error();
 
-        uriField.SetFocus();
-        UI.ShowCursor();
-        UI.RunDialog(dialog);
-
-        if (!isOk)
-        {
-            return R.Error();
-        }
-
-        return (Uri(), PathText());
+        return (uri.Text, path.Text);
     }
-
-    string Uri() => uriField!.Text.ToString()?.Trim() ?? "";
-
-    string PathText() => pathField!.Text.ToString()?.Trim() ?? "";
 
 
     // Update path field when uri changes
-    void UpdatePath()
+    void UpdatePath(string basePath, string uri)
     {
+        Log.Debug("UpdatePath");
+
         if (!basePath.EndsWith(Path.DirectorySeparatorChar)) return;
 
-        var uri = Uri();
         if (!Try(out var name, TryParseRepoName(uri))) return;
 
-        UpdatePathField(name);
+        UpdatePathField(basePath, name);
     }
 
 
     // Update path after user has browsed target folders
-    void SetBrowsedPath(string path)
+    void SetBrowsedPath(string basePath, string uri, string path)
     {
         path = path.Trim();
 
-        var uri = Uri();
         if (!Try(out var name, TryParseRepoName(uri))) return;
 
         basePath = path + Path.DirectorySeparatorChar;
 
-        UpdatePathField(name);
+        UpdatePathField(basePath, name);
     }
 
 
-    void UpdatePathField(string name)
+    void UpdatePathField(string basePath, string name)
     {
         var newName = name;
         var path = Path.Combine(basePath, newName);
@@ -119,8 +88,8 @@ class CloneDlg : ICloneDlg
             path = Path.Combine(basePath, newName);
         }
 
-        pathField!.Text = path;
-        pathField!.SetNeedsDisplay();
+        this.path!.Text = path;
+        this.path!.SetNeedsDisplay();
     }
 
 
@@ -128,12 +97,11 @@ class CloneDlg : ICloneDlg
     static R<string> TryParseRepoName(string uri)
     {
         var name = "";
-        if (!uri.EndsWith(".git") && uri.Length > 7) return R.Error();
 
         var i = uri.LastIndexOf('/');
         if (i == -1) return R.Error();
 
-        name = uri.Substring(i + 1).TrimSuffix(".git");
+        name = uri.Substring(i + 1).Trim().TrimSuffix(".git").Replace("%20", "");
 
         return name;
     }

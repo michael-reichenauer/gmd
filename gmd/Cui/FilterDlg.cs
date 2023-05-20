@@ -13,9 +13,6 @@ class FilterDlg : IFilterDlg
 {
     private readonly IServer server;
 
-    TextField? nameField;
-    ContentView? contentView;
-
     IReadOnlyList<Server.Commit> commits = new List<Server.Commit>();
 
     string currentFilter = "";
@@ -31,67 +28,80 @@ class FilterDlg : IFilterDlg
     {
         this.repo = repo;
 
-        nameField = Components.TextField(1, 0, 30, "");
-        Label sep1 = Components.TextIndicator(nameField);
-
-        contentView = new ContentView(OnGetContent)
-        { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
-        contentView.RegisterKeyHandler(Key.Enter, () => OnEnter());
-
         var width = 86;
-
-        var dialog = Components.Dialog("Search/Filter", width, 20);
-        dialog.ColorScheme.Focus = TextColor.White;
-        dialog.ColorScheme.Normal = TextColor.BrightMagenta;
-        dialog.Y = 0;
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(nameField, sep1, contentView);
-
-        nameField.KeyUp += (k) => OnKeyUp();
-
-        nameField.SetFocus();
-        UI.ShowCursor();
-        UI.RunDialog(dialog);
-
-        if (commit == null)
+        var dlg = new UIDialog("Filter Commits", width, 20, null, options =>
         {
-            return R.Error();
-        }
+            options.ColorScheme.Focus = TextColor.White;
+            options.ColorScheme.Normal = TextColor.BrightMagenta;
+            options.Y = 0;
+        });
+
+        var contentView = dlg.AddContentView(0, 2, Dim.Fill(), Dim.Fill(), OnGetContent);
+
+        var filter = dlg.AddTextField(1, 0, 40, "");
+        filter.KeyUp += (k) => OnKeyUp(k, filter, contentView);
+
+        dlg.Show(filter);
+
+        if (commit == null) return R.Error();
 
         return commit;
     }
 
-    string Filter() => nameField!.Text.ToString()?.Trim() ?? "";
+
+    void OnKeyUp(View.KeyEventEventArgs e, UITextField filter, ContentView contentView)
+    {
+        try
+        {
+            var key = e.KeyEvent.Key;
+            Log.Info($"OnKeyUp: {key} - {filter.Text}");
+            if (key == Key.CursorDown)
+            {
+                contentView.Move(1);
+                return;
+            }
+            if (key == Key.CursorUp)
+            {
+                contentView.Move(-1);
+                return;
+            }
+            if (key == Key.Enter)
+            {
+                OnEnter(contentView.CurrentIndex);
+                return;
+            }
+            if (filter.Text == currentFilter)
+            {
+                return;
+            }
+            if (filter.Text.Length < 2)
+            {
+                commits = new List<Server.Commit>();
+                contentView.TriggerUpdateContent(commits.Count);
+                return;
+            }
+
+            commits = server.GetFilterCommits(repo!.Repo, filter.Text);
+            contentView!.TriggerUpdateContent(commits.Count);
+        }
+        finally
+        {
+            e.Handled = true;
+        }
+
+    }
 
 
-    void OnEnter()
+    void OnEnter(int index)
     {
         if (commits.Count == 0)
         {
             Application.RequestStop();
             return;
         }
-        this.commit = commits[contentView!.CurrentIndex];
+        this.commit = commits[index];
 
         Application.RequestStop();
-    }
-
-    void OnKeyUp()
-    {
-        string filter = Filter();
-        if (filter == currentFilter)
-        {
-            return;
-        }
-        if (filter.Length < 2)
-        {
-            commits = new List<Server.Commit>();
-            contentView!.TriggerUpdateContent(commits.Count);
-            return;
-        }
-
-        commits = server.GetFilterCommits(repo!.Repo, filter);
-        contentView!.TriggerUpdateContent(commits.Count);
     }
 
 

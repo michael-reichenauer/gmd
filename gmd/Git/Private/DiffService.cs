@@ -140,8 +140,11 @@ class DiffService : IDiffService
         string message = "";
 
         string commitId = lines[i++].Substring("commit ".Length).Trim();
-        i++; // Skipping next line
 
+        if (i < lines.Length && lines[i].StartsWith("Merge: "))
+        {
+            // Skip Merge line
+        }
         if (i < lines.Length && lines[i].StartsWith("Author: "))
         {
             author = lines[i++].Substring("Author: ".Length).Trim();
@@ -149,6 +152,7 @@ class DiffService : IDiffService
         if (i < lines.Length && lines[i].StartsWith("Date: "))
         {
             date = lines[i++].Substring("Date: ".Length).Trim();
+            date = DateTime.TryParse(date, out var dt) ? dt.Iso() : "";
         }
         i++; // Skipping next line
         if (i < lines.Length)
@@ -342,6 +346,9 @@ class DiffService : IDiffService
 
     (LineDiff?, int, bool) ParseLineDiff(int i, string[] lines)
     {
+        // Replace BOM if present
+        lines[i] = lines[i].Replace("\uFEFF", "");
+
         if (lines[i].StartsWith("+<<<<<<<"))
         {
             return (new LineDiff(DiffMode.DiffConflictStart, AsConflictLine(lines[i++])), i, true);

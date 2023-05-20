@@ -10,54 +10,33 @@ interface ICommitDlg
 
 class CommitDlg : ICommitDlg
 {
-    public bool Show(IRepo repo, bool isAmend, out string message)
+    public bool Show(IRepo repo, bool isAmend, out string commitMessage)
     {
-        message = "";
-        bool isOk = false;
-
         if (!isAmend && repo.Status.IsOk)
         {
+            commitMessage = "";
             return false;
         }
 
-        (string subjectText, string messageText) = ParseMessage(repo, isAmend);
+        (string subjectPart, string messagePart) = ParseMessage(repo, isAmend);
 
         var commit = repo.Commits[0];
         int filesCount = repo.Status.ChangesCount;
         string branchName = commit.BranchName;
-        var cmdText = isAmend ? "Amend" : "Commit";
+        var title = isAmend ? "Amend" : "Commit";
 
-        Label infoLabel = Components.Label(1, 0, $"{cmdText} {filesCount} changes on '{branchName}':");
+        var dlg = new UIDialog(title, 74, 18, (key) => OnKey(repo, key));
 
-        TextField subjectField = Components.TextField(1, 2, 50, subjectText);
-        Label sep1 = Components.TextIndicator(subjectField);
+        dlg.AddLabel(1, 0, $"{title} {filesCount} changes on '{branchName}':");
+        var subject = dlg.AddTextField(1, 2, 50, subjectPart);
 
-        TextView messageView = Components.TextView(1, 4, 70, 10, messageText);
-        var sep3 = Components.TextIndicator(messageView);
+        var message = dlg.AddTextView(1, 4, 70, 10, messagePart);
+        dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
 
-        Button okButton = Buttons.OK(true, () =>
-        {
-            if (GetMessage(subjectField, messageView) == "")
-            {
-                UI.ErrorMessage("Empty commit message");
-                subjectField!.SetFocus();
-                return false;
-            }
-            isOk = true;
-            Application.RequestStop();
-            return true;
-        });
+        dlg.ShowOkCancel(subject);
 
-        Dialog dialog = Components.Dialog(cmdText, 74, 18, (key) => OnKey(repo, key), okButton, Buttons.Cancel());
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(infoLabel, subjectField, sep1, messageView, sep3);
-
-        subjectField.SetFocus();
-        UI.ShowCursor();
-        UI.RunDialog(dialog);
-
-        message = GetMessage(subjectField, messageView);
-        return isOk;
+        commitMessage = GetMessage(subject, message);
+        return dlg.IsOK;
     }
 
     private bool OnKey(IRepo repo, Key key)
@@ -107,13 +86,10 @@ class CommitDlg : ICommitDlg
     }
 
 
-    string SubjectText(TextField subjectField) => subjectField!.Text.ToString()?.Trim() ?? "";
-
-
-    string GetMessage(TextField subjectField, TextView messageView)
+    string GetMessage(UITextField subject, TextView message)
     {
-        string subjectText = SubjectText(subjectField);
-        string msgText = messageView!.Text.ToString()?.TrimEnd() ?? "";
+        string subjectText = subject.Text;
+        string msgText = message.Text.ToString()?.TrimEnd() ?? "";
         if (msgText.Trim() == "")
         {
             msgText = "";
