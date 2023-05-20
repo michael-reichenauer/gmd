@@ -44,7 +44,7 @@ class ConfigDlg : IConfigDlg
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
 
-        dlg.AddOK(true, () =>
+        if (dlg.ShowOkCancel())
         {
             // Update repo config
             repoConfig.Set(repoPath, c => c.SyncMetaData = isSyncMetaData.Checked);
@@ -56,13 +56,9 @@ class ConfigDlg : IConfigDlg
                 c.AutoUpdate = isAutoUpdate.Checked;
                 c.AllowPreview = isAllowPreview.Checked;
             });
+
             updater.CheckUpdateAvailableAsync().RunInBackground();
-
-            return true;
-        });
-
-        dlg.AddCancel();
-        dlg.Show();
+        }
     }
 }
 

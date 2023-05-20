@@ -10,6 +10,9 @@ class UIDialog
     readonly Func<Key, bool>? onKey;
     readonly Action<Dialog>? options;
 
+    record Validation(Func<bool> IsValid, string ErrorMsg);
+    readonly List<Validation> validations = new List<Validation>();
+
     internal string Title { get; }
     internal int Width { get; }
     internal int Height { get; }
@@ -65,10 +68,18 @@ class UIDialog
     {
         var contentView = new ContentView(onGetContent)
         { X = x, Y = y, Width = w, Height = h };
-
         views.Add(contentView);
         return contentView;
     }
+
+    internal ContentView AddContentView(int x, int y, Dim w, Dim h, IEnumerable<Text> content)
+    {
+        var contentView = new ContentView(content)
+        { X = x, Y = y, Width = w, Height = h };
+        views.Add(contentView);
+        return contentView;
+    }
+
 
     internal CheckBox AddCheckBox(int x, int y, string name, bool isChecked)
     {
@@ -77,6 +88,7 @@ class UIDialog
         views.Add(checkBox);
         return checkBox;
     }
+
 
     internal Button AddButton(int x, int y, string text, Action clicked)
     {
@@ -87,11 +99,16 @@ class UIDialog
         return button;
     }
 
-    Button AddButton(string text, bool isDefault = false, Func<bool>? clicked = null)
+    Button AddButton(string text, bool isDefault = false, Func<bool>? clicked = null, bool isValidateAll = false)
     {
         Button button = new Button(text, isDefault) { ColorScheme = ColorSchemes.Button };
         button.Clicked += () =>
         {
+            if (isValidateAll && !ValidateAll())
+            {
+                return;
+            }
+
             buttonsClicked[text] = true;
             if (clicked != null && !clicked())
             {
@@ -104,25 +121,43 @@ class UIDialog
         return button;
     }
 
+
     internal Button AddOK(bool isDefault = true, Func<bool>? clicked = null) =>
-        AddButton("OK", isDefault, clicked);
+        AddButton("OK", isDefault, clicked, true);
 
     internal Button AddCancel(bool isDefault = false, Func<bool>? clicked = null)
         => AddButton("Cancel", isDefault, clicked);
 
 
-    internal bool Show(View? setViewFocused = null)
+    internal void Add(View view)
     {
-        var dlg = new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey)
-        {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-            ColorScheme = ColorSchemes.Dialog,
-        };
+        views.Add(view);
+    }
+
+
+    internal bool ShowOkCancel(View? setViewFocused = null)
+    {
+        AddOK();
+        AddCancel();
+        return Show(setViewFocused);
+    }
+
+    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
+    {
+        var dlg = onKey != null ?
+            new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey) :
+            new Dialog(Title, Width, Height, buttons.ToArray())
+            {
+                Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
+                ColorScheme = ColorSchemes.Dialog,
+            };
         if (options != null)
         {
             options(dlg);
         }
         dlg.Add(views.ToArray());
+
+        onAfterAdd?.Invoke();
 
         if (setViewFocused != null)
         {
@@ -140,7 +175,23 @@ class UIDialog
         return IsOK;
     }
 
+    internal void Validate(Func<bool> IsValid, string errorMsg)
+    {
+        validations.Add(new Validation(IsValid, errorMsg));
+    }
 
+    bool ValidateAll()
+    {
+        foreach (var validation in validations)
+        {
+            if (!validation.IsValid())
+            {
+                UI.ErrorMessage(validation.ErrorMsg);
+                return false;
+            }
+        }
+        return true;
+    }
 
     class CustomDialog : Dialog
     {

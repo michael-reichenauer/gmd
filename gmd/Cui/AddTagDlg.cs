@@ -16,22 +16,9 @@ class AddTagDlg : IAddTagDlg
         dlg.AddLabel(1, 0, "Tag Name:");
         var name = dlg.AddTextField(1, 1, 25);
 
-        dlg.AddOK(true, () =>
-        {
-            if (name.Text == "")
-            {
-                UI.ErrorMessage("Empty tag name");
-                return false;
-            }
-            return true;
-        });
+        dlg.Validate(() => name.Text != "", "Empty tag name");
 
-        dlg.AddCancel();
-
-        if (!dlg.Show(name))
-        {
-            return R.Error();
-        }
+        if (!dlg.ShowOkCancel(name)) return R.Error();
 
         return name.Text;
     }

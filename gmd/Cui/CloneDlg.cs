@@ -39,24 +39,11 @@ class CloneDlg : ICloneDlg
             SetBrowsedPath(basePath, uri.Text, path);
         });
 
-        dlg.AddOK(true, () =>
-        {
-            if (uri.Text == "" || path.Text == "")
-            {
-                UI.ErrorMessage("Empty fields are not allowed.");
-                return false;
-            }
-            return true;
-        });
-        dlg.AddCancel();
+        dlg.Validate(() => uri.Text != "", "Empty uri is not allowed");
+        dlg.Validate(() => path.Text != "", "Empty path is not allowed");
 
-        if (!dlg.Show(uri))
-        {
-            UI.HideCursor();
-            return R.Error();
-        }
+        if (!dlg.ShowOkCancel(uri)) return R.Error();
 
-        UI.HideCursor();
         return (uri.Text, path.Text);
     }
 
