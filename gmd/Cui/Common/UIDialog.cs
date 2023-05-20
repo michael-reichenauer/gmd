@@ -89,6 +89,7 @@ class UIDialog
         return checkBox;
     }
 
+
     internal Button AddButton(int x, int y, string text, Action clicked)
     {
         var button = Buttons.Button(text, clicked);
@@ -128,6 +129,12 @@ class UIDialog
         => AddButton("Cancel", isDefault, clicked);
 
 
+    internal void Add(View view)
+    {
+        views.Add(view);
+    }
+
+
     internal bool ShowOkCancel(View? setViewFocused = null)
     {
         AddOK();
@@ -135,7 +142,7 @@ class UIDialog
         return Show(setViewFocused);
     }
 
-    internal bool Show(View? setViewFocused = null)
+    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
     {
         var dlg = onKey != null ?
             new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey) :
@@ -149,6 +156,8 @@ class UIDialog
             options(dlg);
         }
         dlg.Add(views.ToArray());
+
+        onAfterAdd?.Invoke();
 
         if (setViewFocused != null)
         {
