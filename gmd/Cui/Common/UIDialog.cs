@@ -65,10 +65,18 @@ class UIDialog
     {
         var contentView = new ContentView(onGetContent)
         { X = x, Y = y, Width = w, Height = h };
-
         views.Add(contentView);
         return contentView;
     }
+
+    internal ContentView AddContentView(int x, int y, Dim w, Dim h, IEnumerable<Text> content)
+    {
+        var contentView = new ContentView(content)
+        { X = x, Y = y, Width = w, Height = h };
+        views.Add(contentView);
+        return contentView;
+    }
+
 
     internal CheckBox AddCheckBox(int x, int y, string name, bool isChecked)
     {
@@ -113,11 +121,13 @@ class UIDialog
 
     internal bool Show(View? setViewFocused = null)
     {
-        var dlg = new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey)
-        {
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-            ColorScheme = ColorSchemes.Dialog,
-        };
+        var dlg = onKey != null ?
+            new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey) :
+            new Dialog(Title, Width, Height, buttons.ToArray())
+            {
+                Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
+                ColorScheme = ColorSchemes.Dialog,
+            };
         if (options != null)
         {
             options(dlg);
@@ -139,7 +149,6 @@ class UIDialog
         Application.Driver.SetCursorVisibility(cursorVisible);
         return IsOK;
     }
-
 
 
     class CustomDialog : Dialog

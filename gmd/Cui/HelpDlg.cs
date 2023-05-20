@@ -22,20 +22,12 @@ class HelpDlg : IHelpDlg
             return;
         }
 
+        var dlg = new UIDialog("Help", width, height);
 
-        ContentView contentView = new ContentView(ToHelpText(content))
-        { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2, IsNoCursor = true };
+        var contentView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), ToHelpText(content));
+        contentView.IsNoCursor = true;
 
-
-        Label sep1 = new Label(0, height - 4, new string('─', width - 2))
-        { ColorScheme = ColorSchemes.Indicator };
-
-        var dialog = Components.Dialog("Help", width, height, Buttons.OK());
-
-        dialog.Add(sep1, contentView);
-        contentView.SetFocus();
-
-        UI.RunDialog(dialog);
+        dlg.Show(contentView);
     }
 
     IEnumerable<Text> ToHelpText(string content)
@@ -57,7 +49,7 @@ class HelpDlg : IHelpDlg
             int index = 0;
             while (index < row.Length)
             {
-                (var fragment, index) = GetFragment(row, index);
+                (var fragment, index) = GetColoredFragment(row, index);
                 text.Add(fragment);
             }
 
@@ -67,7 +59,7 @@ class HelpDlg : IHelpDlg
         return rows;
     }
 
-    (Text, int) GetFragment(string row, int index)
+    (Text, int) GetColoredFragment(string row, int index)
     {
         char[] chars = new[] { '`', '*' };
         int i1 = row.IndexOfAny(chars, index);
