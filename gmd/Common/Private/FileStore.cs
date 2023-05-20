@@ -1,7 +1,6 @@
 using System.Text.Json;
 
-namespace gmd.Common;
-
+namespace gmd.Common.Private;
 
 // Read and write objects to specified file as json text.
 interface IFileStore
