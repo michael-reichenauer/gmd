@@ -14,7 +14,7 @@ public class FolderBrowseDlg
         const int width = 50;
         const int height = 20;
 
-        var dlg = new UIDialog("Select Working Folder", width, height);
+        var dlg = new UIDialog("Select Folder", width, height);
         var folderView = new TreeView<FileSystemInfo>() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2, };
 
         folderView.Style.ShowBranchLines = true;
@@ -28,16 +28,6 @@ public class FolderBrowseDlg
         dlg.AddLabel(0, height - 4, new string('─', width - 2));
         dlg.AddCancel();
 
-        // Button cancelButton = new Button("Cancel", false);
-        // cancelButton.Clicked += () => Application.RequestStop();
-        // cancelButton.ColorScheme = ColorSchemes.Button;
-
-        // Label sep1 = new Label(0, height - 4, new string('─', width - 2));
-
-        // Dialog dialog = Components.Dialog("Select Working Folder", width, height, cancelButton);
-        // dialog.Closed += e => UI.HideCursor();
-        // dialog.Add(folderView, sep1);
-
         dlg.Show(folderView, () =>
         {
             SetupFileTree(folderView, recentFolders);
@@ -48,16 +38,6 @@ public class FolderBrowseDlg
                 folderView.Expand();
             }
         });
-
-
-        // SetupFileTree(folderView, recentFolders);
-        // SetupScrollBar(folderView);
-        // folderView.GoToFirst();
-        // if (recentFolders.Any())
-        // {
-        //     folderView.Expand();
-        // }
-
 
         if (selectedPath == "") return R.Error();
 
