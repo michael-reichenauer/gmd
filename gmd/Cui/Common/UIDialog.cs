@@ -10,6 +10,9 @@ class UIDialog
     readonly Func<Key, bool>? onKey;
     readonly Action<Dialog>? options;
 
+    record Validation(Func<bool> IsValid, string ErrorMsg);
+    readonly List<Validation> validations = new List<Validation>();
+
     internal string Title { get; }
     internal int Width { get; }
     internal int Height { get; }
@@ -95,11 +98,16 @@ class UIDialog
         return button;
     }
 
-    Button AddButton(string text, bool isDefault = false, Func<bool>? clicked = null)
+    Button AddButton(string text, bool isDefault = false, Func<bool>? clicked = null, bool isValidateAll = false)
     {
         Button button = new Button(text, isDefault) { ColorScheme = ColorSchemes.Button };
         button.Clicked += () =>
         {
+            if (isValidateAll && !ValidateAll())
+            {
+                return;
+            }
+
             buttonsClicked[text] = true;
             if (clicked != null && !clicked())
             {
@@ -112,8 +120,9 @@ class UIDialog
         return button;
     }
 
+
     internal Button AddOK(bool isDefault = true, Func<bool>? clicked = null) =>
-        AddButton("OK", isDefault, clicked);
+        AddButton("OK", isDefault, clicked, true);
 
     internal Button AddCancel(bool isDefault = false, Func<bool>? clicked = null)
         => AddButton("Cancel", isDefault, clicked);
@@ -150,6 +159,23 @@ class UIDialog
         return IsOK;
     }
 
+    internal void Validate(Func<bool> IsValid, string errorMsg)
+    {
+        validations.Add(new Validation(IsValid, errorMsg));
+    }
+
+    bool ValidateAll()
+    {
+        foreach (var validation in validations)
+        {
+            if (!validation.IsValid())
+            {
+                UI.ErrorMessage(validation.ErrorMsg);
+                return false;
+            }
+        }
+        return true;
+    }
 
     class CustomDialog : Dialog
     {

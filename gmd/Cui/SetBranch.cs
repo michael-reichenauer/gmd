@@ -17,15 +17,9 @@ class SetBranchDlg : ISetBranchDlg
         dlg.AddLabel(1, 0, "Branch Name:");
         var name = dlg.AddTextField(1, 1, 25, "");
 
-        dlg.AddOK(true, () =>
-        {
-            if (name.Text == "")
-            {
-                UI.ErrorMessage("Empty tag name");
-                return false;
-            }
-            return true;
-        });
+        dlg.Validate(() => name.Text != "", "Empty branch name");
+
+        dlg.AddOK(true);
         dlg.AddCancel();
 
         if (!dlg.Show(name))
