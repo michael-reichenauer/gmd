@@ -195,6 +195,11 @@ class UIDialog
         return true;
     }
 
+    internal Label AddLine(int x, int y, int width)
+    {
+        return AddLabel(1, 3, new string('─', width));
+    }
+
     class CustomDialog : Dialog
     {
         private readonly Func<Key, bool>? onKey;

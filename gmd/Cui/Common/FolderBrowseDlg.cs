@@ -25,7 +25,7 @@ public class FolderBrowseDlg
         SetCustomColors(folderView);
 
         dlg.Add(folderView);
-        dlg.AddLabel(0, height - 4, new string('─', width - 2));
+        dlg.AddLine(0, height - 4, width - 2);
         dlg.AddDlgCancel();
 
         dlg.Show(folderView, () =>
