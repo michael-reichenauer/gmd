@@ -83,6 +83,17 @@ class DiffService : IDiffConverter
     public DiffRows ToDiffRows(CommitDiff[] commitDiffs)
     {
         DiffRows rows = new DiffRows();
+
+        if (commitDiffs.Length > 1)
+        {
+            rows.AddLine(Text.New.BrightCyan("═"));
+            rows.Add(Text.New.White($"{commitDiffs.Length} Commits:"));
+
+            commitDiffs.ForEach(diff => rows.Add(Text.New.White(
+                $"  {diff.Id.Sid(),6}  {diff.Date}  {diff.Message.Max(60, true)}  {diff.Author}")));
+            rows.Add(Text.None);
+        }
+
         commitDiffs.ForEach(diff => AddCommitDiff(diff, rows));
         rows.Add(Text.None);
         rows.AddLine(Text.New.Yellow("━"));
