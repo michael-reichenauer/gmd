@@ -147,7 +147,11 @@ class UIDialog
     internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
     {
         var dlg = onKey != null ?
-            new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey) :
+            new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey)
+            {
+                Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
+                ColorScheme = ColorSchemes.Dialog,
+            } :
             new Dialog(Title, Width, Height, buttons.ToArray())
             {
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
