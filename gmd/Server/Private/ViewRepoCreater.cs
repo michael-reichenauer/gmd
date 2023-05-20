@@ -426,18 +426,6 @@ class ViewRepoCreater : IViewRepoCreater
     int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2,
         Dictionary<string, BranchOrder> branchOrders)
     {
-        if (branchOrders.TryGetValue(b1.CommonName, out var other) && other.Branch == b2.CommonName)
-        {
-            return other.Order;
-        }
-        if (branchOrders.TryGetValue(b2.CommonName, out other) && other.Branch == b1.CommonName)
-        {
-            return other.Order;
-        }
-
-        // if (b1.DisplayName == "dev" && b2.DisplayName == "branches/deletebranch") return 1;
-        // if (b1.DisplayName == "branches/deletebranch" && b2.DisplayName == "dev") return -1;
-
         if (b1 == b2) return 0;
         if (b1.Name == b2.ParentBranchName) return -1;   // b1 is parent of b2
         if (b2.Name == b1.ParentBranchName) return 1;   // b2 is parent of b1
@@ -458,7 +446,17 @@ class ViewRepoCreater : IViewRepoCreater
             current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
         }
 
-        // Not related
+        // Check if unrelated branches have been ordered
+        if (branchOrders.TryGetValue(b1.CommonName, out var other) && other.Branch == b2.CommonName)
+        {
+            return other.Order;
+        }
+        if (branchOrders.TryGetValue(b2.CommonName, out other) && other.Branch == b1.CommonName)
+        {
+            return -other.Order;
+        }
+
+        // Not related nor ordered
         return 0;
     }
 }

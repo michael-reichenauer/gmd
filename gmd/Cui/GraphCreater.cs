@@ -327,7 +327,7 @@ class GraphCreater : IGraphCreater
 
         if (parentBranch.X < commitBranch.X)
         {   // Other branch is left side  ╭
-            graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color, commitBranch);
+            graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color, commitBranch); // ╭
             graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);  //      ╭
             graph.DrawVerticalLine(x, y + 1, y2, color);              //     │
             graph.SetGraphConnect(x, y2, Sign.BranchToRight, color); //      ╯
@@ -336,10 +336,13 @@ class GraphCreater : IGraphCreater
         else
         {   // (is this still valid ????)
             // Other branch is right side, branched from some child branch ╮ 
-            // graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); // ╮
-            // graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
-            // graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color);      // ╰
-            // graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
+            graph.SetGraphBranch(x, y, Sign.MergeFromRight, color, commitBranch); // ╮
+            graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); // ╮
+            graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
+            graph.SetGraphConnect(x + 1, y2, Sign.BranchToLeft, color);  // ╰
+            graph.DrawHorizontalLine(x + 1, x2 + 1, y2, color);          //  ──
+                                                                         // graph.SetGraphBranch(x, y, Sign.Bottom, color, parentBranch); //    ┗ 
+                                                                         // graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color, parentBranch);  // ╰
         }
     }
 

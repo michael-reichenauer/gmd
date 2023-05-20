@@ -67,6 +67,7 @@ class GraphWriter : IGraphWriter
         if (bm.HasFlag(Sign.Tip)) return "┏";
 
         // commit is bottom
+        if (bm.HasFlag(Sign.Bottom) && hasRight(bm)) return "┗";
         if (bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "┺";
         if (bm.HasFlag(Sign.Bottom)) return "┚";
 
@@ -135,6 +136,8 @@ class GraphWriter : IGraphWriter
                 return "├";
             case Sign.BranchToLeft:
                 return "╰";
+            case Sign.BranchToLeft | Sign.Pass:
+                return "╰";
             case Sign.BranchToLeft | Sign.ConnectLine:
                 return "├";
             case Sign.ConnectLine | Sign.Pass:
@@ -161,6 +164,11 @@ class GraphWriter : IGraphWriter
         return bm.HasFlag(Sign.BranchToLeft) ||
             bm.HasFlag(Sign.MergeFromLeft) ||
             bm.HasFlag(Sign.Pass);
+    }
+
+    bool hasRight(Sign bm)
+    {
+        return bm.HasFlag(Sign.MergeFromRight);
     }
 }
 
