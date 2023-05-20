@@ -25,7 +25,7 @@ class Program
         var t = Timing.Start();
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
-        new Upgrader().UpdradeData();
+        new Upgrader().UpgradeData();
 
         dependencyInjection = new DependencyInjection();
         dependencyInjection.RegisterDependencyInjectionTypes();

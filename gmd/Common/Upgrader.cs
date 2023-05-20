@@ -4,7 +4,7 @@ namespace gmd.Common;
 
 class Upgrader
 {
-    internal void UpdradeData()
+    internal void UpgradeData()
     {
         string oldStatePath = Path.Join(Environment.GetFolderPath(
             SpecialFolder.UserProfile), ".gmdstate.json");

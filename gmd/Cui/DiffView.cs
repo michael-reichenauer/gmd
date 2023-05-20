@@ -91,7 +91,7 @@ class DiffView : IDiffView
 
     private Text ToText(DiffRow row, int columnWidth, int oneColumnWidth) => row.Mode switch
     {
-        DiffRowMode.Line => row.Left.AsLine(oneColumnWidth),
+        DiffRowMode.Line => row.Left.AddLine(oneColumnWidth),
         DiffRowMode.SpanBoth => row.Left.Subtext(0, oneColumnWidth),
         DiffRowMode.LeftRight => Text.New
             .Add(row.Left.Subtext(rowStartX, columnWidth, true))

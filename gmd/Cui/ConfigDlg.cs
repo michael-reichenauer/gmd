@@ -38,7 +38,8 @@ class ConfigDlg : IConfigDlg
         var isSyncMetaData = dlg.AddCheckBox(1, 1, "Push/Sync branch structure metadata to server", repoConf.SyncMetaData);
 
         // General config
-        dlg.AddLabel(1, 3, new string('─', width - 2));
+        dlg.AddLine(1, 3, width - 2);
+
         dlg.AddLabel(1, 4, $"General:");
         var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", conf.CheckUpdates);
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
