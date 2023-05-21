@@ -161,7 +161,7 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
             SubMenu("Set Branch", "", GetSetBranchItems(), () => GetSetBranchItems().Any()),
-            SubMenu($"Move {repo.RowBranch.DisplayName}", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any()),
+            SubMenu("Move Branch left/right", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any()),
             Item("Help ...", "H", () => cmds.ShowHelp()),
             Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
             Item("About ...", "", () => cmds.ShowAbout())
@@ -172,20 +172,54 @@ class RepoViewMenus : IRepoViewMenus
     {
         var items = Enumerable.Empty<MenuItem>();
 
-        var branches = repo.Graph.GetBranches(repo.CurrentRow);
-        var branch = repo.RowBranch;
-        var index = branches.ToList().FindIndex(b => b.B.CommonName == branch.CommonName);
+        // Get possible local, remote, pull merge branches of the row branch
+        var rowCommonName = repo.RowBranch.CommonName;
+        var rowBranches = repo.Branches.Where(b => b.CommonName == rowCommonName);
 
-        if (index > (branch.RemoteName != "" ? 1 : 0))
+        // Get all branches that overlap with any of the row branches
+        var overlappingBranches = rowBranches
+            .SelectMany(b => repo.Graph.GetOverlappinBranches(b.Name))
+            .Distinct()
+            .ToList();
+
+        if (!overlappingBranches.Any()) return items;
+
+        // Sort on left to right shown order
+        Sorter.Sort(overlappingBranches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
+
+        // Find possible branch on left side to move to before (skip if ancestor)
+        Branch? leftBranch = null;
+        for (int i = 0; i < overlappingBranches.Count; i++)
         {
-            items = items.Append(Item($"Move left", "", () => cmds.MoveBranch(branch.Name, -1)));
+            var b = overlappingBranches[i];
+            if (b.B.CommonName == rowCommonName) break;
+            leftBranch = b.B;
         }
-        if (index < repo.Branches.Count - (branch.LocalName != "" ? 2 : 1))
+        var leftCommonName = leftBranch != null && !IsAncestor(leftBranch, repo.RowBranch) ? leftBranch.CommonName : "";
+
+        // Find possible branch on right side to move to after (skip if ancestor)
+        Branch? rightBranch = null;
+        for (int i = overlappingBranches.Count - 1; i >= 0; i--)
         {
-            items = items.Append(Item($"Move Right", "", () => cmds.MoveBranch(branch.Name, +1)));
+            var b = overlappingBranches[i];
+            if (b.B.CommonName == rowCommonName) break;
+            rightBranch = b.B;
         }
+        var rightCommonName = rightBranch != null && !IsAncestor(repo.RowBranch, rightBranch) ? rightBranch.CommonName : "";
+
+        // Add menu items if movable branches found
+        if (leftCommonName != "")
+        {
+            items = items.Append(Item($"<= (Move {repo.RowBranch.DisplayName} left of {leftBranch!.DisplayName})", "", () => cmds.MoveBranch(repo.RowBranch.CommonName, leftCommonName, -1)));
+        }
+        if (rightCommonName != "")
+        {
+            items = items.Append(Item($"=> (Move {repo.RowBranch.DisplayName} right of {rightBranch!.DisplayName})", "", () => cmds.MoveBranch(repo.RowBranch.CommonName, rightCommonName, +1)));
+        }
+
         return items;
     }
+
 
     IEnumerable<MenuItem> GetStashMenuItems()
     {
@@ -574,6 +608,21 @@ class RepoViewMenus : IRepoViewMenus
 
         return name.Replace('_', '-');
     }
+
+    bool IsAncestor(Branch b1, Branch? b2)
+    {
+        while (b2 != null)
+        {
+            if (b2.CommonName == b1.CommonName)
+            {
+                return true;
+            }
+            b2 = repo.Branches.FirstOrDefault(b => b.Name == b2.ParentBranchName);
+        }
+
+        return false;
+    }
+
 
     string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Sid();
 }

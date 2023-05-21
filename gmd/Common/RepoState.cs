@@ -5,6 +5,7 @@ namespace gmd.Common;
 public class BranchOrder
 {
     public string Branch { get; set; } = "";
+    public string Other { get; set; } = "";
     public int Order { get; set; } = 0;
 }
 
@@ -12,7 +13,7 @@ public class RepoState
 {
     public List<string> Branches { get; set; } = new List<string>();
     public Dictionary<string, int> BranchColors { get; set; } = new Dictionary<string, int>();
-    public Dictionary<string, BranchOrder> BranchOrders { get; set; } = new Dictionary<string, BranchOrder>();
+    public List<BranchOrder> BranchOrders { get; set; } = new List<BranchOrder>();
 }
 
 interface IRepoState

@@ -27,7 +27,33 @@ class Graph
 
     internal GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
 
-    internal IReadOnlyList<GraphBranch> GetBranches(int rowIndex) =>
+    public IReadOnlyList<GraphBranch> GetOverlappinBranches(string branchName)
+    {
+        var branch = BranchByName(branchName);
+        return branches.Where(b => IsOverlapping(b, branch)).ToList();
+    }
+
+    bool IsOverlapping(GraphBranch b1, GraphBranch b2)
+    {
+        int margin = 0;
+
+        if (b2.B.Name == b1.B.Name)       // Same branch    
+        {
+            return true;
+        }
+
+        int top1 = b1.TipIndex;
+        int bottom1 = b1.BottomIndex;
+        int top2 = b2.TipIndex - margin;
+        int bottom2 = b2.BottomIndex + margin;
+
+        return (top2 >= top1 && top2 <= bottom1) ||
+            (bottom2 >= top1 && bottom2 <= bottom1) ||
+            (top2 <= top1 && bottom2 >= bottom1);
+    }
+
+
+    internal IReadOnlyList<GraphBranch> GetRowBranches(int rowIndex) =>
         GetRow(rowIndex).columns
         .Where(c => c.Branch != null)
         .Select(c => c.Branch!).ToList();

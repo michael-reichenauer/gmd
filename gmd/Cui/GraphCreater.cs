@@ -55,12 +55,32 @@ class GraphCreater : IGraphCreater
         // The width is the max branch X +2 room for 'more' branch in/out signs
         int width = branches.Max(b => b.X) + 2;
 
+        Sorter.Sort(branches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
         Graph graph = new Graph(width, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
         return graph;
     }
 
-    private void SetBranchesColor(Server.Repo repo, IReadOnlyList<GraphBranch> branches)
+    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2, int margin = 2)
+    {
+        if (b2.B.Name == b1.B.Name ||       // Same branch
+            b2.X != b1.X)                   // Not on the same column
+        {
+            return false;
+        }
+
+        int top1 = b1.TipIndex;
+        int bottom1 = b1.BottomIndex;
+        int top2 = b2.TipIndex - margin;
+        int bottom2 = b2.BottomIndex + margin;
+
+        return (top2 >= top1 && top2 <= bottom1) ||
+            (bottom2 >= top1 && bottom2 <= bottom1) ||
+            (top2 <= top1 && bottom2 >= bottom1);
+    }
+
+
+    void SetBranchesColor(Server.Repo repo, IReadOnlyList<GraphBranch> branches)
     {
         branches.ForEach(b => b.Color = branchColorService.GetColor(repo, b.B));
     }
@@ -347,9 +367,9 @@ class GraphCreater : IGraphCreater
     }
 
 
-    IReadOnlyList<GraphBranch> ToGraphBranches(Server.Repo repo)
+    List<GraphBranch> ToGraphBranches(Server.Repo repo)
     {
-        IReadOnlyList<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
+        List<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
         Func<string, GraphBranch> branchByName = name => branches.First(b => b.B.Name == name);
 
         foreach (var b in branches)
@@ -409,24 +429,4 @@ class GraphCreater : IGraphCreater
             }
         }
     }
-
-
-    bool IsOverlapping(GraphBranch b1, GraphBranch b2)
-    {
-        if (b2.B.Name == b1.B.Name ||       // Same branch
-            b2.X != b1.X)                   // Not on the same column
-        {
-            return false;
-        }
-
-        int top1 = b1.TipIndex;
-        int bottom1 = b1.BottomIndex;
-        int top2 = b2.TipIndex - 2;
-        int bottom2 = b2.BottomIndex + 2;
-
-        return (top2 >= top1 && top2 <= bottom1) ||
-            (bottom2 >= top1 && bottom2 <= bottom1) ||
-            (top2 <= top1 && bottom2 >= bottom1);
-    }
-
 }
