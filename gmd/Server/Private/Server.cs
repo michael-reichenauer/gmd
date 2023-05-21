@@ -303,49 +303,5 @@ class Server : IServer
 
     public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
         augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
-
-    // public R MoveBranch(string name, int delta, Repo repo)
-    // {
-    //     for (int i = 0; i < repo.Branches.Count; i++)
-    //     {
-    //         var branch = repo.Branches[i];
-    //         if (branch.Name == name)
-    //         {   // Found branch to move
-    //             if (delta < 0 && i > 0)
-    //             {
-    //                 // Get branch before the one to move (skip possible remote branch)
-    //                 var branch2 = repo.Branches[i - 1];
-    //                 if (i > 1 && branch2.Name == branch.RemoteName) branch2 = repo.Branches[i - 2];
-
-    //                 repoState.Set(repo.Path, s => s.BranchOrders[branch.CommonName] = new BranchOrder()
-    //                 {
-    //                     Branch = branch2.CommonName,
-    //                     Order = -1
-    //                 });
-    //                 return R.Ok;
-    //             }
-    //             if (delta > 0 && i < repo.Branches.Count - 1)
-    //             {
-    //                 // Get branch next to the one to move (skip possible local branch)
-    //                 var branch2 = repo.Branches[i + 1];
-    //                 if (i < repo.Branches.Count - 2 && branch2.Name == branch.LocalName) branch2 = repo.Branches[i + 2];
-
-    //                 repoState.Set(repo.Path, s => s.BranchOrders[branch.CommonName] = new BranchOrder()
-    //                 {
-    //                     Branch = branch2.CommonName,
-    //                     Order = 1
-    //                 });
-    //                 return R.Ok;
-    //             }
-    //         }
-    //     }
-
-    //     return R.Error("Failed to move branch");
-    // }
-
-    // public R MoveBranch(string commonName, string otherCommonName, int delta, Repo repo)
-    // {
-    //     throw new NotImplementedException();
-    // }
 }
 
