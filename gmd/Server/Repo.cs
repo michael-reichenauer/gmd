@@ -110,6 +110,7 @@ public record Branch(
     bool IsMainBranch,
 
     string ParentBranchName,
+    string ParentBranchCommonName,
     string PullMergeBranchName,
 
     int AheadCount,

@@ -1,3 +1,5 @@
+using gmd.Cui.Common;
+
 namespace gmd.Server;
 
 interface IServer
