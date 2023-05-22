@@ -23,6 +23,7 @@ interface IRepoCommands
     void CreateBranch();
     void ShowCurrentRowDiff();
     void PushCurrentBranch();
+    void PublishCurrentBranch();
     void PullCurrentBranch();
     void UpdateRelease();
     bool CanPush();
@@ -447,6 +448,20 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
         {
             return R.Error($"Failed to push branch {branch.Name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+
+    public void PublishCurrentBranch() => Do(async () =>
+    {
+        var branch = serverRepo.Branches.First(b => b.IsCurrent);
+
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
+        {
+            return R.Error($"Failed to publish branch {branch.Name}", e);
         }
 
         Refresh();

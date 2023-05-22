@@ -326,6 +326,12 @@ class RepoViewMenus : IRepoViewMenus
             .Where(b => !b.IsRemote && !b.IsCurrent && b.HasLocalOnly && !b.HasRemoteOnly)
             .Select(b => (Item($"Push {ToBranchMenuName(b)}", "", () => cmds.PushBranch(b.Name)))));
 
+        if (repo.CurrentBranch != null && repo.CurrentBranch.RemoteName == "")
+        {
+            items.Add(Item($"Publish {repo.CurrentBranch.DisplayName}", "",
+            () => cmds.PublishCurrentBranch()));
+        }
+
         return items.DistinctBy(b => b.Title);
     }
 
