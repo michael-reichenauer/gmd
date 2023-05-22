@@ -31,8 +31,8 @@ public class State
 {
     public List<string> RecentFolders { get; set; } = new List<string>();
     public List<string> RecentParentFolders { get; set; } = new List<string>();
-
     public Releases Releases { get; set; } = new Releases();
+    public string GitVersion { get; set; } = "";
 }
 
 interface IState
