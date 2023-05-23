@@ -31,10 +31,11 @@ class AboutDlg : IAboutDlg
         var gitVersion = states.Get().GitVersion;
 
         var msg =
-            $"Version:   {gmdVersion} ({gmdSha}) \n" +
-            $"Built:     {gmdBuildTime}\n" +
-            (isAvailable ? $"Available: {releases.LatestVersion} {typeText}\n" : "") +
-            $"Git:       {gitVersion} ";
+            $"Version: {gmdVersion} ({gmdSha}) \n" +
+            $"Built:   {gmdBuildTime}\n" +
+            (isAvailable ? $"Updates: {releases.LatestVersion} {typeText} available\n" :
+                "Updates: Currently no updates available\n") +
+            $"Git:     {gitVersion} ";
 
         UI.InfoMessage("About", msg);
     }
