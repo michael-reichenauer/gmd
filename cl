@@ -1,3 +1,0 @@
-#!/bin/bash
-
-dotnet run --project gmd/gmd.csproj -- "--updatechangelog"

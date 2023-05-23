@@ -1,13 +1,14 @@
 using System.Text.Json;
 
-namespace gmd.Common;
+namespace gmd.Common.Private;
 
-
+// Read and write objects to specified file as json text.
 interface IFileStore
 {
     T Get<T>(string path);
     void Set<T>(string path, Action<T> set);
 }
+
 
 [SingleInstance]
 class FileStore : IFileStore
@@ -51,7 +52,7 @@ class FileStore : IFileStore
 
             if (!Files.Exists(path))
             {
-                Write(path, new State());
+                Write(path, (T)Activator.CreateInstance(typeof(T))!);
             }
 
             if (!Try(out var json, out var e, Files.ReadAllText(path))) throw Asserter.FailFast(e.ErrorMessage);

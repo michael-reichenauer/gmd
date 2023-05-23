@@ -55,12 +55,32 @@ class GraphCreater : IGraphCreater
         // The width is the max branch X +2 room for 'more' branch in/out signs
         int width = branches.Max(b => b.X) + 2;
 
+        Sorter.Sort(branches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
         Graph graph = new Graph(width, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
         return graph;
     }
 
-    private void SetBranchesColor(Server.Repo repo, IReadOnlyList<GraphBranch> branches)
+    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2, int margin = 2)
+    {
+        if (b2.B.Name == b1.B.Name ||       // Same branch
+            b2.X != b1.X)                   // Not on the same column
+        {
+            return false;
+        }
+
+        int top1 = b1.TipIndex;
+        int bottom1 = b1.BottomIndex;
+        int top2 = b2.TipIndex - margin;
+        int bottom2 = b2.BottomIndex + margin;
+
+        return (top2 >= top1 && top2 <= bottom1) ||
+            (bottom2 >= top1 && bottom2 <= bottom1) ||
+            (top2 <= top1 && bottom2 >= bottom1);
+    }
+
+
+    void SetBranchesColor(Server.Repo repo, IReadOnlyList<GraphBranch> branches)
     {
         branches.ForEach(b => b.Color = branchColorService.GetColor(repo, b.B));
     }
@@ -131,7 +151,7 @@ class GraphCreater : IGraphCreater
         {
             color = TextColor.Ambiguous;
         }
-        graph.SetGraphBranch(x2, y2, Sign.Bottom | Sign.Pass, color); //       ┺
+        graph.SetGraphBranch(x2, y2, Sign.Bottom | Sign.Pass, color, b); //       ┺
     }
 
 
@@ -144,7 +164,7 @@ class GraphCreater : IGraphCreater
         if (c.BranchName != b.B.Name && c.Id != b.B.TipId)
         {   // Other branch commit, normal branch line (no commit on that branch)
             Color otherColor = !isAmbiguous ? b.Color : TextColor.Ambiguous;
-            graph.SetGraphBranch(x, y, Sign.BLine, otherColor); //      ┃  (other branch, not this commit)
+            graph.SetGraphBranch(x, y, Sign.BLine, otherColor, b); //      ┃  (other branch, not this commit)
             return;
         }
 
@@ -155,24 +175,24 @@ class GraphCreater : IGraphCreater
 
         if (c.IsBranchSetByUser)
         {
-            graph.SetGraphBranch(x, y, Sign.Resolve, TextColor.Ambiguous); //       Φ   (Resolved/set by user)
+            graph.SetGraphBranch(x, y, Sign.Resolve, TextColor.Ambiguous, b); //       Φ   (Resolved/set by user)
             return;
         }
         if (c.Id == b.B.TipId)
         {
-            graph.SetGraphBranch(x, y, Sign.Tip, color); //       ┏   (branch tip)
+            graph.SetGraphBranch(x, y, Sign.Tip, color, b); //       ┏   (branch tip)
         }
         if (c.Id == b.B.TipId && b.B.IsGitBranch)
         {
-            graph.SetGraphBranch(x, y, Sign.ActiveTip, color); // ┣   (indicate possible more commits in the future)
+            graph.SetGraphBranch(x, y, Sign.ActiveTip, color, b); // ┣   (indicate possible more commits in the future)
         }
         if (c.Id == b.B.BottomId)
         {
-            graph.SetGraphBranch(x, y, Sign.Bottom, color); //    ┗   (bottom commit (e.g. initial commit on main)
+            graph.SetGraphBranch(x, y, Sign.Bottom, color, b); //    ┗   (bottom commit (e.g. initial commit on main)
         }
         if (c.Id != b.B.TipId && c.Id != b.B.BottomId)
         {
-            graph.SetGraphBranch(x, y, Sign.Commit, color); //    ┣   (normal commit, in the middle)
+            graph.SetGraphBranch(x, y, Sign.Commit, color, b); //    ┣   (normal commit, in the middle)
         }
     }
 
@@ -234,14 +254,14 @@ class GraphCreater : IGraphCreater
             color = TextColor.Ambiguous;
         }
 
-        graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color); //     ╭
+        graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color, commitBranch); //     ╭
         graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);
         if (commitBranch != parentBranch)
         {
-            graph.DrawVerticalLine(x, y + 1, y2, color); //           │
+            graph.DrawVerticalLine(x, y + 1, y2, color); //                         │
         }
-        graph.SetGraphConnect(x, y2, Sign.BranchToRight, color); //   ╯
-        graph.DrawHorizontalLine(x2 + 1, x, y2, color);            // ──
+        graph.SetGraphConnect(x, y2, Sign.BranchToRight, color); //                 ╯
+        graph.DrawHorizontalLine(x2 + 1, x, y2, color);            //            ──
     }
 
     private void DrawMergeFromSiblingBranch(
@@ -271,7 +291,7 @@ class GraphCreater : IGraphCreater
         }
         else
         {
-            graph.SetGraphBranch(x2, y2, Sign.Commit, color); //           ┣
+            graph.SetGraphBranch(x2, y2, Sign.Commit, color, parentBranch); //  ┣
         }
     }
 
@@ -297,14 +317,14 @@ class GraphCreater : IGraphCreater
 
         if (commitBranch != parentBranch)
         {
-            graph.SetGraphConnect(x2, y, Sign.MergeFromRight, color); //   ╮
-            graph.DrawVerticalLine(x2, y + 1, y2, color); //               │
-            graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color); //     ╰
+            graph.SetGraphConnect(x2, y, Sign.MergeFromRight, color); //                 ╮
+            graph.DrawVerticalLine(x2, y + 1, y2, color); //                             │
+            graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color, parentBranch); //     ╰
             graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
         }
         else
         {
-            graph.SetGraphBranch(x2, y2, Sign.Commit, color); //           ┣
+            graph.SetGraphBranch(x2, y2, Sign.Commit, color, parentBranch); //           ┣
         }
     }
 
@@ -327,7 +347,7 @@ class GraphCreater : IGraphCreater
 
         if (parentBranch.X < commitBranch.X)
         {   // Other branch is left side  ╭
-            graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color);
+            graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color, commitBranch); // ╭
             graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);  //      ╭
             graph.DrawVerticalLine(x, y + 1, y2, color);              //     │
             graph.SetGraphConnect(x, y2, Sign.BranchToRight, color); //      ╯
@@ -336,17 +356,20 @@ class GraphCreater : IGraphCreater
         else
         {   // (is this still valid ????)
             // Other branch is right side, branched from some child branch ╮ 
-            // graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); // ╮
-            // graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
-            // graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color);      // ╰
-            // graph.SetGraphConnect(x2, y2, Sign.BranchToLeft, color);
+            graph.SetGraphBranch(x, y, Sign.MergeFromRight, color, commitBranch); // ╮
+            graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); // ╮
+            graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
+            graph.SetGraphConnect(x + 1, y2, Sign.BranchToLeft, color);  // ╰
+            graph.DrawHorizontalLine(x + 1, x2 + 1, y2, color);          //  ──
+                                                                         // graph.SetGraphBranch(x, y, Sign.Bottom, color, parentBranch); //    ┗ 
+                                                                         // graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color, parentBranch);  // ╰
         }
     }
 
 
-    IReadOnlyList<GraphBranch> ToGraphBranches(Server.Repo repo)
+    List<GraphBranch> ToGraphBranches(Server.Repo repo)
     {
-        IReadOnlyList<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
+        List<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
         Func<string, GraphBranch> branchByName = name => branches.First(b => b.B.Name == name);
 
         foreach (var b in branches)
@@ -406,24 +429,4 @@ class GraphCreater : IGraphCreater
             }
         }
     }
-
-
-    bool IsOverlapping(GraphBranch b1, GraphBranch b2)
-    {
-        if (b2.B.Name == b1.B.Name ||       // Same branch
-            b2.X != b1.X)                   // Not on the same column
-        {
-            return false;
-        }
-
-        int top1 = b1.TipIndex;
-        int bottom1 = b1.BottomIndex;
-        int top2 = b2.TipIndex - 2;
-        int bottom2 = b2.BottomIndex + 2;
-
-        return (top2 >= top1 && top2 <= bottom1) ||
-            (bottom2 >= top1 && bottom2 <= bottom1) ||
-            (top2 <= top1 && bottom2 >= bottom1);
-    }
-
 }

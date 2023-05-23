@@ -14,36 +14,29 @@ public class FileBrowseDlg
         const int width = 50;
         const int height = 20;
 
-        var folderView = new TreeView() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+        var dlg = new UIDialog("Select File", width, height);
 
-        folderView.Style.ShowBranchLines = true;
-        folderView.Style.ExpandableSymbol = '+';
-        folderView.Style.CollapseableSymbol = null;
-        folderView.MultiSelect = false;
-        folderView.ObjectActivated += ItemSelected;
-        SetCustomColors(folderView);
+        var fileTreeView = new TreeView() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+        fileTreeView.Style.ShowBranchLines = true;
+        fileTreeView.Style.ExpandableSymbol = '+';
+        fileTreeView.Style.CollapseableSymbol = null;
+        fileTreeView.MultiSelect = false;
+        fileTreeView.ObjectActivated += ItemSelected;
+        SetCustomColors(fileTreeView);
 
-        Button cancelButton = new Button("Cancel", false);
-        cancelButton.Clicked += () => Application.RequestStop();
-        cancelButton.ColorScheme = ColorSchemes.Button;
+        dlg.Add(fileTreeView);
 
-        Label sep1 = new Label(0, height - 4, new string('─', width - 2));
+        dlg.AddLine(0, height - 4, width - 2);
+        dlg.AddDlgCancel();
 
-        Dialog dialog = Components.Dialog("Select File", width, height, cancelButton);
-        dialog.Closed += e => UI.HideCursor();
-        dialog.Add(folderView, sep1);
-
-        SetupFileTree(folderView, files);
-        SetupScrollBar(folderView);
-        folderView.GoToFirst();
-
-        folderView.SetFocus();
-        UI.RunDialog(dialog);
-
-        if (selectedPath == "")
+        dlg.Show(fileTreeView, () =>
         {
-            return R.Error();
-        }
+            SetupFileTree(fileTreeView, files);
+            SetupScrollBar(fileTreeView);
+            fileTreeView.GoToFirst();
+        });
+
+        if (selectedPath == "") return R.Error();
 
         return selectedPath;
     }

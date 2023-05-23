@@ -10,7 +10,6 @@ class Text
     record Fragment(string Text, Color Color);
     readonly List<Fragment> fragments = new List<Fragment>();
     internal int Length { get; private set; } = 0;
-    internal int FragmentCount => fragments.Count;
 
     internal static Text None => new Text();
     internal static Text New => new Text();
@@ -56,6 +55,16 @@ class Text
         return this;
     }
 
+    internal Text AddLine(int width)
+    {
+        if (!fragments.Any() || fragments[0].Text == "")
+        {
+            return this;
+        }
+
+        return Text.New.Color(fragments[0].Color, new string(fragments[0].Text[0], width));
+    }
+
     internal Text Subtext(int startIndex, int length, bool isFillRest = false)
     {
         var newText = Text.New;
@@ -98,16 +107,6 @@ class Text
         return newText;
     }
 
-    internal Text AsLine(int width)
-    {
-        if (!fragments.Any() || fragments[0].Text == "")
-        {
-            return this;
-        }
-
-        return Text.New.Color(fragments[0].Color, new string(fragments[0].Text[0], width));
-    }
-
 
     internal void Draw(View view, int x, int y, int startIndex = 0, int length = int.MaxValue)
     {
@@ -115,19 +114,8 @@ class Text
         Draw(startIndex, length);
     }
 
-    internal void DrawAsLine(View view, int x, int y, int width)
-    {
-        if (!fragments.Any() || fragments[0].Text == "")
-        {
-            return;
-        }
 
-        view.Move(x, y);
-        View.Driver.SetAttribute(fragments[0].Color);
-        View.Driver.AddStr(new string(fragments[0].Text[0], width));
-    }
-
-    internal void Draw(int startIndex = 0, int length = int.MaxValue)
+    void Draw(int startIndex = 0, int length = int.MaxValue)
     {
         int x = 0;
         foreach (var fragment in fragments)

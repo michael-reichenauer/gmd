@@ -23,6 +23,7 @@ interface IRepoCommands
     void CreateBranch();
     void ShowCurrentRowDiff();
     void PushCurrentBranch();
+    void PublishCurrentBranch();
     void PullCurrentBranch();
     void UpdateRelease();
     bool CanPush();
@@ -58,6 +59,7 @@ interface IRepoCommands
     void AddTag();
     void DeleteTag(string name);
     void SetBranchManuallyAsync();
+    void MoveBranch(string commonName, string otherCommonName, int delta);
 }
 
 class RepoCommands : IRepoCommands
@@ -77,6 +79,7 @@ class RepoCommands : IRepoCommands
     readonly IState states;
     readonly IUpdater updater;
     readonly IGit git;
+    readonly IRepoState repoState;
     readonly IBranchColorService branchColorService;
     readonly IRepo repo;
     readonly Repo serverRepo;
@@ -104,6 +107,7 @@ class RepoCommands : IRepoCommands
         IState states,
         IUpdater updater,
         IGit git,
+        IRepoState repoState,
         IBranchColorService branchColorService)
     {
         this.repo = repo;
@@ -124,6 +128,7 @@ class RepoCommands : IRepoCommands
         this.states = states;
         this.updater = updater;
         this.git = git;
+        this.repoState = repoState;
         this.branchColorService = branchColorService;
     }
 
@@ -443,6 +448,20 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
         {
             return R.Error($"Failed to push branch {branch.Name}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+
+    public void PublishCurrentBranch() => Do(async () =>
+    {
+        var branch = serverRepo.Branches.First(b => b.IsCurrent);
+
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
+        {
+            return R.Error($"Failed to publish branch {branch.Name}", e);
         }
 
         Refresh();
@@ -866,6 +885,32 @@ class RepoCommands : IRepoCommands
         {
             return R.Error($"Failed to set branch name manually", e);
         }
+
+        Refresh();
+        return R.Ok;
+    });
+
+
+    public void MoveBranch(string commonName, string otherCommonName, int delta) => Do(async () =>
+    {
+        await Task.Yield();
+
+        repoState.Set(repoPath, s =>
+        {
+            // Filter existing branch orders for the two branches
+            var branchOrders = s.BranchOrders.Where(b =>
+                !(b.Branch == commonName && b.Other == otherCommonName)
+                && !(b.Branch == otherCommonName && b.Other == commonName));
+
+            // Add this branch order
+            s.BranchOrders = branchOrders.Append(new BranchOrder()
+            {
+                Branch = commonName,
+                Other = otherCommonName,
+                Order = delta
+            })
+            .ToList();
+        });
 
         Refresh();
         return R.Ok;

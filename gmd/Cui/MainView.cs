@@ -68,6 +68,7 @@ partial class MainView : IMainView
         Threading.SetUp();
 
         string path = GetWorkingFolder();
+        //string path = "/lkwjlkj";
         // path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
         // path = "/workspaces/Dependitor";
@@ -113,16 +114,33 @@ partial class MainView : IMainView
             items.Add(UI.MenuSeparator());
         }
 
-        items.Add(new MenuItem("Browse ...", "", ShowBrowseDialog));
+        items.Add(new MenuItem("Browse ...", "", () => ShowBrowseDialog()));
         items.Add(new MenuItem("Clone ...", "", () => Clone()));
-        items.Add(new MenuItem("Help ...", "", () => helpDlg.Show()));
-        items.Add(new MenuItem("About ...", "", () => aboutDlg.Show()));
+        items.Add(new MenuItem("Help ...", "", () => ShowHelp()));
+        items.Add(new MenuItem("About ...", "", () => ShowAbout()));
         items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
 
         var menu = new ContextMenu(4, 0, new MenuBarItem(items.ToArray()));
         menu.Show();
+        menu.MenuBar.MenuAllClosed += () => OnMenuKey();
     }
 
+    private void OnMenuKey()
+    {
+        // Application.RequestStop();
+    }
+
+    private void ShowAbout()
+    {
+        aboutDlg.Show();
+        ShowMainMenu();
+    }
+
+    private void ShowHelp()
+    {
+        helpDlg.Show();
+        ShowMainMenu();
+    }
 
     MenuItem[] GetRecentRepoItems() =>
         states.Get().RecentFolders
@@ -149,9 +167,13 @@ partial class MainView : IMainView
     {
         // Parent folders to recent work folders, usually other repos there as well
         var recentParentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
-        if (!Try(out var r, out var e, cloneDlg.Show(recentParentFolders))) return;
-        (var uri, var path) = r;
+        if (!Try(out var r, out var e, cloneDlg.Show(recentParentFolders)))
+        {
+            ShowMainMenu();
+            return;
+        }
 
+        (var uri, var path) = r;
         using (progress.Show())
         {
             if (!Try(out e, await server.CloneAsync(uri, path, "")))

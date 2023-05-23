@@ -1,4 +1,6 @@
 using System.Text;
+using gmd.Common;
+using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -7,22 +9,24 @@ namespace gmd.Server.Private;
 [SingleInstance]
 class Server : IServer
 {
-    private readonly IGit git;
-    private readonly IAugmentedService augmentedService;
-    private readonly IConverter converter;
-    private readonly IViewRepoCreater viewRepoCreater;
+    readonly IGit git;
+    readonly IAugmentedService augmentedService;
+    readonly IConverter converter;
+    readonly IViewRepoCreater viewRepoCreater;
+    readonly IRepoState repoState;
 
     public Server(
         IGit git,
         IAugmentedService augmentedService,
         IConverter converter,
-        IViewRepoCreater viewRepoCreater)
+        IViewRepoCreater viewRepoCreater,
+        IRepoState repoState)
     {
         this.git = git;
         this.augmentedService = augmentedService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
-
+        this.repoState = repoState;
         augmentedService.RepoChange += e => RepoChange?.Invoke(e);
         augmentedService.StatusChange += e => StatusChange?.Invoke(e);
     }

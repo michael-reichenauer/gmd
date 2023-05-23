@@ -38,13 +38,14 @@ class ConfigDlg : IConfigDlg
         var isSyncMetaData = dlg.AddCheckBox(1, 1, "Push/Sync branch structure metadata to server", repoConf.SyncMetaData);
 
         // General config
-        dlg.AddLabel(1, 3, new string('─', width - 2));
+        dlg.AddLine(1, 3, width - 2);
+
         dlg.AddLabel(1, 4, $"General:");
         var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", conf.CheckUpdates);
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
 
-        dlg.AddOK(true, () =>
+        if (dlg.ShowOkCancel())
         {
             // Update repo config
             repoConfig.Set(repoPath, c => c.SyncMetaData = isSyncMetaData.Checked);
@@ -56,13 +57,9 @@ class ConfigDlg : IConfigDlg
                 c.AutoUpdate = isAutoUpdate.Checked;
                 c.AllowPreview = isAllowPreview.Checked;
             });
+
             updater.CheckUpdateAvailableAsync().RunInBackground();
-
-            return true;
-        });
-
-        dlg.AddCancel();
-        dlg.Show();
+        }
     }
 }
 

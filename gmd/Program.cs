@@ -19,13 +19,14 @@ class Program
     private readonly IGit git;
     private readonly IUpdater updater;
     private readonly IServer server;
+    private readonly IState state;
 
     static async Task<int> Main(string[] args)
     {
         var t = Timing.Start();
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
-        new Upgrader().UpdradeData();
+        new Upgrader().UpgradeData();
 
         dependencyInjection = new DependencyInjection();
         dependencyInjection.RegisterDependencyInjectionTypes();
@@ -60,12 +61,13 @@ class Program
         return 0;
     }
 
-    internal Program(IMainView mainView, IGit git, IUpdater updater, IServer server)
+    internal Program(IMainView mainView, IGit git, IUpdater updater, IServer server, IState state)
     {
         this.mainView = mainView;
         this.git = git;
         this.updater = updater;
         this.server = server;
+        this.state = state;
     }
 
     void Main()
@@ -78,8 +80,6 @@ class Program
         UI.HideCursor();                       // Hide cursor to avoid flickering
         Application.Driver.Checked = '◙';      // Checked box characters '▣' '▢'
         Application.Driver.UnChecked = '□';
-
-
 
         Application.Top.Add(mainView.View);
 
@@ -118,6 +118,8 @@ class Program
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
         Log.Info($"Time:    {DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")}+00:00");
+
+        state.Set(s => s.GitVersion = gitVersion ?? "");
     }
 
     static int ShowVersion()

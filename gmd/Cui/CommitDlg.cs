@@ -31,20 +31,9 @@ class CommitDlg : ICommitDlg
         var subject = dlg.AddTextField(1, 2, 50, subjectPart);
 
         var message = dlg.AddTextView(1, 4, 70, 10, messagePart);
+        dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
 
-        dlg.AddOK(true, () =>
-        {
-            if (GetMessage(subject, message) == "")
-            {
-                UI.ErrorMessage("Empty commit message");
-                subject!.SetFocus();
-                return false;
-            }
-            return true;
-        });
-        dlg.AddCancel();
-
-        dlg.Show(subject);
+        dlg.ShowOkCancel(subject);
 
         commitMessage = GetMessage(subject, message);
         return dlg.IsOK;

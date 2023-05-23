@@ -2,6 +2,14 @@
 --------------------
 
 ## [Current]
+- Support of moving branches left/right to change visual order
+- Support of publish local only branch
+- Improved diff
+- Refactored ui dialogs
+- Fixed issue with config when no precious file
+- Adjusted sort of branches in menues
+
+## [v0.50.202.436] - 2023-05-20 07:15:02
 - Highlight current whole row in log
 - Add support for diff within a line
 - Refactored dialogs
