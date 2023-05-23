@@ -59,21 +59,32 @@ class Augmenter : IAugmenter
             .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
+            var bottom = repo.CommitsById[b.BottomID];
+            var parentCommitSId = bottom.FirstParent?.Sid ?? "";
+            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSId}";
             if (branchNameCount.TryGetValue(b.DisplayName, out var count))
-            {
+            {   // Multiple branches with same display name, add a counter to the display name
                 branchNameCount[b.DisplayName] = ++count;
                 b.DisplayName = $"{b.DisplayName}({count})";
-                Log.Info($"Branch: {b.DisplayName} - {b.Name} - {count}");
-                if (b.LocalName != "")
-                {
-                    repo.BranchByName[b.LocalName]!.DisplayName = b.DisplayName;
-                }
-                b.PullMergeBranches.ForEach(pmb => repo.BranchByName[pmb.Name]!.DisplayName = b.DisplayName);
             }
             else
-            {
+            {   // First branch with this display name
                 branchNameCount[b.DisplayName] = 1;
             }
+
+            // Make sure local and pull merge branches have same display and base name
+            if (b.LocalName != "")
+            {
+                var localBranch = repo.BranchByName[b.LocalName]!;
+                localBranch.DisplayName = b.DisplayName;
+                localBranch.CommonBaseName = b.CommonBaseName;
+            }
+            b.PullMergeBranches.ForEach(pmb =>
+            {
+                var br = repo.BranchByName[pmb.Name]!;
+                br.DisplayName = b.DisplayName;
+                br.CommonBaseName = b.CommonBaseName;
+            });
         });
     }
 
