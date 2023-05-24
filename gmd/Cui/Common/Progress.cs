@@ -69,16 +69,16 @@ class Progress : IProgress
 
         progressView.Add(progressBar);
 
-        // bool isFirstTime = false;
+        bool isFirstTime = false;
         progressTimer = new Timer(_ =>
         {
             if (progressView == null) return;
 
-            // if (!isFirstTime)
-            // {   // Show border after an intial short delay
-            //     isFirstTime = true;
-            //     progressView.Border.BorderStyle = BorderStyle.Rounded;
-            // }
+            if (!isFirstTime)
+            {   // Show border after an intial short delay
+                isFirstTime = true;
+                progressView.Border.BorderStyle = BorderStyle.Rounded;
+            }
 
             progressBar.Pulse();
             Application.MainLoop.Driver.Wakeup();
