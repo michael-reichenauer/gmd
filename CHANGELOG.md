@@ -2,6 +2,9 @@
 --------------------
 
 ## [Current]
+- Skip leading empty lines in commit messages
+
+## [v0.50.205.229] - 2023-05-23 03:44:08
 - Support of moving branches left/right to change visual order
 - Support of publish local only branch
 - Improved diff
