@@ -270,6 +270,7 @@ class RepoView : IRepoView
         using (progress.Show())
         {
             Log.Info($"show refreshed repo with {addBranchName} ...");
+            await Task.Delay(5000);
 
             var t = Timing.Start();
 
