@@ -6,8 +6,8 @@ namespace gmd.Utils;
 
 interface ICmd
 {
-    CmdResult Run(string path, string args, string workingDirectory, bool skipLog = false);
-    Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLog = false);
+    CmdResult Run(string path, string args, string workingDirectory, bool skipLogError = false, bool skipLog = false);
+    Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLogError = false, bool skipLog = false);
 }
 
 class CmdResult : R<string>
@@ -39,10 +39,15 @@ class CmdResult : R<string>
 
 class Cmd : ICmd
 {
-    public Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLog = false) =>
-        Task.Run(() => Run(path, args, workingDirectory, skipLog));
+    public Task<CmdResult> RunAsync(string path, string args, string workingDirectory,
+        bool skipLogError = false, bool skipLog = false)
+    {
+        return Task.Run(() => Run(path, args, workingDirectory, skipLogError, skipLog));
+    }
 
-    public CmdResult Run(string path, string args, string workingDirectory, bool skipLog = false)
+
+    public CmdResult Run(string path, string args, string workingDirectory,
+    bool skipLogError = false, bool skipLog = false)
     {
         var cmdText = $"{path} {args} ({workingDirectory})";
         var t = Timing.Start();
@@ -86,13 +91,13 @@ class Cmd : ICmd
 
                 if (process.ExitCode != 0)
                 {
-                    if (!skipLog) Log.Warn($"Error: {cmdText} {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
-                    if (skipLog) Log.Debug($"Error: {cmdText} {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    if (!skipLogError) Log.Warn($"Error: {cmdText} {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    if (skipLogError) Log.Debug($"Error: {cmdText} {t}\nExit Code: {process.ExitCode}, Error:\n{error}");
                     return new CmdResult(cmdText, process.ExitCode, output, error);
                 }
 
-                Log.Info($"OK: {cmdText} {t}");
-                //if (skipLog) Log.Debug($"OK: {path} {args} ({workingDirectory}) {t}");
+                if (!skipLog) Log.Info($"OK: {cmdText} {t}");
+                if (skipLog) Log.Debug($"OK: {path} {args} ({workingDirectory}) {t}");
                 return new CmdResult(cmdText, output, error);
             }
         }
