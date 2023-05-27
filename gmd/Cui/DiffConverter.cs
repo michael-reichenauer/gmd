@@ -263,12 +263,11 @@ class DiffService : IDiffConverter
 
     void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows)
     {
-        // Add block parts where asdfaf both bxxck have lkjs lines 
+        // Add block parts where both block have lines 
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
         {
-            var (lT, rT) = GetDiffSides2(leftBlock.Lines[i], rightBlock.Lines[i]);
-            //var (lT, rT) = GetDiffSides(leftBlock.Lines[i], rightBlock.Lines[i]);
+            var (lT, rT) = GetDiffSides(leftBlock.Lines[i], rightBlock.Lines[i]);
             rows.Add(lT, rT);
         }
 
@@ -298,9 +297,7 @@ class DiffService : IDiffConverter
         rightBlock.Lines.Clear();
     }
 
-    // var diff = InlineDiffBuilder.Diff(before, after);
-
-    (Text, Text) GetDiffSides2(Line lL, Line rL)
+    (Text, Text) GetDiffSides(Line lL, Line rL)
     {
         // Ignore leading spaces in diff
         var leftString = lL.text.TrimStart();
@@ -363,75 +360,6 @@ class DiffService : IDiffConverter
         Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
         return (lT, rT);
     }
-
-
-    // (Text, Text) GetDiffSides(Line lL, Line rL)
-    // {
-    //     var leftString = lL.text.TrimStart();
-    //     var rightString = rL.text.TrimStart();
-
-    //     // Highlight characters that are different betweedn left and right
-    //     var leftText = Text.New.Black(new string(' ', lL.text.Length - leftString.Length));
-    //     var rightText = Text.New.Black(new string(' ', rL.text.Length - rightString.Length));
-    //     leftString = leftString.TrimEnd();
-    //     rightString = rightString.TrimEnd();
-
-    //     var isDiff = false;
-    //     int diffCount = 0;
-
-    //     if (leftString.Length < 4 || rightString.Length < 4)
-    //     {   // Small lines, show as new lines to avoid to many diffs in a line
-    //         diffCount = maxLineDiffsCount;
-    //     }
-
-    //     for (int j = 0; j < Math.Max(leftString.Length, rightString.Length) && diffCount < maxLineDiffsCount; j++)
-    //     {
-    //         var leftChar = j < leftString.Length ? leftString[j].ToString() : "";
-    //         var rightChar = j < rightString.Length ? rightString[j].ToString() : "";
-
-    //         if (leftChar == rightChar)
-    //         {
-    //             leftChar = leftChar == "" ? " " : leftChar;
-    //             rightChar = rightChar == "" ? " " : rightChar;
-    //             leftText.White(leftChar);
-    //             rightText.White(rightChar);
-    //             isDiff = false;
-    //         }
-    //         else
-    //         {
-    //             leftChar = leftChar == "" ? " " : leftChar;
-    //             rightChar = rightChar == "" ? " " : rightChar;
-    //             leftText.Color(lL.color, leftChar);
-    //             rightText.Color(rL.color, rightChar);
-
-    //             if (!isDiff) diffCount++;
-    //             isDiff = true;
-    //         }
-    //     }
-
-
-    //     if (lL.color == rL.color)
-    //     {   // Same on both sides
-    //         Text lT = Text.New.Dark($"{lL.lineNbr,4} ").Color(lL.color, lL.text);
-    //         Text rT = Text.New.Dark($"{rL.lineNbr,4} ").Color(rL.color, rL.text);
-    //         return (lT, rT);
-    //     }
-    //     else
-    //     {   // Some Differens bethween left and right
-    //         if (diffCount < maxLineDiffsCount)
-    //         {   // if there are a few diffs, show them
-    //             Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
-    //             Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
-    //             return (lT, rT);
-    //         }
-    //         else
-    //         {   // To many diffs, show as new lines
-    //             Text lT2 = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Color(lL.color, lL.text);
-    //             Text rT2 = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Color(rL.color, rL.text);
-    //             return (lT2, rT2);
-    //         }
-    //     }
-    // }
 
 
     Text ToColorText(string text, FileDiff fd)
