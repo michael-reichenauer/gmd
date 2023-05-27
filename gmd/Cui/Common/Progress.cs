@@ -5,15 +5,15 @@ namespace gmd.Cui.Common;
 
 interface IProgress
 {
-    Disposable Show();
+    Disposable Show(bool isShowImediately = false);
 }
 
 
 [SingleInstance]
 class Progress : IProgress
 {
-    const int intitialDelay = 800;
-    const int progressWidth = 15;
+    const int defautlIntitialDelay = 800;
+    const int progressWidth = 10;
     static readonly ColorScheme colorScheme = new ColorScheme()
     {
         Normal = TextColor.Magenta,
@@ -28,14 +28,15 @@ class Progress : IProgress
     Toplevel? currentParentView;
     View? progressView;
 
-    public Disposable Show()
+    public Disposable Show(bool isShowImediately = false)
     {
-        Start();
+        Start(isShowImediately);
         return new Disposable(() => Stop());
     }
 
-    void Start()
+    void Start(bool isShowImediately)
     {
+        int initialDelay = isShowImediately ? 0 : defautlIntitialDelay;
         count++;
         if (count > 1)
         {   // Already started
@@ -45,7 +46,7 @@ class Progress : IProgress
         var progressBar = new ProgressBar()
         {
             X = 2,
-            Y = 1,
+            Y = 0,
             Width = progressWidth,
             ProgressBarStyle = ProgressBarStyle.MarqueeBlocks,
             SegmentCharacter = '●',
@@ -54,15 +55,15 @@ class Progress : IProgress
         };
 
         // The left and right [] marks
-        var leftMark = new Label(1, 1, "[") { ColorScheme = colorScheme };
-        var rightMark = new Label(progressWidth + 2, 1, "]") { ColorScheme = colorScheme };
+        var leftMark = new Label(1, 0, "[") { ColorScheme = colorScheme };
+        var rightMark = new Label(progressWidth + 2, 0, "]") { ColorScheme = colorScheme };
 
         progressView = new View()
         {
             X = Pos.Center(),
-            Y = Pos.Center(),
+            Y = 0,
             Width = progressWidth + 4,
-            Height = 3,
+            Height = 2,
             ColorScheme = colorScheme,
             Visible = false,
         };
@@ -80,7 +81,7 @@ class Progress : IProgress
             }
             progressBar.Pulse();
             Application.MainLoop.Driver.Wakeup();
-        }, null, intitialDelay, 100);
+        }, null, initialDelay, 100);
 
         currentParentView = Application.Current;
         currentParentView.Add(progressView);

@@ -128,7 +128,7 @@ class RepoView : IRepoView
 
 
     public void Refresh(string addName = "", string commitId = "") =>
-        ShowRefreshedRepoAsync(addName, commitId).RunInBackground();
+        ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();
 
     public void ToggleDetails()
     {
@@ -265,9 +265,9 @@ class RepoView : IRepoView
     }
 
 
-    async Task ShowRefreshedRepoAsync(string addBranchName, string commitId)
+    async Task ShowRefreshedRepoAsync(string addBranchName, string commitId, bool isAwaitFetch = false)
     {
-        using (progress.Show())
+        using (progress.Show(isAwaitFetch))
         {
             Log.Info($"show refreshed repo with {addBranchName} ...");
 
@@ -297,9 +297,16 @@ class RepoView : IRepoView
             }
 
             Log.Info($"{t} {viewRepo}");
+            if (isAwaitFetch)
+            {
+                await server.FetchAsync(repo.RepoPath);
+            }
         }
 
-        server.FetchAsync(repo.RepoPath).RunInBackground();
+        if (!isAwaitFetch)
+        {
+            server.FetchAsync(repo.RepoPath).RunInBackground();
+        }
     }
 
     async Task ShowUpdatedStatusRepoAsync()
