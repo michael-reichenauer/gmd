@@ -5,30 +5,38 @@ namespace gmd.Cui.Common;
 
 interface IProgress
 {
-    Disposable Show();
+    Disposable Show(bool isShowImediately = false);
 }
 
 
 [SingleInstance]
 class Progress : IProgress
 {
-    const int intitialDelay = 800;
-    const int progressWidth = 20;
-    static readonly ColorScheme colorScheme = new ColorScheme() { Normal = TextColor.Magenta };
+    const int defautlIntitialDelay = 800;
+    const int progressWidth = 10;
+    static readonly ColorScheme colorScheme = new ColorScheme()
+    {
+        Normal = TextColor.Magenta,
+        Focus = TextColor.Magenta,
+        HotNormal = TextColor.Magenta,
+        HotFocus = TextColor.Magenta,
+        Disabled = TextColor.Magenta,
+    };
 
     Timer? progressTimer;
     int count = 0;
     Toplevel? currentParentView;
     View? progressView;
 
-    public Disposable Show()
+    public Disposable Show(bool isShowImediately = false)
     {
-        Start();
+        Start(isShowImediately);
         return new Disposable(() => Stop());
     }
 
-    void Start()
+    void Start(bool isShowImediately)
     {
+        int initialDelay = isShowImediately ? 0 : defautlIntitialDelay;
         count++;
         if (count > 1)
         {   // Already started
@@ -37,52 +45,43 @@ class Progress : IProgress
 
         var progressBar = new ProgressBar()
         {
-            X = 0,
+            X = 2,
             Y = 0,
             Width = progressWidth,
             ProgressBarStyle = ProgressBarStyle.MarqueeBlocks,
             SegmentCharacter = '●',
             BidirectionalMarquee = true,
-            ColorScheme = colorScheme
+            ColorScheme = colorScheme,
         };
 
-        Border progressViewBorder = new Border()
-        {
-            BorderStyle = BorderStyle.None,
-            DrawMarginFrame = false,
-            BorderThickness = new Thickness(0, 0, 0, 0),
-            BorderBrush = Color.Black,
-            Padding = new Thickness(0, 0, 0, 0),
-            Background = Color.Black,
-            Effect3D = false,
-        };
+        // The left and right [] marks
+        var leftMark = new Label(1, 0, "[") { ColorScheme = colorScheme };
+        var rightMark = new Label(progressWidth + 2, 0, "]") { ColorScheme = colorScheme };
 
         progressView = new View()
         {
             X = Pos.Center(),
-            Y = Pos.Center(),
-            Width = progressWidth,
-            Height = 1,
-            Border = progressViewBorder,
+            Y = 0,
+            Width = progressWidth + 4,
+            Height = 2,
             ColorScheme = colorScheme,
+            Visible = false,
         };
 
-        progressView.Add(progressBar);
+        progressView.Add(leftMark, progressBar, rightMark);
 
-        bool isFirstTime = false;
+        bool isFirst = true;
         progressTimer = new Timer(_ =>
         {
             if (progressView == null) return;
-
-            if (!isFirstTime)
-            {   // Show border after an intial short delay
-                isFirstTime = true;
-                progressView.Border.BorderStyle = BorderStyle.Rounded;
+            if (isFirst)
+            {
+                isFirst = false;
+                progressView.Visible = true;
             }
-
             progressBar.Pulse();
             Application.MainLoop.Driver.Wakeup();
-        }, null, intitialDelay, 100);
+        }, null, initialDelay, 100);
 
         currentParentView = Application.Current;
         currentParentView.Add(progressView);
