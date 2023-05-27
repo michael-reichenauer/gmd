@@ -106,6 +106,10 @@ internal class LogService : ILogService
             message = string.Join('|', rowParts.Skip(5).ToArray());
         }
 
+        // Skip leading empty lines
+        var lines = message.Split('\n');
+        message = string.Join('\n', lines.SkipWhile(l => l.Trim() == ""));
+
         return message.TrimEnd();
     }
 
