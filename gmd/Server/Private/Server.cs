@@ -279,11 +279,11 @@ class Server : IServer
                 {
                     if (nextTag == "Current")
                     {
-                        totalText.Append($"\n## [{nextTag}]\n{text} - {nextTagDate.Iso()}\n");
+                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.IsoDate()}\n{text}\n");
                     }
                     else
                     {
-                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.Iso()}\n{text}\n");
+                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.IsoDate()}\n{text}\n");
                     }
                 }
 
