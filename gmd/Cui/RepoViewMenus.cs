@@ -452,9 +452,10 @@ class RepoViewMenus : IRepoViewMenus
         var commit = repo.RowCommit;
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
-             .Where(b => b.CommonName != currentName)
-             .DistinctBy(b => b.CommonName)
-             .OrderBy(b => b.CommonName);
+             .Where(b => b.CommonName != currentName &&
+                b.RemoteName == "" && b.PullMergeBranchName == "")
+             .DistinctBy(b => b.DisplayName)
+             .OrderBy(b => b.DisplayName);
 
         return branches.Select(b => Item(ToBranchMenuName(b, false, false, false), "", () => cmds.PreviewMergeBranch(b.Name, isFromCurrentCommit, isSwitch)));
     }
@@ -463,9 +464,10 @@ class RepoViewMenus : IRepoViewMenus
     {
         var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
-            .Where(b => !b.IsMainBranch && b.CommonName != mainBranch.CommonName)
-            .DistinctBy(b => b.CommonName)
-            .OrderBy(b => b.CommonName);
+            .Where(b => !b.IsMainBranch && b.CommonName != mainBranch.CommonName &&
+                b.RemoteName == "" && b.PullMergeBranchName == "")
+            .DistinctBy(b => b.DisplayName)
+            .OrderBy(b => b.DisplayName);
 
         return branches.Select(b =>
             Item(ToBranchMenuName(b, false, false, false), "", () => cmds.HideBranch(b.Name)));

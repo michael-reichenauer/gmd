@@ -20,7 +20,8 @@ class KeyValueService : IKeyValueService
 
     public async Task<R<string>> GetValueAsync(string key, string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync(
+            "git", $"cat-file -p {KeyRef(key)}", wd, true, true))) return e;
         return output;
     }
 
@@ -32,7 +33,8 @@ class KeyValueService : IKeyValueService
         {
             // Store the temp file with key value in the git database (returns an object id)
             if (!Try(out var e, Files.WriteAllText(path, value))) return e;
-            if (!Try(out var objectId, out e, await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true))) return e;
+            if (!Try(out var objectId, out e, await cmd.RunAsync(
+                "git", $"hash-object -w \"{path}\"", wd, true, true))) return e;
             objectId = objectId.Trim();
 
             // Add a ref pointer to the stored object for easier retrieval
@@ -52,7 +54,7 @@ class KeyValueService : IKeyValueService
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
         var args = $"push --porcelain origin --set-upstream --force {refs}";
-        return await cmd.RunAsync("git", args, wd, true);
+        return await cmd.RunAsync("git", args, wd, true, true);
     }
 
     public async Task<R> PullValueAsync(string key, string wd)
@@ -60,7 +62,7 @@ class KeyValueService : IKeyValueService
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
         var args = $"fetch origin {refs}";
-        return await cmd.RunAsync("git", args, wd, true);
+        return await cmd.RunAsync("git", args, wd, true, true);
     }
 
 

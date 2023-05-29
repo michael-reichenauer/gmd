@@ -112,6 +112,7 @@ internal class WorkBranch
     public string DisplayName { get; set; } = "";
     public string RemoteName { get; set; } = "";
     public string LocalName { get; set; } = "";
+    public string CommonBaseName { get; set; } = "";
     public string TipID { get; }
     public string BottomID { get; internal set; } = "";
 
