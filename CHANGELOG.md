@@ -2,6 +2,32 @@
 --------------------
 
 ## [Current]
+- Adjusted the progress indicator - 2023-05-29 03:34:23
+
+## [v0.50.207.216] - 2023-05-25 03:35:02
+- Skip leading empty lines in commit messages
+
+## [v0.50.205.229] - 2023-05-23 03:44:08
+- Support of moving branches left/right to change visual order
+- Support of publish local only branch
+- Improved diff
+- Refactored ui dialogs
+- Fixed issue with config when no precious file
+- Adjusted sort of branches in menues
+
+## [v0.50.202.436] - 2023-05-20 07:15:02
+- Highlight current whole row in log
+- Add support for diff within a line
+- Refactored dialogs
+
+## [v0.50.194.217] - 2023-05-12 03:36:39
+- Ignoring white space in diffs
+- Added support for manualy set/determine branch of a commit
+
+## [v0.50.190.252] - 2023-05-08 04:10:59
+- Added support for add and remove tags
+
+## [v0.50.185.224] - 2023-05-03 03:34:04
 - Added support for hierarchical branch names i show branch
 
 ## [v0.50.184.216] - 2023-05-02 03:35:36
