@@ -1,3 +1,6 @@
+using DiffPlex;
+using DiffPlex.DiffBuilder;
+using DiffPlex.DiffBuilder.Model;
 using gmd.Cui.Common;
 using gmd.Server;
 using Terminal.Gui;
@@ -72,7 +75,7 @@ class Block
 
 class DiffService : IDiffConverter
 {
-    const int maxLineDiffsCount = 3;
+    const int maxLineDiffsCount = 4;
     const string diffMargin = "┃"; // │ ┃ ;
     static readonly Text NoLine = Text.New.Dark(new string('░', 100));
     public DiffRows ToDiffRows(CommitDiff commitDiff)
@@ -260,7 +263,7 @@ class DiffService : IDiffConverter
 
     void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows)
     {
-        // Add block parts where both block have lines
+        // Add block parts where both block have lines 
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
         {
@@ -294,73 +297,68 @@ class DiffService : IDiffConverter
         rightBlock.Lines.Clear();
     }
 
-
     (Text, Text) GetDiffSides(Line lL, Line rL)
     {
+        // Ignore leading spaces in diff
         var leftString = lL.text.TrimStart();
         var rightString = rL.text.TrimStart();
 
-        // Highlight characters that are different betweedn left and right
+        // Add leading spces back
         var leftText = Text.New.Black(new string(' ', lL.text.Length - leftString.Length));
         var rightText = Text.New.Black(new string(' ', rL.text.Length - rightString.Length));
+
+        // Ignore trailing spaces in diff
         leftString = leftString.TrimEnd();
         rightString = rightString.TrimEnd();
 
-        var isDiff = false;
-        int diffCount = 0;
+        var differ = new Differ();
+        var result = differ.CreateCharacterDiffs(leftString, rightString, true);
 
-        if (leftString.Length < 4 || rightString.Length < 4)
-        {   // Small lines, show as new lines to avoid to many diffs in a line
-            diffCount = maxLineDiffsCount;
+        if (result.DiffBlocks.Count == 0)
+        {   // Same on both sides, just show both sides as same
+            Text lT2 = Text.New.Dark($"{lL.lineNbr,4} ").Color(lL.color, lL.text);
+            Text rT2 = Text.New.Dark($"{rL.lineNbr,4} ").Color(rL.color, rL.text);
+            return (lT2, rT2);
         }
 
-        for (int j = 0; j < Math.Max(leftString.Length, rightString.Length) && diffCount < maxLineDiffsCount; j++)
+        if (result.DiffBlocks.Count > maxLineDiffsCount)
+        {   // To many differences in the line, show whole line side as diff
+            Text lT2 = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Color(lL.color, lL.text);
+            Text rT2 = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Color(rL.color, rL.text);
+            return (lT2, rT2);
+        }
+
+        // Ther are a few differences in a line, show them marked differently in both sides
+        int leftIndex = 0;
+        int rightIndex = 0;
+        foreach (var diff in result.DiffBlocks)
         {
-            var leftChar = j < leftString.Length ? leftString[j].ToString() : "";
-            var rightChar = j < rightString.Length ? rightString[j].ToString() : "";
-
-            if (leftChar == rightChar)
-            {
-                leftChar = leftChar == "" ? " " : leftChar;
-                rightChar = rightChar == "" ? " " : rightChar;
-                leftText.White(leftChar);
-                rightText.White(rightChar);
-                isDiff = false;
+            // Left side
+            if (diff.DeleteStartA > leftIndex)
+            {   // Add text before the delete
+                leftText.White(leftString.Substring(leftIndex, diff.DeleteStartA - leftIndex));
             }
-            else
-            {
-                leftChar = leftChar == "" ? " " : leftChar;
-                rightChar = rightChar == "" ? " " : rightChar;
-                leftText.Color(lL.color, leftChar);
-                rightText.Color(rL.color, rightChar);
-
-                if (!isDiff) diffCount++;
-                isDiff = true;
+            if (diff.DeleteCountA > 0)
+            {   // Add text int read that is deleted
+                leftText.Red(leftString.Substring(diff.DeleteStartA, diff.DeleteCountA));
             }
+            leftIndex = diff.DeleteStartA + diff.DeleteCountA;
+
+            // Right side
+            if (diff.InsertStartB > rightIndex)
+            {   // Add text before the insert
+                rightText.White(rightString.Substring(rightIndex, diff.InsertStartB - rightIndex));
+            }
+            if (diff.InsertCountB > 0)
+            {   // Add text int green that is inserted
+                rightText.Green(rightString.Substring(diff.InsertStartB, diff.InsertCountB));
+            }
+            rightIndex = diff.InsertStartB + diff.InsertCountB;
         }
 
-
-        if (lL.color == rL.color)
-        {   // Same on both sides
-            Text lT = Text.New.Dark($"{lL.lineNbr,4} ").Color(lL.color, lL.text);
-            Text rT = Text.New.Dark($"{rL.lineNbr,4} ").Color(rL.color, rL.text);
-            return (lT, rT);
-        }
-        else
-        {   // Some Differens bethween left and right
-            if (diffCount < maxLineDiffsCount)
-            {   // if there are a few diffs, show them
-                Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
-                Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
-                return (lT, rT);
-            }
-            else
-            {   // To many diffs, show as new lines
-                Text lT2 = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Color(lL.color, lL.text);
-                Text rT2 = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Color(rL.color, rL.text);
-                return (lT2, rT2);
-            }
-        }
+        Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
+        Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
+        return (lT, rT);
     }
 
 
