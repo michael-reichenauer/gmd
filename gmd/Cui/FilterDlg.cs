@@ -54,17 +54,7 @@ class FilterDlg : IFilterDlg
         try
         {
             var key = e.KeyEvent.Key;
-            Log.Info($"OnKeyUp: {key} - {filter.Text}");
-            if (key == Key.CursorDown)
-            {
-                contentView.Move(1);
-                return;
-            }
-            if (key == Key.CursorUp)
-            {
-                contentView.Move(-1);
-                return;
-            }
+
             if (key == Key.Enter)
             {
                 OnEnter(contentView.CurrentIndex);
