@@ -13,6 +13,11 @@ public static class TimeDateExtensions
     {
         return $"{source:yyyy-MM-dd HH:mm:ssZ}";
     }
+
+    public static string IsoDate(this DateTime source)
+    {
+        return $"{source:yyyy-MM-dd}";
+    }
 }
 
 
