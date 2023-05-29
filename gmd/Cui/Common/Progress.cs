@@ -45,7 +45,7 @@ class Progress : IProgress
 
         var progressBar = new ProgressBar()
         {
-            X = 3,
+            X = 1,
             Y = 0,
             Width = progressWidth,
             ProgressBarStyle = ProgressBarStyle.MarqueeBlocks,
@@ -55,14 +55,14 @@ class Progress : IProgress
         };
 
         // The left and right [] marks
-        var leftMark = new Label(2, 0, "[") { ColorScheme = colorScheme };
+        var leftMark = new Label(0, 0, "[") { ColorScheme = colorScheme };
         var rightMark = new Label(progressWidth + 2, 0, "]") { ColorScheme = colorScheme };
 
         progressView = new View()
         {
             X = 0,
             Y = 0,
-            Width = progressWidth + 6,
+            Width = progressWidth + 5,
             Height = 2,
             ColorScheme = colorScheme,
             Visible = false,
