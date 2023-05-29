@@ -927,7 +927,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to switch to commit {commit.Id}", e);
         }
 
-        Refresh();
+        Refresh(branchName);
         return R.Ok;
     });
 
