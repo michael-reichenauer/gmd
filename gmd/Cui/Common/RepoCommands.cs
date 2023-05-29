@@ -727,7 +727,7 @@ class RepoCommands : IRepoCommands
         if (rsp.IsRemote && remoteBranch != null)
         {
             var tip = repo.Commit(remoteBranch.TipId);
-            if (!tip.ChildIds.Any() && !rsp.IsForce)
+            if (!tip.ChildIds.Any() && !rsp.IsForce && tip.BranchName == remoteBranch.Name)
             {
                 return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
             }
@@ -742,7 +742,7 @@ class RepoCommands : IRepoCommands
         if (rsp.IsLocal && localBranch != null)
         {
             var tip = repo.Commit(localBranch.TipId);
-            if (!tip.ChildIds.Any() && !rsp.IsForce)
+            if (!tip.ChildIds.Any() && !rsp.IsForce && tip.BranchName == localBranch.Name)
             {
                 return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
             }
