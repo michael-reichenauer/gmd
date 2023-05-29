@@ -54,6 +54,7 @@ interface IServer
     Task<R<string>> GetChangeLogAsync();
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
     Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
+    Task<R> SwitchToCommitAsync(Repo repo, string commitId, string newBranchName);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);
