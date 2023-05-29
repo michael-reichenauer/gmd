@@ -60,6 +60,7 @@ interface IRepoCommands
     void DeleteTag(string name);
     void SetBranchManuallyAsync();
     void MoveBranch(string commonName, string otherCommonName, int delta);
+    void SwitchToCommit();
 }
 
 class RepoCommands : IRepoCommands
@@ -915,5 +916,20 @@ class RepoCommands : IRepoCommands
         Refresh();
         return R.Ok;
     });
+
+    public void SwitchToCommit() => Do(async () =>
+    {
+        var commit = repo.RowCommit;
+        var branchName = $"sw-{commit.Sid}";
+
+        if (!Try(out var e, await server.SwitchToCommitAsync(serverRepo, commit.Id, branchName)))
+        {
+            return R.Error($"Failed to switch to commit {commit.Id}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
 }
 
