@@ -43,6 +43,7 @@ class Updater : IUpdater
     const string tmpSuffix = ".tmp";
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
+    readonly Version MaxVersion = new Version("10000.0.0.0");
 
     readonly IState states;
     private readonly IConfig configs;
@@ -403,10 +404,11 @@ class Updater : IUpdater
         if (eTag == "") return;
 
         var gitReleases = JsonSerializer.Deserialize<GitRelease[]>(latestInfoText);
-        var stable = gitReleases?.FirstOrDefault(rr => !rr.prerelease);
-        var preview = gitReleases?.FirstOrDefault(rr => rr.prerelease);
+        var releases = gitReleases?.OrderByDescending(rr => TagToVersion(rr.tag_name))?.ToList() ?? new List<GitRelease>();
+        var stable = releases.FirstOrDefault(rr => !rr.prerelease);
+        var preview = releases.FirstOrDefault(rr => rr.prerelease);
 
-        Releases releases = new Releases()
+        Releases latestReleases = new Releases()
         {
             Etag = eTag,
             StableRelease = ToRelease(stable),
@@ -414,7 +416,16 @@ class Updater : IUpdater
         };
 
         // Cache the latest version info
-        states.Set(s => s.Releases = releases);
+        states.Set(s => s.Releases = latestReleases);
+    }
+
+    Version TagToVersion(string tag)
+    {
+        if (Version.TryParse(tag?.TrimPrefix("v") ?? "", out var v))
+        {
+            return v;
+        }
+        return MaxVersion;
     }
 
     Release ToRelease(GitRelease? gr)
