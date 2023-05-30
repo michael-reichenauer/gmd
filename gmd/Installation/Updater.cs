@@ -43,7 +43,7 @@ class Updater : IUpdater
     const string tmpSuffix = ".tmp";
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
-    readonly Version MaxVersion = new Version("10000.0.0.0");
+    readonly Version MinVersion = new Version("0.0.0.0");
 
     readonly IState states;
     private readonly IConfig configs;
@@ -425,7 +425,7 @@ class Updater : IUpdater
         {
             return v;
         }
-        return MaxVersion;
+        return MinVersion;
     }
 
     Release ToRelease(GitRelease? gr)
