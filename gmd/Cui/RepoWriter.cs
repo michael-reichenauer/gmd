@@ -103,7 +103,7 @@ class RepoWriter : IRepoWriter
     {
         if (c.IsDetached && c.IsCurrent && !isUncommitted)
         {   // Detached head, so the is shown at the current commit
-            text.White(" *");
+            text.Yellow(" *");
             return;
         }
         if (c.IsCurrent && !isUncommitted)
