@@ -323,7 +323,7 @@ class Augmenter : IAugmenter
 
     WorkBranch DetermineCommitBranch(WorkRepo repo, WorkCommit commit, GitRepo gitRepo)
     {
-        commit.Branches.TryAddAll(commit.Children.SelectMany(c => c.Branches));
+        commit.Branches.TryAddAll(commit.Children.SelectMany(c => c.Branches).Where(b => !b.IsDetached));
         var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
 
         WorkBranch? branch;
