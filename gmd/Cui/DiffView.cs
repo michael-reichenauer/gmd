@@ -34,6 +34,7 @@ class DiffView : IDiffView
 
     public void Show(Server.CommitDiff[] diffs, string commitId)
     {
+        rowStartX = 0;
         this.commitId = commitId;
 
         diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), };

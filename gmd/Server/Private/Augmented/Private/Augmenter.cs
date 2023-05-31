@@ -183,6 +183,7 @@ class Augmenter : IAugmenter
             if (repo.CommitsById.TryGetValue(currentBranch.TipID, out var currentCommit))
             {
                 currentCommit.IsCurrent = true;
+                currentCommit.IsDetached = currentBranch.IsDetached;
             }
         }
 

@@ -356,6 +356,15 @@ class DiffService : IDiffConverter
             rightIndex = diff.InsertStartB + diff.InsertCountB;
         }
 
+        if (leftIndex < leftString.Length)
+        {   // Add text after the last delete
+            leftText.White(leftString.Substring(leftIndex));
+        }
+        if (rightIndex < rightString.Length)
+        {   // Add text after the last insert
+            rightText.White(rightString.Substring(rightIndex));
+        }
+
         Text lT = Text.New.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
         Text rT = Text.New.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
         return (lT, rT);

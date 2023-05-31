@@ -101,6 +101,11 @@ class RepoWriter : IRepoWriter
 
     void WriteCurrentMarker(Text text, Commit c, bool isUncommitted)
     {
+        if (c.IsDetached && c.IsCurrent && !isUncommitted)
+        {   // Detached head, so the is shown at the current commit
+            text.White(" *");
+            return;
+        }
         if (c.IsCurrent && !isUncommitted)
         {   // No uncommitted changes, so the is shown at the current commit
             text.White(" ●");
