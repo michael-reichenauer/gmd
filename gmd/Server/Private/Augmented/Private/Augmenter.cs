@@ -252,8 +252,11 @@ class Augmenter : IAugmenter
             }
 
             // Adding the branch to the branch tip commit
-            tip.Branches.TryAdd(b);
-            tip.BranchTips.TryAdd(b.Name);
+            if (!b.IsDetached)
+            {
+                tip.Branches.TryAdd(b);
+                tip.BranchTips.TryAdd(b.Name);
+            }
             b.BottomID = b.TipID; // We initialize the bottomId to same as tip
         }
 
@@ -323,7 +326,7 @@ class Augmenter : IAugmenter
 
     WorkBranch DetermineCommitBranch(WorkRepo repo, WorkCommit commit, GitRepo gitRepo)
     {
-        commit.Branches.TryAddAll(commit.Children.SelectMany(c => c.Branches).Where(b => !b.IsDetached));
+        commit.Branches.TryAddAll(commit.Children.SelectMany(c => c.Branches));
         var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
 
         WorkBranch? branch;
