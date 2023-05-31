@@ -13,7 +13,7 @@ interface IProgress
 class Progress : IProgress
 {
     const int defautlIntitialDelay = 800;
-    const int progressWidth = 10;
+    const int progressWidth = 6;
     static readonly ColorScheme colorScheme = new ColorScheme()
     {
         Normal = TextColor.Magenta,
@@ -56,13 +56,13 @@ class Progress : IProgress
 
         // The left and right [] marks
         var leftMark = new Label(0, 0, "[") { ColorScheme = colorScheme };
-        var rightMark = new Label(progressWidth + 2, 0, "]") { ColorScheme = colorScheme };
+        var rightMark = new Label(progressWidth + 1, 0, "]") { ColorScheme = colorScheme };
 
         progressView = new View()
         {
             X = 0,
             Y = 0,
-            Width = progressWidth + 5,
+            Width = progressWidth + 3,
             Height = 2,
             ColorScheme = colorScheme,
             Visible = false,
