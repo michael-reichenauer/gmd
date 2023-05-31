@@ -157,7 +157,7 @@ class RepoViewMenus : IRepoViewMenus
         return EnumerableEx.From(
             Item("Search/Filter ...", "F", () => cmds.Filter()),
             Item("Refresh/Reload", "R", () => cmds.Refresh()),
-            Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk),
+            Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
             Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
@@ -465,7 +465,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
-            .Where(b => !b.IsMainBranch && b.CommonName != mainBranch.CommonName &&
+            .Where(b => !b.IsMainBranch && !b.IsDetached && b.CommonName != mainBranch.CommonName &&
                 b.RemoteName == "" && b.PullMergeBranchName == "")
             .DistinctBy(b => b.DisplayName)
             .OrderBy(b => b.DisplayName);

@@ -37,6 +37,7 @@ class RepoWriter : IRepoWriter
         var crc = repo.RowCommit;
         var crb = repo.Branch(crc.BranchName);
         var isUncommitted = !repo.Status.IsOk;
+        var isBranchDetached = crb.IsDetached;
 
         Columns cw = ColumnWidths(repo, width);
 
@@ -47,7 +48,7 @@ class RepoWriter : IRepoWriter
             var graphRow = repo.Graph.GetRow(i);
 
             WriteGraph(text, graphRow, cw.GraphWidth);
-            WriteCurrentMarker(text, c, isUncommitted);
+            WriteCurrentMarker(text, c, isUncommitted, isBranchDetached);
             WriteAheadBehindMarker(text, c);
             WriteSubjectColumn(text, cw, c, crb, branchTips, i == currentIndex);
             WriteSid(text, cw, c);
@@ -99,20 +100,20 @@ class RepoWriter : IRepoWriter
     }
 
 
-    void WriteCurrentMarker(Text text, Commit c, bool isUncommitted)
+    void WriteCurrentMarker(Text text, Commit c, bool isUncommitted, bool isBranchDetached)
     {
-        if (c.IsDetached && c.IsCurrent && !isUncommitted)
+        if (c.IsDetached && c.IsCurrent && !isUncommitted || c.Id == Repo.UncommittedId && isBranchDetached)
         {   // Detached head, so the is shown at the current commit
             text.White(" *");
             return;
         }
-        if (c.IsCurrent && !isUncommitted)
-        {   // No uncommitted changes, so the is shown at the current commit
+        if (c.Id == Repo.UncommittedId)
+        {   // There are uncommitted changes, so the current marker is at the uncommitted commit
             text.White(" ●");
             return;
         }
-        if (c.Id == Repo.UncommittedId)
-        {   // There are uncommitted changes, so the current marker is at the uncommitted commit
+        if (c.IsCurrent && !isUncommitted)
+        {   // No uncommitted changes, so the is shown at the current commit
             text.White(" ●");
             return;
         }
