@@ -114,7 +114,7 @@ class BranchService : IBranchService
 
         if (isDetached)
         {
-            //name = $"({match.Groups[3].Value})";
+            // name = $"DETACHED-{match.Groups[3].Value}";
             name = "DETACHED";
         }
 

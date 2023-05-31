@@ -290,6 +290,12 @@ class ViewRepoCreater : IViewRepoCreater
             branches.TryAdd(repo.BranchByName[repo.CommitById[b.TipId].BranchName]);
         }
 
+        var detached = repo.Branches.FirstOrDefault(b => b.IsDetached);
+        if (detached != null)
+        {
+            branches.TryAdd(detached);
+        }
+
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
