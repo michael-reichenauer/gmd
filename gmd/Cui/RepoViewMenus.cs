@@ -465,7 +465,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
-            .Where(b => !b.IsMainBranch && b.CommonName != mainBranch.CommonName &&
+            .Where(b => !b.IsMainBranch && !b.IsDetached && b.CommonName != mainBranch.CommonName &&
                 b.RemoteName == "" && b.PullMergeBranchName == "")
             .DistinctBy(b => b.DisplayName)
             .OrderBy(b => b.DisplayName);

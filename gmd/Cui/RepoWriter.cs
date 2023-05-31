@@ -104,7 +104,7 @@ class RepoWriter : IRepoWriter
     {
         if (c.IsDetached && c.IsCurrent && !isUncommitted || c.Id == Repo.UncommittedId && isBranchDetached)
         {   // Detached head, so the is shown at the current commit
-            text.BrightMagenta(" *");
+            text.White(" *");
             return;
         }
         if (c.Id == Repo.UncommittedId)
