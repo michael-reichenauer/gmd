@@ -49,6 +49,7 @@ class Converter : IConverter
             Tags: c.Tags,
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,
+            IsDetached: c.IsDetached,
             IsUncommitted: c.IsUncommitted,
             IsConflicted: c.IsConflicted,
             IsAhead: c.IsAhead,

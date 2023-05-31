@@ -47,6 +47,7 @@ internal class WorkCommit
     public List<string> BranchTips { get; } = new List<string>();
 
     public bool IsCurrent { get; set; }
+    public bool IsDetached { get; set; }
     public bool IsUncommitted { get; set; }
     public bool IsConflicted { get; set; }
     public bool IsAhead { get; set; }
