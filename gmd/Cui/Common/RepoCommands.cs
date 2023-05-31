@@ -926,14 +926,12 @@ class RepoCommands : IRepoCommands
     public void SwitchToCommit() => Do(async () =>
     {
         var commit = repo.RowCommit;
-        var branchName = $"sw-{commit.Sid}";
-
-        if (!Try(out var e, await server.SwitchToCommitAsync(serverRepo, commit.Id, branchName)))
+        if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, repoPath)))
         {
             return R.Error($"Failed to switch to commit {commit.Id}", e);
         }
 
-        Refresh(branchName);
+        Refresh();
         return R.Ok;
     });
 
