@@ -114,7 +114,8 @@ class BranchService : IBranchService
 
         if (isDetached)
         {
-            name = $"({match.Groups[3].Value})";
+            //name = $"({match.Groups[3].Value})";
+            name = "DETACHED";
         }
 
         string commonName = name.StartsWith(originPrefix) ?
