@@ -610,20 +610,22 @@ class RepoCommands : IRepoCommands
 
     public void CreateBranch() => Do(async () =>
      {
-         var currentBranchName = repo.GetCurrentBranch().Name;
-         if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
+         UI.InfoMessage("Create Branch", "Not implemented yet");
 
-         if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, repoPath)))
-         {
-             return R.Error($"Failed to create branch {rsp.Name}", e);
-         }
+         //  var currentBranchName = repo.GetCurrentBranch().Name;
+         //  if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-         if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
-         {
-             return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
-         }
+         //  if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, repoPath)))
+         //  {
+         //      return R.Error($"Failed to create branch {rsp.Name}", e);
+         //  }
 
-         Refresh(rsp.Name);
+         //  if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
+         //  {
+         //      return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+         //  }
+
+         //  Refresh(rsp.Name);
          return R.Ok;
      });
 
