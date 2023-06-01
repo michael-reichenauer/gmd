@@ -22,8 +22,6 @@ static class MessageDlg
     static int ShowFull(bool useErrorColors, int width, int height, ustring title, ustring message,
             int defaultButton = 0, params string[] buttons)
     {
-        var border = new Border() { Effect3D = false, BorderStyle = BorderStyle.Rounded };
-
         int defaultWidth = 30;
         if (defaultWidth > Application.Driver.Cols / 2)
         {
@@ -71,17 +69,17 @@ static class MessageDlg
             d = new Dialog(title, buttonList.ToArray())
             {
                 Height = msgboxHeight,
+                Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
                 ColorScheme = ColorSchemes.Dialog,
             };
         }
         else
         {
-            d = new Dialog(title, width, Math.Max(height, 4), buttonList.ToArray());
-        }
-
-        if (border != null)
-        {
-            d.Border = border;
+            d = new Dialog(title, width, Math.Max(height, 4), buttonList.ToArray())
+            {
+                Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
+                ColorScheme = ColorSchemes.Dialog
+            };
         }
 
         if (useErrorColors)
