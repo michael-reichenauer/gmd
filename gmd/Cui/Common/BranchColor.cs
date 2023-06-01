@@ -26,7 +26,7 @@ class BranchColorService : IBranchColorService
     {
         if (branch.IsDetached)
         {
-            return TextColor.Dark;
+            return TextColor.White;
         }
         if (repoState.Get(repo.Path).BranchColors.TryGetValue(branch.CommonName, out var colorId))
         {
