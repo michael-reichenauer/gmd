@@ -17,7 +17,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="7.0.0" />
-    <PackageReference Include="Terminal.Gui" Version="1.11.2" />
+    <PackageReference Include="Terminal.Gui" Version="1.12.1" />
   </ItemGroup>
 
   <ItemGroup>
