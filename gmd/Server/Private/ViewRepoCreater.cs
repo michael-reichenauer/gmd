@@ -290,6 +290,12 @@ class ViewRepoCreater : IViewRepoCreater
             branches.TryAdd(repo.BranchByName[repo.CommitById[b.TipId].BranchName]);
         }
 
+        var detached = repo.Branches.FirstOrDefault(b => b.IsDetached);
+        if (detached != null)
+        {
+            branches.TryAdd(detached);
+        }
+
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
@@ -361,7 +367,7 @@ class ViewRepoCreater : IViewRepoCreater
                     GitIndex: 0, currentBranch.Name, currentBranch.CommonName,
                     ParentIds: parentIds, ChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
-                    IsCurrent: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
+                    IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
                     IsPartialLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
                     IsBranchSetByUser: false);

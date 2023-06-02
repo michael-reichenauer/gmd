@@ -178,6 +178,12 @@ class RepoCommands : IRepoCommands
 
     public void Commit(bool isAmend) => Do(async () =>
     {
+        if (repo.CurrentBranch?.IsDetached == true)
+        {
+            UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
+            return R.Ok;
+        }
+
         if (!isAmend && repo.Status.IsOk) return R.Ok;
         if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
 
@@ -603,23 +609,23 @@ class RepoCommands : IRepoCommands
 
 
     public void CreateBranch() => Do(async () =>
-     {
-         var currentBranchName = repo.GetCurrentBranch().Name;
-         if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
+    {
+        var currentBranchName = repo.GetCurrentBranch().Name;
+        if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-         if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, repoPath)))
-         {
-             return R.Error($"Failed to create branch {rsp.Name}", e);
-         }
+        if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, repoPath)))
+        {
+            return R.Error($"Failed to create branch {rsp.Name}", e);
+        }
 
-         if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
-         {
-             return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
-         }
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
+        {
+            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+        }
 
-         Refresh(rsp.Name);
-         return R.Ok;
-     });
+        Refresh(rsp.Name);
+        return R.Ok;
+    });
 
 
     public void CreateBranchFromCommit() => Do(async () =>
@@ -920,14 +926,12 @@ class RepoCommands : IRepoCommands
     public void SwitchToCommit() => Do(async () =>
     {
         var commit = repo.RowCommit;
-        var branchName = $"sw-{commit.Sid}";
-
-        if (!Try(out var e, await server.SwitchToCommitAsync(serverRepo, commit.Id, branchName)))
+        if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, repoPath)))
         {
             return R.Error($"Failed to switch to commit {commit.Id}", e);
         }
 
-        Refresh(branchName);
+        Refresh();
         return R.Ok;
     });
 

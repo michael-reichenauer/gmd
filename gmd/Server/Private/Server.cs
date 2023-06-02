@@ -304,16 +304,7 @@ class Server : IServer
     public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
         augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
 
-    public Task<R> SwitchToCommitAsync(Repo repo, string commitId, string newBranchName)
-    {
-        var commit = repo.AugmentedRepo.CommitById[commitId];
-
-        if (repo.AugmentedRepo.BranchByName.ContainsKey(newBranchName))
-        {
-            return SwitchToAsync(repo, newBranchName);
-        }
-
-        return augmentedService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, commitId, true, repo.Path);
-    }
+    public Task<R> SwitchToCommitAsync(string commitId, string wd) =>
+        git.CheckoutAsync(commitId, wd);
 }
 

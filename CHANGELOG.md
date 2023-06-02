@@ -1,7 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-05-31
+## [Current] - 2023-06-02
+- Added support for switch to commit
+- Handles Detached head state
+- Fixed issue with message boxes without title
+
+## [v0.50.213.234] - 2023-05-31
 - Added support for inline diff showing diffs within lines
 - Moved progress to upper left corner
 

@@ -68,6 +68,7 @@ public record Commit(
     IReadOnlyList<string> BranchTips,
 
     bool IsCurrent,
+    bool IsDetached,
     bool IsUncommitted,
     bool IsConflicted,
     bool IsAhead,

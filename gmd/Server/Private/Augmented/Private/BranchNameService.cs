@@ -71,15 +71,13 @@ class BranchNameService : IBranchNameService
         }
 
         if (parsedCommits.TryGetValue(c.Id, out var fi))
-        {
-            // Already parsed this commit
+        {   // Already parsed this commit,use the cached result
             return fi;
         }
 
         fi = ParseSubject(c.Subject);
 
-        // set the branch name of the commit and merge parent.
-        // could actually be several names, but lets ignore that
+        // Cache the result
         parsedCommits[c.Id] = fi;
 
         if (fi.Into != "")
@@ -95,14 +93,15 @@ class BranchNameService : IBranchNameService
             }
         }
 
-        if (!IsPullMergeCommit(fi))
-        {
-            branchNames[c.ParentIds[1]] = fi.From;
-        }
-        else
+        if (IsPullMergeCommit(fi))
         {
             // The order of the parents will be switched for a pull merge and thus
+            // Set the first branch name of the first parent
             branchNames[c.ParentIds[0]] = fi.From;
+        }
+        else
+        {   // Normal commit, set the branch name for the second (other) parent
+            branchNames[c.ParentIds[1]] = fi.From;
         }
 
         return fi;

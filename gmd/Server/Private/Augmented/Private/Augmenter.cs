@@ -183,6 +183,7 @@ class Augmenter : IAugmenter
             if (repo.CommitsById.TryGetValue(currentBranch.TipID, out var currentCommit))
             {
                 currentCommit.IsCurrent = true;
+                currentCommit.IsDetached = currentBranch.IsDetached;
             }
         }
 
@@ -251,8 +252,11 @@ class Augmenter : IAugmenter
             }
 
             // Adding the branch to the branch tip commit
-            tip.Branches.TryAdd(b);
-            tip.BranchTips.TryAdd(b.Name);
+            if (!b.IsDetached)
+            {
+                tip.Branches.TryAdd(b);
+                tip.BranchTips.TryAdd(b.Name);
+            }
             b.BottomID = b.TipID; // We initialize the bottomId to same as tip
         }
 
