@@ -772,7 +772,7 @@ class RepoCommands : IRepoCommands
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available:\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"Current Version: {Build.Version()}\n\n" +
+            $"\nCurrent Version: {Build.Version()}\n\n" +
             "Do you want to update?";
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
         if (button != 0)
