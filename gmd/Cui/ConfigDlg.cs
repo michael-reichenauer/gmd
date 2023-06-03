@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Installation;
@@ -27,7 +28,7 @@ class ConfigDlg : IConfigDlg
     public void Show(string repoPath)
     {
         int width = 60;
-        int height = 15;
+        int height = 18;
 
         var repoConf = repoConfig.Get(repoPath);
         var conf = config.Get();
@@ -45,6 +46,13 @@ class ConfigDlg : IConfigDlg
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
 
+        CheckBox isAddGmdtoPath = null!;
+        //if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            isAddGmdtoPath = dlg.AddCheckBox(1, 7, "Add gmd to PATH environment variable", IsGmdAddedToPath());
+        }
+
+
         if (dlg.ShowOkCancel())
         {
             // Update repo config
@@ -58,8 +66,78 @@ class ConfigDlg : IConfigDlg
                 c.AllowPreview = isAllowPreview.Checked;
             });
 
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                if (isAddGmdtoPath.Checked)
+                {
+                    AddGmdToPath();
+                }
+                else
+                {
+                    // DeleteInPathVariable();
+                }
+            }
+
             updater.CheckUpdateAvailableAsync().RunInBackground();
         }
     }
+
+    static bool IsGmdAddedToPath()
+    {
+        string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!;
+        string pathsVariables = Environment.GetEnvironmentVariable(
+            "PATH", EnvironmentVariableTarget.User)!;
+        return false;
+
+    }
+
+    static void AddGmdToPath()
+    {
+        string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!;
+
+        // Environment.SetEnvironmentVariable("TEST1XX", "TestValue",
+        //     EnvironmentVariableTarget.User);
+
+        string pathsVariables = Environment.GetEnvironmentVariable(
+            "PATH", EnvironmentVariableTarget.User)!;
+
+        // string keyName = @"Environment\";
+        // string pathsVariables = (string)Registry.CurrentUser.OpenSubKey(keyName)
+        //     .GetValue("PATH", "", RegistryValueOptions.DoNotExpandEnvironmentNames);
+
+        pathsVariables = pathsVariables.Trim();
+
+        if (!pathsVariables.Contains(folderPath))
+        {
+            if (!string.IsNullOrEmpty(pathsVariables) && !pathsVariables.EndsWith(";"))
+            {
+                pathsVariables += ";";
+            }
+
+            pathsVariables += folderPath;
+            // Environment.SetEnvironmentVariable(
+            //     "PATH", pathsVariables, EnvironmentVariableTarget.User);
+        }
+    }
+
+
+    //  static void DeleteInPathVariable()
+    // {
+    //     string programFilesFolderPath = ProgramInfo.GetProgramFolderPath();
+
+    //     string keyName = @"Environment\";
+    //     string pathsVariables = (string)Registry.CurrentUser.OpenSubKey(keyName)
+    //         .GetValue("PATH", "", RegistryValueOptions.DoNotExpandEnvironmentNames);
+
+    //     string pathPart = programFilesFolderPath;
+    //     if (pathsVariables.Contains(pathPart))
+    //     {
+    //         pathsVariables = pathsVariables.Replace(pathPart, "");
+    //         pathsVariables = pathsVariables.Replace(";;", ";");
+    //         pathsVariables = pathsVariables.Trim(";".ToCharArray());
+
+    //         Registry.SetValue("HKEY_CURRENT_USER\\" + keyName, "PATH", pathsVariables);
+    //     }
+    // }
 }
 
