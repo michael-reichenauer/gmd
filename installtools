@@ -12,10 +12,7 @@ sudo apt install -q lnav -y 1>/dev/null
 
 echo ""
 echo "Install gmd ..."
-curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd
-echo 'export PATH=$PATH:~/gmd' >>~/.profile
-. ~/.profile
-echo "gmd version: $(gmd --version)"
+curl curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
 
 echo ""
 echo "Install git post commit hook ..."
