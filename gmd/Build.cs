@@ -43,7 +43,13 @@ static class Build
 
     internal static string Sha() => CiCdBuildShaText.Sid();
 
-    internal static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll");
+    internal static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll") || IsDotNet();
+
+    static bool IsDotNet()
+    {
+        var thisPath = Environment.ProcessPath ?? "gmd";
+        return Path.GetFileNameWithoutExtension(thisPath) == "dotnet";
+    }
 
     static (int, int) GetTimeSinceBaseTime()
     {

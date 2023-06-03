@@ -46,12 +46,8 @@ class ConfigDlg : IConfigDlg
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
 
-        CheckBox isAddGmdtoPath = null!;
-        //if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            isAddGmdtoPath = dlg.AddCheckBox(1, 7, "Add gmd to PATH environment variable", IsGmdAddedToPath());
-        }
-
+        var isAddGmdToPath = dlg.AddCheckBox(1, 7, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
+        //isAddGmdToPath.Visible = !Build.IsDevInstance();
 
         if (dlg.ShowOkCancel())
         {
@@ -66,78 +62,92 @@ class ConfigDlg : IConfigDlg
                 c.AllowPreview = isAllowPreview.Checked;
             });
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                if (isAddGmdtoPath.Checked)
-                {
-                    AddGmdToPath();
-                }
-                else
-                {
-                    // DeleteInPathVariable();
-                }
-            }
-
+            UpdatePathVariable(isAddGmdToPath.Checked);
             updater.CheckUpdateAvailableAsync().RunInBackground();
         }
     }
 
-    static bool IsGmdAddedToPath()
+    static void UpdatePathVariable(bool isAddGmdToPath)
     {
-        string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!;
-        string pathsVariables = Environment.GetEnvironmentVariable(
-            "PATH", EnvironmentVariableTarget.User)!;
-        return false;
+        if (Build.IsDevInstance()) return;
 
+        if (isAddGmdToPath)
+        {
+            AddGmdToPathVariable();
+        }
+        else
+        {
+            RemoveGmdFromPathVariable();
+        }
     }
 
-    static void AddGmdToPath()
+    static bool IsGmdAddedToPathVariable()
     {
+        string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!.ToUpper();
+        string pathsVariables = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
+        var parts = pathsVariables.Split(';');
+
+        return parts.FirstOrDefault(p => p.ToUpper() == folderPath) != null;
+    }
+
+
+    static void AddGmdToPathVariable()
+    {
+        if (IsGmdAddedToPathVariable()) return;
+
         string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!;
+        string pathVariable = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
+        string newPathVariable = pathVariable != "" ? pathVariable + ";" + folderPath : folderPath;
 
-        // Environment.SetEnvironmentVariable("TEST1XX", "TestValue",
-        //     EnvironmentVariableTarget.User);
-
-        string pathsVariables = Environment.GetEnvironmentVariable(
-            "PATH", EnvironmentVariableTarget.User)!;
-
-        // string keyName = @"Environment\";
-        // string pathsVariables = (string)Registry.CurrentUser.OpenSubKey(keyName)
-        //     .GetValue("PATH", "", RegistryValueOptions.DoNotExpandEnvironmentNames);
-
-        pathsVariables = pathsVariables.Trim();
-
-        if (!pathsVariables.Contains(folderPath))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (!string.IsNullOrEmpty(pathsVariables) && !pathsVariables.EndsWith(";"))
-            {
-                pathsVariables += ";";
-            }
+            Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
+        }
+        else
+        {
+            // Add to path for Linux and Mac
+            UI.InfoMessage("Not implemented yet", "Add gmd to PATH environment variable");
 
-            pathsVariables += folderPath;
-            // Environment.SetEnvironmentVariable(
-            //     "PATH", pathsVariables, EnvironmentVariableTarget.User);
         }
     }
 
 
-    //  static void DeleteInPathVariable()
+    static void RemoveGmdFromPathVariable()
+    {
+        if (Build.IsDevInstance()) return;
+        if (!IsGmdAddedToPathVariable()) return;
+
+        string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!.ToUpper();
+
+        string pathVariables = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
+        var parts = pathVariables.Split(';');
+        string newPathVariable = String.Join(';', parts.Where(p => p.ToUpper() != folderPath));
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
+        }
+        else
+        {
+            // Remove path for Linux and Mac
+            UI.InfoMessage("Not implemented yet", "Remove gmd from PATH environment variable");
+        }
+    }
+
+
+    //       if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+    //         {
+    //             name = "gmd_osx";
+    //         }
+    //         else
+    //         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+    //         {
+    //             name = "gmd_linux";
+    //         }
+    //         else
+    //         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     // {
-    //     string programFilesFolderPath = ProgramInfo.GetProgramFolderPath();
-
-    //     string keyName = @"Environment\";
-    //     string pathsVariables = (string)Registry.CurrentUser.OpenSubKey(keyName)
-    //         .GetValue("PATH", "", RegistryValueOptions.DoNotExpandEnvironmentNames);
-
-    //     string pathPart = programFilesFolderPath;
-    //     if (pathsVariables.Contains(pathPart))
-    //     {
-    //         pathsVariables = pathsVariables.Replace(pathPart, "");
-    //         pathsVariables = pathsVariables.Replace(";;", ";");
-    //         pathsVariables = pathsVariables.Trim(";".ToCharArray());
-
-    //         Registry.SetValue("HKEY_CURRENT_USER\\" + keyName, "PATH", pathsVariables);
-    //     }
-    // }
+    //     name = "gmd_windows";
 }
+
 
