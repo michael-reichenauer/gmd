@@ -25,7 +25,10 @@ If you to be able to use gmd from any folder, you might consider download the bi
 folder, e.g. `~/gmd/` and then add to the PATH like in:\
 `> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`\
 `> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
-`> . ~/.profile`  
+`> . ~/.profile`
+
+Or you can just run the this:\
+`> curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash`
 
 #### Windows:
 Download setup file from [releases](https://github.com/michael-reichenauer/gmd/releases)  
