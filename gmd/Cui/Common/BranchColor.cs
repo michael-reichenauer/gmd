@@ -24,14 +24,12 @@ class BranchColorService : IBranchColorService
 
     public Color GetColor(Server.Repo repo, Server.Branch branch)
     {
-        if (branch.IsDetached)
-        {
-            return TextColor.White;
-        }
+        if (branch.IsDetached) return TextColor.White;
+        if (branch.IsMainBranch) return TextColor.Magenta;
+
         if (repoState.Get(repo.Path).BranchColors.TryGetValue(branch.CommonName, out var colorId))
         {
-            colorId = Math.Min(colorId, TextColor.BranchColors.Length - 1);
-            return TextColor.BranchColors[colorId];
+            return TextColor.BranchColorById(colorId);
         }
 
         if (branch.ParentBranchName == "")
@@ -61,20 +59,16 @@ class BranchColorService : IBranchColorService
     public void ChangeColor(Repo repo, Branch branch)
     {
         var color = GetColor(repo, branch);
-        var colorId = Array.FindIndex(TextColor.BranchColors, c => c == color);
+        var colorId = TextColor.GetBranchColorId(color);
         var newColorId = (colorId + 1) % TextColor.BranchColors.Length;
+
         repoState.Set(repo.Path, s => s.BranchColors[branch.CommonName] = newColorId);
     }
 
     Color BranchNameColor(string name, int addIndex)
     {
-        if (name == "main" || name == "master")
-        {
-            return TextColor.Magenta;
-        }
-
         var branchColorId = (Hash(name) + addIndex) % TextColor.BranchColors.Length;
-        return TextColor.BranchColors[branchColorId];
+        return TextColor.BranchColorById(branchColorId);
     }
 
 
