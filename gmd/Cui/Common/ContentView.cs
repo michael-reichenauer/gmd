@@ -5,17 +5,14 @@ using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
-internal delegate void DrawContentCallback(int firstIndex, int count, int currentIndex, int width);
 
 internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int width);
-
 internal delegate void OnKeyCallback();
 internal delegate void OnMouseCallback(int x, int y);
 
 
 class ContentView : View
 {
-    readonly DrawContentCallback? onDrawContent;
     readonly GetContentCallback? onGetContent;
     readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
     readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
@@ -30,11 +27,6 @@ class ContentView : View
     int mouseEventX = -1;
     int mouseEventY = -1;
 
-
-    internal ContentView(DrawContentCallback onDrawContent)
-    {
-        this.onDrawContent = onDrawContent;
-    }
 
     internal ContentView(GetContentCallback onGetContent)
     {
@@ -234,10 +226,6 @@ class ContentView : View
         {
             int y = ContentY;
             content.Skip(FirstIndex).Take(drawCount).ForEach(row => row.Draw(this, ContentX, y++));
-        }
-        else if (onDrawContent != null)
-        {
-            onDrawContent(FirstIndex, drawCount, CurrentIndex, ContentWidth);
         }
         else if (onGetContent != null)
         {
