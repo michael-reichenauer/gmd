@@ -46,7 +46,7 @@ class ConfigDlg : IConfigDlg
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
         var isAddGmdToPath = dlg.AddCheckBox(1, 7, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
-        isAddGmdToPath.Visible = !Build.IsDevInstance();
+        isAddGmdToPath.Visible = !Build.IsDevInstance() && RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         if (dlg.ShowOkCancel())
         {
@@ -68,7 +68,7 @@ class ConfigDlg : IConfigDlg
 
     static void UpdatePathVariable(bool isAddGmdToPath)
     {
-        if (Build.IsDevInstance()) return;
+        if (Build.IsDevInstance() || !RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
 
         if (isAddGmdToPath)
         {
@@ -116,7 +116,6 @@ class ConfigDlg : IConfigDlg
 
     static void RemoveGmdFromPathVariable()
     {
-        if (Build.IsDevInstance()) return;
         if (!IsGmdAddedToPathVariable()) return;
 
         string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!.ToUpper();
