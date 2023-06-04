@@ -34,7 +34,7 @@ class AboutDlg : IAboutDlg
             $"Version: {gmdVersion} ({gmdSha}) \n" +
             $"Built:   {gmdBuildTime}\n" +
             (isAvailable ? $"Updates: {releases.LatestVersion} {typeText} is available\n" :
-                "Updates: Is latest available version\n") +
+                "Updates: Is latest version\n") +
             $"Git:     {gitVersion} ";
 
         UI.InfoMessage("About", msg);
