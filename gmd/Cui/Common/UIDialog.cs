@@ -72,7 +72,7 @@ class UIDialog
         return contentView;
     }
 
-    internal ContentView AddContentView(int x, int y, Dim w, Dim h, IEnumerable<Text> content)
+    internal ContentView AddContentView(int x, int y, Dim w, Dim h, IReadOnlyList<Text> content)
     {
         var contentView = new ContentView(content)
         { X = x, Y = y, Width = w, Height = h };

@@ -33,9 +33,9 @@ class ContentView : View
         this.onGetContent = onGetContent;
     }
 
-    internal ContentView(IEnumerable<Text> content)
+    internal ContentView(IReadOnlyList<Text> content)
     {
-        this.content = content.ToList();
+        this.content = content;
         this.TriggerUpdateContent(this.content.Count);
     }
 
