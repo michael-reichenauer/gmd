@@ -23,6 +23,15 @@ static class ColorSchemes
         Disabled = TextColor.Dark,
     };
 
+    internal static readonly ColorScheme InfoDialog = new ColorScheme()
+    {
+        Normal = TextColor.BrightCyan,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
+    };
+
     internal static readonly ColorScheme Label = new ColorScheme()
     {
         Normal = TextColor.White,

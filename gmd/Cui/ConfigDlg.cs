@@ -45,9 +45,8 @@ class ConfigDlg : IConfigDlg
         var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", conf.CheckUpdates);
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
-
         var isAddGmdToPath = dlg.AddCheckBox(1, 7, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
-        //isAddGmdToPath.Visible = !Build.IsDevInstance();
+        isAddGmdToPath.Visible = !Build.IsDevInstance();
 
         if (dlg.ShowOkCancel())
         {
@@ -109,6 +108,9 @@ class ConfigDlg : IConfigDlg
             UI.InfoMessage("Not implemented yet", "Add gmd to PATH environment variable");
 
         }
+
+        UI.InfoMessage("Gmd", "Added gmd to PATH environment variable\n\n" +
+            "You need to restart running terminals for the change to take effect");
     }
 
 
@@ -132,6 +134,9 @@ class ConfigDlg : IConfigDlg
             // Remove path for Linux and Mac
             UI.InfoMessage("Not implemented yet", "Remove gmd from PATH environment variable");
         }
+
+        UI.InfoMessage("Gmd", "Removed gmd to PATH environment variable\n\n" +
+            "You need to restart running terminals for the change to take effect");
     }
 
 
