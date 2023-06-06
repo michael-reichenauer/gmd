@@ -29,9 +29,10 @@ class SubMenu : MenuItem
         menuBar = new MenuBarItem(children.Select(c => c.AsMenuItem()).ToArray());
     }
 
-    public SubMenu(ustring title, ustring help, IEnumerable<MenuItem> children, Action? action = null, Func<bool>? canExecute = null)
+    public SubMenu(ustring title, ustring shortcut, IEnumerable<MenuItem> children, Action? action = null, Func<bool>? canExecute = null)
     {
-        menuBar = new MenuBarItem(title, help, action, canExecute)
+        shortcut = shortcut == "" ? "" : shortcut + " ";
+        menuBar = new MenuBarItem(title, shortcut, action, canExecute)
         {
             Children = children.Select(c => c.AsMenuItem()).ToArray()
         };
@@ -46,13 +47,14 @@ class MenuItem
 {
     Terminal.Gui.MenuItem item;
 
-    public MenuItem(Key shortcut = Key.Null)
+    public MenuItem()
     {
-        item = new Terminal.Gui.MenuItem(shortcut);
+        item = new Terminal.Gui.MenuItem();
     }
-    public MenuItem(ustring title, ustring help, Action action, Func<bool>? canExecute = null)
+    public MenuItem(ustring title, ustring shortcut, Action action, Func<bool>? canExecute = null)
     {
-        item = new Terminal.Gui.MenuItem(title, help, action, canExecute);
+        shortcut = shortcut == "" ? "" : shortcut + " ";
+        item = new Terminal.Gui.MenuItem(title, shortcut, action, canExecute);
     }
 
     public string Title => item.Title.ToString() ?? "";

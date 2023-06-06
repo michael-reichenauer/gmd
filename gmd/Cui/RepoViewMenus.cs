@@ -305,11 +305,11 @@ class RepoViewMenus : IRepoViewMenus
     }
 
 
-    SubMenu SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
-        new SubMenu(title, key == "" ? "" : key + " ", children, null, canExecute);
+    SubMenu SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
+        new SubMenu(title, shortcut, children, null, canExecute);
 
-    MenuItem Item(string title, string key, Action action, Func<bool>? canExecute = null) =>
-        new MenuItem(title, key == "" ? "" : key + " ", action, canExecute);
+    MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
+        new MenuItem(title, shortcut, action, canExecute);
 
     IEnumerable<MenuItem> GetPushItems()
     {
