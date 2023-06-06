@@ -10,57 +10,69 @@ interface IRepoCommands
     void ShowBranch(string name, bool includeAmbiguous);
     void HideBranch(string name);
     void SwitchTo(string branchName);
+    void SwitchToCommit();
+
     void ToggleDetails();
+
     void ShowAbout();
     void ShowHelp();
-    void ShowBrowseDialog();
+    void ShowFileHistory();
     void Filter();
+    void ShowBrowseDialog();
+    void ChangeBranchColor();
+    void UpdateRelease();
+    void Clone();
+
     void ShowRepo(string path);
     void Refresh();
+
     void ShowUncommittedDiff();
+    void ShowCurrentRowDiff();
+    void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
+
     void Commit(bool isAmend);
     void CommitFromMenu(bool isAmend);
+
     void CreateBranch();
-    void ShowCurrentRowDiff();
-    void PushCurrentBranch();
-    void PublishCurrentBranch();
-    void PullCurrentBranch();
-    void UpdateRelease();
-    bool CanPush();
-    bool CanPull();
     void CreateBranchFromCommit();
-    void ShowFileHistory();
-    void UndoSetBranch(string commitId);
-    void ResolveAmbiguity(Server.Branch branch, string displayName);
-    bool CanPushCurrentBranch();
-    void PushBranch(string name);
-    void PushAllBranches();
-    bool CanPullCurrentBranch();
-    void PullBranch(string name);
-    void PullAllBranches();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void PreviewMergeBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
-    bool CanUndoUncommitted();
-    bool CanUndoCommit();
+    void CherryPic(string id);
+
+    void PushCurrentBranch();
+    void PushBranch(string name);
+    void PushAllBranches();
+    void PublishCurrentBranch();
+    void PullCurrentBranch();
+    void PullBranch(string name);
+    void PullAllBranches();
+    bool CanPushCurrentBranch();
+    bool CanPush();
+    bool CanPull();
+    bool CanPullCurrentBranch();
+
     void UndoCommit(string id);
     void UncommitLastCommit();
-    bool CanUncommitLastCommit();
     void UndoAllUncommittedChanged();
-    void CleanWorkingFolder();
     void UndoUncommittedFile(string path);
-    void Clone();
-    void CherryPic(string id);
-    void ChangeBranchColor();
+    void CleanWorkingFolder();
+    bool CanUndoUncommitted();
+    bool CanUndoCommit();
+    bool CanUncommitLastCommit();
+
+    void ResolveAmbiguity(Server.Branch branch, string displayName);
+    void UndoSetBranch(string commitId);
+    void SetBranchManuallyAsync();
+    void MoveBranch(string commonName, string otherCommonName, int delta);
+
     void Stash();
     void StashPop(string name);
     void StashDiff(string name);
     void StashDrop(string name);
+
     void AddTag();
     void DeleteTag(string name);
-    void SetBranchManuallyAsync();
-    void MoveBranch(string commonName, string otherCommonName, int delta);
-    void SwitchToCommit();
+
 }
 
 class RepoCommands : IRepoCommands
@@ -408,7 +420,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void PreviewMergeBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
+    public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
         if (repo.CurrentBranch == null) return R.Ok;
         var sha1 = repo.Branch(branchName).TipId;

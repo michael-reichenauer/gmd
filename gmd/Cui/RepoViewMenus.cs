@@ -148,7 +148,7 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu($"Diff Branch to", "", GetPreviewMergeItems(false, false), () => GetPreviewMergeItems(false, false).Any()),
             SubMenu($"Diff {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true, false), () => GetPreviewMergeItems(true, false).Any()),
             SubMenu($"Diff Branch from", "", GetPreviewMergeItems(false, true), () => GetPreviewMergeItems(false, true).Any()),
-            Item($"Diff {Sid(repo.RowCommit.Id)} from", "", () => cmds.PreviewMergeBranch(repo.RowCommit.BranchName, true, true)),
+            Item($"Diff {Sid(repo.RowCommit.Id)} from", "", () => cmds.DiffWithOtherBranch(repo.RowCommit.BranchName, true, true)),
             SubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any())
         );
     }
@@ -488,7 +488,7 @@ class RepoViewMenus : IRepoViewMenus
              .DistinctBy(b => b.DisplayName)
              .OrderBy(b => b.DisplayName);
 
-        return branches.Select(b => Item(ToBranchMenuName(b, false, false, false), "", () => cmds.PreviewMergeBranch(b.Name, isFromCurrentCommit, isSwitch)));
+        return branches.Select(b => Item(ToBranchMenuName(b, false, false, false), "", () => cmds.DiffWithOtherBranch(b.Name, isFromCurrentCommit, isSwitch)));
     }
 
     IEnumerable<MenuItem> GetHideItems()
