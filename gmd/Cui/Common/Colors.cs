@@ -29,6 +29,16 @@ static class TextColor
 
     internal static readonly Terminal.Gui.Attribute[] BranchColors = { Blue, Green, Cyan, Red, Yellow };
 
+    internal static Terminal.Gui.Attribute BranchColorById(int colorId)
+    {
+        colorId = Math.Min(colorId, BranchColors.Length - 1);
+        return BranchColors[colorId];
+    }
+
+    internal static int GetBranchColorId(Terminal.Gui.Attribute color)
+    {
+        return Array.FindIndex(TextColor.BranchColors, c => c == color);
+    }
 
     static Terminal.Gui.Attribute Make(Terminal.Gui.Color fg)
     {
