@@ -2,7 +2,6 @@ using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Installation;
 using gmd.Server;
-using Terminal.Gui;
 
 namespace gmd.Cui;
 
@@ -41,7 +40,7 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowMainMenu()
     {
         int x = repo.ContentWidth / 2 - 10;
-        var menu = new ContextMenu(x, 0, SubMenu("", "", GetMainMenuItems(x, 0)));
+        var menu = new Menu(x, 0, GetMainMenuItems(x, 0));
         menu.Show();
     }
 
@@ -63,7 +62,7 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(SubMenu("Show Branch", "", GetShowBranchItems()));
         items.Add(SubMenu("Main Menu", "m", GetMainMenuItems(repo.CurrentPoint.X, repo.CurrentPoint.Y)));
 
-        var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
+        var menu = new Menu(repo.CurrentPoint.X, repo.CurrentPoint.Y, items);
         menu.Show();
     }
 
@@ -74,7 +73,7 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(UI.MenuSeparator("Close/Hide"));
         items.AddRange(GetHideItems());
 
-        var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
+        var menu = new Menu(repo.CurrentPoint.X, repo.CurrentPoint.Y, items);
         menu.Show();
     }
 
@@ -306,15 +305,15 @@ class RepoViewMenus : IRepoViewMenus
     }
 
 
-    MenuBarItem SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
-        new MenuBarItem(title, key == "" ? "" : key + " ", null, canExecute) { Children = children.ToArray() };
+    SubMenu SubMenu(string title, string key, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
+        new SubMenu(title, key == "" ? "" : key + " ", children, null, canExecute);
 
     MenuItem Item(string title, string key, Action action, Func<bool>? canExecute = null) =>
         new MenuItem(title, key == "" ? "" : key + " ", action, canExecute);
 
     IEnumerable<MenuItem> GetPushItems()
     {
-        List<MenuItem> items = new List<MenuItem>();
+        var items = new List<MenuItem>();
 
         items.Add(Item("Push All Branches", "P", () => cmds.PushAllBranches()));
 
@@ -353,7 +352,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetPullItems()
     {
-        List<MenuItem> items = new List<MenuItem>();
+        var items = new List<MenuItem>();
         items.Add(Item("Update/Pull All Branches", "U", () => cmds.PullAllBranches()));
         if (repo.CurrentBranch != null)
         {
