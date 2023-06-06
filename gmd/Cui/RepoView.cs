@@ -196,23 +196,18 @@ class RepoView : IRepoView
         // Keys on repo view contents
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, UI.Shutdown);
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
-        contentView.RegisterKeyHandler(Key.M, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, () => Refresh());
-        contentView.RegisterKeyHandler(Key.R, () => Refresh());
         contentView.RegisterKeyHandler(Key.F5, () => Refresh());
         contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
-        contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit(false));
         contentView.RegisterKeyHandler(Key.a, () => Cmd.Commit(true));
         contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
-        contentView.RegisterKeyHandler(Key.B, () => Cmd.CreateBranch());
         contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.D, () => Cmd.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushAllBranches());
+        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
-        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullAllBranches());
+        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
         contentView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
         contentView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
         contentView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());

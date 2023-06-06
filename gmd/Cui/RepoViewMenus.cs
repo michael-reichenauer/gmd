@@ -61,7 +61,7 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(UI.MenuSeparator("More"));
 
         items.Add(SubMenu("Show Branch", "", GetShowBranchItems()));
-        items.Add(SubMenu("Main Menu", "M", GetMainMenuItems(repo.CurrentPoint.X, repo.CurrentPoint.Y)));
+        items.Add(SubMenu("Main Menu", "m", GetMainMenuItems(repo.CurrentPoint.X, repo.CurrentPoint.Y)));
 
         var menu = new ContextMenu(repo.CurrentPoint.X, repo.CurrentPoint.Y, new MenuBarItem(items.ToArray()));
         menu.Show();
@@ -98,10 +98,10 @@ class RepoViewMenus : IRepoViewMenus
 
         return items.Add(
             Item("Toggle Details ...", "Enter", () => cmds.ToggleDetails()),
-            Item("Commit ...", "C",
+            Item("Commit ...", "c",
                 () => cmds.CommitFromMenu(false),
                 () => !repo.Status.IsOk),
-            Item($"Amend {currentSidText} ...", "A",
+            Item($"Amend {currentSidText} ...", "a",
                 () => cmds.CommitFromMenu(true),
                 () => repo.GetCurrentCommit().IsAhead),
             SubMenu("Undo", "", GetUndoItems()),
@@ -113,7 +113,7 @@ class RepoViewMenus : IRepoViewMenus
             SubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush()),
             SubMenu("Pull/Update", "", GetPullItems(), () => cmds.CanPull()),
             SubMenu($"Merge from", "", GetMergeFromItems(), () => GetMergeFromItems().Any()),
-            Item("Create Branch ...", "B", () => cmds.CreateBranch()),
+            Item("Create Branch ...", "b", () => cmds.CreateBranch()),
             Item("Create Branch from commit ...", "",
                 () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk),
             SubMenu("Delete Branch", "", GetDeleteItems()),
@@ -144,7 +144,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetDiffItems()
     {
         return EnumerableEx.From(
-            Item("Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff()),
+            Item("Commit Diff ...", "d", () => cmds.ShowCurrentRowDiff()),
             SubMenu($"Diff Branch to", "", GetPreviewMergeItems(false, false), () => GetPreviewMergeItems(false, false).Any()),
             SubMenu($"Diff {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true, false), () => GetPreviewMergeItems(true, false).Any()),
             SubMenu($"Diff Branch from", "", GetPreviewMergeItems(false, true), () => GetPreviewMergeItems(false, true).Any()),
@@ -156,15 +156,15 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetMoreItems()
     {
         return EnumerableEx.From(
-            Item("Search/Filter ...", "F", () => cmds.Filter()),
-            Item("Refresh/Reload", "R", () => cmds.Refresh()),
+            Item("Search/Filter ...", "f", () => cmds.Filter()),
+            Item("Refresh/Reload", "r", () => cmds.Refresh()),
             Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id),
             Item("File History ...", "", () => cmds.ShowFileHistory()),
             SubMenu("Open/Clone Repo", "", GetOpenRepoItems()),
-            Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
+            Item("Change Branch Color", "g", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch),
             SubMenu("Set Branch", "", GetSetBranchItems(), () => GetSetBranchItems().Any()),
             SubMenu("Move Branch left/right", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any()),
-            Item("Help ...", "H", () => cmds.ShowHelp()),
+            Item("Help ...", "h", () => cmds.ShowHelp()),
             Item("Config ...", "", () => configDlg.Show(repo.RepoPath)),
             Item("About ...", "", () => cmds.ShowAbout())
         );
@@ -320,7 +320,7 @@ class RepoViewMenus : IRepoViewMenus
 
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToBranchMenuName(repo.CurrentBranch), "",
+            items.Add(Item(ToBranchMenuName(repo.CurrentBranch), "p",
                     () => cmds.PushCurrentBranch(),
                     () => cmds.CanPushCurrentBranch()));
         }
@@ -357,7 +357,7 @@ class RepoViewMenus : IRepoViewMenus
         items.Add(Item("Update/Pull All Branches", "U", () => cmds.PullAllBranches()));
         if (repo.CurrentBranch != null)
         {
-            items.Add(Item(ToBranchMenuName(repo.CurrentBranch), "",
+            items.Add(Item(ToBranchMenuName(repo.CurrentBranch), "u",
                     () => cmds.PullCurrentBranch(),
                     () => cmds.CanPullCurrentBranch()));
         }
