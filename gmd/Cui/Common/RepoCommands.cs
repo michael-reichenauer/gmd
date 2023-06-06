@@ -452,7 +452,7 @@ class RepoCommands : IRepoCommands
 
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pushing");
         if (branch == null) return R.Error("No current branc to push");
-        if (!branch.HasLocalOnly) return R.Error("No changes to push");
+        if (!branch.HasLocalOnly) return R.Error("No local changes to push");
 
         if (branch.RemoteName != "")
         {   // Cannot push local branch if remote needs to be pulled first
@@ -519,7 +519,7 @@ class RepoCommands : IRepoCommands
     {
         var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
-        if (branch == null) return R.Error("No current branc to pull");
+        if (branch == null) return R.Error("No current branch to pull");
         if (branch.RemoteName == "") return R.Error("No remote branch to pull");
 
         var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
@@ -560,7 +560,8 @@ class RepoCommands : IRepoCommands
 
     public void PushAllBranches() => Do(async () =>
     {
-        if (!CanPush()) return R.Ok;
+        if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
+        if (!CanPush()) return R.Error("No local changes to push");
 
         var branches = repo.Branches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
             .DistinctBy(b => b.CommonName);
@@ -580,9 +581,8 @@ class RepoCommands : IRepoCommands
 
     public void PullAllBranches() => Do(async () =>
     {
-        Log.Info("Pull all");
-
-        if (!CanPull()) return R.Ok;
+        if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
+        if (!CanPull()) return R.Error("No remote changes to pull");
 
         var currentRemoteName = "";
         if (CanPullCurrentBranch())
