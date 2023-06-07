@@ -107,12 +107,12 @@ partial class MainView : IMainView
     void ShowMainMenu()
     {
         List<Common.MenuItem> items = new List<Common.MenuItem>();
-        items.Add(UI.MenuSeparator("Open Repo"));
+        items.Add(Menu.Separator("Open Repo"));
         items.AddRange(GetRecentRepoItems());
 
         if (items.Any())
         {
-            items.Add(UI.MenuSeparator());
+            items.Add(Menu.Separator());
         }
 
         items.Add(new Common.MenuItem("Browse ...", "", () => ShowBrowseDialog()));
