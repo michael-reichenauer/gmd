@@ -106,30 +106,17 @@ partial class MainView : IMainView
 
     void ShowMainMenu()
     {
-        List<Common.MenuItem> items = new List<Common.MenuItem>();
-        items.Add(Menu.Separator("Open Repo"));
-        items.AddRange(GetRecentRepoItems());
-
-        if (items.Any())
-        {
-            items.Add(Menu.Separator());
-        }
-
-        items.Add(new Common.MenuItem("Browse ...", "", () => ShowBrowseDialog()));
-        items.Add(new Common.MenuItem("Clone ...", "", () => Clone()));
-        items.Add(new Common.MenuItem("Help ...", "", () => ShowHelp()));
-        items.Add(new Common.MenuItem("About ...", "", () => ShowAbout()));
-        items.Add(new Common.MenuItem("Quit", "Esc ", () => Application.RequestStop()));
-
-        var menu = new Menu(4, 0, items);
-        menu.Show();
-        //menu.MenuBar.MenuAllClosed += () => OnMenuKey();
+        Menu.Show(4, 0, Menu.Items()
+            .Separator("Open Repo")
+            .Add(GetRecentRepoItems())
+            .Separator()
+            .Item("Browse ...", "", () => ShowBrowseDialog())
+            .Item("Clone ...", "", () => Clone())
+            .Item("Help ...", "", () => ShowHelp())
+            .Item("About ...", "", () => ShowAbout())
+            .Item("Quit", "Esc ", () => Application.RequestStop()));
     }
 
-    // private void OnMenuKey()
-    // {
-    //     // Application.RequestStop();
-    // }
 
     private void ShowAbout()
     {

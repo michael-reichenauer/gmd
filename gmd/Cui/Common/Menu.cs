@@ -7,19 +7,25 @@ class Menu
 {
     ContextMenu menu = new ContextMenu();
 
-    public Menu(int x, int y, IEnumerable<MenuItem> menuItems)
+    // public Menu(int x, int y, IEnumerable<MenuItem> menuItems)
+    // {
+    //     menu = new ContextMenu(x, y, new MenuBarItem(
+    //         menuItems.Select(i => i.AsMenuItem()).ToArray()));
+    // }
+
+    // public void Show()
+    // {
+    //     menu.Show();
+    // }
+
+    public static void Show(int x, int y, IEnumerable<MenuItem> menuItems)
     {
-        menu = new ContextMenu(x, y, new MenuBarItem(
+        ContextMenu menu = new ContextMenu(x, y, new MenuBarItem(
             menuItems.Select(i => i.AsMenuItem()).ToArray()));
-    }
-
-
-    public void Show()
-    {
         menu.Show();
     }
 
-    public static MenuItems MenuItems() => new MenuItems();
+    public static MenuItems Items() => new MenuItems();
 
     public static SubMenu SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
         new SubMenu(title, shortcut, children, null, canExecute);
@@ -27,18 +33,18 @@ class Menu
     public static MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
         new MenuItem(title, shortcut, action, canExecute);
 
-    public static MenuItem Separator(string text = "")
-    {
-        const int maxDivider = 25;
-        if (text == "")
-        {
-            return new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
-        }
+    // public static MenuItem Separator(string text = "")
+    // {
+    //     const int maxDivider = 25;
+    //     if (text == "")
+    //     {
+    //         return new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
+    //     }
 
-        text = text.Max(maxDivider - 6);
-        string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
-        return new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
-    }
+    //     text = text.Max(maxDivider - 6);
+    //     string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
+    //     return new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
+    // }
 }
 
 
@@ -64,13 +70,32 @@ class MenuItems : IEnumerable<MenuItem>
 
     public MenuItems Separator(string text = "")
     {
-        items.Add(Common.Menu.Separator(text));
+        const int maxDivider = 25;
+        MenuItem item;
+        if (text == "")
+        {
+            item = new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
+        }
+        else
+        {
+            text = text.Max(maxDivider - 6);
+            string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
+            item = new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
+        }
+
+        items.Add(item);
         return this;
     }
 
     public MenuItems Add(params MenuItem[] items)
     {
-        items.Add(items);
+        this.items.Add(items);
+        return this;
+    }
+
+    public MenuItems Add(IEnumerable<MenuItem> items)
+    {
+        this.items.AddRange(items);
         return this;
     }
 }
