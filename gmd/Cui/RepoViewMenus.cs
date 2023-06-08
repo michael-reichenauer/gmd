@@ -138,7 +138,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         return Menu.Items()
             .Item("Search/Filter ...", "f", () => cmds.Filter())
-            .Item("Refresh/Reload", "r", () => cmds.Refresh())
+            .Item("Refresh/Reload", "r", () => cmds.RefreshAndFetch())
             .Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .Menu("Open/Clone Repo", "", GetOpenRepoItems())

@@ -24,7 +24,8 @@ interface IRepoCommands
     void Clone();
 
     void ShowRepo(string path);
-    void Refresh();
+    void Refresh(string addName = "", string commitId = "");
+    void RefreshAndFetch(string addName = "", string commitId = "");
 
     void ShowUncommittedDiff();
     void ShowCurrentRowDiff();
@@ -145,7 +146,9 @@ class RepoCommands : IRepoCommands
         this.branchColorService = branchColorService;
     }
 
-    public void Refresh() => repoView.Refresh();
+    public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+    public void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
+
 
 
     public void ShowRepo(string path) => Do(async () =>
@@ -819,7 +822,6 @@ class RepoCommands : IRepoCommands
         Refresh();
     }
 
-    void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 
     void SetRepo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
 
