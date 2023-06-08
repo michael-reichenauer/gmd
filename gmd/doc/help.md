@@ -6,18 +6,18 @@ Some especially useful keyboard shortcuts are:
 
 | Key        | Description                                                 |
 | ---------- | ------------------------------------------------------------|
-| M          | Shows the main menu with all available commands             |
+| m          | Shows the main menu with all available commands             |
 | RightArrow | Shows menu to open/show and switch branch                   |
 | LeftArrow  | Show menu to close branches                                 |
 | Esc        | Close a menu or a dialog                                    |
 | Esc        | Quit the application in repo view                           |
 | Tab        | Switch between repo and commit details views (if shown)     |
 |            |                                                             |
-| C          | Shows the commit dialog                                     |
-| D          | Shows the commit diff view in repo and commit               |
-| Ctrl+D     | Shows the commit diff in commit dialog                      |
+| c          | Shows the commit dialog                                     |
+| d          | Shows the commit diff view in repo and commit               |
+| Ctrl+d     | Shows the commit diff in commit dialog                      |
 | Enter      | Shows commit details                                        |
-| Ctrl+O     | To trigger click on 'OK' buttons in dialogs                 |
+| Ctrl+o     | To trigger click on 'OK' buttons in dialogs                 |
 ----------------------------------------------------------------------------
 
 More shortcut keys are available and indicated in the menus.
@@ -26,7 +26,7 @@ More shortcut keys are available and indicated in the menus.
 ## Branches Graphs
 The branches graph on the left side visualizes the selected
 branches. More or less branches can be shown by clicking the
-'`RightArrow`', '`LeftArrow`' or '`M`' key.
+'`RightArrow`', '`LeftArrow`' or '`m`' key.
 
 
 ### Indicators for not Shown Branches
@@ -41,21 +41,23 @@ When there are both local and their corresponding remote (origin) branches,
 it is indicated by a 'double' branch with e.g. a '╂┸' tip. The left is the 
 remote branch and the right the local branch. They are on the same row
 if synced and on different rows:
-* If remote has 'unpulled' commits 
+- If remote has 'unpulled' commits 
   (indicated with blue subject lines and preceded by a '▼')
-* If local has 'unpushed' commits
+- If local has 'unpushed' commits
   (indicated with green subject lines and preceded by a '▲')
 
 Use push and update/pull in main menu to sync 
-(keys `'p'` and `'u'` key will push, update/pull all shown branches)
+(keys `'p'` and `'u'` key will push, update/pull current branch)\
+(keys `'P'` and `'U'` key will push, update/pull all shown branches)
 
 
 ### Current Commit/Branch
-A '●' indicates the current commit and current branch.
+A '●' indicates the current commit and current branch.\
+A '*' indicates the current commit is detached (checked out a commit).
 
 ### Branch Tips
 Branch tips are shown to the right of the subject. Long branch names are
-truncated. If branches are synced, the `'^|'` in e.g. `(^|main)`, indicates
+truncated. If branches are synced, the `'^|'` in e.g. `(^)(main)`, indicates
 the origin/remote branch and the rest the local branch. Full names are
 shown in commit details view. A `'~'` indicates that the branch was deleted,
 i.e. no longer an active git branch, but still possible to open and see and
@@ -66,9 +68,9 @@ will be restored/resumed if user switches to that branch.
 * *Toggle Details ...* (`'Enter'`)\
   Shows some more commit details at the bottom. E.g. to see full commit
   message. Use tab to focus details to scroll and tab to focus log view again.
-* *Commit ...* (`'C'`)\
+* *Commit ...* (`'c'`)\
   Commit uncommitted changes. A warning for large or binary files is shown.
-* *Commit Diff ...* (`'D'`)\
+* *Commit Diff ...* (`'d'`)\
   Shows a side-by-side diff of all changes in the commit.
 * *Undo | Clean/Restore Working Folder*:\
   Ensures a working folder is as if folder just has been checked out. 
@@ -96,7 +98,7 @@ will be restored/resumed if user switches to that branch.
   ambiguity. It is also possible to undo/regret a previous resolved commit
   (marked with a 'Ф' after the subject for a resolved commit).
 
-More commands are available in the main menu (`'M'` key).
+More commands are available in the main menu (`'m'` key).
 
 
 ## Ambiguous Branches

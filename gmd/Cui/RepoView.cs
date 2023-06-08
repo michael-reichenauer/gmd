@@ -18,6 +18,7 @@ interface IRepoView
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
     void Refresh(string addName = "", string commitId = "");
+    void RefreshAndFetch(string addName = "", string commitId = "");
     void ToggleDetails();
 }
 
@@ -128,7 +129,11 @@ class RepoView : IRepoView
 
 
     public void Refresh(string addName = "", string commitId = "") =>
-        ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();
+        ShowRefreshedRepoAsync(addName, commitId, false).RunInBackground();
+
+    public void RefreshAndFetch(string addName = "", string commitId = "") =>
+          ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();
+
 
     public void ToggleDetails()
     {
@@ -198,10 +203,11 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
-        contentView.RegisterKeyHandler(Key.r, () => Refresh());
-        contentView.RegisterKeyHandler(Key.F5, () => Refresh());
+        contentView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
+        contentView.RegisterKeyHandler(Key.F5, () => RefreshAndFetch());
         contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
         contentView.RegisterKeyHandler(Key.a, () => Cmd.Commit(true));
+        contentView.RegisterKeyHandler(Key.t, () => Cmd.AddTag());
         contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
         contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
