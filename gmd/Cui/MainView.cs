@@ -107,14 +107,14 @@ partial class MainView : IMainView
     void ShowMainMenu()
     {
         Menu.Show(4, 0, Menu.Items()
-            .Separator("Open Repo")
+            .AddSeparator("Open Repo")
             .Add(GetRecentRepoItems())
-            .Separator()
-            .Item("Browse ...", "", () => ShowBrowseDialog())
-            .Item("Clone ...", "", () => Clone())
-            .Item("Help ...", "", () => ShowHelp())
-            .Item("About ...", "", () => ShowAbout())
-            .Item("Quit", "Esc ", () => Application.RequestStop()));
+            .AddSeparator()
+            .AddItem("Browse ...", "", () => ShowBrowseDialog())
+            .AddItem("Clone ...", "", () => Clone())
+            .AddItem("Help ...", "", () => ShowHelp())
+            .AddItem("About ...", "", () => ShowAbout())
+            .AddItem("Quit", "Esc ", () => Application.RequestStop()));
     }
 
 

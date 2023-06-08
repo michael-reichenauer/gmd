@@ -7,17 +7,6 @@ class Menu
 {
     ContextMenu menu = new ContextMenu();
 
-    // public Menu(int x, int y, IEnumerable<MenuItem> menuItems)
-    // {
-    //     menu = new ContextMenu(x, y, new MenuBarItem(
-    //         menuItems.Select(i => i.AsMenuItem()).ToArray()));
-    // }
-
-    // public void Show()
-    // {
-    //     menu.Show();
-    // }
-
     public static void Show(int x, int y, IEnumerable<MenuItem> menuItems)
     {
         ContextMenu menu = new ContextMenu(x, y, new MenuBarItem(
@@ -25,26 +14,27 @@ class Menu
         menu.Show();
     }
 
+
     public static MenuItems Items() => new MenuItems();
 
     public static SubMenu SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
-        new SubMenu(title, shortcut, children, null, canExecute);
+        new SubMenu(title, shortcut, children, canExecute);
 
     public static MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
         new MenuItem(title, shortcut, action, canExecute);
 
-    // public static MenuItem Separator(string text = "")
-    // {
-    //     const int maxDivider = 25;
-    //     if (text == "")
-    //     {
-    //         return new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
-    //     }
+    public static MenuItem Separator(string text = "")
+    {
+        const int maxDivider = 25;
+        if (text == "")
+        {
+            return new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
+        }
 
-    //     text = text.Max(maxDivider - 6);
-    //     string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
-    //     return new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
-    // }
+        text = text.Max(maxDivider - 6);
+        string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
+        return new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
+    }
 }
 
 
@@ -56,34 +46,21 @@ class MenuItems : IEnumerable<MenuItem>
 
     IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)items).GetEnumerator();
 
-    public MenuItems Menu(string title, string shortcut, IEnumerable<MenuItem> children, Action? action = null, Func<bool>? canExecute = null)
+    public MenuItems AddSubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
     {
-        items.Add(new SubMenu(title, shortcut, children, action, canExecute));
+        items.Add(new SubMenu(title, shortcut, children, canExecute));
         return this;
     }
 
-    public MenuItems Item(string title, string shortcut, Action action, Func<bool>? canExecute = null)
+    public MenuItems AddItem(string title, string shortcut, Action action, Func<bool>? canExecute = null)
     {
         items.Add(new MenuItem(title, shortcut, action, canExecute));
         return this;
     }
 
-    public MenuItems Separator(string text = "")
+    public MenuItems AddSeparator(string text = "")
     {
-        const int maxDivider = 25;
-        MenuItem item;
-        if (text == "")
-        {
-            item = new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
-        }
-        else
-        {
-            text = text.Max(maxDivider - 6);
-            string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
-            item = new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
-        }
-
-        items.Add(item);
+        items.Add(Menu.Separator(text));
         return this;
     }
 
@@ -105,10 +82,10 @@ class SubMenu : MenuItem
 {
     MenuBarItem menuBar;
 
-    public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Action? action = null, Func<bool>? canExecute = null)
+    public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
     {
         shortcut = shortcut == "" ? "" : shortcut + " ";
-        menuBar = new MenuBarItem(title, shortcut, action, canExecute)
+        menuBar = new MenuBarItem(title, shortcut, null, canExecute)
         {
             Children = children.Select(c => c.AsMenuItem()).ToArray()
         };
@@ -138,4 +115,36 @@ class MenuItem
     public virtual Terminal.Gui.MenuItem AsMenuItem() => item;
 }
 
+
+// static class MenuExtensions
+// {
+//     public static IList<MenuItem> AddSubMenu(this IList<MenuItem> items, string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+//     {
+//         items.Add(Menu.SubMenu(title, shortcut, children, canExecute));
+//         return items;
+//     }
+
+//     public static IList<MenuItem> AddItem(this IList<MenuItem> items, string title, string shortcut, Action action, Func<bool>? canExecute = null)
+//     {
+//         items.Add(Menu.Item(title, shortcut, action, canExecute));
+//         return items;
+//     }
+
+//     public static IList<MenuItem> AddSeparator(this IList<MenuItem> items, string text = "")
+//     {
+//         items.Add(Menu.Separator(text));
+//         return items;
+//     }
+
+//     public static IList<MenuItem> Add(this IList<MenuItem> items, params MenuItem[] moreItems)
+//     {
+//         items.Add(moreItems);
+//         return items;
+//     }
+//     public static IList<MenuItem> Add(this IList<MenuItem> items, IEnumerable<MenuItem> moreItems)
+//     {
+//         items.Add(moreItems);
+//         return items;
+//     }
+// }
 
