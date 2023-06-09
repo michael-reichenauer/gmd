@@ -69,7 +69,7 @@ partial class MainView : IMainView
         Threading.SetUp();
 
         string path = GetWorkingFolder();
-        //string path = "/lkwjlkj";
+        // string path = "/lkwjlkj";
         // path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
         // path = "/workspaces/Dependitor";
