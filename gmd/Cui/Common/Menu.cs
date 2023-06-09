@@ -66,7 +66,7 @@ class MenuItems : IEnumerable<MenuItem>
 
     public MenuItems Add(params MenuItem[] items)
     {
-        this.items.Add(items);
+        this.items.AddRange(items);
         return this;
     }
 
