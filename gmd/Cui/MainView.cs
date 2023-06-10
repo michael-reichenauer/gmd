@@ -106,7 +106,7 @@ partial class MainView : IMainView
 
     void ShowMainMenu()
     {
-        Menu.Show(4, 0, Menu.Items()
+        Menu.Show(4, 0, new List<MenuItem>()
             .AddSeparator("Open Repo")
             .Add(GetRecentRepoItems())
             .AddSeparator()
