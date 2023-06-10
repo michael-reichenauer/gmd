@@ -70,7 +70,7 @@ static class MessageDlg
             {
                 Height = msgboxHeight,
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-                ColorScheme = ColorSchemes.Dialog,
+                ColorScheme = ColorSchemes.InfoDialog,
             };
         }
         else
@@ -78,7 +78,7 @@ static class MessageDlg
             d = new Dialog(title, width, Math.Max(height, 4), buttonList.ToArray())
             {
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-                ColorScheme = ColorSchemes.Dialog
+                ColorScheme = ColorSchemes.InfoDialog
             };
         }
 

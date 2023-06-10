@@ -18,6 +18,7 @@ interface IRepoView
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
     void Refresh(string addName = "", string commitId = "");
+    void RefreshAndFetch(string addName = "", string commitId = "");
     void ToggleDetails();
 }
 
@@ -128,7 +129,11 @@ class RepoView : IRepoView
 
 
     public void Refresh(string addName = "", string commitId = "") =>
-        ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();
+        ShowRefreshedRepoAsync(addName, commitId, false).RunInBackground();
+
+    public void RefreshAndFetch(string addName = "", string commitId = "") =>
+          ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();
+
 
     public void ToggleDetails()
     {
@@ -196,23 +201,19 @@ class RepoView : IRepoView
         // Keys on repo view contents
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, UI.Shutdown);
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
-        contentView.RegisterKeyHandler(Key.M, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
-        contentView.RegisterKeyHandler(Key.r, () => Refresh());
-        contentView.RegisterKeyHandler(Key.R, () => Refresh());
-        contentView.RegisterKeyHandler(Key.F5, () => Refresh());
+        contentView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
+        contentView.RegisterKeyHandler(Key.F5, () => RefreshAndFetch());
         contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
-        contentView.RegisterKeyHandler(Key.C, () => Cmd.Commit(false));
         contentView.RegisterKeyHandler(Key.a, () => Cmd.Commit(true));
+        contentView.RegisterKeyHandler(Key.t, () => Cmd.AddTag());
         contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
-        contentView.RegisterKeyHandler(Key.B, () => Cmd.CreateBranch());
         contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.D, () => Cmd.ShowCurrentRowDiff());
         contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushAllBranches());
+        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
         contentView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
-        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullAllBranches());
+        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
         contentView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
         contentView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
         contentView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
@@ -336,6 +337,7 @@ class RepoView : IRepoView
         // Remember shown branch for next restart of program
         var names = repo.Branches.Select(b => b.Name).ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
+        Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
     }
 
 

@@ -10,57 +10,70 @@ interface IRepoCommands
     void ShowBranch(string name, bool includeAmbiguous);
     void HideBranch(string name);
     void SwitchTo(string branchName);
+    void SwitchToCommit();
+
     void ToggleDetails();
+
     void ShowAbout();
     void ShowHelp();
-    void ShowBrowseDialog();
+    void ShowFileHistory();
     void Filter();
+    void ShowBrowseDialog();
+    void ChangeBranchColor();
+    void UpdateRelease();
+    void Clone();
+
     void ShowRepo(string path);
-    void Refresh();
+    void Refresh(string addName = "", string commitId = "");
+    void RefreshAndFetch(string addName = "", string commitId = "");
+
     void ShowUncommittedDiff();
+    void ShowCurrentRowDiff();
+    void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
+
     void Commit(bool isAmend);
     void CommitFromMenu(bool isAmend);
+
     void CreateBranch();
-    void ShowCurrentRowDiff();
-    void PushCurrentBranch();
-    void PublishCurrentBranch();
-    void PullCurrentBranch();
-    void UpdateRelease();
-    bool CanPush();
-    bool CanPull();
     void CreateBranchFromCommit();
-    void ShowFileHistory();
-    void UndoSetBranch(string commitId);
-    void ResolveAmbiguity(Server.Branch branch, string displayName);
-    bool CanPushCurrentBranch();
-    void PushBranch(string name);
-    void PushAllBranches();
-    bool CanPullCurrentBranch();
-    void PullBranch(string name);
-    void PullAllBranches();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void PreviewMergeBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
-    bool CanUndoUncommitted();
-    bool CanUndoCommit();
+    void CherryPic(string id);
+
+    void PushCurrentBranch();
+    void PushBranch(string name);
+    void PushAllBranches();
+    void PublishCurrentBranch();
+    void PullCurrentBranch();
+    void PullBranch(string name);
+    void PullAllBranches();
+    bool CanPushCurrentBranch();
+    bool CanPush();
+    bool CanPull();
+    bool CanPullCurrentBranch();
+
     void UndoCommit(string id);
     void UncommitLastCommit();
-    bool CanUncommitLastCommit();
     void UndoAllUncommittedChanged();
-    void CleanWorkingFolder();
     void UndoUncommittedFile(string path);
-    void Clone();
-    void CherryPic(string id);
-    void ChangeBranchColor();
+    void CleanWorkingFolder();
+    bool CanUndoUncommitted();
+    bool CanUndoCommit();
+    bool CanUncommitLastCommit();
+
+    void ResolveAmbiguity(Server.Branch branch, string displayName);
+    void UndoSetBranch(string commitId);
+    void SetBranchManuallyAsync();
+    void MoveBranch(string commonName, string otherCommonName, int delta);
+
     void Stash();
     void StashPop(string name);
     void StashDiff(string name);
     void StashDrop(string name);
+
     void AddTag();
     void DeleteTag(string name);
-    void SetBranchManuallyAsync();
-    void MoveBranch(string commonName, string otherCommonName, int delta);
-    void SwitchToCommit();
+
 }
 
 class RepoCommands : IRepoCommands
@@ -133,7 +146,9 @@ class RepoCommands : IRepoCommands
         this.branchColorService = branchColorService;
     }
 
-    public void Refresh() => repoView.Refresh();
+    public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+    public void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
+
 
 
     public void ShowRepo(string path) => Do(async () =>
@@ -408,7 +423,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void PreviewMergeBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
+    public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
         if (repo.CurrentBranch == null) return R.Ok;
         var sha1 = repo.Branch(branchName).TipId;
@@ -448,9 +463,18 @@ class RepoCommands : IRepoCommands
 
     public void PushCurrentBranch() => Do(async () =>
     {
-        if (!CanPushCurrentBranch()) return R.Ok;
+        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
 
-        var branch = serverRepo.Branches.First(b => b.IsCurrent);
+        if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pushing");
+        if (branch == null) return R.Error("No current branc to push");
+        if (!branch.HasLocalOnly) return R.Error("No local changes to push");
+
+        if (branch.RemoteName != "")
+        {   // Cannot push local branch if remote needs to be pulled first
+            var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
+            if (remoteBranch != null && remoteBranch.HasRemoteOnly)
+                return R.Error("Pull remote branch first before pushing");
+        }
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
         {
@@ -494,24 +518,27 @@ class RepoCommands : IRepoCommands
     public bool CanPushCurrentBranch()
     {
         var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
-        if (branch == null)
-        {
-            return false;
-        }
+        if (branch == null) return false;
+
         if (branch.RemoteName != "")
-        {
+        {   // Cannot push local branch if remote needs to be pulled first
             var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
-            return status.IsOk && remoteBranch != null && !remoteBranch.HasRemoteOnly;
+            if (remoteBranch != null && remoteBranch.HasRemoteOnly) return false;
         }
 
-        return serverRepo.Status.IsOk &&
-            branch != null && branch.HasLocalOnly && !branch.HasRemoteOnly;
+        return serverRepo.Status.IsOk && branch != null && branch.HasLocalOnly;
     }
 
 
     public void PullCurrentBranch() => Do(async () =>
     {
-        if (!CanPullCurrentBranch()) return R.Ok;
+        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
+        if (branch == null) return R.Error("No current branch to pull");
+        if (branch.RemoteName == "") return R.Error("No remote branch to pull");
+
+        var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
+        if (remoteBranch == null || !remoteBranch.HasRemoteOnly) return R.Error("No remote changes to pull");
 
         if (!Try(out var e, await server.PullCurrentBranchAsync(repoPath)))
         {
@@ -538,21 +565,18 @@ class RepoCommands : IRepoCommands
     public bool CanPullCurrentBranch()
     {
         var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
-        if (branch == null)
-        {
-            return false;
-        }
-        if (branch.RemoteName != "")
-        {
-            var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
-            return status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
-        }
-        return false;
+        if (branch == null) return false;
+
+        if (branch.RemoteName == "") return false;  // No remote branch to pull
+
+        var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
+        return status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
     }
 
     public void PushAllBranches() => Do(async () =>
     {
-        if (!CanPush()) return R.Ok;
+        if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
+        if (!CanPush()) return R.Error("No local changes to push");
 
         var branches = repo.Branches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
             .DistinctBy(b => b.CommonName);
@@ -572,9 +596,8 @@ class RepoCommands : IRepoCommands
 
     public void PullAllBranches() => Do(async () =>
     {
-        Log.Info("Pull all");
-
-        if (!CanPull()) return R.Ok;
+        if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
+        if (!CanPull()) return R.Error("No remote changes to pull");
 
         var currentRemoteName = "";
         if (CanPullCurrentBranch())
@@ -772,7 +795,7 @@ class RepoCommands : IRepoCommands
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available:\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"Current Version: {Build.Version()}\n\n" +
+            $"\nCurrent Version: {Build.Version()}\n\n" +
             "Do you want to update?";
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
         if (button != 0)
@@ -799,7 +822,6 @@ class RepoCommands : IRepoCommands
         Refresh();
     }
 
-    void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 
     void SetRepo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
 

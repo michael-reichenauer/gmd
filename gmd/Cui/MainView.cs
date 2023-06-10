@@ -3,6 +3,7 @@ using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Server;
 using Terminal.Gui;
+using MenuItem = gmd.Cui.Common.MenuItem;
 
 namespace gmd.Cui;
 
@@ -68,7 +69,7 @@ partial class MainView : IMainView
         Threading.SetUp();
 
         string path = GetWorkingFolder();
-        //string path = "/lkwjlkj";
+        // string path = "/lkwjlkj";
         // path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
         // path = "/workspaces/Dependitor";
@@ -105,30 +106,17 @@ partial class MainView : IMainView
 
     void ShowMainMenu()
     {
-        List<MenuItem> items = new List<MenuItem>();
-        items.Add(UI.MenuSeparator("Open Repo"));
-        items.AddRange(GetRecentRepoItems());
-
-        if (items.Any())
-        {
-            items.Add(UI.MenuSeparator());
-        }
-
-        items.Add(new MenuItem("Browse ...", "", () => ShowBrowseDialog()));
-        items.Add(new MenuItem("Clone ...", "", () => Clone()));
-        items.Add(new MenuItem("Help ...", "", () => ShowHelp()));
-        items.Add(new MenuItem("About ...", "", () => ShowAbout()));
-        items.Add(new MenuItem("Quit", "Esc ", () => Application.RequestStop()));
-
-        var menu = new ContextMenu(4, 0, new MenuBarItem(items.ToArray()));
-        menu.Show();
-        menu.MenuBar.MenuAllClosed += () => OnMenuKey();
+        Menu.Show(4, 0, Menu.Items()
+            .AddSeparator("Open Repo")
+            .Add(GetRecentRepoItems())
+            .AddSeparator()
+            .AddItem("Browse ...", "", () => ShowBrowseDialog())
+            .AddItem("Clone ...", "", () => Clone())
+            .AddItem("Help ...", "", () => ShowHelp())
+            .AddItem("About ...", "", () => ShowAbout())
+            .AddItem("Quit", "Esc ", () => Application.RequestStop()));
     }
 
-    private void OnMenuKey()
-    {
-        // Application.RequestStop();
-    }
 
     private void ShowAbout()
     {
@@ -142,7 +130,7 @@ partial class MainView : IMainView
         ShowMainMenu();
     }
 
-    MenuItem[] GetRecentRepoItems() =>
+    Common.MenuItem[] GetRecentRepoItems() =>
         states.Get().RecentFolders
             .Where(Files.DirExists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))

@@ -39,18 +39,6 @@ static class UI
         Application.RootKeyEvent = null;
     }
 
-    public static MenuItem MenuSeparator(string text = "")
-    {
-        const int maxDivider = 25;
-        if (text == "")
-        {
-            return new MenuItem(new string('─', maxDivider), "", () => { }, () => false);
-        }
-
-        text = text.Max(maxDivider - 6);
-        string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
-        return new MenuItem($"── {text} {suffix}──", "", () => { }, () => false);
-    }
 
     internal static void Post(Action action)
     {

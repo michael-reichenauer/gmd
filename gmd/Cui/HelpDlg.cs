@@ -30,7 +30,7 @@ class HelpDlg : IHelpDlg
         dlg.Show(contentView);
     }
 
-    IEnumerable<Text> ToHelpText(string content)
+    IReadOnlyList<Text> ToHelpText(string content)
     {
         var rows = content.Split('\n').Select(row =>
         {
@@ -56,7 +56,7 @@ class HelpDlg : IHelpDlg
             return text;
         });
 
-        return rows;
+        return rows.ToList();
     }
 
     (Text, int) GetColoredFragment(string row, int index)
