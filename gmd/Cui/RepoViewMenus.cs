@@ -16,7 +16,7 @@ interface IRepoViewMenus
 class RepoViewMenus : IRepoViewMenus
 {
     readonly int RecentCount = 15;
-    readonly int HierachiacalCount = 15;
+
     readonly IRepo repo;
     readonly IRepoCommands cmds;
     readonly IState states;
@@ -105,9 +105,17 @@ class RepoViewMenus : IRepoViewMenus
             .AddSubMenu("Stash", "", GetStashMenuItems())
             .AddSubMenu("Tag", "", GetTagItems())
             .AddSubMenu("Resolve Ambiguity", "", GetAmbiguousItems(), () => GetAmbiguousItems().Any())
-
-            .AddSeparator("")
-            .AddSubMenu("More", "", GetMoreItems())
+            .AddItem("Search/Filter ...", "f", () => cmds.Filter())
+            .AddItem("Refresh/Reload", "r", () => cmds.RefreshAndFetch())
+            .AddItem($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
+            .AddItem("File History ...", "", () => cmds.ShowFileHistory())
+            .AddSubMenu("Open/Clone Repo", "", GetOpenRepoItems())
+            .AddItem("Change Branch Color", "g", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
+            .AddSubMenu("Set Branch", "", GetSetBranchItems(), () => GetSetBranchItems().Any())
+            .AddSubMenu("Move Branch left/right", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any())
+            .AddItem("Help ...", "h", () => cmds.ShowHelp())
+            .AddItem("Config ...", "", () => configDlg.Show(repo.RepoPath))
+            .AddItem("About ...", "", () => cmds.ShowAbout())
             .AddItem("Quit", "Esc", () => UI.Shutdown());
     }
 
@@ -127,7 +135,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetDiffItems()
     {
-        return new List<MenuItem>()
+        return Menu.NewItems
             .AddItem("Commit Diff ...", "d", () => cmds.ShowCurrentRowDiff())
             .AddSubMenu($"Diff Branch to", "", GetPreviewMergeItems(false, false), () => GetPreviewMergeItems(false, false).Any())
             .AddSubMenu($"Diff {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true, false), () => GetPreviewMergeItems(true, false).Any())
@@ -136,21 +144,6 @@ class RepoViewMenus : IRepoViewMenus
             .AddSubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any());
     }
 
-    IEnumerable<MenuItem> GetMoreItems()
-    {
-        return new List<MenuItem>()
-            .AddItem("Search/Filter ...", "f", () => cmds.Filter())
-            .AddItem("Refresh/Reload", "r", () => cmds.RefreshAndFetch())
-            .AddItem($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
-            .AddItem("File History ...", "", () => cmds.ShowFileHistory())
-            .AddSubMenu("Open/Clone Repo", "", GetOpenRepoItems())
-            .AddItem("Change Branch Color", "g", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
-            .AddSubMenu("Set Branch", "", GetSetBranchItems(), () => GetSetBranchItems().Any())
-            .AddSubMenu("Move Branch left/right", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any())
-            .AddItem("Help ...", "h", () => cmds.ShowHelp())
-            .AddItem("Config ...", "", () => configDlg.Show(repo.RepoPath))
-            .AddItem("About ...", "", () => cmds.ShowAbout());
-    }
 
     IEnumerable<MenuItem> GetMoveBranchItems()
     {
@@ -398,7 +391,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToDeleteHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= HierachiacalCount)
+        if (branches.Count() <= Menu.MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToDeleteItems(branches);
         }
@@ -412,10 +405,10 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
 
         // If only one item in group, then just show branch, otherwise show submenu
-        return ToMaxBranchesItems(groups.Select(g =>
+        return groups.Select(g =>
             g.Count() == 1
                 ? new MenuItem($"{ToBranchMenuName(g.First())} ...", "", () => cmds.DeleteBranch(g.First().Name))
-                : new SubMenu($"    {g.Key}/┅", "", ToDeleteItems(g))));
+                : new SubMenu($"    {g.Key}/┅", "", ToDeleteItems(g)));
     }
 
     IEnumerable<MenuItem> GetMergeFromItems()
@@ -536,7 +529,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToHideHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= HierachiacalCount)
+        if (branches.Count() <= Menu.MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToHideBranchesItems(branches);
         }
@@ -550,15 +543,15 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
 
         // If only one item in group, then just show branch, otherwise show submenu
-        return ToMaxBranchesItems(groups.Select(g =>
+        return groups.Select(g =>
             g.Count() == 1
                 ? new MenuItem(ToBranchMenuName(g.First(), cic, false), "", () => cmds.HideBranch(g.First().Name))
-                : new SubMenu($"    {g.Key}/┅", "", ToHideBranchesItems(g))));
+                : new SubMenu($"    {g.Key}/┅", "", ToHideBranchesItems(g)));
     }
 
     IEnumerable<MenuItem> ToShowHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= HierachiacalCount)
+        if (branches.Count() <= Menu.MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToShowBranchesItems(branches, false, false);
         }
@@ -572,34 +565,23 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
 
         // If only one item in group, then just show branch, otherwise show submenu
-        return ToMaxBranchesItems(groups.Select(g =>
+        return groups.Select(g =>
             g.Count() == 1
                 ? new MenuItem(ToBranchMenuName(g.First(), cic, false), "", () => cmds.ShowBranch(g.First().Name, false))
-                : new SubMenu($"    {g.Key}/┅", "", ToShowBranchesItems(g, false, false))));
+                : new SubMenu($"    {g.Key}/┅", "", ToShowBranchesItems(g, false, false)));
     }
 
     IEnumerable<MenuItem> ToShowBranchesItems(
         IEnumerable<Branch> branches, bool canBeOutside = false, bool includeAmbiguous = false)
     {
         var cic = repo.RowCommit;
-        return ToMaxBranchesItems(
+        return
             branches
             .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "") // skip local pull merge
             .Select(b => new MenuItem(ToBranchMenuName(b, cic, canBeOutside), "",
-                () => cmds.ShowBranch(b.Name, includeAmbiguous))));
+                () => cmds.ShowBranch(b.Name, includeAmbiguous)));
     }
 
-
-    IEnumerable<MenuItem> ToMaxBranchesItems(IEnumerable<MenuItem> items)
-    {
-        if (items.Count() <= HierachiacalCount)
-        {   // Too few branches to bother with submenus
-            return items;
-        }
-
-        return items.Take(HierachiacalCount)
-            .Concat(new List<MenuItem>().AddSubMenu("More ...", "", ToMaxBranchesItems(items.Skip(RecentCount))));
-    }
 
     IEnumerable<MenuItem> ToSwitchBranchesItems(IEnumerable<Branch> branches)
     {

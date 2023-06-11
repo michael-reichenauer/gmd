@@ -4,16 +4,28 @@ namespace gmd.Cui.Common;
 
 class Menu
 {
+    public static int MaxItemCount = 15;
     ContextMenu menu = new ContextMenu();
 
     public static void Show(int x, int y, IEnumerable<MenuItem> menuItems)
     {
         ContextMenu menu = new ContextMenu(x, y, new MenuBarItem(
-            menuItems.Where(i => i != null).Select(i => i.Item()).ToArray()));
+            ToMaxItems(menuItems.Where(i => i != null)).Select(i => i.Item()).ToArray()));
         menu.Show();
     }
 
     public static IList<MenuItem> NewItems => new List<MenuItem>();
+
+    internal static IEnumerable<MenuItem> ToMaxItems(IEnumerable<MenuItem> items)
+    {
+        if (items.Count() <= MaxItemCount)
+        {   // Too few branches to bother with submenus
+            return items;
+        }
+
+        return items.Take(MaxItemCount)
+            .Concat(new List<MenuItem>().AddSubMenu("  ...", "", ToMaxItems(items.Skip(MaxItemCount))));
+    }
 }
 
 
@@ -75,7 +87,7 @@ class SubMenu : MenuItem
         shortcut = shortcut == "" ? "" : shortcut + " ";
         menuBar = new MenuBarItem(title, shortcut, null, canExecute)
         {
-            Children = children.Where(c => c != null).Select(c => c.Item()).ToArray()
+            Children = Menu.ToMaxItems(children.Where(c => c != null)).Select(c => c.Item()).ToArray()
         };
     }
 
