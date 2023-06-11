@@ -75,7 +75,7 @@ class RepoViewMenus : IRepoViewMenus
         var curcom = repo.GetCurrentCommit();
         var isAhead = repo.GetCurrentCommit().IsAhead;
 
-        if (releases.IsUpdateAvailable)
+        if (releases.IsUpdateAvailable && !Build.IsDevInstance())
         {
             items.AddSeparator("New Release Available !!!")
                 .AddItem("Update to Latest ...", "", () => cmds.UpdateRelease())
