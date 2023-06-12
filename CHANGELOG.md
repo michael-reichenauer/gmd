@@ -1,7 +1,19 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-06-02
+## [Current] - 2023-06-12
+- Adjusted push/pull messages
+- Adjusted menues
+
+## [v0.80.223.287] - 2023-06-10
+- Adjusted menues
+- Changed color of info message boxes
+- Adjusted shortcuts for push/pull for current (p/u) and all (P/U) branches
+- Version 0.80.*
+- Adjusted when fetch is done
+- Setting windows title to repo name
+
+## [v0.50.215.219] - 2023-06-02
 - Added support for switch to commit
 - Handles Detached head state
 - Fixed issue with message boxes without title

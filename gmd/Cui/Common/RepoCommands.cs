@@ -466,14 +466,14 @@ class RepoCommands : IRepoCommands
         var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
 
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pushing");
-        if (branch == null) return R.Error("No current branc to push");
-        if (!branch.HasLocalOnly) return R.Error("No local changes to push");
+        if (branch == null) return R.Error("No current branch to push");
+        if (!branch.HasLocalOnly) return R.Error("No local changes to push on current branch");
 
         if (branch.RemoteName != "")
         {   // Cannot push local branch if remote needs to be pulled first
             var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
             if (remoteBranch != null && remoteBranch.HasRemoteOnly)
-                return R.Error("Pull remote branch first before pushing");
+                return R.Error("Pull current remote branch first before pushing");
         }
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
@@ -535,10 +535,11 @@ class RepoCommands : IRepoCommands
         var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
         if (branch == null) return R.Error("No current branch to pull");
-        if (branch.RemoteName == "") return R.Error("No remote branch to pull");
+        if (branch.RemoteName == "") return R.Error("No current remote branch to pull");
 
         var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
-        if (remoteBranch == null || !remoteBranch.HasRemoteOnly) return R.Error("No remote changes to pull");
+        if (remoteBranch == null || !remoteBranch.HasRemoteOnly) return R.Error(
+            "No remote changes on current branch to pull");
 
         if (!Try(out var e, await server.PullCurrentBranchAsync(repoPath)))
         {
