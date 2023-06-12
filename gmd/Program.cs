@@ -105,7 +105,7 @@ class Program
     async Task LogInfoAsync()
     {
         Log.Info($"Version: {Build.Version()}");
-        Log.Info($"Build    {Build.Time().ToUniversalTime().Iso()}Z");
+        Log.Info($"Build    {Build.Time().IsoZone()}");
         Log.Info($"Sha:     {Build.Sha()}");
         if (!Try(out var gitVersion, out var e, await git.Version()))
         {
@@ -117,7 +117,7 @@ class Program
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
-        Log.Info($"Time:    {DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")}+00:00");
+        Log.Info($"Time:    {DateTime.Now.IsoZone()}");
 
         state.Set(s => s.GitVersion = gitVersion ?? "");
     }

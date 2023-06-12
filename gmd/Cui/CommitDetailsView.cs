@@ -59,14 +59,15 @@ class CommitDetailsView : ICommitDetailsView
         }
 
         var newRows = new List<Text>();
+        var repoText = $"  ({repo.Path})";
 
         if (commit.Id == Repo.UncommittedId)
         {
-            newRows.Add(Text.New.Dark("Id:         ").BrightYellow(id));
+            newRows.Add(Text.New.Dark("Id:         ").BrightYellow(id).Dark(repoText));
         }
         else
         {
-            newRows.Add(Text.New.Dark("Id:         ").White(id).Dark($"  (#{commit.GitIndex})"));
+            newRows.Add(Text.New.Dark("Id:         ").White(id).Dark(repoText));
         }
 
         var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
@@ -94,7 +95,7 @@ class CommitDetailsView : ICommitDetailsView
 
         if (commit.Author != "")
         {
-            newRows.Add(Text.New.Dark("Author:     ").White($"{commit.Author}").Dark(", time: ").White(commit.AuthorTime.Iso()));
+            newRows.Add(Text.New.Dark("Author:     ").White($"{commit.Author}").Dark(", time: ").White(commit.AuthorTime.IsoZone()));
         }
 
         newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>

@@ -110,7 +110,7 @@ internal class Git : IGit
 
     public async Task<R<string>> Version()
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true, true))) return e;
         return output.TrimPrefix("git version ");
     }
 
