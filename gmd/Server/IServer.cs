@@ -46,7 +46,7 @@ interface IServer
     Task<R> UndoAllUncommittedChangesAsync(string wd);
     Task<R> UndoUncommittedFileAsync(string path, string wd);
     Task<R> CleanWorkingFolderAsync(string wd);
-    Task<R> UndoCommitAsync(string id, string wd);
+    Task<R> UndoCommitAsync(string id, int parent, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);

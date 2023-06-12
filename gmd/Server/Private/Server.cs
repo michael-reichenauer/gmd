@@ -216,8 +216,8 @@ class Server : IServer
     public Task<R> CleanWorkingFolderAsync(string wd) =>
         git.CleanWorkingFolderAsync(wd);
 
-    public Task<R> UndoCommitAsync(string id, string wd) =>
-        git.UndoCommitAsync(id, wd);
+    public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) =>
+        git.UndoCommitAsync(id, parentIndex, wd);
 
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
