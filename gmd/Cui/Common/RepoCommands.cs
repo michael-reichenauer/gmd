@@ -422,6 +422,8 @@ class RepoCommands : IRepoCommands
         }
 
         Refresh();
+
+        Commit(false);
         return R.Ok;
     });
 
@@ -459,6 +461,7 @@ class RepoCommands : IRepoCommands
         }
 
         Refresh();
+        Commit(false);
         return R.Ok;
     });
 
