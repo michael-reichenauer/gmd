@@ -320,8 +320,10 @@ class RepoCommands : IRepoCommands
     public void UndoCommit(string id) => Do(async () =>
     {
         if (!CanUndoCommit()) return R.Ok;
+        var commit = repo.Commit(id);
+        var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
-        if (!Try(out var e, await server.UndoCommitAsync(id, repoPath)))
+        if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repoPath)))
         {
             return R.Error($"Failed to undo commit", e);
         }

@@ -369,7 +369,7 @@ class ContentView : View
         {  // Need to scroll view down to the new current line
             FirstIndex = CurrentIndex - ViewHeight + 1;
         }
-        Log.Info($"move {move}, current: {currentIndex}, first: {FirstIndex}");
+        // Log.Info($"move {move}, current: {currentIndex}, first: {FirstIndex}");
 
         SetNeedsDisplay();
     }

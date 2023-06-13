@@ -64,7 +64,7 @@ class DiffService : IDiffService
         }
 
         // Add commit prefix text to support parser.
-        var dateText = DateTime.Now.Iso();
+        var dateText = DateTime.Now.IsoZone();
         output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);

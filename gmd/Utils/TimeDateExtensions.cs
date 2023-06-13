@@ -9,9 +9,9 @@ public static class TimeDateExtensions
     {
         return $"{source:yyyy-MM-dd HH:mm:ss}";
     }
-    public static string IsoUTC(this DateTime source)
+    public static string IsoZone(this DateTime source)
     {
-        return $"{source:yyyy-MM-dd HH:mm:ssZ}";
+        return $"{source:yyyy-MM-dd HH:mm:ss zzz}";
     }
 
     public static string IsoDate(this DateTime source)
