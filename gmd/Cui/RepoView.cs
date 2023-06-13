@@ -18,6 +18,7 @@ interface IRepoView
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
     void Refresh(string addName = "", string commitId = "");
+    Task RefreshAsync(string addName = "", string commitId = "");
     void RefreshAndFetch(string addName = "", string commitId = "");
     void ToggleDetails();
 }
@@ -130,6 +131,9 @@ class RepoView : IRepoView
 
     public void Refresh(string addName = "", string commitId = "") =>
         ShowRefreshedRepoAsync(addName, commitId, false).RunInBackground();
+
+    public Task RefreshAsync(string addName = "", string commitId = "") =>
+        ShowRefreshedRepoAsync(addName, commitId, false);
 
     public void RefreshAndFetch(string addName = "", string commitId = "") =>
           ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();

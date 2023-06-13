@@ -147,6 +147,8 @@ class RepoCommands : IRepoCommands
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+    public Task RefreshAsync(string addName = "", string commitId = "") => repoView.RefreshAsync(addName, commitId);
+
     public void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
 
@@ -421,7 +423,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to merge branch {branchName}", e);
         }
 
-        Refresh();
+        await RefreshAsync();
 
         Commit(false);
         return R.Ok;
@@ -460,7 +462,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to cherry pic {id.Sid()}", e);
         }
 
-        Refresh();
+        await RefreshAsync();
         Commit(false);
         return R.Ok;
     });
