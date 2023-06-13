@@ -147,6 +147,8 @@ class RepoCommands : IRepoCommands
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+    public void RefreshAndCommit(string addName = "", string commitId = "") => repoView.RefreshAndCommit(addName, commitId);
+
     public void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
 
@@ -421,9 +423,10 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to merge branch {branchName}", e);
         }
 
-        Refresh();
+        RefreshAndCommit();
         return R.Ok;
     });
+
 
     public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
@@ -451,6 +454,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+
     public void CherryPic(string id) => Do(async () =>
     {
         if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
@@ -458,7 +462,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to cherry pic {id.Sid()}", e);
         }
 
-        Refresh();
+        RefreshAndCommit();
         return R.Ok;
     });
 
