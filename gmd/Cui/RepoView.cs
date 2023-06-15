@@ -211,6 +211,7 @@ class RepoView : IRepoView
 
         // Keys on repo view contents
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Cmd.CopyCommitId());
+        contentView.RegisterKeyHandler(Key.C | Key.ShiftMask | Key.CtrlMask, () => Cmd.CopyCommitMessage());
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());

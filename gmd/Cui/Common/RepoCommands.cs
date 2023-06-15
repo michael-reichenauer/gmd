@@ -75,6 +75,7 @@ interface IRepoCommands
     void AddTag();
     void DeleteTag(string name);
     void CopyCommitId();
+    void CopyCommitMessage();
 }
 
 class RepoCommands : IRepoCommands
@@ -970,7 +971,18 @@ class RepoCommands : IRepoCommands
         await Task.Yield();
         var commit = repo.RowCommit;
         if (commit.IsUncommitted) return R.Ok;
+
         Clipboard.TrySetClipboardData(commit.Id);
+        return R.Ok;
+    });
+
+    public void CopyCommitMessage() => Do(async () =>
+    {
+        await Task.Yield();
+        var commit = repo.RowCommit;
+        if (commit.IsUncommitted) return R.Ok;
+
+        Clipboard.TrySetClipboardData(commit.Message.TrimEnd());
         return R.Ok;
     });
 }
