@@ -2,6 +2,7 @@ using gmd.Common;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
+using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
@@ -73,7 +74,7 @@ interface IRepoCommands
 
     void AddTag();
     void DeleteTag(string name);
-
+    void CopyCommitId();
 }
 
 class RepoCommands : IRepoCommands
@@ -964,5 +965,13 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+    public void CopyCommitId() => Do(async () =>
+    {
+        await Task.Yield();
+        var commit = repo.RowCommit;
+        if (commit.IsUncommitted) return R.Ok;
+        Clipboard.TrySetClipboardData(commit.Id);
+        return R.Ok;
+    });
 }
 
