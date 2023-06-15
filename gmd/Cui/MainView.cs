@@ -106,8 +106,8 @@ partial class MainView : IMainView
 
     void ShowMainMenu()
     {
-        Menu.Show(4, 0, new List<MenuItem>()
-            .AddSeparator("Open Repo")
+        Menu.Show(4, 0, Menu.NewItems
+            .AddSeparator("Recent Repos")
             .Add(GetRecentRepoItems())
             .AddSeparator()
             .AddItem("Browse ...", "", () => ShowBrowseDialog())
@@ -130,11 +130,11 @@ partial class MainView : IMainView
         ShowMainMenu();
     }
 
-    Common.MenuItem[] GetRecentRepoItems() =>
+    IEnumerable<MenuItem> GetRecentRepoItems() =>
         states.Get().RecentFolders
             .Where(Files.DirExists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
-            .ToArray();
+            .Take(8);
 
 
     void ShowRepo(string path)
