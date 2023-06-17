@@ -1,3 +1,4 @@
+using System.Text;
 using Terminal.Gui;
 using Color = Terminal.Gui.Attribute;
 
@@ -112,6 +113,11 @@ class Text
     {
         view.Move(x, y);
         Draw(startIndex, length);
+    }
+
+    public override string ToString()
+    {
+        return string.Concat(fragments.Select(f => f.Text));
     }
 
 
