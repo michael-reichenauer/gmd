@@ -210,7 +210,7 @@ class RepoView : IRepoView
         isRegistered = true;
 
         // Keys on repo view contents
-        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Cmd.CopyCommitId());
+        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
@@ -239,6 +239,17 @@ class RepoView : IRepoView
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+    }
+
+    void Copy()
+    {
+        if (isShowDetails)
+        {
+            Cmd.CopyCommitMessage();
+            return;
+        }
+
+        Cmd.CopyCommitId();
     }
 
     void DoubleClicked(int x, int y)

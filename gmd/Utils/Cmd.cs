@@ -45,9 +45,18 @@ class Cmd : ICmd
         return Task.Run(() => Run(path, args, workingDirectory, skipLogError, skipLog));
     }
 
+    public static CmdResult Run(string cmd, string workingDirectory = "")
+    {
+        var index = cmd.IndexOf(' ');
+        if (index == -1) return new Cmd().Run(cmd, "", workingDirectory);
+
+        var path = cmd.Substring(0, index);
+        var args = cmd.Substring(index + 1);
+        return new Cmd().Run(path, args, workingDirectory);
+    }
 
     public CmdResult Run(string path, string args, string workingDirectory,
-    bool skipLogError = false, bool skipLog = false)
+        bool skipLogError = false, bool skipLog = false)
     {
         var cmdText = $"{path} {args} ({workingDirectory})";
         var t = Timing.Start();
@@ -106,5 +115,16 @@ class Cmd : ICmd
             Log.Error($"Failed: {path} {args} {t}\n{e.Message}");
             return new CmdResult(cmdText, -1, "", e.Message);
         }
+
+        // //To work around https://github.com/dotnet/runtime/issues/27128
+        // static bool DoubleWaitForExit(Process process, int timeout = 500)
+        // {
+        //     var result = process.WaitForExit(timeout);
+        //     if (result)
+        //     {
+        //         process.WaitForExit();
+        //     }
+        //     return result;
+        // }
     }
 }

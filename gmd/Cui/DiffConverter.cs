@@ -1,9 +1,6 @@
 using DiffPlex;
-using DiffPlex.DiffBuilder;
-using DiffPlex.DiffBuilder.Model;
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
 using Attribute = Terminal.Gui.Attribute;
 
 namespace gmd.Cui;
@@ -36,6 +33,12 @@ class DiffRows
     internal void AddLine(Text line) =>
        Add(line, Text.None, DiffRowMode.Line);
 
+    internal void SetHighlighted(int index, bool isHighlighted)
+    {
+        var row = rows[index];
+        rows[index] = row with { IsHighlighted = isHighlighted };
+    }
+
     private void Add(Text left, Text right, DiffRowMode mode)
     {
         if (left.Length > MaxLength)
@@ -47,13 +50,15 @@ class DiffRows
             MaxLength = right.Length;
         }
 
-        rows.Add(new DiffRow(left, right, mode));
+        rows.Add(new DiffRow(left, right, mode, false));
     }
+
+
 
     public override string ToString() => $"Rows: {Count}";
 }
 
-record DiffRow(Text Left, Text Right, DiffRowMode Mode);
+record DiffRow(Text Left, Text Right, DiffRowMode Mode, bool IsHighlighted);
 
 enum DiffRowMode
 {
