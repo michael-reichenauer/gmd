@@ -26,6 +26,7 @@ class DiffView : IDiffView
 
     int selectedIndex = -1;
     int selectedCount = 0;
+    bool IsSelectedLeft = true;
 
     public DiffView(IDiffConverter diffService)
     {
@@ -42,6 +43,7 @@ class DiffView : IDiffView
         isInteractive = false;
         selectedIndex = -1;
         selectedCount = 0;
+        IsSelectedLeft = true;
 
         diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), };
         contentView = new ContentView(OnGetContent)
@@ -67,10 +69,24 @@ class DiffView : IDiffView
 
         view.RegisterKeyHandler(Key.CursorUp | Key.ShiftMask, OnCopyUp);
         view.RegisterKeyHandler(Key.CursorDown | Key.ShiftMask, OnCopyDown);
+        view.RegisterKeyHandler(Key.CursorLeft | Key.ShiftMask, OnLeftCopy);
+        view.RegisterKeyHandler(Key.CursorRight | Key.ShiftMask, OnRightCopy);
+
 
         view.RegisterKeyHandler(Key.i, OnInteractive);
     }
 
+    void OnLeftCopy()
+    {
+        IsSelectedLeft = true;
+        contentView.SetNeedsDisplay();
+    }
+
+    void OnRightCopy()
+    {
+        IsSelectedLeft = false;
+        contentView.SetNeedsDisplay();
+    }
 
     void OnMoveUp()
     {
@@ -216,9 +232,13 @@ class DiffView : IDiffView
         DiffRowMode.Line => row.Left.AddLine(oneColumnWidth),
         DiffRowMode.SpanBoth => row.Left.Subtext(0, oneColumnWidth),
         DiffRowMode.LeftRight => Text.New
-            .Add(row.IsHighlighted ? Text.New.WhiteSelected(row.Left.Subtext(rowStartX, columnWidth, true).ToString()) : row.Left.Subtext(rowStartX, columnWidth, true))
+            .Add(row.IsHighlighted && IsSelectedLeft ?
+                Text.New.WhiteSelected(row.Left.Subtext(rowStartX, columnWidth, true).ToString()) :
+                row.Left.Subtext(rowStartX, columnWidth, true))
             .Add(splitLine)
-            .Add(row.Right.Subtext(rowStartX, columnWidth, true)),
+            .Add(row.IsHighlighted && !IsSelectedLeft ?
+                 Text.New.WhiteSelected(row.Right.Subtext(rowStartX, columnWidth, true).ToString()) :
+                 row.Right.Subtext(rowStartX, columnWidth, true)),
         _ => throw Asserter.FailFast($"Unknown row mode {row.Mode}")
     };
 }
