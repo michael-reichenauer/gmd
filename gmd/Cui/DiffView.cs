@@ -72,9 +72,40 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.CursorLeft | Key.ShiftMask, OnLeftCopy);
         view.RegisterKeyHandler(Key.CursorRight | Key.ShiftMask, OnRightCopy);
 
+        view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
+
 
         view.RegisterKeyHandler(Key.i, OnInteractive);
     }
+
+    void OnCopy()
+    {
+        if (selectedIndex == -1)
+        {
+            UI.ErrorMessage("No selection to copy");
+            return;
+        }
+
+        var firstIndex = selectedCount > 0 ? selectedIndex : selectedIndex + selectedCount;
+        var count = selectedCount > 0 ? selectedCount : -selectedCount;
+
+        var rows = diffRows.Rows.Skip(firstIndex).Take(count);
+
+        // Convert left or right rows to text, remove empty lines and line numbers
+        var text = string.Join("\n", rows
+            .Select(r => IsSelectedLeft ? r.Left : r.Right)
+            .Select(t => t.ToString().Substring(5))
+            .Where(t => !t.StartsWith('░')));
+
+        if (!Try(out var e, Utils.Clipboard.Set(text)))
+        {
+            UI.ErrorMessage($"Failed to copy to clipboard\nError: {e}");
+        }
+
+        ClearSelection();
+        contentView.SetNeedsDisplay();
+    }
+
 
     void OnLeftCopy()
     {
@@ -103,21 +134,12 @@ class DiffView : IDiffView
     void ClearSelection()
     {
         if (selectedIndex == -1) return;
+        var firstIndex = selectedCount > 0 ? selectedIndex : selectedIndex + selectedCount;
+        var count = selectedCount > 0 ? selectedCount : -selectedCount;
 
-        if (selectedCount > 0)
-        {   // Clear down selection
-            for (int i = selectedIndex; i < selectedIndex + selectedCount; i++)
-            {
-                diffRows.SetHighlighted(i, false);
-            }
-
-        }
-        else
-        {   // Clear upp selection
-            for (int i = selectedIndex; i > selectedIndex + selectedCount; i--)
-            {
-                diffRows.SetHighlighted(i, false);
-            }
+        for (int i = firstIndex; i < firstIndex + count; i++)
+        {
+            diffRows.SetHighlighted(i, false);
         }
 
         selectedIndex = -1;

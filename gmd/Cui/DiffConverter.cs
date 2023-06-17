@@ -1,9 +1,6 @@
 using DiffPlex;
-using DiffPlex.DiffBuilder;
-using DiffPlex.DiffBuilder.Model;
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
 using Attribute = Terminal.Gui.Attribute;
 
 namespace gmd.Cui;

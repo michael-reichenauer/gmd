@@ -8,7 +8,7 @@ namespace gmd.Utils;
 
 static class Clipboard
 {
-    public static R TrySet(string text)
+    public static R Set(string text)
     {
         // if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         // {

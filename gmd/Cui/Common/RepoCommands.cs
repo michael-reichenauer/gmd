@@ -970,7 +970,7 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
         var commit = repo.RowCommit;
-        if (!Try(out var e, Clipboard.TrySet(commit.Id)))
+        if (!Try(out var e, Clipboard.Set(commit.Id)))
             return R.Error($"Clipboard copy not supported on this platform", e);
 
         return R.Ok;
@@ -980,7 +980,7 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
         var commit = repo.RowCommit;
-        if (!Try(out var e, Clipboard.TrySet(commit.Message.TrimEnd())))
+        if (!Try(out var e, Clipboard.Set(commit.Message.TrimEnd())))
             return R.Error($"Clipboard copy not supported on this platform", e);
 
         return R.Ok;
