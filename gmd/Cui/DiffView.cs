@@ -69,12 +69,7 @@ class DiffView : IDiffView
 
         view.RegisterKeyHandler(Key.CursorUp | Key.ShiftMask, OnCopyUp);
         view.RegisterKeyHandler(Key.CursorDown | Key.ShiftMask, OnCopyDown);
-        view.RegisterKeyHandler(Key.CursorLeft | Key.ShiftMask, OnLeftCopy);
-        view.RegisterKeyHandler(Key.CursorRight | Key.ShiftMask, OnRightCopy);
-
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
-
-
         view.RegisterKeyHandler(Key.i, OnInteractive);
     }
 
@@ -93,8 +88,9 @@ class DiffView : IDiffView
 
         // Convert left or right rows to text, remove empty lines and line numbers
         var text = string.Join("\n", rows
-            .Select(r => IsSelectedLeft ? r.Left : r.Right)
-            .Select(t => t.ToString().Substring(5))
+            .Select(r => IsSelectedLeft || r.Mode != DiffRowMode.LeftRight ? r.Left : r.Right)
+            .Select(t => t.ToString())
+            .Select(t => t.Length > 4 && Char.IsNumber(t[3]) ? t.Substring(5) : t)
             .Where(t => !t.StartsWith('░')));
 
         if (!Try(out var e, Utils.Clipboard.Set(text)))
@@ -107,17 +103,7 @@ class DiffView : IDiffView
     }
 
 
-    void OnLeftCopy()
-    {
-        IsSelectedLeft = true;
-        contentView.SetNeedsDisplay();
-    }
 
-    void OnRightCopy()
-    {
-        IsSelectedLeft = false;
-        contentView.SetNeedsDisplay();
-    }
 
     void OnMoveUp()
     {
@@ -148,6 +134,7 @@ class DiffView : IDiffView
 
     void OnCopyUp()
     {
+        if (contentView.CurrentIndex <= 0) return;
         int currentIndex = contentView.CurrentIndex;
         var currentRow = diffRows.Rows[currentIndex];
 
@@ -161,17 +148,20 @@ class DiffView : IDiffView
             contentView.Move(-1);
             currentIndex = contentView.CurrentIndex;
             currentRow = diffRows.Rows[currentIndex];
-            diffRows.SetHighlighted(currentIndex, !currentRow.IsHighlighted);
+            diffRows.SetHighlighted(currentIndex, false);
             selectedCount--;
+            if (selectedCount == 0) selectedIndex = -1;
             return;
         }
 
         // Expand selection upp
-        diffRows.SetHighlighted(currentIndex, !currentRow.IsHighlighted);
+        diffRows.SetHighlighted(currentIndex, true);
+        if (selectedIndex + selectedCount <= 0) return;
         selectedCount--;
 
         if (currentIndex <= 0)
         {   // Reache top of page
+            contentView.SetNeedsDisplay();
             return;
         }
 
@@ -180,6 +170,8 @@ class DiffView : IDiffView
 
     void OnCopyDown()
     {
+        if (contentView.CurrentIndex >= contentView.Count - 1) return;
+
         int currentIndex = contentView.CurrentIndex;
         var currentRow = diffRows.Rows[currentIndex];
 
@@ -195,15 +187,18 @@ class DiffView : IDiffView
             currentRow = diffRows.Rows[currentIndex];
             diffRows.SetHighlighted(currentIndex, !currentRow.IsHighlighted);
             selectedCount++;
+            if (selectedCount == 0) selectedIndex = -1;
             return;
         }
 
         // Expand selection down
         diffRows.SetHighlighted(currentIndex, !currentRow.IsHighlighted);
+        if (selectedIndex + selectedCount >= contentView.Count) return;
         selectedCount++;
 
         if (currentIndex >= contentView.Count - 1)
         {   // Reache end of page
+            contentView.SetNeedsDisplay();
             return;
         }
 
@@ -220,6 +215,13 @@ class DiffView : IDiffView
 
     private void OnLeftArrow()
     {
+        if (selectedIndex != -1)
+        {
+            IsSelectedLeft = true;
+            contentView.SetNeedsDisplay();
+            return;
+        }
+
         if (rowStartX > 0)
         {
             rowStartX--;
@@ -230,6 +232,13 @@ class DiffView : IDiffView
 
     private void OnRightArrow()
     {
+        if (selectedIndex != -1)
+        {
+            IsSelectedLeft = false;
+            contentView.SetNeedsDisplay();
+            return;
+        }
+
         int maxColumnWidth = contentView!.ContentWidth / 2;
         if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
@@ -251,8 +260,8 @@ class DiffView : IDiffView
 
     private Text ToText(DiffRow row, int columnWidth, int oneColumnWidth) => row.Mode switch
     {
-        DiffRowMode.Line => row.Left.AddLine(oneColumnWidth),
-        DiffRowMode.SpanBoth => row.Left.Subtext(0, oneColumnWidth),
+        DiffRowMode.Line => row.IsHighlighted ? Text.New.WhiteSelected(row.Left.AddLine(oneColumnWidth).ToString()) : row.Left.AddLine(oneColumnWidth),
+        DiffRowMode.SpanBoth => row.IsHighlighted ? Text.New.WhiteSelected(row.Left.Subtext(0, oneColumnWidth).ToString()) : row.Left.Subtext(0, oneColumnWidth),
         DiffRowMode.LeftRight => Text.New
             .Add(row.IsHighlighted && IsSelectedLeft ?
                 Text.New.WhiteSelected(row.Left.Subtext(rowStartX, columnWidth, true).ToString()) :
