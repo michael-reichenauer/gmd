@@ -2,7 +2,7 @@ using gmd.Common;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
-using Terminal.Gui;
+//using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
@@ -970,9 +970,9 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
         var commit = repo.RowCommit;
-        if (commit.IsUncommitted) return R.Ok;
+        if (!Try(out var e, Clipboard.TrySet(commit.Id)))
+            return R.Error($"Clipboard copy not supported on this platform", e);
 
-        Clipboard.TrySetClipboardData(commit.Id);
         return R.Ok;
     });
 
@@ -980,9 +980,9 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
         var commit = repo.RowCommit;
-        if (commit.IsUncommitted) return R.Ok;
+        if (!Try(out var e, Clipboard.TrySet(commit.Message.TrimEnd())))
+            return R.Error($"Clipboard copy not supported on this platform", e);
 
-        Clipboard.TrySetClipboardData(commit.Message.TrimEnd());
         return R.Ok;
     });
 }
