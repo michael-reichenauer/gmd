@@ -345,7 +345,6 @@ class RepoViewMenus : IRepoViewMenus
             .Concat(repo.Branches)
             .Where(b => !repo.Branches.ContainsBy(bb => bb.CommonName == b.CommonName));
 
-
         return ToShowBranchesItems(branches, true);
     }
 
@@ -575,9 +574,10 @@ class RepoViewMenus : IRepoViewMenus
         IEnumerable<Branch> branches, bool canBeOutside = false, bool includeAmbiguous = false)
     {
         var cic = repo.RowCommit;
-        return
-            branches
-            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "") // skip local pull merge
+        return branches
+            .Where(b => branches.ContainsBy(bb => bb.Name != b.RemoteName) && // Skip local if remote
+                branches.ContainsBy(bb => bb.Name != b.PullMergeBranchName)) // Skip pull merge if main
+            .DistinctBy(b => b.Name)
             .Select(b => new MenuItem(ToBranchMenuName(b, cic, canBeOutside), "",
                 () => cmds.ShowBranch(b.Name, includeAmbiguous)));
     }
