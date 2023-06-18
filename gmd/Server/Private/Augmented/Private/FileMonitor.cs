@@ -82,13 +82,13 @@ class FileMonitor : IFileMonitor
             while (fileChangedEvents.Count > 0)
             {
                 var e = fileChangedEvents.Dequeue();
-                Log.Info($"File changed event {e.TimeStamp}");
+                Log.Info($"File changed event {e.TimeStamp.Iso()}");
                 fileEvents.Add(e);
             }
             while (repoChangedEvents.Count > 0)
             {
                 var e = repoChangedEvents.Dequeue();
-                Log.Info($"Repo changed event {e.TimeStamp}");
+                Log.Info($"Repo changed event {e.TimeStamp.Iso()}");
                 repoEvents.Add(e);
             }
         }
