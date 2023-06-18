@@ -32,7 +32,7 @@ interface IRepoCommands
     void ShowCurrentRowDiff();
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
 
-    void Commit(bool isAmend);
+    void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void CreateBranch();
@@ -149,7 +149,8 @@ class RepoCommands : IRepoCommands
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
-    public void RefreshAndCommit(string addName = "", string commitId = "") => repoView.RefreshAndCommit(addName, commitId);
+    public void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null) =>
+        repoView.RefreshAndCommit(addName, commitId, commits);
 
     public void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
@@ -195,7 +196,7 @@ class RepoCommands : IRepoCommands
         });
     }
 
-    public void Commit(bool isAmend) => Do(async () =>
+    public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
     {
         if (repo.CurrentBranch?.IsDetached == true)
         {
@@ -208,7 +209,7 @@ class RepoCommands : IRepoCommands
 
         if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 
-        if (!commitDlg.Show(repo, isAmend, out var message)) return R.Ok;
+        if (!commitDlg.Show(repo, isAmend, commits, out var message)) return R.Ok;
 
         if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, repoPath)))
         {
@@ -420,12 +421,11 @@ class RepoCommands : IRepoCommands
 
     public void MergeBranch(string branchName) => Do(async () =>
     {
-        if (!Try(out var e, await server.MergeBranchAsync(serverRepo, branchName)))
-        {
+        if (!Try(out var commits, out var e, await server.MergeBranchAsync(serverRepo, branchName)))
             return R.Error($"Failed to merge branch {branchName}", e);
-        }
 
-        RefreshAndCommit();
+
+        RefreshAndCommit("", "", commits);
         return R.Ok;
     });
 

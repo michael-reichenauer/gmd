@@ -5,6 +5,7 @@ internal interface ILogService
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R<IReadOnlyList<Commit>>> GetStashListAsync(string wd);
+    Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
 }
 
 internal class LogService : ILogService
@@ -43,8 +44,16 @@ internal class LogService : ILogService
         return output.Split('\n').ToList();
     }
 
+    public async Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd)
+    {
+        var args = $"log --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count=100 HEAD..{reference}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
-    private R<IReadOnlyList<Commit>> ParseLines(string output)
+        // Wrap parsing in separate task thread, since it might be a lot of commits to parse
+        return await Task.Run(() => ParseLines(output));
+    }
+
+    R<IReadOnlyList<Commit>> ParseLines(string output)
     {
         var rows = output.Split('\x00');
         var commits = new List<Commit>();
@@ -65,7 +74,7 @@ internal class LogService : ILogService
         return commits;
     }
 
-    private R<Commit> ParseRow(string row)
+    R<Commit> ParseRow(string row)
     {
         var rowParts = row.Split('|');
         if (rowParts.Length < 6)
@@ -85,7 +94,7 @@ internal class LogService : ILogService
         return new Commit(id, sid, parentIDs, subject, message, author, authorTime, commitTime);
     }
 
-    private string[] ParseParentIds(string[] rowParts)
+    string[] ParseParentIds(string[] rowParts)
     {
         var ids = rowParts[4].Trim();
         if (ids == "")
@@ -97,7 +106,7 @@ internal class LogService : ILogService
         return ids.Split(' ');
     }
 
-    private string ParseMessage(string[] rowParts)
+    string ParseMessage(string[] rowParts)
     {
         // The message might contain one or more "|", if so rejoin these parts into original message
         var message = rowParts[5];
@@ -113,7 +122,7 @@ internal class LogService : ILogService
         return message.TrimEnd();
     }
 
-    private string ParseSubject(string message)
+    string ParseSubject(string message)
     {
         // Extract subject line from the first line of the message
         var lines = message.Split('\n');

@@ -195,8 +195,11 @@ class Server : IServer
     public Task<R> SwitchToAsync(Repo repo, string branchName) =>
         augmentedService.SwitchToAsync(repo.AugmentedRepo, branchName);
 
-    public Task<R> MergeBranchAsync(Repo repo, string branchName) =>
-        augmentedService.MergeBranchAsync(repo.AugmentedRepo, branchName);
+    public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName)
+    {
+        if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo.AugmentedRepo, branchName))) return e;
+        return (R<IReadOnlyList<Commit>>)converter.ToCommits(commits);
+    }
 
     public Task<R> CherryPickAsync(string sha, string wd) =>
         git.CherryPickAsync(sha, wd);

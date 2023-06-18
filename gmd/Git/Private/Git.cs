@@ -43,6 +43,8 @@ internal class Git : IGit
 
     public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
         logService.GetLogAsync(maxCount, wd);
+    public Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
+        logService.GetMergeLogAsync(reference, wd);
     public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         logService.GetFileAsync(reference, wd);
     public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) =>

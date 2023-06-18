@@ -7,6 +7,7 @@ interface IGit
     Task<R<string>> Version();
 
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
+    Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<R<Status>> GetStatusAsync(string wd);

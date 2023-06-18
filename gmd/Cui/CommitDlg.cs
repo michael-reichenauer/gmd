@@ -5,13 +5,17 @@ namespace gmd.Cui;
 
 interface ICommitDlg
 {
-    bool Show(IRepo repo, bool isAmend, out string message);
+    bool Show(IRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string message);
 }
 
 class CommitDlg : ICommitDlg
 {
-    public bool Show(IRepo repo, bool isAmend, out string commitMessage)
+    IReadOnlyList<Server.Commit>? commits;
+    UITextView message = null!;
+
+    public bool Show(IRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
     {
+        this.commits = commits;
         if (!isAmend && repo.Status.IsOk)
         {
             commitMessage = "";
@@ -30,7 +34,7 @@ class CommitDlg : ICommitDlg
         dlg.AddLabel(1, 0, $"{title} {filesCount} changes on '{branchName}':");
         var subject = dlg.AddTextField(1, 2, 50, subjectPart);
 
-        var message = dlg.AddTextView(1, 4, 70, 10, messagePart);
+        message = dlg.AddTextView(1, 4, 70, 10, messagePart);
         dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
 
         dlg.ShowOkCancel(subject);
@@ -46,10 +50,28 @@ class CommitDlg : ICommitDlg
             repo.Cmd.ShowUncommittedDiff();
             return true;
         }
+        if (key == (Key.M | Key.CtrlMask))
+        {
+            AddMergeMessages(repo);
+            return true;
+        }
 
         return false;
     }
 
+    private void AddMergeMessages(IRepo repo)
+    {
+        var text = "Some commits were merged into this branch";
+        message.Text = $"{message.Text}Merged commits:\n{text}";
+
+        // if (commits == null || commits.Count == 0)
+        // {
+        //     return;
+        // }
+
+        // var text = string.Join('\n', commits.Select(c => $"- {c.Message}"));
+        // message.Text = $"{message.Text}Merged commits:\n{text}";
+    }
 
     (string, string) ParseMessage(IRepo repo, bool isAmend)
     {
