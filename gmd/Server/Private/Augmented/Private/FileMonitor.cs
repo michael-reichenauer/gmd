@@ -1,4 +1,5 @@
 using gmd.Utils.GlobPatterns;
+using Terminal.Gui;
 using Timer = System.Timers.Timer;
 
 namespace gmd.Server.Private.Augmented.Private;
@@ -47,7 +48,9 @@ class FileMonitor : IFileMonitor
     private DateTime repoChangeTime;
 
     private string workingFolder = "";
-
+    object timer = null!;
+    Queue<ChangeEvent> fileChangedEvents = new Queue<ChangeEvent>();
+    Queue<ChangeEvent> repoChangedEvents = new Queue<ChangeEvent>();
 
     public FileMonitor()
     {
@@ -68,6 +71,35 @@ class FileMonitor : IFileMonitor
         refsWatcher.Renamed += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
     }
 
+    bool OnTimer(MainLoop loop)
+    {
+        //Log.Info("File monitor timer");
+        List<ChangeEvent> fileEvents = new List<ChangeEvent>();
+        List<ChangeEvent> repoEvents = new List<ChangeEvent>();
+        lock (syncRoot)
+        {
+            // Copy FileChangedEvents and RepoChangedEvents to local lists
+            while (fileChangedEvents.Count > 0)
+            {
+                var e = fileChangedEvents.Dequeue();
+                Log.Info($"File changed event {e.TimeStamp}");
+                fileEvents.Add(e);
+            }
+            while (repoChangedEvents.Count > 0)
+            {
+                var e = repoChangedEvents.Dequeue();
+                Log.Info($"Repo changed event {e.TimeStamp}");
+                repoEvents.Add(e);
+            }
+        }
+
+        fileEvents.ForEach(e => FileChanged?.Invoke(e));
+        repoEvents.ForEach(e => RepoChanged?.Invoke(e));
+
+        //Log.Info("File monitor timer done");
+
+        return true;
+    }
 
     public event Action<ChangeEvent>? FileChanged;
 
@@ -75,6 +107,10 @@ class FileMonitor : IFileMonitor
 
     public void Monitor(string workingFolder)
     {
+        if (timer == null)
+        {
+            timer = Cui.Common.UI.AddTimeout(TimeSpan.FromSeconds(1), OnTimer);
+        }
         string refsPath = Path.Combine(workingFolder, GitFolder, GitRefsFolder);
         if (!Directory.Exists(workingFolder) || !Directory.Exists(refsPath))
         {
@@ -293,10 +329,13 @@ class FileMonitor : IFileMonitor
             }
 
             isFileChanged = false;
+
+            Log.Info("File changed");
+            fileChangedEvents.Enqueue(new ChangeEvent(statusChangeTime));
         }
 
-        Log.Info("File changed");
-        Threading.PostOnMain(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
+        // Log.Info("File changed");
+        // Threading.PostOnMain(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
     }
 
 
@@ -311,9 +350,12 @@ class FileMonitor : IFileMonitor
             }
 
             isRepoChanged = false;
+
+            Log.Info("Repo changed");
+            repoChangedEvents.Enqueue(new ChangeEvent(repoChangeTime));
         }
 
-        Log.Info("Repo changed");
-        Threading.PostOnMain(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
+        // Log.Info("Repo changed");
+        // Threading.PostOnMain(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
     }
 }
