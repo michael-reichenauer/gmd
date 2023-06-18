@@ -63,7 +63,12 @@ class CommitDlg : ICommitDlg
     {
         if (commits == null || commits.Count == 0) return;
 
-        var text = string.Join('\n', commits.Select(c => $"- {c.Message}"));
+        // Indent all lines except the first in a commit message
+        Func<string, string> indent = (msg) => string.Join('\n', msg.Split('\n')
+            .Where((l, i) => !(i == 1 && l == ""))
+            .Select((l, i) => i == 0 ? l : $"  {l}"));
+
+        var text = string.Join('\n', commits.Select(c => $"- {indent(c.Message)}"));
         message.Text = $"{message.Text}Merged commits:\n{text}";
         message.SetNeedsDisplay();
     }
