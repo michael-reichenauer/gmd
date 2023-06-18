@@ -50,7 +50,7 @@ class CommitDlg : ICommitDlg
             repo.Cmd.ShowUncommittedDiff();
             return true;
         }
-        if (key == (Key.M | Key.CtrlMask))
+        if (key == (Key.A | Key.CtrlMask))
         {
             AddMergeMessages(repo);
             return true;
@@ -61,16 +61,11 @@ class CommitDlg : ICommitDlg
 
     private void AddMergeMessages(IRepo repo)
     {
-        var text = "Some commits were merged into this branch";
+        if (commits == null || commits.Count == 0) return;
+
+        var text = string.Join('\n', commits.Select(c => $"- {c.Message}"));
         message.Text = $"{message.Text}Merged commits:\n{text}";
-
-        // if (commits == null || commits.Count == 0)
-        // {
-        //     return;
-        // }
-
-        // var text = string.Join('\n', commits.Select(c => $"- {c.Message}"));
-        // message.Text = $"{message.Text}Merged commits:\n{text}";
+        message.SetNeedsDisplay();
     }
 
     (string, string) ParseMessage(IRepo repo, bool isAmend)
