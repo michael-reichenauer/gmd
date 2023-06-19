@@ -143,7 +143,7 @@ class Server : IServer
 
 
     public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
-          git.CommitAllChangesAsync(message, isAmend, wd);
+          augmentedService.CommitAllChangesAsync(message, isAmend, wd);
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
