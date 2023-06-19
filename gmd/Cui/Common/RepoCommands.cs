@@ -2,6 +2,7 @@ using gmd.Common;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
+//using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
@@ -31,7 +32,7 @@ interface IRepoCommands
     void ShowCurrentRowDiff();
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
 
-    void Commit(bool isAmend);
+    void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void CreateBranch();
@@ -73,7 +74,8 @@ interface IRepoCommands
 
     void AddTag();
     void DeleteTag(string name);
-
+    void CopyCommitId();
+    void CopyCommitMessage();
 }
 
 class RepoCommands : IRepoCommands
@@ -147,6 +149,9 @@ class RepoCommands : IRepoCommands
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+    public void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null) =>
+        repoView.RefreshAndCommit(addName, commitId, commits);
+
     public void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
 
@@ -191,7 +196,7 @@ class RepoCommands : IRepoCommands
         });
     }
 
-    public void Commit(bool isAmend) => Do(async () =>
+    public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
     {
         if (repo.CurrentBranch?.IsDetached == true)
         {
@@ -204,7 +209,7 @@ class RepoCommands : IRepoCommands
 
         if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 
-        if (!commitDlg.Show(repo, isAmend, out var message)) return R.Ok;
+        if (!commitDlg.Show(repo, isAmend, commits, out var message)) return R.Ok;
 
         if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, repoPath)))
         {
@@ -320,8 +325,10 @@ class RepoCommands : IRepoCommands
     public void UndoCommit(string id) => Do(async () =>
     {
         if (!CanUndoCommit()) return R.Ok;
+        var commit = repo.Commit(id);
+        var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
-        if (!Try(out var e, await server.UndoCommitAsync(id, repoPath)))
+        if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repoPath)))
         {
             return R.Error($"Failed to undo commit", e);
         }
@@ -414,14 +421,14 @@ class RepoCommands : IRepoCommands
 
     public void MergeBranch(string branchName) => Do(async () =>
     {
-        if (!Try(out var e, await server.MergeBranchAsync(serverRepo, branchName)))
-        {
+        if (!Try(out var commits, out var e, await server.MergeBranchAsync(serverRepo, branchName)))
             return R.Error($"Failed to merge branch {branchName}", e);
-        }
 
-        Refresh();
+
+        RefreshAndCommit("", "", commits);
         return R.Ok;
     });
+
 
     public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
@@ -449,6 +456,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+
     public void CherryPic(string id) => Do(async () =>
     {
         if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
@@ -456,7 +464,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to cherry pic {id.Sid()}", e);
         }
 
-        Refresh();
+        RefreshAndCommit();
         return R.Ok;
     });
 
@@ -958,5 +966,24 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+    public void CopyCommitId() => Do(async () =>
+    {
+        await Task.Yield();
+        var commit = repo.RowCommit;
+        if (!Try(out var e, Clipboard.Set(commit.Id)))
+            return R.Error($"Clipboard copy not supported on this platform", e);
+
+        return R.Ok;
+    });
+
+    public void CopyCommitMessage() => Do(async () =>
+    {
+        await Task.Yield();
+        var commit = repo.RowCommit;
+        if (!Try(out var e, Clipboard.Set(commit.Message.TrimEnd())))
+            return R.Error($"Clipboard copy not supported on this platform", e);
+
+        return R.Ok;
+    });
 }
 

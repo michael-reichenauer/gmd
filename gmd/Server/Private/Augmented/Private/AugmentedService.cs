@@ -162,12 +162,13 @@ class AugmentedService : IAugmentedService
         }
     }
 
-
-    public async Task<R> MergeBranchAsync(Repo repo, string name)
+    public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name)
     {
         if (repo.CommitById.TryGetValue(name, out var commit))
         {   // Merging from a commit
-            return await git.MergeBranchAsync(commit.Id, repo.Path);
+            if (!Try(out var e2, await git.MergeBranchAsync(commit.Id, repo.Path))) return e2;
+            if (!Try(out var commits2, out e2, await git.GetMergeLogAsync(commit.Id, repo.Path))) return e2;
+            return ToMergeCommits(repo, commits2).ToList();
         }
 
         var branch = repo.BranchByName[name];
@@ -193,7 +194,9 @@ class AugmentedService : IAugmentedService
             }
         }
 
-        return await git.MergeBranchAsync(mergeName, repo.Path);
+        if (!Try(out var e, await git.MergeBranchAsync(mergeName, repo.Path))) return e;
+        if (!Try(out var commits, out e, await git.GetMergeLogAsync(mergeName, repo.Path))) return e;
+        return ToMergeCommits(repo, commits).ToList();
     }
 
     public async Task<R> SwitchToAsync(Repo repo, string branchName)
@@ -280,6 +283,16 @@ class AugmentedService : IAugmentedService
         }
     }
 
+
+    IEnumerable<Commit> ToMergeCommits(Repo repo, IReadOnlyList<Git.Commit> commits)
+    {
+        if (commits.Count == 0) return Enumerable.Empty<Commit>();
+        var branchName = repo.CommitById[commits[0].Id].BranchCommonName;
+
+        return commits
+            .Select(c => repo.CommitById[c.Id])
+            .Where(c => c.BranchCommonName == branchName);
+    }
 
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)

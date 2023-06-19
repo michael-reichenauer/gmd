@@ -25,7 +25,7 @@ class AboutDlg : IAboutDlg
         var releases = states.Get().Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
         var gmdVersion = Build.Version();
-        var gmdBuildTime = Build.Time().Iso();
+        var gmdBuildTime = Build.Time().IsoZone();
         var gmdSha = Build.Sha();
         var isAvailable = Build.Version() < Version.Parse(releases.LatestVersion);
         var gitVersion = states.Get().GitVersion;

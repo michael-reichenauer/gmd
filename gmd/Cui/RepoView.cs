@@ -18,6 +18,7 @@ interface IRepoView
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
     void Refresh(string addName = "", string commitId = "");
+    void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null);
     void RefreshAndFetch(string addName = "", string commitId = "");
     void ToggleDetails();
 }
@@ -131,6 +132,16 @@ class RepoView : IRepoView
     public void Refresh(string addName = "", string commitId = "") =>
         ShowRefreshedRepoAsync(addName, commitId, false).RunInBackground();
 
+    public void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null)
+    {
+        UI.Post(async () =>
+        {
+            await ShowRefreshedRepoAsync(addName, commitId, false);
+            Cmd.Commit(false, commits);
+        });
+    }
+
+
     public void RefreshAndFetch(string addName = "", string commitId = "") =>
           ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();
 
@@ -199,7 +210,7 @@ class RepoView : IRepoView
         isRegistered = true;
 
         // Keys on repo view contents
-        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, UI.Shutdown);
+        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
@@ -228,6 +239,17 @@ class RepoView : IRepoView
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+    }
+
+    void Copy()
+    {
+        if (isShowDetails)
+        {
+            Cmd.CopyCommitMessage();
+            return;
+        }
+
+        Cmd.CopyCommitId();
     }
 
     void DoubleClicked(int x, int y)

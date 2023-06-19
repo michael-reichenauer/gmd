@@ -18,7 +18,7 @@ public class FileBrowseDlg
 
         var fileTreeView = new TreeView() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
         fileTreeView.Style.ShowBranchLines = true;
-        fileTreeView.Style.ExpandableSymbol = '+';
+        fileTreeView.Style.ExpandableSymbol = '>';
         fileTreeView.Style.CollapseableSymbol = null;
         fileTreeView.MultiSelect = false;
         fileTreeView.ObjectActivated += ItemSelected;

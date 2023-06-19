@@ -39,14 +39,14 @@ interface IServer
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(Repo repo, string branchName);
-    Task<R> MergeBranchAsync(Repo repo, string branchName);
+    Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
     Task<R> CherryPickAsync(string sha, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);
     Task<R> UndoUncommittedFileAsync(string path, string wd);
     Task<R> CleanWorkingFolderAsync(string wd);
-    Task<R> UndoCommitAsync(string id, string wd);
+    Task<R> UndoCommitAsync(string id, int parent, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);

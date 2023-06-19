@@ -45,7 +45,7 @@ class ConfigDlg : IConfigDlg
         var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", conf.CheckUpdates);
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
-        var isAddGmdToPath = dlg.AddCheckBox(1, 7, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
+        var isAddGmdToPath = dlg.AddCheckBox(1, 8, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
         isAddGmdToPath.Visible = !Build.IsDevInstance() && RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         if (dlg.ShowOkCancel())

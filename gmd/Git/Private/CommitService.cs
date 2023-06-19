@@ -6,7 +6,7 @@ interface ICommitService
     Task<R> UndoAllUncommittedChangesAsync(string wd);
     Task<R> UndoUncommittedFileAsync(string path, string wd);
     Task<R> CleanWorkingFolderAsync(string wd);
-    Task<R> UndoCommitAsync(string id, string wd);
+    Task<R> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
 }
 
@@ -67,9 +67,10 @@ class CommitService : ICommitService
         return await cmd.RunAsync("git", "clean -fxd", wd);
     }
 
-    public async Task<R> UndoCommitAsync(string id, string wd)
+    public async Task<R> UndoCommitAsync(string id, int parentIndex, string wd)
     {
-        return await cmd.RunAsync("git", $"revert --no-commit {id}", wd);
+        var parent = parentIndex == 0 ? "" : $"-m {parentIndex}";
+        return await cmd.RunAsync("git", $"revert {parent} --no-commit {id}", wd);
     }
 
     public async Task<R> UncommitLastCommitAsync(string wd)

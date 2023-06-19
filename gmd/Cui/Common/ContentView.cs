@@ -62,9 +62,10 @@ class ContentView : View
     int ViewHeight => Frame.Height;
     internal int ViewWidth => Frame.Width;
     internal bool IsNoCursor { get; set; } = false;
+    internal bool IsCursorMargin { get; set; } = false;
     internal bool IsTopBorder { get; set; } = false;
     internal bool IsHideCursor { get; set; } = false;
-    internal int ContentX => IsNoCursor ? 0 : cursorWidth;
+    internal int ContentX => IsCursorMargin ? cursorWidth : 0;
     internal int ContentY => IsTopBorder ? topBorderHeight : 0;
     internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
     internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
@@ -122,6 +123,12 @@ class ContentView : View
             return false;
         }
 
+        if (keys.TryGetValue(keyEvent.Key, out var callback))
+        {
+            callback();
+            return true;
+        }
+
         switch (keyEvent.Key)
         {
             case Key.Esc:
@@ -146,11 +153,6 @@ class ContentView : View
                 return true;
         }
 
-        if (keys.TryGetValue(keyEvent.Key, out var callback))
-        {
-            callback();
-            return true;
-        }
 
         return false;
     }
@@ -369,7 +371,7 @@ class ContentView : View
         {  // Need to scroll view down to the new current line
             FirstIndex = CurrentIndex - ViewHeight + 1;
         }
-        Log.Info($"move {move}, current: {currentIndex}, first: {FirstIndex}");
+        // Log.Info($"move {move}, current: {currentIndex}, first: {FirstIndex}");
 
         SetNeedsDisplay();
     }
@@ -409,5 +411,10 @@ class ContentView : View
         }
 
         return (sbStart, sbStart + sbSize);
+    }
+
+    internal void RegisterKeyHandler(object value)
+    {
+        throw new NotImplementedException();
     }
 }

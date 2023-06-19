@@ -7,6 +7,7 @@ interface IGit
     Task<R<string>> Version();
 
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
+    Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<R<Status>> GetStatusAsync(string wd);
@@ -33,7 +34,7 @@ interface IGit
     Task<R> UndoAllUncommittedChangesAsync(string wd);
     Task<R> UndoUncommittedFileAsync(string path, string wd);
     Task<R> CleanWorkingFolderAsync(string wd);
-    Task<R> UndoCommitAsync(string id, string wd);
+    Task<R> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
     Task<R<string>> GetValueAsync(string key, string wd);
     Task<R> SetValueAsync(string key, string value, string wd);
