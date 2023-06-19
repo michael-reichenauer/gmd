@@ -63,11 +63,11 @@ class AugmentedService : IAugmentedService
         return GetUpdatedAugmentedRepoStatus(repo, gitStatus);
     }
 
-    public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd)
+    public async Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd)
     {
         using (fileMonitor.Pause())
         {
-            return git.CommitAllChangesAsync(message, isAmend, wd);
+            return await git.CommitAllChangesAsync(message, isAmend, wd);
         }
     }
 
