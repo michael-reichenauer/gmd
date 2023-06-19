@@ -49,8 +49,9 @@ class FileMonitor : IFileMonitor
 
     private string workingFolder = "";
     object timer = null!;
-    Queue<ChangeEvent> fileChangedEvents = new Queue<ChangeEvent>();
-    Queue<ChangeEvent> repoChangedEvents = new Queue<ChangeEvent>();
+    ChangeEvent? fileChangedEvent = null;
+    ChangeEvent? repoChangedEvent = null;
+    bool isPaused = false;
 
     public FileMonitor()
     {
@@ -73,30 +74,32 @@ class FileMonitor : IFileMonitor
 
     bool OnTimer(MainLoop loop)
     {
-        //Log.Info("File monitor timer");
-        List<ChangeEvent> fileEvents = new List<ChangeEvent>();
-        List<ChangeEvent> repoEvents = new List<ChangeEvent>();
-        lock (syncRoot)
+        if (isPaused)
         {
-            // Copy FileChangedEvents and RepoChangedEvents to local lists
-            while (fileChangedEvents.Count > 0)
-            {
-                var e = fileChangedEvents.Dequeue();
-                Log.Info($"File changed event {e.TimeStamp.Iso()}");
-                fileEvents.Add(e);
-            }
-            while (repoChangedEvents.Count > 0)
-            {
-                var e = repoChangedEvents.Dequeue();
-                Log.Info($"Repo changed event {e.TimeStamp.Iso()}");
-                repoEvents.Add(e);
-            }
+            return true;
         }
 
-        fileEvents.ForEach(e => FileChanged?.Invoke(e));
-        repoEvents.ForEach(e => RepoChanged?.Invoke(e));
+        ChangeEvent? fileEvents = null;
+        ChangeEvent? repoEvents = null;
+        lock (syncRoot)
+        {
+            // Copy FileChangedEvents and RepoChangedEvents
+            fileEvents = fileChangedEvent;
+            repoEvents = repoChangedEvent;
+            fileChangedEvent = null;
+            repoChangedEvent = null;
+        }
 
-        //Log.Info("File monitor timer done");
+        if (fileEvents != null)
+        {
+            Log.Info($"File changed event {fileEvents.TimeStamp.Iso()}");
+            FileChanged?.Invoke(fileEvents);
+        }
+        if (repoEvents != null)
+        {
+            Log.Info($"Repo changed event {repoEvents.TimeStamp.Iso()}");
+            RepoChanged?.Invoke(repoEvents);
+        }
 
         return true;
     }
@@ -153,12 +156,12 @@ class FileMonitor : IFileMonitor
 
     public IDisposable Pause()
     {
-        System.Threading.Monitor.Enter(pauseLock);
+        isPaused = true;
         Log.Info("Pause file monitor ...");
 
         return new Disposable(() =>
         {
-            System.Threading.Monitor.Exit(pauseLock);
+            isPaused = false;
             Log.Info("Resume file monitor");
         });
     }
@@ -166,7 +169,7 @@ class FileMonitor : IFileMonitor
 
     private void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        WaitIfPaused();
+        //WaitIfPaused();
 
         if (path == GitHeadFile)
         {
@@ -193,7 +196,7 @@ class FileMonitor : IFileMonitor
 
     private void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        WaitIfPaused();
+        //WaitIfPaused();
 
         // Log.Debug($"'{fullPath}'");
 
@@ -219,11 +222,11 @@ class FileMonitor : IFileMonitor
         }
     }
 
-    void WaitIfPaused()
-    {
-        System.Threading.Monitor.Enter(pauseLock);
-        System.Threading.Monitor.Exit(pauseLock);
-    }
+    // void WaitIfPaused()
+    // {
+    //     System.Threading.Monitor.Enter(pauseLock);
+    //     System.Threading.Monitor.Exit(pauseLock);
+    // }
 
 
     private void FileChange(string fullPath)
@@ -331,7 +334,7 @@ class FileMonitor : IFileMonitor
             isFileChanged = false;
 
             Log.Info("File changed");
-            fileChangedEvents.Enqueue(new ChangeEvent(statusChangeTime));
+            fileChangedEvent = new ChangeEvent(statusChangeTime);
         }
 
         // Log.Info("File changed");
@@ -352,7 +355,7 @@ class FileMonitor : IFileMonitor
             isRepoChanged = false;
 
             Log.Info("Repo changed");
-            repoChangedEvents.Enqueue(new ChangeEvent(repoChangeTime));
+            repoChangedEvent = new ChangeEvent(repoChangeTime);
         }
 
         // Log.Info("Repo changed");
