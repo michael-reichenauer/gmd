@@ -1,7 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-06-12
+## [Current] - 2023-06-19
+- Fixed issue with showing branches
+- Added support for including summery of commits in merge
+- Fix config issue with not always showing 'allow preview' option
+- Added support for copy commits and diff rows
+
+## [v0.80.225.1107] - 2023-06-12
 - Adjusted push/pull messages
 - Adjusted menues
 
