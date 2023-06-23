@@ -3,7 +3,7 @@ using gmd.Cui.Common;
 using gmd.Server;
 using Attribute = Terminal.Gui.Attribute;
 
-namespace gmd.Cui;
+namespace gmd.Cui.Diff;
 
 
 interface IDiffConverter
@@ -399,7 +399,7 @@ class DiffService : IDiffConverter
                 return Text.New.BrightYellow(text);
         }
 
-        throw (Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"));
+        throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");
     }
 
 
@@ -422,6 +422,6 @@ class DiffService : IDiffConverter
                 return "Conflicted:";
         }
 
-        throw (Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"));
+        throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");
     }
 }

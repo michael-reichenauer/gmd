@@ -2,7 +2,7 @@ using gmd.Cui.Common;
 using Terminal.Gui;
 
 
-namespace gmd.Cui;
+namespace gmd.Cui.Diff;
 
 interface IDiffView
 {
@@ -90,7 +90,7 @@ class DiffView : IDiffView
         var text = string.Join("\n", rows
             .Select(r => IsSelectedLeft || r.Mode != DiffRowMode.LeftRight ? r.Left : r.Right)
             .Select(t => t.ToString())
-            .Select(t => t.Length > 4 && Char.IsNumber(t[3]) ? t.Substring(5) : t)
+            .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t.Substring(5) : t)
             .Where(t => !t.StartsWith('░')));
 
         if (!Try(out var e, Utils.Clipboard.Set(text)))

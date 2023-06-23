@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Cui.Diff;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
