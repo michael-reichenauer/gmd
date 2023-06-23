@@ -488,7 +488,7 @@ class Updater : IUpdater
             return R.Ok;
         }
 
-        return cmd.Run("chmod", $"+x {path}", "");
+        return cmd.Command("chmod", $"+x {path}", "");
     }
 
     private bool IsDotNet()

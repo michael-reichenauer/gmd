@@ -6,7 +6,7 @@ namespace gmd.Utils;
 
 interface ICmd
 {
-    CmdResult Run(string path, string args, string workingDirectory, bool skipLogError = false, bool skipLog = false);
+    CmdResult Command(string path, string args, string workingDirectory, bool skipLogError = false, bool skipLog = false);
     Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLogError = false, bool skipLog = false);
 }
 
@@ -42,20 +42,20 @@ class Cmd : ICmd
     public Task<CmdResult> RunAsync(string path, string args, string workingDirectory,
         bool skipLogError = false, bool skipLog = false)
     {
-        return Task.Run(() => Run(path, args, workingDirectory, skipLogError, skipLog));
+        return Task.Run(() => Command(path, args, workingDirectory, skipLogError, skipLog));
     }
 
     public static CmdResult Run(string cmd, string workingDirectory = "")
     {
         var index = cmd.IndexOf(' ');
-        if (index == -1) return new Cmd().Run(cmd, "", workingDirectory);
+        if (index == -1) return new Cmd().Command(cmd, "", workingDirectory);
 
         var path = cmd.Substring(0, index);
         var args = cmd.Substring(index + 1);
-        return new Cmd().Run(path, args, workingDirectory);
+        return new Cmd().Command(path, args, workingDirectory);
     }
 
-    public CmdResult Run(string path, string args, string workingDirectory,
+    public CmdResult Command(string path, string args, string workingDirectory,
         bool skipLogError = false, bool skipLog = false)
     {
         var cmdText = $"{path} {args} ({workingDirectory})";
