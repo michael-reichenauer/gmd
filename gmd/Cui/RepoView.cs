@@ -319,7 +319,7 @@ class RepoView : IRepoView
                 ScrollToBranch(addBranchName);
             }
 
-            Log.Info($"{t} {viewRepo}");
+            Log.Info($"Showed {t} {viewRepo}");
             if (isAwaitFetch)
             {
                 await server.FetchAsync(repo.RepoPath);
@@ -344,7 +344,7 @@ class RepoView : IRepoView
             }
 
             ShowRepo(viewRepo);
-            Log.Info($"{t} {viewRepo}");
+            Log.Info($"Showed {t} {viewRepo}");
         }
     }
 
