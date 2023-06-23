@@ -15,7 +15,7 @@ class DiffView : IDiffView
 {
     static readonly Text splitLine = Text.New.Dark("│");
 
-    readonly IDiffConverter diffService;
+    readonly IDiffService diffService;
 
     ContentView contentView = null!;
     Toplevel? diffView;
@@ -28,7 +28,7 @@ class DiffView : IDiffView
     int selectedCount = 0;
     bool IsSelectedLeft = true;
 
-    public DiffView(IDiffConverter diffService)
+    public DiffView(IDiffService diffService)
     {
         this.diffService = diffService;
     }
