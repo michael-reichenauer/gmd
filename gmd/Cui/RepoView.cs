@@ -282,7 +282,7 @@ class RepoView : IRepoView
             if (!Try(out var viewRepo, out var e, await GetRepoAsync(path, showBranches))) return e;
 
             ShowRepo(viewRepo);
-            Log.Info($"{t} {viewRepo}");
+            Log.Info($"Showed {t} {viewRepo}");
             return R.Ok;
         }
     }
