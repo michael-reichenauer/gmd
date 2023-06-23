@@ -80,7 +80,7 @@ class RemoteService : IRemoteService
 
     public async Task<R> CloneAsync(string uri, string path, string wd)
     {
-        var args = $"clone {uri} {path}";
+        var args = $"clone {uri} \"{path}\"";
         return await cmd.RunAsync("git", args, wd);
     }
 
