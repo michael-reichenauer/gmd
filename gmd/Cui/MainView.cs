@@ -75,6 +75,7 @@ partial class MainView : IMainView
         // path = "/workspaces/Dependitor";
         // path = "/workspaces/gmd/tmp/Dependitor";
         // path = "/workspaces/GitMind";
+        // path = "/workspaces/kal kl/gmd-3";
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
