@@ -200,6 +200,11 @@ class Updater : IUpdater
         {
             // Move downloaded file next to this process file (replace must be on same volume)
             var newPath = GetTempPath();
+            if (!Files.Exists(newPath))
+            {
+                return R.Ok; // No new file to install, some other thread already installed it
+            }
+
             File.Move(downloadedPath, newPath);
             Log.Info($"Install {newPath} ...");
             if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
@@ -483,7 +488,7 @@ class Updater : IUpdater
             return R.Ok;
         }
 
-        return cmd.Run("chmod", $"+x {path}", "");
+        return cmd.Command("chmod", $"+x {path}", "");
     }
 
     private bool IsDotNet()

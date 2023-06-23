@@ -51,8 +51,6 @@ class CloneDlg : ICloneDlg
     // Update path field when uri changes
     void UpdatePath(string basePath, string uri)
     {
-        Log.Debug("UpdatePath");
-
         if (!basePath.EndsWith(Path.DirectorySeparatorChar)) return;
 
         if (!Try(out var name, TryParseRepoName(uri))) return;

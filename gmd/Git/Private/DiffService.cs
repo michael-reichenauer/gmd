@@ -221,9 +221,9 @@ class DiffService : IDiffService
         }
 
         string files = lines[i].Substring(11);
-        var parts = files.Split(' ');
-        string before = parts[0].Substring(2);
-        string after = parts[1].Substring(2);
+        var otherIndex = files.IndexOf(" b/");
+        string before = files.Substring(2, otherIndex - 2);
+        string after = files.Substring(otherIndex + 3);
         bool isRenamed = before != after;
         i++;
 
