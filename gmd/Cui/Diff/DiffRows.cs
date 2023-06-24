@@ -16,19 +16,13 @@ class DiffRows
         Add(oneRow, Text.None, DiffRowMode.SpanBoth);
 
     internal void Add(Text left, Text right) =>
-        Add(left, right, DiffRowMode.LeftRight);
+        Add(left, right, DiffRowMode.SideBySide);
 
     internal void AddToBoth(Text text) =>
-        Add(text, text, DiffRowMode.LeftRight);
+        Add(text, text, DiffRowMode.SideBySide);
 
     internal void AddLine(Text line) =>
-       Add(line, Text.None, DiffRowMode.Line);
-
-    internal void SetHighlighted(int index, bool isHighlighted)
-    {
-        var row = rows[index];
-        rows[index] = row with { IsHighlighted = isHighlighted };
-    }
+       Add(line, Text.None, DiffRowMode.DividerLine);
 
     private void Add(Text left, Text right, DiffRowMode mode)
     {
@@ -41,20 +35,20 @@ class DiffRows
             MaxLength = right.Length;
         }
 
-        rows.Add(new DiffRow(left, right, mode, false));
+        rows.Add(new DiffRow(left, right, mode));
     }
 
     public override string ToString() => $"Rows: {Count}";
 }
 
 
-record DiffRow(Text Left, Text Right, DiffRowMode Mode, bool IsHighlighted);
+record DiffRow(Text Left, Text Right, DiffRowMode Mode);
 
 enum DiffRowMode
 {
-    LeftRight,
+    SideBySide,
     SpanBoth,
-    Line,
+    DividerLine,
 }
 
 record Line(int lineNbr, string text, Attribute color);
