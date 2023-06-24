@@ -1,0 +1,161 @@
+using gmd.Cui.Common;
+using Terminal.Gui;
+
+
+namespace gmd.Cui.Diff;
+
+interface IDiffView
+{
+    void Show(Server.CommitDiff diff, string commitId);
+    void Show(Server.CommitDiff[] diffs, string commitId = "");
+}
+
+
+class DiffView : IDiffView
+{
+    static readonly Text splitLineChar = Text.New.Dark("│");
+
+    readonly IDiffService diffService;
+
+    ContentView contentView = null!;
+    DiffRows diffRows = new DiffRows();
+    int rowStartX = 0;
+    string commitId = "";
+    bool IsSelectedLeft = true;
+
+
+    public DiffView(IDiffService diffService)
+    {
+        this.diffService = diffService;
+    }
+
+
+    public void Show(Server.CommitDiff diff, string commitId) => Show(new[] { diff }, commitId);
+
+    public void Show(Server.CommitDiff[] diffs, string commitId)
+    {
+        rowStartX = 0;
+        this.commitId = commitId;
+        IsSelectedLeft = true;
+
+        Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), };
+        contentView = new ContentView(OnGetContent)
+        { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsNoCursor = true, IsCursorMargin = true };
+
+        diffView.Add(contentView);
+
+        RegisterShortcuts(contentView);
+
+        diffRows = diffService.ToDiffRows(diffs);
+        contentView.TriggerUpdateContent(diffRows.Rows.Count);
+
+        UI.RunDialog(diffView);
+    }
+
+
+    void RegisterShortcuts(ContentView view)
+    {
+        view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
+        view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
+        view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
+    }
+
+
+    // Move boths sides in view left, or select left side text if text is selected
+    void OnMoveLeft()
+    {
+        if (!IsSelectedLeft && contentView.SelectCount > 0)
+        {   // Text is selected, lets move selection from right to left side
+            IsSelectedLeft = true;
+            contentView.SetNeedsDisplay();
+            return;
+        }
+
+        // Move boths sides in view left
+        if (rowStartX > 0)
+        {
+            rowStartX--;
+            contentView.TriggerUpdateContent(diffRows!.Count);
+        }
+    }
+
+
+    // Move boths sides in view right, or select right side text if text is selected
+    void OnMoveRight()
+    {
+        if (IsSelectedLeft && contentView.SelectCount > 0)
+        {   // Text is selected, lets move selection from left to right side
+            IsSelectedLeft = false;
+            contentView.SetNeedsDisplay();
+            return;
+        }
+
+        // Move boths sides in view right
+        int maxColumnWidth = contentView!.ContentWidth / 2;
+        if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
+        {
+            rowStartX++;
+            contentView.TriggerUpdateContent(diffRows!.Count);
+        }
+    }
+
+    // Returns the content for the view
+    IEnumerable<Text> OnGetContent(int firstRow, int rowCount, int rowStartX, int contentWidth)
+    {
+        int columnWidth = (contentWidth - 2) / 2;
+        int viewWidth = columnWidth * 2 + 1;
+
+        return diffRows.Rows.Skip(firstRow).Take(rowCount)
+            .Select((r, i) => ToDiffRowText(r, i + firstRow, columnWidth, viewWidth));
+    }
+
+    // Returns a row with either a line, a span or two columns of side by side text
+    Text ToDiffRowText(DiffRow row, int index, int columnWidth, int viewWidth)
+    {
+        var isHighlighted = contentView.IsRowSelected(index);
+        if (row.Mode == DiffRowMode.DividerLine)
+        {   // A line in the view, e.g. ━━━━, ══════, that need to be expanded to the full view width
+            var line = row.Left.AddLine(viewWidth);
+            return isHighlighted ? Text.New.WhiteSelected(line.ToString()) : line;
+        }
+
+        if (row.Mode == DiffRowMode.SpanBoth)
+        {   // The left text spans over full width 
+            var text = row.Left.Subtext(0, viewWidth);
+            return isHighlighted ? Text.New.WhiteSelected(text.ToString()) : text;
+        }
+
+        // The left and right text is shown side by side with a gray vertical line char in between
+        var left = row.Left.Subtext(rowStartX, columnWidth, true);
+        var right = row.Right.Subtext(rowStartX, columnWidth, true);
+        return Text.New
+            .Add(isHighlighted && IsSelectedLeft ? Text.New.WhiteSelected(left.ToString()) : left)
+            .Add(splitLineChar)
+            .Add(isHighlighted && !IsSelectedLeft ? Text.New.WhiteSelected(right.ToString()) : right);
+    }
+
+
+    // Copy selected text to clipboard and clear selection
+    void OnCopy()
+    {
+        if (contentView.SelectCount == 0) return;
+
+        var rows = diffRows.Rows.Skip(contentView.SelectStartIndex).Take(contentView.SelectCount);
+
+        // Convert left or right rows to text, remove empty lines and line numbers
+        var text = string.Join("\n", rows
+            .Where(r => r.Mode != DiffRowMode.DividerLine)
+            .Select(r => IsSelectedLeft || r.Mode != DiffRowMode.SideBySide ? r.Left : r.Right)
+            .Select(t => t.ToString())
+            .Where(t => !t.StartsWith('░'))
+            .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t.Substring(5) : t)
+        );
+
+        if (!Try(out var e, Utils.Clipboard.Set(text)))
+        {
+            UI.ErrorMessage($"Failed to copy to clipboard\nError: {e}");
+        }
+
+        contentView.ClearSelection();
+    }
+}

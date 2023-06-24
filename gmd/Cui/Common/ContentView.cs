@@ -26,6 +26,8 @@ class ContentView : View
     int currentIndex = 0;
     int mouseEventX = -1;
     int mouseEventY = -1;
+    int selectStartIndex = -1;
+    int selectEndIndex = -1;
 
 
     internal ContentView(GetContentCallback onGetContent)
@@ -70,6 +72,8 @@ class ContentView : View
     internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
     internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
     internal Point CurrentPoint => new Point(0, FirstIndex + CurrentIndex);
+    internal int SelectStartIndex => selectStartIndex;
+    internal int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
 
 
     internal void RegisterKeyHandler(Key key, OnKeyCallback callback)
@@ -133,22 +137,38 @@ class ContentView : View
         {
             case Key.Esc:
                 return false;
+            case Key.i:
+                ToggleShowCursor();
+                return true;
             case Key.CursorUp:
+                ClearSelection();
+                Move(-1);
+                return true;
+            case Key.CursorUp | Key.ShiftMask:
+                OnSelectUp();
                 Move(-1);
                 return true;
             case Key.PageUp:
+                ClearSelection();
                 Move(-Math.Max(0, ContentHeight - 1));
                 return true;
             case Key.CursorDown:
+                ClearSelection();
                 Move(1);
                 return true;
+            case Key.CursorDown | Key.ShiftMask:
+                OnSelectDown();
+                return true;
             case Key.PageDown:
+                ClearSelection();
                 Move(Math.Max(0, ContentHeight - 1));
                 return true;
             case Key.Home:
+                ClearSelection();
                 Move(-Math.Max(0, Count));
                 return true;
             case Key.End:
+                ClearSelection();
                 Move(Math.Max(0, Count));
                 return true;
         }
@@ -239,6 +259,86 @@ class ContentView : View
         DrawTopBorder();
         DrawCursor();
         DrawVerticalScrollbar();
+    }
+
+    public bool IsRowSelected(int index) => selectStartIndex != -1 && index >= selectStartIndex && index <= selectEndIndex;
+
+    public void ClearSelection()
+    {
+        if (selectStartIndex == -1) return;
+
+        selectStartIndex = -1;
+        selectEndIndex = -1;
+        SetNeedsDisplay();
+    }
+
+
+    // Toggle showing/hiding cursor. Cursor is needed to select text for copy
+    void ToggleShowCursor()
+    {
+        ClearSelection();
+        IsNoCursor = !IsNoCursor;
+        SetNeedsDisplay();
+    }
+
+
+    void OnSelectUp()
+    {
+        int currentIndex = CurrentIndex;
+
+        if (selectStartIndex == -1)
+        {   // Start selection of current row
+            selectStartIndex = currentIndex;
+            selectEndIndex = currentIndex;
+            SetNeedsDisplay();
+            return;
+        }
+
+        if (currentIndex == 0)
+        {   // Already at top of page, no need to move         
+            return;
+        }
+
+        if (currentIndex <= selectStartIndex)
+        {   // Expand selection upp
+            selectStartIndex = currentIndex - 1;
+        }
+        else
+        {   // Shrink selection upp
+            selectEndIndex = selectEndIndex - 1;
+        }
+
+        Move(-1);
+    }
+
+
+    void OnSelectDown()
+    {
+        int currentIndex = CurrentIndex;
+
+        if (selectStartIndex == -1)
+        {   // Start selection of current row
+            selectStartIndex = currentIndex;
+            selectEndIndex = currentIndex;
+            SetNeedsDisplay();
+            return;
+        }
+
+        if (currentIndex >= Count - 1)
+        {   // Already at bottom of page, no need to move         
+            return;
+        }
+
+        if (currentIndex >= selectEndIndex)
+        {   // Expand selection down
+            selectEndIndex = currentIndex + 1;
+        }
+        else if (currentIndex <= selectStartIndex)
+        {   // Shrink selection down
+            selectStartIndex = selectStartIndex + 1;
+        }
+
+        Move(1);
     }
 
     void DrawTopBorder()
