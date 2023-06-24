@@ -179,7 +179,7 @@ class Server : IServer
 
     public async Task<R> PushBranchAsync(string name, string wd)
     {
-        using (Timing.Start($"Pushed {name} ..."))
+        using (Timing.Start($"Pushed {name}"))
         {
             var metadataTask = augmentedService.PushMetaDataAsync(wd);
             var pushTask = git.PushBranchAsync(name, wd);
