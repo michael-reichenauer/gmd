@@ -37,7 +37,7 @@ public class Timing : IDisposable
 
     public void Dispose()
     {
-        var text = msg != "" ? $"{msg} {ToString()}" : ToString();
+        var text = msg != "" ? $"{msg} {ToString()}" : $"{msgMember} {ToString()}";
         Utils.Logging.Log.Info(text, msgMember, msgSourceFilePath, msgSourceLineNumber);
     }
 

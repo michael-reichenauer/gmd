@@ -179,10 +179,14 @@ class Server : IServer
 
     public async Task<R> PushBranchAsync(string name, string wd)
     {
-        Log.Info($"Pushing branch {name} ...");
-        if (!Try(out var e, await augmentedService.PushMetaDataAsync(wd))) return e;
+        using (Timing.Start($"Pushed {name} ..."))
+        {
+            var metadataTask = augmentedService.PushMetaDataAsync(wd);
+            var pushTask = git.PushBranchAsync(name, wd);
 
-        return await git.PushBranchAsync(name, wd);
+            await Task.WhenAll(metadataTask, pushTask);
+            return pushTask.Result;
+        }
     }
 
 
