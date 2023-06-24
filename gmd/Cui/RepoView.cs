@@ -210,6 +210,7 @@ class RepoView : IRepoView
         isRegistered = true;
 
         // Keys on repo view contents
+        contentView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());

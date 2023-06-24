@@ -1,4 +1,5 @@
 using gmd.Cui.Common;
+using gmd.Server;
 using Terminal.Gui;
 
 
@@ -6,8 +7,8 @@ namespace gmd.Cui.Diff;
 
 interface IDiffView
 {
-    void Show(Server.CommitDiff diff, string commitId);
-    void Show(Server.CommitDiff[] diffs, string commitId = "");
+    void Show(Server.CommitDiff diff, string commitId, string repoPath);
+    void Show(Server.CommitDiff[] diffs);
 }
 
 
@@ -16,26 +17,33 @@ class DiffView : IDiffView
     static readonly Text splitLineChar = Text.New.Dark("│");
 
     readonly IDiffService diffService;
-
+    private readonly IProgress progress;
+    private readonly IServer server;
     ContentView contentView = null!;
     DiffRows diffRows = new DiffRows();
     int rowStartX = 0;
     string commitId = "";
+    string repoPath = "";
     bool IsSelectedLeft = true;
 
 
-    public DiffView(IDiffService diffService)
+    public DiffView(IDiffService diffService, IProgress progress, IServer server)
     {
         this.diffService = diffService;
+        this.progress = progress;
+        this.server = server;
     }
 
 
-    public void Show(Server.CommitDiff diff, string commitId) => Show(new[] { diff }, commitId);
+    public void Show(Server.CommitDiff diff, string commitId, string repoPath) => Show(new[] { diff }, commitId, repoPath);
 
-    public void Show(Server.CommitDiff[] diffs, string commitId)
+    public void Show(Server.CommitDiff[] diff) => Show(diff, "", "");
+
+    void Show(Server.CommitDiff[] diffs, string commitId, string repoPath)
     {
         rowStartX = 0;
         this.commitId = commitId;
+        this.repoPath = repoPath;
         IsSelectedLeft = true;
 
         Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), };
@@ -55,9 +63,45 @@ class DiffView : IDiffView
 
     void RegisterShortcuts(ContentView view)
     {
+        view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
+
+        if (commitId == Repo.UncommittedId && repoPath != "")
+        {
+            view.RegisterKeyHandler(Key.r, () => RefreshDiff().RunInBackground());
+            view.RegisterKeyHandler(Key.d, () => RefreshDiff().RunInBackground());
+            view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
+        }
+    }
+
+    void ShowUndoMenu()
+    {
+        Log.Info("ShowUndoMenu");
+        Menu.Show(5, 5, Menu.NewItems
+            .AddSeparator("Undo Files")
+            .AddItem("Undo All", "a", () => UndoAll())
+        );
+    }
+
+    private void UndoAll()
+    {
+        throw new NotImplementedException();
+    }
+
+    async Task RefreshDiff()
+    {
+        using (progress.Show())
+        {
+            if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repoPath)))
+            {
+                UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
+            }
+
+            diffRows = diffService.ToDiffRows(diff!);
+            contentView.TriggerUpdateContent(diffRows.Rows.Count);
+        }
     }
 
 

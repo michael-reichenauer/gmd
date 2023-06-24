@@ -396,7 +396,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, commitId);
+        UI.Post(() => diffView.Show(diff, commitId, repoPath));
         return R.Ok;
     });
 
@@ -453,7 +453,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, sha1);
+        diffView.Show(diff, sha1, repoPath);
         return R.Ok;
     });
 
@@ -716,7 +716,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to diff stash {name}", e);
         }
 
-        diffView.Show(diff, name);
+        diffView.Show(diff, name, repoPath);
         return R.Ok;
     });
 
