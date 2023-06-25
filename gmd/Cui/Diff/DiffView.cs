@@ -138,6 +138,8 @@ class DiffView : IDiffView
                 }
             }
         }
+
+        RefreshDiff();
     }
 
     async void UndoFile(string path)
@@ -148,9 +150,9 @@ class DiffView : IDiffView
             {
                 UI.ErrorMessage($"Failed to undo file\n{e.AllErrorMessages()}");
             }
-
-            UI.Post(() => RefreshDiff());
         }
+
+        RefreshDiff();
     }
 
     async void UndoAll()
@@ -161,9 +163,9 @@ class DiffView : IDiffView
             {
                 UI.ErrorMessage($"Failed to undo all changes\n{e.AllErrorMessages()}");
             }
-
-            UI.Post(() => RefreshDiff());
         }
+
+        RefreshDiff();
     }
 
     async void RefreshDiff()
