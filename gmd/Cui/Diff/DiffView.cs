@@ -159,6 +159,7 @@ class DiffView : IDiffView
                 UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
             }
 
+            diffs = new[] { diff! };
             diffRows = diffService.ToDiffRows(diff!);
             contentView.TriggerUpdateContent(diffRows.Rows.Count);
         }
