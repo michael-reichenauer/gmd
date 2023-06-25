@@ -73,14 +73,9 @@ class DiffView : IDiffView
 
         view.RegisterKeyHandler(Key.r, () => RefreshDiff());
         view.RegisterKeyHandler(Key.d, () => RefreshDiff());
+        view.RegisterKeyHandler(Key.s, () => ShowScrollMenu());
         view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
-    }
-
-    private void TriggerCommit()
-    {
-        isCommitTriggered = true;
-        Application.RequestStop();
     }
 
     void ShowMainMenu()
@@ -89,13 +84,19 @@ class DiffView : IDiffView
         var scrollToItems = GetScrollToItems();
 
         Menu.Show(1, 2, Menu.NewItems
-            .AddSeparator("Scroll to")
-            .Add(scrollToItems)
-            .AddSeparator("")
+            .AddSubMenu("Scroll to", "s", scrollToItems, () => scrollToItems.Any())
             .AddSubMenu("Undo/Restore", "u", undoItems, () => undoItems.Any())
             .AddItem("Refresh", "r", () => RefreshDiff(), () => undoItems.Any())
             .AddItem("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
             .AddItem("Close", "Esc", () => Application.RequestStop()));
+    }
+
+    void ShowScrollMenu()
+    {
+        var scrollToItems = GetScrollToItems();
+        if (!scrollToItems.Any()) return;
+
+        Menu.Show(1, 2, scrollToItems);
     }
 
     void ShowUndoMenu()
@@ -105,12 +106,20 @@ class DiffView : IDiffView
         Menu.Show(1, 2, undoItems);
     }
 
+    void TriggerCommit()
+    {
+        isCommitTriggered = true;
+        Application.RequestStop();
+    }
+
     IEnumerable<Common.MenuItem> GetScrollToItems()
     {
         var paths = diffService.GetDiffFilePaths(diffs[0]);
-        if (paths.Count == 0) return new List<Common.MenuItem>();
+        if (!paths.Any()) return new List<Common.MenuItem>();
 
-        return paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p)));
+        return Menu.NewItems
+        .AddSeparator("Scroll to")
+        .Add(paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p))));
     }
 
     void ScrollToFile(string path)
@@ -129,7 +138,7 @@ class DiffView : IDiffView
         var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
 
         return Menu.NewItems
-           .AddSeparator("Undo/Restore")
+            .AddSeparator("Undo/Restore")
            .Add(undoItems)
            .AddSeparator()
            .AddItem("Undo/Restore all Changed Binay Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
