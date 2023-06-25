@@ -47,7 +47,7 @@ class CommitDlg : ICommitDlg
     {
         if (key == (Key.D | Key.CtrlMask) || key == (Key.Space | Key.CtrlMask))
         {
-            repo.Cmd.ShowUncommittedDiff();
+            repo.Cmd.ShowUncommittedDiff(true);
             return true;
         }
         if (key == (Key.A | Key.CtrlMask))

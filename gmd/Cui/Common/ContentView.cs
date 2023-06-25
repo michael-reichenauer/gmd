@@ -135,8 +135,6 @@ class ContentView : View
 
         switch (keyEvent.Key)
         {
-            case Key.Esc:
-                return false;
             case Key.i:
                 ToggleShowCursor();
                 return true;
@@ -173,8 +171,7 @@ class ContentView : View
                 return true;
         }
 
-
-        return false;
+        return true;
     }
 
     public override bool MouseEvent(MouseEvent ev)
