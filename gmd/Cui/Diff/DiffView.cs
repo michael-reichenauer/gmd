@@ -20,6 +20,7 @@ class DiffView : IDiffView
     private readonly IProgress progress;
     private readonly IServer server;
     ContentView contentView = null!;
+    Server.CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
     int rowStartX = 0;
     string commitId = "";
@@ -41,22 +42,21 @@ class DiffView : IDiffView
 
     void Show(Server.CommitDiff[] diffs, string commitId, string repoPath)
     {
-        rowStartX = 0;
+        this.diffs = diffs;
+        this.rowStartX = 0;
         this.commitId = commitId;
         this.repoPath = repoPath;
-        IsSelectedLeft = true;
+        this.IsSelectedLeft = true;
+        this.diffRows = diffService.ToDiffRows(diffs);
 
-        Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), };
+        Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView = new ContentView(OnGetContent)
         { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsNoCursor = true, IsCursorMargin = true };
 
         diffView.Add(contentView);
-
         RegisterShortcuts(contentView);
 
-        diffRows = diffService.ToDiffRows(diffs);
         contentView.TriggerUpdateContent(diffRows.Rows.Count);
-
         UI.RunDialog(diffView);
     }
 
@@ -78,16 +78,41 @@ class DiffView : IDiffView
 
     void ShowUndoMenu()
     {
-        Log.Info("ShowUndoMenu");
-        Menu.Show(5, 5, Menu.NewItems
-            .AddSeparator("Undo Files")
-            .AddItem("Undo All", "a", () => UndoAll())
+        var paths = diffService.GetDiffFilePaths(diffs[0]);
+        if (paths.Count == 0) return;
+
+        var fileItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
+
+        Menu.Show(1, 2, Menu.NewItems
+            .AddSeparator("Undo/Restore")
+            .Add(fileItems)
+            .AddSeparator()
+            .AddItem("Undo/Restore all Uncommitted Changes", "", () => UndoAll())
         );
     }
 
-    private void UndoAll()
+    async void UndoFile(string path)
     {
-        throw new NotImplementedException();
+        using (progress.Show())
+        {
+            Log.Debug($"Undoing file {path}");
+            await Task.Delay(5000);
+            // if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+            // {
+            //     UI.ErrorMessage($"Failed to undo file\n{e.AllErrorMessages()}");
+            // }
+        }
+    }
+
+    async void UndoAll()
+    {
+        using (progress.Show())
+        {
+            if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(repoPath)))
+            {
+                UI.ErrorMessage($"Failed to undo all changes\n{e.AllErrorMessages()}");
+            }
+        }
     }
 
     async Task RefreshDiff()
