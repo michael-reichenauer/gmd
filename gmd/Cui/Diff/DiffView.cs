@@ -249,8 +249,14 @@ class DiffView : IDiffView
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
-        var left = row.Left.Subtext(rowStartX, columnWidth, true);
-        var right = row.Right.Subtext(rowStartX, columnWidth, true);
+        var left = (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffService.NoLine) ?
+            row.Left.Subtext(rowStartX, columnWidth, true) :
+            row.Left.Subtext(rowStartX, columnWidth - 1, true).Add(Text.New.Dark("…"));
+
+        var right = (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffService.NoLine) ?
+            row.Right.Subtext(rowStartX, columnWidth, true) :
+            row.Right.Subtext(rowStartX, columnWidth - 1, true).Add(Text.New.Dark("…"));
+
         return Text.New
             .Add(isHighlighted && IsSelectedLeft ? Text.New.WhiteSelected(left.ToString()) : left)
             .Add(splitLineChar)
@@ -269,8 +275,8 @@ class DiffView : IDiffView
         var text = string.Join("\n", rows
             .Where(r => r.Mode != DiffRowMode.DividerLine)
             .Select(r => IsSelectedLeft || r.Mode != DiffRowMode.SideBySide ? r.Left : r.Right)
-            .Select(t => t.ToString())
-            .Where(t => !t.StartsWith('░'))
+            .Where(l => l != DiffService.NoLine)
+            .Select(l => l.ToString())
             .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t.Substring(5) : t)
         );
 
