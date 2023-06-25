@@ -115,13 +115,29 @@ class DiffView : IDiffView
         var paths = diffService.GetDiffFilePaths(diffs[0]);
         if (commitId != Repo.UncommittedId || paths.Count == 0) return new List<Common.MenuItem>();
 
+        var binaryPaths = diffService.GetDiffBinaryFilePaths(diffs[0]);
         var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
 
         return Menu.NewItems
            .AddSeparator("Undo/Restore")
            .Add(undoItems)
            .AddSeparator()
+           .AddItem("Undo/Restore all Changed Binay Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
            .AddItem("Undo/Restore all Uncommitted Changes", "", () => UndoAll());
+    }
+
+    async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)
+    {
+        using (progress.Show())
+        {
+            foreach (var path in binaryPaths)
+            {
+                if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+                {
+                    UI.ErrorMessage($"Failed to undo file:\n{path}\n{e.AllErrorMessages()}");
+                }
+            }
+        }
     }
 
     async void UndoFile(string path)

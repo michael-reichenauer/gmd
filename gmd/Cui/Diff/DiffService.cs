@@ -10,6 +10,7 @@ interface IDiffService
     DiffRows ToDiffRows(CommitDiff diff);
     DiffRows ToDiffRows(CommitDiff[] commitDiffs);
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
+    IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
 }
 
 
@@ -47,6 +48,11 @@ class DiffService : IDiffService
     public IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff)
     {
         return diff.FileDiffs.Select(fd => fd.PathAfter).ToList();
+    }
+
+    public IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff)
+    {
+        return diff.FileDiffs.Where(fd => fd.IsBinary).Select(fd => fd.PathAfter).ToList();
     }
 
     void AddCommitDiff(CommitDiff commitDiff, DiffRows rows)
