@@ -213,6 +213,7 @@ class RepoView : IRepoView
         contentView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
+        contentView.RegisterKeyHandler(Key.o, () => menuService!.ShowOpenMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());

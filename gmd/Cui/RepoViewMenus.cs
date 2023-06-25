@@ -11,6 +11,7 @@ interface IRepoViewMenus
     void ShowMainMenu();
     void ShowShowBranchesMenu();
     void ShowHideBranchesMenu();
+    void ShowOpenMenu();
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -64,6 +65,15 @@ class RepoViewMenus : IRepoViewMenus
         );
     }
 
+    public void ShowOpenMenu()
+    {
+        int x = repo.ContentWidth / 2 - 10;
+        Menu.Show(x, 0, Menu.NewItems
+            .AddSeparator("Open Repo")
+            .Add(GetOpenRepoItems())
+        );
+    }
+
     IEnumerable<MenuItem> GetMainMenuItems(int x, int y)
     {
         var releases = states.Get().Releases;
@@ -109,7 +119,7 @@ class RepoViewMenus : IRepoViewMenus
             .AddItem("Refresh/Reload", "r", () => cmds.RefreshAndFetch())
             .AddItem($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .AddItem("File History ...", "", () => cmds.ShowFileHistory())
-            .AddSubMenu("Open/Clone Repo", "", GetOpenRepoItems())
+            .AddSubMenu("Open/Clone Repo", "o", GetOpenRepoItems())
             .AddItem("Change Branch Color", "g", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
             .AddSubMenu("Set Branch", "", GetSetBranchItems(), () => GetSetBranchItems().Any())
             .AddSubMenu("Move Branch left/right", "", GetMoveBranchItems(), () => GetMoveBranchItems().Any())
