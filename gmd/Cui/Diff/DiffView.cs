@@ -70,8 +70,8 @@ class DiffView : IDiffView
 
         if (commitId == Repo.UncommittedId && repoPath != "")
         {
-            view.RegisterKeyHandler(Key.r, () => RefreshDiff().RunInBackground());
-            view.RegisterKeyHandler(Key.d, () => RefreshDiff().RunInBackground());
+            view.RegisterKeyHandler(Key.r, () => RefreshDiff());
+            view.RegisterKeyHandler(Key.d, () => RefreshDiff());
             view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
         }
     }
@@ -95,12 +95,12 @@ class DiffView : IDiffView
     {
         using (progress.Show())
         {
-            Log.Debug($"Undoing file {path}");
-            await Task.Delay(5000);
-            // if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
-            // {
-            //     UI.ErrorMessage($"Failed to undo file\n{e.AllErrorMessages()}");
-            // }
+            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+            {
+                UI.ErrorMessage($"Failed to undo file\n{e.AllErrorMessages()}");
+            }
+
+            UI.Post(() => RefreshDiff());
         }
     }
 
@@ -112,10 +112,12 @@ class DiffView : IDiffView
             {
                 UI.ErrorMessage($"Failed to undo all changes\n{e.AllErrorMessages()}");
             }
+
+            UI.Post(() => RefreshDiff());
         }
     }
 
-    async Task RefreshDiff()
+    async void RefreshDiff()
     {
         using (progress.Show())
         {
