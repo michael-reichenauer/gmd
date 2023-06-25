@@ -93,8 +93,8 @@ class DiffView : IDiffView
             .Add(scrollToItems)
             .AddSeparator("")
             .AddSubMenu("Undo/Restore", "u", undoItems, () => undoItems.Any())
-            .AddItem("Refresh", "r", () => RefreshDiff())
-            .AddItem("Commit", "c", () => TriggerCommit(), () => commitId == Repo.UncommittedId && undoItems.Any())
+            .AddItem("Refresh", "r", () => RefreshDiff(), () => undoItems.Any())
+            .AddItem("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
             .AddItem("Close", "Esc", () => Application.RequestStop()));
     }
 
