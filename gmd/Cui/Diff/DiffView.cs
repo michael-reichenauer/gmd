@@ -7,10 +7,9 @@ namespace gmd.Cui.Diff;
 
 interface IDiffView
 {
-    void Show(Server.CommitDiff diff, string commitId, string repoPath);
+    bool Show(Server.CommitDiff diff, string commitId, string repoPath);
     void Show(Server.CommitDiff[] diffs);
 }
-
 
 class DiffView : IDiffView
 {
@@ -26,6 +25,7 @@ class DiffView : IDiffView
     string commitId = "";
     string repoPath = "";
     bool IsSelectedLeft = true;
+    bool isCommitTriggered = false;
 
 
     public DiffView(IDiffService diffService, IProgress progress, IServer server)
@@ -36,17 +36,18 @@ class DiffView : IDiffView
     }
 
 
-    public void Show(Server.CommitDiff diff, string commitId, string repoPath) => Show(new[] { diff }, commitId, repoPath);
+    public bool Show(Server.CommitDiff diff, string commitId, string repoPath) => Show(new[] { diff }, commitId, repoPath);
 
     public void Show(Server.CommitDiff[] diff) => Show(diff, "", "");
 
-    void Show(Server.CommitDiff[] diffs, string commitId, string repoPath)
+    bool Show(Server.CommitDiff[] diffs, string commitId, string repoPath)
     {
         this.diffs = diffs;
         this.rowStartX = 0;
         this.commitId = commitId;
         this.repoPath = repoPath;
         this.IsSelectedLeft = true;
+        this.isCommitTriggered = false;
         this.diffRows = diffService.ToDiffRows(diffs);
 
         Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
@@ -58,6 +59,7 @@ class DiffView : IDiffView
 
         contentView.TriggerUpdateContent(diffRows.Rows.Count);
         UI.RunDialog(diffView);
+        return isCommitTriggered;
     }
 
 
@@ -72,6 +74,13 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.r, () => RefreshDiff());
         view.RegisterKeyHandler(Key.d, () => RefreshDiff());
         view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
+        view.RegisterKeyHandler(Key.c, () => TriggerCommit());
+    }
+
+    private void TriggerCommit()
+    {
+        isCommitTriggered = true;
+        Application.RequestStop();
     }
 
     void ShowMainMenu()
@@ -85,6 +94,7 @@ class DiffView : IDiffView
             .AddSeparator("")
             .AddSubMenu("Undo/Restore", "u", undoItems, () => undoItems.Any())
             .AddItem("Refresh", "r", () => RefreshDiff())
+            .AddItem("Commit", "c", () => TriggerCommit(), () => commitId == Repo.UncommittedId && undoItems.Any())
             .AddItem("Close", "Esc", () => Application.RequestStop()));
     }
 

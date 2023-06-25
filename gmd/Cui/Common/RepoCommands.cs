@@ -29,7 +29,7 @@ interface IRepoCommands
     void Refresh(string addName = "", string commitId = "");
     void RefreshAndFetch(string addName = "", string commitId = "");
 
-    void ShowUncommittedDiff();
+    void ShowUncommittedDiff(bool isFromDiff = false);
     void ShowCurrentRowDiff();
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
 
@@ -385,18 +385,28 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
+    public void ShowUncommittedDiff(bool isFromDiff = false) => ShowDiff(Server.Repo.UncommittedId, isFromDiff);
 
     public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
 
-    public void ShowDiff(string commitId) => Do(async () =>
+    public void ShowDiff(string commitId, bool isFromDiff = false) => Do(async () =>
     {
         if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repoPath)))
         {
             return R.Error($"Failed to get diff", e);
         }
 
-        UI.Post(() => diffView.Show(diff, commitId, repoPath));
+        UI.Post(() =>
+        {
+            if (diffView.Show(diff, commitId, repoPath))
+            {
+                if (!isFromDiff)
+                {
+                    RefreshAndCommit();
+                }
+
+            };
+        });
         return R.Ok;
     });
 
