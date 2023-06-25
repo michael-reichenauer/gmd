@@ -117,7 +117,7 @@ class DiffService : IDiffService
         {
             text.Dark("  (Binary)");
         }
-        rows.Add(text);
+        rows.Add(text, fd.PathAfter);
 
         fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
     }
@@ -142,7 +142,8 @@ class DiffService : IDiffService
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.BrightMagenta("=== Start of conflict"));
+                    var txt = Text.New.BrightMagenta("=== Start of conflict");
+                    rows.Add(txt, txt);
                     break;
 
                 case DiffMode.DiffConflictSplit:
@@ -152,7 +153,8 @@ class DiffService : IDiffService
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.BrightMagenta("=== End of conflict"));
+                    var txt2 = Text.New.BrightMagenta("=== End of conflict");
+                    rows.Add(txt2, txt2);
                     break;
 
                 case DiffMode.DiffRemoved:

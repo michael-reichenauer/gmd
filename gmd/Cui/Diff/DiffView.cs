@@ -67,28 +67,61 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
+        view.RegisterKeyHandler(Key.m, () => ShowMainMenu());
 
-        if (commitId == Repo.UncommittedId && repoPath != "")
-        {
-            view.RegisterKeyHandler(Key.r, () => RefreshDiff());
-            view.RegisterKeyHandler(Key.d, () => RefreshDiff());
-            view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
-        }
+        view.RegisterKeyHandler(Key.r, () => RefreshDiff());
+        view.RegisterKeyHandler(Key.d, () => RefreshDiff());
+        view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
+    }
+
+    void ShowMainMenu()
+    {
+        var undoItems = GetUndoItems();
+        var scrollToItems = GetScrollToItems();
+
+        Menu.Show(1, 2, Menu.NewItems
+            .AddSeparator("Scroll to")
+            .Add(scrollToItems)
+            .AddSeparator("")
+            .AddSubMenu("Undo/Restore", "u", undoItems, () => undoItems.Any())
+            .AddItem("Refresh", "r", () => RefreshDiff())
+            .AddItem("Close", "Esc", () => Application.RequestStop()));
     }
 
     void ShowUndoMenu()
     {
+        var undoItems = GetUndoItems();
+        if (!undoItems.Any()) return;
+        Menu.Show(1, 2, undoItems);
+    }
+
+    IEnumerable<Common.MenuItem> GetScrollToItems()
+    {
         var paths = diffService.GetDiffFilePaths(diffs[0]);
-        if (paths.Count == 0) return;
+        if (paths.Count == 0) return new List<Common.MenuItem>();
 
-        var fileItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
+        return paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p)));
+    }
 
-        Menu.Show(1, 2, Menu.NewItems
-            .AddSeparator("Undo/Restore")
-            .Add(fileItems)
-            .AddSeparator()
-            .AddItem("Undo/Restore all Uncommitted Changes", "", () => UndoAll())
-        );
+    void ScrollToFile(string path)
+    {
+        // Find the row indexes where the file diff starts
+        var lineIndex = diffRows.Rows.FindIndexOf(r => r.filePath == path);
+        contentView.ScrollToShowIndex(lineIndex - 1);
+    }
+
+    IEnumerable<Common.MenuItem> GetUndoItems()
+    {
+        var paths = diffService.GetDiffFilePaths(diffs[0]);
+        if (commitId != Repo.UncommittedId || paths.Count == 0) return new List<Common.MenuItem>();
+
+        var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
+
+        return Menu.NewItems
+           .AddSeparator("Undo/Restore")
+           .Add(undoItems)
+           .AddSeparator()
+           .AddItem("Undo/Restore all Uncommitted Changes", "", () => UndoAll());
     }
 
     async void UndoFile(string path)
