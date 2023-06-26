@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Cui.Diff;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
@@ -28,7 +29,7 @@ interface IRepoCommands
     void Refresh(string addName = "", string commitId = "");
     void RefreshAndFetch(string addName = "", string commitId = "");
 
-    void ShowUncommittedDiff();
+    void ShowUncommittedDiff(bool isFromDiff = false);
     void ShowCurrentRowDiff();
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
 
@@ -384,18 +385,28 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void ShowUncommittedDiff() => ShowDiff(Server.Repo.UncommittedId);
+    public void ShowUncommittedDiff(bool isFromDiff = false) => ShowDiff(Server.Repo.UncommittedId, isFromDiff);
 
     public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
 
-    public void ShowDiff(string commitId) => Do(async () =>
+    public void ShowDiff(string commitId, bool isFromDiff = false) => Do(async () =>
     {
         if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repoPath)))
         {
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, commitId);
+        UI.Post(() =>
+        {
+            if (diffView.Show(diff, commitId, repoPath))
+            {
+                if (!isFromDiff)
+                {
+                    RefreshAndCommit();
+                }
+
+            };
+        });
         return R.Ok;
     });
 
@@ -452,7 +463,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, sha1);
+        diffView.Show(diff, sha1, repoPath);
         return R.Ok;
     });
 
@@ -715,7 +726,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to diff stash {name}", e);
         }
 
-        diffView.Show(diff, name);
+        diffView.Show(diff, name, repoPath);
         return R.Ok;
     });
 

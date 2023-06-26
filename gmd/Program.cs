@@ -54,7 +54,7 @@ class Program
 
         Log.Info($"Starting gmd ...");
         Program program = dependencyInjection.Resolve<Program>();
-        program.Main();
+        program.Run();
 
         Log.Info($"Done, running for {t}");
         ConfigLogger.CloseAsync().Wait();
@@ -70,10 +70,9 @@ class Program
         this.state = state;
     }
 
-    void Main()
+    void Run()
     {
-        var t = Timing.Start();
-        StartAsync().RunInBackground();
+        LogInfoAndCheckUpdatesAsync().RunInBackground();
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
@@ -96,10 +95,10 @@ class Program
         return false; // End loop after error
     }
 
-    async Task StartAsync()
+    async Task LogInfoAndCheckUpdatesAsync()
     {
         await LogInfoAsync();
-        updater.CheckUpdatesRegularly().RunInBackground();
+        await updater.CheckUpdatesRegularly();
     }
 
     async Task LogInfoAsync()
@@ -162,10 +161,12 @@ class Program
         Usage gmd [options] [arguments]
 
         options:
-          --version       Show current version
-          --update        Update gmd to latest version (downloading from GitHub)
-          -d <path>       Show repo for working folder specified by <path>
-          --help|-h|-?    Show command line help.
+          --version           Show current version
+          --update            Update gmd to latest version (downloading from GitHub)
+          --changelog         Show change log
+          --updatechangelog   Update change log file CHANGELOG.md
+          -d <path>           Show repo for working folder specified by <path>
+          --help|-h|-?        Show command line help.
           
         """;
         Console.WriteLine(msg);

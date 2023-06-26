@@ -62,6 +62,20 @@ public static class EnumerableExtensions
         return null != source.FirstOrDefault(predicate);
     }
 
+    public static int FindIndexOf<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+    {
+        var index = 0;
+        foreach (var item in source)
+        {
+            if (predicate(item))
+            {
+                return index;
+            }
+            index++;
+        }
+        return -1;
+    }
+
 
     public static IReadOnlyList<TSource> ToReadOnlyList<TSource>(this IEnumerable<TSource> enumeration)
     {

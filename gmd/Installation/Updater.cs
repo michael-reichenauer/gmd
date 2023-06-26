@@ -32,7 +32,6 @@ public class GitAsset
     public string browser_download_url { get; set; } = "";
 }
 
-
 class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
@@ -200,15 +199,21 @@ class Updater : IUpdater
         {
             // Move downloaded file next to this process file (replace must be on same volume)
             var newPath = GetTempPath();
+            if (!Files.Exists(downloadedPath))
+            {
+                Log.Info($"No new file to install {downloadedPath}");
+                return R.Ok; // No new file to install, some other thread already installed it
+            }
+
             File.Move(downloadedPath, newPath);
-            Log.Info($"Install {newPath} ...");
+            Log.Info($"Move {downloadedPath} => {newPath} ...");
             if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
 
             var thisPath = Environment.ProcessPath ?? "gmd";
             var newThisPath = GetTempPath();
 
             File.Move(thisPath, newThisPath);
-            Log.Info($"Moved {thisPath} to {newThisPath}");
+            Log.Info($"Moved {thisPath} => {newThisPath}");
             File.Move(newPath, thisPath);
             Log.Info($"Installed {newPath}");
             return R.Ok;
@@ -483,7 +488,7 @@ class Updater : IUpdater
             return R.Ok;
         }
 
-        return cmd.Run("chmod", $"+x {path}", "");
+        return cmd.Command("chmod", $"+x {path}", "");
     }
 
     private bool IsDotNet()

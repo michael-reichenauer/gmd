@@ -63,6 +63,15 @@ class AugmentedService : IAugmentedService
         return GetUpdatedAugmentedRepoStatus(repo, gitStatus);
     }
 
+    public async Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            return await git.CommitAllChangesAsync(message, isAmend, wd);
+        }
+    }
+
+
     public async Task<R> FetchAsync(string path)
     {
         using (Timing.Start("Fetched"))
@@ -108,7 +117,7 @@ class AugmentedService : IAugmentedService
 
         // Combine all git info into one git repo info object
         var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData, stashes);
-        Log.Info($"{t} {gitRepo}");
+        Log.Info($"GitRepo {t} {gitRepo}");
 
         if (gitRepo.Commits.Count == 0)
         {
@@ -315,7 +324,7 @@ class AugmentedService : IAugmentedService
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
 
         var repo = converter.ToRepo(augRepo);
-        Log.Info($"{t} {repo}");
+        Log.Info($"Augmented {t} {repo}");
         return repo;
     }
 

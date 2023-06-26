@@ -47,7 +47,7 @@ class CommitDlg : ICommitDlg
     {
         if (key == (Key.D | Key.CtrlMask) || key == (Key.Space | Key.CtrlMask))
         {
-            repo.Cmd.ShowUncommittedDiff();
+            repo.Cmd.ShowUncommittedDiff(true);
             return true;
         }
         if (key == (Key.A | Key.CtrlMask))
@@ -68,8 +68,14 @@ class CommitDlg : ICommitDlg
             .Where((l, i) => !(i == 1 && l == ""))
             .Select((l, i) => i == 0 ? l : $"  {l}"));
 
+        var msg = message.Text.ToString();
+        if (msg != "")
+        {
+            msg += "\n";
+        }
+
         var text = string.Join('\n', commits.Select(c => $"- {indent(c.Message)}"));
-        message.Text = $"{message.Text}Merged commits:\n{text}";
+        message.Text = $"{msg}{text}";
         message.SetNeedsDisplay();
     }
 

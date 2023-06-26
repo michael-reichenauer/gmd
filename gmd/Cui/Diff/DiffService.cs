@@ -1,88 +1,25 @@
 using DiffPlex;
 using gmd.Cui.Common;
 using gmd.Server;
-using Attribute = Terminal.Gui.Attribute;
 
-namespace gmd.Cui;
+namespace gmd.Cui.Diff;
 
 
-interface IDiffConverter
+interface IDiffService
 {
     DiffRows ToDiffRows(CommitDiff diff);
     DiffRows ToDiffRows(CommitDiff[] commitDiffs);
+    IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
+    IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
 }
 
-class DiffRows
-{
-    readonly List<DiffRow> rows = new List<DiffRow>();
 
-    internal int MaxLength { get; private set; }
-    internal int Count => rows.Count;
-
-    public IReadOnlyList<DiffRow> Rows => rows;
-
-    internal void Add(Text oneRow) =>
-        Add(oneRow, Text.None, DiffRowMode.SpanBoth);
-
-    internal void Add(Text left, Text right) =>
-        Add(left, right, DiffRowMode.LeftRight);
-
-    internal void AddToBoth(Text text) =>
-        Add(text, text, DiffRowMode.LeftRight);
-
-    internal void AddLine(Text line) =>
-       Add(line, Text.None, DiffRowMode.Line);
-
-    internal void SetHighlighted(int index, bool isHighlighted)
-    {
-        var row = rows[index];
-        rows[index] = row with { IsHighlighted = isHighlighted };
-    }
-
-    private void Add(Text left, Text right, DiffRowMode mode)
-    {
-        if (left.Length > MaxLength)
-        {
-            MaxLength = left.Length;
-        }
-        if (right.Length > MaxLength)
-        {
-            MaxLength = right.Length;
-        }
-
-        rows.Add(new DiffRow(left, right, mode, false));
-    }
-
-
-
-    public override string ToString() => $"Rows: {Count}";
-}
-
-record DiffRow(Text Left, Text Right, DiffRowMode Mode, bool IsHighlighted);
-
-enum DiffRowMode
-{
-    LeftRight,
-    SpanBoth,
-    Line,
-}
-
-record Line(int lineNbr, string text, Attribute color);
-
-class Block
-{
-    public List<Line> Lines { get; } = new List<Line>();
-    public void Add(int lineNbr, string text, Attribute color)
-    {
-        Lines.Add(new Line(lineNbr, text, color));
-    }
-}
-
-class DiffService : IDiffConverter
+class DiffService : IDiffService
 {
     const int maxLineDiffsCount = 4;
     const string diffMargin = "┃"; // │ ┃ ;
-    static readonly Text NoLine = Text.New.Dark(new string('░', 100));
+    public static readonly Text NoLine = Text.New.Dark(new string('░', 100));
+
     public DiffRows ToDiffRows(CommitDiff commitDiff)
     {
         return ToDiffRows(new[] { commitDiff });
@@ -108,11 +45,30 @@ class DiffService : IDiffConverter
         return rows;
     }
 
+    public IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff)
+    {
+        return diff.FileDiffs.Select(fd => fd.PathAfter).ToList();
+    }
+
+    public IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff)
+    {
+        return diff.FileDiffs.Where(fd => fd.IsBinary).Select(fd => fd.PathAfter).ToList();
+    }
+
     void AddCommitDiff(CommitDiff commitDiff, DiffRows rows)
+    {
+        AddCommitSummery(commitDiff, rows);
+        AddDiffFileNamesSummery(commitDiff, rows);
+
+        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows));
+    }
+
+    // Add a summery of the commit wiht id, author, date and message
+    void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.New.Yellow("═"));
         if (commitDiff.Id == "")
-        {   // Uncommitted changes
+        {   // Uncommitted changes has only id and current date
             rows.Add(Text.New.Dark("Commit: ").White("Uncommitted changes"));
             rows.Add(Text.New.Dark("Time:   ").White(DateTime.Now.Iso()));
         }
@@ -125,12 +81,9 @@ class DiffService : IDiffConverter
         }
 
         rows.Add(Text.None);
-        AddDiffFileNamesSummery(commitDiff, rows);
-
-        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows));
     }
 
-
+    // Add a summery of the files in the commit
     void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.Add(Text.New.White($"{commitDiff.FileDiffs.Count} Files:"));
@@ -152,6 +105,7 @@ class DiffService : IDiffConverter
         });
     }
 
+    // Add a diff for the file, which consists of several file section diffs
     void AddFileDiff(FileDiff fileDiff, DiffRows rows)
     {
         rows.Add(Text.None);
@@ -169,11 +123,12 @@ class DiffService : IDiffConverter
         {
             text.Dark("  (Binary)");
         }
-        rows.Add(text);
+        rows.Add(text, fd.PathAfter);
 
         fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
     }
 
+    // Add a file section diff (the actual diff lines for a sub section of a file)
     void AddSectionDiff(SectionDiff sectionDiff, DiffRows rows)
     {
         rows.Add(Text.None);
@@ -193,7 +148,8 @@ class DiffService : IDiffConverter
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.BrightMagenta("=== Start of conflict"));
+                    var txt = Text.New.BrightMagenta("=== Start of conflict");
+                    rows.Add(txt, txt);
                     break;
 
                 case DiffMode.DiffConflictSplit:
@@ -203,7 +159,8 @@ class DiffService : IDiffConverter
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
                     AddBlocks(ref leftBlock, ref rightBlock, rows);
-                    rows.AddToBoth(Text.New.BrightMagenta("=== End of conflict"));
+                    var txt2 = Text.New.BrightMagenta("=== End of conflict");
+                    rows.Add(txt2, txt2);
                     break;
 
                 case DiffMode.DiffRemoved:
@@ -376,6 +333,7 @@ class DiffService : IDiffConverter
     }
 
 
+    // Returns the colored text based on the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
     Text ToColorText(string text, FileDiff fd)
     {
         if (fd.IsRenamed && !fd.SectionDiffs.Any())
@@ -399,10 +357,11 @@ class DiffService : IDiffConverter
                 return Text.New.BrightYellow(text);
         }
 
-        throw (Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"));
+        throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");
     }
 
 
+    // Returns the text to show for the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
     string ToDiffModeText(FileDiff fd)
     {
         if (fd.IsRenamed && !fd.SectionDiffs.Any())
@@ -422,6 +381,6 @@ class DiffService : IDiffConverter
                 return "Conflicted:";
         }
 
-        throw (Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"));
+        throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");
     }
 }

@@ -210,8 +210,10 @@ class RepoView : IRepoView
         isRegistered = true;
 
         // Keys on repo view contents
+        contentView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
+        contentView.RegisterKeyHandler(Key.o, () => menuService!.ShowOpenMenu());
         contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
         contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
         contentView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
@@ -282,7 +284,7 @@ class RepoView : IRepoView
             if (!Try(out var viewRepo, out var e, await GetRepoAsync(path, showBranches))) return e;
 
             ShowRepo(viewRepo);
-            Log.Info($"{t} {viewRepo}");
+            Log.Info($"Showed {t} {viewRepo}");
             return R.Ok;
         }
     }
@@ -319,7 +321,7 @@ class RepoView : IRepoView
                 ScrollToBranch(addBranchName);
             }
 
-            Log.Info($"{t} {viewRepo}");
+            Log.Info($"Showed {t} {viewRepo}");
             if (isAwaitFetch)
             {
                 await server.FetchAsync(repo.RepoPath);
@@ -344,7 +346,7 @@ class RepoView : IRepoView
             }
 
             ShowRepo(viewRepo);
-            Log.Info($"{t} {viewRepo}");
+            Log.Info($"Showed {t} {viewRepo}");
         }
     }
 

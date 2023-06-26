@@ -44,7 +44,7 @@ record Repo
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
-    public override string ToString() => $"b:{Branches.Count}, c:{Commits.Count}, S:{Status}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 
 
