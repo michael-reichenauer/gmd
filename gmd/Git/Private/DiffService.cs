@@ -142,8 +142,8 @@ class DiffService : IDiffService
         string commitId = lines[i++].Substring("commit ".Length).Trim();
 
         if (i < lines.Length && lines[i].StartsWith("Merge: "))
-        {
-            // Skip Merge line
+        {   // Skip Merge line
+            i++;
         }
         if (i < lines.Length && lines[i].StartsWith("Author: "))
         {
