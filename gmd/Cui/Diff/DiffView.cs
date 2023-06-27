@@ -139,17 +139,17 @@ class DiffView : IDiffView
         var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
         if (undoItems.Count() > 10)
         {   // Show files ith sub menu
-            undoItems = new[] { new SubMenu("Undo/Restore Files", "", undoItems) };
+            undoItems = new[] { new SubMenu("Undo/Restore Uncommitted Files", "", undoItems) };
         }
         else
         {   // Add a separator and show file directly
-            undoItems = undoItems.Prepend(new MenuSeparator("Undo/Restore Files"));
+            undoItems = undoItems.Prepend(new MenuSeparator("Undo/Restore Uncommitted Files"));
         }
 
         return Menu.NewItems
             .Add(undoItems)
             .AddSeparator()
-            .AddItem("Undo/Restore all Changed Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
+            .AddItem("Undo/Restore all Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
             .AddItem("Undo/Restore all Uncommitted Changes", "", () => UndoAll());
     }
 
