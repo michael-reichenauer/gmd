@@ -43,7 +43,7 @@ class ViewRepoCreater : IViewRepoCreater
             converter.ToStashes(augRepo.Stashes),
             augRepo.Status);
 
-        Log.Info($"ViewRepo {t} B:{repo.Branches.Count}, C:{repo.Commits.Count}, S:{repo.Status}");
+        Log.Info($"ViewRepo {t} {repo}");
         return repo;
     }
 
