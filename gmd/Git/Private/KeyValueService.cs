@@ -54,7 +54,7 @@ class KeyValueService : IKeyValueService
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
         var args = $"push --porcelain origin --set-upstream --force {refs}";
-        return await cmd.RunAsync("git", args, wd, true, true);
+        return await cmd.RunAsync("git", args, wd, true, false);
     }
 
     public async Task<R> PullValueAsync(string key, string wd)
@@ -62,7 +62,7 @@ class KeyValueService : IKeyValueService
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
         var args = $"fetch origin {refs}";
-        return await cmd.RunAsync("git", args, wd, true, true);
+        return await cmd.RunAsync("git", args, wd, true, false);
     }
 
 

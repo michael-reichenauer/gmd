@@ -50,7 +50,7 @@ static class UI
 
     internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)
     {
-        return Application.MainLoop.AddTimeout(timeout, callback);
+        return Application.MainLoop?.AddTimeout(timeout, callback)!;
     }
 
     internal static void Shutdown()

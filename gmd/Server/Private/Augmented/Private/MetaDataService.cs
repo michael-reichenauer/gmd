@@ -64,6 +64,12 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> FetchMetaDataAsync(string path)
     {
+        if (!repoConfig.Get(path).SyncMetaData)
+        {
+            Log.Debug("Repo fetch sync disabled");
+            return R.Ok;
+        }
+
         using (Timing.Start())
         {
             if (isUpdating)
@@ -115,7 +121,7 @@ class MetaDataService : IMetaDataService
 
             // Log.Info($"Read:\n{json}");
             if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
-
+            Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
             return data;
         }
     }
@@ -181,14 +187,14 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> PushMetaDataAsync(string path)
     {
+        if (!repoConfig.Get(path).SyncMetaData)
+        {
+            Log.Debug("Repo push sync disabled");
+            return R.Ok;
+        }
+
         using (Timing.Start())
         {
-            if (!repoConfig.Get(path).SyncMetaData)
-            {
-                Log.Warn("Repo sync disabled");
-                return R.Ok;
-            }
-
             await git.PushValueAsync(metaDataKey, path);
             return R.Ok;
         }

@@ -1,7 +1,35 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-06-19
+## [Current] - 2023-06-28
+- Move switch to commit into switch to submenu
+- Disable metadata fetch if sync is disabled
+- Fix diff parsing of merge commit
+- Adjust undo menu in diff
+
+## [v0.80.239.954] - 2023-06-26
+- Fix updater
+- Add support for open repo menu
+- Add support for commit from within diff
+- Mark long diff lines with a '...' char
+- Add support for undo/restore all binary files in diff
+- Add support in diff for main menu with scroll to and undo
+- Refresh diff after undo
+- Add support for undo/restore files in diff
+- Adjust push branch and enhanse push/fetch logging
+- Add support for refresh diff of uncommitted changes
+- Refactor diff copy
+- Fix issue with ' ' in file paths when diff and status/undo
+- Try to fix path with space in clone
+- Add install file exists check
+- Adjust check mark signs
+- Pause file monitor during git commit
+- Trying different folder montitor event handling
+
+## [v0.80.233.211] - 2023-06-20
+- Adjusted check mark chars
+
+## [v0.80.232.224] - 2023-06-19
 - Fixed issue with showing branches
 - Added support for including summery of commits in merge
 - Fix config issue with not always showing 'allow preview' option
