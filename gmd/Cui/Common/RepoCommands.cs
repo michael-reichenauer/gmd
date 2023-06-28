@@ -58,6 +58,7 @@ interface IRepoCommands
     void UncommitLastCommit();
     void UndoAllUncommittedChanged();
     void UndoUncommittedFile(string path);
+    void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void CleanWorkingFolder();
     bool CanUndoUncommitted();
     bool CanUndoCommit();
@@ -288,6 +289,21 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
         {
             return R.Error($"Failed to undo {path}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void UndoUncommittedFiles(IReadOnlyList<string> paths) => Do(async () =>
+    {
+        foreach (var path in paths)
+        {
+            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+            {
+                Refresh();
+                return R.Error($"Failed to undo {path}", e);
+            }
         }
 
         Refresh();
