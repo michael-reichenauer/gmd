@@ -862,8 +862,9 @@ class RepoCommands : IRepoCommands
     bool CheckBinaryOrLargeAddedFiles()
     {
         var addFiles = serverRepo.Status.AddedFiles.ToList();
+        var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles).ToList();
 
-        var binaryFiles = addFiles.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
+        var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
             .Where(f => Files.IsLarger(Path.Join(repoPath, f), 100 * 1000)).ToList();

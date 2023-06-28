@@ -33,6 +33,7 @@ record Repo
     }
 
     public DateTime TimeStamp { get; }
+    public DateTime RepoTimeStamp => repo.TimeStamp;
     public string Path => AugmentedRepo.Path;
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
@@ -44,7 +45,7 @@ record Repo
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()} @{repo.TimeStamp.IsoMilli()}";
 }
 
 

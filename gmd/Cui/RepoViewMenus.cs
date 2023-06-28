@@ -490,12 +490,15 @@ class RepoViewMenus : IRepoViewMenus
 
         var liveBranches = allBranches
             .Where(b => b.IsGitBranch)
+            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
             .OrderBy(b => b.DisplayName);
 
         var liveAndDeletedBranches = allBranches
+            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
             .OrderBy(b => b.DisplayName);
 
         var recentBranches = liveAndDeletedBranches
+            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
             .Take(RecentCount);
 
