@@ -881,24 +881,33 @@ class RepoCommands : IRepoCommands
         var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles).ToList();
 
         var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
+
+        if (binaryFiles.Any())
+        {
+            var msg = $"There are {binaryFiles.Count} binary mdified files:\n" +
+            $"  {string.Join("\n  ", binaryFiles)}" +
+            "\n\nDo you want to commit them as they are\nor first undo/revert them and then commit?";
+            if (0 != UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo" }))
+            {
+                UI.Post(() =>
+                {
+                    UndoUncommittedFiles(binaryFiles);
+                    RefreshAndCommit();
+                });
+                return false;
+            }
+        }
+
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
             .Where(f => Files.IsLarger(Path.Join(repoPath, f), 100 * 1000)).ToList();
-        var msg = "";
-        if (binaryFiles.Any())
-        {
-            msg += $"\nBinary files ({binaryFiles.Count}):\n  {string.Join("\n  ", binaryFiles)}";
-        }
+
         if (largeFiles.Any())
         {
-            msg += $"\nLarge files ({largeFiles.Count}):  \n{string.Join("\n  ", largeFiles)}";
-        }
-
-        if (msg != "")
-        {
-            msg = $"Som binary or large files seems to be included:{msg}" +
-                "\n\nDo you want to continue?";
-            if (0 != UI.InfoMessage("Binary or Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
+            var msg = $"There are {largeFiles.Count} modified large files:\n"
+            + $" ({largeFiles.Count}):  \n{string.Join("\n  ", largeFiles)}" +
+            "\n\nDo you want to continue?";
+            if (0 != UI.InfoMessage("Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
             {
                 return false;
             }
