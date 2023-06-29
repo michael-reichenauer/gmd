@@ -266,6 +266,7 @@ class Server : IServer
         var nextTagDate = DateTime.UtcNow;
         var totalText = new StringBuilder();
         var text = "";
+        var count = 0;
         foreach (Commit c in repo.Commits)
         {
             var message = c.Message;
@@ -297,12 +298,13 @@ class Server : IServer
                 nextTag = tag.Name;
                 nextTagDate = c.AuthorTime;
                 text = "";
+                count++;
             }
 
             text += message;
         }
 
-        return totalText.ToString();
+        return $"\n{count} releases:\n{totalText}";
     }
 
     public Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>
