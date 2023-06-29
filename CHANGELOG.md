@@ -1,7 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-06-28
+## [Current] - 2023-06-29
+- Add support for undo all unccmmitted binary files
+- Adjust binary commit warning for commit also for modified files
+- Try to eliminate duplicates in show branches
+- Adjust create branch dialog to use publish instead of push
+
+## [v0.80.241.218] - 2023-06-28
 - Move switch to commit into switch to submenu
 - Disable metadata fetch if sync is disabled
 - Fix diff parsing of merge commit

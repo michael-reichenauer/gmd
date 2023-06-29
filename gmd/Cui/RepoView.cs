@@ -176,7 +176,7 @@ class RepoView : IRepoView
             return;
         }
 
-        if (e.TimeStamp - repo!.Repo.TimeStamp < minRepoUpdateInterval)
+        if (e.TimeStamp - repo!.Repo.RepoTimeStamp < minRepoUpdateInterval)
         {
             Log.Debug("New repo event to soon, skipping update");
             return;
@@ -192,7 +192,7 @@ class RepoView : IRepoView
             return;
         }
 
-        if (e.TimeStamp - repo!.Repo.TimeStamp < minStatusUpdateInterval)
+        if (e.TimeStamp - repo!.Repo.RepoTimeStamp < minStatusUpdateInterval)
         {
             Log.Debug("New status event to soon, skipping update");
             return;

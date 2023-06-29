@@ -490,12 +490,15 @@ class RepoViewMenus : IRepoViewMenus
 
         var liveBranches = allBranches
             .Where(b => b.IsGitBranch)
+            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
             .OrderBy(b => b.DisplayName);
 
         var liveAndDeletedBranches = allBranches
+            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
             .OrderBy(b => b.DisplayName);
 
         var recentBranches = liveAndDeletedBranches
+            .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
             .Take(RecentCount);
 
@@ -518,16 +521,21 @@ class RepoViewMenus : IRepoViewMenus
     {
         string id = repo.RowCommit.Id;
         string sid = repo.RowCommit.Sid;
+        var binaryPaths = repo.Status.AddedFiles.Concat(repo.Status.ModifiedFiles)
+                .Where(f => !Files.IsText(Path.Join(repo.RepoPath, f)))
+                .ToList();
 
         return new List<MenuItem>()
             .AddSubMenu("Undo/Restore Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
             .AddItem($"Undo Commit {sid}", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
             .AddItem($"Uncommit Last Commit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
             .AddSeparator()
+            .AddItem("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
             .AddItem("Undo/Restore all Uncommitted Changes", "",
                 () => cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted())
             .AddItem("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder());
     }
+
 
     IEnumerable<MenuItem> GetUncommittedFileItems() =>
         repo.GetUncommittedFiles().Select(f => new MenuItem(f, "", () => cmds.UndoUncommittedFile(f)));

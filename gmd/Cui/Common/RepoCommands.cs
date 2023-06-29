@@ -58,6 +58,7 @@ interface IRepoCommands
     void UncommitLastCommit();
     void UndoAllUncommittedChanged();
     void UndoUncommittedFile(string path);
+    void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void CleanWorkingFolder();
     bool CanUndoUncommitted();
     bool CanUndoCommit();
@@ -288,6 +289,21 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
         {
             return R.Error($"Failed to undo {path}", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void UndoUncommittedFiles(IReadOnlyList<string> paths) => Do(async () =>
+    {
+        foreach (var path in paths)
+        {
+            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+            {
+                Refresh();
+                return R.Error($"Failed to undo {path}", e);
+            }
         }
 
         Refresh();
@@ -862,8 +878,9 @@ class RepoCommands : IRepoCommands
     bool CheckBinaryOrLargeAddedFiles()
     {
         var addFiles = serverRepo.Status.AddedFiles.ToList();
+        var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles).ToList();
 
-        var binaryFiles = addFiles.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
+        var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
             .Where(f => Files.IsLarger(Path.Join(repoPath, f), 100 * 1000)).ToList();

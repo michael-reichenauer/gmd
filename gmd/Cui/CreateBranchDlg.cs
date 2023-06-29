@@ -19,13 +19,13 @@ class CreateBranchDlg : ICreateBranchDlg
         dlg.AddLabel(1, 0, $"From: {from}");
         var name = dlg.AddTextField(1, 2, 40);
         var isCheckout = dlg.AddCheckBox(1, 4, "Checkout", true);
-        var isPush = dlg.AddCheckBox(1, 5, "Push", true);
+        var isPublish = dlg.AddCheckBox(1, 5, "Publish", true);
 
         dlg.Validate(() => name.Text != "", "Empty branch name");
 
         if (!dlg.ShowOkCancel(name)) return R.Error();
 
-        return new CreateBranchResult(name.Text, isCheckout.Checked, isPush.Checked);
+        return new CreateBranchResult(name.Text, isCheckout.Checked, isPublish.Checked);
     }
 }
 

@@ -83,7 +83,7 @@ class FileMonitor : IFileMonitor
         ChangeEvent? repoEvents = null;
         lock (syncRoot)
         {
-            // Copy FileChangedEvents and RepoChangedEvents
+            // Copy FileChangedEvents and RepoChangedEvents.
             fileEvents = fileChangedEvent;
             repoEvents = repoChangedEvent;
             fileChangedEvent = null;
@@ -92,12 +92,12 @@ class FileMonitor : IFileMonitor
 
         if (fileEvents != null)
         {
-            Log.Info($"File changed event {fileEvents.TimeStamp.Iso()}");
+            Log.Info($"File changed event {fileEvents.TimeStamp.IsoMilli()}");
             FileChanged?.Invoke(fileEvents);
         }
         if (repoEvents != null)
         {
-            Log.Info($"Repo changed event {repoEvents.TimeStamp.Iso()}");
+            Log.Info($"Repo changed event {repoEvents.TimeStamp.IsoMilli()}");
             RepoChanged?.Invoke(repoEvents);
         }
 
@@ -216,7 +216,7 @@ class FileMonitor : IFileMonitor
 
             if (!repoChangedTimer.Enabled)
             {
-                Log.Info("Repo changing ...");
+                Log.Info($"Repo changing at {repoChangeTime.IsoMilli()}...");
                 repoChangedTimer.Enabled = true;
             }
         }
@@ -239,7 +239,7 @@ class FileMonitor : IFileMonitor
 
             if (!fileChangedTimer.Enabled)
             {
-                Log.Info($"File changing for '{fullPath}' ...");
+                Log.Info($"File changing for '{fullPath}' at {statusChangeTime.IsoMilli()} ...");
                 fileChangedTimer.Enabled = true;
             }
         }
@@ -333,7 +333,7 @@ class FileMonitor : IFileMonitor
 
             isFileChanged = false;
 
-            Log.Info("File changed");
+            Log.Info($"File changed at {statusChangeTime.IsoMilli()}");
             fileChangedEvent = new ChangeEvent(statusChangeTime);
         }
 
@@ -354,7 +354,7 @@ class FileMonitor : IFileMonitor
 
             isRepoChanged = false;
 
-            Log.Info("Repo changed");
+            Log.Info($"Repo changed at {repoChangeTime.IsoMilli()}");
             repoChangedEvent = new ChangeEvent(repoChangeTime);
         }
 

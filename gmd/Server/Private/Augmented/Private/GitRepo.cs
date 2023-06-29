@@ -39,6 +39,6 @@ class GitRepo
     public MetaData MetaData { get; }
     public IReadOnlyList<GitStash> Stashes { get; }
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T: {Tags.Count}, S:{Status}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
 }
 
