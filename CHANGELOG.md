@@ -1,7 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-06-29
+93 releases:
+
+## [Current] - 2023-06-30
+- Adjust commit to offer undo of binary files
+- Add releases count to change log file
+
+## [v0.80.242.208] - 2023-06-29
 - Add support for undo all unccmmitted binary files
 - Adjust binary commit warning for commit also for modified files
 - Try to eliminate duplicates in show branches
