@@ -18,8 +18,8 @@ class Program
     private readonly IMainView mainView;
     private readonly IGit git;
     private readonly IUpdater updater;
-    private readonly IServer server;
     private readonly IState state;
+
 
     static async Task<int> Main(string[] args)
     {
@@ -31,25 +31,11 @@ class Program
         dependencyInjection = new DependencyInjection();
         dependencyInjection.RegisterDependencyInjectionTypes();
 
-        if (args.Contains("-h") || args.Contains("--help") || args.Contains("-?"))
+        var programCommands = dependencyInjection.Resolve<IProgramCommands>();
+        var commandResult = await programCommands.HandleCommands(args);
+        if (commandResult.IsCommand)
         {
-            return ShowHelp();
-        }
-        if (args.Contains("--version"))
-        {
-            return ShowVersion();
-        }
-        if (args.Contains("--update"))
-        {
-            return await UpdateAsync(dependencyInjection.Resolve<IUpdater>());
-        }
-        if (args.Contains("--changelog"))
-        {
-            return ShowShangeLog(dependencyInjection.Resolve<IServer>());
-        }
-        if (args.Contains("--updatechangelog"))
-        {
-            return UpdateShangeLog(dependencyInjection.Resolve<IServer>());
+            return commandResult.ExitCode;
         }
 
         Log.Info($"Starting gmd ...");
@@ -66,7 +52,6 @@ class Program
         this.mainView = mainView;
         this.git = git;
         this.updater = updater;
-        this.server = server;
         this.state = state;
     }
 
@@ -119,94 +104,6 @@ class Program
         Log.Info($"Time:    {DateTime.Now.IsoZone()}");
 
         state.Set(s => s.GitVersion = gitVersion ?? "");
-    }
-
-    static int ShowVersion()
-    {
-        Console.WriteLine($"{Build.Version()}");
-        return 0;
-    }
-
-    static async Task<int> UpdateAsync(IUpdater updater)
-    {
-        var currentVersion = Build.Version();
-        Console.WriteLine($"Trying to update current version {currentVersion} ...");
-
-        if (!Try(out var available, out var e, await updater.IsUpdateAvailableAsync()))
-        {
-            Console.WriteLine($"Failed to check for updates: {e}");
-            return -1;
-        }
-        if (!available.Item1)
-        {
-            Console.WriteLine($"{available.Item2} is already latest version.");
-            return 0;
-        }
-
-        Console.WriteLine($"Downloading {available.Item2} ...");
-        if (!Try(out var newVersion, out e, await updater.UpdateAsync()))
-        {
-            Console.WriteLine($"Failed to update: {e}");
-            return -1;
-        }
-
-        Console.WriteLine($"Updated {currentVersion} -> {newVersion}");
-        return 0;
-    }
-
-    static int ShowHelp()
-    {
-        var msg = $"""
-        gmd ({Build.Version()})
-        Usage gmd [options] [arguments]
-
-        options:
-          --version           Show current version
-          --update            Update gmd to latest version (downloading from GitHub)
-          --changelog         Show change log
-          --updatechangelog   Update change log file CHANGELOG.md
-          -d <path>           Show repo for working folder specified by <path>
-          --help|-h|-?        Show command line help.
-          
-        """;
-        Console.WriteLine(msg);
-        return 0;
-    }
-
-
-    static int ShowShangeLog(IServer server)
-    {
-        Task.Run(async () =>
-        {
-            Console.WriteLine($"# Change Log for Gmd\n--------------------");
-            if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
-            {
-                Log.Error($"Failed to get change log, {e}");
-                Console.WriteLine($"Failed to get change log, {e}");
-            }
-
-            Console.WriteLine($"{log}");
-        })
-        .Wait();
-
-        return 0;
-    }
-
-    static int UpdateShangeLog(IServer server)
-    {
-        Task.Run(async () =>
-        {
-            Console.WriteLine($"Generating change log ...");
-            if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
-            {
-                Log.Error($"Failed to get change log, {e}");
-            }
-
-            File.WriteAllText("CHANGELOG.md", $"# Change Log for Gmd\n--------------------\n{log}");
-            Console.WriteLine($"Generated change log");
-        })
-        .Wait();
-        return 0;
     }
 }
 
