@@ -32,6 +32,7 @@ public class GitAsset
     public string browser_download_url { get; set; } = "";
 }
 
+[SingleInstance]
 class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
@@ -48,6 +49,8 @@ class Updater : IUpdater
     private readonly IConfig configs;
     readonly ICmd cmd;
     readonly Version buildVersion;
+
+    bool isUpdateCheckerRunning = false;
 
     // Data for download binary tasks to avoud multiple paralell tasks
     static string requestingUri = "";
@@ -120,6 +123,9 @@ class Updater : IUpdater
             Log.Info("Dev instance, no update check");
             return;
         }
+
+        if (isUpdateCheckerRunning) return;
+        isUpdateCheckerRunning = true;
 
         while (true)
         {

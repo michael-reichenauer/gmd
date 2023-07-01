@@ -17,7 +17,6 @@ class Program
     private static DependencyInjection dependencyInjection = new DependencyInjection();
     private readonly IMainView mainView;
     private readonly IGit git;
-    private readonly IUpdater updater;
     private readonly IState state;
 
 
@@ -49,17 +48,16 @@ class Program
         return 0;
     }
 
-    internal Program(IMainView mainView, IGit git, IUpdater updater, IServer server, IState state)
+    internal Program(IMainView mainView, IGit git, IServer server, IState state)
     {
         this.mainView = mainView;
         this.git = git;
-        this.updater = updater;
         this.state = state;
     }
 
     void Run()
     {
-        LogInfoAndCheckUpdatesAsync().RunInBackground();
+        LogProgramInfoAsync().RunInBackground();
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
@@ -82,28 +80,24 @@ class Program
         return false; // End loop after error
     }
 
-    async Task LogInfoAndCheckUpdatesAsync()
-    {
-        await LogInfoAsync();
-        await updater.CheckUpdatesRegularly();
-    }
 
-    async Task LogInfoAsync()
+    async Task LogProgramInfoAsync()
     {
         Log.Info($"Version: {Build.Version()}");
         Log.Info($"Build    {Build.Time().IsoZone()}");
         Log.Info($"Sha:     {Build.Sha()}");
-        if (!Try(out var gitVersion, out var e, await git.Version()))
-        {
-            Log.Error($"No git command detected, {e}");
-        }
-        Log.Info($"Git:     {gitVersion}");
         Log.Info($"Cmd:     {Environment.CommandLine}");
         Log.Info($"Process: {Environment.ProcessPath}");
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
         Log.Info($"Time:    {DateTime.Now.IsoZone()}");
+
+        if (!Try(out var gitVersion, out var e, await git.Version()))
+        {
+            Log.Error($"No git command detected, {e}");
+        }
+        Log.Info($"Git:     {gitVersion}");
 
         state.Set(s => s.GitVersion = gitVersion ?? "");
     }

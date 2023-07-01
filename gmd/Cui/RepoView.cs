@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Git;
+using gmd.Installation;
 using Terminal.Gui;
 
 
@@ -35,6 +36,7 @@ class RepoView : IRepoView
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     readonly Func<IRepo, IRepoViewMenus> newMenuService;
     readonly IState states;
+    readonly IUpdater updater;
     readonly IRepoState repoState;
     readonly IProgress progress;
     readonly IGit git;
@@ -59,6 +61,7 @@ class RepoView : IRepoView
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
         IState states,
+        IUpdater updater,
         IRepoState repoState,
         IProgress progress,
         IGit git,
@@ -69,6 +72,7 @@ class RepoView : IRepoView
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
         this.states = states;
+        this.updater = updater;
         this.repoState = repoState;
         this.progress = progress;
         this.git = git;
@@ -101,6 +105,7 @@ class RepoView : IRepoView
     {
         if (!Try(out var e, await ShowRepoAsync(path))) return e;
         UI.AddTimeout(fetchInterval, (_) => FetchFromRemote());
+        updater.CheckUpdatesRegularly().RunInBackground();
 
         RegisterShortcuts();
         return R.Ok;
