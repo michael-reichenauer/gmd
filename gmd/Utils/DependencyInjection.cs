@@ -5,27 +5,22 @@ using Autofac.Core.Activators.Reflection;
 namespace gmd.Utils;
 
 
-/// <summary>
-/// Attribute used to mark types that should be registered as a single instance in
-/// dependency injection.
-/// </summary>
+// Attribute used to mark types that should be registered as a single instance in
+// dependency injection.
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Struct)]
 public sealed class SingleInstanceAttribute : Attribute
 {
 }
 
-/// <summary>
-/// Wrapper for Autofac dependency injection handler. 
-/// </summary>
+
+// Wrapper for Autofac dependency injection handler. 
 internal class DependencyInjection
 {
-    private IContainer? container;
+    IContainer container = null!;
 
-#pragma warning disable CS8714, CS8604
-    public T Resolve<T>() => container.Resolve<T>();
-#pragma warning restore CS8714, CS8604
+    public T Resolve<T>() where T : notnull => container.Resolve<T>();
 
-    public void RegisterDependencyInjectionTypes()
+    public void RegisterAllAssemblyTypes()
     {
         try
         {

@@ -14,7 +14,7 @@ class Program
     public const int MajorVersion = 0;
     public const int MinorVersion = 80;
 
-    private static DependencyInjection? dependencyInjection;
+    private static DependencyInjection dependencyInjection = new DependencyInjection();
     private readonly IMainView mainView;
     private readonly IGit git;
     private readonly IUpdater updater;
@@ -26,11 +26,13 @@ class Program
         var t = Timing.Start();
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
+        // Upgrade data if needed
         new Upgrader().UpgradeData();
 
-        dependencyInjection = new DependencyInjection();
-        dependencyInjection.RegisterDependencyInjectionTypes();
+        // Setup dependency injection by registering all types in this assembly
+        dependencyInjection.RegisterAllAssemblyTypes();
 
+        // Handle commands like show version, upgrade, ...
         var programCommands = dependencyInjection.Resolve<IProgramCommands>();
         var commandResult = await programCommands.HandleCommands(args);
         if (commandResult.IsCommand)
