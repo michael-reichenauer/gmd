@@ -35,7 +35,7 @@ class DiffService : IDiffService
             rows.Add(Text.New.White($"{commitDiffs.Length} Commits:"));
 
             commitDiffs.ForEach(diff => rows.Add(Text.New.White(
-                $"  {diff.Date}  {diff.Message.Max(60, true)}").Dark($"  {diff.Id.Sid(),6} {diff.Author}")));
+                $"  {diff.Time.Iso()}  {diff.Message.Max(60, true)}").Dark($"  {diff.Id.Sid(),6} {diff.Author}")));
             rows.Add(Text.None);
         }
 
@@ -76,7 +76,7 @@ class DiffService : IDiffService
         {   // Some specified commit id
             rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id));
             rows.Add(Text.New.Dark("Author:  ").White(commitDiff.Author));
-            rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Date));
+            rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Time.Iso()));
             rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
         }
 

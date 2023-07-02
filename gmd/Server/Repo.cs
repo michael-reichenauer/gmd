@@ -166,7 +166,7 @@ public record Status(
 record CommitDiff(
     string Id,
     string Author,
-    string Date,
+    DateTime Time,
     string Message,
     IReadOnlyList<FileDiff> FileDiffs
 )
