@@ -310,11 +310,11 @@ class AugmentedService : IAugmentedService
         Timing t = Timing.Start();
 
         if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path))) return e;
+        fileMonitor.SetReadStatusTime(DateTime.UtcNow);
 
         Log.Info($"{t} S:{gitStatus}");
         return gitStatus;
     }
-
 
     // GetAugmentedRepoAsync returns an augmented git repo, and monitors working folder changes
     async Task<R<Repo>> GetAugmentedRepoAsync(GitRepo gitRepo)

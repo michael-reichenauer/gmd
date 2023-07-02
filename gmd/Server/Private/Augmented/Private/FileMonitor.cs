@@ -12,6 +12,7 @@ interface IFileMonitor
     void Monitor(string workingFolder);
     IDisposable Pause();
     void SetReadRepoTime(DateTime time);
+    void SetReadStatusTime(DateTime time);
 }
 
 public delegate bool Ignorer(string path);
@@ -54,6 +55,7 @@ class FileMonitor : IFileMonitor
     ChangeEvent? repoChangedEvent = null;
     bool isPaused = false;
     DateTime readRepoTime = DateTime.MinValue;
+    DateTime readStatusTime = DateTime.MinValue;
 
     public FileMonitor()
     {
@@ -79,6 +81,15 @@ class FileMonitor : IFileMonitor
         lock (syncRoot)
         {
             this.readRepoTime = time;
+            this.readStatusTime = time;
+        }
+    }
+
+    public void SetReadStatusTime(DateTime time)
+    {
+        lock (syncRoot)
+        {
+            this.readStatusTime = time;
         }
     }
 
@@ -98,8 +109,8 @@ class FileMonitor : IFileMonitor
             repoEvent = repoChangedEvent;
             fileChangedEvent = null;
             repoChangedEvent = null;
-            if (fileEvent != null && fileEvent.TimeStamp < readRepoTime)
-            {   // Event older than last time repo was read
+            if (fileEvent != null && fileEvent.TimeStamp < readStatusTime)
+            {   // Event older than last time status was read
                 fileEvent = null;
             }
             if (repoEvent != null && repoEvent.TimeStamp < readRepoTime)
@@ -187,8 +198,6 @@ class FileMonitor : IFileMonitor
 
     private void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        //WaitIfPaused();
-
         if (path == GitHeadFile)
         {
             RepoChange(fullPath, path, changeType);
@@ -214,8 +223,6 @@ class FileMonitor : IFileMonitor
 
     private void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
-        //WaitIfPaused();
-
         // Log.Debug($"'{fullPath}'");
 
         if (Path.GetExtension(fullPath) == ".lock" ||
@@ -239,12 +246,6 @@ class FileMonitor : IFileMonitor
             }
         }
     }
-
-    // void WaitIfPaused()
-    // {
-    //     System.Threading.Monitor.Enter(pauseLock);
-    //     System.Threading.Monitor.Exit(pauseLock);
-    // }
 
 
     private void FileChange(string fullPath)
@@ -351,7 +352,7 @@ class FileMonitor : IFileMonitor
 
             isFileChanged = false;
 
-            Log.Info($"File changed at {statusChangeTime.IsoMilli()}");
+            // Log.Info($"File changed at {statusChangeTime.IsoMilli()}");
             fileChangedEvent = new ChangeEvent(statusChangeTime);
         }
 
@@ -372,7 +373,7 @@ class FileMonitor : IFileMonitor
 
             isRepoChanged = false;
 
-            Log.Info($"Repo changed at {repoChangeTime.IsoMilli()}");
+            // Log.Info($"Repo changed at {repoChangeTime.IsoMilli()}");
             repoChangedEvent = new ChangeEvent(repoChangeTime);
         }
 
