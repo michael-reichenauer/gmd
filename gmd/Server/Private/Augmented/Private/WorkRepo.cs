@@ -37,22 +37,18 @@ class WorkCommit
     // Git properties
     public string Id { get; }
     public string Sid { get; }
-    public string Subject { get; }
-    public string Message { get; }
+    public string Subject { get; } // First line of message
+    public string Message { get; } // Full message (including subject)
     public string Author { get; }
     public DateTime AuthorTime { get; }
 
     // Augmented properties
-    public int GitIndex { get; set; }
+    public int GitIndex { get; set; }  // Index in git log (only used for tracing)
     public List<Tag> Tags { get; } = new List<Tag>();
     public List<string> BranchTips { get; } = new List<string>();
 
     public bool IsCurrent { get; set; }
     public bool IsDetached { get; set; }
-    public bool IsUncommitted { get; set; }
-    public bool IsConflicted { get; set; }
-    public bool IsAhead { get; set; }
-    public bool IsBehind { get; set; }
     public bool IsPartialLogCommit { get; set; }
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
