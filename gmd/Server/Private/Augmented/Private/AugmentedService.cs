@@ -74,7 +74,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> FetchAsync(string path)
     {
-        using (Timing.Start("Fetched"))
+        // using (Timing.Start("Fetched"))
         {
             // pull meta data, but ignore error, if error is key not exist, it can be ignored,
             // if error is remote error, the following fetch will handle that

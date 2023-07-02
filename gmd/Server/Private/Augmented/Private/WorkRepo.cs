@@ -3,20 +3,20 @@ namespace gmd.Server.Private.Augmented.Private;
 using GitCommit = gmd.Git.Commit;
 using GitBranch = gmd.Git.Branch;
 
-
+// Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
 class WorkRepo
 {
     public DateTime TimeStamp { get; }
     public string Path { get; }
     public Status Status { get; }
-    internal List<WorkCommit> Commits { get; } = new List<WorkCommit>();
-    internal Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
-    internal List<WorkBranch> Branches { get; } = new List<WorkBranch>();
-    internal Dictionary<string, WorkBranch> BranchByName { get; } = new Dictionary<string, WorkBranch>();
-    internal List<Tag> Tags { get; } = new List<Tag>();
-    internal Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
-    internal List<Stash> Stashes { get; } = new List<Stash>();
-    internal Dictionary<string, Stash> StashById { get; } = new Dictionary<string, Stash>();
+    public List<WorkCommit> Commits { get; } = new List<WorkCommit>();
+    public Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
+    public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
+    public Dictionary<string, WorkBranch> BranchByName { get; } = new Dictionary<string, WorkBranch>();
+    public List<Tag> Tags { get; } = new List<Tag>();
+    public Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
+    public List<Stash> Stashes { get; } = new List<Stash>();
+    public Dictionary<string, Stash> StashById { get; } = new Dictionary<string, Stash>();
 
     public WorkRepo(
         DateTime timeStamp,
@@ -31,7 +31,8 @@ class WorkRepo
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 
-internal class WorkCommit
+// Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
+class WorkCommit
 {
     // Git properties
     public string Id { get; }
@@ -42,7 +43,7 @@ internal class WorkCommit
     public DateTime AuthorTime { get; }
 
     // Augmented properties
-    public int GitIndex { get; internal set; }
+    public int GitIndex { get; set; }
     public List<Tag> Tags { get; } = new List<Tag>();
     public List<string> BranchTips { get; } = new List<string>();
 
@@ -58,17 +59,17 @@ internal class WorkCommit
     public bool IsBranchSetByUser { get; set; }
 
     public List<string> ParentIds { get; }
-    public WorkCommit? FirstParent { get; internal set; }
-    public WorkCommit? MergeParent { get; internal set; }
+    public WorkCommit? FirstParent { get; set; }
+    public WorkCommit? MergeParent { get; set; }
 
     public List<string> ChildIds { get; } = new List<string>();
     public List<WorkCommit> Children { get; } = new List<WorkCommit>();
     public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>();
 
     public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
-    public WorkBranch? Branch { get; internal set; }
+    public WorkBranch? Branch { get; set; }
 
-    public bool IsLikely { get; internal set; }
+    public bool IsLikely { get; set; }
 
     public WorkCommit(GitCommit c)
     {
@@ -96,6 +97,7 @@ internal class WorkCommit
     public override string ToString() => $"#{GitIndex} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
 }
 
+// Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
 internal class WorkBranch
 {
     // Git properties
@@ -117,7 +119,7 @@ internal class WorkBranch
     public string TipID { get; }
     public string BottomID { get; internal set; } = "";
 
-    public WorkBranch? ParentBranch { get; internal set; }
+    public WorkBranch? ParentBranch { get; set; }
     public WorkBranch? PullMergeBranch { get; set; }
 
     public bool IsGitBranch { get; set; }
@@ -128,7 +130,7 @@ internal class WorkBranch
     public bool HasRemoteOnly { get; set; }
 
     public string AmbiguousTipId { get; set; } = "";
-    public string PullRequestParent { get; internal set; } = "";
+    public string PullRequestParent { get; set; } = "";
 
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
     public List<WorkBranch> PullMergeBranches = new List<WorkBranch>();
