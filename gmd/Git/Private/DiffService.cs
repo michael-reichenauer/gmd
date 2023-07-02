@@ -72,7 +72,7 @@ class DiffService : IDiffService
             return R.Error("Failed to parse diff");
         }
 
-        return commitDiffs[0];
+        return commitDiffs[0] with { Message = "Uncommitted changes" };
     }
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
@@ -104,8 +104,7 @@ class DiffService : IDiffService
 
         (var fileDiffs, var i) = ParseFileDiffs(0, lines);
 
-        // Check this, this is strange about Id: message !!!!!!!!!!!!!!!!!!!!!!
-        return new CommitDiff(Id: message, Author: "", Time: DateTime.UtcNow, Message: "", FileDiffs: fileDiffs);
+        return new CommitDiff("", "", DateTime.UtcNow, message, fileDiffs);
     }
 
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)

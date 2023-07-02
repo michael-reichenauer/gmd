@@ -67,18 +67,10 @@ class DiffService : IDiffService
     void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.New.Yellow("═"));
-        if (commitDiff.Id == "")
-        {   // Uncommitted changes has only id and current date
-            rows.Add(Text.New.Dark("Commit: ").White("Uncommitted changes"));
-            rows.Add(Text.New.Dark("Time:   ").White(DateTime.Now.Iso()));
-        }
-        else
-        {   // Some specified commit id
-            rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id));
-            rows.Add(Text.New.Dark("Author:  ").White(commitDiff.Author));
-            rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Time.Iso()));
-            rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
-        }
+        if (commitDiff.Id != "") rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id));
+        if (commitDiff.Author != "") rows.Add(Text.New.Dark("Author:  ").White(commitDiff.Author));
+        if (commitDiff.Time != DateTime.MinValue) rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Time.Iso()));
+        if (commitDiff.Message != "") rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
 
         rows.Add(Text.None);
     }
