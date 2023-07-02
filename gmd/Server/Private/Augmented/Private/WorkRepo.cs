@@ -18,10 +18,7 @@ class WorkRepo
     public List<Stash> Stashes { get; } = new List<Stash>();
     public Dictionary<string, Stash> StashById { get; } = new Dictionary<string, Stash>();
 
-    public WorkRepo(
-        DateTime timeStamp,
-        string path,
-        Status status)
+    public WorkRepo(DateTime timeStamp, string path, Status status)
     {
         TimeStamp = timeStamp;
         Path = path;
@@ -98,11 +95,9 @@ internal class WorkBranch
 {
     // Git properties
     public string Name { get; }
-    public string CommonName { get; }
+    public string CommonName { get; } // Common name for local and remote branches (name without remote prefix)
     public bool IsRemote { get; }
     public bool IsDetached { get; }
-    public int AheadCount { get; }
-    public int BehindCount { get; }
     public bool IsRemoteMissing { get; }
     public bool IsCurrent { get; }
 
@@ -142,8 +137,6 @@ internal class WorkBranch
         IsCurrent = b.IsCurrent;
         IsRemote = b.IsRemote;
         IsDetached = b.IsDetached;
-        AheadCount = b.AheadCount;
-        BehindCount = b.BehindCount;
         RemoteName = b.RemoteName;
         LocalName = "";
         BottomID = b.TipID;

@@ -87,8 +87,6 @@ public record Branch(
     bool IsSetAsParent,
     bool IsMainBranch,
 
-    int AheadCount,
-    int BehindCount,
     bool HasAheadCommits,
     bool HasBehindCommits,
 

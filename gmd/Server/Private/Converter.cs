@@ -82,8 +82,6 @@ class Converter : IConverter
         IsSetAsParent: b.IsSetAsParent,
         IsMainBranch: b.IsMainBranch,
 
-        AheadCount: b.AheadCount,
-        BehindCount: b.BehindCount,
         HasLocalOnly: b.HasAheadCommits,
         HasRemoteOnly: b.HasBehindCommits,
 

@@ -115,8 +115,6 @@ public record Branch(
     string ParentBranchCommonName,
     string PullMergeBranchName,
 
-    int AheadCount,
-    int BehindCount,
     bool HasLocalOnly,
     bool HasRemoteOnly,
     string AmbiguousTipId,

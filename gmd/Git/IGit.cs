@@ -65,14 +65,14 @@ public record Commit(
 
 public record Branch(
     string Name,
-    string CommonName,
+    string CommonName,  // Common name for local and remote branches (name without remote prefix)
     string TipID,
     bool IsCurrent,
     bool IsRemote,
-    string RemoteName,
+    string RemoteName,  // The remote name for a local branch 
     bool IsDetached,
-    int AheadCount,
-    int BehindCount
+    int AheadCount,     // Number of commits on local branch not yet synced up to remote branch
+    int BehindCount     // Number of commits on remote branch not yet synced down to local branch
 );
 
 public record Status(
