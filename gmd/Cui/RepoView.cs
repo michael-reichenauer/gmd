@@ -105,7 +105,7 @@ class RepoView : IRepoView
     {
         if (!Try(out var e, await ShowRepoAsync(path))) return e;
         UI.AddTimeout(fetchInterval, (_) => FetchFromRemote());
-        updater.CheckUpdatesRegularly().RunInBackground();
+        updater.StartCheckUpdatesRegularly().RunInBackground();
 
         RegisterShortcuts();
         return R.Ok;

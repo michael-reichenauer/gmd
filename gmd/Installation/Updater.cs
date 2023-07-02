@@ -12,7 +12,7 @@ interface IUpdater
     Task CheckUpdateAvailableAsync();
     Task<R<Version>> UpdateAsync();
     Task<R<(bool, Version)>> IsUpdateAvailableAsync();
-    Task CheckUpdatesRegularly();
+    Task StartCheckUpdatesRegularly();
 }
 
 public class GitRelease
@@ -116,7 +116,7 @@ class Updater : IUpdater
     }
 
 
-    public async Task CheckUpdatesRegularly()
+    public async Task StartCheckUpdatesRegularly()
     {
         if (Build.IsDevInstance())
         {
