@@ -6,7 +6,7 @@ interface IDiffService
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
-    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd);
+    Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string wd);
 }
 
 class DiffService : IDiffService
@@ -89,7 +89,7 @@ class DiffService : IDiffService
         return commitDiffs.ToArray();
     }
 
-    public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd)
+    public async Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string wd)
     {
         var args = $"diff -b --find-renames --unified=6 --full-index {sha1} {sha2}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
