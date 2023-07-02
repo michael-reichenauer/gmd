@@ -97,6 +97,7 @@ class DiffService : IDiffService
         return ParseDiff(output, "");
     }
 
+    // Parse diff output from git diff command
     CommitDiff ParseDiff(string output, string path, string message = "")
     {
         // Split string and ignore some lines
@@ -107,6 +108,7 @@ class DiffService : IDiffService
         return new CommitDiff("", "", DateTime.UtcNow, message, fileDiffs);
     }
 
+    // Parse diff output for possible multiple commits
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)
     {
         // Split string and ignore some lines
