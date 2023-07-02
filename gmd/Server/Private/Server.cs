@@ -156,9 +156,9 @@ class Server : IServer
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
-    public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd)
+    public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd)
     {
-        if (!Try(out var gitCommitDiff, out var e, await git.GetPreviewMergeDiffAsync(sha1, sha2, wd))) return e;
+        if (!Try(out var gitCommitDiff, out var e, await git.GetPreviewMergeDiffAsync(sha1, sha2, message, wd))) return e;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }

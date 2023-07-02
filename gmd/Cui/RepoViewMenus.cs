@@ -150,7 +150,7 @@ class RepoViewMenus : IRepoViewMenus
             .AddSubMenu($"Diff Branch to", "", GetPreviewMergeItems(false, false), () => GetPreviewMergeItems(false, false).Any())
             .AddSubMenu($"Diff {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true, false), () => GetPreviewMergeItems(true, false).Any())
             .AddSubMenu($"Diff Branch from", "", GetPreviewMergeItems(false, true), () => GetPreviewMergeItems(false, true).Any())
-            .AddItem($"Diff {Sid(repo.RowCommit.Id)} from", "", () => cmds.DiffWithOtherBranch(repo.RowCommit.BranchName, true, true))
+            .AddItem($"Diff {Sid(repo.RowCommit.Id)} from", "", () => cmds.DiffWithOtherBranch(repo.RowCommit.BranchName, true, true), () => repo.Status.IsOk)
             .AddSubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any());
     }
 
@@ -460,6 +460,8 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit, bool isSwitch)
     {
+        if (!repo.Status.IsOk) return Menu.NewItems;
+
         var commit = repo.RowCommit;
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
