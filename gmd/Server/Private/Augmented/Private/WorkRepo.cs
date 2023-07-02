@@ -104,14 +104,14 @@ internal class WorkBranch
     // Augmented properties
     public bool IsLocalCurrent { get; set; }
     public string DisplayName { get; set; } = "";
-    public string RemoteName { get; set; } = "";
-    public string LocalName { get; set; } = "";
-    public string CommonBaseName { get; set; } = "";
-    public string TipID { get; }
-    public string BottomID { get; internal set; } = "";
+    public string RemoteName { get; set; } = "";  // A local branch's remote name
+    public string LocalName { get; set; } = "";   // A remote branch's local name
+    public string CommonBaseName { get; set; } = "";  // a name based on first commit and parent commit
+    public string TipID { get; }                         // First commit id
+    public string BottomID { get; internal set; } = "";  // Last commit id
 
-    public WorkBranch? ParentBranch { get; set; }
-    public WorkBranch? PullMergeBranch { get; set; }
+    public WorkBranch? ParentBranch { get; set; }       // Parent branch (remote if local)
+    public WorkBranch? PullMergeParentBranch { get; set; }    // For pull merge branches, the main parent branch
 
     public bool IsGitBranch { get; set; }
     public bool IsAmbiguousBranch { get; set; }
@@ -120,11 +120,10 @@ internal class WorkBranch
     public bool HasLocalOnly { get; set; }
     public bool HasRemoteOnly { get; set; }
 
-    public string AmbiguousTipId { get; set; } = "";
-    public string PullRequestParent { get; set; } = "";
+    public string AmbiguousTipId { get; set; } = ""; // Set if this branch has ambigous last part
 
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
-    public List<WorkBranch> PullMergeBranches = new List<WorkBranch>();
+    public List<WorkBranch> PullMergeChildBranches = new List<WorkBranch>();
 
     // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)
@@ -138,8 +137,8 @@ internal class WorkBranch
         IsRemote = b.IsRemote;
         IsDetached = b.IsDetached;
         RemoteName = b.RemoteName;
-        LocalName = "";
-        BottomID = b.TipID;
+        LocalName = "";                  // Will be set later
+        BottomID = b.TipID;              // Will be adjusted later
     }
 
     // Called when creating a branched based on a name, usually from a deleted branch

@@ -55,13 +55,13 @@ class Augmenter : IAugmenter
         Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
 
         repo.Branches
-            .Where(b => b.RemoteName == "" && b.PullMergeBranch == null)
+            .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
             .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
             var bottom = repo.CommitsById[b.BottomID];
-            var parentCommitSId = bottom.FirstParent?.Sid ?? "";
-            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSId}";
+            var parentCommitSid = bottom.FirstParent?.Sid ?? "";
+            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSid}";
             if (branchNameCount.TryGetValue(b.DisplayName, out var count))
             {   // Multiple branches with same display name, add a counter to the display name
                 branchNameCount[b.DisplayName] = ++count;
@@ -79,7 +79,7 @@ class Augmenter : IAugmenter
                 localBranch.DisplayName = b.DisplayName;
                 localBranch.CommonBaseName = b.CommonBaseName;
             }
-            b.PullMergeBranches.ForEach(pmb =>
+            b.PullMergeChildBranches.ForEach(pmb =>
             {
                 var br = repo.BranchByName[pmb.Name]!;
                 br.DisplayName = b.DisplayName;
@@ -527,14 +527,14 @@ class Augmenter : IAugmenter
         if (commit.Branches.Count == 2 && commit.Children.Count == 2 &&
             commit.Children[0].Branch!.CommonName == commit.Children[1].Branch!.CommonName)
         {   // Commit has 2 children with same branch use that
-            if (commit.Children[0].Branch!.PullMergeBranch != null &&
-                commit.Children[0].Branch!.PullMergeBranch!.Name == commit.Children[1].Branch!.LocalName)
+            if (commit.Children[0].Branch!.PullMergeParentBranch != null &&
+                commit.Children[0].Branch!.PullMergeParentBranch!.Name == commit.Children[1].Branch!.LocalName)
             {   // child branch 0 is a pull merge of child 1 local of remote branch 1, prefer parent 1
                 branch = commit.Children[1].Branch;
                 commit.IsAmbiguous = commit.Children[1].IsAmbiguous;
                 return true;
             }
-            if (commit.Children[0].Branch!.PullMergeBranch == commit.Children[1].Branch)
+            if (commit.Children[0].Branch!.PullMergeParentBranch == commit.Children[1].Branch)
             {   // child branch 0 is a pull merge of child branch 1, prefer parent 1
                 branch = commit.Children[1].Branch;
                 commit.IsAmbiguous = commit.Children[1].IsAmbiguous;
@@ -572,16 +572,11 @@ class Augmenter : IAugmenter
                     // We need to connect this branch with the actual branch.
                     var pullMergeBranch = mergeChild.Branch;
                     branch = AddPullMergeBranch(repo, commit, name, pullMergeBranch!);
-                    pullMergeBranch!.PullMergeBranches.TryAdd(branch);
+                    pullMergeBranch!.PullMergeChildBranches.TryAdd(branch);
                     return true;
                 }
 
                 branch = AddNamedBranch(repo, commit, name);
-
-                if (branchNameService.IsPullRequest(mergeChild))
-                {
-                    branch.PullRequestParent = mergeChild.Branch!.Name;
-                }
 
                 return true;
             }
@@ -923,7 +918,7 @@ class Augmenter : IAugmenter
             commonName: pullMergeBranch.CommonName,
             displayName: displayName,
             tipID: c.Id);
-        branch.PullMergeBranch = pullMergeBranch;
+        branch.PullMergeParentBranch = pullMergeBranch;
 
         repo.Branches.Add(branch);
         return branch;
