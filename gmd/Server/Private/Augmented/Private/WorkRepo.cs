@@ -146,7 +146,6 @@ internal class WorkBranch
         IsDetached = b.IsDetached;
         AheadCount = b.AheadCount;
         BehindCount = b.BehindCount;
-        IsRemoteMissing = b.IsRemoteMissing;
         RemoteName = b.RemoteName;
         LocalName = "";
         BottomID = b.TipID;

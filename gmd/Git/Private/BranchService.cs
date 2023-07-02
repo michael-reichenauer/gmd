@@ -127,11 +127,8 @@ class BranchService : IBranchService
 
         int.TryParse(match.Groups[11].Value, out int aheadCount);
         int.TryParse(match.Groups[14].Value, out int behindCount);
-        bool isRemoteMissing = match.Groups[15].Value == "gone";
 
-        return new Branch(
-            name, commonName, tipId, isCurrent, isRemote, remoteName, isDetached,
-            aheadCount, behindCount, isRemoteMissing);
+        return new Branch(name, commonName, tipId, isCurrent, isRemote, remoteName, isDetached, aheadCount, behindCount);
     }
 
 

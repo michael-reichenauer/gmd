@@ -344,7 +344,7 @@ class AugmentedService : IAugmentedService
         var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),
             new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
         var branches = new List<Git.Branch>() { new Git.Branch(branchName, branchName, id,
-             true, false, "", false, 0, 0, false) };
+             true, false, "", false, 0, 0) };
         var stashes = new List<Git.Stash>();
 
         return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes);

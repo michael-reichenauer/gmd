@@ -72,8 +72,7 @@ public record Branch(
     string RemoteName,
     bool IsDetached,
     int AheadCount,
-    int BehindCount,
-    bool IsRemoteMissing
+    int BehindCount
 );
 
 public record Status(
