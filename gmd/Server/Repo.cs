@@ -6,8 +6,8 @@ using AugmentedRepo = gmd.Server.Private.Augmented.Repo;
 
 record Repo
 {
-    internal static readonly string PartialLogCommitID =
-        gmd.Server.Private.Augmented.Repo.PartialLogCommitID;
+    internal static readonly string TruncatedLogCommitID =
+        gmd.Server.Private.Augmented.Repo.TruncatedLogCommitID;
     internal static readonly string UncommittedId =
         gmd.Server.Private.Augmented.Repo.UncommittedId;
     internal static readonly string UncommittedSid = UncommittedId.Sid();
@@ -74,7 +74,7 @@ public record Commit(
     bool IsConflicted,
     bool IsAhead,
     bool IsBehind,
-    bool IsPartialLogCommit,
+    bool IsTruncatedLogCommit,
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser,

@@ -3,7 +3,7 @@ namespace gmd.Server.Private.Augmented;
 
 record Repo
 {
-    internal static readonly string PartialLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
+    internal static readonly string TruncatedLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
     internal static readonly string UncommittedId = "0000000000000000000000000000000000000000";
 
     public Repo(
@@ -58,7 +58,7 @@ public record Commit(
     bool IsConflicted,
     bool IsAhead,
     bool IsBehind,
-    bool IsPartialLogCommit,
+    bool IsTruncatedLogCommit,
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser)

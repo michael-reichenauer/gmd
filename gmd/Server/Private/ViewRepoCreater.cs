@@ -369,7 +369,7 @@ class ViewRepoCreater : IViewRepoCreater
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
-                    IsPartialLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
+                    IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
                     IsBranchSetByUser: false);
 
                 return true;

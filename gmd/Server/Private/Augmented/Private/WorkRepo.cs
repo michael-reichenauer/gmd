@@ -49,7 +49,7 @@ class WorkCommit
 
     public bool IsCurrent { get; set; }
     public bool IsDetached { get; set; }
-    public bool IsPartialLogCommit { get; set; }
+    public bool IsTruncatedLogCommit { get; set; }  // Virtual commit indicating truncated large log
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
     public bool IsBranchSetByUser { get; set; }

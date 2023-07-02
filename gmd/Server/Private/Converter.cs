@@ -54,7 +54,7 @@ class Converter : IConverter
         IsConflicted: c.IsConflicted,
         IsAhead: c.IsAhead,
         IsBehind: c.IsBehind,
-        IsPartialLogCommit: c.IsPartialLogCommit,
+        IsTruncatedLogCommit: c.IsTruncatedLogCommit,
         IsAmbiguous: c.IsAmbiguous,
         IsAmbiguousTip: c.IsAmbiguousTip,
         IsBranchSetByUser: c.IsBranchSetByUser,

@@ -338,7 +338,7 @@ class AugmentedService : IAugmentedService
 
     R<GitRepo> EmptyRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
     {
-        var id = Repo.PartialLogCommitID;
+        var id = Repo.TruncatedLogCommitID;
         var msg = "<... empty repo ...>";
         var branchName = "main";
         var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),
