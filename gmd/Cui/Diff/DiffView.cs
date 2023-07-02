@@ -26,7 +26,7 @@ class DiffView : IDiffView
     string repoPath = "";
     bool IsSelectedLeft = true;
     bool isCommitTriggered = false;
-
+    bool IsSelected => contentView.SelectCount > 0;
 
     public DiffView(IDiffService diffService, IProgress progress, IServer server)
     {
@@ -88,8 +88,13 @@ class DiffView : IDiffView
             .AddSubMenu("Undo/Restore", "u", undoItems, () => undoItems.Any())
             .AddItem("Refresh", "r", () => RefreshDiff(), () => undoItems.Any())
             .AddItem("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
+            .AddItem("Toggle Select Mode", "i", () => contentView.ToggleShowCursor())
+            .AddItem("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
+            .AddItem("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
+            .AddItem("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
             .AddItem("Close", "Esc", () => Application.RequestStop()));
     }
+
 
     void ShowScrollMenu()
     {
@@ -294,7 +299,7 @@ class DiffView : IDiffView
     // Copy selected text to clipboard and clear selection
     void OnCopy()
     {
-        if (contentView.SelectCount == 0) return;
+        if (!IsSelected) return;
 
         var rows = diffRows.Rows.Skip(contentView.SelectStartIndex).Take(contentView.SelectCount);
 

@@ -271,7 +271,7 @@ class ContentView : View
 
 
     // Toggle showing/hiding cursor. Cursor is needed to select text for copy
-    void ToggleShowCursor()
+    public void ToggleShowCursor()
     {
         ClearSelection();
         IsNoCursor = !IsNoCursor;
