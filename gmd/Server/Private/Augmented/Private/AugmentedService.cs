@@ -89,7 +89,6 @@ class AugmentedService : IAugmentedService
         }
     }
 
-
     public Task<R> FetchMetaDataAsync(string path) => metaDataService.FetchMetaDataAsync(path);
 
 
@@ -116,7 +115,9 @@ class AugmentedService : IAugmentedService
         if (!Try(out var stashes, out e, stashesTask.Result)) return e;
 
         // Combine all git info into one git repo info object
-        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData, stashes);
+        var timeStamp = DateTime.UtcNow;
+        fileMonitor.SetReadRepoTime(timeStamp);
+        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes);
         Log.Info($"GitRepo {t} {gitRepo}");
 
         if (gitRepo.Commits.Count == 0)

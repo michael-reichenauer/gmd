@@ -11,6 +11,7 @@ interface IFileMonitor
 
     void Monitor(string workingFolder);
     IDisposable Pause();
+    void SetReadRepoTime(DateTime time);
 }
 
 public delegate bool Ignorer(string path);
@@ -52,6 +53,7 @@ class FileMonitor : IFileMonitor
     ChangeEvent? fileChangedEvent = null;
     ChangeEvent? repoChangedEvent = null;
     bool isPaused = false;
+    DateTime readRepoTime = DateTime.MinValue;
 
     public FileMonitor()
     {
@@ -72,6 +74,14 @@ class FileMonitor : IFileMonitor
         refsWatcher.Renamed += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
     }
 
+    public void SetReadRepoTime(DateTime time)
+    {
+        lock (syncRoot)
+        {
+            this.readRepoTime = time;
+        }
+    }
+
     bool OnTimer(MainLoop loop)
     {
         if (isPaused)
@@ -79,26 +89,34 @@ class FileMonitor : IFileMonitor
             return true;
         }
 
-        ChangeEvent? fileEvents = null;
-        ChangeEvent? repoEvents = null;
+        ChangeEvent? fileEvent = null;
+        ChangeEvent? repoEvent = null;
         lock (syncRoot)
         {
             // Copy FileChangedEvents and RepoChangedEvents.
-            fileEvents = fileChangedEvent;
-            repoEvents = repoChangedEvent;
+            fileEvent = fileChangedEvent;
+            repoEvent = repoChangedEvent;
             fileChangedEvent = null;
             repoChangedEvent = null;
+            if (fileEvent != null && fileEvent.TimeStamp < readRepoTime)
+            {   // Event older than last time repo was read
+                fileEvent = null;
+            }
+            if (repoEvent != null && repoEvent.TimeStamp < readRepoTime)
+            {   // Event older than last time repo was read
+                repoEvent = null;
+            }
         }
 
-        if (fileEvents != null)
+        if (fileEvent != null)
         {
-            Log.Info($"File changed event {fileEvents.TimeStamp.IsoMilli()}");
-            FileChanged?.Invoke(fileEvents);
+            Log.Info($"File changed event {fileEvent.TimeStamp.IsoMilli()}");
+            FileChanged?.Invoke(fileEvent);
         }
-        if (repoEvents != null)
+        if (repoEvent != null)
         {
-            Log.Info($"Repo changed event {repoEvents.TimeStamp.IsoMilli()}");
-            RepoChanged?.Invoke(repoEvents);
+            Log.Info($"Repo changed event {repoEvent.TimeStamp.IsoMilli()}");
+            RepoChanged?.Invoke(repoEvent);
         }
 
         return true;
