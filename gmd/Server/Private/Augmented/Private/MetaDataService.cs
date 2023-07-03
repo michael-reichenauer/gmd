@@ -64,6 +64,8 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> FetchMetaDataAsync(string path)
     {
+        return R.Ok;
+
         if (!repoConfig.Get(path).SyncMetaData)
         {
             Log.Debug("Repo fetch sync disabled");
@@ -103,6 +105,8 @@ class MetaDataService : IMetaDataService
 
     public async Task<R<MetaData>> GetMetaDataAsync(string path)
     {
+        return new MetaData();
+
         if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
         {   // Failed to read local value
             if (IsNoLocalKey(e))
@@ -123,6 +127,7 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> SetMetaDataAsync(string path, MetaData metaData)
     {
+        return R.Ok;
         try
         {
             isUpdating = true;
@@ -134,6 +139,22 @@ class MetaDataService : IMetaDataService
         finally
         {
             isUpdating = false;
+        }
+    }
+
+    public async Task<R> PushMetaDataAsync(string path)
+    {
+        return R.Ok;
+        if (!repoConfig.Get(path).SyncMetaData)
+        {
+            Log.Debug("Repo push sync disabled");
+            return R.Ok;
+        }
+
+        using (Timing.Start())
+        {
+            await git.PushValueAsync(metaDataKey, path);
+            return R.Ok;
         }
     }
 
@@ -176,20 +197,6 @@ class MetaDataService : IMetaDataService
         return R.Ok;
     }
 
-    public async Task<R> PushMetaDataAsync(string path)
-    {
-        if (!repoConfig.Get(path).SyncMetaData)
-        {
-            Log.Debug("Repo push sync disabled");
-            return R.Ok;
-        }
-
-        using (Timing.Start())
-        {
-            await git.PushValueAsync(metaDataKey, path);
-            return R.Ok;
-        }
-    }
 
 
     bool IsNoLocalKey(ErrorResult e) => e.ErrorMessage.Contains("Not a valid object name");
