@@ -64,7 +64,7 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> FetchMetaDataAsync(string path)
     {
-        return R.Ok;
+        return R.Ok; // ########### Disable
 
         if (!repoConfig.Get(path).SyncMetaData)
         {
@@ -105,7 +105,7 @@ class MetaDataService : IMetaDataService
 
     public async Task<R<MetaData>> GetMetaDataAsync(string path)
     {
-        return new MetaData();
+        return new MetaData(); // ########### Disable
 
         if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
         {   // Failed to read local value
@@ -127,7 +127,7 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> SetMetaDataAsync(string path, MetaData metaData)
     {
-        return R.Ok;
+        return R.Ok; // ########### Disable
         try
         {
             isUpdating = true;
@@ -144,7 +144,8 @@ class MetaDataService : IMetaDataService
 
     public async Task<R> PushMetaDataAsync(string path)
     {
-        return R.Ok;
+        return R.Ok; // ########### Disable
+
         if (!repoConfig.Get(path).SyncMetaData)
         {
             Log.Debug("Repo push sync disabled");

@@ -110,6 +110,8 @@ class BranchNameService : IBranchNameService
 
     public FromInto ParseSubject(string subject)
     {
+        subject = ""; // ########### Disable parsing of subject
+
         subject = subject.Trim();
         //var matches = nameRegExp.FindAllStringSubmatch(subject, -1);
         var matches = branchesRegEx.Matches(subject);
