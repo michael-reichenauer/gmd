@@ -50,11 +50,11 @@ class Converter : IConverter
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,
             IsDetached: c.IsDetached,
-            IsUncommitted: c.IsUncommitted,
-            IsConflicted: c.IsConflicted,
-            IsAhead: c.IsAhead,
-            IsBehind: c.IsBehind,
-            IsPartialLogCommit: c.IsPartialLogCommit,
+            IsUncommitted: false,
+            IsConflicted: false,
+            IsAhead: false,
+            IsBehind: false,
+            IsTruncatedLogCommit: c.IsTruncatedLogCommit,
             IsAmbiguous: c.IsAmbiguous,
             IsAmbiguousTip: c.IsAmbiguousTip,
             IsBranchSetByUser: c.IsBranchSetByUser);
@@ -76,20 +76,18 @@ class Converter : IConverter
 
             ParentBranchName: b.ParentBranch?.Name ?? "",
             ParentBranchCommonName: b.ParentBranch?.CommonName ?? "",
-            PullMergeBranchName: b.PullMergeBranch?.Name ?? "",
+            PullMergeBranchName: b.PullMergeParentBranch?.Name ?? "",
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
             IsSetAsParent: b.IsSetAsParent,
             IsMainBranch: b.IsMainBranch,
 
-            AheadCount: b.AheadCount,
-            BehindCount: b.BehindCount,
             HasAheadCommits: b.HasLocalOnly,
             HasBehindCommits: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTipId,
             AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
-            PullMergeBranchNames: b.PullMergeBranches.Select(bb => bb.Name).ToList());
+            PullMergeBranchNames: b.PullMergeChildBranches.Select(bb => bb.Name).ToList());
     }
 }
 

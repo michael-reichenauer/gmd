@@ -62,7 +62,7 @@ class KeyValueService : IKeyValueService
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
         var args = $"fetch origin {refs}";
-        return await cmd.RunAsync("git", args, wd, true, false);
+        return await cmd.RunAsync("git", args, wd, true, true);
     }
 
 

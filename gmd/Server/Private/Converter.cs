@@ -54,7 +54,7 @@ class Converter : IConverter
         IsConflicted: c.IsConflicted,
         IsAhead: c.IsAhead,
         IsBehind: c.IsBehind,
-        IsPartialLogCommit: c.IsPartialLogCommit,
+        IsTruncatedLogCommit: c.IsTruncatedLogCommit,
         IsAmbiguous: c.IsAmbiguous,
         IsAmbiguousTip: c.IsAmbiguousTip,
         IsBranchSetByUser: c.IsBranchSetByUser,
@@ -82,8 +82,6 @@ class Converter : IConverter
         IsSetAsParent: b.IsSetAsParent,
         IsMainBranch: b.IsMainBranch,
 
-        AheadCount: b.AheadCount,
-        BehindCount: b.BehindCount,
         HasLocalOnly: b.HasAheadCommits,
         HasRemoteOnly: b.HasBehindCommits,
 
