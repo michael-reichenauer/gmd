@@ -22,33 +22,35 @@ class BranchStructureService : IBranchStructureService
 
     public void SetCommitBranches(WorkRepo repo, GitRepo gitRepo)
     {
-        SetGitBranchTips(repo);
-        SetCommitBranchesAndChildren(repo);
+        SetGitBranchTipsOnCommits(repo);
+        SetCommitParentsAndChildren(repo);
         DetermineCommitBranches(repo, gitRepo);
         DetermineBranchHierarchy(repo);
     }
 
-    void SetGitBranchTips(WorkRepo repo)
+
+    // Remove branches that are do not have an existing commit tip id
+    // And set commit branch tips for the remaining branches
+    void SetGitBranchTipsOnCommits(WorkRepo repo)
     {
         List<string> invalidBranches = new List<string>();
 
         foreach (var b in repo.Branches)
         {
             if (!repo.CommitsById.TryGetValue(b.TipID, out var tip))
-            {
-                // A branch tip id, which commit id does not exist in the repo
-                // Store that branch name so it can be removed from the list below
+            {   // A branch tip id, which commit id does not exist in the repo
+                // Store that branch name so it can be removed from the list later
                 invalidBranches.TryAdd(b.Name);
                 continue;
             }
 
-            // Adding the branch to the branch tip commit
+            // Adding the branch to the branch tip commit (unless detached, handled separately)
             if (!b.IsDetached)
             {
                 tip.Branches.TryAdd(b);
                 tip.BranchTips.TryAdd(b.Name);
             }
-            b.BottomID = b.TipID; // We initialize the bottomId to same as tip
+            b.BottomID = b.TipID; // We initialize the bottomId to same as tip (moved later)
         }
 
         // Remove branches that do not have existing tip commit id,
@@ -62,28 +64,37 @@ class BranchStructureService : IBranchStructureService
         }
     }
 
-    void SetCommitBranchesAndChildren(WorkRepo repo)
+
+    // Update a commit with parents and children to be able to traverse the commit graph
+    // Also swap parent order for pull merges, to make branch structure more logical and persistent
+    void SetCommitParentsAndChildren(WorkRepo repo)
     {
         foreach (var c in repo.Commits)
         {
+            // Parsing commit subject to if possible determine likely branch name
             branchNameService.ParseCommit(c);
+
             if (c.ParentIds.Count == 2 && branchNameService.IsPullMerge(c))
-            {   // if the commit is a pull merger, we do switch the order of parents
+            {   // if the commit is a pull merge, we do switch the order of parents
                 // So the first parent is the remote branch and second parent the local branch
+                // This makes the local commits to look like they where merged into the remote
+                // branch, instead of existin remote commits now merged/moved into the local branch
+                // which would make the remote branch alter commit order whenever local commits 
+                // are not updated to remote server in time.
                 var tmp = c.ParentIds[0];
                 c.ParentIds[0] = c.ParentIds[1];
                 c.ParentIds[1] = tmp;
             }
 
             if (c.ParentIds.Count > 0 && repo.CommitsById.TryGetValue(c.ParentIds[0], out var firstParent))
-            {
+            {   // Commit has a first parent, and that parents children is updated with this commit
                 c.FirstParent = firstParent;
                 firstParent.Children.Add(c);
                 firstParent.ChildIds.Add(c.Id);
             }
 
             if (c.ParentIds.Count > 1 && repo.CommitsById.TryGetValue(c.ParentIds[1], out var mergeParent))
-            {
+            {   // Commit has a merge parent, that parents merge children is updated with this commit
                 c.MergeParent = mergeParent;
                 mergeParent.MergeChildren.Add(c);
                 mergeParent.ChildIds.Add(c.Id);
