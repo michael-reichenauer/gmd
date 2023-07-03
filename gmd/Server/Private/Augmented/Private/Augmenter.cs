@@ -18,11 +18,15 @@ class Augmenter : IAugmenter
     readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master", "origin/trunk", "trunk" };
     const string truncatedBranchName = "<truncated-branch>";
     readonly IBranchNameService branchNameService;
+    private readonly IBranchStructureService branchStructureService;
 
 
-    internal Augmenter(IBranchNameService branchNameService, IConverter converter)
+    internal Augmenter(
+        IBranchNameService branchNameService,
+        IBranchStructureService branchStructureService)
     {
         this.branchNameService = branchNameService;
+        this.branchStructureService = branchStructureService;
     }
 
     public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int truncateLimit)
