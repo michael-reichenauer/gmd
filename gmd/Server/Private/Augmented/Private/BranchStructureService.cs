@@ -106,14 +106,17 @@ class BranchStructureService : IBranchStructureService
     {
         foreach (var c in repo.Commits)
         {
+            // Determine commit branch as most likely as possible or as an ambiguous branch
             var branch = DetermineCommitBranch(repo, c, gitRepo);
             c.Branch = branch;
+
             if (!c.IsAmbiguous)
-            {
+            {   // Commit has a branch, clear other possible branches
                 c.Branches.Clear();
             }
             c.Branches.TryAdd(branch);
 
+            // Set the IsLikely property if the branch is likly to be the correct branch
             string name = branchNameService.GetBranchName(c.Id);
             if (c.Branch.CommonName == name)
             {
@@ -121,7 +124,10 @@ class BranchStructureService : IBranchStructureService
                 c.IsLikely = true;
             }
 
+            // If this commit is a main branch, then its first parent will likey be it too.
             SetMasterBackbone(c);
+
+            // Advance tha bottom id to eventually determine the bottom commit of the branch
             c.Branch.BottomID = c.Id;
         }
     }
@@ -706,8 +712,9 @@ class BranchStructureService : IBranchStructureService
         }
 
         if (DefaultBranchPriority.Contains(c.Branch.Name))
-        {
-            // main and develop are special and will make a "backbone" for other branches to depend on
+        {   // main and develop are special and will make a "backbone" for other branches to depend on
+            // Adding this branch to the first parent branches will make it likly to be set as
+            // branch for the parent as well, and so on up to the first (oldest/last) commit.
             c.FirstParent.Branches.TryAdd(c.Branch);
         }
     }
