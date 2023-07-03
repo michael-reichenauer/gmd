@@ -34,69 +34,20 @@ class Augmenter : IAugmenter
 
     WorkRepo GetAugRepo(GitRepo gitRepo, int truncateLimit)
     {
-        WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, ToStatus(gitRepo));
+        var status = ToStatus(gitRepo);
+        WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status);
 
-        SetAugStashes(repo, gitRepo);
         SetAugBranches(repo, gitRepo);
         SetAugCommits(repo, gitRepo, truncateLimit);
         branchStructureService.SetCommitBranches(repo, gitRepo);
         SetAugTags(repo, gitRepo);
+        SetAugStashes(repo, gitRepo);
         SetBranchByName(repo);
         AdjustDisplayNames(repo);
 
         return repo;
     }
 
-    private void SetBranchByName(WorkRepo repo)
-    {
-        repo.Branches.ForEach(b => repo.BranchByName[b.Name] = b);
-    }
-
-    void AdjustDisplayNames(WorkRepo repo)
-    {
-        Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
-
-        repo.Branches
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
-            .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
-            .ForEach(b =>
-        {
-            var bottom = repo.CommitsById[b.BottomID];
-            var parentCommitSid = bottom.FirstParent?.Sid ?? "";
-            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSid}";
-            if (branchNameCount.TryGetValue(b.DisplayName, out var count))
-            {   // Multiple branches with same display name, add a counter to the display name
-                branchNameCount[b.DisplayName] = ++count;
-                b.DisplayName = $"{b.DisplayName}({count})";
-            }
-            else
-            {   // First branch with this display name
-                branchNameCount[b.DisplayName] = 1;
-            }
-
-            // Make sure local and pull merge branches have same display and base name
-            if (b.LocalName != "")
-            {
-                var localBranch = repo.BranchByName[b.LocalName]!;
-                localBranch.DisplayName = b.DisplayName;
-                localBranch.CommonBaseName = b.CommonBaseName;
-            }
-            b.PullMergeChildBranches.ForEach(pmb =>
-            {
-                var br = repo.BranchByName[pmb.Name]!;
-                br.DisplayName = b.DisplayName;
-                br.CommonBaseName = b.CommonBaseName;
-            });
-        });
-    }
-
-    Status ToStatus(GitRepo repo)
-    {
-        var s = repo.Status;
-        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
-            s.IsMerging, s.MergeMessage, s.MergeHeadId, s.ModifiedFiles, s.AddedFiles,
-            s.DeletedFiles, s.ConflictsFiles);
-    }
 
     void SetAugBranches(WorkRepo repo, GitRepo gitRepo)
     {
@@ -204,6 +155,59 @@ class Augmenter : IAugmenter
             repo.CommitsById[pc.Id] = pc;
         }
     }
+
+    void SetBranchByName(WorkRepo repo)
+    {
+        repo.Branches.ForEach(b => repo.BranchByName[b.Name] = b);
+    }
+
+    void AdjustDisplayNames(WorkRepo repo)
+    {
+        Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
+
+        repo.Branches
+            .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
+            .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
+            .ForEach(b =>
+        {
+            var bottom = repo.CommitsById[b.BottomID];
+            var parentCommitSid = bottom.FirstParent?.Sid ?? "";
+            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSid}";
+            if (branchNameCount.TryGetValue(b.DisplayName, out var count))
+            {   // Multiple branches with same display name, add a counter to the display name
+                branchNameCount[b.DisplayName] = ++count;
+                b.DisplayName = $"{b.DisplayName}({count})";
+            }
+            else
+            {   // First branch with this display name
+                branchNameCount[b.DisplayName] = 1;
+            }
+
+            // Make sure local and pull merge branches have same display and base name
+            if (b.LocalName != "")
+            {
+                var localBranch = repo.BranchByName[b.LocalName]!;
+                localBranch.DisplayName = b.DisplayName;
+                localBranch.CommonBaseName = b.CommonBaseName;
+            }
+            b.PullMergeChildBranches.ForEach(pmb =>
+            {
+                var br = repo.BranchByName[pmb.Name]!;
+                br.DisplayName = b.DisplayName;
+                br.CommonBaseName = b.CommonBaseName;
+            });
+        });
+    }
+
+    Status ToStatus(GitRepo repo)
+    {
+        var s = repo.Status;
+        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
+            s.IsMerging, s.MergeMessage, s.MergeHeadId, s.ModifiedFiles, s.AddedFiles,
+            s.DeletedFiles, s.ConflictsFiles);
+    }
+
+
 
 
     void SetAugTags(WorkRepo repo, GitRepo gitRepo)

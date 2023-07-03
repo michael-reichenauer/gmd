@@ -126,73 +126,73 @@ class BranchStructureService : IBranchStructureService
             commit.Branches.Clear();
             return AddTruncatedBranch(repo);
         }
-        else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
-        {   // Commit branch was set/determined by user,
-            commit.Branches.Clear();
-            return branch!;
-        }
+        // else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
+        // {   // Commit branch was set/determined by user,
+        //     commit.Branches.Clear();
+        //     return branch!;
+        // }
         else if (TryHasOnlyOneBranch(commit, out branch))
         {   // Commit only has one branch, use that
             return branch!;
         }
-        else if (TryIsLocalRemoteBranch(commit, out branch))
-        {   // Commit has only local and its remote branch, prefer remote remote branch
-            commit.Branches.Clear();
-            return branch!;
-        }
-        else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
-        {   // Commit has no branches and no children, but has a merge child.
-            // The commit is a tip of a deleted branch. It might be a deleted remote branch.
-            // Lets try determine branch name based on merge child's subject
-            // or use a generic branch name based on commit id
-            return branch!;
-        }
-        else if (TryIsMergedDeletedBranchTip(repo, commit, out branch))
-        {   // Commit has no branches and no children, but has a merge child.
-            // The commit is a tip of a deleted remote branch.
-            // Lets try determine branch name based on merge child's subject 
-            // or use a generic branch name based on commit id
-            return branch!;
-        }
-        else if (TryHasMainBranch(commit, out branch))
-        {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
-            return branch!;
-        }
-        else if (TryHasBranchNameInSubject(repo, commit, out branch))
-        {   // A branch name could be parsed form the commit subject or a child subject.
-            // The commit will be set to that branch and also if above (first child) commits have
-            // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
-            // when a parsable commit subjects are encountered.
-            return branch!;
-        }
-        else if (TryHasOnlyOneChild(commit, out branch))
-        {   // Commit has one child commit reuse that child commit branch
-            return branch!;
-        }
-        // else if (TryHasOneChildInDeletedBranch(commit, out branch)) // Not needed any more??
-        // {   // Commit is middle commit in a deleted branch with only one child above, use same branch
+        // else if (TryIsLocalRemoteBranch(commit, out branch))
+        // {   // Commit has only local and its remote branch, prefer remote remote branch
+        //     commit.Branches.Clear();
         //     return branch!;
         // }
-        else if (TryHasOneChildWithLikelyBranch(commit, out branch))
-        {   // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
-            return branch!;
-        }
-        else if (TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
-        {   // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
-            return branch!;
-        }
-        // else if (TryAllChildrenArePullRequests(repo, commit, out branch))
+        // else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
+        // {   // Commit has no branches and no children, but has a merge child.
+        //     // The commit is a tip of a deleted branch. It might be a deleted remote branch.
+        //     // Lets try determine branch name based on merge child's subject
+        //     // or use a generic branch name based on commit id
+        //     return branch!;
+        // }
+        // else if (TryIsMergedDeletedBranchTip(repo, commit, out branch))
+        // {   // Commit has no branches and no children, but has a merge child.
+        //     // The commit is a tip of a deleted remote branch.
+        //     // Lets try determine branch name based on merge child's subject 
+        //     // or use a generic branch name based on commit id
+        //     return branch!;
+        // }
+        // else if (TryHasMainBranch(commit, out branch))
+        // {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
+        //     return branch!;
+        // }
+        // else if (TryHasBranchNameInSubject(repo, commit, out branch))
+        // {   // A branch name could be parsed form the commit subject or a child subject.
+        //     // The commit will be set to that branch and also if above (first child) commits have
+        //     // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
+        //     // when a parsable commit subjects are encountered.
+        //     return branch!;
+        // }
+        // else if (TryHasOnlyOneChild(commit, out branch))
+        // {   // Commit has one child commit reuse that child commit branch
+        //     return branch!;
+        // }
+        // // old // else if (TryHasOneChildInDeletedBranch(commit, out branch)) // Not needed any more??
+        // //  old // {   // Commit is middle commit in a deleted branch with only one child above, use same branch
+        // //  old //    return branch!;
+        // //  old  //}
+        // else if (TryHasOneChildWithLikelyBranch(commit, out branch))
+        // {   // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
+        //     return branch!;
+        // }
+        // else if (TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
+        // {   // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
+        //     return branch!;
+        // }
+        // // old //else if (TryAllChildrenArePullRequests(repo, commit, out branch))
+        // // old //{
+        // // old //    return branch!;
+        // //old // }
+        // else if (TrySameChildrenBranches(commit, out branch))
+        // {   // For e.g. pull merges, a commit can have two children with same logical branch
+        //     return branch!;
+        // }
+        // else if (TryIsMergedBranchesToParent(repo, commit, out branch))
         // {
         //     return branch!;
         // }
-        else if (TrySameChildrenBranches(commit, out branch))
-        {   // For e.g. pull merges, a commit can have two children with same logical branch
-            return branch!;
-        }
-        else if (TryIsMergedBranchesToParent(repo, commit, out branch))
-        {
-            return branch!;
-        }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
         {   // one of the commit children is a an ambiguous commit, reuse same branch
             return branch!;
