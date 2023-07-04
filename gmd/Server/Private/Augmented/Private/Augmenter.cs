@@ -148,7 +148,7 @@ class Augmenter : IAugmenter
 
         repo.Branches
             .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
-            .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
+            .OrderByDescending(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
             var bottom = repo.CommitsById[b.BottomID];
