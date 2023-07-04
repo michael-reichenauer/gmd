@@ -7,13 +7,24 @@ public class MetaData
 {
     public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
 
-    internal void SetCommitBranch(string sid, string branchName) => CommitBranchBySid[sid] = "*" + branchName;
 
-    internal void SetBranched(string sid, string branchName) => CommitBranchBySid[sid] = branchName;
 
-    internal void Remove(string sid) => SetCommitBranch(sid, "");  // Mark as removed to support sync
+    internal void SetCommitBranch(string sid, string branchName)
+    {
+        CommitBranchBySid[sid] = "*" + branchName;
+    }
 
-    internal bool TryGet(string sid, out string branchName, out bool isSetByUser)
+    internal void SetBranched(string sid, string branchName)
+    {
+        CommitBranchBySid[sid] = branchName;
+    }
+
+    internal void RemoveCommitBranch(string sid)
+    {
+        SetCommitBranch(sid, "");  // Mark as removed to support sync
+    }
+
+    internal bool TryGetCommitBranch(string sid, out string branchName, out bool isSetByUser)
     {
         branchName = "";
         isSetByUser = false;
@@ -37,6 +48,7 @@ public class MetaData
     }
 }
 
+
 interface IMetaDataService
 {
     Task<R<MetaData>> GetMetaDataAsync(string path);
@@ -59,6 +71,41 @@ class MetaDataService : IMetaDataService
     {
         this.git = git;
         this.repoConfig = repoConfig;
+    }
+
+    public async Task<R<MetaData>> GetMetaDataAsync(string path)
+    {
+        if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
+        {   // Failed to read local value
+            if (IsNoLocalKey(e))
+            {   // No local key,
+                return new MetaData();
+            }
+
+            // Failed to get local value
+            return e;
+        };
+
+        Log.Info($"Metadata:\n{json}");
+        if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
+        //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
+        return data;
+    }
+
+    public async Task<R> SetMetaDataAsync(string path, MetaData metaData)
+    {
+        try
+        {
+            isUpdating = true;
+            string json = Json.SerializePretty(metaData);
+            if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
+            // Log.Info($"Wrote:\n{json}");
+            return R.Ok;
+        }
+        finally
+        {
+            isUpdating = false;
+        }
     }
 
 
@@ -101,39 +148,18 @@ class MetaDataService : IMetaDataService
     }
 
 
-    public async Task<R<MetaData>> GetMetaDataAsync(string path)
+    public async Task<R> PushMetaDataAsync(string path)
     {
-        if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
-        {   // Failed to read local value
-            if (IsNoLocalKey(e))
-            {   // No local key,
-                return new MetaData();
-            }
-
-            // Failed to get local value
-            return e;
-        };
-
-        // Log.Info($"Read:\n{json}");
-        if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
-        //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
-        return data;
-    }
-
-
-    public async Task<R> SetMetaDataAsync(string path, MetaData metaData)
-    {
-        try
+        if (!repoConfig.Get(path).SyncMetaData)
         {
-            isUpdating = true;
-            string json = Json.SerializePretty(metaData);
-            if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
-            // Log.Info($"Wrote:\n{json}");
+            Log.Debug("Repo push sync disabled");
             return R.Ok;
         }
-        finally
+
+        using (Timing.Start())
         {
-            isUpdating = false;
+            await git.PushValueAsync(metaDataKey, path);
+            return R.Ok;
         }
     }
 
@@ -176,20 +202,6 @@ class MetaDataService : IMetaDataService
         return R.Ok;
     }
 
-    public async Task<R> PushMetaDataAsync(string path)
-    {
-        if (!repoConfig.Get(path).SyncMetaData)
-        {
-            Log.Debug("Repo push sync disabled");
-            return R.Ok;
-        }
-
-        using (Timing.Start())
-        {
-            await git.PushValueAsync(metaDataKey, path);
-            return R.Ok;
-        }
-    }
 
 
     bool IsNoLocalKey(ErrorResult e) => e.ErrorMessage.Contains("Not a valid object name");
