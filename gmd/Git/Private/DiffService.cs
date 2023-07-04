@@ -6,7 +6,7 @@ interface IDiffService
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
-    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd);
+    Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd);
 }
 
 class DiffService : IDiffService
@@ -39,7 +39,7 @@ class DiffService : IDiffService
             $" --find-renames --unified=6 {name}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
-        return ParseDiff(output, "", $"Diff of stash {name}");
+        return ParseDiff(output, $"Diff of stash {name}");
     }
 
 
@@ -64,7 +64,6 @@ class DiffService : IDiffService
         }
 
         // Add commit prefix text to support parser.
-        var dateText = DateTime.Now.IsoZone();
         output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;
 
         var commitDiffs = ParseCommitDiffs(output, "", false);
@@ -73,7 +72,7 @@ class DiffService : IDiffService
             return R.Error("Failed to parse diff");
         }
 
-        return commitDiffs[0];
+        return commitDiffs[0] with { Message = "Uncommitted changes" };
     }
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
@@ -90,24 +89,26 @@ class DiffService : IDiffService
         return commitDiffs.ToArray();
     }
 
-    public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd)
+    public async Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd)
     {
         var args = $"diff -b --find-renames --unified=6 --full-index {sha1} {sha2}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
-        return ParseDiff(output, "");
+        return ParseDiff(output, message);
     }
 
-    CommitDiff ParseDiff(string output, string path, string message = "")
+    // Parse diff output from git diff command
+    CommitDiff ParseDiff(string output, string message = "")
     {
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
 
         (var fileDiffs, var i) = ParseFileDiffs(0, lines);
 
-        return new CommitDiff(Id: message, Author: "", Date: DateTime.Now.Iso(), Message: "", FileDiffs: fileDiffs);
+        return new CommitDiff("", "", DateTime.UtcNow, message, fileDiffs);
     }
 
+    // Parse diff output for possible multiple commits
     IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)
     {
         // Split string and ignore some lines
@@ -136,7 +137,7 @@ class DiffService : IDiffService
         }
 
         string author = "";
-        string date = "";
+        DateTime time = DateTime.UtcNow;
         string message = "";
 
         string commitId = lines[i++].Substring("commit ".Length).Trim();
@@ -151,8 +152,11 @@ class DiffService : IDiffService
         }
         if (i < lines.Length && lines[i].StartsWith("Date: "))
         {
-            date = lines[i++].Substring("Date: ".Length).Trim();
-            date = DateTime.TryParse(date, out var dt) ? dt.Iso() : "";
+            var dateText = lines[i++].Substring("Date: ".Length).Trim();
+            if (DateTime.TryParse(dateText, out var dt))
+            {
+                time = dt;
+            }
         }
         i++; // Skipping next line
         if (i < lines.Length)
@@ -170,7 +174,7 @@ class DiffService : IDiffService
 
         (var fileDiffs, i) = ParseFileDiffs(i, lines);
 
-        var commitDiff = new CommitDiff(Id: commitId, Author: author, Date: date, Message: message, FileDiffs: fileDiffs);
+        var commitDiff = new CommitDiff(commitId, author, time, message, fileDiffs);
         return (commitDiff, i, true);
     }
 

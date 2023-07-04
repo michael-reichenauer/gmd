@@ -460,21 +460,24 @@ class RepoCommands : IRepoCommands
     public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
         if (repo.CurrentBranch == null) return R.Ok;
+        string message = "";
         var sha1 = repo.Branch(branchName).TipId;
         var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
-        if (sha2 == Repo.UncommittedId)
-        {
-            sha2 = repo.Commit(sha2).ParentIds[0];
-        }
+        if (sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
 
         if (isSwitchOrder)
         {
             var sh = sha1;
             sha1 = sha2;
             sha2 = sh;
+            message = $"Diff '{branchName}' with '{repo.CurrentBranch.CommonName}'";
+        }
+        else
+        {
+            message = $"Diff '{repo.CurrentBranch.CommonName}' with '{branchName}'";
         }
 
-        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, repoPath)))
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, repoPath)))
         {
             return R.Error($"Failed to get diff", e);
         }

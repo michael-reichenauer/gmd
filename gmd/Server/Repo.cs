@@ -6,8 +6,8 @@ using AugmentedRepo = gmd.Server.Private.Augmented.Repo;
 
 record Repo
 {
-    internal static readonly string PartialLogCommitID =
-        gmd.Server.Private.Augmented.Repo.PartialLogCommitID;
+    internal static readonly string TruncatedLogCommitID =
+        gmd.Server.Private.Augmented.Repo.TruncatedLogCommitID;
     internal static readonly string UncommittedId =
         gmd.Server.Private.Augmented.Repo.UncommittedId;
     internal static readonly string UncommittedSid = UncommittedId.Sid();
@@ -45,7 +45,7 @@ record Repo
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()} @{repo.TimeStamp.IsoMilli()}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()} (@{repo.TimeStamp.IsoMilli()})";
 }
 
 
@@ -74,7 +74,7 @@ public record Commit(
     bool IsConflicted,
     bool IsAhead,
     bool IsBehind,
-    bool IsPartialLogCommit,
+    bool IsTruncatedLogCommit,
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser,
@@ -115,8 +115,6 @@ public record Branch(
     string ParentBranchCommonName,
     string PullMergeBranchName,
 
-    int AheadCount,
-    int BehindCount,
     bool HasLocalOnly,
     bool HasRemoteOnly,
     string AmbiguousTipId,
@@ -166,7 +164,7 @@ public record Status(
 record CommitDiff(
     string Id,
     string Author,
-    string Date,
+    DateTime Time,
     string Message,
     IReadOnlyList<FileDiff> FileDiffs
 )

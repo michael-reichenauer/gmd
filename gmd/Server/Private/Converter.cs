@@ -29,7 +29,7 @@ class Converter : IConverter
     public CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff)
     {
         var d = gitCommitDiff;
-        return new CommitDiff(d.Id, d.Author, d.Date, d.Message, ToFileDiffs(d.FileDiffs));
+        return new CommitDiff(d.Id, d.Author, d.Time, d.Message, ToFileDiffs(d.FileDiffs));
     }
 
     public Commit ToCommit(Augmented.Commit c, int index = -1) => new Commit(
@@ -54,7 +54,7 @@ class Converter : IConverter
         IsConflicted: c.IsConflicted,
         IsAhead: c.IsAhead,
         IsBehind: c.IsBehind,
-        IsPartialLogCommit: c.IsPartialLogCommit,
+        IsTruncatedLogCommit: c.IsTruncatedLogCommit,
         IsAmbiguous: c.IsAmbiguous,
         IsAmbiguousTip: c.IsAmbiguousTip,
         IsBranchSetByUser: c.IsBranchSetByUser,
@@ -82,8 +82,6 @@ class Converter : IConverter
         IsSetAsParent: b.IsSetAsParent,
         IsMainBranch: b.IsMainBranch,
 
-        AheadCount: b.AheadCount,
-        BehindCount: b.BehindCount,
         HasLocalOnly: b.HasAheadCommits,
         HasRemoteOnly: b.HasBehindCommits,
 

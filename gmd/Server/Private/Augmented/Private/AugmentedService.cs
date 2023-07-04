@@ -74,7 +74,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> FetchAsync(string path)
     {
-        using (Timing.Start("Fetched"))
+        // using (Timing.Start("Fetched"))
         {
             // pull meta data, but ignore error, if error is key not exist, it can be ignored,
             // if error is remote error, the following fetch will handle that
@@ -88,7 +88,6 @@ class AugmentedService : IAugmentedService
             return fetchTask.Result;
         }
     }
-
 
     public Task<R> FetchMetaDataAsync(string path) => metaDataService.FetchMetaDataAsync(path);
 
@@ -116,7 +115,9 @@ class AugmentedService : IAugmentedService
         if (!Try(out var stashes, out e, stashesTask.Result)) return e;
 
         // Combine all git info into one git repo info object
-        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData, stashes);
+        var timeStamp = DateTime.UtcNow;
+        fileMonitor.SetReadRepoTime(timeStamp);
+        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes);
         Log.Info($"GitRepo {t} {gitRepo}");
 
         if (gitRepo.Commits.Count == 0)
@@ -309,11 +310,11 @@ class AugmentedService : IAugmentedService
         Timing t = Timing.Start();
 
         if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path))) return e;
+        fileMonitor.SetReadStatusTime(DateTime.UtcNow);
 
         Log.Info($"{t} S:{gitStatus}");
         return gitStatus;
     }
-
 
     // GetAugmentedRepoAsync returns an augmented git repo, and monitors working folder changes
     async Task<R<Repo>> GetAugmentedRepoAsync(GitRepo gitRepo)
@@ -338,13 +339,13 @@ class AugmentedService : IAugmentedService
 
     R<GitRepo> EmptyRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
     {
-        var id = Repo.PartialLogCommitID;
+        var id = Repo.TruncatedLogCommitID;
         var msg = "<... empty repo ...>";
         var branchName = "main";
         var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),
             new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
         var branches = new List<Git.Branch>() { new Git.Branch(branchName, branchName, id,
-             true, false, "", false, 0, 0, false) };
+             true, false, "", false, 0, 0) };
         var stashes = new List<Git.Stash>();
 
         return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes);

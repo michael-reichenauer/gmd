@@ -29,8 +29,8 @@ class CommitService : ICommitService
             if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd))) return e;
         }
 
-        var amendText = isAmend ? "--amend" : "";
-        return await cmd.RunAsync("git", $"commit {amendText} -am \"{message}\"", wd);
+        var amendText = isAmend ? " --amend" : "";
+        return await cmd.RunAsync("git", $"commit{amendText} -am \"{message}\"", wd);
     }
 
 

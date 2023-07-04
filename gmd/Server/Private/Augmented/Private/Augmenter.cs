@@ -10,13 +10,13 @@ namespace gmd.Server.Private.Augmented.Private;
 // of branches. 
 interface IAugmenter
 {
-    Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax);
+    Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int truncatedLimit);
 }
 
 class Augmenter : IAugmenter
 {
     readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master", "origin/trunk", "trunk" };
-    const string partialBranchName = "<partial-branch>";
+    const string truncatedBranchName = "<truncated-branch>";
     readonly IBranchNameService branchNameService;
 
 
@@ -25,18 +25,18 @@ class Augmenter : IAugmenter
         this.branchNameService = branchNameService;
     }
 
-    public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int partialMax)
+    public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int truncateLimit)
     {
-        return Task.Run(() => GetAugRepo(gitRepo, partialMax));
+        return Task.Run(() => GetAugRepo(gitRepo, truncateLimit));
     }
 
-    WorkRepo GetAugRepo(GitRepo gitRepo, int partialMax)
+    WorkRepo GetAugRepo(GitRepo gitRepo, int truncateLimit)
     {
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, ToStatus(gitRepo));
 
         SetAugStashes(repo, gitRepo);
         SetAugBranches(repo, gitRepo);
-        SetAugCommits(repo, gitRepo, partialMax);
+        SetAugCommits(repo, gitRepo, truncateLimit);
         SetCommitBranches(repo, gitRepo);
         SetAugTags(repo, gitRepo);
         SetBranchByName(repo);
@@ -55,13 +55,13 @@ class Augmenter : IAugmenter
         Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
 
         repo.Branches
-            .Where(b => b.RemoteName == "" && b.PullMergeBranch == null)
+            .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
             .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
             var bottom = repo.CommitsById[b.BottomID];
-            var parentCommitSId = bottom.FirstParent?.Sid ?? "";
-            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSId}";
+            var parentCommitSid = bottom.FirstParent?.Sid ?? "";
+            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSid}";
             if (branchNameCount.TryGetValue(b.DisplayName, out var count))
             {   // Multiple branches with same display name, add a counter to the display name
                 branchNameCount[b.DisplayName] = ++count;
@@ -79,7 +79,7 @@ class Augmenter : IAugmenter
                 localBranch.DisplayName = b.DisplayName;
                 localBranch.CommonBaseName = b.CommonBaseName;
             }
-            b.PullMergeBranches.ForEach(pmb =>
+            b.PullMergeChildBranches.ForEach(pmb =>
             {
                 var br = repo.BranchByName[pmb.Name]!;
                 br.DisplayName = b.DisplayName;
@@ -123,14 +123,14 @@ class Augmenter : IAugmenter
         }
     }
 
-    void SetAugCommits(WorkRepo repo, GitRepo gitRepo, int partialMax)
+    void SetAugCommits(WorkRepo repo, GitRepo gitRepo, int truncateLimit)
     {
         IReadOnlyList<GitCommit> gitCommits = gitRepo.Commits;
-        // For repositories with a lot of commits, only the latest 'partialMax' number of commits
+        // For repositories with a lot of commits, only the latest 'truncateLimit' number of commits
 
-        // are used, i.w. partial commits, which should have parents, but they are unknown
-        bool isPartialPossible = gitCommits.Count >= partialMax;
-        bool isPartialNeeded = false;
+        // are used, i.w. truncated commits, which should have parents, but they are unknown
+        bool isTruncatedPossible = gitCommits.Count >= truncateLimit;
+        bool isTruncatedNeeded = false;
         repo.Commits.Capacity = gitCommits.Count;
 
         // Iterate git commits in reverse
@@ -144,27 +144,27 @@ class Augmenter : IAugmenter
             }
             WorkCommit commit = new WorkCommit(gc);
 
-            if (isPartialPossible)
+            if (isTruncatedPossible)
             {
                 // The repo was truncated, check if commits have missing parents, which will be set
-                // to a virtual/fake "partial commit"
+                // to a virtual/fake "truncated commit"
                 if (commit.ParentIds.Count > 0)
                 {
-                    // Not a merge commit but check if parent is missing and need a partial commit parent
+                    // Not a merge commit but check if parent is missing and need a truncated commit parent
                     if (!repo.CommitsById.TryGetValue(commit.ParentIds[0], out var parent))
                     {
-                        isPartialNeeded = true;
-                        commit.ParentIds[0] = Repo.PartialLogCommitID;
+                        isTruncatedNeeded = true;
+                        commit.ParentIds[0] = Repo.TruncatedLogCommitID;
                     }
                 }
 
                 if (commit.ParentIds.Count > 1)
                 {
-                    // Merge commit, check if parents are missing and need a partial commit parent
+                    // Merge commit, check if parents are missing and need a truncated commit parent
                     if (!repo.CommitsById.TryGetValue(commit.ParentIds[1], out var parent))
                     {
-                        isPartialNeeded = true;
-                        commit.ParentIds[1] = Repo.PartialLogCommitID;
+                        isTruncatedNeeded = true;
+                        commit.ParentIds[1] = Repo.TruncatedLogCommitID;
                     }
                 }
             }
@@ -189,14 +189,14 @@ class Augmenter : IAugmenter
 
         repo.Commits.Reverse();
 
-        if (isPartialNeeded)
+        if (isTruncatedNeeded)
         {
-            // Add a virtual/fake partial commit, which some commits will have as a parent
+            // Add a virtual/fake truncated commit, which some commits will have as a parent
             string msg = "< ... log truncated, more commits exists ... >";
             WorkCommit pc = new WorkCommit(
-                id: Repo.PartialLogCommitID, subject: msg, message: msg,
+                id: Repo.TruncatedLogCommitID, subject: msg, message: msg,
                 author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0]);
-            pc.IsPartialLogCommit = true;
+            pc.IsTruncatedLogCommit = true;
             pc.GitIndex = repo.Commits.Count;
             repo.Commits.Add(pc);
             repo.CommitsById[pc.Id] = pc;
@@ -330,10 +330,10 @@ class Augmenter : IAugmenter
         var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
 
         WorkBranch? branch;
-        if (commit.Id == Repo.PartialLogCommitID)
+        if (commit.Id == Repo.TruncatedLogCommitID)
         {
             commit.Branches.Clear();
-            return AddPartialBranch(repo);
+            return AddTruncatedBranch(repo);
         }
         else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
         {   // Commit branch was set/determined by user,
@@ -527,14 +527,14 @@ class Augmenter : IAugmenter
         if (commit.Branches.Count == 2 && commit.Children.Count == 2 &&
             commit.Children[0].Branch!.CommonName == commit.Children[1].Branch!.CommonName)
         {   // Commit has 2 children with same branch use that
-            if (commit.Children[0].Branch!.PullMergeBranch != null &&
-                commit.Children[0].Branch!.PullMergeBranch!.Name == commit.Children[1].Branch!.LocalName)
+            if (commit.Children[0].Branch!.PullMergeParentBranch != null &&
+                commit.Children[0].Branch!.PullMergeParentBranch!.Name == commit.Children[1].Branch!.LocalName)
             {   // child branch 0 is a pull merge of child 1 local of remote branch 1, prefer parent 1
                 branch = commit.Children[1].Branch;
                 commit.IsAmbiguous = commit.Children[1].IsAmbiguous;
                 return true;
             }
-            if (commit.Children[0].Branch!.PullMergeBranch == commit.Children[1].Branch)
+            if (commit.Children[0].Branch!.PullMergeParentBranch == commit.Children[1].Branch)
             {   // child branch 0 is a pull merge of child branch 1, prefer parent 1
                 branch = commit.Children[1].Branch;
                 commit.IsAmbiguous = commit.Children[1].IsAmbiguous;
@@ -572,16 +572,11 @@ class Augmenter : IAugmenter
                     // We need to connect this branch with the actual branch.
                     var pullMergeBranch = mergeChild.Branch;
                     branch = AddPullMergeBranch(repo, commit, name, pullMergeBranch!);
-                    pullMergeBranch!.PullMergeBranches.TryAdd(branch);
+                    pullMergeBranch!.PullMergeChildBranches.TryAdd(branch);
                     return true;
                 }
 
                 branch = AddNamedBranch(repo, commit, name);
-
-                if (branchNameService.IsPullRequest(mergeChild))
-                {
-                    branch.PullRequestParent = mergeChild.Branch!.Name;
-                }
 
                 return true;
             }
@@ -923,21 +918,21 @@ class Augmenter : IAugmenter
             commonName: pullMergeBranch.CommonName,
             displayName: displayName,
             tipID: c.Id);
-        branch.PullMergeBranch = pullMergeBranch;
+        branch.PullMergeParentBranch = pullMergeBranch;
 
         repo.Branches.Add(branch);
         return branch;
     }
 
-    WorkBranch AddPartialBranch(WorkRepo repo)
+    WorkBranch AddTruncatedBranch(WorkRepo repo)
     {
-        var branchName = partialBranchName;
-        var displayName = partialBranchName;
+        var branchName = truncatedBranchName;
+        var displayName = truncatedBranchName;
         var branch = new WorkBranch(
             name: branchName,
             commonName: branchName,
             displayName: displayName,
-            tipID: Repo.PartialLogCommitID);
+            tipID: Repo.TruncatedLogCommitID);
 
         repo.Branches.Add(branch);
         return branch;
@@ -1060,8 +1055,8 @@ class Augmenter : IAugmenter
         }
 
         // A repo can have several root branches
-        var partialBranch = repo.Branches.FirstOrDefault(b => b.Name == partialBranchName);
-        var rootBranches = repo.Branches.Where(b => b.ParentBranch == null || b.ParentBranch == partialBranch).ToList();
+        var truncatedBranch = repo.Branches.FirstOrDefault(b => b.Name == truncatedBranchName);
+        var rootBranches = repo.Branches.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
         if (!rootBranches.Any())
         {   // No root branches (empty repo)
             return;
@@ -1079,15 +1074,15 @@ class Augmenter : IAugmenter
             }
         }
 
-        if (partialBranch != null)
+        if (truncatedBranch != null)
         {
-            var partialCommit = repo.CommitsById[Repo.PartialLogCommitID];
-            partialCommit.Branch = rootBranch;
+            var truncatedCommit = repo.CommitsById[Repo.TruncatedLogCommitID];
+            truncatedCommit.Branch = rootBranch;
             rootBranch.ParentBranch = null;
-            rootBranch.BottomID = partialCommit.Id;
-            repo.Branches.Remove(partialBranch);
+            rootBranch.BottomID = truncatedCommit.Id;
+            repo.Branches.Remove(truncatedBranch);
             repo.Branches
-                .Where(b => b.ParentBranch == partialBranch)
+                .Where(b => b.ParentBranch == truncatedBranch)
                 .ForEach(b => b.ParentBranch = rootBranch);
         }
 

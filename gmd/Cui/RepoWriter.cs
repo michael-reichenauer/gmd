@@ -218,7 +218,7 @@ class RepoWriter : IRepoWriter
         else if (c.IsUncommitted) { text.BrightYellow(c.Subject); }
         else if (c.IsAhead) { text.BrightGreen(c.Subject); }
         else if (c.IsBehind) { text.BrightBlue(c.Subject); }
-        else if (c.Id == Repo.PartialLogCommitID) { text.Dark(c.Subject); }
+        else if (c.Id == Repo.TruncatedLogCommitID) { text.Dark(c.Subject); }
         else if (c.BranchCommonName == currentRowBranch.CommonName) { text.White(c.Subject); }
         else { text.Dark(c.Subject); }
 
