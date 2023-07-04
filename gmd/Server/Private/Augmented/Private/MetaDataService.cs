@@ -7,13 +7,24 @@ public class MetaData
 {
     public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
 
-    internal void SetCommitBranch(string sid, string branchName) => CommitBranchBySid[sid] = "*" + branchName;
 
-    internal void SetBranched(string sid, string branchName) => CommitBranchBySid[sid] = branchName;
 
-    internal void Remove(string sid) => SetCommitBranch(sid, "");  // Mark as removed to support sync
+    internal void SetCommitBranch(string sid, string branchName)
+    {
+        CommitBranchBySid[sid] = "*" + branchName;
+    }
 
-    internal bool TryGet(string sid, out string branchName, out bool isSetByUser)
+    internal void SetBranched(string sid, string branchName)
+    {
+        CommitBranchBySid[sid] = branchName;
+    }
+
+    internal void RemoveCommitBranch(string sid)
+    {
+        SetCommitBranch(sid, "");  // Mark as removed to support sync
+    }
+
+    internal bool TryGetCommitBranch(string sid, out string branchName, out bool isSetByUser)
     {
         branchName = "";
         isSetByUser = false;
@@ -36,6 +47,7 @@ public class MetaData
         return false;
     }
 }
+
 
 interface IMetaDataService
 {
@@ -74,7 +86,7 @@ class MetaDataService : IMetaDataService
             return e;
         };
 
-        // Log.Info($"Read:\n{json}");
+        Log.Info($"Read:\n{json}");
         if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
         //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
         return data;

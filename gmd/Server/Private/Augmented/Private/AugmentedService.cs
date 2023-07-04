@@ -261,7 +261,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.Remove(commitId.Sid());
+            metaData.RemoveCommitBranch(commitId.Sid());
 
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
