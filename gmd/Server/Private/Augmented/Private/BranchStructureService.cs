@@ -170,18 +170,17 @@ class BranchStructureService : IBranchStructureService
             // or use a generic branch name based on commit id
             return branch!;
         }
-
-        // else if (TryHasBranchNameInSubject(repo, commit, out branch))
-        // {   // A branch name could be parsed form the commit subject or a child subject.
-        //     // The commit will be set to that branch and also if above (first child) commits have
-        //     // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
-        //     // when a parsable commit subjects are encountered.
-        //     return branch!;
-        // }
-        // else if (TryHasOnlyOneChild(commit, out branch))
-        // {   // Commit has one child commit reuse that child commit branch
-        //     return branch!;
-        // }
+        else if (TryHasBranchNameInSubject(repo, commit, out branch))
+        {   // A branch name could be parsed form the commit subject or a child subject.
+            // The commit will be set to that branch and also if above (first child) commits have
+            // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
+            // when a parsable commit subjects are encountered.
+            return branch!;
+        }
+        else if (TryHasOnlyOneChild(commit, out branch))
+        {   // Commit has one child commit reuse that child commit branch
+            return branch!;
+        }
         // // old // else if (TryHasOneChildInDeletedBranch(commit, out branch)) // Not needed any more??
         // //  old // {   // Commit is middle commit in a deleted branch with only one child above, use same branch
         // //  old //    return branch!;
@@ -502,10 +501,7 @@ class BranchStructureService : IBranchStructureService
     {
         branch = null;
 
-        if (!branchNameService.TryGetBranchName(commit.Id, out var name))
-        {
-            return false;
-        }
+        if (!branchNameService.TryGetBranchName(commit.Id, out var name)) return false;
 
         // A branch name could be parsed form the commit subject or a merge child subject.
         branch = TryGetBranchFromName(commit, name);
@@ -642,9 +638,9 @@ class BranchStructureService : IBranchStructureService
         return branch;
     }
 
-    private bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)
+    bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)
     {
-        if (commit.Children.Count == 1)//  Why is was this needed??? && c.MergeChildren.Count == 0)
+        if (commit.Children.Count == 1)
         {   // Commit has only one child, ensure commit has same possible branches
             var child = commit.Children[0];
             if (commit.Branches.Count != child.Branches.Count)
@@ -674,7 +670,7 @@ class BranchStructureService : IBranchStructureService
     }
 
 
-    private bool TryIsChildAmbiguousCommit(WorkCommit commit, out WorkBranch? branch)
+    bool TryIsChildAmbiguousCommit(WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
         var ambiguousChild = commit.Children.FirstOrDefault(c => c.IsAmbiguous);
