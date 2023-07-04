@@ -164,7 +164,7 @@ class BranchStructureService : IBranchStructureService
             return branch!;
         }
         else if (TryIsStrangeDeletedBranchTip(repo, commit, out branch))
-        {   // Commit has no branches and no children, but has a merge child.
+        {   // Commit has no branches and no children, but may have merge children.
             // The commit is a tip of a deleted remote branch.
             // Lets try determine branch name based on merge child's subject 
             // or use a generic branch name based on commit id
@@ -181,28 +181,22 @@ class BranchStructureService : IBranchStructureService
         {   // Commit has one child commit reuse that child commit branch
             return branch!;
         }
-        // // old // else if (TryHasOneChildInDeletedBranch(commit, out branch)) // Not needed any more??
-        // //  old // {   // Commit is middle commit in a deleted branch with only one child above, use same branch
-        // //  old //    return branch!;
-        // //  old  //}
-        // else if (TryHasOneChildWithLikelyBranch(commit, out branch))
-        // {   // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
-        //     return branch!;
-        // }
-        // else if (TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
-        // {   // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
-        //     return branch!;
-        // }
-        // // old //else if (TryAllChildrenArePullRequests(repo, commit, out branch))
-        // // old //{
-        // // old //    return branch!;
-        // //old // }
-        // else if (TrySameChildrenBranches(commit, out branch))
-        // {   // For e.g. pull merges, a commit can have two children with same logical branch
-        //     return branch!;
-        // }
+        else if (TryHasOneChildWithLikelyBranch(commit, out branch))
+        {   // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
+            return branch!;
+        }
+        else if (TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
+        {   // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
+            return branch!;
+        }
+        else if (TrySameChildrenBranches(commit, out branch))
+        {   // For e.g. pull merges, a commit can have two children with same logical branch
+            return branch!;
+        }
         // else if (TryIsMergedBranchesToParent(repo, commit, out branch))
         // {
+        //     // Checks if a commit with 2 children and if the one child branch is merged into the 
+        //     // other child branch. E.g. like a pull request or feature branch
         //     return branch!;
         // }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
@@ -215,7 +209,6 @@ class BranchStructureService : IBranchStructureService
         // commits, or the user has to manually set the branch.
         return AddAmbiguousCommit(repo, commit);
     }
-
 
 
     // Checks if a commit with 2 children and if the one child branch is merged into the 
@@ -251,21 +244,6 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-    // bool TryAllChildrenArePullRequests(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
-    // {
-    //     branch = null;
-    //     foreach (var c in commit.Children)
-    //     {
-    //         if (commit.Children.Where(cc => cc != c)
-    //             .All(cc => cc.Branch!.PullRequestParent == c.Branch!.Name))
-    //         {
-    //             branch = c.Branch!;
-    //             return TrySetBranch(repo, commit, branch);
-    //         }
-    //     }
-
-    //     return false;
-    // }
 
     bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
@@ -294,6 +272,7 @@ class BranchStructureService : IBranchStructureService
         return TrySetBranch(repo, commit, branch);
     }
 
+    // Commit only has one branch, use that
     bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 1)
@@ -306,6 +285,7 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
+    // Commit has only local and its remote branch, prefer remote remote branch
     bool TryIsLocalRemoteBranch(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 2)
@@ -327,6 +307,7 @@ class BranchStructureService : IBranchStructureService
     }
 
 
+    // For e.g. pull merges, a commit can have two children with same logical branch
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 2 && commit.Children.Count == 2 &&
@@ -355,7 +336,12 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-    private bool TryIsMergedDeletedRemoteBranchTip(
+
+    // Commit has no branches and no children, but has a merge child.
+    // The commit is a tip of a deleted branch. It might be a deleted remote branch.
+    // Lets try determine branch name based on merge child's subject
+    // or use a generic branch name based on commit id
+    bool TryIsMergedDeletedRemoteBranchTip(
         WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.Children.Count == 0 && commit.MergeChildren.Count == 1)
@@ -393,7 +379,11 @@ class BranchStructureService : IBranchStructureService
     }
 
 
-    private bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    // Commit has no branches and no children, but may have merge children.
+    // The commit is a tip of a deleted remote branch.
+    // Lets try determine branch name based on merge child's subject 
+    // or use a generic branch name based on commit id
+    bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.Children.Count == 0)
         {   // Commit has no branch, and no children, must be a deleted branch tip unusual branch
@@ -415,19 +405,7 @@ class BranchStructureService : IBranchStructureService
     }
 
 
-    // private bool TryHasOneChildInDeletedBranch(WorkCommit commit, out WorkBranch? branch)
-    // {
-    //     if (commit.Branches.Count == 0 && commit.Children.Count == 1 && !commit.Children[0].IsAmbiguous)
-    //     {   // Commit has no branch, but it has one child commit, use that child commit branch
-    //         branch = commit.Children[0].Branch;
-    //         commit.IsAmbiguous = commit.Children[0].IsAmbiguous;
-    //         return true;
-    //     }
-
-    //     branch = null;
-    //     return false;
-    // }
-
+    // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
     bool TryHasOneChildWithLikelyBranch(WorkCommit c, out WorkBranch? branch)
     {
         if (c.Children.Count == 1 && c.Children[0].IsLikely)
@@ -441,6 +419,7 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
+    // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
     bool TryHasMultipleChildrenWithOneLikelyBranch(WorkCommit c, out WorkBranch? branch)
     {
         branch = null;
@@ -475,13 +454,11 @@ class BranchStructureService : IBranchStructureService
     }
 
 
+    // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
     bool TryHasMainBranch(WorkCommit c, out WorkBranch? branch)
     {
-        if (c.Branches.Count < 1)
-        {
-            branch = null;
-            return false;
-        }
+        branch = null;
+        if (c.Branches.Count < 1) return false;
 
         // Check if commit has one of the main branches
         foreach (var name in MainBranchNamePriority)
@@ -493,10 +470,13 @@ class BranchStructureService : IBranchStructureService
             }
         }
 
-        branch = null;
         return false;
     }
 
+    // A branch name could be parsed form the commit subject or a child subject.
+    // The commit will be set to that branch and also if above (first child) commits have
+    // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
+    // when a parsable commit subjects are encountered.
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
@@ -638,6 +618,7 @@ class BranchStructureService : IBranchStructureService
         return branch;
     }
 
+    // Commit has one child commit reuse that child commit branch
     bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Children.Count == 1)
