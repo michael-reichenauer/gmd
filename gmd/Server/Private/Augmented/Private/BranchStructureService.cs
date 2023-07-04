@@ -193,14 +193,13 @@ class BranchStructureService : IBranchStructureService
         {   // For e.g. pull merges, a commit can have two children with same logical branch
             return branch!;
         }
-        // else if (TryIsMergedBranchesToParent(repo, commit, out branch))
-        // {
-        //     // Checks if a commit with 2 children and if the one child branch is merged into the 
-        //     // other child branch. E.g. like a pull request or feature branch
-        //     return branch!;
-        // }
+        else if (TryIsMergedBranchesToParent(repo, commit, out branch))
+        {   // Checks if a commit with 2 children and if the one child branch is merged into the 
+            // other child branch. E.g. like a pull request or feature branch
+            return branch!;
+        }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
-        {   // one of the commit children is a an ambiguous commit, reuse same branch
+        {   // If one of the commit children is a an ambiguous commit, reuse same branch
             return branch!;
         }
 
@@ -208,40 +207,6 @@ class BranchStructureService : IBranchStructureService
         // create a new ambiguous branch. Later commits may fix this by parsing subjects of later
         // commits, or the user has to manually set the branch.
         return AddAmbiguousCommit(repo, commit);
-    }
-
-
-    // Checks if a commit with 2 children and if the one child branch is merged into the 
-    // other child branch. E.g. like a pull request or feature branch
-    bool TryIsMergedBranchesToParent(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
-    {
-        branch = null;
-        if (commit.Children.Count == 2) // Could support more children as well
-        {
-            var b1 = commit.Children[0].Branch!;
-            var b1MergeChildren = repo.CommitsById[b1.TipID].MergeChildren;
-            var b1Bottom = repo.CommitsById[b1.BottomID];
-            var b2 = commit.Children[1].Branch!;
-            var b2MergeChildren = repo.CommitsById[b2.TipID].MergeChildren;
-            var b2Bottom = repo.CommitsById[b2.BottomID];
-
-            if (!b2.IsGitBranch && b2Bottom.FirstParent == commit &&
-                b2MergeChildren.Count == 1 &&
-                b2MergeChildren[0].Branch == b1)
-            {
-                branch = b1;
-                return true;
-            }
-            if (!b1.IsGitBranch && b1Bottom.FirstParent == commit &&
-                b1MergeChildren.Count == 1 &&
-                b1MergeChildren[0].Branch == b2)
-            {
-                branch = b2;
-                return true;
-            }
-        }
-
-        return false;
     }
 
 
@@ -650,7 +615,41 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
+    // Checks if a commit with 2 children and if the one child branch is merged into the 
+    // other child branch. E.g. like a pull request or feature branch
+    bool TryIsMergedBranchesToParent(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        if (commit.Children.Count == 2) // Could support more children as well
+        {
+            var b1 = commit.Children[0].Branch!;
+            var b1MergeChildren = repo.CommitsById[b1.TipID].MergeChildren;
+            var b1Bottom = repo.CommitsById[b1.BottomID];
+            var b2 = commit.Children[1].Branch!;
+            var b2MergeChildren = repo.CommitsById[b2.TipID].MergeChildren;
+            var b2Bottom = repo.CommitsById[b2.BottomID];
 
+            if (!b2.IsGitBranch && b2Bottom.FirstParent == commit &&
+                b2MergeChildren.Count == 1 &&
+                b2MergeChildren[0].Branch == b1)
+            {
+                branch = b1;
+                return true;
+            }
+            if (!b1.IsGitBranch && b1Bottom.FirstParent == commit &&
+                b1MergeChildren.Count == 1 &&
+                b1MergeChildren[0].Branch == b2)
+            {
+                branch = b2;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    // If one of the commit children is a an ambiguous commit, reuse same branch
     bool TryIsChildAmbiguousCommit(WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
@@ -732,7 +731,10 @@ class BranchStructureService : IBranchStructureService
         return branch;
     }
 
-    internal WorkBranch AddAmbiguousCommit(WorkRepo repo, WorkCommit c)
+    // Commit, has several possible branches, and we could not determine which branch is best,
+    // create a new ambiguous branch. Later commits may fix this by parsing subjects of later
+    // commits, or the user has to manually set the branch.
+    WorkBranch AddAmbiguousCommit(WorkRepo repo, WorkCommit c)
     {
         WorkBranch? branch = null;
         List<WorkBranch>? ambiguousBranches = null;
