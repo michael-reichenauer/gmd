@@ -6,11 +6,9 @@ namespace gmd.Server.Private.Augmented.Private;
 
 interface IBranchNameService
 {
-    FromInto ParseCommit(WorkCommit c);
+    void ParseCommitSubject(WorkCommit c);
     bool IsPullMerge(WorkCommit c);
-    bool IsPullRequest(WorkCommit c);
-    string GetBranchName(string commitId);
-    FromInto ParseSubject(string subject);
+    bool TryGetBranchName(string commitId, out string branchName);
 }
 
 
@@ -41,14 +39,15 @@ class BranchNameService : IBranchNameService
         RegexOptions.IgnoreCase);
     static readonly Indexes indexes = NameRegExpIndexes();
 
-    public string GetBranchName(string commitId)
-    {
-        if (!branchNames.TryGetValue(commitId, out var branchName))
-        {
-            return "";
-        }
 
-        return branchName;
+    public void ParseCommitSubject(WorkCommit c)
+    {
+        ParseCommit(c);
+    }
+
+    public bool TryGetBranchName(string commitId, out string branchName)
+    {
+        return branchNames.TryGetValue(commitId, out branchName!) && branchName != "";
     }
 
     public bool IsPullMerge(WorkCommit c)
@@ -57,13 +56,8 @@ class BranchNameService : IBranchNameService
         return fi.IsPullMerge;
     }
 
-    public bool IsPullRequest(WorkCommit c)
-    {
-        var fi = ParseCommit(c);
-        return fi.IsPullRequest;
-    }
 
-    public FromInto ParseCommit(WorkCommit c)
+    FromInto ParseCommit(WorkCommit c)
     {
         if (c.ParentIds.Count != 2)
         {
@@ -110,8 +104,6 @@ class BranchNameService : IBranchNameService
 
     public FromInto ParseSubject(string subject)
     {
-        subject = ""; // ########### Disable parsing of subject
-
         subject = subject.Trim();
         //var matches = nameRegExp.FindAllStringSubmatch(subject, -1);
         var matches = branchesRegEx.Matches(subject);

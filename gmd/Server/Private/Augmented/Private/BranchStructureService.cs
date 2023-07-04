@@ -72,7 +72,7 @@ class BranchStructureService : IBranchStructureService
         foreach (var c in repo.Commits)
         {
             // Parsing commit subject to if possible determine likely branch name
-            branchNameService.ParseCommit(c);
+            branchNameService.ParseCommitSubject(c);
 
             if (c.ParentIds.Count == 2 && branchNameService.IsPullMerge(c))
             {   // if the commit is a pull merge, we do switch the order of parents
@@ -117,10 +117,8 @@ class BranchStructureService : IBranchStructureService
             c.Branches.TryAdd(branch);
 
             // Set the IsLikely property if the branch is likly to be the correct branch
-            string name = branchNameService.GetBranchName(c.Id);
-            if (c.Branch.CommonName == name)
-            {
-                // This flag might improve other commits below to select correct branch;
+            if (branchNameService.TryGetBranchName(c.Id, out string name) && branch.Name == name)
+            {   // This flag might improve other commits below to select correct branch;
                 c.IsLikely = true;
             }
 
@@ -158,20 +156,20 @@ class BranchStructureService : IBranchStructureService
         {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
             return branch!;
         }
-        // else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
-        // {   // Commit has no branches and no children, but has a merge child.
-        //     // The commit is a tip of a deleted branch. It might be a deleted remote branch.
-        //     // Lets try determine branch name based on merge child's subject
-        //     // or use a generic branch name based on commit id
-        //     return branch!;
-        // }
-        // else if (TryIsMergedDeletedBranchTip(repo, commit, out branch))
-        // {   // Commit has no branches and no children, but has a merge child.
-        //     // The commit is a tip of a deleted remote branch.
-        //     // Lets try determine branch name based on merge child's subject 
-        //     // or use a generic branch name based on commit id
-        //     return branch!;
-        // }
+        else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
+        {   // Commit has no branches and no children, but has a merge child.
+            // The commit is a tip of a deleted branch. It might be a deleted remote branch.
+            // Lets try determine branch name based on merge child's subject
+            // or use a generic branch name based on commit id
+            return branch!;
+        }
+        else if (TryIsStrangeDeletedBranchTip(repo, commit, out branch))
+        {   // Commit has no branches and no children, but has a merge child.
+            // The commit is a tip of a deleted remote branch.
+            // Lets try determine branch name based on merge child's subject 
+            // or use a generic branch name based on commit id
+            return branch!;
+        }
 
         // else if (TryHasBranchNameInSubject(repo, commit, out branch))
         // {   // A branch name could be parsed form the commit subject or a child subject.
@@ -366,18 +364,16 @@ class BranchStructureService : IBranchStructureService
             // deleted branch that was merged into some other branch.
             // Trying to use parsed branch name from the merge children subjects e.g. like:
             // "Merge branch 'branch-name' into develop"
-            string name = branchNameService.GetBranchName(commit.Id);
-
-            if (name != "")
+            if (branchNameService.TryGetBranchName(commit.Id, out var name))
             {   // Managed to parse a branch-name 
                 var mergeChild = commit.MergeChildren[0];
 
                 if (branchNameService.IsPullMerge(mergeChild) &&
                     mergeChild.Branch!.DisplayName == name)
-                {
+                {   // The branch is a pull name and has same name as the branch is was merged into
                     // The merge child is a pull merge, so this commit is on a "dead" branch part,
                     // which used to be the local branch of the pull merge commit.
-                    // We need to connect this branch with the actual branch.
+                    // Lets connect this branch with the actual branch.
                     var pullMergeBranch = mergeChild.Branch;
                     branch = AddPullMergeBranch(repo, commit, name, pullMergeBranch!);
                     pullMergeBranch!.PullMergeChildBranches.TryAdd(branch);
@@ -385,7 +381,6 @@ class BranchStructureService : IBranchStructureService
                 }
 
                 branch = AddNamedBranch(repo, commit, name);
-
                 return true;
             }
 
@@ -399,13 +394,13 @@ class BranchStructureService : IBranchStructureService
     }
 
 
-    private bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    private bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.Children.Count == 0)
-        {   // Commit has no branch, must be a deleted branch tip merged into some branch or unusual branch
+        {   // Commit has no branch, and no children, must be a deleted branch tip unusual branch
             // Trying to use parsed branch name from one of the merge children subjects e.g. Merge branch 'a' into develop
-            string name = branchNameService.GetBranchName(commit.Id);
-            if (name != "")
+
+            if (branchNameService.TryGetBranchName(commit.Id, out var name))
             {   // Managed to parse a branch name
                 branch = AddNamedBranch(repo, commit, name);
                 return true;
@@ -507,8 +502,7 @@ class BranchStructureService : IBranchStructureService
     {
         branch = null;
 
-        string name = branchNameService.GetBranchName(commit.Id);
-        if (name == "")
+        if (!branchNameService.TryGetBranchName(commit.Id, out var name))
         {
             return false;
         }
