@@ -69,7 +69,8 @@ public record Commit(
 public record Branch(
     string Name,
     string CommonName,
-    string DisplayName,
+    string HumanName,
+    string ViewName,
     string TipId,
     string BottomId,
     bool IsCurrent,

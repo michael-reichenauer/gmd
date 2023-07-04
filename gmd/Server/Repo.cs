@@ -96,7 +96,8 @@ public enum More
 public record Branch(
     string Name,
     string CommonName,
-    string DisplayName,
+    string HumanName,
+    string ViewName,    // Name to human in the view (unique human name with number)
     string TipId,
     string BottomId,
     bool IsCurrent,

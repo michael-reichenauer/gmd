@@ -229,11 +229,11 @@ class Server : IServer
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
 
-    public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName) =>
-        augmentedService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setDisplayName);
+    public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
+        augmentedService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setHumanName);
 
-    public Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName) =>
-        augmentedService.SetBranchManuallyAsync(repo.AugmentedRepo, commitId, setDisplayName);
+    public Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName) =>
+        augmentedService.SetBranchManuallyAsync(repo.AugmentedRepo, commitId, setHumanName);
 
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
         augmentedService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);

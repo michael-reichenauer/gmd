@@ -23,9 +23,9 @@ interface IAugmentedService
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
 
-    Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName);
+    Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<R> UnresolveAmbiguityAsync(Repo augmentedRepo, string commitId);
-    Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName);
+    Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
     Task<R> PushMetaDataAsync(string wd);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
     Task<R> SwitchToAsync(Repo repo, string branchName);
