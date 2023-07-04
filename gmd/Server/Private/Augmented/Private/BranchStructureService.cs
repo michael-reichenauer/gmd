@@ -152,11 +152,11 @@ class BranchStructureService : IBranchStructureService
         {   // Commit only has one branch, use that
             return branch!;
         }
-        // else if (TryIsLocalRemoteBranch(commit, out branch))
-        // {   // Commit has only local and its remote branch, prefer remote remote branch
-        //     commit.Branches.Clear();
-        //     return branch!;
-        // }
+        else if (TryIsLocalRemoteBranch(commit, out branch))
+        {   // Commit has only local and its remote branch, prefer remote remote branch
+            commit.Branches.Clear();
+            return branch!;
+        }
         // else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
         // {   // Commit has no branches and no children, but has a merge child.
         //     // The commit is a tip of a deleted branch. It might be a deleted remote branch.
