@@ -140,10 +140,10 @@ class BranchStructureService : IBranchStructureService
         {
             return AddTruncatedBranch(repo);
         }
-        // else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
-        // {   // Commit branch was set/determined by user,
-        //     return branch!;
-        // }
+        else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
+        {   // Commit branch was set/determined by user,
+            return branch!;
+        }
         else if (TryHasOnlyOneBranch(commit, out branch))
         {   // Commit only has one branch, use that
             return branch!;
@@ -210,6 +210,7 @@ class BranchStructureService : IBranchStructureService
     }
 
 
+    // Commit branch was set/determined by user,
     bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
@@ -224,6 +225,7 @@ class BranchStructureService : IBranchStructureService
             return false;
         }
 
+        // Prefer remote branches over local branches 
         var remote = branches.FirstOrDefault(b => b.IsRemote);
         if (remote != null)
         {
@@ -232,6 +234,7 @@ class BranchStructureService : IBranchStructureService
             return TrySetBranch(repo, commit, branch);
         }
 
+        // Just use the first branch with that display name
         commit.IsBranchSetByUser = isSetByUser;
         branch = branches.First();
         return TrySetBranch(repo, commit, branch);
