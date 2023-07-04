@@ -8,7 +8,7 @@ interface IBranchStructureService
 
 class BranchStructureService : IBranchStructureService
 {
-    readonly string[] DefaultBranchPriority = new string[] { "origin/main", "main", "origin/master", "master", "origin/trunk", "trunk" };
+    readonly string[] MainBranchNamePriority = new string[] { "origin/main", "main", "origin/master", "master", "origin/trunk", "trunk" };
     const string truncatedBranchName = "<truncated-branch>";
 
 
@@ -140,12 +140,10 @@ class BranchStructureService : IBranchStructureService
         WorkBranch? branch;
         if (commit.Id == Repo.TruncatedLogCommitID)
         {
-            commit.Branches.Clear();
             return AddTruncatedBranch(repo);
         }
         // else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
         // {   // Commit branch was set/determined by user,
-        //     commit.Branches.Clear();
         //     return branch!;
         // }
         else if (TryHasOnlyOneBranch(commit, out branch))
@@ -154,7 +152,10 @@ class BranchStructureService : IBranchStructureService
         }
         else if (TryIsLocalRemoteBranch(commit, out branch))
         {   // Commit has only local and its remote branch, prefer remote remote branch
-            commit.Branches.Clear();
+            return branch!;
+        }
+        else if (TryHasMainBranch(commit, out branch))
+        {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
             return branch!;
         }
         // else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
@@ -171,10 +172,7 @@ class BranchStructureService : IBranchStructureService
         //     // or use a generic branch name based on commit id
         //     return branch!;
         // }
-        // else if (TryHasMainBranch(commit, out branch))
-        // {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
-        //     return branch!;
-        // }
+
         // else if (TryHasBranchNameInSubject(repo, commit, out branch))
         // {   // A branch name could be parsed form the commit subject or a child subject.
         //     // The commit will be set to that branch and also if above (first child) commits have
@@ -492,7 +490,7 @@ class BranchStructureService : IBranchStructureService
         }
 
         // Check if commit has one of the main branches
-        foreach (var name in DefaultBranchPriority)
+        foreach (var name in MainBranchNamePriority)
         {
             branch = c.Branches.Find(b => b.Name == name);
             if (branch != null)
@@ -711,7 +709,7 @@ class BranchStructureService : IBranchStructureService
             return;
         }
 
-        if (DefaultBranchPriority.Contains(c.Branch.Name))
+        if (MainBranchNamePriority.Contains(c.Branch.Name))
         {   // main and develop are special and will make a "backbone" for other branches to depend on
             // Adding this branch to the first parent branches will make it likly to be set as
             // branch for the parent as well, and so on up to the first (oldest/last) commit.
@@ -875,7 +873,7 @@ class BranchStructureService : IBranchStructureService
 
         // Select most likely root branch (but prioritize)
         var rootBranch = rootBranches.First();
-        foreach (var name in DefaultBranchPriority)
+        foreach (var name in MainBranchNamePriority)
         {
             var branch = rootBranches.FirstOrDefault(b => b.Name == name);
             if (branch != null)
