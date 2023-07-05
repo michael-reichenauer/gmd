@@ -70,6 +70,10 @@ class Server : IServer
     public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
     {
         filter = filter.Trim();
+        if (filter == "") return new List<Commit>();
+        if (filter == "$") return converter.ToCommits(repo.AugmentedRepo.Commits
+            .Where(c => c.IsBranchSetByUser).ToList());
+
         var sc = StringComparison.OrdinalIgnoreCase;
 
         // I need extract all text encloused by double quotes.

@@ -68,7 +68,7 @@ class FilterDlg : IFilterDlg
                 return;
             }
             currentFilter = filterText;
-            if (filterText.Length < 2)
+            if (filterText.Length < 2 && filterText != "$")
             {
                 commits = new List<Server.Commit>();
                 contentView.TriggerUpdateContent(commits.Count);
