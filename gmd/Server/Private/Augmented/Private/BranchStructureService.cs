@@ -200,8 +200,10 @@ class BranchStructureService : IBranchStructureService
         }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
         {   // If one of the commit children is a an ambiguous commit, reuse same branch
+            Log.Info($"Commit {commit.Sid} has ambiguous child commit {branchNames}");
             return branch!;
         }
+        Log.Warn($"Ambiguous branch {commit}");
 
         // Commit, has several possible branches, and we could not determine which branch is best,
         // create a new ambiguous branch. Later commits may fix this by parsing subjects of later
@@ -218,6 +220,7 @@ class BranchStructureService : IBranchStructureService
         {   // Commit has not a branch set by user
             return false;
         }
+        Log.Info($"Commit {commit.Sid} has branch set by user: {branchHumanName} ({isSetByUser})");
 
         var branches = commit.Branches.Where(b => b.HumanName == branchHumanName);
         if (!branches.Any())

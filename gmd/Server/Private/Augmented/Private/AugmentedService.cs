@@ -113,11 +113,12 @@ class AugmentedService : IAugmentedService
         if (!Try(out var status, out e, statusTask.Result)) return e;
         if (!Try(out var metaData, out e, metaDataTask.Result)) return e;
         if (!Try(out var stashes, out e, stashesTask.Result)) return e;
+        var isTruncated = log.Count == maxCommitCount;
 
         // Combine all git info into one git repo info object
         var timeStamp = DateTime.UtcNow;
         fileMonitor.SetReadRepoTime(timeStamp);
-        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes);
+        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes, isTruncated);
         Log.Info($"GitRepo {t} {gitRepo}");
 
         if (gitRepo.Commits.Count == 0)
@@ -322,7 +323,7 @@ class AugmentedService : IAugmentedService
         fileMonitor.Monitor(gitRepo.Path);
 
         Timing t = Timing.Start();
-        WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
+        WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo);
 
         var repo = converter.ToRepo(augRepo);
         Log.Info($"Augmented {t} {repo}");
@@ -348,6 +349,6 @@ class AugmentedService : IAugmentedService
              true, false, "", false, 0, 0) };
         var stashes = new List<Git.Stash>();
 
-        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes);
+        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes, false);
     }
 }
