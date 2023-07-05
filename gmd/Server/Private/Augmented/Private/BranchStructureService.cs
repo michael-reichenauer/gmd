@@ -214,12 +214,12 @@ class BranchStructureService : IBranchStructureService
     bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Sid, out var branchDisplayName, out var isSetByUser))
+        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Sid, out var branchHumanName, out var isSetByUser))
         {   // Commit has not a branch set by user
             return false;
         }
 
-        var branches = commit.Branches.Where(b => b.DisplayName == branchDisplayName);
+        var branches = commit.Branches.Where(b => b.HumanName == branchHumanName);
         if (!branches.Any())
         {   // Branch once set by user is no longer possible (might have changed name or something)
             return false;
@@ -234,7 +234,7 @@ class BranchStructureService : IBranchStructureService
             return TrySetBranch(repo, commit, branch);
         }
 
-        // Just use the first branch with that display name
+        // Just use the first branch with that human name
         commit.IsBranchSetByUser = isSetByUser;
         branch = branches.First();
         return TrySetBranch(repo, commit, branch);
@@ -322,7 +322,7 @@ class BranchStructureService : IBranchStructureService
                 var mergeChild = commit.MergeChildren[0];
 
                 if (branchNameService.IsPullMerge(mergeChild) &&
-                    mergeChild.Branch!.DisplayName == name)
+                    mergeChild.Branch!.HumanName == name)
                 {   // The branch is a pull name and has same name as the branch is was merged into
                     // The merge child is a pull merge, so this commit is on a "dead" branch part,
                     // which used to be the local branch of the pull merge commit.
@@ -576,8 +576,8 @@ class BranchStructureService : IBranchStructureService
             return branch;
         }
 
-        // Try find a branch with the display name
-        branch = commit.Branches.Find(b => b.DisplayName == name);
+        // Try find a branch with the human name
+        branch = commit.Branches.Find(b => b.HumanName == name);
         if (branch != null)
         {
             return branch;
@@ -694,11 +694,11 @@ class BranchStructureService : IBranchStructureService
        WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeBranch)
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
-        var displayName = name != "" ? name : $"branch@{c.Sid}";
+        var humanName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
             name: branchName,
             commonName: pullMergeBranch.CommonName,
-            displayName: displayName,
+            humanName: humanName,
             tipID: c.Id);
         branch.PullMergeParentBranch = pullMergeBranch;
 
@@ -709,11 +709,11 @@ class BranchStructureService : IBranchStructureService
     WorkBranch AddTruncatedBranch(WorkRepo repo)
     {
         var branchName = truncatedBranchName;
-        var displayName = truncatedBranchName;
+        var humanName = truncatedBranchName;
         var branch = new WorkBranch(
             name: branchName,
             commonName: branchName,
-            displayName: displayName,
+            humanName: humanName,
             tipID: Repo.TruncatedLogCommitID);
 
         repo.Branches.Add(branch);
@@ -723,11 +723,11 @@ class BranchStructureService : IBranchStructureService
     WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
-        var displayName = name != "" ? name : $"branch@{c.Sid}";
+        var humanName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
             name: branchName,
             commonName: branchName,
-            displayName: displayName,
+            humanName: humanName,
             tipID: c.Id);
 
         repo.Branches.Add(branch);

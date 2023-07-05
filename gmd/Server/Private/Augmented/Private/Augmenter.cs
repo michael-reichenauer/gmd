@@ -47,7 +47,7 @@ class Augmenter : IAugmenter
         branchStructureService.SetCommitBranches(repo, gitRepo);
         SetBranchByName(repo);
 
-        AdjustBranchDisplayNames(repo);
+        SetBranchViewNames(repo);
 
         return repo;
     }
@@ -142,7 +142,7 @@ class Augmenter : IAugmenter
         repo.Branches.ForEach(b => repo.BranchByName[b.Name] = b);
     }
 
-    void AdjustBranchDisplayNames(WorkRepo repo)
+    void SetBranchViewNames(WorkRepo repo)
     {
         Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
 
@@ -151,30 +151,32 @@ class Augmenter : IAugmenter
             .OrderByDescending(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
+            // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
             var bottom = repo.CommitsById[b.BottomID];
-            var parentCommitSid = bottom.FirstParent?.Sid ?? "";
-            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSid}";
-            if (branchNameCount.TryGetValue(b.DisplayName, out var count))
-            {   // Multiple branches with same display name, add a counter to the display name
-                branchNameCount[b.DisplayName] = ++count;
-                b.DisplayName = $"{b.DisplayName}({count})";
+            b.CommonBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
+
+            if (branchNameCount.TryGetValue(b.HumanName, out var count))
+            {   // Multiple branches with same human name, add a counter to the human name
+                branchNameCount[b.HumanName] = ++count;
+                b.ViewName = $"{b.HumanName}({count})";
             }
             else
-            {   // First branch with this display name
-                branchNameCount[b.DisplayName] = 1;
+            {   // First branch with this human name, setting view name to same
+                branchNameCount[b.HumanName] = 1;
+                b.ViewName = b.HumanName;
             }
 
-            // Make sure local and pull merge branches have same display and base name
+            // Make sure local and pull merge branches have same view and base name as well
             if (b.LocalName != "")
             {
                 var localBranch = repo.BranchByName[b.LocalName]!;
-                localBranch.DisplayName = b.DisplayName;
+                localBranch.ViewName = b.ViewName;
                 localBranch.CommonBaseName = b.CommonBaseName;
             }
             b.PullMergeChildBranches.ForEach(pmb =>
             {
                 var br = repo.BranchByName[pmb.Name]!;
-                br.DisplayName = b.DisplayName;
+                br.ViewName = b.ViewName;
                 br.CommonBaseName = b.CommonBaseName;
             });
         });

@@ -64,7 +64,7 @@ interface IRepoCommands
     bool CanUndoCommit();
     bool CanUncommitLastCommit();
 
-    void ResolveAmbiguity(Server.Branch branch, string displayName);
+    void ResolveAmbiguity(Server.Branch branch, string humanName);
     void UndoSetBranch(string commitId);
     void SetBranchManuallyAsync();
     void MoveBranch(string commonName, string otherCommonName, int delta);

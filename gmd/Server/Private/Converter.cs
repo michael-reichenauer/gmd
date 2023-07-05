@@ -44,6 +44,7 @@ class Converter : IConverter
         GitIndex: c.GitIndex,
         BranchName: c.BranchName,
         BranchCommonName: c.BranchCommonName,
+        BranchViewName: c.BranchViewName,
         ParentIds: c.ParentIds,
         ChildIds: c.ChildIds,
         Tags: ToTags(c.Tags),
@@ -64,7 +65,9 @@ class Converter : IConverter
     public Branch ToBranch(Augmented.Branch b) => new Branch(
         Name: b.Name,
         CommonName: b.CommonName,
-        DisplayName: b.DisplayName,
+        CommonBaseName: b.CommonBaseName,
+        HumanName: b.HumanName,
+        ViewName: b.ViewName,
         TipId: b.TipId,
         BottomId: b.BottomId,
         IsCurrent: b.IsCurrent,

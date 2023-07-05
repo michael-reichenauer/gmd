@@ -149,7 +149,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            metaData.SetBranched(commit.Sid, branch.HumanName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -167,7 +167,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            metaData.SetBranched(commit.Sid, branch.HumanName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -220,35 +220,35 @@ class AugmentedService : IAugmentedService
         // Not a git branch so the branch was deleted, lets recreate it
         var tip = repo.CommitById[branch.TipId];
 
-        return await CreateBranchFromCommitAsync(repo, branch.DisplayName, tip.Id, true, repo.Path);
+        return await CreateBranchFromCommitAsync(repo, branch.HumanName, tip.Id, true, repo.Path);
     }
 
-    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName)
+    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName)
     {
-        Log.Info($"Set {commitId.Sid()} to {setDisplayName} ...");
+        Log.Info($"Set {commitId.Sid()} to {setHumanName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(commitId.Sid(), setDisplayName);
+            metaData.SetCommitBranch(commitId.Sid(), setHumanName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
 
-    public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName)
+    public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName)
     {
         var branch = repo.BranchByName[branchName];
         var ambiguousTip = branch.AmbiguousTipId;
-        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setDisplayName} ...");
+        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setHumanName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(ambiguousTip.Sid(), setDisplayName);
+            metaData.SetCommitBranch(ambiguousTip.Sid(), setHumanName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }

@@ -47,6 +47,7 @@ public record Commit(
 
     string BranchName,
     string BranchCommonName,
+    string BranchViewName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> ChildIds,
     IReadOnlyList<Tag> Tags,
@@ -69,7 +70,9 @@ public record Commit(
 public record Branch(
     string Name,
     string CommonName,
-    string DisplayName,
+    string CommonBaseName,
+    string HumanName,
+    string ViewName,
     string TipId,
     string BottomId,
     bool IsCurrent,

@@ -45,6 +45,7 @@ class Converter : IConverter
 
             BranchName: c.Branch!.Name,
             BranchCommonName: c.Branch.CommonName,
+            BranchViewName: c.Branch.ViewName,
             ChildIds: c.ChildIds,
             Tags: c.Tags,
             BranchTips: c.BranchTips,
@@ -65,7 +66,9 @@ class Converter : IConverter
         return new Branch(
             Name: b.Name,
             CommonName: b.CommonName,
-            DisplayName: b.DisplayName,
+            CommonBaseName: b.CommonBaseName,
+            HumanName: b.HumanName,
+            ViewName: b.ViewName,
             TipId: b.TipID,
             BottomId: b.BottomID,
             IsCurrent: b.IsCurrent,
