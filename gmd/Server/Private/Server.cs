@@ -74,7 +74,10 @@ class Server : IServer
              c.Id.Contains(filter, sc) ||
              c.Subject.Contains(filter, sc) ||
              c.BranchName.Contains(filter, sc) ||
-             c.Author.Contains(filter, sc));
+             c.Author.Contains(filter, sc) ||
+             c.AuthorTime.IsoDate().Contains(filter, sc) ||
+             c.BranchViewName.Contains(filter, sc) ||
+             c.Tags.Any(t => t.Name.Contains(filter, sc)));
         return converter.ToCommits(commits.ToList());
 
     }

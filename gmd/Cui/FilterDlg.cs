@@ -28,20 +28,23 @@ class FilterDlg : IFilterDlg
     {
         this.repo = repo;
 
-        var width = 86;
-        var dlg = new UIDialog("Filter Commits", width, 20, null, options =>
+        //var width = 86;
+        var dlg = new UIDialog("Filter Commits", Dim.Fill(), 20, null, options =>
         {
             options.ColorScheme.Focus = TextColor.White;
             options.ColorScheme.Normal = TextColor.BrightMagenta;
             options.Y = 0;
         });
 
-        var contentView = dlg.AddContentView(0, 2, Dim.Fill(), Dim.Fill(), OnGetContent);
+        var resultsView = dlg.AddContentView(0, 2, Dim.Fill(), Dim.Fill(), OnGetContent);
+        resultsView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
+        resultsView.IsNoCursor = false;
+        resultsView.IsCursorMargin = true;
 
-        var filter = dlg.AddTextField(1, 0, 40, "");
-        filter.KeyUp += (k) => OnKeyUp(k, filter, contentView);
+        var filterField = dlg.AddTextField(1, 0, 40, "");
+        filterField.KeyUp += (k) => OnKeyUp(k, filterField, resultsView);
 
-        dlg.Show(filter);
+        dlg.Show(filterField);
 
         if (commit == null) return R.Error();
 
@@ -54,6 +57,7 @@ class FilterDlg : IFilterDlg
         try
         {
             var key = e.KeyEvent.Key;
+            Log.Info($"FilterDlg.OnKeyUp: {key}");
 
             if (key == Key.Enter)
             {
@@ -95,10 +99,31 @@ class FilterDlg : IFilterDlg
     }
 
 
-    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
-        commits.Skip(firstIndex).Take(count).Select(c => Text.New
-            .White($"{c.Subject.Max(50),-50}")
-            .Dark($" {c.Sid} {c.Author.Max(15),-15} {c.AuthorTime.ToString("yy-MM-dd")}"));
+    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    {
+        return commits.Skip(firstIndex).Take(count).Select((c, i) =>
+        {
+            var sidAuthDate = $"{c.Sid} {c.Author.Max(10),-10} {c.AuthorTime.ToString("yy-MM-dd")}";
+            var branchName = $"({ToShortBranchName(c.BranchViewName)})";
+            var tags = c.Tags.Count > 0 ? $"[{string.Join("][", c.Tags.Select(t => t.Name))}]".Max(20) : "";
+
+            var subjectLength = width - sidAuthDate.Length - branchName.Length - tags.Length - 1;
+            var subject = c.Subject.Max(subjectLength, true);
+
+            return (i == currentIndex - firstIndex
+                ? Text.New.WhiteSelected($"{subject} {branchName}{tags} {sidAuthDate}")
+                : Text.New.White($"{subject}").Dark(branchName).Green(tags).Dark($" {sidAuthDate}"));
+        });
+    }
+
+    string ToShortBranchName(string branchName)
+    {
+        if (branchName.Length > 16)
+        {   // Branch name to long, shorten it
+            branchName = "┅" + branchName.Substring(branchName.Length - 16);
+        }
+        return branchName;
+    }
 }
 
 

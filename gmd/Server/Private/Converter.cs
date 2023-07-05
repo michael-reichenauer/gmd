@@ -44,6 +44,7 @@ class Converter : IConverter
         GitIndex: c.GitIndex,
         BranchName: c.BranchName,
         BranchCommonName: c.BranchCommonName,
+        BranchViewName: c.BranchViewName,
         ParentIds: c.ParentIds,
         ChildIds: c.ChildIds,
         Tags: ToTags(c.Tags),
