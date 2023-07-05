@@ -151,9 +151,9 @@ class Augmenter : IAugmenter
             .OrderByDescending(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
+            // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
             var bottom = repo.CommitsById[b.BottomID];
-            var parentCommitSid = bottom.FirstParent?.Sid ?? "";
-            b.CommonBaseName = $"{b.BottomID.Sid()}:{parentCommitSid}";
+            b.CommonBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
 
             if (branchNameCount.TryGetValue(b.HumanName, out var count))
             {   // Multiple branches with same human name, add a counter to the human name
