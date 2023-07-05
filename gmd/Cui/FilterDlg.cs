@@ -82,7 +82,6 @@ class FilterDlg : IFilterDlg
         {
             e.Handled = true;
         }
-
     }
 
 
