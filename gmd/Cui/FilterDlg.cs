@@ -57,25 +57,25 @@ class FilterDlg : IFilterDlg
         try
         {
             var key = e.KeyEvent.Key;
-            Log.Info($"FilterDlg.OnKeyUp: {key}");
-
             if (key == Key.Enter)
             {
                 OnEnter(contentView.CurrentIndex);
                 return;
             }
-            if (filter.Text == currentFilter)
+            var filterText = filter.Text.Trim();
+            if (filterText == currentFilter)
             {
                 return;
             }
-            if (filter.Text.Length < 2)
+            currentFilter = filterText;
+            if (filterText.Length < 2)
             {
                 commits = new List<Server.Commit>();
                 contentView.TriggerUpdateContent(commits.Count);
                 return;
             }
 
-            commits = server.GetFilterCommits(repo!.Repo, filter.Text);
+            commits = server.GetFilterCommits(repo!.Repo, filterText);
             contentView!.TriggerUpdateContent(commits.Count);
         }
         finally
@@ -101,6 +101,15 @@ class FilterDlg : IFilterDlg
 
     IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
+        if (commits.Count == 0)
+        {
+            var msg = currentFilter.Length < 2
+                ? "Please enter at least 2 characters, space to separate conditions and " +
+                  "quotes for exact matches"
+                : "No matching commits";
+            return new[] { Text.New.Dark(msg) };
+        }
+
         return commits.Skip(firstIndex).Take(count).Select((c, i) =>
         {
             var sidAuthDate = $"{c.Sid} {c.Author.Max(10),-10} {c.AuthorTime.ToString("yy-MM-dd")}";

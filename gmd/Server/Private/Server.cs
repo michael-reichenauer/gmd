@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Git;
@@ -68,18 +69,35 @@ class Server : IServer
 
     public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
     {
+        filter = filter.Trim();
         var sc = StringComparison.OrdinalIgnoreCase;
-        var commits = repo.AugmentedRepo.Commits
-         .Where(c =>
-             c.Id.Contains(filter, sc) ||
-             c.Subject.Contains(filter, sc) ||
-             c.BranchName.Contains(filter, sc) ||
-             c.Author.Contains(filter, sc) ||
-             c.AuthorTime.IsoDate().Contains(filter, sc) ||
-             c.BranchViewName.Contains(filter, sc) ||
-             c.Tags.Any(t => t.Name.Contains(filter, sc)));
-        return converter.ToCommits(commits.ToList());
 
+        // I need extract all text encloused by double quotes.
+        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
+        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
+
+        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below. 
+        var modifiedFilter = filter;
+        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
+
+        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
+        var andParts = modifiedFilter.Split(' ').Where(p => p != "")
+            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces agian 
+            .ToList();
+
+        // Find all commits matching all AND parts.
+        var commits = repo.AugmentedRepo.Commits
+            .Where(c =>
+                andParts.All(p =>
+                    c.Id.Contains(p, sc) ||
+                    c.Subject.Contains(p, sc) ||
+                    c.BranchName.Contains(p, sc) ||
+                    c.Author.Contains(p, sc) ||
+                    c.AuthorTime.IsoDate().Contains(p, sc) ||
+                    c.BranchViewName.Contains(p, sc) ||
+                    c.Tags.Any(t => t.Name.Contains(p, sc))));
+
+        return converter.ToCommits(commits.ToList());
     }
 
 
