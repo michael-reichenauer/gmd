@@ -63,7 +63,7 @@ class ContentView : View
 
     int ViewHeight => Frame.Height;
     internal int ViewWidth => Frame.Width;
-    internal bool IsNoCursor { get; set; } = false;
+    internal bool IsShowCursor { get; set; } = true;
     internal bool IsCursorMargin { get; set; } = false;
     internal bool IsTopBorder { get; set; } = false;
     internal bool IsHideCursor { get; set; } = false;
@@ -274,7 +274,7 @@ class ContentView : View
     public void ToggleShowCursor()
     {
         ClearSelection();
-        IsNoCursor = !IsNoCursor;
+        IsShowCursor = !IsShowCursor;
         SetNeedsDisplay();
     }
 
@@ -360,7 +360,7 @@ class ContentView : View
 
     void DrawCursor()
     {
-        if (IsNoCursor || IsHideCursor || !IsFocus)
+        if (!IsShowCursor || IsHideCursor || !IsFocus)
         {
             return;
         }
@@ -428,7 +428,7 @@ class ContentView : View
 
     internal void Move(int move)
     {
-        if (IsNoCursor)
+        if (!IsShowCursor)
         {
             Scroll(move);
             return;

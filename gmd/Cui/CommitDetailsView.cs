@@ -31,7 +31,7 @@ class CommitDetailsView : ICommitDetailsView
             Height = 0,
             Width = Dim.Fill(),
             IsTopBorder = true,
-            IsNoCursor = true,
+            IsShowCursor = false,
             IsFocus = false,
             // Height = Dim.Fill(),
         };
