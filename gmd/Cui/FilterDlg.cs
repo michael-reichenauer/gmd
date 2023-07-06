@@ -14,15 +14,15 @@ class FilterDlg : IFilterDlg
     const int MaxResults = 1000;
     private readonly IServer server;
 
-    IReadOnlyList<Server.Commit> filteredCommits = new List<Server.Commit>();
-
-    IRepo repo = null!;
     UIDialog dlg = null!;
     UITextField filterField = null!;
     Label resultCountField = null!;
     ContentView resultsView = null!;
-    R<Server.Commit> selectedCommit = R.Error();
+
+    IRepo repo = null!;
     string currentFilter = null!;
+    IReadOnlyList<Server.Commit> filteredCommits = null!;
+    R<Server.Commit> selectedCommit = null!;
 
 
     internal FilterDlg(IServer server)
@@ -34,6 +34,9 @@ class FilterDlg : IFilterDlg
     public R<Server.Commit> Show(IRepo repo)
     {
         this.repo = repo;
+        this.currentFilter = null!;
+        this.filteredCommits = new List<Server.Commit>();
+        this.selectedCommit = R.Error("No commit selected");
 
         dlg = new UIDialog("Filter Commits", Dim.Fill(), 20, null, options => { options.Y = 0; });
 
