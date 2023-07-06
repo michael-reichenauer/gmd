@@ -70,13 +70,13 @@ partial class MainView : IMainView
 
         string path = GetWorkingFolder();
         // string path = "/lkwjlkj";
-        // path = "/workspaces/Terminal.Gui";
+        path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
         // path = "/workspaces/Dependitor";
         // path = "/workspaces/gmd/tmp/Dependitor";
         // path = "/workspaces/GitMind";
         // path = "/workspaces/kal kl/gmd-3";
-        // path = "/workspaces/gmd-1";           // ########### Disabled for now
+        //  path = "/workspaces/gmd-1";           // ########### Disabled for now
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
