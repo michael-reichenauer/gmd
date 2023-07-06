@@ -113,11 +113,12 @@ class AugmentedService : IAugmentedService
         if (!Try(out var status, out e, statusTask.Result)) return e;
         if (!Try(out var metaData, out e, metaDataTask.Result)) return e;
         if (!Try(out var stashes, out e, stashesTask.Result)) return e;
+        var isTruncated = log.Count == maxCommitCount;
 
         // Combine all git info into one git repo info object
         var timeStamp = DateTime.UtcNow;
         fileMonitor.SetReadRepoTime(timeStamp);
-        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes);
+        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes, isTruncated);
         Log.Info($"GitRepo {t} {gitRepo}");
 
         if (gitRepo.Commits.Count == 0)
@@ -149,7 +150,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            metaData.SetBranched(commit.Sid, branch.HumanName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -167,7 +168,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            metaData.SetBranched(commit.Sid, branch.HumanName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -220,35 +221,35 @@ class AugmentedService : IAugmentedService
         // Not a git branch so the branch was deleted, lets recreate it
         var tip = repo.CommitById[branch.TipId];
 
-        return await CreateBranchFromCommitAsync(repo, branch.DisplayName, tip.Id, true, repo.Path);
+        return await CreateBranchFromCommitAsync(repo, branch.HumanName, tip.Id, true, repo.Path);
     }
 
-    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName)
+    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName)
     {
-        Log.Info($"Set {commitId.Sid()} to {setDisplayName} ...");
+        Log.Info($"Set {commitId.Sid()} to {setHumanName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(commitId.Sid(), setDisplayName);
+            metaData.SetCommitBranch(commitId.Sid(), setHumanName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
 
-    public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName)
+    public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName)
     {
         var branch = repo.BranchByName[branchName];
         var ambiguousTip = branch.AmbiguousTipId;
-        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setDisplayName} ...");
+        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setHumanName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(ambiguousTip.Sid(), setDisplayName);
+            metaData.SetCommitBranch(ambiguousTip.Sid(), setHumanName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
@@ -261,7 +262,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.Remove(commitId.Sid());
+            metaData.RemoveCommitBranch(commitId.Sid());
 
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
@@ -322,7 +323,7 @@ class AugmentedService : IAugmentedService
         fileMonitor.Monitor(gitRepo.Path);
 
         Timing t = Timing.Start();
-        WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
+        WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo);
 
         var repo = converter.ToRepo(augRepo);
         Log.Info($"Augmented {t} {repo}");
@@ -348,6 +349,6 @@ class AugmentedService : IAugmentedService
              true, false, "", false, 0, 0) };
         var stashes = new List<Git.Stash>();
 
-        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes);
+        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes, false);
     }
 }

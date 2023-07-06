@@ -14,15 +14,15 @@ class UIDialog
     readonly List<Validation> validations = new List<Validation>();
 
     internal string Title { get; }
-    internal int Width { get; }
-    internal int Height { get; }
+    internal Dim Width { get; }
+    internal Dim Height { get; }
 
     internal bool IsOK => buttonsClicked.ContainsKey("OK");
     internal bool IsCanceled => buttonsClicked.ContainsKey("Cancel");
 
 
-    internal UIDialog(string title, int width, int height,
-    Func<Key, bool>? onKey = null, Action<Dialog>? options = null)
+    internal UIDialog(string title, Dim width, Dim height,
+        Func<Key, bool>? onKey = null, Action<Dialog>? options = null)
     {
         Title = title;
         Width = width;
@@ -30,6 +30,8 @@ class UIDialog
         this.onKey = onKey;
         this.options = options;
     }
+
+    public void Close() => Application.RequestStop();
 
     internal Label AddLabel(int x, int y, string text)
     {
@@ -147,16 +149,21 @@ class UIDialog
     internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
     {
         var dlg = onKey != null ?
-            new CustomDialog(Title, Width, Height, buttons.ToArray(), onKey)
+            new CustomDialog(Title, buttons.ToArray(), onKey)
             {
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
                 ColorScheme = ColorSchemes.Dialog,
+                Width = Width,
+                Height = Height,
             } :
-            new Dialog(Title, Width, Height, buttons.ToArray())
+            new Dialog(Title, buttons.ToArray())
             {
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
                 ColorScheme = ColorSchemes.Dialog,
+                Width = Width,
+                Height = Height,
             };
+
         if (options != null)
         {
             options(dlg);
@@ -201,15 +208,15 @@ class UIDialog
 
     internal Label AddLine(int x, int y, int width)
     {
-        return AddLabel(1, 3, new string('─', width));
+        return AddLabel(x, y, new string('─', width));
     }
 
     class CustomDialog : Dialog
     {
         private readonly Func<Key, bool>? onKey;
 
-        public CustomDialog(string title, int width, int height, Button[] buttons, Func<Key, bool>? onKey)
-            : base(title, width, height, buttons)
+        public CustomDialog(string title, Button[] buttons, Func<Key, bool>? onKey)
+            : base(title, buttons)
         {
             this.onKey = onKey;
         }

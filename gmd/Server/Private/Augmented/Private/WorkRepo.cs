@@ -103,7 +103,8 @@ internal class WorkBranch
 
     // Augmented properties
     public bool IsLocalCurrent { get; set; }
-    public string DisplayName { get; set; } = "";
+    public string HumanName { get; set; } = "";
+    public string ViewName { get; set; } = "";     // A unique human name for the branch (with number)
     public string RemoteName { get; set; } = "";  // A local branch's remote name
     public string LocalName { get; set; } = "";   // A remote branch's local name
     public string CommonBaseName { get; set; } = "";  // a name based on first commit and parent commit
@@ -130,7 +131,7 @@ internal class WorkBranch
     {
         Name = b.Name;
         CommonName = b.CommonName;
-        DisplayName = b.CommonName;
+        HumanName = b.CommonName;
         TipID = b.TipID;
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
@@ -142,11 +143,11 @@ internal class WorkBranch
     }
 
     // Called when creating a branched based on a name, usually from a deleted branch
-    public WorkBranch(string name, string commonName, string displayName, string tipID)
+    public WorkBranch(string name, string commonName, string humanName, string tipID)
     {
         Name = name;
         CommonName = commonName;
-        DisplayName = displayName;
+        HumanName = humanName;
         TipID = tipID;
         BottomID = tipID;
     }

@@ -5,20 +5,31 @@ namespace gmd.Server.Private.Augmented.Private;
 
 public class MetaData
 {
-    public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
+    //public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> CommitXXXBranchBySid { get; set; } = new Dictionary<string, string>();
 
-    internal void SetCommitBranch(string sid, string branchName) => CommitBranchBySid[sid] = "*" + branchName;
 
-    internal void SetBranched(string sid, string branchName) => CommitBranchBySid[sid] = branchName;
+    internal void SetCommitBranch(string sid, string branchName)
+    {
+        CommitXXXBranchBySid[sid] = "*" + branchName;
+    }
 
-    internal void Remove(string sid) => SetCommitBranch(sid, "");  // Mark as removed to support sync
+    internal void SetBranched(string sid, string branchName)
+    {
+        CommitXXXBranchBySid[sid] = branchName;
+    }
 
-    internal bool TryGet(string sid, out string branchName, out bool isSetByUser)
+    internal void RemoveCommitBranch(string sid)
+    {
+        SetCommitBranch(sid, "");  // Mark as removed to support sync
+    }
+
+    internal bool TryGetCommitBranch(string sid, out string branchName, out bool isSetByUser)
     {
         branchName = "";
         isSetByUser = false;
 
-        if (CommitBranchBySid.TryGetValue(sid, out var name))
+        if (CommitXXXBranchBySid.TryGetValue(sid, out var name))
         {
             if (name.StartsWith("*"))
             {
@@ -36,6 +47,7 @@ public class MetaData
         return false;
     }
 }
+
 
 interface IMetaDataService
 {
@@ -59,6 +71,41 @@ class MetaDataService : IMetaDataService
     {
         this.git = git;
         this.repoConfig = repoConfig;
+    }
+
+    public async Task<R<MetaData>> GetMetaDataAsync(string path)
+    {
+        if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
+        {   // Failed to read local value
+            if (IsNoLocalKey(e))
+            {   // No local key,
+                return new MetaData();
+            }
+
+            // Failed to get local value
+            return e;
+        };
+
+        Log.Info($"Metadata:\n{json}");
+        if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
+        //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
+        return data;
+    }
+
+    public async Task<R> SetMetaDataAsync(string path, MetaData metaData)
+    {
+        try
+        {
+            isUpdating = true;
+            string json = Json.SerializePretty(metaData);
+            if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
+            // Log.Info($"Wrote:\n{json}");
+            return R.Ok;
+        }
+        finally
+        {
+            isUpdating = false;
+        }
     }
 
 
@@ -101,81 +148,6 @@ class MetaDataService : IMetaDataService
     }
 
 
-    public async Task<R<MetaData>> GetMetaDataAsync(string path)
-    {
-        if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
-        {   // Failed to read local value
-            if (IsNoLocalKey(e))
-            {   // No local key,
-                return new MetaData();
-            }
-
-            // Failed to get local value
-            return e;
-        };
-
-        // Log.Info($"Read:\n{json}");
-        if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
-        //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
-        return data;
-    }
-
-
-    public async Task<R> SetMetaDataAsync(string path, MetaData metaData)
-    {
-        try
-        {
-            isUpdating = true;
-            string json = Json.SerializePretty(metaData);
-            if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
-            // Log.Info($"Wrote:\n{json}");
-            return R.Ok;
-        }
-        finally
-        {
-            isUpdating = false;
-        }
-    }
-
-
-    async Task<R> MergeLocalAndRemote(string path,
-          MetaData localMetaData, MetaData remoteMetaData)
-    {
-        // We will merge before and after values and if different we will then push it
-
-        // Check if metadata count has changed
-        bool hasChanged = remoteMetaData.CommitBranchBySid.Count
-            != localMetaData.CommitBranchBySid.Count;
-
-        // Merge data, we prefer remote data. Let iterate all remote data first
-        foreach (var pair in remoteMetaData.CommitBranchBySid)
-        {
-            var key = pair.Key;
-            var remoteValue = pair.Value;
-
-            if (!localMetaData.CommitBranchBySid.TryGetValue(key, out var localValue))
-            {  // The local is missing a value for that key, setting remote value
-                localMetaData.CommitBranchBySid[key] = remoteValue;
-                localValue = remoteValue;
-                hasChanged = true;
-            }
-
-            if (remoteValue != localValue)
-            {   // The remote value has changed (unusual)
-                localMetaData.CommitBranchBySid[key] = remoteValue;
-                hasChanged = true;
-            }
-        }
-
-        if (hasChanged)
-        {   // The local meta data had some new values, or remote was different,
-            // We need to set and push the merged collection;
-            if (!Try(out var e, await SetMetaDataAsync(path, localMetaData))) return e;
-        }
-
-        return R.Ok;
-    }
-
     public async Task<R> PushMetaDataAsync(string path)
     {
         if (!repoConfig.Get(path).SyncMetaData)
@@ -190,6 +162,46 @@ class MetaDataService : IMetaDataService
             return R.Ok;
         }
     }
+
+
+    async Task<R> MergeLocalAndRemote(string path,
+          MetaData localMetaData, MetaData remoteMetaData)
+    {
+        // We will merge before and after values and if different we will then push it
+
+        // Check if metadata count has changed
+        bool hasChanged = remoteMetaData.CommitXXXBranchBySid.Count
+            != localMetaData.CommitXXXBranchBySid.Count;
+
+        // Merge data, we prefer remote data. Let iterate all remote data first
+        foreach (var pair in remoteMetaData.CommitXXXBranchBySid)
+        {
+            var key = pair.Key;
+            var remoteValue = pair.Value;
+
+            if (!localMetaData.CommitXXXBranchBySid.TryGetValue(key, out var localValue))
+            {  // The local is missing a value for that key, setting remote value
+                localMetaData.CommitXXXBranchBySid[key] = remoteValue;
+                localValue = remoteValue;
+                hasChanged = true;
+            }
+
+            if (remoteValue != localValue)
+            {   // The remote value has changed (unusual)
+                localMetaData.CommitXXXBranchBySid[key] = remoteValue;
+                hasChanged = true;
+            }
+        }
+
+        if (hasChanged)
+        {   // The local meta data had some new values, or remote was different,
+            // We need to set and push the merged collection;
+            if (!Try(out var e, await SetMetaDataAsync(path, localMetaData))) return e;
+        }
+
+        return R.Ok;
+    }
+
 
 
     bool IsNoLocalKey(ErrorResult e) => e.ErrorMessage.Contains("Not a valid object name");

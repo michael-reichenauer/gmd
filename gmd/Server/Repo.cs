@@ -63,6 +63,7 @@ public record Commit(
     int GitIndex,
     string BranchName,
     string BranchCommonName,
+    string BranchViewName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> ChildIds,
     IReadOnlyList<Tag> Tags,
@@ -96,7 +97,9 @@ public enum More
 public record Branch(
     string Name,
     string CommonName,
-    string DisplayName,
+    string CommonBaseName,
+    string HumanName,
+    string ViewName,    // Name to human in the view (unique human name with number)
     string TipId,
     string BottomId,
     bool IsCurrent,

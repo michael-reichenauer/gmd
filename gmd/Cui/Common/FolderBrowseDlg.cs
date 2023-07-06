@@ -71,7 +71,7 @@ public class FolderBrowseDlg
         // When using scroll bar leave the last row of the control free (for over-rendering with scroll bar)
         treeView.Style.LeaveLastRow = true;
 
-        var scrollBar = new ScrollBarView(treeView, true);
+        var scrollBar = new ScrollBarView(treeView, true) { ColorScheme = ColorSchemes.Scrollbar };
 
         scrollBar.ChangedPosition += () =>
         {
