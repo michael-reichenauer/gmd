@@ -65,12 +65,13 @@ class FilterDlg : IFilterDlg
         if (filter == currentFilter) return;
 
         currentFilter = filter;
-        var commits = server.GetFilterCommits(repo!.Repo, filter, MaxResults);
-        resultsView!.TriggerUpdateContent(commits.Count);
+        var commits = server.GetFilterCommits(repo.Repo, filter, MaxResults);
+        resultsView.TriggerUpdateContent(commits.Count);
 
         this.filteredCommits = commits;
         resultCountField.Text = commits.Count == 1 ? $"1 result" : $"{commits.Count} results";
     }
+
 
     // User pressed key in filter field, select commit on enter or update results 
     void OnKeyUp(View.KeyEventEventArgs e)
@@ -113,15 +114,18 @@ class FilterDlg : IFilterDlg
         {
             if (firstIndex + i >= MaxResults - 1) return Text.New.Dark("... <To many results, please adjust filter>");
 
-            // Calculate commit row text
+            // Calculate commit row text columns
             var sidAuthDate = $"{c.Sid} {c.Author.Max(10),-10} {c.AuthorTime.ToString("yy-MM-dd")}";
             var branchName = $"({ToShortName(c.BranchViewName)})";
             var tags = c.Tags.Count > 0 ? $"[{string.Join("][", c.Tags.Select(t => t.Name))}]".Max(20) : "";
+
+            // Subject fills the rest of the available row space
             var subjectLength = width - sidAuthDate.Length - branchName.Length - tags.Length - 2;
             var subject = c.Subject.Max(subjectLength, true);
 
             // Show selected or unselected commit row 
-            return (i == currentIndex - firstIndex
+            var isSelectedRow = i == currentIndex - firstIndex;
+            return (isSelectedRow
                 ? Text.New.WhiteSelected($"{subject} {branchName}{tags} {sidAuthDate}")
                 : Text.New.White($"{subject} ").Dark(branchName).Green(tags).Dark($" {sidAuthDate}"));
         });
