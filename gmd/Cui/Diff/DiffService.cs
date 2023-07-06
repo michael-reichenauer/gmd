@@ -364,7 +364,7 @@ class DiffService : IDiffService
         switch (fd.DiffMode)
         {
             case DiffMode.DiffConflicts:
-                return "Conflicted:";
+                return "Conflicts:";
             case DiffMode.DiffModified:
                 return "Modified:";
             case DiffMode.DiffAdded:
