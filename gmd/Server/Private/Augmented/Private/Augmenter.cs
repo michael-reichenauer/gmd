@@ -10,7 +10,7 @@ namespace gmd.Server.Private.Augmented.Private;
 // of branches. 
 interface IAugmenter
 {
-    Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int truncatedLimit);
+    Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo);
 }
 
 class Augmenter : IAugmenter
@@ -27,21 +27,21 @@ class Augmenter : IAugmenter
         this.branchStructureService = branchStructureService;
     }
 
-    public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo, int truncateLimit)
+    public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo)
     {   // Run in background thread to not block the main thread since 
         // this can take a long time for large repos and could be CPU intensive 
-        return Task.Run(() => GetAugRepo(gitRepo, truncateLimit));
+        return Task.Run(() => GetAugRepo(gitRepo));
     }
 
 
-    WorkRepo GetAugRepo(GitRepo gitRepo, int truncateLimit)
+    WorkRepo GetAugRepo(GitRepo gitRepo)
     {
         var status = ToStatus(gitRepo);
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status);
 
         AddAugStashes(repo, gitRepo); // Must be done before adding augcommits
         AddAugBranches(repo, gitRepo);
-        AddAugCommits(repo, gitRepo, truncateLimit);
+        AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
 
         branchStructureService.SetCommitBranches(repo, gitRepo);
@@ -63,13 +63,13 @@ class Augmenter : IAugmenter
     }
 
 
-    void AddAugCommits(WorkRepo repo, GitRepo gitRepo, int truncateLimit)
+    void AddAugCommits(WorkRepo repo, GitRepo gitRepo)
     {
         IReadOnlyList<GitCommit> gitCommits = gitRepo.Commits;
         // For repositories with a lot of commits, only the latest 'truncateLimit' number of commits
 
         // are used, i.w. truncated commits, which should have parents, but they are unknown
-        bool isTruncatedPossible = gitCommits.Count >= truncateLimit;
+        bool isTruncatedPossible = gitRepo.IsTruncated;
         bool isTruncatedNeeded = false;
         repo.Commits.Capacity = gitCommits.Count;
 

@@ -5,18 +5,18 @@ namespace gmd.Server.Private.Augmented.Private;
 
 public class MetaData
 {
-    public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
-
+    //public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> CommitXXXBranchBySid { get; set; } = new Dictionary<string, string>();
 
 
     internal void SetCommitBranch(string sid, string branchName)
     {
-        CommitBranchBySid[sid] = "*" + branchName;
+        CommitXXXBranchBySid[sid] = "*" + branchName;
     }
 
     internal void SetBranched(string sid, string branchName)
     {
-        CommitBranchBySid[sid] = branchName;
+        CommitXXXBranchBySid[sid] = branchName;
     }
 
     internal void RemoveCommitBranch(string sid)
@@ -29,7 +29,7 @@ public class MetaData
         branchName = "";
         isSetByUser = false;
 
-        if (CommitBranchBySid.TryGetValue(sid, out var name))
+        if (CommitXXXBranchBySid.TryGetValue(sid, out var name))
         {
             if (name.StartsWith("*"))
             {
@@ -170,25 +170,25 @@ class MetaDataService : IMetaDataService
         // We will merge before and after values and if different we will then push it
 
         // Check if metadata count has changed
-        bool hasChanged = remoteMetaData.CommitBranchBySid.Count
-            != localMetaData.CommitBranchBySid.Count;
+        bool hasChanged = remoteMetaData.CommitXXXBranchBySid.Count
+            != localMetaData.CommitXXXBranchBySid.Count;
 
         // Merge data, we prefer remote data. Let iterate all remote data first
-        foreach (var pair in remoteMetaData.CommitBranchBySid)
+        foreach (var pair in remoteMetaData.CommitXXXBranchBySid)
         {
             var key = pair.Key;
             var remoteValue = pair.Value;
 
-            if (!localMetaData.CommitBranchBySid.TryGetValue(key, out var localValue))
+            if (!localMetaData.CommitXXXBranchBySid.TryGetValue(key, out var localValue))
             {  // The local is missing a value for that key, setting remote value
-                localMetaData.CommitBranchBySid[key] = remoteValue;
+                localMetaData.CommitXXXBranchBySid[key] = remoteValue;
                 localValue = remoteValue;
                 hasChanged = true;
             }
 
             if (remoteValue != localValue)
             {   // The remote value has changed (unusual)
-                localMetaData.CommitBranchBySid[key] = remoteValue;
+                localMetaData.CommitXXXBranchBySid[key] = remoteValue;
                 hasChanged = true;
             }
         }

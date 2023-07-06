@@ -10,7 +10,7 @@ interface IServer
     Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
 
-    IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter);
+    IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount);
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
     Branch AllBanchByName(Repo repo, string name);

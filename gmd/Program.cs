@@ -64,6 +64,7 @@ class Program
         UI.HideCursor();                       // Hide cursor to avoid flickering
         Application.Driver.Checked = '◙'; // '■'; // ▣';      // Checked box characters 
         Application.Driver.UnChecked = '□'; // '□'; //▢';
+        Application.Driver.Stipple = ' ';  // The scrollbar background character
 
         Application.Top.Add(mainView.View);
 

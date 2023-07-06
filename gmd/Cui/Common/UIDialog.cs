@@ -208,7 +208,7 @@ class UIDialog
 
     internal Label AddLine(int x, int y, int width)
     {
-        return AddLabel(1, 3, new string('─', width));
+        return AddLabel(x, y, new string('─', width));
     }
 
     class CustomDialog : Dialog

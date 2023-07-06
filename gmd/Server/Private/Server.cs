@@ -67,12 +67,14 @@ class Server : IServer
     public Commit GetCommit(Repo repo, string commitId) =>
         converter.ToCommit(repo.AugmentedRepo.CommitById[commitId]);
 
-    public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
+    public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount)
     {
+        var t = Timing.Start();
         filter = filter.Trim();
-        if (filter == "") return new List<Commit>();
-        if (filter == "$") return converter.ToCommits(repo.AugmentedRepo.Commits
-            .Where(c => c.IsBranchSetByUser).ToList());
+        if (filter == "") return repo.Commits.Take(maxCount).ToList();
+
+        if (filter == "$") return converter.ToCommits(
+            repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
 
         var sc = StringComparison.OrdinalIgnoreCase;
 
@@ -91,17 +93,19 @@ class Server : IServer
 
         // Find all commits matching all AND parts.
         var commits = repo.AugmentedRepo.Commits
-            .Where(c =>
-                andParts.All(p =>
-                    c.Id.Contains(p, sc) ||
-                    c.Subject.Contains(p, sc) ||
-                    c.BranchName.Contains(p, sc) ||
-                    c.Author.Contains(p, sc) ||
-                    c.AuthorTime.IsoDate().Contains(p, sc) ||
-                    c.BranchViewName.Contains(p, sc) ||
-                    c.Tags.Any(t => t.Name.Contains(p, sc))));
+            .Where(c => andParts.All(p =>
+                c.Id.Contains(p, sc) ||
+                c.Subject.Contains(p, sc) ||
+                c.BranchName.Contains(p, sc) ||
+                c.Author.Contains(p, sc) ||
+                c.AuthorTime.IsoDate().Contains(p, sc) ||
+                c.BranchViewName.Contains(p, sc) ||
+                c.Tags.Any(t => t.Name.Contains(p, sc))))
+            .Take(maxCount);
+        var result = converter.ToCommits(commits.ToList());
+        Log.Info($"Filtered on '{filter}' => {result.Count} results {t}");
+        return result;
 
-        return converter.ToCommits(commits.ToList());
     }
 
 
