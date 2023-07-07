@@ -6,7 +6,7 @@ namespace gmd.Cui.Common;
 class Menu2
 {
     ContentView itemsView = null!;
-    IReadOnlyList<MenuItem> items = null!;
+    IReadOnlyList<MenuItem2> items = null!;
     private readonly string title;
     private readonly int x;
     private readonly int y;
@@ -20,10 +20,11 @@ class Menu2
 
     public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "")
     {
-        new Menu2(x, y, title).Show(items);
+        IEnumerable<MenuItem2> items2 = items.Select(ToItem);
+        new Menu2(x, y, title).Show(items2);
     }
 
-    void Show(IEnumerable<MenuItem> items)
+    void Show(IEnumerable<MenuItem2> items)
     {
         this.items = items.ToList();
         var dlg = new UIDialog(title, 29, 7, null, options => { options.Y = 0; });
@@ -40,14 +41,84 @@ class Menu2
     {
         return items.Skip(firstIndex).Take(count).Select((m, i) =>
         {
-
             var isSelectedRow = i + firstIndex == currentIndex;
             return (isSelectedRow
                 ? Text.New.WhiteSelected($"{m.Title}")
                 : Text.New.White($"{m.Title} "));
         });
     }
+
+    static MenuItem2 ToItem(MenuItem item)
+    {
+        if (item is SubMenu sm)
+        {
+            return new SubMenu2(sm.Title, sm.Item().Help.ToString() ?? "", sm.Children, sm.Item().CanExecute);
+        }
+        else if (item is MenuSeparator ms)
+        {
+            return new MenuSeparator2(ms.Title);
+        }
+
+        return new MenuItem2(item.Title, item.Item().Help.ToString() ?? "", item.Item().Action, item.Item().CanExecute);
+    }
 }
+
+class MenuItem2
+{
+    public MenuItem2(string title, string shortcut, Action action, Func<bool>? canExecute = null)
+    {
+        Title = title;
+        Shortcut = shortcut;
+        Action = action;
+        CanExecute = canExecute ?? (() => true);
+    }
+
+    public string Title { get; }
+    public string Shortcut { get; }
+    public Action Action { get; }
+    public Func<bool> CanExecute { get; }
+}
+
+class SubMenu2 : MenuItem2
+{
+    public SubMenu2(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+        : base(title, shortcut, () => { }, canExecute)
+    {
+        Children = children;
+
+    }
+
+    public IEnumerable<MenuItem> Children { get; }
+}
+
+
+class MenuSeparator2 : MenuItem2
+{
+    const int maxDivider = 25;
+
+    public MenuSeparator2(string text = "")
+    : base(ToTitle(text), "", () => { }, () => false)
+    { }
+
+    static string ToTitle(string text = "")
+    {
+        string title = "";
+        if (text == "")
+        {   // Just a line ----
+            title = new string('─', maxDivider);
+        }
+        else
+        {   // A line with text, e.g. '-- text ------'
+            text = text.Max(maxDivider - 6);
+            string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
+            title = $"── {text} {suffix}──";
+        }
+
+        return title;
+    }
+}
+
+
 
 class Menu
 {
@@ -92,7 +163,7 @@ class MenuItem
         item = new Terminal.Gui.MenuItem(title, shortcut, action, canExecute);
     }
 
-    public string Title => item.Title.ToString() ?? "";
+    public virtual string Title => item.Title.ToString() ?? "";
 
     public virtual Terminal.Gui.MenuItem Item() => item;
 }
@@ -128,9 +199,13 @@ class MenuSeparator : MenuItem
 class SubMenu : MenuItem
 {
     MenuBarItem menuBar;
+    public IEnumerable<MenuItem> Children;
+    string title;
 
     public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
     {
+        this.title = title;
+        this.Children = children;
         shortcut = shortcut == "" ? "" : shortcut + " ";
         menuBar = new MenuBarItem(title, shortcut, null, canExecute)
         {
@@ -138,6 +213,7 @@ class SubMenu : MenuItem
         };
     }
 
+    public override string Title => title;
     public override Terminal.Gui.MenuItem Item() => menuBar;
 }
 

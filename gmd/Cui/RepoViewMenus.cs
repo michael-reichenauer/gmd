@@ -48,7 +48,7 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowMainMenu2()
     {
         int x = repo.ContentWidth / 2 - 10;
-        Menu2.Show(x, 0, GetMainMenuItems(x, 0), "Manin Menu");
+        Menu2.Show(x, 0, GetMainMenuItems(x, 0), "Main Menu");
     }
 
     public void ShowShowBranchesMenu()
