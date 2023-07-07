@@ -26,6 +26,7 @@ class HelpDlg : IHelpDlg
 
         var contentView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), ToHelpText(content));
         contentView.IsShowCursor = false;
+        contentView.IsScrollMode = true;
 
         dlg.Show(contentView);
     }

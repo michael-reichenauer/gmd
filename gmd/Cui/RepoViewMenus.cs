@@ -12,6 +12,7 @@ interface IRepoViewMenus
     void ShowShowBranchesMenu();
     void ShowHideBranchesMenu();
     void ShowOpenMenu();
+    void ShowMainMenu2();
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -42,6 +43,12 @@ class RepoViewMenus : IRepoViewMenus
     {
         int x = repo.ContentWidth / 2 - 10;
         Menu.Show(x, 0, GetMainMenuItems(x, 0));
+    }
+
+    public void ShowMainMenu2()
+    {
+        int x = repo.ContentWidth / 2 - 10;
+        Menu2.Show(x, 0, GetMainMenuItems(x, 0), "Manin Menu");
     }
 
     public void ShowShowBranchesMenu()

@@ -2,6 +2,53 @@ using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
+
+class Menu2
+{
+    ContentView itemsView = null!;
+    IReadOnlyList<MenuItem> items = null!;
+    private readonly string title;
+    private readonly int x;
+    private readonly int y;
+
+    public Menu2(int x, int y, string title = "")
+    {
+        this.x = x;
+        this.y = y;
+        this.title = title;
+    }
+
+    public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "")
+    {
+        new Menu2(x, y, title).Show(items);
+    }
+
+    void Show(IEnumerable<MenuItem> items)
+    {
+        this.items = items.ToList();
+        var dlg = new UIDialog(title, 29, 7, null, options => { options.Y = 0; });
+        itemsView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), OnGetContent);
+        itemsView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
+        itemsView.IsShowCursor = false;
+        itemsView.IsScrollMode = false;
+        itemsView.IsCursorMargin = false;
+        itemsView.TriggerUpdateContent(this.items.Count);
+        dlg.Show();
+    }
+
+    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    {
+        return items.Skip(firstIndex).Take(count).Select((m, i) =>
+        {
+
+            var isSelectedRow = i + firstIndex == currentIndex;
+            return (isSelectedRow
+                ? Text.New.WhiteSelected($"{m.Title}")
+                : Text.New.White($"{m.Title} "));
+        });
+    }
+}
+
 class Menu
 {
     public static int MaxItemCount = 15;

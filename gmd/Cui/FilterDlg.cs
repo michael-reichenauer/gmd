@@ -48,8 +48,9 @@ class FilterDlg : IFilterDlg
         // Filtered results
         resultsView = dlg.AddContentView(0, 2, Dim.Fill(), Dim.Fill(), OnGetContent);
         resultsView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
-        resultsView.IsShowCursor = true;
-        resultsView.IsCursorMargin = true;
+        resultsView.IsShowCursor = false;
+        resultsView.IsScrollMode = false;
+        resultsView.IsCursorMargin = false;
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilterdResults());
@@ -124,7 +125,7 @@ class FilterDlg : IFilterDlg
             var subject = c.Subject.Max(subjectLength, true);
 
             // Show selected or unselected commit row 
-            var isSelectedRow = i == currentIndex - firstIndex;
+            var isSelectedRow = i + firstIndex == currentIndex;
             return (isSelectedRow
                 ? Text.New.WhiteSelected($"{subject} {branchName}{tags} {sidAuthDate}")
                 : Text.New.White($"{subject} ").Dark(branchName).Green(tags).Dark($" {sidAuthDate}"));

@@ -64,6 +64,7 @@ class ContentView : View
     int ViewHeight => Frame.Height;
     internal int ViewWidth => Frame.Width;
     internal bool IsShowCursor { get; set; } = true;
+    internal bool IsScrollMode { get; set; } = false;
     internal bool IsCursorMargin { get; set; } = false;
     internal bool IsTopBorder { get; set; } = false;
     internal bool IsHideCursor { get; set; } = false;
@@ -275,6 +276,7 @@ class ContentView : View
     {
         ClearSelection();
         IsShowCursor = !IsShowCursor;
+        IsScrollMode = !IsShowCursor;
         SetNeedsDisplay();
     }
 
@@ -428,7 +430,7 @@ class ContentView : View
 
     internal void Move(int move)
     {
-        if (!IsShowCursor)
+        if (IsScrollMode)
         {
             Scroll(move);
             return;

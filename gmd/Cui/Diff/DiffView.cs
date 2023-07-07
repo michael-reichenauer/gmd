@@ -52,7 +52,7 @@ class DiffView : IDiffView
 
         Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView = new ContentView(OnGetContent)
-        { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsShowCursor = false, IsCursorMargin = true };
+        { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsShowCursor = false, IsScrollMode = true, IsCursorMargin = true };
 
         diffView.Add(contentView);
         RegisterShortcuts(contentView);
