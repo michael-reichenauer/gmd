@@ -5,11 +5,20 @@ namespace gmd.Cui.Common;
 
 class Menu2
 {
+    const int maxHeight = 10;
+    readonly string title;
+    readonly int x;
+    readonly int y;
+
+    UIDialog dlg = null!;
     ContentView itemsView = null!;
+    IReadOnlyList<Text> itemRows = null!;
     IReadOnlyList<MenuItem2> items = null!;
-    private readonly string title;
-    private readonly int x;
-    private readonly int y;
+    int viewWidth = 0;
+    int titleWidth;
+    int viewHeight;
+    int shortcutWidth;
+    int subMenuMarkerWidth;
 
     public Menu2(int x, int y, string title = "")
     {
@@ -20,31 +29,134 @@ class Menu2
 
     public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "")
     {
-        IEnumerable<MenuItem2> items2 = items.Select(ToItem);
-        new Menu2(x, y, title).Show(items2);
+        if (!items.Any()) return;
+
+        new Menu2(x, y, title).Show(items.Select(ToItem));
     }
 
     void Show(IEnumerable<MenuItem2> items)
     {
         this.items = items.ToList();
-        var dlg = new UIDialog(title, 29, 7, null, options => { options.Y = 0; });
-        itemsView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), OnGetContent);
-        itemsView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
-        itemsView.IsShowCursor = false;
-        itemsView.IsScrollMode = false;
-        itemsView.IsCursorMargin = false;
+        this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute());
+
+        CalculateSizes();
+        itemRows = ToItemsRows();
+
+        dlg = new UIDialog(title, viewWidth, viewHeight, null, options =>
+        {
+            options.X = x;
+            options.Y = y;
+        });
+
+        itemsView = CreateItemsView();
+
+
         itemsView.TriggerUpdateContent(this.items.Count);
+        if (this.items[0].IsDisabled) UI.Post(() => OnCursorDown());
         dlg.Show();
     }
 
+    void CalculateSizes()
+    {
+        viewHeight = Math.Min(items.Count + 2, maxHeight);
+        shortcutWidth = items.Max(i => i.Shortcut.Length);
+        shortcutWidth = shortcutWidth == 0 ? 0 : shortcutWidth + 1;  // Add space before shortcut if any
+        subMenuMarkerWidth = items.Any(i => i is SubMenu2) ? 2 : 0;  // Include space befoe submenu marker if any
+        titleWidth = items.Max(i => i.Title.Length);
+
+        var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
+        viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
+    }
+
+    IReadOnlyList<Text> ToItemsRows()
+    {
+        return items.Select(ToItemText).ToList();
+    }
+
+
+    Text ToItemText(MenuItem2 item)
+    {
+        if (item is MenuSeparator2 ms) return Text.New.BrightMagenta(ToSepratorText(ms));
+
+        var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
+
+        var text = Text.New.Color(titleColor, item.Title.Max(titleWidth, true));
+        if (item.Shortcut != "")
+            text.Black(new string(' ', shortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
+        else if (shortcutWidth > 0)
+            text.Black(new string(' ', shortcutWidth));
+
+        if (item is SubMenu2)
+            text.Black("").Color(titleColor, ">");
+        if (subMenuMarkerWidth > 0)
+            text.Black(" ");
+
+        return text;
+    }
+
+    string ToSepratorText(MenuSeparator2 item)
+    {
+        string title = item.Title;
+        var width = viewWidth - 2;
+        if (title == "")
+        {   // Just a line ----
+            title = new string('─', viewWidth - 2);
+        }
+        else
+        {   // A line with text, e.g. '-- text ------
+            title = title.Max(width - 5);
+            string suffix = new string('─', Math.Max(0, width - title.Length - 5));
+            title = $"╴{title} {suffix}──";
+        }
+
+        return title;
+    }
+
+    ContentView CreateItemsView()
+    {
+        var view = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), OnGetContent);
+        view.RegisterKeyHandler(Key.Esc, () => dlg.Close());
+        view.IsShowCursor = false;
+        view.IsScrollMode = false;
+        view.IsCursorMargin = false;
+
+        view.RegisterKeyHandler(Key.Enter, () => OnEnter());
+        view.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
+        view.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
+        return view;
+    }
+
+    void OnCursorUp()
+    {
+        if (itemsView.CurrentIndex == 0) return;
+        itemsView.Move(-1);
+        if (items[itemsView.CurrentIndex].IsDisabled) OnCursorUp();
+    }
+
+    void OnCursorDown()
+    {
+        if (itemsView.CurrentIndex == items.Count - 1) return;
+        itemsView.Move(1);
+        if (items[itemsView.CurrentIndex].IsDisabled) OnCursorDown();
+    }
+
+    void OnEnter()
+    {
+        var item = items[itemsView.CurrentIndex];
+        if (item.CanExecute() && item.Action != null)
+        {
+            item.Action();
+        }
+        dlg.Close();
+    }
+
+
     IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        return items.Skip(firstIndex).Take(count).Select((m, i) =>
+        return itemRows.Skip(firstIndex).Take(count).Select((row, i) =>
         {
             var isSelectedRow = i + firstIndex == currentIndex;
-            return (isSelectedRow
-                ? Text.New.WhiteSelected($"{m.Title}")
-                : Text.New.White($"{m.Title} "));
+            return isSelectedRow ? Text.New.WhiteSelected(row.ToString()) : row;
         });
     }
 
@@ -77,12 +189,13 @@ class MenuItem2
     public string Shortcut { get; }
     public Action Action { get; }
     public Func<bool> CanExecute { get; }
+    public bool IsDisabled { get; set; }
 }
 
 class SubMenu2 : MenuItem2
 {
     public SubMenu2(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
-        : base(title, shortcut, () => { }, canExecute)
+        : base(title, shortcut, () => { }, () => canExecute?.Invoke() ?? true && children.Any())
     {
         Children = children;
 
@@ -94,31 +207,13 @@ class SubMenu2 : MenuItem2
 
 class MenuSeparator2 : MenuItem2
 {
-    const int maxDivider = 25;
-
     public MenuSeparator2(string text = "")
-    : base(ToTitle(text), "", () => { }, () => false)
+        : base(text, "", () => { }, () => false)
     { }
-
-    static string ToTitle(string text = "")
-    {
-        string title = "";
-        if (text == "")
-        {   // Just a line ----
-            title = new string('─', maxDivider);
-        }
-        else
-        {   // A line with text, e.g. '-- text ------'
-            text = text.Max(maxDivider - 6);
-            string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
-            title = $"── {text} {suffix}──";
-        }
-
-        return title;
-    }
 }
 
 
+// #################### OLD ####################
 
 class Menu
 {
@@ -173,25 +268,25 @@ class MenuSeparator : MenuItem
     const int maxDivider = 25;
 
     public MenuSeparator(string text = "")
-    : base(ToTitle(text), "", () => { }, () => false)
+    : base(text, "", () => { }, () => false)
     { }
 
-    static string ToTitle(string text = "")
-    {
-        string title = "";
-        if (text == "")
-        {   // Just a line ----
-            title = new string('─', maxDivider);
-        }
-        else
-        {   // A line with text, e.g. '-- text ------'
-            text = text.Max(maxDivider - 6);
-            string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
-            title = $"── {text} {suffix}──";
-        }
+    // static string ToTitle(string text = "")
+    // {
+    //     string title = "";
+    //     if (text == "")
+    //     {   // Just a line ----
+    //         title = new string('─', maxDivider);
+    //     }
+    //     else
+    //     {   // A line with text, e.g. '-- text ------'
+    //         text = text.Max(maxDivider - 6);
+    //         string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
+    //         title = $"── {text} {suffix}──";
+    //     }
 
-        return title;
-    }
+    //     return title;
+    // }
 }
 
 
