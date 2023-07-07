@@ -5,8 +5,9 @@ namespace gmd.Cui.Common;
 
 class Menu2
 {
-    const int maxHeight = 10;
+    const int maxHeight = 31;
     readonly string title;
+    readonly Menu2? parent;
     readonly int x;
     readonly int y;
 
@@ -20,12 +21,16 @@ class Menu2
     int shortcutWidth;
     int subMenuMarkerWidth;
 
-    public Menu2(int x, int y, string title = "")
+    MenuItem2 CurrentItem => items[itemsView.CurrentIndex];
+
+    public Menu2(int x, int y, string title = "", Menu2? parent = null)
     {
         this.x = x;
         this.y = y;
         this.title = title;
+        this.parent = parent;
     }
+
 
     public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "")
     {
@@ -34,8 +39,15 @@ class Menu2
         new Menu2(x, y, title).Show(items.Select(ToItem));
     }
 
+
     void Show(IEnumerable<MenuItem2> items)
     {
+        // Get unicode right arror char as a string
+        var rightArrow = new string(new[] { '\u25B6' });
+
+
+
+
         this.items = items.ToList();
         this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute());
 
@@ -87,7 +99,7 @@ class Menu2
             text.Black(new string(' ', shortcutWidth));
 
         if (item is SubMenu2)
-            text.Black("").Color(titleColor, ">");
+            text.Black("").BrightMagenta(">");
         if (subMenuMarkerWidth > 0)
             text.Black(" ");
 
@@ -123,31 +135,53 @@ class Menu2
         view.RegisterKeyHandler(Key.Enter, () => OnEnter());
         view.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
         view.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
+        view.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
+        view.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         return view;
     }
+
+    void OnEnter()
+    {
+        if (CurrentItem.CanExecute() && CurrentItem.Action != null)
+        {
+            CurrentItem.Action();
+        }
+
+        dlg.Close();
+    }
+
 
     void OnCursorUp()
     {
         if (itemsView.CurrentIndex == 0) return;
         itemsView.Move(-1);
-        if (items[itemsView.CurrentIndex].IsDisabled) OnCursorUp();
+        if (CurrentItem.IsDisabled) OnCursorUp();
     }
 
     void OnCursorDown()
     {
         if (itemsView.CurrentIndex == items.Count - 1) return;
         itemsView.Move(1);
-        if (items[itemsView.CurrentIndex].IsDisabled) OnCursorDown();
+        if (CurrentItem.IsDisabled) OnCursorDown();
     }
 
-    void OnEnter()
+    void OnCursorLeft()
     {
-        var item = items[itemsView.CurrentIndex];
-        if (item.CanExecute() && item.Action != null)
-        {
-            item.Action();
-        }
+        if (parent == null) return; // Do not close top level menu on left arrow (only sub menus)
         dlg.Close();
+    }
+
+    void OnCursorRight()
+    {
+
+        if (CurrentItem is SubMenu2 sm && !sm.IsDisabled)
+        {
+            var x = this.x + viewWidth;
+            var y = this.y + (itemsView.CurrentIndex - itemsView.FirstIndex);
+
+            var subMenu = new Menu2(x, y, sm.Title, this);
+            subMenu.Show(sm.Children);
+        }
     }
 
 
@@ -164,7 +198,7 @@ class Menu2
     {
         if (item is SubMenu sm)
         {
-            return new SubMenu2(sm.Title, sm.Item().Help.ToString() ?? "", sm.Children, sm.Item().CanExecute);
+            return new SubMenu2(sm.Title, sm.Item().Help.ToString() ?? "", sm.Children.Select(ToItem), sm.Item().CanExecute);
         }
         else if (item is MenuSeparator ms)
         {
@@ -192,16 +226,16 @@ class MenuItem2
     public bool IsDisabled { get; set; }
 }
 
+
 class SubMenu2 : MenuItem2
 {
-    public SubMenu2(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+    public SubMenu2(string title, string shortcut, IEnumerable<MenuItem2> children, Func<bool>? canExecute = null)
         : base(title, shortcut, () => { }, () => canExecute?.Invoke() ?? true && children.Any())
     {
         Children = children;
-
     }
 
-    public IEnumerable<MenuItem> Children { get; }
+    public IEnumerable<MenuItem2> Children { get; }
 }
 
 

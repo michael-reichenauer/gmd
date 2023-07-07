@@ -103,7 +103,6 @@ class RepoViewMenus : IRepoViewMenus
 
             return items
                 .AddItem("Toggle Details ...", "Enter", () => cmds.ToggleDetails())
-
                 .AddItem("Commit ...", "c",
                     () => cmds.CommitFromMenu(false),
                     () => !repo.Status.IsOk)
@@ -112,9 +111,8 @@ class RepoViewMenus : IRepoViewMenus
                     () => repo.GetCurrentCommit().IsAhead)
                 .AddSubMenu("Undo", "", GetUndoItems())
                 .AddSubMenu("Diff", "", GetDiffItems())
-                .AddSeparator("Commits")
-                .AddSubMenu("Open/Show Branch", "->", GetShowBranchItems())
-                .AddSubMenu("Hide Branch", "<-", GetHideItems())
+                .AddSubMenu("Open/Show Branch", "→", GetShowBranchItems())
+                .AddSubMenu("Hide Branch", "←", GetHideItems())
                 .AddSubMenu("Switch/Checkout", "", GetSwitchToItems()
                     .Append(new MenuItem($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)))
                 .AddSubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush())
