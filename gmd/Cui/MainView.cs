@@ -69,14 +69,15 @@ partial class MainView : IMainView
         Threading.SetUp();
 
         string path = GetWorkingFolder();
-        // string path = "/lkwjlkj";
+        // Environment.CurrentDirectory = "/workspaces";
+        // path = "/lkwjlkj";
         // path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
         // path = "/workspaces/Dependitor";
         // path = "/workspaces/gmd/tmp/Dependitor";
         // path = "/workspaces/GitMind";
         // path = "/workspaces/kal kl/gmd-3";
-        //  path = "/workspaces/gmd-1";           // ########### Disabled for now
+        // path = "/workspaces/gmd-1";          
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
@@ -109,14 +110,21 @@ partial class MainView : IMainView
     void ShowMainMenu()
     {
         Menu.Show(4, 0, Menu.NewItems
-            .AddSeparator("Recent Repos")
             .Add(GetRecentRepoItems())
             .AddSeparator()
             .AddItem("Browse ...", "", () => ShowBrowseDialog())
             .AddItem("Clone ...", "", () => Clone())
             .AddItem("Help ...", "", () => ShowHelp())
             .AddItem("About ...", "", () => ShowAbout())
-            .AddItem("Quit", "Esc ", () => Application.RequestStop()));
+            .AddItem("Quit", "Esc ", () => Application.RequestStop()),
+            "Recent Repos",
+            () => OnCancelMenu());
+    }
+
+    void OnCancelMenu()
+    {
+        Log.Info("Cancel menu");
+        Application.RequestStop();
     }
 
 

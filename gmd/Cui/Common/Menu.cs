@@ -193,8 +193,8 @@ class Menu
 
     void OnEsc()
     {
-        Close();
-        onEscAction();
+        RootMenu.Closed += () => UI.Post(() => onEscAction());
+        UI.Post(() => Close());
     }
 
     void OnEnter()
