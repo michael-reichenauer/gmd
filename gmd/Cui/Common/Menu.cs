@@ -3,61 +3,56 @@ using Terminal.Gui;
 namespace gmd.Cui.Common;
 
 
+
 class Menu2
 {
-    const int maxHeight = 31;
+    record Dimensions(int X, int Y, int Width, int Heigth, int TitleWidth, int ShortcutWidth, int SubMenuMarkerWidth);
+
+    const int maxHeight = 30;
     readonly string title;
     readonly Menu2? parent;
     readonly int x;
     readonly int y;
+    readonly int altX;
+    readonly Action onEsc;
 
     UIDialog dlg = null!;
     ContentView itemsView = null!;
     IReadOnlyList<Text> itemRows = null!;
     IReadOnlyList<MenuItem2> items = null!;
-    int viewWidth = 0;
-    int titleWidth;
-    int viewHeight;
-    int shortcutWidth;
-    int subMenuMarkerWidth;
-
+    Dimensions dim = null!;
     MenuItem2 CurrentItem => items[itemsView.CurrentIndex];
 
-    public Menu2(int x, int y, string title = "", Menu2? parent = null)
+
+    public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "", Action? onEsc = null)
+    {
+        var menu = new Menu2(x, y, title, null, -1, onEsc);
+        menu.Show(items.Select(ToItem));
+    }
+
+
+    public Menu2(int x, int y, string title, Menu2? parent, int altX, Action? onEsc)
     {
         this.x = x;
         this.y = y;
         this.title = title;
         this.parent = parent;
+        this.altX = altX;
+        this.onEsc = onEsc ?? (() => { });
     }
-
-
-    public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "")
-    {
-        if (!items.Any()) return;
-
-        new Menu2(x, y, title).Show(items.Select(ToItem));
-    }
-
 
     void Show(IEnumerable<MenuItem2> items)
     {
-        // Get unicode right arror char as a string
-        var rightArrow = new string(new[] { '\u25B6' });
-
-
-
-
         this.items = items.ToList();
         this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute());
 
-        CalculateSizes();
+        dim = GetDimensions();
         itemRows = ToItemsRows();
 
-        dlg = new UIDialog(title, viewWidth, viewHeight, null, options =>
+        dlg = new UIDialog(title, dim.Width, dim.Heigth, null, options =>
         {
-            options.X = x;
-            options.Y = y;
+            options.X = dim.X;
+            options.Y = dim.Y;
         });
 
         itemsView = CreateItemsView();
@@ -68,16 +63,53 @@ class Menu2
         dlg.Show();
     }
 
-    void CalculateSizes()
+    void CloseAll()
     {
-        viewHeight = Math.Min(items.Count + 2, maxHeight);
-        shortcutWidth = items.Max(i => i.Shortcut.Length);
+        Log.Info($"Close all on {title}");
+        dlg.Close();
+        UI.Post(() => parent?.CloseAll());
+    }
+
+    Dimensions GetDimensions()
+    {
+        var screeenWidth = Application.Driver.Cols;
+        var screenHeight = Application.Driver.Rows;
+
+        var viewHeight = Math.Min(items.Count + 2, Math.Min(maxHeight, screenHeight));
+
+        var shortcutWidth = items.Max(i => i.Shortcut.Length);
         shortcutWidth = shortcutWidth == 0 ? 0 : shortcutWidth + 1;  // Add space before shortcut if any
-        subMenuMarkerWidth = items.Any(i => i is SubMenu2) ? 2 : 0;  // Include space befoe submenu marker if any
-        titleWidth = items.Max(i => i.Title.Length);
+        var subMenuMarkerWidth = items.Any(i => i is SubMenu2) ? 2 : 0;  // Include space befoe submenu marker if any
+        var titleWidth = items.Max(i => i.Title.Length);
 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
-        viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
+        var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
+        if (viewWidth > screeenWidth)
+        {   // Too wide, try to fit on screen
+            viewWidth = screeenWidth;
+            titleWidth = Math.Max(5, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
+        }
+
+        var viewX = x;
+        var viewY = y;
+
+        if (viewX + viewWidth > screeenWidth)
+        {   // Too far to the right, try to move left
+            if (altX >= 0)
+            {   // Use alternative x position (left of parent menu)
+                viewX = Math.Max(0, altX - viewWidth);
+            }
+            else
+            {   // Adjust original x position
+                viewX = Math.Max(0, x - viewWidth);
+            }
+        }
+        if (viewY + viewHeight > screenHeight)
+        {   // Too far down, try to move up
+            viewY = Math.Max(0, y - viewHeight);
+        }
+
+        return new Dimensions(viewX, viewY, viewWidth, viewHeight, titleWidth, shortcutWidth, subMenuMarkerWidth);
     }
 
     IReadOnlyList<Text> ToItemsRows()
@@ -92,15 +124,15 @@ class Menu2
 
         var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
 
-        var text = Text.New.Color(titleColor, item.Title.Max(titleWidth, true));
+        var text = Text.New.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
         if (item.Shortcut != "")
-            text.Black(new string(' ', shortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
-        else if (shortcutWidth > 0)
-            text.Black(new string(' ', shortcutWidth));
+            text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
+        else if (dim.ShortcutWidth > 0)
+            text.Black(new string(' ', dim.ShortcutWidth));
 
         if (item is SubMenu2)
             text.Black("").BrightMagenta(">");
-        if (subMenuMarkerWidth > 0)
+        if (dim.SubMenuMarkerWidth > 0)
             text.Black(" ");
 
         return text;
@@ -109,10 +141,10 @@ class Menu2
     string ToSepratorText(MenuSeparator2 item)
     {
         string title = item.Title;
-        var width = viewWidth - 2;
+        var width = dim.Width - 2;
         if (title == "")
         {   // Just a line ----
-            title = new string('─', viewWidth - 2);
+            title = new string('─', dim.Width - 2);
         }
         else
         {   // A line with text, e.g. '-- text ------
@@ -132,22 +164,32 @@ class Menu2
         view.IsScrollMode = false;
         view.IsCursorMargin = false;
 
+        view.RegisterKeyHandler(Key.Esc, () => OnEsc());
         view.RegisterKeyHandler(Key.Enter, () => OnEnter());
         view.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
         view.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
+        view.RegisterKeyHandler(Key.PageUp, () => OnPageUp());
+        view.RegisterKeyHandler(Key.PageDown, () => OnPageDown());
+        view.RegisterKeyHandler(Key.Home, () => OnHome());
+        view.RegisterKeyHandler(Key.End, () => OnEnd());
         view.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         view.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         return view;
+    }
+
+    void OnEsc()
+    {
+        dlg.Close();
     }
 
     void OnEnter()
     {
         if (CurrentItem.CanExecute() && CurrentItem.Action != null)
         {
-            CurrentItem.Action();
+            UI.Post(() => CurrentItem.Action());
         }
 
-        dlg.Close();
+        UI.Post(() => CloseAll());
     }
 
 
@@ -155,6 +197,8 @@ class Menu2
     {
         if (itemsView.CurrentIndex == 0) return;
         itemsView.Move(-1);
+
+        if (itemsView.CurrentIndex == 0 && CurrentItem.IsDisabled) OnCursorDown();
         if (CurrentItem.IsDisabled) OnCursorUp();
     }
 
@@ -162,6 +206,44 @@ class Menu2
     {
         if (itemsView.CurrentIndex == items.Count - 1) return;
         itemsView.Move(1);
+
+        if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
+        if (CurrentItem.IsDisabled) OnCursorDown();
+    }
+
+    void OnPageUp()
+    {
+        if (itemsView.CurrentIndex == 0) return;
+        itemsView.Move(-itemsView.ViewHeight);
+
+        if (itemsView.CurrentIndex == 0 && CurrentItem.IsDisabled) OnCursorDown();
+        if (CurrentItem.IsDisabled) OnCursorUp();
+    }
+
+    void OnPageDown()
+    {
+        if (itemsView.CurrentIndex == items.Count - 1) return;
+        itemsView.Move(itemsView.ViewHeight);
+
+        if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
+        if (CurrentItem.IsDisabled) OnCursorDown();
+    }
+
+    void OnHome()
+    {
+        if (itemsView.CurrentIndex == 0) return;
+        itemsView.Move(-itemsView.Count);
+
+        if (itemsView.CurrentIndex == 0 && CurrentItem.IsDisabled) OnCursorDown();
+        if (CurrentItem.IsDisabled) OnCursorUp();
+    }
+
+    void OnEnd()
+    {
+        if (itemsView.CurrentIndex == items.Count - 1) return;
+        itemsView.Move(itemsView.Count);
+
+        if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
         if (CurrentItem.IsDisabled) OnCursorDown();
     }
 
@@ -173,13 +255,12 @@ class Menu2
 
     void OnCursorRight()
     {
-
         if (CurrentItem is SubMenu2 sm && !sm.IsDisabled)
         {
-            var x = this.x + viewWidth;
+            var x = this.x + dim.Width;
             var y = this.y + (itemsView.CurrentIndex - itemsView.FirstIndex);
 
-            var subMenu = new Menu2(x, y, sm.Title, this);
+            var subMenu = new Menu2(x, y, sm.Title, this, this.x, null);
             subMenu.Show(sm.Children);
         }
     }

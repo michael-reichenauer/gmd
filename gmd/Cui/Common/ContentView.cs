@@ -61,7 +61,7 @@ class ContentView : View
 
     internal event Action? CurrentIndexChange;
 
-    int ViewHeight => Frame.Height;
+    internal int ViewHeight => Frame.Height;
     internal int ViewWidth => Frame.Width;
     internal bool IsShowCursor { get; set; } = true;
     internal bool IsScrollMode { get; set; } = false;
