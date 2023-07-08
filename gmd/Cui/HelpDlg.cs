@@ -25,7 +25,9 @@ class HelpDlg : IHelpDlg
         var dlg = new UIDialog("Help", width, height);
 
         var contentView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), ToHelpText(content));
-        contentView.IsNoCursor = true;
+        contentView.IsShowCursor = false;
+        contentView.IsScrollMode = true;
+        contentView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
 
         dlg.Show(contentView);
     }

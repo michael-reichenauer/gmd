@@ -61,9 +61,10 @@ class ContentView : View
 
     internal event Action? CurrentIndexChange;
 
-    int ViewHeight => Frame.Height;
+    internal int ViewHeight => Frame.Height;
     internal int ViewWidth => Frame.Width;
-    internal bool IsNoCursor { get; set; } = false;
+    internal bool IsShowCursor { get; set; } = true;
+    internal bool IsScrollMode { get; set; } = false;
     internal bool IsCursorMargin { get; set; } = false;
     internal bool IsTopBorder { get; set; } = false;
     internal bool IsHideCursor { get; set; } = false;
@@ -71,7 +72,7 @@ class ContentView : View
     internal int ContentY => IsTopBorder ? topBorderHeight : 0;
     internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
     internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
-    internal Point CurrentPoint => new Point(0, FirstIndex + CurrentIndex);
+    internal Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
     internal int SelectStartIndex => selectStartIndex;
     internal int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
 
@@ -274,7 +275,8 @@ class ContentView : View
     public void ToggleShowCursor()
     {
         ClearSelection();
-        IsNoCursor = !IsNoCursor;
+        IsShowCursor = !IsShowCursor;
+        IsScrollMode = !IsShowCursor;
         SetNeedsDisplay();
     }
 
@@ -360,7 +362,7 @@ class ContentView : View
 
     void DrawCursor()
     {
-        if (IsNoCursor || IsHideCursor || !IsFocus)
+        if (!IsShowCursor || IsHideCursor || !IsFocus)
         {
             return;
         }
@@ -428,7 +430,7 @@ class ContentView : View
 
     internal void Move(int move)
     {
-        if (IsNoCursor)
+        if (IsScrollMode)
         {
             Scroll(move);
             return;

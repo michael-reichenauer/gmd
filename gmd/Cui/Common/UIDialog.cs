@@ -33,7 +33,7 @@ class UIDialog
 
     public void Close() => Application.RequestStop();
 
-    internal Label AddLabel(int x, int y, string text)
+    internal Label AddLabel(int x, int y, string text = "")
     {
         var label = new Label(x, y, text) { ColorScheme = ColorSchemes.Label };
         views.Add(label);
