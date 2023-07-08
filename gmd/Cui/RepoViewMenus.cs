@@ -12,12 +12,12 @@ interface IRepoViewMenus
     void ShowShowBranchesMenu();
     void ShowHideBranchesMenu();
     void ShowOpenMenu();
-    void ShowMainMenu2();
 }
 
 class RepoViewMenus : IRepoViewMenus
 {
-    readonly int RecentCount = 15;
+    const int RecentCount = 15;
+    const int MaxItemCount = 20;
 
     readonly IRepo repo;
     readonly IRepoCommands cmds;
@@ -41,47 +41,34 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowMainMenu()
     {
-        int x = repo.ContentWidth / 2 - 10;
-        Menu.Show(x, 0, GetMainMenuItems(x, 0));
+        Menu.Show(-1, 0, GetMainMenuItems(), "Main Menu");
     }
 
-    public void ShowMainMenu2()
-    {
-        int x = repo.ContentWidth / 2 - 10;
-        Menu2.Show(x, 0, GetMainMenuItems(x, 0), "Main Menu");
-    }
 
     public void ShowShowBranchesMenu()
     {
         Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y, Menu.NewItems
-            .AddSeparator("Switch to")
             .Add(GetSwitchToItems())
             .AddSeparator("Open")
             .Add(GetShowItems())
             .AddSeparator("More")
             .AddSubMenu("Show Branch", "", GetShowBranchItems())
-            .AddSubMenu("Main Menu", "m", GetMainMenuItems(repo.CurrentPoint.X, repo.CurrentPoint.Y))
-        );
+            .AddSubMenu("Main Menu", "m", GetMainMenuItems()),
+            "Switch to");
     }
 
     public void ShowHideBranchesMenu()
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y, Menu.NewItems
-            .AddSeparator("Close/Hide")
-            .Add(GetHideItems())
-        );
+        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y, GetHideItems(), "Close/Hide");
     }
 
     public void ShowOpenMenu()
     {
         int x = repo.ContentWidth / 2 - 10;
-        Menu.Show(x, 0, Menu.NewItems
-            .AddSeparator("Open Repo")
-            .Add(GetOpenRepoItems())
-        );
+        Menu.Show(x, 0, GetOpenRepoItems(), "Open Repo");
     }
 
-    IEnumerable<MenuItem> GetMainMenuItems(int x, int y)
+    IEnumerable<MenuItem> GetMainMenuItems()
     {
         using (Timing.Start())
         {
@@ -413,7 +400,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToDeleteHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= Menu.MaxItemCount)
+        if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToDeleteItems(branches);
         }
@@ -570,7 +557,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToHideHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= Menu.MaxItemCount)
+        if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToHideBranchesItems(branches);
         }
@@ -593,7 +580,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToShowHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= Menu.MaxItemCount)
+        if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToShowBranchesItems(branches, false, false);
         }

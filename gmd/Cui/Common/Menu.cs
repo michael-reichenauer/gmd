@@ -3,14 +3,14 @@ using Terminal.Gui;
 namespace gmd.Cui.Common;
 
 
-
-class Menu2
+// Context menu
+class Menu
 {
     record Dimensions(int X, int Y, int Width, int Heigth, int TitleWidth, int ShortcutWidth, int SubMenuMarkerWidth);
 
     const int maxHeight = 30;
     readonly string title;
-    readonly Menu2? parent;
+    readonly Menu? parent;
     readonly int x;
     readonly int y;
     readonly int altX;
@@ -19,19 +19,20 @@ class Menu2
     UIDialog dlg = null!;
     ContentView itemsView = null!;
     IReadOnlyList<Text> itemRows = null!;
-    IReadOnlyList<MenuItem2> items = null!;
+    IReadOnlyList<MenuItem> items = null!;
     Dimensions dim = null!;
-    MenuItem2 CurrentItem => items[itemsView.CurrentIndex];
+    MenuItem CurrentItem => items[itemsView.CurrentIndex];
 
 
     public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "", Action? onEsc = null)
     {
-        var menu = new Menu2(x, y, title, null, -1, onEsc);
-        menu.Show(items.Select(ToItem));
+        var menu = new Menu(x, y, title, null, -1, onEsc);
+        menu.Show(items);
     }
 
+    public static IList<MenuItem> NewItems => new List<MenuItem>();
 
-    public Menu2(int x, int y, string title, Menu2? parent, int altX, Action? onEsc)
+    public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEsc)
     {
         this.x = x;
         this.y = y;
@@ -41,7 +42,7 @@ class Menu2
         this.onEsc = onEsc ?? (() => { });
     }
 
-    void Show(IEnumerable<MenuItem2> items)
+    void Show(IEnumerable<MenuItem> items)
     {
         this.items = items.ToList();
         this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute());
@@ -79,8 +80,8 @@ class Menu2
 
         var shortcutWidth = items.Max(i => i.Shortcut.Length);
         shortcutWidth = shortcutWidth == 0 ? 0 : shortcutWidth + 1;  // Add space before shortcut if any
-        var subMenuMarkerWidth = items.Any(i => i is SubMenu2) ? 2 : 0;  // Include space befoe submenu marker if any
-        var titleWidth = items.Max(i => i.Title.Length);
+        var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space befoe submenu marker if any
+        var titleWidth = items.Max(i => i.Title.Length + 1);
 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
         var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
@@ -90,8 +91,8 @@ class Menu2
             titleWidth = Math.Max(5, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
-        var viewX = x;
-        var viewY = y;
+        var viewX = x == -1 ? screeenWidth / 2 - viewWidth / 2 : x; // Centered if x == -1
+        var viewY = y == -1 ? screenHeight / 2 - viewHeight / 2 : y; // Centered if y == -1
 
         if (viewX + viewWidth > screeenWidth)
         {   // Too far to the right, try to move left
@@ -114,42 +115,44 @@ class Menu2
 
     IReadOnlyList<Text> ToItemsRows()
     {
-        return items.Select(ToItemText).ToList();
+        return items.Select(item =>
+        {
+            if (item is MenuSeparator ms) return Text.New.BrightMagenta(ToSepratorText(ms));
+
+            var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
+
+            var text = Text.New.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
+            if (item.Shortcut != "")
+                text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
+            else if (dim.ShortcutWidth > 0)
+                text.Black(new string(' ', dim.ShortcutWidth));
+
+            if (!item.IsDisabled && item is SubMenu)
+                text.BrightMagenta(">");
+            if (item.IsDisabled && item is SubMenu)
+                text.Dark(">");
+            if (dim.SubMenuMarkerWidth > 0)
+                text.Black(" ");
+
+            return text;
+        })
+        .ToList();
     }
 
 
-    Text ToItemText(MenuItem2 item)
-    {
-        if (item is MenuSeparator2 ms) return Text.New.BrightMagenta(ToSepratorText(ms));
-
-        var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
-
-        var text = Text.New.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
-        if (item.Shortcut != "")
-            text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
-        else if (dim.ShortcutWidth > 0)
-            text.Black(new string(' ', dim.ShortcutWidth));
-
-        if (item is SubMenu2)
-            text.Black("").BrightMagenta(">");
-        if (dim.SubMenuMarkerWidth > 0)
-            text.Black(" ");
-
-        return text;
-    }
-
-    string ToSepratorText(MenuSeparator2 item)
+    string ToSepratorText(MenuSeparator item)
     {
         string title = item.Title;
         var width = dim.Width - 2;
+        var scrollbarWidth = items.Count + 2 > dim.Heigth ? 0 : 1;
         if (title == "")
         {   // Just a line ----
-            title = new string('─', dim.Width - 2);
+            title = new string('─', dim.Width - 2 + scrollbarWidth);
         }
         else
         {   // A line with text, e.g. '-- text ------
             title = title.Max(width - 5);
-            string suffix = new string('─', Math.Max(0, width - title.Length - 5));
+            string suffix = new string('─', Math.Max(0, width - title.Length - 5 + scrollbarWidth));
             title = $"╴{title} {suffix}──";
         }
 
@@ -255,12 +258,12 @@ class Menu2
 
     void OnCursorRight()
     {
-        if (CurrentItem is SubMenu2 sm && !sm.IsDisabled)
+        if (CurrentItem is SubMenu sm && !sm.IsDisabled)
         {
             var x = this.x + dim.Width;
             var y = this.y + (itemsView.CurrentIndex - itemsView.FirstIndex);
 
-            var subMenu = new Menu2(x, y, sm.Title, this, this.x, null);
+            var subMenu = new Menu(x, y, sm.Title, this, this.x, null);
             subMenu.Show(sm.Children);
         }
     }
@@ -274,25 +277,13 @@ class Menu2
             return isSelectedRow ? Text.New.WhiteSelected(row.ToString()) : row;
         });
     }
-
-    static MenuItem2 ToItem(MenuItem item)
-    {
-        if (item is SubMenu sm)
-        {
-            return new SubMenu2(sm.Title, sm.Item().Help.ToString() ?? "", sm.Children.Select(ToItem), sm.Item().CanExecute);
-        }
-        else if (item is MenuSeparator ms)
-        {
-            return new MenuSeparator2(ms.Title);
-        }
-
-        return new MenuItem2(item.Title, item.Item().Help.ToString() ?? "", item.Item().Action, item.Item().CanExecute);
-    }
 }
 
-class MenuItem2
+
+// A normal menu item and base class for SubMenu and MenuSeparator
+class MenuItem
 {
-    public MenuItem2(string title, string shortcut, Action action, Func<bool>? canExecute = null)
+    public MenuItem(string title, string shortcut, Action action, Func<bool>? canExecute = null)
     {
         Title = title;
         Shortcut = shortcut;
@@ -308,124 +299,27 @@ class MenuItem2
 }
 
 
-class SubMenu2 : MenuItem2
+// To create a sub menu
+class SubMenu : MenuItem
 {
-    public SubMenu2(string title, string shortcut, IEnumerable<MenuItem2> children, Func<bool>? canExecute = null)
+    public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
         : base(title, shortcut, () => { }, () => canExecute?.Invoke() ?? true && children.Any())
     {
         Children = children;
     }
 
-    public IEnumerable<MenuItem2> Children { get; }
+    public IEnumerable<MenuItem> Children { get; }
 }
 
 
-class MenuSeparator2 : MenuItem2
+// To create a menu separator line or header line
+class MenuSeparator : MenuItem
 {
-    public MenuSeparator2(string text = "")
+    public MenuSeparator(string text = "")
         : base(text, "", () => { }, () => false)
     { }
 }
 
-
-// #################### OLD ####################
-
-class Menu
-{
-    public static int MaxItemCount = 15;
-    ContextMenu menu = new ContextMenu();
-
-    public static void Show(int x, int y, IEnumerable<MenuItem> menuItems)
-    {
-        ContextMenu menu = new ContextMenu(x, y, new MenuBarItem(
-            ToMaxItems(menuItems.Where(i => i != null)).Select(i => i.Item()).ToArray()));
-        menu.Show();
-    }
-
-    public static IList<MenuItem> NewItems => new List<MenuItem>();
-
-    internal static IEnumerable<MenuItem> ToMaxItems(IEnumerable<MenuItem> items)
-    {
-        if (items.Count() <= MaxItemCount)
-        {   // Too few branches to bother with submenus
-            return items;
-        }
-
-        return items.Take(MaxItemCount)
-            .Concat(new List<MenuItem>().AddSubMenu("  ...", "", ToMaxItems(items.Skip(MaxItemCount))));
-    }
-}
-
-
-// One item in a menu
-class MenuItem
-{
-    Terminal.Gui.MenuItem item;
-
-    public MenuItem()
-    {
-        item = new Terminal.Gui.MenuItem();
-    }
-
-    public MenuItem(string title, string shortcut, Action action, Func<bool>? canExecute = null)
-    {
-        shortcut = shortcut == "" ? "" : shortcut + " ";
-        item = new Terminal.Gui.MenuItem(title, shortcut, action, canExecute);
-    }
-
-    public virtual string Title => item.Title.ToString() ?? "";
-
-    public virtual Terminal.Gui.MenuItem Item() => item;
-}
-
-class MenuSeparator : MenuItem
-{
-    const int maxDivider = 25;
-
-    public MenuSeparator(string text = "")
-    : base(text, "", () => { }, () => false)
-    { }
-
-    // static string ToTitle(string text = "")
-    // {
-    //     string title = "";
-    //     if (text == "")
-    //     {   // Just a line ----
-    //         title = new string('─', maxDivider);
-    //     }
-    //     else
-    //     {   // A line with text, e.g. '-- text ------'
-    //         text = text.Max(maxDivider - 6);
-    //         string suffix = new string('─', Math.Max(0, maxDivider - text.Length - 6));
-    //         title = $"── {text} {suffix}──";
-    //     }
-
-    //     return title;
-    // }
-}
-
-
-// A menu item that opens a submenu
-class SubMenu : MenuItem
-{
-    MenuBarItem menuBar;
-    public IEnumerable<MenuItem> Children;
-    string title;
-
-    public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
-    {
-        this.title = title;
-        this.Children = children;
-        shortcut = shortcut == "" ? "" : shortcut + " ";
-        menuBar = new MenuBarItem(title, shortcut, null, canExecute)
-        {
-            Children = Menu.ToMaxItems(children.Where(c => c != null)).Select(c => c.Item()).ToArray()
-        };
-    }
-
-    public override string Title => title;
-    public override Terminal.Gui.MenuItem Item() => menuBar;
-}
 
 
 // Extension methods to make it easier to build menus
