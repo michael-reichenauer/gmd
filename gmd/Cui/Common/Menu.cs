@@ -11,10 +11,10 @@ class Menu
     const int maxHeight = 30;
     readonly string title;
     readonly Menu? parent;
-    readonly int x;
-    readonly int y;
+    readonly int xOrg;
+    readonly int yOrg;
     readonly int altX;
-    readonly Action onEsc;
+    readonly Action onEscAction;
 
     UIDialog dlg = null!;
     ContentView itemsView = null!;
@@ -24,22 +24,27 @@ class Menu
     MenuItem CurrentItem => items[itemsView.CurrentIndex];
 
 
-    public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "", Action? onEsc = null)
+    public event Action? Closed;
+
+
+    Menu RootMenu => parent == null ? this : parent.RootMenu;
+
+    public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "", Action? onEscAction = null)
     {
-        var menu = new Menu(x, y, title, null, -1, onEsc);
+        var menu = new Menu(x, y, title, null, -1, onEscAction);
         menu.Show(items);
     }
 
     public static IList<MenuItem> NewItems => new List<MenuItem>();
 
-    public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEsc)
+    public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)
     {
-        this.x = x;
-        this.y = y;
+        this.xOrg = x;
+        this.yOrg = y;
         this.title = title;
         this.parent = parent;
         this.altX = altX;
-        this.onEsc = onEsc ?? (() => { });
+        this.onEscAction = onEscAction ?? (() => { });
     }
 
     void Show(IEnumerable<MenuItem> items)
@@ -67,7 +72,7 @@ class Menu
     void CloseAll()
     {
         Log.Info($"Close all on {title}");
-        dlg.Close();
+        Close();
         UI.Post(() => parent?.CloseAll());
     }
 
@@ -91,8 +96,8 @@ class Menu
             titleWidth = Math.Max(5, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
-        var viewX = x == -1 ? screeenWidth / 2 - viewWidth / 2 : x; // Centered if x == -1
-        var viewY = y == -1 ? screenHeight / 2 - viewHeight / 2 : y; // Centered if y == -1
+        var viewX = xOrg == -1 ? screeenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1
+        var viewY = yOrg == -1 ? screenHeight / 2 - viewHeight / 2 : yOrg; // Centered if y == -1
 
         if (viewX + viewWidth > screeenWidth)
         {   // Too far to the right, try to move left
@@ -102,12 +107,12 @@ class Menu
             }
             else
             {   // Adjust original x position
-                viewX = Math.Max(0, x - viewWidth);
+                viewX = Math.Max(0, viewX - viewWidth);
             }
         }
         if (viewY + viewHeight > screenHeight)
         {   // Too far down, try to move up
-            viewY = Math.Max(0, y - viewHeight);
+            viewY = Math.Max(0, viewY - viewHeight);
         }
 
         return new Dimensions(viewX, viewY, viewWidth, viewHeight, titleWidth, shortcutWidth, subMenuMarkerWidth);
@@ -162,7 +167,7 @@ class Menu
     ContentView CreateItemsView()
     {
         var view = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), OnGetContent);
-        view.RegisterKeyHandler(Key.Esc, () => dlg.Close());
+        view.RegisterKeyHandler(Key.Esc, () => Close());
         view.IsShowCursor = false;
         view.IsScrollMode = false;
         view.IsCursorMargin = false;
@@ -180,17 +185,27 @@ class Menu
         return view;
     }
 
-    void OnEsc()
+    void Close()
     {
         dlg.Close();
+        Closed?.Invoke();
+    }
+
+    void OnEsc()
+    {
+        Close();
+        onEscAction();
     }
 
     void OnEnter()
     {
-        if (CurrentItem.CanExecute() && CurrentItem.Action != null)
+        RootMenu.Closed += () =>
         {
-            UI.Post(() => CurrentItem.Action());
-        }
+            if (CurrentItem.CanExecute() && CurrentItem.Action != null)
+            {
+                UI.Post(() => CurrentItem.Action());
+            }
+        };
 
         UI.Post(() => CloseAll());
     }
@@ -253,17 +268,17 @@ class Menu
     void OnCursorLeft()
     {
         if (parent == null) return; // Do not close top level menu on left arrow (only sub menus)
-        dlg.Close();
+        Close();
     }
 
     void OnCursorRight()
     {
         if (CurrentItem is SubMenu sm && !sm.IsDisabled)
         {
-            var x = this.x + dim.Width;
-            var y = this.y + (itemsView.CurrentIndex - itemsView.FirstIndex);
+            var x = dim.X + dim.Width;
+            var y = dim.Y + (itemsView.CurrentIndex - itemsView.FirstIndex);
 
-            var subMenu = new Menu(x, y, sm.Title, this, this.x, null);
+            var subMenu = new Menu(x, y, sm.Title, this, dim.X, null);
             subMenu.Show(sm.Children);
         }
     }
