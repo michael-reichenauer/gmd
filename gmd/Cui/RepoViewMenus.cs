@@ -47,7 +47,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowShowBranchesMenu()
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y, Menu.NewItems
+        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, Menu.NewItems
             .Add(GetSwitchToItems())
             .AddSeparator("Open")
             .Add(GetShowItems())
@@ -59,7 +59,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowHideBranchesMenu()
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y, GetHideItems(), "Close/Hide");
+        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, GetHideItems(), "Close/Hide");
     }
 
     public void ShowOpenMenu()

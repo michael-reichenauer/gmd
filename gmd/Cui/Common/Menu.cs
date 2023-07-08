@@ -112,7 +112,7 @@ class Menu
         }
         if (viewY + viewHeight > screenHeight)
         {   // Too far down, try to move up
-            viewY = Math.Max(0, viewY - viewHeight);
+            viewY = Math.Max(0, screenHeight - viewHeight);
         }
 
         return new Dimensions(viewX, viewY, viewWidth, viewHeight, titleWidth, shortcutWidth, subMenuMarkerWidth);

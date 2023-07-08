@@ -72,7 +72,7 @@ class ContentView : View
     internal int ContentY => IsTopBorder ? topBorderHeight : 0;
     internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
     internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
-    internal Point CurrentPoint => new Point(0, FirstIndex + CurrentIndex);
+    internal Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
     internal int SelectStartIndex => selectStartIndex;
     internal int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
 
