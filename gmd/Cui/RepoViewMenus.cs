@@ -16,7 +16,8 @@ interface IRepoViewMenus
 
 class RepoViewMenus : IRepoViewMenus
 {
-    readonly int RecentCount = 15;
+    const int RecentCount = 15;
+    const int MaxItemCount = 20;
 
     readonly IRepo repo;
     readonly IRepoCommands cmds;
@@ -40,41 +41,34 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowMainMenu()
     {
-        int x = repo.ContentWidth / 2 - 10;
-        Menu.Show(x, 0, GetMainMenuItems(x, 0));
+        Menu.Show(-1, 0, GetMainMenuItems(), "Main Menu");
     }
+
 
     public void ShowShowBranchesMenu()
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y, Menu.NewItems
-            .AddSeparator("Switch to")
+        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, Menu.NewItems
             .Add(GetSwitchToItems())
             .AddSeparator("Open")
             .Add(GetShowItems())
             .AddSeparator("More")
             .AddSubMenu("Show Branch", "", GetShowBranchItems())
-            .AddSubMenu("Main Menu", "m", GetMainMenuItems(repo.CurrentPoint.X, repo.CurrentPoint.Y))
-        );
+            .AddSubMenu("Main Menu", "m", GetMainMenuItems()),
+            "Switch to");
     }
 
     public void ShowHideBranchesMenu()
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y, Menu.NewItems
-            .AddSeparator("Close/Hide")
-            .Add(GetHideItems())
-        );
+        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, GetHideItems(), "Close/Hide");
     }
 
     public void ShowOpenMenu()
     {
         int x = repo.ContentWidth / 2 - 10;
-        Menu.Show(x, 0, Menu.NewItems
-            .AddSeparator("Open Repo")
-            .Add(GetOpenRepoItems())
-        );
+        Menu.Show(x, 0, GetOpenRepoItems(), "Open Repo");
     }
 
-    IEnumerable<MenuItem> GetMainMenuItems(int x, int y)
+    IEnumerable<MenuItem> GetMainMenuItems()
     {
         using (Timing.Start())
         {
@@ -104,8 +98,8 @@ class RepoViewMenus : IRepoViewMenus
                     () => repo.GetCurrentCommit().IsAhead)
                 .AddSubMenu("Undo", "", GetUndoItems())
                 .AddSubMenu("Diff", "", GetDiffItems())
-                .AddSubMenu("Open/Show Branch", "->", GetShowBranchItems())
-                .AddSubMenu("Hide Branch", "<-", GetHideItems())
+                .AddSubMenu("Open/Show Branch", "→", GetShowBranchItems())
+                .AddSubMenu("Hide Branch", "←", GetHideItems())
                 .AddSubMenu("Switch/Checkout", "", GetSwitchToItems()
                     .Append(new MenuItem($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)))
                 .AddSubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush())
@@ -406,7 +400,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToDeleteHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= Menu.MaxItemCount)
+        if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToDeleteItems(branches);
         }
@@ -563,7 +557,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToHideHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= Menu.MaxItemCount)
+        if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToHideBranchesItems(branches);
         }
@@ -586,7 +580,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> ToShowHiarchicalBranchesItems(IEnumerable<Branch> branches)
     {
-        if (branches.Count() <= Menu.MaxItemCount)
+        if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
             return ToShowBranchesItems(branches, false, false);
         }

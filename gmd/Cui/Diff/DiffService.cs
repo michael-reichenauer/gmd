@@ -363,14 +363,14 @@ class DiffService : IDiffService
 
         switch (fd.DiffMode)
         {
+            case DiffMode.DiffConflicts:
+                return "Conflicts:";
             case DiffMode.DiffModified:
                 return "Modified:";
             case DiffMode.DiffAdded:
                 return "Added:";
             case DiffMode.DiffRemoved:
                 return "Removed:";
-            case DiffMode.DiffConflicts:
-                return "Conflicted:";
         }
 
         throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");

@@ -235,6 +235,10 @@ class DiffService : IDiffService
         (i, var isBinary) = ParsePossibleIndexRows(i, lines);
 
         (var sectionDiffs, i) = ParseSectionDiffs(i, lines);
+        if (sectionDiffs.Any(sd => sd.LineDiffs.Any(ld => ld.DiffMode == DiffMode.DiffConflictStart)))
+        {
+            diffMode = DiffMode.DiffConflicts;
+        }
 
         return (new FileDiff(before, after, isRenamed, isBinary, diffMode, sectionDiffs), i, true);
     }
