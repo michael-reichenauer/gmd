@@ -52,7 +52,7 @@ class DiffView : IDiffView
 
         Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView = new ContentView(OnGetContent)
-        { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsShowCursor = false, IsCursorMargin = true };
+        { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsShowCursor = false, IsScrollMode = true, IsCursorMargin = true };
 
         diffView.Add(contentView);
         RegisterShortcuts(contentView);
@@ -85,14 +85,15 @@ class DiffView : IDiffView
 
         Menu.Show(1, 2, Menu.NewItems
             .AddSubMenu("Scroll to", "s", scrollToItems, () => scrollToItems.Any())
-            .AddSubMenu("Undo/Restore", "u", undoItems, () => undoItems.Any())
+            .AddSubMenu("Undo/Restore Uncommitted", "u", undoItems, () => undoItems.Any())
             .AddItem("Refresh", "r", () => RefreshDiff(), () => undoItems.Any())
             .AddItem("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
             .AddItem("Toggle Select Mode", "i", () => contentView.ToggleShowCursor())
             .AddItem("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
             .AddItem("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
             .AddItem("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
-            .AddItem("Close", "Esc", () => Application.RequestStop()));
+            .AddItem("Close", "Esc", () => Application.RequestStop()),
+            "Diff Menu");
     }
 
 
@@ -101,14 +102,14 @@ class DiffView : IDiffView
         var scrollToItems = GetScrollToItems();
         if (!scrollToItems.Any()) return;
 
-        Menu.Show(1, 2, scrollToItems);
+        Menu.Show(1, 2, scrollToItems, "Scroll to");
     }
 
     void ShowUndoMenu()
     {
         var undoItems = GetUndoItems();
         if (!undoItems.Any()) return;
-        Menu.Show(1, 2, undoItems);
+        Menu.Show(1, 2, undoItems, "Undo/Restore Uncommitted");
     }
 
     void TriggerCommit()
@@ -123,8 +124,7 @@ class DiffView : IDiffView
         if (!paths.Any()) return new List<Common.MenuItem>();
 
         return Menu.NewItems
-        .AddSeparator("Scroll to")
-        .Add(paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p))));
+            .Add(paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p))));
     }
 
     void ScrollToFile(string path)
@@ -144,18 +144,14 @@ class DiffView : IDiffView
         var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
         if (undoItems.Count() > 10)
         {   // Show files ith sub menu
-            undoItems = new[] { new SubMenu("Undo/Restore Uncommitted Files", "", undoItems) };
-        }
-        else
-        {   // Add a separator and show file directly
-            undoItems = undoItems.Prepend(new MenuSeparator("Undo/Restore Uncommitted Files"));
+            undoItems = new[] { new SubMenu("Uncommitted Files", "", undoItems) };
         }
 
         return Menu.NewItems
             .Add(undoItems)
             .AddSeparator()
-            .AddItem("Undo/Restore all Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
-            .AddItem("Undo/Restore all Uncommitted Changes", "", () => UndoAll());
+            .AddItem("All Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
+            .AddItem("All Uncommitted Changes", "", () => UndoAll());
     }
 
     async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)
