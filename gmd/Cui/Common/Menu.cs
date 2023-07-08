@@ -132,7 +132,7 @@ class Menu
             }
             else
             {
-                text.Color(titleColor, item.Title);
+                text.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
             }
 
             if (item.Shortcut != "")
