@@ -65,13 +65,12 @@ class Menu
 
 
         itemsView.TriggerUpdateContent(this.items.Count);
-        if (this.items[0].IsDisabled) UI.Post(() => OnCursorDown());
+        if (this.items.Any() && this.items[0].IsDisabled) UI.Post(() => OnCursorDown());
         dlg.Show();
     }
 
     void CloseAll()
     {
-        Log.Info($"Close all on {title}");
         Close();
         UI.Post(() => parent?.CloseAll());
     }
@@ -83,10 +82,10 @@ class Menu
 
         var viewHeight = Math.Min(items.Count + 2, Math.Min(maxHeight, screenHeight));
 
-        var shortcutWidth = items.Max(i => i.Shortcut.Length);
+        var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length) : 0;
         shortcutWidth = shortcutWidth == 0 ? 0 : shortcutWidth + 1;  // Add space before shortcut if any
         var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space befoe submenu marker if any
-        var titleWidth = items.Max(i => i.Title.Length + 1);
+        var titleWidth = Math.Max(items.Any() ? items.Max(i => i.Title.Length + 1) : 0, title.Length + 4);
 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
         var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
@@ -126,7 +125,16 @@ class Menu
 
             var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
 
-            var text = Text.New.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
+            var text = Text.New;
+            if (item.Title.Length > dim.TitleWidth)
+            {
+                text.Color(titleColor, item.Title.Max(dim.TitleWidth - 1, true)).Dark("…");
+            }
+            else
+            {
+                text.Color(titleColor, item.Title);
+            }
+
             if (item.Shortcut != "")
                 text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
             else if (dim.ShortcutWidth > 0)
@@ -201,7 +209,7 @@ class Menu
     {
         RootMenu.Closed += () =>
         {
-            if (CurrentItem.CanExecute() && CurrentItem.Action != null)
+            if (items.Any() && CurrentItem.CanExecute() && CurrentItem.Action != null)
             {
                 UI.Post(() => CurrentItem.Action());
             }
@@ -213,16 +221,16 @@ class Menu
 
     void OnCursorUp()
     {
-        if (itemsView.CurrentIndex == 0) return;
+        if (itemsView.CurrentIndex <= 0) return;
         itemsView.Move(-1);
 
-        if (itemsView.CurrentIndex == 0 && CurrentItem.IsDisabled) OnCursorDown();
+        if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
         if (CurrentItem.IsDisabled) OnCursorUp();
     }
 
     void OnCursorDown()
     {
-        if (itemsView.CurrentIndex == items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1) return;
         itemsView.Move(1);
 
         if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
@@ -231,37 +239,37 @@ class Menu
 
     void OnPageUp()
     {
-        if (itemsView.CurrentIndex == 0) return;
+        if (itemsView.CurrentIndex <= 0) return;
         itemsView.Move(-itemsView.ViewHeight);
 
-        if (itemsView.CurrentIndex == 0 && CurrentItem.IsDisabled) OnCursorDown();
+        if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
         if (CurrentItem.IsDisabled) OnCursorUp();
     }
 
     void OnPageDown()
     {
-        if (itemsView.CurrentIndex == items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1) return;
         itemsView.Move(itemsView.ViewHeight);
 
-        if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
+        if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
         if (CurrentItem.IsDisabled) OnCursorDown();
     }
 
     void OnHome()
     {
-        if (itemsView.CurrentIndex == 0) return;
+        if (itemsView.CurrentIndex <= 0) return;
         itemsView.Move(-itemsView.Count);
 
-        if (itemsView.CurrentIndex == 0 && CurrentItem.IsDisabled) OnCursorDown();
+        if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
         if (CurrentItem.IsDisabled) OnCursorUp();
     }
 
     void OnEnd()
     {
-        if (itemsView.CurrentIndex == items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1) return;
         itemsView.Move(itemsView.Count);
 
-        if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
+        if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
         if (CurrentItem.IsDisabled) OnCursorDown();
     }
 
@@ -273,7 +281,7 @@ class Menu
 
     void OnCursorRight()
     {
-        if (CurrentItem is SubMenu sm && !sm.IsDisabled)
+        if (items.Any() && CurrentItem is SubMenu sm && !sm.IsDisabled)
         {
             var x = dim.X + dim.Width;
             var y = dim.Y + (itemsView.CurrentIndex - itemsView.FirstIndex);
