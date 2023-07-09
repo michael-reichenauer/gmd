@@ -83,7 +83,7 @@ public record Branch(
 
     string ParentBranchName,
     string ParentBranchCommonName,
-    string PullMergeBranchName,
+    string PullMergeParentBranchName,
 
     bool IsGitBranch,
     bool IsDetached,

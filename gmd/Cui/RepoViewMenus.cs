@@ -375,7 +375,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
-             .Where(b => b.CommonName != currentName && b.LocalName == "" && b.PullMergeBranchName == "")
+             .Where(b => b.CommonName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
              .OrderBy(b => b.CommonName);
 
         return ToSwitchBranchesItems(branches);
@@ -385,7 +385,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var branches = repo.GetAllBranches()
             .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent
-                && b.LocalName == "" && b.PullMergeBranchName == "")
+                && b.LocalName == "" && b.PullMergeParentBranchName == "")
             .OrderBy(b => b.CommonName);
 
         return ToDeleteHiarchicalBranchesItems(branches);
@@ -433,7 +433,7 @@ class RepoViewMenus : IRepoViewMenus
 
         // Get all branches except current
         var branches = repo.Branches
-             .Where(b => b.CommonName != currentName && b.LocalName == "" && b.PullMergeBranchName == "")
+             .Where(b => b.CommonName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
              .DistinctBy(b => b.TipId)
              .OrderBy(b => b.CommonName);
 
@@ -463,7 +463,7 @@ class RepoViewMenus : IRepoViewMenus
         var currentName = repo.CurrentBranch?.CommonName ?? "";
         var branches = repo.Branches
              .Where(b => b.CommonName != currentName &&
-                b.RemoteName == "" && b.PullMergeBranchName == "")
+                b.RemoteName == "" && b.PullMergeParentBranchName == "")
              .DistinctBy(b => b.ViewName)
              .OrderBy(b => b.ViewName);
 
@@ -475,7 +475,7 @@ class RepoViewMenus : IRepoViewMenus
         var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
             .Where(b => !b.IsMainBranch && !b.IsDetached && b.CommonName != mainBranch.CommonName &&
-                b.RemoteName == "" && b.PullMergeBranchName == "")
+                b.RemoteName == "" && b.PullMergeParentBranchName == "")
             .DistinctBy(b => b.ViewName)
             .OrderBy(b => b.ViewName);
 
@@ -487,23 +487,20 @@ class RepoViewMenus : IRepoViewMenus
     {
         using (Timing.Start())
         {
-            var t = Timing.Start();
-
             var allBranches = repo.GetAllBranches();
 
             var liveBranches = allBranches
                 .Where(b => b.IsGitBranch)
-                .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
+                .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
                 .OrderBy(b => b.ViewName);
 
             var liveAndDeletedBranches = allBranches
-                .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
+                .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
                 .OrderBy(b => b.ViewName)
                 .ToList();
-            t.Log($"liveAndDeletedBranches.Count: {liveAndDeletedBranches.Count}");
 
             var recentBranches = liveAndDeletedBranches
-                .Where(b => b.RemoteName == "" && b.PullMergeBranchName == "")
+                .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
                 .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
                 .Take(RecentCount);
 
@@ -511,12 +508,10 @@ class RepoViewMenus : IRepoViewMenus
                 .Where(b => b.AmbiguousTipId != "")
                 .OrderBy(b => b.ViewName);
 
-            t.Log("Before GetShow");
             var items = new List<MenuItem>()
                 .AddSubMenu("Recent", "", ToShowHiarchicalBranchesItems(recentBranches))
-                .AddSubMenu("All Live", "", ToShowHiarchicalBranchesItems(liveBranches))
-                .AddSubMenu("All Live and Deleted", "", ToShowHiarchicalBranchesItems(liveAndDeletedBranches));
-            t.Log("GetShow");
+                .AddSubMenu("Active", "", ToShowHiarchicalBranchesItems(liveBranches))
+                .AddSubMenu("Active and Deleted", "", ToShowHiarchicalBranchesItems(liveAndDeletedBranches));
 
             return ambiguousBranches.Any()
                 ? items.AddSubMenu("Ambiguous", "", ToShowBranchesItems(ambiguousBranches, false, true))
@@ -606,7 +601,7 @@ class RepoViewMenus : IRepoViewMenus
         var cic = repo.RowCommit;
         return branches
             .Where(b => branches.ContainsBy(bb => bb.Name != b.RemoteName) && // Skip local if remote
-                branches.ContainsBy(bb => bb.Name != b.PullMergeBranchName)) // Skip pull merge if main
+                branches.ContainsBy(bb => bb.Name != b.PullMergeParentBranchName)) // Skip pull merge if main
             .DistinctBy(b => b.Name)
             .Select(b => new MenuItem(ToBranchMenuName(b, cic, canBeOutside), "",
                 () => cmds.ShowBranch(b.Name, includeAmbiguous)));

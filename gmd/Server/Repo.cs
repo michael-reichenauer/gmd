@@ -116,7 +116,7 @@ public record Branch(
 
     string ParentBranchName,
     string ParentBranchCommonName,
-    string PullMergeBranchName,
+    string PullMergeParentBranchName,
 
     bool HasLocalOnly,
     bool HasRemoteOnly,

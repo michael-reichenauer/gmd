@@ -398,7 +398,7 @@ class GraphCreater : IGraphCreater
                 {   // The local branch of a remote branch
                     b.X = b.ParentBranch.X + 1;
                 }
-                else if (b.B.PullMergeBranchName == b.ParentBranch.B.Name)
+                else if (b.B.PullMergeParentBranchName == b.ParentBranch.B.Name)
                 {   // The pull merger sub part of a branch
                     b.X = b.ParentBranch.X + 1;
                 }

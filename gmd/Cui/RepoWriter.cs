@@ -365,7 +365,7 @@ class RepoWriter : IRepoWriter
                     }
                 }
             }
-            else if (b.PullMergeBranchName != "")
+            else if (b.PullMergeParentBranchName != "")
             {
                 tipText.Color(color, "(").Dark(branchName).Color(color, ")");
             }

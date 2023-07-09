@@ -79,7 +79,7 @@ class Converter : IConverter
 
             ParentBranchName: b.ParentBranch?.Name ?? "",
             ParentBranchCommonName: b.ParentBranch?.CommonName ?? "",
-            PullMergeBranchName: b.PullMergeParentBranch?.Name ?? "",
+            PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
