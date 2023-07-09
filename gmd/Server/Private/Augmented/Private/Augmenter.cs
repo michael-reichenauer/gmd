@@ -174,11 +174,6 @@ class Augmenter : IAugmenter
                 localBranch.CommonBaseName = b.CommonBaseName;
             }
             SetNamesOnPullMergeChildren(repo, b, b);
-            // b.PullMergeChildBranches.ForEach(pmb =>
-            // {
-            //     pmb.ViewName = b.ViewName;
-            //     pmb.CommonBaseName = b.CommonBaseName;
-            // });
         });
 
         var bbb = repo.Branches.Where(b => b.ViewName == "").ToList();
@@ -187,6 +182,7 @@ class Augmenter : IAugmenter
 
         }
     }
+
 
     void SetNamesOnPullMergeChildren(WorkRepo repo, WorkBranch baseBranch, WorkBranch childBranch)
     {
@@ -197,8 +193,6 @@ class Augmenter : IAugmenter
             SetNamesOnPullMergeChildren(repo, baseBranch, pmb);
         });
     }
-
-
 
 
     Status ToStatus(GitRepo repo)

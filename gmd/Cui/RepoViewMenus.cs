@@ -413,12 +413,6 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(g => g.Key)
             .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
 
-        // // Group by first part of the b.commonName (if '/' exists in name)
-        // var groups = branches
-        //     .GroupBy(b => b.CommonName.Split('/')[0])
-        //     .OrderBy(g => g.Key)
-        //     .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
-
         // If only one item in group, then just show branch, otherwise show submenu
         return groups.Select(g =>
             g.Count() == 1

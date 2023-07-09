@@ -258,23 +258,6 @@ class ViewRepoCreater : IViewRepoCreater
             Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
         }
 
-        // // Ensure all local branches of remote branches are included 
-        // // (remote branches of local branches are ancestors and already included)
-        // foreach (var b in branches.ToList())
-        // {
-        //     if (b.IsRemote && b.LocalName != "")
-        //     {
-        //         branches.TryAdd(repo.BranchByName[b.LocalName]);
-        //     }
-        // }
-
-        // // Ensure all pull merger branches of a branch are included 
-        // foreach (var b in branches.ToList())
-        // {
-        //     b.PullMergeBranchNames.ForEach(bb => branches.TryAdd(repo.BranchByName[bb]));
-        // }
-
-
         // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
         foreach (var b in branches.ToList())
         {
