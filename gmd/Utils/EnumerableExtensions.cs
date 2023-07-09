@@ -27,6 +27,12 @@ public static class EnumerableExtensions
         return source;
     }
 
+    public static string Join(this IEnumerable<string> source, string separator)
+    {
+        return string.Join(separator, source);
+    }
+
+
     public static void TryAdd<TSource>(this List<TSource> source, TSource item)
     {
         if (source.Contains(item))

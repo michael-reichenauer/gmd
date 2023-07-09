@@ -252,12 +252,6 @@ class ViewRepoCreater : IViewRepoCreater
         var main = repo.Branches.First(b => b.IsMainBranch);
         AddBranchAndRelatives(repo, main, branches);
 
-        // Ensure all ancestors are included
-        foreach (var b in branches.ToList())
-        {
-            Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
-        }
-
         // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
         foreach (var b in branches.ToList())
         {
@@ -269,14 +263,20 @@ class ViewRepoCreater : IViewRepoCreater
         var detached = repo.Branches.FirstOrDefault(b => b.IsDetached);
         if (detached != null) branches.TryAdd(detached);
 
+        // Ensure all ancestors are included
+        foreach (var b in branches.ToList())
+        {
+            Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
+        }
+
         // Ensure all related branches are included
         branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Where(bb => bb.CommonName == b.CommonName)));
-
 
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
         var sorted = SortBranches(repo, branches);
+        Log.Info($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");
         return sorted;
     }
 

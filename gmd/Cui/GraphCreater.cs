@@ -361,8 +361,6 @@ class GraphCreater : IGraphCreater
             graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
             graph.SetGraphConnect(x + 1, y2, Sign.BranchToLeft, color);  // ╰
             graph.DrawHorizontalLine(x + 1, x2 + 1, y2, color);          //  ──
-                                                                         // graph.SetGraphBranch(x, y, Sign.Bottom, color, parentBranch); //    ┗ 
-                                                                         // graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color, parentBranch);  // ╰
         }
     }
 

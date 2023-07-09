@@ -829,6 +829,11 @@ class BranchStructureService : IBranchStructureService
                 b.ParentBranch = remoteBranch;
                 continue;
             }
+            if (b.PullMergeParentBranch != null)
+            {
+                b.ParentBranch = b.PullMergeParentBranch;
+                continue;
+            }
 
             var bottom = repo.CommitsById[b.BottomID];
             if (bottom.Branch != b)
