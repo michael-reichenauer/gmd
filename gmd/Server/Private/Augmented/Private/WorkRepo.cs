@@ -130,8 +130,8 @@ internal class WorkBranch
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
-        CommonName = b.CommonName;
-        HumanName = b.CommonName;
+        CommonName = b.Name.TrimPrefix("origin/");
+        HumanName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
