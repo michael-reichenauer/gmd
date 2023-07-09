@@ -22,6 +22,7 @@ class Menu
     IReadOnlyList<MenuItem> items = null!;
     Dimensions dim = null!;
     MenuItem CurrentItem => items[itemsView.CurrentIndex];
+    bool isAllDisabled = false;
 
 
     public event Action? Closed;
@@ -35,7 +36,7 @@ class Menu
         menu.Show(items);
     }
 
-    public static IList<MenuItem> NewItems => new List<MenuItem>();
+    public static IList<MenuItem> Items => new List<MenuItem>();
 
     public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)
     {
@@ -50,7 +51,8 @@ class Menu
     void Show(IEnumerable<MenuItem> items)
     {
         this.items = items.ToList();
-        this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute());
+        this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute() || i is SubMenu sm && !sm.Children.Any());
+        this.isAllDisabled = this.items.All(i => i.IsDisabled);
 
         dim = GetDimensions();
         itemRows = ToItemsRows();
@@ -65,7 +67,7 @@ class Menu
 
 
         itemsView.TriggerUpdateContent(this.items.Count);
-        if (this.items.Any() && this.items[0].IsDisabled) UI.Post(() => OnCursorDown());
+        if (this.items.Any() && this.items[0].IsDisabled && !isAllDisabled) UI.Post(() => OnCursorDown());
         dlg.Show();
     }
 
@@ -92,7 +94,7 @@ class Menu
         if (viewWidth > screeenWidth)
         {   // Too wide, try to fit on screen
             viewWidth = screeenWidth;
-            titleWidth = Math.Max(5, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
+            titleWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
         var viewX = xOrg == -1 ? screeenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1
@@ -221,7 +223,7 @@ class Menu
 
     void OnCursorUp()
     {
-        if (itemsView.CurrentIndex <= 0) return;
+        if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
         itemsView.Move(-1);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
@@ -230,16 +232,16 @@ class Menu
 
     void OnCursorDown()
     {
-        if (itemsView.CurrentIndex >= items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
         itemsView.Move(1);
 
-        if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
+        if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
         if (CurrentItem.IsDisabled) OnCursorDown();
     }
 
     void OnPageUp()
     {
-        if (itemsView.CurrentIndex <= 0) return;
+        if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
         itemsView.Move(-itemsView.ViewHeight);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
@@ -248,7 +250,7 @@ class Menu
 
     void OnPageDown()
     {
-        if (itemsView.CurrentIndex >= items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
         itemsView.Move(itemsView.ViewHeight);
 
         if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
@@ -257,7 +259,7 @@ class Menu
 
     void OnHome()
     {
-        if (itemsView.CurrentIndex <= 0) return;
+        if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
         itemsView.Move(-itemsView.Count);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
@@ -266,7 +268,7 @@ class Menu
 
     void OnEnd()
     {
-        if (itemsView.CurrentIndex >= items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
         itemsView.Move(itemsView.Count);
 
         if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
@@ -296,7 +298,7 @@ class Menu
     {
         return itemRows.Skip(firstIndex).Take(count).Select((row, i) =>
         {
-            var isSelectedRow = i + firstIndex == currentIndex;
+            var isSelectedRow = i + firstIndex == currentIndex && !isAllDisabled;
             return isSelectedRow ? Text.New.WhiteSelected(row.ToString()) : row;
         });
     }
@@ -326,7 +328,7 @@ class MenuItem
 class SubMenu : MenuItem
 {
     public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
-        : base(title, shortcut, () => { }, () => canExecute?.Invoke() ?? true && children.Any())
+        : base(title, shortcut, () => { }, canExecute)
     {
         Children = children;
     }

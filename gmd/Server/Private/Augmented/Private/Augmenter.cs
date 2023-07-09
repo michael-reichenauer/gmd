@@ -148,7 +148,7 @@ class Augmenter : IAugmenter
 
         repo.Branches
             .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
-            .OrderByDescending(b => repo.CommitsById[b.BottomID].AuthorTime)
+            .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
             // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
@@ -173,14 +173,27 @@ class Augmenter : IAugmenter
                 localBranch.ViewName = b.ViewName;
                 localBranch.CommonBaseName = b.CommonBaseName;
             }
-            b.PullMergeChildBranches.ForEach(pmb =>
-            {
-                var br = repo.BranchByName[pmb.Name]!;
-                br.ViewName = b.ViewName;
-                br.CommonBaseName = b.CommonBaseName;
-            });
+            SetNamesOnPullMergeChildren(repo, b, b);
+        });
+
+        var bbb = repo.Branches.Where(b => b.ViewName == "").ToList();
+        foreach (var b in bbb)
+        {
+
+        }
+    }
+
+
+    void SetNamesOnPullMergeChildren(WorkRepo repo, WorkBranch baseBranch, WorkBranch childBranch)
+    {
+        childBranch.PullMergeChildBranches.ForEach(pmb =>
+        {
+            pmb.ViewName = baseBranch.ViewName;
+            pmb.CommonBaseName = baseBranch.CommonBaseName;
+            SetNamesOnPullMergeChildren(repo, baseBranch, pmb);
         });
     }
+
 
     Status ToStatus(GitRepo repo)
     {

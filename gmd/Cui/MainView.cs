@@ -71,7 +71,7 @@ partial class MainView : IMainView
         string path = GetWorkingFolder();
         // Environment.CurrentDirectory = "/workspaces";
         // path = "/lkwjlkj";
-        // path = "/workspaces/Terminal.Gui";
+        path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
         // path = "/workspaces/Dependitor";
         // path = "/workspaces/gmd/tmp/Dependitor";
@@ -109,7 +109,7 @@ partial class MainView : IMainView
 
     void ShowMainMenu()
     {
-        Menu.Show(4, 0, Menu.NewItems
+        Menu.Show(4, 0, Menu.Items
             .Add(GetRecentRepoItems())
             .AddSeparator()
             .AddItem("Browse ...", "", () => ShowBrowseDialog())
