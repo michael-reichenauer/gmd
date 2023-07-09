@@ -207,7 +207,8 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetStashMenuItems()
     {
-        return Menu.NewItems.AddSeparator("Stash");
+        return Menu.NewItems
+            .AddItem("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk);
 
         // return Menu.NewItems
         //     .AddItem("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk)
