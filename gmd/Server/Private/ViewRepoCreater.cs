@@ -245,62 +245,63 @@ class ViewRepoCreater : IViewRepoCreater
         if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch
             var current = repo.Branches.FirstOrDefault(b => b.IsCurrent);
-            if (current != null)
-            {
-                branches.TryAdd(current);
-            }
+            AddBranchAndRelatives(repo, current, branches);
         }
-
 
         // Ensure that main branch is always included 
         var main = repo.Branches.First(b => b.IsMainBranch);
-        branches.TryAdd(main);
+        AddBranchAndRelatives(repo, main, branches);
 
         // Ensure all ancestors are included
         foreach (var b in branches.ToList())
         {
-            Ancestors(repo, b).ForEach(bb => branches.TryAdd(bb));
+            Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
         }
 
-        // Ensure all local branches of remote branches are included 
-        // (remote branches of local branches are ancestors and already included)
-        foreach (var b in branches.ToList())
-        {
-            if (b.IsRemote && b.LocalName != "")
-            {
-                branches.TryAdd(repo.BranchByName[b.LocalName]);
-            }
-        }
+        // // Ensure all local branches of remote branches are included 
+        // // (remote branches of local branches are ancestors and already included)
+        // foreach (var b in branches.ToList())
+        // {
+        //     if (b.IsRemote && b.LocalName != "")
+        //     {
+        //         branches.TryAdd(repo.BranchByName[b.LocalName]);
+        //     }
+        // }
 
-        // Ensure all related branches are included
-        foreach (var b in branches.ToList())
-        {
-            branches.TryAddAll(repo.Branches.Where(bb => bb.CommonName == b.CommonName));
-        }
+        // // Ensure all pull merger branches of a branch are included 
+        // foreach (var b in branches.ToList())
+        // {
+        //     b.PullMergeBranchNames.ForEach(bb => branches.TryAdd(repo.BranchByName[bb]));
+        // }
 
-        // Ensure all pull merger branches of a branch are included 
-        foreach (var b in branches.ToList())
-        {
-            b.PullMergeBranchNames.ForEach(bb => branches.TryAdd(repo.BranchByName[bb]));
-        }
 
         // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
         foreach (var b in branches.ToList())
         {
-            branches.TryAdd(repo.BranchByName[repo.CommitById[b.TipId].BranchName]);
+            var tipBranch = repo.BranchByName[repo.CommitById[b.TipId].BranchName];
+            AddBranchAndRelatives(repo, tipBranch, branches);
         }
 
+        // If current branch is detached, include it as well (commit is checked out directly)
         var detached = repo.Branches.FirstOrDefault(b => b.IsDetached);
-        if (detached != null)
-        {
-            branches.TryAdd(detached);
-        }
+        if (detached != null) branches.TryAdd(detached);
+
+        // Ensure all related branches are included
+        branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Where(bb => bb.CommonName == b.CommonName)));
+
 
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
         var sorted = SortBranches(repo, branches);
         return sorted;
+    }
+
+    void AddBranchAndRelatives(Augmented.Repo repo, Augmented.Branch? branch, List<Augmented.Branch> branches)
+    {
+        if (branch == null) return;
+        branches.TryAdd(branch);
+        branches.TryAddAll(repo.Branches.Where(b => b.CommonName == branch.CommonName));
     }
 
     List<Augmented.Branch> SortBranches(Augmented.Repo repo, List<Augmented.Branch> branches)

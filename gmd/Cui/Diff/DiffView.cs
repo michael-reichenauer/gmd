@@ -84,11 +84,11 @@ class DiffView : IDiffView
         var scrollToItems = GetScrollToItems();
 
         Menu.Show(1, 2, Menu.NewItems
-            .AddSubMenu("Scroll to", "s", scrollToItems, () => scrollToItems.Any())
-            .AddSubMenu("Undo/Restore Uncommitted", "u", undoItems, () => undoItems.Any())
-            .AddItem("Refresh", "r", () => RefreshDiff(), () => undoItems.Any())
-            .AddItem("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
-            .AddItem("Toggle Select Mode", "i", () => contentView.ToggleShowCursor())
+            .AddSubMenu("Scroll to", "S", scrollToItems, () => scrollToItems.Any())
+            .AddSubMenu("Undo/Restore Uncommitted", "U", undoItems, () => undoItems.Any())
+            .AddItem("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
+            .AddItem("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
+            .AddItem("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
             .AddItem("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
             .AddItem("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
             .AddItem("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
