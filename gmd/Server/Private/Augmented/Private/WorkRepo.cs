@@ -104,7 +104,7 @@ internal class WorkBranch
     // Augmented properties
     public bool IsLocalCurrent { get; set; }
     public string NiceName { get; set; } = "";
-    public string ViewName { get; set; } = "";     // A unique human name for the branch (with number)
+    public string NiceNameUnique { get; set; } = ""; // Unique nice name (with branch number if needed)
     public string RemoteName { get; set; } = "";  // A local branch's remote name
     public string LocalName { get; set; } = "";   // A remote branch's local name
     public string CommonBaseName { get; set; } = "";  // a name based on first commit and parent commit

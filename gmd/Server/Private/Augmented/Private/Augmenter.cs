@@ -159,19 +159,19 @@ class Augmenter : IAugmenter
             if (branchNameCount.TryGetValue(b.NiceName, out var count))
             {   // Multiple branches with same human name, add a counter to the human name
                 branchNameCount[b.NiceName] = ++count;
-                b.ViewName = $"{b.NiceName}({count})";
+                b.NiceNameUnique = $"{b.NiceName}({count})";
             }
             else
             {   // First branch with this human name, setting view name to same
                 branchNameCount[b.NiceName] = 1;
-                b.ViewName = b.NiceName;
+                b.NiceNameUnique = b.NiceName;
             }
 
             // Make sure local and pull merge branches have same view and base name as well
             if (b.LocalName != "")
             {
                 var localBranch = repo.BranchByName[b.LocalName]!;
-                localBranch.ViewName = b.ViewName;
+                localBranch.NiceNameUnique = b.NiceNameUnique;
                 localBranch.CommonBaseName = b.CommonBaseName;
             }
             SetNamesOnPullMergeChildren(repo, b, b);
@@ -183,7 +183,7 @@ class Augmenter : IAugmenter
     {
         childBranch.PullMergeChildBranches.ForEach(pmb =>
         {
-            pmb.ViewName = baseBranch.ViewName;
+            pmb.NiceNameUnique = baseBranch.NiceNameUnique;
             pmb.CommonBaseName = baseBranch.CommonBaseName;
             SetNamesOnPullMergeChildren(repo, baseBranch, pmb);
         });
