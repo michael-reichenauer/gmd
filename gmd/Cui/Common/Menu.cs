@@ -88,11 +88,11 @@ class Menu
         var titleWidth = Math.Max(items.Any() ? items.Max(i => i.Title.Length + 1) : 0, title.Length + 4);
 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
-        var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
+        var viewWidth = Math.Max(20, titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1);
         if (viewWidth > screeenWidth)
         {   // Too wide, try to fit on screen
             viewWidth = screeenWidth;
-            titleWidth = Math.Max(5, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
+            titleWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
         var viewX = xOrg == -1 ? screeenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1

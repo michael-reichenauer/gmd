@@ -207,11 +207,13 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetStashMenuItems()
     {
-        return Menu.NewItems
-            .AddItem("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk)
-            .AddSubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Status.IsOk && GetStashPopItems().Any())
-            .AddSubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any())
-            .AddSubMenu("Stash Drop", "", GetStashDropItems(), () => GetStashDropItems().Any());
+        return Menu.NewItems.AddSeparator("Stash");
+
+        // return Menu.NewItems
+        //     .AddItem("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk)
+        //     .AddSubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Status.IsOk && GetStashPopItems().Any())
+        //     .AddSubMenu("Stash Diff", "", GetStashDiffItems(), () => GetStashDiffItems().Any())
+        //     .AddSubMenu("Stash Drop", "", GetStashDropItems(), () => GetStashDropItems().Any());
     }
 
     IEnumerable<MenuItem> GetStashPopItems()
