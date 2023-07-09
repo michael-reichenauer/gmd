@@ -72,7 +72,7 @@ class CommitDetailsView : ICommitDetailsView
         }
 
         var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
-        branchName = $"{branch.ViewName}  ({branchName})";
+        branchName = $"{branch.NiceNameUnique}  ({branchName})";
 
         if (commit.IsBranchSetByUser)
         {

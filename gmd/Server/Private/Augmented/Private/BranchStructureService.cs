@@ -222,7 +222,7 @@ class BranchStructureService : IBranchStructureService
         }
         Log.Info($"Commit {commit.Sid} has branch set by user: {branchHumanName} ({isSetByUser})");
 
-        var branches = commit.Branches.Where(b => b.HumanName == branchHumanName);
+        var branches = commit.Branches.Where(b => b.NiceName == branchHumanName);
         if (!branches.Any())
         {   // Branch once set by user is no longer possible (might have changed name or something)
             return false;
@@ -325,7 +325,7 @@ class BranchStructureService : IBranchStructureService
                 var mergeChild = commit.MergeChildren[0];
 
                 if (branchNameService.IsPullMerge(mergeChild) &&
-                    mergeChild.Branch!.HumanName == name)
+                    mergeChild.Branch!.NiceName == name)
                 {   // The branch is a pull name and has same name as the branch is was merged into
                     // The merge child is a pull merge, so this commit is on a "dead" branch part,
                     // which used to be the local branch of the pull merge commit.
@@ -580,7 +580,7 @@ class BranchStructureService : IBranchStructureService
         }
 
         // Try find a branch with the human name
-        branch = commit.Branches.Find(b => b.HumanName == name);
+        branch = commit.Branches.Find(b => b.NiceName == name);
         if (branch != null)
         {
             return branch;

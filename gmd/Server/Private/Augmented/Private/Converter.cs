@@ -67,7 +67,7 @@ class Converter : IConverter
             Name: b.Name,
             CommonName: b.CommonName,
             CommonBaseName: b.CommonBaseName,
-            HumanName: b.HumanName,
+            HumanName: b.NiceName,
             ViewName: b.ViewName,
             TipId: b.TipID,
             BottomId: b.BottomID,

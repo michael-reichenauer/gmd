@@ -103,7 +103,7 @@ internal class WorkBranch
 
     // Augmented properties
     public bool IsLocalCurrent { get; set; }
-    public string HumanName { get; set; } = "";
+    public string NiceName { get; set; } = "";
     public string ViewName { get; set; } = "";     // A unique human name for the branch (with number)
     public string RemoteName { get; set; } = "";  // A local branch's remote name
     public string LocalName { get; set; } = "";   // A remote branch's local name
@@ -131,7 +131,7 @@ internal class WorkBranch
     {
         Name = b.Name;
         CommonName = b.Name.TrimPrefix("origin/");
-        HumanName = b.Name.TrimPrefix("origin/");
+        NiceName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
@@ -147,7 +147,7 @@ internal class WorkBranch
     {
         Name = name;
         CommonName = commonName;
-        HumanName = humanName;
+        NiceName = humanName;
         TipID = tipID;
         BottomID = tipID;
     }

@@ -149,22 +149,22 @@ class Augmenter : IAugmenter
         repo.Branches
             .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
             .OrderBy(b => b.IsGitBranch ? 0 : 1)
-            .ThenByDescending(b => repo.CommitsById[b.BottomID].AuthorTime)
+            .ThenBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
             // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
             var bottom = repo.CommitsById[b.BottomID];
             b.CommonBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
 
-            if (branchNameCount.TryGetValue(b.HumanName, out var count))
+            if (branchNameCount.TryGetValue(b.NiceName, out var count))
             {   // Multiple branches with same human name, add a counter to the human name
-                branchNameCount[b.HumanName] = ++count;
-                b.ViewName = $"{b.HumanName}({count})";
+                branchNameCount[b.NiceName] = ++count;
+                b.ViewName = $"{b.NiceName}({count})";
             }
             else
             {   // First branch with this human name, setting view name to same
-                branchNameCount[b.HumanName] = 1;
-                b.ViewName = b.HumanName;
+                branchNameCount[b.NiceName] = 1;
+                b.ViewName = b.NiceName;
             }
 
             // Make sure local and pull merge branches have same view and base name as well
