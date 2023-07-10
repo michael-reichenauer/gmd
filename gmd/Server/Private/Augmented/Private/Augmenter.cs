@@ -154,7 +154,7 @@ class Augmenter : IAugmenter
         {
             // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
             var bottom = repo.CommitsById[b.BottomID];
-            b.CommonBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
+            b.HeadBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
 
             if (branchNameCount.TryGetValue(b.NiceName, out var count))
             {   // Multiple branches with same human name, add a counter to the human name
@@ -172,7 +172,7 @@ class Augmenter : IAugmenter
             {
                 var localBranch = repo.BranchByName[b.LocalName]!;
                 localBranch.NiceNameUnique = b.NiceNameUnique;
-                localBranch.CommonBaseName = b.CommonBaseName;
+                localBranch.HeadBaseName = b.HeadBaseName;
             }
             SetNamesOnPullMergeChildren(repo, b, b);
         });
@@ -184,7 +184,7 @@ class Augmenter : IAugmenter
         childBranch.PullMergeChildBranches.ForEach(pmb =>
         {
             pmb.NiceNameUnique = baseBranch.NiceNameUnique;
-            pmb.CommonBaseName = baseBranch.CommonBaseName;
+            pmb.HeadBaseName = baseBranch.HeadBaseName;
             SetNamesOnPullMergeChildren(repo, baseBranch, pmb);
         });
     }

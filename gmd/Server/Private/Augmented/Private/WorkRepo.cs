@@ -102,7 +102,7 @@ internal class WorkBranch
 
     // Augmented properties
     public string HeadBranchName { get; set; }  // The name of main branch realted branch (remote if both local and remote) 
-    public string CommonBaseName { get; set; } = "";  // a name based on first commit and parent commit
+    public string HeadBaseName { get; set; } = "";  // a name based on first commit and parent commit
     public string CommonName { get; } // Common name for local and remote branches (name without remote prefix)
     public string NiceName { get; set; } = "";
     public string NiceNameUnique { get; set; } = ""; // Unique nice name (with branch number if needed)

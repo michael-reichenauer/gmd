@@ -237,7 +237,7 @@ class ViewRepoCreater : IViewRepoCreater
     List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches)
     {
         var branches = showBranches
-            .Select(name => repo.Branches.FirstOrDefault(b => b.CommonBaseName == name || b.Name == name || b.CommonName == name))
+            .Select(name => repo.Branches.FirstOrDefault(b => b.HeadBaseName == name || b.Name == name || b.CommonName == name))
             .Where(b => b != null)
             .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
             .ToList();       // To be able to add more

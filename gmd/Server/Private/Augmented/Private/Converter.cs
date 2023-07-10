@@ -65,8 +65,9 @@ class Converter : IConverter
     {
         return new Branch(
             Name: b.Name,
+            HeadBranchName: b.HeadBranchName,
             CommonName: b.CommonName,
-            CommonBaseName: b.CommonBaseName,
+            HeadBaseName: b.HeadBaseName,
             NiceName: b.NiceName,
             NiceNameUnique: b.NiceNameUnique,
             TipId: b.TipID,

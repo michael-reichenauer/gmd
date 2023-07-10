@@ -96,8 +96,9 @@ public enum More
 
 public record Branch(
     string Name,
+    string HeadBranchName,
     string CommonName,
-    string CommonBaseName,
+    string HeadBaseName,
     string NiceName,
     string NiceNameUnique,
     string TipId,
