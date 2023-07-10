@@ -694,16 +694,17 @@ class BranchStructureService : IBranchStructureService
     }
 
     WorkBranch AddPullMergeBranch(
-       WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeBranch)
+       WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeParentBranch)
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
         var humanName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
             name: branchName,
-            commonName: pullMergeBranch.CommonName,
-            humanName: humanName,
+            headName: pullMergeParentBranch.HeadBranchName,
+            commonName: pullMergeParentBranch.CommonName,
+            niceName: humanName,
             tipID: c.Id);
-        branch.PullMergeParentBranch = pullMergeBranch;
+        branch.PullMergeParentBranch = pullMergeParentBranch;
 
         repo.Branches.Add(branch);
         return branch;
@@ -712,11 +713,11 @@ class BranchStructureService : IBranchStructureService
     WorkBranch AddTruncatedBranch(WorkRepo repo)
     {
         var branchName = truncatedBranchName;
-        var humanName = truncatedBranchName;
         var branch = new WorkBranch(
             name: branchName,
+            headName: branchName,
             commonName: branchName,
-            humanName: humanName,
+            niceName: branchName,
             tipID: Repo.TruncatedLogCommitID);
 
         repo.Branches.Add(branch);
@@ -726,11 +727,12 @@ class BranchStructureService : IBranchStructureService
     WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
-        var humanName = name != "" ? name : $"branch@{c.Sid}";
+        var niceName = name != "" ? name : $"branch";
         var branch = new WorkBranch(
             name: branchName,
+            headName: branchName,
             commonName: branchName,
-            humanName: humanName,
+            niceName: niceName,
             tipID: c.Id);
 
         repo.Branches.Add(branch);
