@@ -91,7 +91,7 @@ class RepoViewMenus : IRepoViewMenus
             .SubMenu("Diff", "", GetDiffItems())
             .SubMenu("Show/Open Branch", "→", GetShowBranchItems())
             .SubMenu("Hide Branch", "←", GetHideItems())
-            .SubMenu("Switch/Checkout", "", GetSwitchToItems()
+            .SubMenu("Switch/Checkout", "→", GetSwitchToItems()
                 .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)))
             .SubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush())
             .SubMenu("Pull/Update", "", GetPullItems(), () => cmds.CanPull())
