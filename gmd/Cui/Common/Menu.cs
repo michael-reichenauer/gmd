@@ -151,7 +151,7 @@ class Menu
             // Shortcut
             if (!item.IsDisabled && item.Shortcut != "")
                 text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
-            if (item.Shortcut != "")
+            else if (item.Shortcut != "")
                 text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Dark(item.Shortcut);
             else if (dim.ShortcutWidth > 0)
                 text.Black(new string(' ', dim.ShortcutWidth));

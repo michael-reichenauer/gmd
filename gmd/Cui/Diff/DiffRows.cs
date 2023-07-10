@@ -12,16 +12,16 @@ class DiffRows
 
     public IReadOnlyList<DiffRow> Rows => rows;
 
-    internal void Add(Text oneRow, string filePath = "") =>
-        Add(oneRow, Text.None, DiffRowMode.SpanBoth, filePath);
+    internal void Add(Text oneRow, string filePath = "", string commitId = "") =>
+        Add(oneRow, Text.None, DiffRowMode.SpanBoth, filePath, commitId);
 
     internal void Add(Text left, Text right) =>
-        Add(left, right, DiffRowMode.SideBySide, "");
+        Add(left, right, DiffRowMode.SideBySide, "", "");
 
     internal void AddLine(Text line) =>
-       Add(line, Text.None, DiffRowMode.DividerLine, "");
+       Add(line, Text.None, DiffRowMode.DividerLine, "", "");
 
-    private void Add(Text left, Text right, DiffRowMode mode, string filePath)
+    void Add(Text left, Text right, DiffRowMode mode, string filePath, string commitId)
     {
         if (left.Length > MaxLength)
         {
@@ -32,14 +32,14 @@ class DiffRows
             MaxLength = right.Length;
         }
 
-        rows.Add(new DiffRow(left, right, mode, filePath));
+        rows.Add(new DiffRow(left, right, mode, filePath, commitId));
     }
 
     public override string ToString() => $"Rows: {Count}";
 }
 
 
-record DiffRow(Text Left, Text Right, DiffRowMode Mode, string filePath);
+record DiffRow(Text Left, Text Right, DiffRowMode Mode, string FilePath, string CommitId);
 
 enum DiffRowMode
 {

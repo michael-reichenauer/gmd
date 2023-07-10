@@ -50,6 +50,7 @@ class DiffService : IDiffService
         return diff.FileDiffs.Select(fd => fd.PathAfter).ToList();
     }
 
+
     public IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff)
     {
         return diff.FileDiffs.Where(fd => fd.IsBinary).Select(fd => fd.PathAfter).ToList();
@@ -67,7 +68,7 @@ class DiffService : IDiffService
     void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.New.Yellow("═"));
-        if (commitDiff.Id != "") rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id));
+        if (commitDiff.Id != "") rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id), "", commitDiff.Id);
         if (commitDiff.Author != "") rows.Add(Text.New.Dark("Author:  ").White(commitDiff.Author));
         if (commitDiff.Time != DateTime.MinValue) rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Time.Iso()));
         if (commitDiff.Message != "") rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
