@@ -386,7 +386,8 @@ class RepoViewMenus : IRepoViewMenus
         var branches = repo.GetAllBranches()
             .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent
                 && b.LocalName == "" && b.PullMergeParentBranchName == "")
-            .OrderBy(b => b.CommonName);
+            .OrderBy(b => repo.Branches.ContainsBy(bb => bb.CommonName == b.CommonName) ? 0 : 1)
+            .ThenBy(b => b.CommonName);
 
         return ToDeleteHiarchicalBranchesItems(branches);
     }
