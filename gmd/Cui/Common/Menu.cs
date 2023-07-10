@@ -37,6 +37,11 @@ class Menu
     }
 
     public static IList<MenuItem> Items => new List<MenuItem>();
+    public static MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
+        new MenuItem(title, shortcut, action, canExecute);
+    public static MenuItem Separator(string text = "") => new MenuSeparator(text);
+    public static MenuItem SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
+        new SubMenu(title, shortcut, children, canExecute);
 
     public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)
     {
@@ -350,31 +355,31 @@ class MenuSeparator : MenuItem
 // Extension methods to make it easier to build menus
 static class MenuExtensions
 {
-    public static ICollection<MenuItem> AddSubMenu(this ICollection<MenuItem> items, string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+    public static ICollection<MenuItem> SubMenu(this ICollection<MenuItem> items, string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
     {
         items.Add(new SubMenu(title, shortcut, children, canExecute));
         return items;
     }
 
-    public static ICollection<MenuItem> AddItem(this ICollection<MenuItem> items, string title, string shortcut, Action action, Func<bool>? canExecute = null)
+    public static ICollection<MenuItem> Item(this ICollection<MenuItem> items, string title, string shortcut, Action action, Func<bool>? canExecute = null)
     {
         items.Add(new MenuItem(title, shortcut, action, canExecute));
         return items;
     }
 
-    public static ICollection<MenuItem> AddSeparator(this ICollection<MenuItem> items, string text = "")
+    public static ICollection<MenuItem> Separator(this ICollection<MenuItem> items, string text = "")
     {
         items.Add(new MenuSeparator(text));
         return items;
     }
 
-    public static ICollection<MenuItem> Add(this ICollection<MenuItem> items, params MenuItem[] moreItems)
+    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, params MenuItem[] moreItems)
     {
         moreItems.Where(i => i != null).ForEach(i => items.Add(i));
         return items;
     }
 
-    public static ICollection<MenuItem> Add(this ICollection<MenuItem> items, IEnumerable<MenuItem> moreItems)
+    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, IEnumerable<MenuItem> moreItems)
     {
         moreItems.Where(i => i != null).ForEach(i => items.Add(i));
         return items;
