@@ -955,6 +955,8 @@ class RepoCommands : IRepoCommands
 
     public void SetBranchManuallyAsync() => Do(async () =>
     {
+        if (repo.RowCommit.ChildIds.Count() <= 1) return R.Ok;
+
         var commit = repo.RowCommit;
 
         if (!Try(out var name, setBranchDlg.Show())) return R.Ok;
