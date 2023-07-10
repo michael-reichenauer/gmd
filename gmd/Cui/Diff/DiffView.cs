@@ -78,21 +78,22 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
     }
 
+
     void ShowMainMenu()
     {
         var undoItems = GetUndoItems();
         var scrollToItems = GetScrollToItems();
 
         Menu.Show(1, 2, Menu.Items
-            .AddSubMenu("Scroll to", "S", scrollToItems)
-            .AddSubMenu("Undo/Restore Uncommitted", "U", undoItems)
-            .AddItem("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
-            .AddItem("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
-            .AddItem("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
-            .AddItem("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
-            .AddItem("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
-            .AddItem("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
-            .AddItem("Close", "Esc", () => Application.RequestStop()),
+            .SubMenu("Scroll to", "S", scrollToItems)
+            .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
+            .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
+            .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
+            .Item("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
+            .Item("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
+            .Item("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
+            .Item("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
+            .Item("Close", "Esc", () => Application.RequestStop()),
             "Diff Menu");
     }
 
@@ -124,7 +125,7 @@ class DiffView : IDiffView
         if (!paths.Any()) return new List<Common.MenuItem>();
 
         return Menu.Items
-            .Add(paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p))));
+            .Items(paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p))));
     }
 
     void ScrollToFile(string path)
@@ -148,10 +149,10 @@ class DiffView : IDiffView
         }
 
         return Menu.Items
-            .Add(undoItems)
-            .AddSeparator()
-            .AddItem("All Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
-            .AddItem("All Uncommitted Changes", "", () => UndoAll());
+            .Items(undoItems)
+            .Separator()
+            .Item("All Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
+            .Item("All Uncommitted Changes", "", () => UndoAll());
     }
 
     async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)
