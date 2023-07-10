@@ -365,7 +365,7 @@ class RepoWriter : IRepoWriter
                     }
                 }
             }
-            else if (b.PullMergeBranchName != "")
+            else if (b.PullMergeParentBranchName != "")
             {
                 tipText.Color(color, "(").Dark(branchName).Color(color, ")");
             }
@@ -382,7 +382,7 @@ class RepoWriter : IRepoWriter
 
     string ToShortBranchName(Branch branch)
     {
-        var name = branch.ViewName;
+        var name = branch.NiceNameUnique;
         if (name.Length > maxTipNameLength)
         {   // Branch name to long, shorten it
             name = "┅" + name.Substring(name.Length - maxTipNameLength);

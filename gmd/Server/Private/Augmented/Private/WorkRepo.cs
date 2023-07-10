@@ -95,25 +95,26 @@ internal class WorkBranch
 {
     // Git properties
     public string Name { get; }
-    public string CommonName { get; } // Common name for local and remote branches (name without remote prefix)
     public bool IsRemote { get; }
     public bool IsDetached { get; }
     public bool IsRemoteMissing { get; }
     public bool IsCurrent { get; }
 
     // Augmented properties
-    public bool IsLocalCurrent { get; set; }
-    public string HumanName { get; set; } = "";
-    public string ViewName { get; set; } = "";     // A unique human name for the branch (with number)
+    public string HeadBranchName { get; set; }  // The name of main branch realted branch (remote if both local and remote) 
+    public string HeadBaseName { get; set; } = "";  // a name based on first commit and parent commit
+    public string CommonName { get; } // Common name for local and remote branches (name without remote prefix)
+    public string NiceName { get; set; } = "";
+    public string NiceNameUnique { get; set; } = ""; // Unique nice name (with branch number if needed)
     public string RemoteName { get; set; } = "";  // A local branch's remote name
     public string LocalName { get; set; } = "";   // A remote branch's local name
-    public string CommonBaseName { get; set; } = "";  // a name based on first commit and parent commit
     public string TipID { get; }                         // First commit id
     public string BottomID { get; internal set; } = "";  // Last commit id
 
     public WorkBranch? ParentBranch { get; set; }       // Parent branch (remote if local)
     public WorkBranch? PullMergeParentBranch { get; set; }    // For pull merge branches, the main parent branch
 
+    public bool IsLocalCurrent { get; set; }  // True if local branch corresponding to this remote is current
     public bool IsGitBranch { get; set; }
     public bool IsAmbiguousBranch { get; set; }
     public bool IsSetAsParent { get; set; }
@@ -130,8 +131,9 @@ internal class WorkBranch
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
-        CommonName = b.CommonName;
-        HumanName = b.CommonName;
+        HeadBranchName = b.RemoteName == "" ? b.Name : b.RemoteName;
+        CommonName = b.Name.TrimPrefix("origin/");
+        NiceName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
@@ -143,11 +145,12 @@ internal class WorkBranch
     }
 
     // Called when creating a branched based on a name, usually from a deleted branch
-    public WorkBranch(string name, string commonName, string humanName, string tipID)
+    public WorkBranch(string name, string headName, string commonName, string niceName, string tipID)
     {
         Name = name;
+        HeadBranchName = headName;
         CommonName = commonName;
-        HumanName = humanName;
+        NiceName = niceName;
         TipID = tipID;
         BottomID = tipID;
     }

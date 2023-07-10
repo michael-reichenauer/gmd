@@ -237,7 +237,7 @@ class ViewRepoCreater : IViewRepoCreater
     List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches)
     {
         var branches = showBranches
-            .Select(name => repo.Branches.FirstOrDefault(b => b.Name == name))
+            .Select(name => repo.Branches.FirstOrDefault(b => b.HeadBaseName == name || b.Name == name || b.CommonName == name))
             .Where(b => b != null)
             .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
             .ToList();       // To be able to add more
@@ -251,12 +251,6 @@ class ViewRepoCreater : IViewRepoCreater
         // Ensure that main branch is always included 
         var main = repo.Branches.First(b => b.IsMainBranch);
         AddBranchAndRelatives(repo, main, branches);
-
-        // Ensure all ancestors are included
-        foreach (var b in branches.ToList())
-        {
-            Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
-        }
 
         // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
         foreach (var b in branches.ToList())
@@ -272,11 +266,17 @@ class ViewRepoCreater : IViewRepoCreater
         // Ensure all related branches are included
         branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Where(bb => bb.CommonName == b.CommonName)));
 
+        // Ensure all ancestors are included
+        foreach (var b in branches.ToList())
+        {
+            Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
+        }
 
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
 
         var sorted = SortBranches(repo, branches);
+        Log.Info($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");
         return sorted;
     }
 
@@ -289,18 +289,25 @@ class ViewRepoCreater : IViewRepoCreater
 
     List<Augmented.Branch> SortBranches(Augmented.Repo repo, List<Augmented.Branch> branches)
     {
-        var sorted = branches.Where(b => b.RemoteName == "" && b.PullMergeBranchName == "").ToList();
+        var sorted = branches.Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "").ToList();
 
         var branchOrders = repoState.Get(repo.Path).BranchOrders;
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
         Sorter.Sort(sorted, (b1, b2) => CompareBranches(repo, b1, b2, branchOrders));
 
         // Reinsert the pullmerge branches just after its parent branch
-        branches.Where(b => b.PullMergeBranchName != "").ForEach(b =>
+        var toInsert = new Queue<Augmented.Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
+        while (toInsert.Any())
         {
-            var index = sorted.FindIndex(bb => bb.Name == b.PullMergeBranchName);
+            var b = toInsert.Dequeue();
+            var index = sorted.FindIndex(bb => bb.Name == b.PullMergeParentBranchName);
+            if (index == -1)
+            {   // Parent branch not yet inserted, skip now and try again later
+                toInsert.Enqueue(b);
+                continue;
+            }
             sorted.Insert(index + 1, b);
-        });
+        }
 
         // Reinsert the local branches just after its remote branch
         branches.Where(b => b.RemoteName != "").ForEach(b =>
@@ -348,7 +355,7 @@ class ViewRepoCreater : IViewRepoCreater
                 uncommitted = new Augmented.Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    GitIndex: 0, currentBranch.Name, currentBranch.CommonName, currentBranch.ViewName,
+                    GitIndex: 0, currentBranch.Name, currentBranch.CommonName, currentBranch.NiceNameUnique,
                     ParentIds: parentIds, ChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,

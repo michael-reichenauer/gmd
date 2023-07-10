@@ -361,8 +361,6 @@ class GraphCreater : IGraphCreater
             graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
             graph.SetGraphConnect(x + 1, y2, Sign.BranchToLeft, color);  // ╰
             graph.DrawHorizontalLine(x + 1, x2 + 1, y2, color);          //  ──
-                                                                         // graph.SetGraphBranch(x, y, Sign.Bottom, color, parentBranch); //    ┗ 
-                                                                         // graph.SetGraphBranch(x2, y2, Sign.BranchToLeft, color, parentBranch);  // ╰
         }
     }
 
@@ -400,7 +398,7 @@ class GraphCreater : IGraphCreater
                 {   // The local branch of a remote branch
                     b.X = b.ParentBranch.X + 1;
                 }
-                else if (b.B.PullMergeBranchName == b.ParentBranch.B.Name)
+                else if (b.B.PullMergeParentBranchName == b.ParentBranch.B.Name)
                 {   // The pull merger sub part of a branch
                     b.X = b.ParentBranch.X + 1;
                 }

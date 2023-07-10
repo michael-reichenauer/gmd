@@ -148,39 +148,34 @@ class Augmenter : IAugmenter
 
         repo.Branches
             .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
-            .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
+            .OrderBy(b => b.IsGitBranch ? 0 : 1)
+            .ThenBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
             // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
             var bottom = repo.CommitsById[b.BottomID];
-            b.CommonBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
+            b.HeadBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
 
-            if (branchNameCount.TryGetValue(b.HumanName, out var count))
+            if (branchNameCount.TryGetValue(b.NiceName, out var count))
             {   // Multiple branches with same human name, add a counter to the human name
-                branchNameCount[b.HumanName] = ++count;
-                b.ViewName = $"{b.HumanName}({count})";
+                branchNameCount[b.NiceName] = ++count;
+                b.NiceNameUnique = $"{b.NiceName}({count})";
             }
             else
             {   // First branch with this human name, setting view name to same
-                branchNameCount[b.HumanName] = 1;
-                b.ViewName = b.HumanName;
+                branchNameCount[b.NiceName] = 1;
+                b.NiceNameUnique = b.NiceName;
             }
 
             // Make sure local and pull merge branches have same view and base name as well
             if (b.LocalName != "")
             {
                 var localBranch = repo.BranchByName[b.LocalName]!;
-                localBranch.ViewName = b.ViewName;
-                localBranch.CommonBaseName = b.CommonBaseName;
+                localBranch.NiceNameUnique = b.NiceNameUnique;
+                localBranch.HeadBaseName = b.HeadBaseName;
             }
             SetNamesOnPullMergeChildren(repo, b, b);
         });
-
-        var bbb = repo.Branches.Where(b => b.ViewName == "").ToList();
-        foreach (var b in bbb)
-        {
-
-        }
     }
 
 
@@ -188,8 +183,8 @@ class Augmenter : IAugmenter
     {
         childBranch.PullMergeChildBranches.ForEach(pmb =>
         {
-            pmb.ViewName = baseBranch.ViewName;
-            pmb.CommonBaseName = baseBranch.CommonBaseName;
+            pmb.NiceNameUnique = baseBranch.NiceNameUnique;
+            pmb.HeadBaseName = baseBranch.HeadBaseName;
             SetNamesOnPullMergeChildren(repo, baseBranch, pmb);
         });
     }

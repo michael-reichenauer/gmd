@@ -222,7 +222,7 @@ class BranchStructureService : IBranchStructureService
         }
         Log.Info($"Commit {commit.Sid} has branch set by user: {branchHumanName} ({isSetByUser})");
 
-        var branches = commit.Branches.Where(b => b.HumanName == branchHumanName);
+        var branches = commit.Branches.Where(b => b.NiceName == branchHumanName);
         if (!branches.Any())
         {   // Branch once set by user is no longer possible (might have changed name or something)
             return false;
@@ -325,7 +325,7 @@ class BranchStructureService : IBranchStructureService
                 var mergeChild = commit.MergeChildren[0];
 
                 if (branchNameService.IsPullMerge(mergeChild) &&
-                    mergeChild.Branch!.HumanName == name)
+                    mergeChild.Branch!.NiceName == name)
                 {   // The branch is a pull name and has same name as the branch is was merged into
                     // The merge child is a pull merge, so this commit is on a "dead" branch part,
                     // which used to be the local branch of the pull merge commit.
@@ -580,7 +580,7 @@ class BranchStructureService : IBranchStructureService
         }
 
         // Try find a branch with the human name
-        branch = commit.Branches.Find(b => b.HumanName == name);
+        branch = commit.Branches.Find(b => b.NiceName == name);
         if (branch != null)
         {
             return branch;
@@ -694,16 +694,17 @@ class BranchStructureService : IBranchStructureService
     }
 
     WorkBranch AddPullMergeBranch(
-       WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeBranch)
+       WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeParentBranch)
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
         var humanName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
             name: branchName,
-            commonName: pullMergeBranch.CommonName,
-            humanName: humanName,
+            headName: pullMergeParentBranch.HeadBranchName,
+            commonName: pullMergeParentBranch.CommonName,
+            niceName: humanName,
             tipID: c.Id);
-        branch.PullMergeParentBranch = pullMergeBranch;
+        branch.PullMergeParentBranch = pullMergeParentBranch;
 
         repo.Branches.Add(branch);
         return branch;
@@ -712,11 +713,11 @@ class BranchStructureService : IBranchStructureService
     WorkBranch AddTruncatedBranch(WorkRepo repo)
     {
         var branchName = truncatedBranchName;
-        var humanName = truncatedBranchName;
         var branch = new WorkBranch(
             name: branchName,
+            headName: branchName,
             commonName: branchName,
-            humanName: humanName,
+            niceName: branchName,
             tipID: Repo.TruncatedLogCommitID);
 
         repo.Branches.Add(branch);
@@ -726,11 +727,12 @@ class BranchStructureService : IBranchStructureService
     WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
-        var humanName = name != "" ? name : $"branch@{c.Sid}";
+        var niceName = name != "" ? name : $"branch";
         var branch = new WorkBranch(
             name: branchName,
+            headName: branchName,
             commonName: branchName,
-            humanName: humanName,
+            niceName: niceName,
             tipID: c.Id);
 
         repo.Branches.Add(branch);
@@ -827,6 +829,11 @@ class BranchStructureService : IBranchStructureService
                 // For a local branch with a remote branch, the remote branch is parent.
                 var remoteBranch = repo.Branches.First(bb => bb.Name == b.RemoteName);
                 b.ParentBranch = remoteBranch;
+                continue;
+            }
+            if (b.PullMergeParentBranch != null)
+            {
+                b.ParentBranch = b.PullMergeParentBranch;
                 continue;
             }
 

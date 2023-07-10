@@ -45,7 +45,7 @@ class Converter : IConverter
 
             BranchName: c.Branch!.Name,
             BranchCommonName: c.Branch.CommonName,
-            BranchViewName: c.Branch.ViewName,
+            BranchViewName: c.Branch.NiceNameUnique,
             ChildIds: c.ChildIds,
             Tags: c.Tags,
             BranchTips: c.BranchTips,
@@ -65,10 +65,11 @@ class Converter : IConverter
     {
         return new Branch(
             Name: b.Name,
+            HeadBranchName: b.HeadBranchName,
             CommonName: b.CommonName,
-            CommonBaseName: b.CommonBaseName,
-            HumanName: b.HumanName,
-            ViewName: b.ViewName,
+            HeadBaseName: b.HeadBaseName,
+            NiceName: b.NiceName,
+            NiceNameUnique: b.NiceNameUnique,
             TipId: b.TipID,
             BottomId: b.BottomID,
             IsCurrent: b.IsCurrent,
@@ -79,7 +80,7 @@ class Converter : IConverter
 
             ParentBranchName: b.ParentBranch?.Name ?? "",
             ParentBranchCommonName: b.ParentBranch?.CommonName ?? "",
-            PullMergeBranchName: b.PullMergeParentBranch?.Name ?? "",
+            PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,

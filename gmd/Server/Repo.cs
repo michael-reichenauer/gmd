@@ -96,10 +96,11 @@ public enum More
 
 public record Branch(
     string Name,
+    string HeadBranchName,
     string CommonName,
-    string CommonBaseName,
-    string HumanName,
-    string ViewName,    // Name to human in the view (unique human name with number)
+    string HeadBaseName,
+    string NiceName,
+    string NiceNameUnique,
     string TipId,
     string BottomId,
     bool IsCurrent,
@@ -116,7 +117,7 @@ public record Branch(
 
     string ParentBranchName,
     string ParentBranchCommonName,
-    string PullMergeBranchName,
+    string PullMergeParentBranchName,
 
     bool HasLocalOnly,
     bool HasRemoteOnly,

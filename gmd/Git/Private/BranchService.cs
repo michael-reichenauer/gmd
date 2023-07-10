@@ -16,7 +16,6 @@ interface IBranchService
 class BranchService : IBranchService
 {
     static string remotePrefix = "remotes/";
-    static string originPrefix = "origin/";
 
     static readonly string regexpText =
      @"(?im)^(\*)?\s+(\(HEAD detached at (\S+)\)|(\S+))\s+(\S+)(\s+)?(\[(\S+)(:\s)?(ahead\s(\d+))?(,\s)?(behind\s(\d+))?(gone)?\])?(\s+)?(.+)?";
@@ -118,17 +117,13 @@ class BranchService : IBranchService
             name = "DETACHED";
         }
 
-        string commonName = name.StartsWith(originPrefix) ?
-            name.Substring(originPrefix.Length) :
-            name;
-
         string tipId = match.Groups[5].Value;
         string remoteName = match.Groups[8].Value;
 
         int.TryParse(match.Groups[11].Value, out int aheadCount);
         int.TryParse(match.Groups[14].Value, out int behindCount);
 
-        return new Branch(name, commonName, tipId, isCurrent, isRemote, remoteName, isDetached, aheadCount, behindCount);
+        return new Branch(name, tipId, isCurrent, isRemote, remoteName, isDetached, aheadCount, behindCount);
     }
 
 
