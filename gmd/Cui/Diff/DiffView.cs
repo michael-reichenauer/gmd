@@ -78,6 +78,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
     }
 
+
     void ShowMainMenu()
     {
         var undoItems = GetUndoItems();
