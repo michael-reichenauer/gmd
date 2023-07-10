@@ -421,7 +421,7 @@ class RepoViewMenus : IRepoViewMenus
 
         // Include commit if not on current branch
         var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
-            ? Menu.Items.Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id))
+            ? Menu.Items.Item($"From Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id))
             : Menu.Items;
 
         // Incluce cherry pic if not on current branch
