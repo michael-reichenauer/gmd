@@ -12,10 +12,10 @@ class SetBranchDlg : ISetBranchDlg
 {
     public R<string> Show()
     {
-        var dlg = new UIDialog("Set Branch Name", 29, 7);
+        var dlg = new UIDialog("Set Branch Name", 35, 15);
 
         dlg.AddLabel(1, 0, "Branch Name:");
-        var name = dlg.AddTextField(1, 1, 25, "");
+        var name = dlg.AddComboTextField(1, 1, 31, 10, () => new[] { "Some", "hej" }, "");
 
         dlg.Validate(() => name.Text != "", "Empty branch name");
 
