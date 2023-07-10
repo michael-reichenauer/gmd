@@ -277,7 +277,8 @@ class UIComboTextField : TextField
     readonly List<Label> borderSides;
     readonly Label borderBottom;
     readonly ContentView listView;
-    IReadOnlyList<Text> items = new List<Text>();
+    private List<string> items = new List<string>();
+    IReadOnlyList<Text> itemTexts = new List<Text>();
     bool isShowList = false;
 
     internal UIComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
@@ -319,14 +320,22 @@ class UIComboTextField : TextField
     void ShowListView()
     {
         isShowList = true;
-        items = getItems().Select(item => Common.Text.New.White(item.Max(w + 1, true))).ToList();
+        items = getItems().ToList();
+        itemTexts = items.Select(item => item.Length > w + 1
+            ? Common.Text.New.Dark("…").White(item.Substring(item.Length - w))
+            : Common.Text.New.White(item.Max(w + 1, true))).ToList();
 
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
+
         listView.RegisterKeyHandler(Key.Enter, () =>
         {   // User select some item
-            if (items.Count > 0)
+            if (itemTexts.Count > 0)
             {
-                UI.Post(() => this.Text = items[listView.CurrentIndex].ToString().Trim());
+                UI.Post(() =>
+                {
+                    this.Text = items[listView.CurrentIndex].ToString().Trim();
+                    this.CursorPosition = this.Text.Length;
+                });
             };
 
             CloseListView();
@@ -336,7 +345,7 @@ class UIComboTextField : TextField
         listView.IsScrollMode = false;
         listView.IsCursorMargin = false;
         listView.ColorScheme = ColorSchemes.TextField;
-        listView.TriggerUpdateContent(items.Count);
+        listView.TriggerUpdateContent(itemTexts.Count);
 
         Dialog dlg = (Dialog)this.SuperView.SuperView;
         dlg.Add(borderTop);
@@ -362,7 +371,7 @@ class UIComboTextField : TextField
 
     IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        return items.Skip(firstIndex).Take(count).Select((item, i) =>
+        return itemTexts.Skip(firstIndex).Take(count).Select((item, i) =>
         {
             // Show selected or unselected commit row 
             var isSelectedRow = i + firstIndex == currentIndex;

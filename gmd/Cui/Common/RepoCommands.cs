@@ -955,11 +955,14 @@ class RepoCommands : IRepoCommands
 
     public void SetBranchManuallyAsync() => Do(async () =>
     {
-        // !!!!!!!!!! if (repo.RowCommit.ChildIds.Count() <= 1) return R.Ok;
-
         var commit = repo.RowCommit;
+        if (commit.IsUncommitted) return R.Error($"Not a valid commit");
 
-        if (!Try(out var name, setBranchDlg.Show())) return R.Ok;
+        var branch = repo.Branch(commit.BranchName);
+
+        var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
+
+        if (!Try(out var name, setBranchDlg.Show(branch.NiceName, possibleBranches))) return R.Ok;
 
         if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
         {

@@ -111,11 +111,10 @@ class RepoViewMenus : IRepoViewMenus
     }
 
 
-
     IEnumerable<MenuItem> GetBranchStructureItems() => Menu.Items
         .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
         .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
-        .SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
+        //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
         .Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync(), () => repo.RowCommit.ChildIds.Count() > 1)
         .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
 
