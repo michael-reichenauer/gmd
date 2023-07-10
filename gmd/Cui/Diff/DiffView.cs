@@ -121,17 +121,28 @@ class DiffView : IDiffView
 
     IEnumerable<Common.MenuItem> GetScrollToItems()
     {
-        var paths = diffService.GetDiffFilePaths(diffs[0]);
-        if (!paths.Any()) return new List<Common.MenuItem>();
+        if (diffs.Length > 1)
+        {
+            return diffs.Select(cd =>
+                 Menu.Item($"{cd.Time.IsoDate()} {cd.Message}", "", () => ScrollToCommit(cd.Id)));
+        }
 
-        return Menu.Items
-            .Items(paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p))));
+        var paths = diffService.GetDiffFilePaths(diffs[0]);
+        if (!paths.Any()) return Menu.Items;
+
+        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    }
+
+    void ScrollToCommit(string commitId)
+    {
+        var lineIndex = diffRows.Rows.FindIndexOf(r => r.CommitId == commitId);
+        contentView.ScrollToShowIndex(lineIndex - 1);
     }
 
     void ScrollToFile(string path)
     {
         // Find the row indexes where the file diff starts
-        var lineIndex = diffRows.Rows.FindIndexOf(r => r.filePath == path);
+        var lineIndex = diffRows.Rows.FindIndexOf(r => r.FilePath == path);
         contentView.ScrollToShowIndex(lineIndex - 1);
     }
 

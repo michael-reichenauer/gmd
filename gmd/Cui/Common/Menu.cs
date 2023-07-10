@@ -87,26 +87,29 @@ class Menu
         var screeenWidth = Application.Driver.Cols;
         var screenHeight = Application.Driver.Rows;
 
+        // Calculate view height based on number of items, screen height and max height if very large screeen 
         var viewHeight = Math.Min(items.Count + 2, Math.Min(maxHeight, screenHeight));
 
-        var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length) : 0;
-        shortcutWidth = shortcutWidth == 0 ? 0 : shortcutWidth + 1;  // Add space before shortcut if any
-        var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space befoe submenu marker if any
-        var titleWidth = Math.Max(items.Any() ? items.Max(i => i.Title.Length + 1) : 0, title.Length + 4);
-
+        // Calculate items width based on longest title and shortcut, and if sub menu marker is needed and scrollbar is needed
+        var titleWidth = Math.Max(items.Any() ? items.Max(i => i.Title.Length) : 0, title.Length + 4);
+        var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length + 1) : 0;  // Include space before
+        var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space before 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
-        var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
+
+        // Calculate view width based on title, shortcut, sub menu marker and scrollbar
+        var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
         if (viewWidth > screeenWidth)
-        {   // Too wide, try to fit on screen
+        {   // Too wide view, try to fit on screen (reduce title width)
             viewWidth = screeenWidth;
             titleWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
+        // Calculate view x and y position to be centered if (-1) or based on original x and y 
         var viewX = xOrg == -1 ? screeenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1
         var viewY = yOrg == -1 ? screenHeight / 2 - viewHeight / 2 : yOrg; // Centered if y == -1
 
         if (viewX + viewWidth > screeenWidth)
-        {   // Too far to the right, try to move left
+        {   // Too far to the right, try to move menu left
             if (altX >= 0)
             {   // Use alternative x position (left of parent menu)
                 viewX = Math.Max(0, altX - viewWidth);
@@ -116,6 +119,7 @@ class Menu
                 viewX = Math.Max(0, viewX - viewWidth);
             }
         }
+
         if (viewY + viewHeight > screenHeight)
         {   // Too far down, try to move up
             viewY = Math.Max(0, screenHeight - viewHeight);
@@ -130,8 +134,10 @@ class Menu
         {
             if (item is MenuSeparator ms) return Text.New.BrightMagenta(ToSepratorText(ms));
 
+            // Color if disabled or not
             var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
 
+            // Title text might need to be truncated
             var text = Text.New;
             if (item.Title.Length > dim.TitleWidth)
             {
@@ -142,17 +148,21 @@ class Menu
                 text.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
             }
 
-            if (item.Shortcut != "")
+            // Shortcut
+            if (!item.IsDisabled && item.Shortcut != "")
                 text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
+            else if (item.Shortcut != "")
+                text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Dark(item.Shortcut);
             else if (dim.ShortcutWidth > 0)
                 text.Black(new string(' ', dim.ShortcutWidth));
 
+            // Submenu marker >
             if (!item.IsDisabled && item is SubMenu)
-                text.BrightMagenta(">");
+                text.BrightMagenta(" >");
             if (item.IsDisabled && item is SubMenu)
-                text.Dark(">");
+                text.Dark(" >");
             if (dim.SubMenuMarkerWidth > 0)
-                text.Black(" ");
+                text.Black("  ");
 
             return text;
         })

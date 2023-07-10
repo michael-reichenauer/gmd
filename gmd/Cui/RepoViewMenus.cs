@@ -86,48 +86,57 @@ class RepoViewMenus : IRepoViewMenus
         }
 
         return items
-            .Item("Toggle Details ...", "Enter", () => cmds.ToggleDetails())
-            .Item("Commit ...", "C",
-                () => cmds.CommitFromMenu(false),
-                () => !repo.Status.IsOk)
-            .Item($"Amend {currentSidText} ...", "A",
-                () => cmds.CommitFromMenu(true),
-                () => repo.GetCurrentCommit().IsAhead)
+            .SubMenu("Commit", "", GetCommitItems())
             .SubMenu("Undo", "", GetUndoItems())
             .SubMenu("Diff", "", GetDiffItems())
-            .SubMenu("Open/Show Branch", "→", GetShowBranchItems())
+            .SubMenu("Show/Open Branch", "→", GetShowBranchItems())
             .SubMenu("Hide Branch", "←", GetHideItems())
             .SubMenu("Switch/Checkout", "", GetSwitchToItems()
                 .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)))
             .SubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush())
             .SubMenu("Pull/Update", "", GetPullItems(), () => cmds.CanPull())
-            .SubMenu($"Merge from", "", GetMergeFromItems())
-            .Item("Create Branch ...", "B", () => cmds.CreateBranch())
-            .Item("Create Branch from commit ...", "",
-                () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk)
+            .SubMenu($"Merge", "", GetMergeFromItems())
+            .SubMenu("Create Branch", "", GetCreateBranchItems())
             .SubMenu("Delete Branch", "", GetDeleteItems())
             .SubMenu("Stash", "", GetStashMenuItems())
             .SubMenu("Tag", "", GetTagItems())
-            .SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
+            .SubMenu("Branch Structure", "", GetBranchStructureItems())
             .Item("Search/Filter ...", "F", () => cmds.Filter())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
-            .Item("File History ...", "", () => cmds.ShowFileHistory())
+
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
-            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
-            .SubMenu("Set Branch", "", GetSetBranchItems())
-            .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
-            .Item("Help ...", "H", () => cmds.ShowHelp())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
+            .Item("Help ...", "H", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Esc", () => UI.Shutdown());
     }
 
-    IEnumerable<MenuItem> GetTagItems()
-    {
-        return Menu.Items
-            .Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
-            .SubMenu("Remove Tag", "", GetDeleteTagItems());
-    }
+    IEnumerable<MenuItem> GetBranchStructureItems() => Menu.Items
+        .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
+        .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
+        .SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
+        .SubMenu("Set Branch", "", GetSetBranchItems());
+
+
+
+    IEnumerable<MenuItem> GetCreateBranchItems() => Menu.Items
+        .Item("Create Branch ...", "B", () => cmds.CreateBranch())
+        .Item("Create Branch from commit ...", "", () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk);
+
+    IEnumerable<MenuItem> GetCommitItems() => Menu.Items
+        .Item("Commit ...", "C",
+            () => cmds.CommitFromMenu(false),
+            () => !repo.Status.IsOk)
+        .Item($"Amend {Sid(repo.GetCurrentCommit().Sid)} ...", "A",
+            () => cmds.CommitFromMenu(true),
+            () => repo.GetCurrentCommit().IsAhead)
+        .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails());
+
+
+    IEnumerable<MenuItem> GetTagItems() => Menu.Items
+        .Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
+        .SubMenu("Remove Tag", "", GetDeleteTagItems());
+
 
     IEnumerable<MenuItem> GetDeleteTagItems()
     {
@@ -140,6 +149,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         return Menu.Items
             .Item("Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff())
+            .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu($"Diff Branch to", "", GetPreviewMergeItems(false, false))
             .SubMenu($"Diff {Sid(repo.RowCommit.Id)} to", "", GetPreviewMergeItems(true, false))
             .SubMenu($"Diff Branch from", "", GetPreviewMergeItems(false, true))
@@ -411,7 +421,7 @@ class RepoViewMenus : IRepoViewMenus
 
         // Include commit if not on current branch
         var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
-            ? Menu.Items.Item($"Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id))
+            ? Menu.Items.Item($"From Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id))
             : Menu.Items;
 
         // Incluce cherry pic if not on current branch
