@@ -86,13 +86,7 @@ class RepoViewMenus : IRepoViewMenus
         }
 
         return items
-            .Item("Toggle Details ...", "Enter", () => cmds.ToggleDetails())
-            .Item("Commit ...", "C",
-                () => cmds.CommitFromMenu(false),
-                () => !repo.Status.IsOk)
-            .Item($"Amend {currentSidText} ...", "A",
-                () => cmds.CommitFromMenu(true),
-                () => repo.GetCurrentCommit().IsAhead)
+            .SubMenu("Commit", "", GetCommitItems())
             .SubMenu("Undo", "", GetUndoItems())
             .SubMenu("Diff", "", GetDiffItems())
             .SubMenu("Open/Show Branch", "→", GetShowBranchItems())
@@ -122,12 +116,20 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Quit", "Esc", () => UI.Shutdown());
     }
 
-    IEnumerable<MenuItem> GetTagItems()
-    {
-        return Menu.Items
-            .Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
-            .SubMenu("Remove Tag", "", GetDeleteTagItems());
-    }
+    IEnumerable<MenuItem> GetCommitItems() => Menu.Items
+            .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
+            .Item("Commit ...", "C",
+                () => cmds.CommitFromMenu(false),
+                () => !repo.Status.IsOk)
+            .Item($"Amend {Sid(repo.GetCurrentCommit().Sid)} ...", "A",
+                () => cmds.CommitFromMenu(true),
+                () => repo.GetCurrentCommit().IsAhead);
+
+
+    IEnumerable<MenuItem> GetTagItems() => Menu.Items
+        .Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
+        .SubMenu("Remove Tag", "", GetDeleteTagItems());
+
 
     IEnumerable<MenuItem> GetDeleteTagItems()
     {
