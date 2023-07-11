@@ -298,11 +298,11 @@ class AugmentedService : IAugmentedService
     IEnumerable<Commit> ToMergeCommits(Repo repo, IReadOnlyList<Git.Commit> commits)
     {
         if (commits.Count == 0) return Enumerable.Empty<Commit>();
-        var branchName = repo.CommitById[commits[0].Id].BranchCommonName;
+        var branchName = repo.CommitById[commits[0].Id].BranchHeadName;
 
         return commits
             .Select(c => repo.CommitById[c.Id])
-            .Where(c => c.BranchCommonName == branchName);
+            .Where(c => c.BranchHeadName == branchName);
     }
 
     // GetGitStatusAsync returns a fresh git status

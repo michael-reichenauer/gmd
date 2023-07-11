@@ -46,7 +46,7 @@ public record Commit(
     int GitIndex,
 
     string BranchName,
-    string BranchCommonName,
+    string BranchHeadName,
     string BranchViewName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> AllChildIds,

@@ -43,7 +43,7 @@ class Converter : IConverter
         Index: index != -1 ? index : c.GitIndex,
         GitIndex: c.GitIndex,
         BranchName: c.BranchName,
-        BranchCommonName: c.BranchCommonName,
+        BranchHeadName: c.BranchHeadName,
         BranchViewName: c.BranchViewName,
         ParentIds: c.ParentIds,
         AllChildIds: c.AllChildIds,
