@@ -20,6 +20,8 @@ class UIDialog
     internal bool IsOK => buttonsClicked.ContainsKey("OK");
     internal bool IsCanceled => buttonsClicked.ContainsKey("Cancel");
 
+    Dialog dlg = null!;
+
 
     internal UIDialog(string title, Dim width, Dim height,
         Func<Key, bool>? onKey = null, Action<Dialog>? options = null)
@@ -45,10 +47,33 @@ class UIDialog
         var textField = new UITextField(x, y, w, text) { ColorScheme = ColorSchemes.TextField };
         views.Add(textField);
 
-        var indicator = new Label(textField.Frame.X - 1, textField.Frame.Y + textField.Frame.Height,
-            "└" + new string('─', textField.Frame.Width) + "┘")
-        { ColorScheme = ColorSchemes.Indicator };
-        views.Add(indicator);
+        var line = new Label(x - 1, y + 1, "└" + new string('─', w) + "┘") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(line);
+
+        var startMark = new Label(x - 1, y, "│") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(startMark);
+        var endMarc = new Label(x + w, y, "│") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(endMarc);
+
+        return textField;
+    }
+
+    internal UIComboTextField AddComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
+    {
+        var textField = new UIComboTextField(x, y, w - 2, h, getItems, text) { ColorScheme = ColorSchemes.TextField };
+        views.Add(textField);
+
+        var comboMarc = new Label(x + w - 1, y, "▼") { ColorScheme = ColorSchemes.Scrollbar };
+        views.Add(comboMarc);
+
+        var line = new Label(x - 1, y + 1, "└" + new string('─', w) + "┘") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(line);
+
+        var startMark = new Label(x - 1, y, "│") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(startMark);
+        var endMark = new Label(x + w, y, "│") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(endMark);
+
         return textField;
     }
 
@@ -148,7 +173,7 @@ class UIDialog
 
     internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
     {
-        var dlg = onKey != null ?
+        dlg = onKey != null ?
             new CustomDialog(Title, buttons.ToArray(), onKey)
             {
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
@@ -238,6 +263,120 @@ class UITextField : TextField
     {
         get => base.Text?.ToString()?.Trim() ?? "";
         set => base.Text = value;
+    }
+}
+
+class UIComboTextField : TextField
+{
+    private readonly int x;
+    private readonly int y;
+    private readonly int w;
+    readonly int h;
+    readonly Func<IReadOnlyList<string>> getItems;
+    readonly Label borderTop;
+    readonly List<Label> borderSides;
+    readonly Label borderBottom;
+    readonly ContentView listView;
+    private List<string> items = new List<string>();
+    IReadOnlyList<Text> itemTexts = new List<Text>();
+    bool isShowList = false;
+
+    internal UIComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
+        : base(x, y, w, text)
+    {
+        ColorScheme = ColorSchemes.TextField;
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.getItems = getItems;
+
+        listView = new ContentView(OnGetContent) { X = x, Y = y + 2, Width = w + 2, Height = h - 1, };
+
+        // For some reason the list view will not show border using the Border property, lets just draw it manually
+        borderTop = new Label(x - 1, y + 1, "├" + new string('─', w + 2) + "┤") { ColorScheme = ColorSchemes.Scrollbar };
+        borderSides = Enumerable.Range(0, h).Select(i => new Label(x - 1, y + 2 + i, "│" + new string('─', w + 2) + "│") { ColorScheme = ColorSchemes.Scrollbar }).ToList();
+        borderBottom = new Label(x - 1, y + h + 1, "└" + new string('─', w + 2) + "┘") { ColorScheme = ColorSchemes.Scrollbar };
+    }
+
+    public override bool ProcessKey(KeyEvent keyEvent)
+    {
+        if (keyEvent.Key == Key.CursorDown)
+        {   // User press down, show list view (if not already shown)
+            if (isShowList) return base.ProcessKey(keyEvent);
+            ShowListView();
+            return true;
+        }
+
+        return base.ProcessKey(keyEvent);
+    }
+
+    public new string Text
+    {
+        get => base.Text?.ToString()?.Trim() ?? "";
+        set => base.Text = value;
+    }
+
+    void ShowListView()
+    {
+        isShowList = true;
+        items = getItems().ToList();
+        itemTexts = items.Select(item => item.Length > w + 1
+            ? Common.Text.New.Dark("…").White(item.Substring(item.Length - w))
+            : Common.Text.New.White(item.Max(w + 1, true))).ToList();
+
+        listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
+
+        listView.RegisterKeyHandler(Key.Enter, () =>
+        {   // User select some item
+            if (itemTexts.Count > 0)
+            {
+                UI.Post(() =>
+                {
+                    this.Text = items[listView.CurrentIndex].ToString().Trim();
+                    this.CursorPosition = this.Text.Length;
+                });
+            };
+
+            CloseListView();
+        });
+
+        listView.IsShowCursor = false;
+        listView.IsScrollMode = false;
+        listView.IsCursorMargin = false;
+        listView.ColorScheme = ColorSchemes.TextField;
+        listView.TriggerUpdateContent(itemTexts.Count);
+
+        Dialog dlg = (Dialog)this.SuperView.SuperView;
+        dlg.Add(borderTop);
+        borderSides.ForEach(bs => dlg.Add(bs));
+        dlg.Add(borderBottom);
+        dlg.Add(listView);
+        dlg.SetNeedsDisplay();
+    }
+
+    void CloseListView()
+    {
+        Dialog dlg = (Dialog)this.SuperView.SuperView;
+        dlg.Remove(listView);
+
+        dlg.Remove(borderTop);
+        borderSides.ForEach(bs => dlg.Remove(bs));
+        dlg.Remove(borderBottom);
+        dlg.SetNeedsDisplay();
+
+        this.isShowList = false;
+    }
+
+
+    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    {
+        return itemTexts.Skip(firstIndex).Take(count).Select((item, i) =>
+        {
+            // Show selected or unselected commit row 
+            var isSelectedRow = i + firstIndex == currentIndex;
+            return isSelectedRow ? item.ToHighlight() : item;
+        });
     }
 }
 

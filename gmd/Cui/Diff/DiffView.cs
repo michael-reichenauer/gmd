@@ -78,21 +78,22 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
     }
 
+
     void ShowMainMenu()
     {
         var undoItems = GetUndoItems();
         var scrollToItems = GetScrollToItems();
 
-        Menu.Show(1, 2, Menu.NewItems
-            .AddSubMenu("Scroll to", "s", scrollToItems, () => scrollToItems.Any())
-            .AddSubMenu("Undo/Restore Uncommitted", "u", undoItems, () => undoItems.Any())
-            .AddItem("Refresh", "r", () => RefreshDiff(), () => undoItems.Any())
-            .AddItem("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
-            .AddItem("Toggle Select Mode", "i", () => contentView.ToggleShowCursor())
-            .AddItem("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
-            .AddItem("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
-            .AddItem("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
-            .AddItem("Close", "Esc", () => Application.RequestStop()),
+        Menu.Show(1, 2, Menu.Items
+            .SubMenu("Scroll to", "S", scrollToItems)
+            .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
+            .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
+            .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
+            .Item("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
+            .Item("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
+            .Item("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
+            .Item("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
+            .Item("Close", "Esc", () => Application.RequestStop()),
             "Diff Menu");
     }
 
@@ -120,17 +121,28 @@ class DiffView : IDiffView
 
     IEnumerable<Common.MenuItem> GetScrollToItems()
     {
-        var paths = diffService.GetDiffFilePaths(diffs[0]);
-        if (!paths.Any()) return new List<Common.MenuItem>();
+        if (diffs.Length > 1)
+        {
+            return diffs.Select(cd =>
+                 Menu.Item($"{cd.Time.IsoDate()} {cd.Message}", "", () => ScrollToCommit(cd.Id)));
+        }
 
-        return Menu.NewItems
-            .Add(paths.Select(p => new Common.MenuItem(p, "", () => ScrollToFile(p))));
+        var paths = diffService.GetDiffFilePaths(diffs[0]);
+        if (!paths.Any()) return Menu.Items;
+
+        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    }
+
+    void ScrollToCommit(string commitId)
+    {
+        var lineIndex = diffRows.Rows.FindIndexOf(r => r.CommitId == commitId);
+        contentView.ScrollToShowIndex(lineIndex - 1);
     }
 
     void ScrollToFile(string path)
     {
         // Find the row indexes where the file diff starts
-        var lineIndex = diffRows.Rows.FindIndexOf(r => r.filePath == path);
+        var lineIndex = diffRows.Rows.FindIndexOf(r => r.FilePath == path);
         contentView.ScrollToShowIndex(lineIndex - 1);
     }
 
@@ -147,11 +159,11 @@ class DiffView : IDiffView
             undoItems = new[] { new SubMenu("Uncommitted Files", "", undoItems) };
         }
 
-        return Menu.NewItems
-            .Add(undoItems)
-            .AddSeparator()
-            .AddItem("All Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
-            .AddItem("All Uncommitted Changes", "", () => UndoAll());
+        return Menu.Items
+            .Items(undoItems)
+            .Separator()
+            .Item("All Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
+            .Item("All Uncommitted Changes", "", () => UndoAll());
     }
 
     async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)
@@ -267,13 +279,13 @@ class DiffView : IDiffView
         if (row.Mode == DiffRowMode.DividerLine)
         {   // A line in the view, e.g. ━━━━, ══════, that need to be expanded to the full view width
             var line = row.Left.AddLine(viewWidth);
-            return isHighlighted ? Text.New.WhiteSelected(line.ToString()) : line;
+            return isHighlighted ? line.ToHighlight() : line;
         }
 
         if (row.Mode == DiffRowMode.SpanBoth)
         {   // The left text spans over full width 
             var text = row.Left.Subtext(0, viewWidth);
-            return isHighlighted ? Text.New.WhiteSelected(text.ToString()) : text;
+            return isHighlighted ? text.ToHighlight() : text;
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
@@ -286,9 +298,9 @@ class DiffView : IDiffView
             row.Right.Subtext(rowStartX, columnWidth - 1, true).Add(Text.New.Dark("…"));
 
         return Text.New
-            .Add(isHighlighted && IsSelectedLeft ? Text.New.WhiteSelected(left.ToString()) : left)
+            .Add(isHighlighted && IsSelectedLeft ? left.ToHighlight() : left)
             .Add(splitLineChar)
-            .Add(isHighlighted && !IsSelectedLeft ? Text.New.WhiteSelected(right.ToString()) : right);
+            .Add(isHighlighted && !IsSelectedLeft ? right.ToHighlight() : right);
     }
 
 

@@ -13,6 +13,7 @@ interface IServer
     IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount);
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
+    IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount);
     Branch AllBanchByName(Repo repo, string name);
     Commit GetCommit(Repo repo, string commitId);
 

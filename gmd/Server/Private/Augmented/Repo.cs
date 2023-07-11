@@ -49,7 +49,9 @@ public record Commit(
     string BranchCommonName,
     string BranchViewName,
     IReadOnlyList<string> ParentIds,
-    IReadOnlyList<string> ChildIds,
+    IReadOnlyList<string> AllChildIds,
+    IReadOnlyList<string> FirstChildIds,
+    IReadOnlyList<string> MergeChildIds,
     IReadOnlyList<Tag> Tags,
     IReadOnlyList<string> BranchTips,
 
@@ -69,10 +71,11 @@ public record Commit(
 
 public record Branch(
     string Name,
+    string HeadBranchName,
     string CommonName,
-    string CommonBaseName,
-    string HumanName,
-    string ViewName,
+    string HeadBaseName,
+    string NiceName,
+    string NiceNameUnique,
     string TipId,
     string BottomId,
     bool IsCurrent,
@@ -83,7 +86,7 @@ public record Branch(
 
     string ParentBranchName,
     string ParentBranchCommonName,
-    string PullMergeBranchName,
+    string PullMergeParentBranchName,
 
     bool IsGitBranch,
     bool IsDetached,

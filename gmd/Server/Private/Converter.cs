@@ -46,7 +46,9 @@ class Converter : IConverter
         BranchCommonName: c.BranchCommonName,
         BranchViewName: c.BranchViewName,
         ParentIds: c.ParentIds,
-        ChildIds: c.ChildIds,
+        AllChildIds: c.AllChildIds,
+        FirstChildIds: c.FirstChildIds,
+        MergeChildIds: c.MergeChildIds,
         Tags: ToTags(c.Tags),
         BranchTips: c.BranchTips,
         IsCurrent: c.IsCurrent,
@@ -64,10 +66,11 @@ class Converter : IConverter
 
     public Branch ToBranch(Augmented.Branch b) => new Branch(
         Name: b.Name,
+        HeadBranchName: b.HeadBranchName,
         CommonName: b.CommonName,
-        CommonBaseName: b.CommonBaseName,
-        HumanName: b.HumanName,
-        ViewName: b.ViewName,
+        HeadBaseName: b.HeadBaseName,
+        NiceName: b.NiceName,
+        NiceNameUnique: b.NiceNameUnique,
         TipId: b.TipId,
         BottomId: b.BottomId,
         IsCurrent: b.IsCurrent,
@@ -78,7 +81,7 @@ class Converter : IConverter
 
         ParentBranchName: b.ParentBranchName,
         ParentBranchCommonName: b.ParentBranchCommonName,
-        PullMergeBranchName: b.PullMergeBranchName,
+        PullMergeParentBranchName: b.PullMergeParentBranchName,
         IsGitBranch: b.IsGitBranch,
         IsDetached: b.IsDetached,
 

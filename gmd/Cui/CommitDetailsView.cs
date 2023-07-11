@@ -72,6 +72,7 @@ class CommitDetailsView : ICommitDetailsView
         }
 
         var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
+        branchName = $"{branch.NiceNameUnique}  ({branchName})";
 
         if (commit.IsBranchSetByUser)
         {
@@ -99,7 +100,7 @@ class CommitDetailsView : ICommitDetailsView
             newRows.Add(Text.New.Dark("Author:     ").White($"{commit.Author}").Dark(", time: ").White(commit.AuthorTime.IsoZone()));
         }
 
-        newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>
+        newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.AllChildIds.Select(id =>
             id == Repo.UncommittedId ? "" : id.Sid()))));
         newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id =>
             id.Sid()))));

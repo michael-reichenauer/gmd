@@ -42,7 +42,7 @@ class RepoView : IRepoView
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
     readonly Func<View, int, IRepoWriter> newRepoWriter;
-    readonly ContentView contentView;
+    readonly ContentView commitsView;
     readonly IRepoWriter repoWriter;
 
     // State data
@@ -77,29 +77,32 @@ class RepoView : IRepoView
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
-        contentView = new ContentView(onGetContent)
+        commitsView = new ContentView(onGetContent)
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             IsFocus = true,
+            IsShowCursor = false,
+            IsCursorMargin = false,
+            IsScrollMode = false,
         };
-        contentView.CurrentIndexChange += () => OnCurrentIndexChange();
+        commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
 
-        repoWriter = newRepoWriter(contentView, contentView.ContentX);
+        repoWriter = newRepoWriter(commitsView, commitsView.ContentX);
 
         server.RepoChange += OnRefreshRepo;
         server.StatusChange += OnRefreshStatus;
     }
 
 
-    public View View => contentView;
+    public View View => commitsView;
     public View DetailsView => commitDetailsView.View;
-    public int ContentWidth => contentView.ContentWidth;
+    public int ContentWidth => commitsView.ContentWidth;
 
-    public int CurrentIndex => contentView.CurrentIndex;
-    public Point CurrentPoint => contentView.CurrentPoint;
+    public int CurrentIndex => commitsView.CurrentIndex;
+    public Point CurrentPoint => commitsView.CurrentPoint;
 
     public async Task<R> ShowInitialRepoAsync(string path)
     {
@@ -157,19 +160,19 @@ class RepoView : IRepoView
 
         if (!isShowDetails)
         {
-            contentView.Height = Dim.Fill();
+            commitsView.Height = Dim.Fill();
             commitDetailsView.View.Height = 0;
-            contentView.IsFocus = true;
+            commitsView.IsFocus = true;
             commitDetailsView.View.IsFocus = false;
         }
         else
         {
-            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+            commitsView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
             commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
             OnCurrentIndexChange();
         }
 
-        contentView.SetNeedsDisplay();
+        commitsView.SetNeedsDisplay();
         commitDetailsView.View.SetNeedsDisplay();
     }
 
@@ -215,33 +218,34 @@ class RepoView : IRepoView
         isRegistered = true;
 
         // Keys on repo view contents
-        contentView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
-        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
-        contentView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
-        contentView.RegisterKeyHandler(Key.o, () => menuService!.ShowOpenMenu());
-        contentView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
-        contentView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
-        contentView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
-        contentView.RegisterKeyHandler(Key.F5, () => RefreshAndFetch());
-        contentView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
-        contentView.RegisterKeyHandler(Key.a, () => Cmd.Commit(true));
-        contentView.RegisterKeyHandler(Key.t, () => Cmd.AddTag());
-        contentView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
-        contentView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
-        contentView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
-        contentView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
-        contentView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
-        contentView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
-        contentView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
-        contentView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
-        contentView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
-        contentView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
-        contentView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
-        contentView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
+        commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
+        commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
+        commitsView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
+        commitsView.RegisterKeyHandler(Key.o, () => menuService!.ShowOpenMenu());
+        commitsView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
+        commitsView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
+        commitsView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
+        commitsView.RegisterKeyHandler(Key.F5, () => RefreshAndFetch());
+        commitsView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
+        commitsView.RegisterKeyHandler(Key.a, () => Cmd.Commit(true));
+        commitsView.RegisterKeyHandler(Key.t, () => Cmd.AddTag());
+        commitsView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
+        commitsView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+        commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
+        commitsView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
+        commitsView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
+        commitsView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
+        commitsView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
+        commitsView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
+        commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
+        commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
+        commitsView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
+        commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
+        commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
+        commitsView.RegisterKeyHandler(Key.x, () => Cmd.SetBranchManuallyAsync());
 
-        contentView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
-        contentView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
+        commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
+        commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
 
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
@@ -261,13 +265,13 @@ class RepoView : IRepoView
 
     void DoubleClicked(int x, int y)
     {
-        contentView.SetIndex(y);
+        commitsView.SetIndex(y);
         ToggleDetails();
     }
 
     void Clicked(int x, int y)
     {
-        contentView.SetIndex(y);
+        commitsView.SetIndex(y);
     }
 
     IEnumerable<Text> onGetContent(int firstIndex, int count, int currentIndex, int width)
@@ -360,11 +364,11 @@ class RepoView : IRepoView
     {
         repo = newViewRepo(this, serverRepo);
         menuService = newMenuService(repo);
-        contentView.TriggerUpdateContent(repo.TotalRows);
+        commitsView.TriggerUpdateContent(repo.TotalRows);
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
-        var names = repo.Branches.Select(b => b.Name).ToList();
+        var names = repo.Branches.Select(b => b.HeadBaseName).Distinct().ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
     }
@@ -378,8 +382,8 @@ class RepoView : IRepoView
             if (branch != null)
             {
                 var tip = repo.Commit(branch.TipId);
-                contentView.ScrollToShowIndex(tip.Index);
-                contentView.SetCurrentIndex(tip.Index);
+                commitsView.ScrollToShowIndex(tip.Index);
+                commitsView.SetCurrentIndex(tip.Index);
             }
         }
     }
@@ -390,8 +394,8 @@ class RepoView : IRepoView
         var commit = repo!.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
-            contentView.ScrollToShowIndex(commit.Index);
-            contentView.SetCurrentIndex(commit.Index);
+            commitsView.ScrollToShowIndex(commit.Index);
+            commitsView.SetCurrentIndex(commit.Index);
         }
     }
 
@@ -404,11 +408,11 @@ class RepoView : IRepoView
         }
 
         // Shift focus (unfortunately SetFocus() does not seem to work)
-        contentView.IsFocus = !contentView.IsFocus;
+        commitsView.IsFocus = !commitsView.IsFocus;
         commitDetailsView.View.IsFocus = !commitDetailsView.View.IsFocus;
 
         commitDetailsView.View.SetNeedsDisplay();
-        contentView.SetNeedsDisplay();
+        commitsView.SetNeedsDisplay();
     }
 
 

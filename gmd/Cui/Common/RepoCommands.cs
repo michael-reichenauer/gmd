@@ -795,7 +795,7 @@ class RepoCommands : IRepoCommands
         if (rsp.IsRemote && remoteBranch != null)
         {
             var tip = repo.Commit(remoteBranch.TipId);
-            if (!tip.ChildIds.Any() && !rsp.IsForce && tip.BranchName == remoteBranch.Name)
+            if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == remoteBranch.Name)
             {
                 return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
             }
@@ -810,7 +810,7 @@ class RepoCommands : IRepoCommands
         if (rsp.IsLocal && localBranch != null)
         {
             var tip = repo.Commit(localBranch.TipId);
-            if (!tip.ChildIds.Any() && !rsp.IsForce && tip.BranchName == localBranch.Name)
+            if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == localBranch.Name)
             {
                 return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
             }
@@ -956,8 +956,13 @@ class RepoCommands : IRepoCommands
     public void SetBranchManuallyAsync() => Do(async () =>
     {
         var commit = repo.RowCommit;
+        if (commit.IsUncommitted) return R.Error($"Not a valid commit");
 
-        if (!Try(out var name, setBranchDlg.Show())) return R.Ok;
+        var branch = repo.Branch(commit.BranchName);
+
+        var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
+
+        if (!Try(out var name, setBranchDlg.Show(branch.NiceName, possibleBranches))) return R.Ok;
 
         if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
         {

@@ -65,7 +65,6 @@ public record Commit(
 
 public record Branch(
     string Name,
-    string CommonName,  // Common name for local and remote branches (name without remote prefix)
     string TipID,
     bool IsCurrent,
     bool IsRemote,

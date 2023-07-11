@@ -150,7 +150,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.HumanName);
+            metaData.SetBranched(commit.Sid, branch.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -168,7 +168,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.HumanName);
+            metaData.SetBranched(commit.Sid, branch.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -221,19 +221,19 @@ class AugmentedService : IAugmentedService
         // Not a git branch so the branch was deleted, lets recreate it
         var tip = repo.CommitById[branch.TipId];
 
-        return await CreateBranchFromCommitAsync(repo, branch.HumanName, tip.Id, true, repo.Path);
+        return await CreateBranchFromCommitAsync(repo, branch.NiceName, tip.Id, true, repo.Path);
     }
 
-    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName)
+    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setNiceName)
     {
-        Log.Info($"Set {commitId.Sid()} to {setHumanName} ...");
+        Log.Info($"Set {commitId.Sid()} to {setNiceName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(commitId.Sid(), setHumanName);
+            metaData.SetCommitBranch(commitId.Sid(), setNiceName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
@@ -345,8 +345,7 @@ class AugmentedService : IAugmentedService
         var branchName = "main";
         var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),
             new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
-        var branches = new List<Git.Branch>() { new Git.Branch(branchName, branchName, id,
-             true, false, "", false, 0, 0) };
+        var branches = new List<Git.Branch>() { new Git.Branch(branchName, id, true, false, "", false, 0, 0) };
         var stashes = new List<Git.Stash>();
 
         return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes, false);

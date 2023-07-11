@@ -22,6 +22,7 @@ class Menu
     IReadOnlyList<MenuItem> items = null!;
     Dimensions dim = null!;
     MenuItem CurrentItem => items[itemsView.CurrentIndex];
+    bool isAllDisabled = false;
 
 
     public event Action? Closed;
@@ -35,7 +36,12 @@ class Menu
         menu.Show(items);
     }
 
-    public static IList<MenuItem> NewItems => new List<MenuItem>();
+    public static ICollection<MenuItem> Items => new List<MenuItem>();
+    public static MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
+        new MenuItem(title, shortcut, action, canExecute);
+    public static MenuItem Separator(string text = "") => new MenuSeparator(text);
+    public static MenuItem SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
+        new SubMenu(title, shortcut, children, canExecute);
 
     public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)
     {
@@ -50,7 +56,8 @@ class Menu
     void Show(IEnumerable<MenuItem> items)
     {
         this.items = items.ToList();
-        this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute());
+        this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute() || i is SubMenu sm && !sm.Children.Any());
+        this.isAllDisabled = this.items.All(i => i.IsDisabled);
 
         dim = GetDimensions();
         itemRows = ToItemsRows();
@@ -65,7 +72,7 @@ class Menu
 
 
         itemsView.TriggerUpdateContent(this.items.Count);
-        if (this.items.Any() && this.items[0].IsDisabled) UI.Post(() => OnCursorDown());
+        if (this.items.Any() && this.items[0].IsDisabled && !isAllDisabled) UI.Post(() => OnCursorDown());
         dlg.Show();
     }
 
@@ -80,26 +87,29 @@ class Menu
         var screeenWidth = Application.Driver.Cols;
         var screenHeight = Application.Driver.Rows;
 
+        // Calculate view height based on number of items, screen height and max height if very large screeen 
         var viewHeight = Math.Min(items.Count + 2, Math.Min(maxHeight, screenHeight));
 
-        var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length) : 0;
-        shortcutWidth = shortcutWidth == 0 ? 0 : shortcutWidth + 1;  // Add space before shortcut if any
-        var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space befoe submenu marker if any
-        var titleWidth = Math.Max(items.Any() ? items.Max(i => i.Title.Length + 1) : 0, title.Length + 4);
-
+        // Calculate items width based on longest title and shortcut, and if sub menu marker is needed and scrollbar is needed
+        var titleWidth = Math.Max(items.Any() ? items.Max(i => i.Title.Length) : 0, title.Length + 4);
+        var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length + 1) : 0;  // Include space before
+        var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space before 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
-        var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 1;
+
+        // Calculate view width based on title, shortcut, sub menu marker and scrollbar
+        var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
         if (viewWidth > screeenWidth)
-        {   // Too wide, try to fit on screen
+        {   // Too wide view, try to fit on screen (reduce title width)
             viewWidth = screeenWidth;
-            titleWidth = Math.Max(5, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
+            titleWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
+        // Calculate view x and y position to be centered if (-1) or based on original x and y 
         var viewX = xOrg == -1 ? screeenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1
         var viewY = yOrg == -1 ? screenHeight / 2 - viewHeight / 2 : yOrg; // Centered if y == -1
 
         if (viewX + viewWidth > screeenWidth)
-        {   // Too far to the right, try to move left
+        {   // Too far to the right, try to move menu left
             if (altX >= 0)
             {   // Use alternative x position (left of parent menu)
                 viewX = Math.Max(0, altX - viewWidth);
@@ -109,6 +119,7 @@ class Menu
                 viewX = Math.Max(0, viewX - viewWidth);
             }
         }
+
         if (viewY + viewHeight > screenHeight)
         {   // Too far down, try to move up
             viewY = Math.Max(0, screenHeight - viewHeight);
@@ -123,8 +134,10 @@ class Menu
         {
             if (item is MenuSeparator ms) return Text.New.BrightMagenta(ToSepratorText(ms));
 
+            // Color if disabled or not
             var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
 
+            // Title text might need to be truncated
             var text = Text.New;
             if (item.Title.Length > dim.TitleWidth)
             {
@@ -135,17 +148,21 @@ class Menu
                 text.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
             }
 
-            if (item.Shortcut != "")
+            // Shortcut
+            if (!item.IsDisabled && item.Shortcut != "")
                 text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
+            else if (item.Shortcut != "")
+                text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Dark(item.Shortcut);
             else if (dim.ShortcutWidth > 0)
                 text.Black(new string(' ', dim.ShortcutWidth));
 
+            // Submenu marker >
             if (!item.IsDisabled && item is SubMenu)
-                text.BrightMagenta(">");
+                text.BrightMagenta(" >");
             if (item.IsDisabled && item is SubMenu)
-                text.Dark(">");
+                text.Dark(" >");
             if (dim.SubMenuMarkerWidth > 0)
-                text.Black(" ");
+                text.Black("  ");
 
             return text;
         })
@@ -221,7 +238,7 @@ class Menu
 
     void OnCursorUp()
     {
-        if (itemsView.CurrentIndex <= 0) return;
+        if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
         itemsView.Move(-1);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
@@ -230,16 +247,16 @@ class Menu
 
     void OnCursorDown()
     {
-        if (itemsView.CurrentIndex >= items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
         itemsView.Move(1);
 
-        if (itemsView.CurrentIndex == items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
+        if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
         if (CurrentItem.IsDisabled) OnCursorDown();
     }
 
     void OnPageUp()
     {
-        if (itemsView.CurrentIndex <= 0) return;
+        if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
         itemsView.Move(-itemsView.ViewHeight);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
@@ -248,7 +265,7 @@ class Menu
 
     void OnPageDown()
     {
-        if (itemsView.CurrentIndex >= items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
         itemsView.Move(itemsView.ViewHeight);
 
         if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
@@ -257,7 +274,7 @@ class Menu
 
     void OnHome()
     {
-        if (itemsView.CurrentIndex <= 0) return;
+        if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
         itemsView.Move(-itemsView.Count);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
@@ -266,7 +283,7 @@ class Menu
 
     void OnEnd()
     {
-        if (itemsView.CurrentIndex >= items.Count - 1) return;
+        if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
         itemsView.Move(itemsView.Count);
 
         if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
@@ -296,8 +313,8 @@ class Menu
     {
         return itemRows.Skip(firstIndex).Take(count).Select((row, i) =>
         {
-            var isSelectedRow = i + firstIndex == currentIndex;
-            return isSelectedRow ? Text.New.WhiteSelected(row.ToString()) : row;
+            var isSelectedRow = i + firstIndex == currentIndex && !isAllDisabled;
+            return isSelectedRow ? row.ToHighlight() : row;
         });
     }
 }
@@ -326,7 +343,7 @@ class MenuItem
 class SubMenu : MenuItem
 {
     public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
-        : base(title, shortcut, () => { }, () => canExecute?.Invoke() ?? true && children.Any())
+        : base(title, shortcut, () => { }, canExecute)
     {
         Children = children;
     }
@@ -348,33 +365,62 @@ class MenuSeparator : MenuItem
 // Extension methods to make it easier to build menus
 static class MenuExtensions
 {
-    public static ICollection<MenuItem> AddSubMenu(this ICollection<MenuItem> items, string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+    public static ICollection<MenuItem> SubMenu(this ICollection<MenuItem> items, string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
     {
         items.Add(new SubMenu(title, shortcut, children, canExecute));
         return items;
     }
 
-    public static ICollection<MenuItem> AddItem(this ICollection<MenuItem> items, string title, string shortcut, Action action, Func<bool>? canExecute = null)
+    public static ICollection<MenuItem> SubMenu(this ICollection<MenuItem> items, bool condition, string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+    {
+        if (condition) items.Add(new SubMenu(title, shortcut, children, canExecute));
+        return items;
+    }
+
+    public static ICollection<MenuItem> Item(this ICollection<MenuItem> items, string title, string shortcut, Action action, Func<bool>? canExecute = null)
     {
         items.Add(new MenuItem(title, shortcut, action, canExecute));
         return items;
     }
 
-    public static ICollection<MenuItem> AddSeparator(this ICollection<MenuItem> items, string text = "")
+    public static ICollection<MenuItem> Item(this ICollection<MenuItem> items, bool condition, string title, string shortcut, Action action, Func<bool>? canExecute = null)
+    {
+        if (condition) items.Add(new MenuItem(title, shortcut, action, canExecute));
+        return items;
+    }
+
+
+    public static ICollection<MenuItem> Separator(this ICollection<MenuItem> items, string text = "")
     {
         items.Add(new MenuSeparator(text));
         return items;
     }
+    public static ICollection<MenuItem> Separator(this ICollection<MenuItem> items, bool condition, string text = "")
+    {
+        if (condition) items.Add(new MenuSeparator(text));
+        return items;
+    }
 
-    public static ICollection<MenuItem> Add(this ICollection<MenuItem> items, params MenuItem[] moreItems)
+    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, params MenuItem[] moreItems)
+    {
+        moreItems.Where(i => i != null).ForEach(i => items.Add(i));
+        return items;
+    }
+    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, bool condition, params MenuItem[] moreItems)
+    {
+        if (condition) moreItems.Where(i => i != null).ForEach(i => items.Add(i));
+        return items;
+    }
+
+    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, IEnumerable<MenuItem> moreItems)
     {
         moreItems.Where(i => i != null).ForEach(i => items.Add(i));
         return items;
     }
 
-    public static ICollection<MenuItem> Add(this ICollection<MenuItem> items, IEnumerable<MenuItem> moreItems)
+    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, bool condition, IEnumerable<MenuItem> moreItems)
     {
-        moreItems.Where(i => i != null).ForEach(i => items.Add(i));
+        if (condition) moreItems.Where(i => i != null).ForEach(i => items.Add(i));
         return items;
     }
 }
