@@ -231,7 +231,7 @@ class BranchStructureService : IBranchStructureService
         {   // Commit has not a branch set by user
             return false;
         }
-        Log.Info($"Commit {commit.Sid} has branch set by user: {branchHumanName} ({isSetByUser})");
+        // Log.Info($"Commit {commit.Sid} has branch set to {branchHumanName} (by user: {isSetByUser})");
 
         var branches = commit.Branches.Where(b => b.NiceName == branchHumanName);
         if (!branches.Any())
