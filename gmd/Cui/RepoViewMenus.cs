@@ -443,10 +443,9 @@ class RepoViewMenus : IRepoViewMenus
         if (!repo.Status.IsOk) return Menu.Items;
 
         var commit = repo.RowCommit;
-        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+        var currentPrimaryName = repo.CurrentBranch?.PrimaryName ?? "";
         var branches = repo.Branches
-             .Where(b => b.PrimaryName != currentName &&
-                b.RemoteName == "" && b.PullMergeParentBranchName == "")
+             .Where(b => b.IsPrimary && b.PrimaryName != currentPrimaryName)
              .DistinctBy(b => b.NiceNameUnique)
              .OrderBy(b => b.NiceNameUnique);
 
@@ -471,17 +470,16 @@ class RepoViewMenus : IRepoViewMenus
         var allBranches = repo.GetAllBranches();
 
         var liveBranches = allBranches
-            .Where(b => b.IsGitBranch)
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
+            .Where(b => b.IsGitBranch && b.IsPrimary)
             .OrderBy(b => b.NiceNameUnique);
 
         var liveAndDeletedBranches = allBranches
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
+            .Where(b => b.IsPrimary)
             .OrderBy(b => b.NiceNameUnique)
             .ToList();
 
         var recentBranches = liveAndDeletedBranches
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
+            .Where(b => b.IsPrimary)
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
             .Take(RecentCount);
 
