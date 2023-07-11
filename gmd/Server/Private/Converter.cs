@@ -82,8 +82,7 @@ class Converter : IConverter
         PullMergeParentBranchName: b.PullMergeParentBranchName,
         IsGitBranch: b.IsGitBranch,
         IsDetached: b.IsDetached,
-
-        IsSetAsParent: b.IsSetAsParent,
+        IsPrimary: b.IsPrimary,
         IsMainBranch: b.IsMainBranch,
 
         HasLocalOnly: b.HasAheadCommits,

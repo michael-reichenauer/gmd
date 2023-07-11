@@ -88,7 +88,7 @@ public record Branch(
 
     bool IsGitBranch,
     bool IsDetached,
-    bool IsSetAsParent,
+    bool IsPrimary,
     bool IsMainBranch,
 
     bool HasAheadCommits,

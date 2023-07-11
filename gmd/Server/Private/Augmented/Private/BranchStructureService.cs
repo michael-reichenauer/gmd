@@ -713,7 +713,7 @@ class BranchStructureService : IBranchStructureService
         var humanName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
             name: branchName,
-            headName: pullMergeParentBranch.PrimaryName,
+            primaryName: pullMergeParentBranch.PrimaryName,
             niceName: humanName,
             tipID: c.Id);
         branch.PullMergeParentBranch = pullMergeParentBranch;
@@ -727,7 +727,7 @@ class BranchStructureService : IBranchStructureService
         var branchName = truncatedBranchName;
         var branch = new WorkBranch(
             name: branchName,
-            headName: branchName,
+            primaryName: branchName,
             niceName: branchName,
             tipID: Repo.TruncatedLogCommitID);
 
@@ -741,7 +741,7 @@ class BranchStructureService : IBranchStructureService
         var niceName = name != "" ? name : "branch";
         var branch = new WorkBranch(
             name: branchName,
-            headName: branchName,
+            primaryName: branchName,
             niceName: niceName,
             tipID: c.Id);
 

@@ -113,7 +113,7 @@ public record Branch(
     // Augmented properties
     bool IsGitBranch,
     bool IsDetached,
-    bool IsSetAsParent,
+    bool IsPrimary,     // True if this is the primary branch (remote if local/remote pair or the local if only local) 
     bool IsMainBranch,
 
     string ParentBranchName,

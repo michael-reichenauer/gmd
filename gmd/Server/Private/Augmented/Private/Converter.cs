@@ -84,7 +84,7 @@ class Converter : IConverter
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
-            IsSetAsParent: b.IsSetAsParent,
+            IsPrimary: b.IsPrimary,
             IsMainBranch: b.IsMainBranch,
 
             HasAheadCommits: b.HasLocalOnly,
