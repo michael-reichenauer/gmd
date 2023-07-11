@@ -50,6 +50,8 @@ public record Commit(
     string BranchViewName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> AllChildIds,
+    IReadOnlyList<string> FirstChildIds,
+    IReadOnlyList<string> MergeChildIds,
     IReadOnlyList<Tag> Tags,
     IReadOnlyList<string> BranchTips,
 

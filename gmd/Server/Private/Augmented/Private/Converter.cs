@@ -47,6 +47,8 @@ class Converter : IConverter
             BranchCommonName: c.Branch.CommonName,
             BranchViewName: c.Branch.NiceNameUnique,
             AllChildIds: c.AllChildIds,
+            FirstChildIds: c.FirstChildIds,
+            MergeChildIds: c.MergeChildIds,
             Tags: c.Tags,
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,

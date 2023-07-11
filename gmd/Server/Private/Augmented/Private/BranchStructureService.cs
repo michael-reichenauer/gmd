@@ -100,6 +100,7 @@ class BranchStructureService : IBranchStructureService
                 c.FirstParent = firstParent;
                 firstParent.FirstChildren.Add(c);
                 firstParent.AllChildIds.Add(c.Id);
+                firstParent.FirstChildIds.Add(c.Id);
             }
 
             if (c.ParentIds.Count > 1 && repo.CommitsById.TryGetValue(c.ParentIds[1], out var mergeParent))
@@ -107,6 +108,7 @@ class BranchStructureService : IBranchStructureService
                 c.MergeParent = mergeParent;
                 mergeParent.MergeChildren.Add(c);
                 mergeParent.AllChildIds.Add(c.Id);
+                mergeParent.MergeChildIds.Add(c.Id);
             }
         }
     }

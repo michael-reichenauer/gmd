@@ -352,11 +352,12 @@ class ViewRepoCreater : IViewRepoCreater
                     }
                 }
 
+                // Create a new virtual uncommitted commit
                 uncommitted = new Augmented.Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
                     GitIndex: 0, currentBranch.Name, currentBranch.CommonName, currentBranch.NiceNameUnique,
-                    ParentIds: parentIds, AllChildIds: new List<string>(),
+                    ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
