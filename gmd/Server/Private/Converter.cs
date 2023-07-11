@@ -66,8 +66,8 @@ class Converter : IConverter
 
     public Branch ToBranch(Augmented.Branch b) => new Branch(
         Name: b.Name,
-        HeadBranchName: b.HeadBranchName,
-        HeadBaseName: b.HeadBaseName,
+        PrimaryName: b.PrimaryName,
+        PrimaryBaseName: b.PrimaryBaseName,
         NiceName: b.NiceName,
         NiceNameUnique: b.NiceNameUnique,
         TipId: b.TipId,

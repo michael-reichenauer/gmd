@@ -619,7 +619,7 @@ class RepoCommands : IRepoCommands
         if (!CanPush()) return R.Error("No local changes to push");
 
         var branches = repo.Branches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
-            .DistinctBy(b => b.HeadBranchName);
+            .DistinctBy(b => b.PrimaryName);
 
         foreach (var b in branches)
         {
@@ -653,7 +653,7 @@ class RepoCommands : IRepoCommands
 
         var branches = repo.Branches
             .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
-            .DistinctBy(b => b.HeadBranchName);
+            .DistinctBy(b => b.PrimaryName);
 
         Log.Info($"Pull {string.Join(", ", branches)}");
         foreach (var b in branches)
@@ -805,7 +805,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
-            newName = remoteBranch.HeadBaseName;
+            newName = remoteBranch.PrimaryBaseName;
         }
 
         if (rsp.IsLocal && localBranch != null)
@@ -819,7 +819,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
-            newName = localBranch.HeadBaseName;
+            newName = localBranch.PrimaryBaseName;
         }
 
         Refresh(newName);

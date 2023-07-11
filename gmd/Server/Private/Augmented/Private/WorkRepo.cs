@@ -104,9 +104,9 @@ internal class WorkBranch
     public bool IsCurrent { get; }
 
     // Augmented properties
-    public string HeadBranchName { get; set; }  // The name of main branch realted branch (remote if both local and remote) 
-    public string HeadBaseName { get; set; } = "";  // a name based on first commit and parent commit
-    public string NiceName { get; set; } = "";
+    public string PrimaryName { get; set; }  // The name of main/primary branch related branch (remote if both local and remote) 
+    public string PrimaryBaseName { get; set; } = "";  // a name based on first commit and parent commit
+    public string NiceName { get; set; } = "";         // Nice name (might not be unique)
     public string NiceNameUnique { get; set; } = ""; // Unique nice name (with branch number if needed)
     public string RemoteName { get; set; } = "";  // A local branch's remote name
     public string LocalName { get; set; } = "";   // A remote branch's local name
@@ -114,7 +114,7 @@ internal class WorkBranch
     public string BottomID { get; internal set; } = "";  // Last commit id
 
     public WorkBranch? ParentBranch { get; set; }       // Parent branch (remote if local)
-    public WorkBranch? PullMergeParentBranch { get; set; }    // For pull merge branches, the main parent branch
+    public WorkBranch? PullMergeParentBranch { get; set; }    // For pull merge branches, their parent branch
 
     public bool IsLocalCurrent { get; set; }  // True if local branch corresponding to this remote is current
     public bool IsGitBranch { get; set; }
@@ -133,7 +133,7 @@ internal class WorkBranch
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
-        HeadBranchName = b.RemoteName == "" ? b.Name : b.RemoteName;
+        PrimaryName = b.RemoteName == "" ? b.Name : b.RemoteName;
         NiceName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;
@@ -149,7 +149,7 @@ internal class WorkBranch
     public WorkBranch(string name, string headName, string niceName, string tipID)
     {
         Name = name;
-        HeadBranchName = headName;
+        PrimaryName = headName;
         NiceName = niceName;
         TipID = tipID;
         BottomID = tipID;

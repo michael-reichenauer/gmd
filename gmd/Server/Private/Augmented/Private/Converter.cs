@@ -44,7 +44,7 @@ class Converter : IConverter
             GitIndex: gitIndex,
 
             BranchName: c.Branch!.Name,
-            BranchHeadName: c.Branch.HeadBranchName,
+            BranchHeadName: c.Branch.PrimaryName,
             BranchViewName: c.Branch.NiceNameUnique,
             AllChildIds: c.AllChildIds,
             FirstChildIds: c.FirstChildIds,
@@ -67,8 +67,8 @@ class Converter : IConverter
     {
         return new Branch(
             Name: b.Name,
-            HeadBranchName: b.HeadBranchName,
-            HeadBaseName: b.HeadBaseName,
+            PrimaryName: b.PrimaryName,
+            PrimaryBaseName: b.PrimaryBaseName,
             NiceName: b.NiceName,
             NiceNameUnique: b.NiceNameUnique,
             TipId: b.TipID,
