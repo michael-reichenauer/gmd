@@ -84,6 +84,9 @@ class RepoView : IRepoView
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             IsFocus = true,
+            IsShowCursor = false,
+            IsCursorMargin = false,
+            IsScrollMode = false,
         };
         commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
 
