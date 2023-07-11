@@ -461,7 +461,8 @@ class RepoCommands : IRepoCommands
     {
         if (repo.CurrentBranch == null) return R.Ok;
         string message = "";
-        var sha1 = repo.Branch(branchName).TipId;
+        var branch = repo.Branch(branchName);
+        var sha1 = branch.TipId;
         var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
         if (sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
 
@@ -470,11 +471,11 @@ class RepoCommands : IRepoCommands
             var sh = sha1;
             sha1 = sha2;
             sha2 = sh;
-            message = $"Diff '{branchName}' with '{repo.CurrentBranch.CommonName}'";
+            message = $"Diff '{branch.NiceName}' with '{repo.CurrentBranch.NiceName}'";
         }
         else
         {
-            message = $"Diff '{repo.CurrentBranch.CommonName}' with '{branchName}'";
+            message = $"Diff '{repo.CurrentBranch.NiceName}' with '{branch.NiceName}'";
         }
 
         if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, repoPath)))
@@ -618,7 +619,7 @@ class RepoCommands : IRepoCommands
         if (!CanPush()) return R.Error("No local changes to push");
 
         var branches = repo.Branches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
-            .DistinctBy(b => b.CommonName);
+            .DistinctBy(b => b.HeadBranchName);
 
         foreach (var b in branches)
         {
@@ -652,7 +653,7 @@ class RepoCommands : IRepoCommands
 
         var branches = repo.Branches
             .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
-            .DistinctBy(b => b.CommonName);
+            .DistinctBy(b => b.HeadBranchName);
 
         Log.Info($"Pull {string.Join(", ", branches)}");
         foreach (var b in branches)
@@ -804,7 +805,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
-            newName = $"{remoteBranch.CommonName}:{remoteBranch.TipId.Sid()}";
+            newName = remoteBranch.HeadBaseName;
         }
 
         if (rsp.IsLocal && localBranch != null)
@@ -818,7 +819,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
-            newName = $"{localBranch.CommonName}:{localBranch.TipId.Sid()}";
+            newName = localBranch.HeadBaseName;
         }
 
         Refresh(newName);

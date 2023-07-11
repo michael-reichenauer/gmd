@@ -40,7 +40,7 @@ class BranchColorService : IBranchColorService
         // Branch has a parent, lets check the color of parent to determine branch color
         var parentBranch = repo.BranchByName[branch.ParentBranchName];
 
-        if (branch.CommonName == parentBranch.CommonName)
+        if (branch.HeadBranchName == parentBranch.HeadBranchName)
         {   // Same common name, lets use parent color
             return GetColor(repo, parentBranch);
         }
