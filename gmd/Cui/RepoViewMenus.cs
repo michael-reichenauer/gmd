@@ -115,7 +115,7 @@ class RepoViewMenus : IRepoViewMenus
         .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
         .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
         //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
-        .Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync(), () => repo.RowCommit.ChildIds.Count() > 1)
+        .Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync(), () => repo.RowCommit.AllChildIds.Count() > 1)
         .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
 
 
@@ -596,7 +596,7 @@ class RepoViewMenus : IRepoViewMenus
                 {   // Is a branch merge in '╮' branch                     
                     isBranchIn = true;
                 }
-                else if (cic.ChildIds.ContainsBy(id =>
+                else if (cic.AllChildIds.ContainsBy(id =>
                      repo.Repo.AugmentedRepo.CommitById[id].BranchName == b.Name))
                 {   // Is branch out '╯' branch
                     isBranchOut = true;

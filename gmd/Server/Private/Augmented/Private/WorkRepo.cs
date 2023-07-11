@@ -55,9 +55,9 @@ class WorkCommit
     public WorkCommit? FirstParent { get; set; }
     public WorkCommit? MergeParent { get; set; }
 
-    public List<string> ChildIds { get; } = new List<string>();
-    public List<WorkCommit> Children { get; } = new List<WorkCommit>();
-    public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>();
+    public List<string> AllChildIds { get; } = new List<string>();             // Id of all children of this commit
+    public List<WorkCommit> FirstChildren { get; } = new List<WorkCommit>();   // All children of this commit 
+    public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>();   // Childet, which have this commit as merge parent
 
     public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
     public WorkBranch? Branch { get; set; }

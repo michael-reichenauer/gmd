@@ -117,7 +117,7 @@ class Server : IServer
         }
 
         var c = repo.AugmentedRepo.CommitById[commitId];
-        var ids = c.ChildIds.Concat(c.ParentIds);
+        var ids = c.AllChildIds.Concat(c.ParentIds);
         var branches = ids.Select(id =>
         {
             var cc = repo.AugmentedRepo.CommitById[id];
@@ -161,7 +161,7 @@ class Server : IServer
                 branchesSeen.Add(branch.NiceName);
             }
 
-            foreach (var id in commit.ChildIds)
+            foreach (var id in commit.AllChildIds)
             {
                 var child = repo.AugmentedRepo.CommitById[id];
 

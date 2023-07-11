@@ -356,7 +356,7 @@ class ViewRepoCreater : IViewRepoCreater
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
                     GitIndex: 0, currentBranch.Name, currentBranch.CommonName, currentBranch.NiceNameUnique,
-                    ParentIds: parentIds, ChildIds: new List<string>(),
+                    ParentIds: parentIds, AllChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
@@ -400,8 +400,8 @@ class ViewRepoCreater : IViewRepoCreater
         filteredBranches[currentBranchIndex] = newCurrentBranch;
 
         // Adjust the current tip commit to have the uncommitted commit as child
-        var childIds = tipCommit.ChildIds.Append(uncommitted.Id).ToList();
-        var newTipCommit = tipCommit with { ChildIds = childIds };
+        var childIds = tipCommit.AllChildIds.Append(uncommitted.Id).ToList();
+        var newTipCommit = tipCommit with { AllChildIds = childIds };
         filteredCommits[tipCommitIndex] = newTipCommit;
     }
 

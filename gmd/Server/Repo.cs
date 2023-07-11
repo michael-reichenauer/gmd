@@ -65,7 +65,7 @@ public record Commit(
     string BranchCommonName,
     string BranchViewName,
     IReadOnlyList<string> ParentIds,
-    IReadOnlyList<string> ChildIds,
+    IReadOnlyList<string> AllChildIds,
     IReadOnlyList<Tag> Tags,
     IReadOnlyList<string> BranchTips,
 
