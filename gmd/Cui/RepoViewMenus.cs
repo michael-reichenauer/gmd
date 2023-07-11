@@ -111,13 +111,21 @@ class RepoViewMenus : IRepoViewMenus
     }
 
 
-    IEnumerable<MenuItem> GetBranchStructureItems() => Menu.Items
-        .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
-        .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
-        //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
-        .Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync(), () => repo.RowCommit.AllChildIds.Count() > 1)
-        .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
+    IEnumerable<MenuItem> GetBranchStructureItems()
+    {
+        var ambiguousBranches = repo.GetAllBranches()
+            .Where(b => b.AmbiguousTipId != "")
+            .OrderBy(b => b.NiceNameUnique)
+            .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.ShowBranch(b.Name, true)));
 
+        return Menu.Items
+           .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
+           .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
+           //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
+           .SubMenu("Show Ambiguous Branches", "", ambiguousBranches)
+           .Item("Set Branch Nanually ...", "", () => cmds.SetBranchManuallyAsync())
+           .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
+    }
 
     IEnumerable<MenuItem> GetCreateBranchItems() => Menu.Items
         .Item("Create Branch ...", "B", () => cmds.CreateBranch())

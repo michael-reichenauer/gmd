@@ -87,7 +87,8 @@ class CommitDetailsView : ICommitDetailsView
                 {
                     ambBranches += ",┅";
                 }
-                newRows.Add(Text.New.Dark("Branch:     ").White(branchName + $" (ambiguous: {ambBranches})"));
+                newRows.Add(Text.New.Dark("Branch:     ").White(branchName));
+                newRows.Add(Text.New.Dark("Ambiguous:  ").White($"{ambBranches}"));
             }
             else
             {
