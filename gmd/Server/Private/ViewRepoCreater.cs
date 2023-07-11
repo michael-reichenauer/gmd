@@ -237,7 +237,7 @@ class ViewRepoCreater : IViewRepoCreater
     List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches)
     {
         var branches = showBranches
-            .Select(name => repo.Branches.FirstOrDefault(b => b.HeadBaseName == name || b.Name == name || b.CommonName == name))
+            .Select(name => repo.Branches.FirstOrDefault(b => b.HeadBaseName == name || b.Name == name || b.HeadBranchName == name))
             .Where(b => b != null)
             .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
             .ToList();       // To be able to add more
@@ -264,7 +264,7 @@ class ViewRepoCreater : IViewRepoCreater
         if (detached != null) branches.TryAdd(detached);
 
         // Ensure all related branches are included
-        branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Where(bb => bb.CommonName == b.CommonName)));
+        branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Where(bb => bb.HeadBranchName == b.HeadBranchName)));
 
         // Ensure all ancestors are included
         foreach (var b in branches.ToList())
@@ -284,7 +284,7 @@ class ViewRepoCreater : IViewRepoCreater
     {
         if (branch == null) return;
         branches.TryAdd(branch);
-        branches.TryAddAll(repo.Branches.Where(b => b.CommonName == branch.CommonName));
+        branches.TryAddAll(repo.Branches.Where(b => b.HeadBranchName == branch.HeadBranchName));
     }
 
     List<Augmented.Branch> SortBranches(Augmented.Repo repo, List<Augmented.Branch> branches)
@@ -356,7 +356,7 @@ class ViewRepoCreater : IViewRepoCreater
                 uncommitted = new Augmented.Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    GitIndex: 0, currentBranch.Name, currentBranch.CommonName, currentBranch.NiceNameUnique,
+                    GitIndex: 0, currentBranch.Name, currentBranch.HeadBranchName, currentBranch.NiceNameUnique,
                     ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
                     Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
@@ -445,12 +445,12 @@ class ViewRepoCreater : IViewRepoCreater
         }
 
         // Check if unrelated branches have been ordered
-        var bo = branchOrders.FirstOrDefault(b => b.Branch == b1.CommonName && b.Other == b2.CommonName);
+        var bo = branchOrders.FirstOrDefault(b => b.Branch == b1.HeadBranchName && b.Other == b2.HeadBranchName);
         if (bo != null)
         {
             return bo.Order;
         }
-        bo = branchOrders.FirstOrDefault(b => b.Branch == b2.CommonName && b.Other == b1.CommonName);
+        bo = branchOrders.FirstOrDefault(b => b.Branch == b2.HeadBranchName && b.Other == b1.HeadBranchName);
         if (bo != null)
         {
             return -bo.Order;
