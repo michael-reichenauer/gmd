@@ -44,7 +44,7 @@ class Augmenter : IAugmenter
         AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
 
-        branchStructureService.SetCommitBranches(repo, gitRepo);
+        branchStructureService.DetermineCommitBranches(repo, gitRepo);
         SetBranchByName(repo);
 
         SetBranchViewNames(repo);

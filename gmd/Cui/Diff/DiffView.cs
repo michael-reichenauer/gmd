@@ -279,13 +279,13 @@ class DiffView : IDiffView
         if (row.Mode == DiffRowMode.DividerLine)
         {   // A line in the view, e.g. ━━━━, ══════, that need to be expanded to the full view width
             var line = row.Left.AddLine(viewWidth);
-            return isHighlighted ? Text.New.WhiteSelected(line.ToString()) : line;
+            return isHighlighted ? line.ToHighlight() : line;
         }
 
         if (row.Mode == DiffRowMode.SpanBoth)
         {   // The left text spans over full width 
             var text = row.Left.Subtext(0, viewWidth);
-            return isHighlighted ? Text.New.WhiteSelected(text.ToString()) : text;
+            return isHighlighted ? text.ToHighlight() : text;
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
@@ -298,9 +298,9 @@ class DiffView : IDiffView
             row.Right.Subtext(rowStartX, columnWidth - 1, true).Add(Text.New.Dark("…"));
 
         return Text.New
-            .Add(isHighlighted && IsSelectedLeft ? Text.New.WhiteSelected(left.ToString()) : left)
+            .Add(isHighlighted && IsSelectedLeft ? left.ToHighlight() : left)
             .Add(splitLineChar)
-            .Add(isHighlighted && !IsSelectedLeft ? Text.New.WhiteSelected(right.ToString()) : right);
+            .Add(isHighlighted && !IsSelectedLeft ? right.ToHighlight() : right);
     }
 
 

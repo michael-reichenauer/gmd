@@ -314,7 +314,7 @@ class Menu
         return itemRows.Skip(firstIndex).Take(count).Select((row, i) =>
         {
             var isSelectedRow = i + firstIndex == currentIndex && !isAllDisabled;
-            return isSelectedRow ? Text.New.WhiteSelected(row.ToString()) : row;
+            return isSelectedRow ? row.ToHighlight() : row;
         });
     }
 }

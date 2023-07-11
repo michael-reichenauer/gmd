@@ -117,7 +117,7 @@ class GraphCreater : IGraphCreater
                     DrawMerge(graph, repo, c, b);
                 }
 
-                if (null != c.ChildIds.FirstOrDefault(id => !repo.CommitById.ContainsKey(id)))
+                if (null != c.AllChildIds.FirstOrDefault(id => !repo.CommitById.ContainsKey(id)))
                 {
                     DrawMoreBranchOut(graph, c, b); // Drawing  ╯
                 }

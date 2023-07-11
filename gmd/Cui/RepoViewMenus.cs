@@ -103,7 +103,6 @@ class RepoViewMenus : IRepoViewMenus
             .SubMenu("Branch Structure", "", GetBranchStructureItems())
             .Item("Search/Filter ...", "F", () => cmds.Filter())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
-
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
             .Item("Help ...", "H", () => cmds.ShowHelp())
@@ -111,12 +110,13 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Quit", "Esc", () => UI.Shutdown());
     }
 
+
     IEnumerable<MenuItem> GetBranchStructureItems() => Menu.Items
         .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
         .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
-        .SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
-        .SubMenu("Set Branch", "", GetSetBranchItems());
-
+        //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
+        .Item("Set Branch ...", "", () => cmds.SetBranchManuallyAsync(), () => repo.RowCommit.AllChildIds.Count() > 1)
+        .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
 
 
     IEnumerable<MenuItem> GetCreateBranchItems() => Menu.Items
@@ -261,15 +261,6 @@ class RepoViewMenus : IRepoViewMenus
             .Concat(branch.AmbiguousBranchNames.Select(n => repo.AllBranchByName(n))
                 .DistinctBy(b => b.CommonName)
                 .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.ResolveAmbiguity(branch, b.NiceName))));
-    }
-
-
-    IEnumerable<MenuItem> GetSetBranchItems()
-    {
-        var commit = repo.RowCommit;
-        return Menu.Items
-            .Item(commit.ChildIds.Count() > 1, "Set Branch ...", "", () => cmds.SetBranchManuallyAsync())
-            .Item(commit.IsBranchSetByUser, "Undo Set Branch", "", () => cmds.UndoSetBranch(commit.Id));
     }
 
 
@@ -605,7 +596,7 @@ class RepoViewMenus : IRepoViewMenus
                 {   // Is a branch merge in '╮' branch                     
                     isBranchIn = true;
                 }
-                else if (cic.ChildIds.ContainsBy(id =>
+                else if (cic.AllChildIds.ContainsBy(id =>
                      repo.Repo.AugmentedRepo.CommitById[id].BranchName == b.Name))
                 {   // Is branch out '╯' branch
                     isBranchOut = true;

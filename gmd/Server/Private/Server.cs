@@ -117,7 +117,7 @@ class Server : IServer
         }
 
         var c = repo.AugmentedRepo.CommitById[commitId];
-        var ids = c.ChildIds.Concat(c.ParentIds);
+        var ids = c.AllChildIds.Concat(c.ParentIds);
         var branches = ids.Select(id =>
         {
             var cc = repo.AugmentedRepo.CommitById[id];
@@ -134,6 +134,52 @@ class Server : IServer
         .Cast<Augmented.Branch>();
 
         return converter.ToBranches(branches.ToList());
+    }
+
+    public IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount)
+    {
+        if (commitId == Repo.UncommittedId) return new List<string>();
+
+        var specifiedCommit = repo.AugmentedRepo.CommitById[commitId];
+
+        var branches = new Queue<string>();
+        var branchesSeen = new HashSet<string>();
+        var commitQueue = new Queue<Augmented.Commit>();
+        var commitSeen = new HashSet<Augmented.Commit>();
+
+        commitQueue.Enqueue(specifiedCommit);
+        commitSeen.Add(specifiedCommit);
+
+        while (commitQueue.Any() && branches.Count < maxCount)
+        {
+            var commit = commitQueue.Dequeue();
+            var branch = repo.AugmentedRepo.BranchByName[commit.BranchName];
+
+            if (!branchesSeen.Contains(branch.NiceName))
+            {
+                branches.Enqueue(branch.NiceName);
+                branchesSeen.Add(branch.NiceName);
+            }
+
+            foreach (var id in commit.AllChildIds)
+            {
+                var child = repo.AugmentedRepo.CommitById[id];
+
+                if (child.ParentIds[0] != commit.Id ||  // Skip merge children (not have commit as first parent)
+                    child.IsBranchSetByUser)            // Skip children where branch is  set by user
+                {
+                    continue;
+                }
+
+                if (!commitSeen.Contains(child))
+                {
+                    commitQueue.Enqueue(child);
+                    commitSeen.Add(child);
+                }
+            }
+        }
+
+        return branches.ToList();
     }
 
 
