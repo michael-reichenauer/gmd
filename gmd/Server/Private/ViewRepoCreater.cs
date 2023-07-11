@@ -289,7 +289,7 @@ class ViewRepoCreater : IViewRepoCreater
 
     List<Augmented.Branch> SortBranches(Augmented.Repo repo, List<Augmented.Branch> branches)
     {
-        var sorted = branches.Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "").ToList();
+        var sorted = branches.Where(b => b.IsPrimary).ToList();
 
         var branchOrders = repoState.Get(repo.Path).BranchOrders;
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
