@@ -117,7 +117,7 @@ class FilterDlg : IFilterDlg
 
             // Calculate commit row text columns
             var sidAuthDate = $"{c.Sid} {c.Author.Max(10),-10} {c.AuthorTime.ToString("yy-MM-dd")}";
-            var branchName = $"({ToShortName(c.BranchViewName)})";
+            var branchName = $"({ToShortName(c.BranchNiceUniqueName)})";
             var tags = c.Tags.Count > 0 ? $"[{string.Join("][", c.Tags.Select(t => t.Name))}]".Max(20) : "";
 
             // Subject fills the rest of the available row space

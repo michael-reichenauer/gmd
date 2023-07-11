@@ -44,8 +44,8 @@ class Converter : IConverter
             GitIndex: gitIndex,
 
             BranchName: c.Branch!.Name,
-            BranchHeadName: c.Branch.PrimaryName,
-            BranchViewName: c.Branch.NiceNameUnique,
+            BranchPrimaryName: c.Branch.PrimaryName,
+            BranchNiceUniqueName: c.Branch.NiceNameUnique,
             AllChildIds: c.AllChildIds,
             FirstChildIds: c.FirstChildIds,
             MergeChildIds: c.MergeChildIds,
