@@ -242,7 +242,6 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
-        commitsView.RegisterKeyHandler(Key.x, () => Cmd.SetBranchManuallyAsync());
 
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
