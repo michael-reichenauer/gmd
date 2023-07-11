@@ -117,7 +117,6 @@ public record Branch(
     bool IsMainBranch,
 
     string ParentBranchName,
-    string ParentBranchCommonName,
     string PullMergeParentBranchName,
 
     bool HasLocalOnly,

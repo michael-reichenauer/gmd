@@ -84,7 +84,6 @@ public record Branch(
     string LocalName,
 
     string ParentBranchName,
-    string ParentBranchCommonName,
     string PullMergeParentBranchName,
 
     bool IsGitBranch,

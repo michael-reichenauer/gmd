@@ -106,7 +106,6 @@ internal class WorkBranch
     // Augmented properties
     public string HeadBranchName { get; set; }  // The name of main branch realted branch (remote if both local and remote) 
     public string HeadBaseName { get; set; } = "";  // a name based on first commit and parent commit
-    public string CommonName { get; } // Common name for local and remote branches (name without remote prefix)
     public string NiceName { get; set; } = "";
     public string NiceNameUnique { get; set; } = ""; // Unique nice name (with branch number if needed)
     public string RemoteName { get; set; } = "";  // A local branch's remote name
@@ -135,7 +134,6 @@ internal class WorkBranch
     {
         Name = b.Name;
         HeadBranchName = b.RemoteName == "" ? b.Name : b.RemoteName;
-        CommonName = b.Name.TrimPrefix("origin/");
         NiceName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;
@@ -148,11 +146,10 @@ internal class WorkBranch
     }
 
     // Called when creating a branched based on a name, usually from a deleted branch
-    public WorkBranch(string name, string headName, string commonName, string niceName, string tipID)
+    public WorkBranch(string name, string headName, string niceName, string tipID)
     {
         Name = name;
         HeadBranchName = headName;
-        CommonName = commonName;
         NiceName = niceName;
         TipID = tipID;
         BottomID = tipID;
