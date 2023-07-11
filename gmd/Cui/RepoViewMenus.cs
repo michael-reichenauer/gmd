@@ -123,7 +123,7 @@ class RepoViewMenus : IRepoViewMenus
            .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
            //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
            .SubMenu("Show Ambiguous Branches", "", ambiguousBranches)
-           .Item("Set Branch Nanually ...", "", () => cmds.SetBranchManuallyAsync(), () => repo.RowCommit.AllChildIds.Count() > 1)
+           .Item("Set Branch Nanually ...", "", () => cmds.SetBranchManuallyAsync())
            .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
     }
 
