@@ -126,9 +126,9 @@ class FilterDlg : IFilterDlg
 
             // Show selected or unselected commit row 
             var isSelectedRow = i + firstIndex == currentIndex;
-            return (isSelectedRow
-                ? Text.New.WhiteSelected($"{subject} {branchName}{tags} {sidAuthDate}")
-                : Text.New.White($"{subject} ").Dark(branchName).Green(tags).Dark($" {sidAuthDate}"));
+            var text = Text.New.White($"{subject} ").Dark(branchName).Green(tags).Dark($" {sidAuthDate}");
+
+            return isSelectedRow ? text.ToHighlight() : text;
         });
     }
 

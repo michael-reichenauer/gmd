@@ -375,9 +375,7 @@ class UIComboTextField : TextField
         {
             // Show selected or unselected commit row 
             var isSelectedRow = i + firstIndex == currentIndex;
-            return isSelectedRow
-                ? Common.Text.New.WhiteSelected(item.ToString())
-                : item;
+            return isSelectedRow ? item.ToHighlight() : item;
         });
     }
 }
