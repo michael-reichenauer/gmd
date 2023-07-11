@@ -147,7 +147,7 @@ class Augmenter : IAugmenter
         Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
 
         repo.Branches
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
+            .Where(b => b.IsPrimary)
             .OrderBy(b => b.IsGitBranch ? 0 : 1)
             .ThenBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
