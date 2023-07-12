@@ -712,6 +712,7 @@ class BranchStructureService : IBranchStructureService
         branch.PullMergeParentBranch = pullMergeParentBranch;
 
         repo.Branches[branch.Name] = branch;
+        repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
         return branch;
     }
 
@@ -725,6 +726,7 @@ class BranchStructureService : IBranchStructureService
             tipID: Repo.TruncatedLogCommitID);
 
         repo.Branches[branch.Name] = branch;
+        repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
         return branch;
     }
 
@@ -739,6 +741,7 @@ class BranchStructureService : IBranchStructureService
             tipID: c.Id);
 
         repo.Branches[branch.Name] = branch;
+        repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
         return branch;
     }
 
@@ -874,17 +877,20 @@ class BranchStructureService : IBranchStructureService
         }
 
         if (truncatedBranch != null)
-        {
+        {   // Remove the truncated branch and redirect all its children to the root branch
             var truncatedCommit = repo.CommitsById[Repo.TruncatedLogCommitID];
             truncatedCommit.Branch = rootBranch;
             rootBranch.ParentBranch = null;
             rootBranch.BottomID = truncatedCommit.Id;
             repo.Branches.Remove(truncatedBranch.Name);
+
+            // Redirect all branches that has the truncated branch as parent to the root branch instead
             repo.Branches.Values
                 .Where(b => b.ParentBranch == truncatedBranch)
                 .ForEach(b => b.ParentBranch = rootBranch);
         }
 
+        // Mark the main root branch as the main branch (and its corresponding local branch as well)
         rootBranch.IsMainBranch = true;
         if (rootBranch.LocalName != "")
         {

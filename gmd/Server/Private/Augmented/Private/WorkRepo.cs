@@ -133,7 +133,7 @@ internal class WorkBranch
 
     public bool IsLocalCurrent { get; set; }  // True if local branch corresponding to this remote is current
     public bool IsGitBranch { get; set; }
-    public bool IsPrimary { get; }
+    public bool IsPrimary { get; set; }
     public bool IsAmbiguousBranch { get; set; }
     public bool IsMainBranch { get; set; }
     public bool HasLocalOnly { get; set; }
@@ -149,8 +149,7 @@ internal class WorkBranch
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
-        PrimaryName = b.RemoteName == "" ? b.Name : b.RemoteName;
-        IsPrimary = b.RemoteName == "";
+        PrimaryName = "";                // Will be set later
         NiceName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;

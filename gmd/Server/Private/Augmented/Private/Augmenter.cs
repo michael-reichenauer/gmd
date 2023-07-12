@@ -54,7 +54,39 @@ class Augmenter : IAugmenter
     {
         // Convert git branches to intial augmented branches
         gitRepo.Branches.ForEach(b => repo.Branches[b.Name] = new WorkBranch(b));
-        SetLocalRemoteBranchNames(repo);
+
+        // Set local name of all remote branches, that have a corresponding local branch as well
+        // Unset RemoteName of local branch if no corresponding remote branch (deleted on remote server)
+        foreach (var b in repo.Branches.Values)
+        {
+            if (b.RemoteName != "")
+            {   // A local branch which has a corresponding remote branch             
+                if (repo.Branches.TryGetValue(b.RemoteName, out var remoteBranch))
+                {
+                    b.PrimaryName = b.RemoteName;
+                    b.IsPrimary = false;
+                    remoteBranch.RelatedBranches.Add(b);  // Adds itself to primary branch related branches
+                    remoteBranch.LocalName = b.Name;
+                    if (b.IsCurrent)
+                    {   // Local branch is current, set property on remote branch as well
+                        remoteBranch.IsLocalCurrent = true;
+                    }
+                }
+                else
+                {   // No corresponding remote branch for local branch (deleted), unset property
+                    b.RemoteName = "";
+                    b.PrimaryName = b.Name;
+                    b.IsPrimary = true;
+                    b.RelatedBranches.Add(b);  // Adds itself to related branches
+                }
+            }
+            else
+            {   // Remote branch or a local branch without a corresponding remote branch
+                b.PrimaryName = b.Name;
+                b.IsPrimary = true;
+                b.RelatedBranches.Add(b);  // Adds itself to related branches
+            }
+        }
     }
 
 
@@ -225,30 +257,6 @@ class Augmenter : IAugmenter
         pc.GitIndex = repo.Commits.Count;
         repo.Commits.Add(pc);
         repo.CommitsById[pc.Id] = pc;
-    }
-
-    static void SetLocalRemoteBranchNames(WorkRepo repo)
-    {
-        // Set local name of all remote branches, that have a corresponding local branch as well
-        // Unset RemoteName of local branch if no corresponding remote branch (deleted on remote server)
-        foreach (var b in repo.Branches.Values)
-        {
-            if (b.RemoteName != "")
-            {
-                if (repo.Branches.TryGetValue(b.RemoteName, out var remoteBranch))
-                {   // Corresponding remote branch, set local branch name property
-                    remoteBranch.LocalName = b.Name;
-                    if (b.IsCurrent)
-                    {   // Local branch is current, set property on remote branch as well
-                        remoteBranch.IsLocalCurrent = true;
-                    }
-                }
-                else
-                {   // No corresponding remote branch for local branch (deleted), unset property
-                    b.RemoteName = "";
-                }
-            }
-        }
     }
 }
 
