@@ -257,7 +257,6 @@ class RepoCommands : IRepoCommands
 
         Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, showAllBranches);
         SetRepo(newRepo, name);
-
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)
@@ -272,7 +271,8 @@ class RepoCommands : IRepoCommands
         {
             return R.Error($"Failed to switch to {branchName}", e);
         }
-        Refresh();
+
+        Refresh(branchName);
         return R.Ok;
     });
 
