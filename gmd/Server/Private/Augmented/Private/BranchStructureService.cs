@@ -43,7 +43,7 @@ class BranchStructureService : IBranchStructureService
     {
         List<string> notFoundBranches = new List<string>();
 
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.BranchByName.Values)
         {
             if (!repo.CommitsById.TryGetValue(b.TipID, out var tip))
             {   // A branch tip id, which commit id does not exist in the repo (deleted branch or truncated repo)
@@ -62,14 +62,7 @@ class BranchStructureService : IBranchStructureService
         }
 
         // Remove branches that do not have existing tip commit id,
-        foreach (var name in notFoundBranches)
-        {
-            int i = repo.Branches.FindIndex(b => b.Name == name);
-            if (i != -1)
-            {
-                repo.Branches.RemoveAt(i);
-            }
-        }
+        notFoundBranches.ForEach(n => repo.BranchByName.Remove(n));
     }
 
 
@@ -718,7 +711,7 @@ class BranchStructureService : IBranchStructureService
             tipID: c.Id);
         branch.PullMergeParentBranch = pullMergeParentBranch;
 
-        repo.Branches.Add(branch);
+        repo.BranchByName[branch.Name] = branch;
         return branch;
     }
 
@@ -731,7 +724,7 @@ class BranchStructureService : IBranchStructureService
             niceName: branchName,
             tipID: Repo.TruncatedLogCommitID);
 
-        repo.Branches.Add(branch);
+        repo.BranchByName[branch.Name] = branch;
         return branch;
     }
 
@@ -745,7 +738,7 @@ class BranchStructureService : IBranchStructureService
             niceName: niceName,
             tipID: c.Id);
 
-        repo.Branches.Add(branch);
+        repo.BranchByName[branch.Name] = branch;
         return branch;
     }
 
@@ -828,7 +821,7 @@ class BranchStructureService : IBranchStructureService
     // A child branch is branches from a parent branch
     void DetermineBranchHierarchy(WorkRepo repo)
     {
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.BranchByName.Values)
         {
             if (b.IsAmbiguousBranch)
             {
@@ -842,7 +835,7 @@ class BranchStructureService : IBranchStructureService
             }
             if (b.RemoteName != "")
             {   // For a local branch with a remote branch, the remote branch is parent.
-                var remoteBranch = repo.Branches.First(bb => bb.Name == b.RemoteName);
+                var remoteBranch = repo.BranchByName[b.RemoteName];
                 b.ParentBranch = remoteBranch;
                 continue;
             }
@@ -864,8 +857,8 @@ class BranchStructureService : IBranchStructureService
         }
 
         // A repo can have several root branches (e.g. the doc branch in GitHub)
-        var truncatedBranch = repo.Branches.FirstOrDefault(b => b.Name == truncatedBranchName);
-        var rootBranches = repo.Branches.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
+        repo.BranchByName.TryGetValue(truncatedBranchName, out var truncatedBranch);
+        var rootBranches = repo.BranchByName.Values.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
         if (!rootBranches.Any()) return;  // No root branches (empty repo)
 
         // Select most likely root branch (but prioritize)
@@ -886,8 +879,8 @@ class BranchStructureService : IBranchStructureService
             truncatedCommit.Branch = rootBranch;
             rootBranch.ParentBranch = null;
             rootBranch.BottomID = truncatedCommit.Id;
-            repo.Branches.Remove(truncatedBranch);
-            repo.Branches
+            repo.BranchByName.Remove(truncatedBranch.Name);
+            repo.BranchByName.Values
                 .Where(b => b.ParentBranch == truncatedBranch)
                 .ForEach(b => b.ParentBranch = rootBranch);
         }
@@ -895,7 +888,7 @@ class BranchStructureService : IBranchStructureService
         rootBranch.IsMainBranch = true;
         if (rootBranch.LocalName != "")
         {
-            var rootLocalBranch = repo.Branches.First(b => b.Name == rootBranch.LocalName);
+            var rootLocalBranch = repo.BranchByName[rootBranch.LocalName];
             rootLocalBranch.IsMainBranch = true;
         }
     }

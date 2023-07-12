@@ -23,18 +23,21 @@ class ViewRepoCreater : IViewRepoCreater
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches)
     {
+        Log.Info("Start ViewRepo ...");
         var t = Timing.Start();
         var filteredBranches = FilterOutViewBranches(augRepo, showBranches);
-
+        t.Log("FilterOutViewBranches");
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
+        t.Log("FilterOutViewCommits");
 
         if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
         {
             AdjustCurrentBranch(augRepo, filteredBranches, filteredCommits, uncommitted);
         }
+        t.Log("TryGetUncommittedCommit");
 
         SetAheadBehind(filteredBranches, filteredCommits);
-
+        t.Log("SetAheadBehind");
         var repo = new Repo(
             DateTime.UtcNow,
             augRepo,
@@ -236,11 +239,16 @@ class ViewRepoCreater : IViewRepoCreater
 
     List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches)
     {
+        var t = Timing.Start();
         var branches = showBranches
             .Select(name => repo.Branches.FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
             .Where(b => b != null)
             .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
             .ToList();       // To be able to add more
+
+        branches = repo.Branches.ToList();
+
+        t.Log("All branches");
 
         if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch
@@ -251,6 +259,7 @@ class ViewRepoCreater : IViewRepoCreater
         // Ensure that main branch is always included 
         var main = repo.Branches.First(b => b.IsMainBranch);
         AddBranchAndRelatives(repo, main, branches);
+        t.Log("Main branch");
 
         // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
         foreach (var b in branches.ToList())
@@ -258,22 +267,27 @@ class ViewRepoCreater : IViewRepoCreater
             var tipBranch = repo.BranchByName[repo.CommitById[b.TipId].BranchName];
             AddBranchAndRelatives(repo, tipBranch, branches);
         }
+        t.Log("Tip branches");
 
         // If current branch is detached, include it as well (commit is checked out directly)
         var detached = repo.Branches.FirstOrDefault(b => b.IsDetached);
         if (detached != null) branches.TryAdd(detached);
+        t.Log("Detached branch");
 
         // Ensure all related branches are included
         branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Where(bb => bb.PrimaryName == b.PrimaryName)));
+        t.Log("Related branches");
 
         // Ensure all ancestors are included
         foreach (var b in branches.ToList())
         {
             Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
         }
+        t.Log("Ancestors");
 
         // Remove duplicates (ToList(), since Sort works inline)
         branches = branches.DistinctBy(b => b.Name).ToList();
+        t.Log("Distinct");
 
         var sorted = SortBranches(repo, branches);
         Log.Debug($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");

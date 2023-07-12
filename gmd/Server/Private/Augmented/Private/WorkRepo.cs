@@ -11,7 +11,7 @@ class WorkRepo
     public Status Status { get; }
     public List<WorkCommit> Commits { get; } = new List<WorkCommit>();
     public Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
-    public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
+    // public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
     public Dictionary<string, WorkBranch> BranchByName { get; } = new Dictionary<string, WorkBranch>();
     public List<Tag> Tags { get; } = new List<Tag>();
     public Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
@@ -25,7 +25,23 @@ class WorkRepo
         Status = status;
     }
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
+    // public void TryAdd(WorkBranch branch)
+    // {
+    //     if (BranchByName.ContainsKey(branch.Name))
+    //     {
+    //         return;
+    //     }
+    //     Branches.Add(branch);
+    //     BranchByName[branch.Name] = branch;
+    // }
+
+    // public void TryAddAll(IEnumerable<WorkBranch> branches)
+    // {
+    //     branches.ForEach(b => TryAdd(b));
+    // }
+
+
+    public override string ToString() => $"B:{BranchByName.Count}, C:{Commits.Count}, S:{Status}";
 }
 
 // Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
