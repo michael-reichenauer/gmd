@@ -462,9 +462,9 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => b.NiceNameUnique);
 
         var items = ToHideHiarchicalBranchesItems(branches);
-        if (repo.Branches.Count > 10)
+        if (repo.Branches.Count > 15)
         {
-            items = items.Append(Menu.Item("Hide All", "", () => cmds.HideBranch("", true)));
+            items = items.Prepend(Menu.Item("Hide All", "", () => cmds.HideBranch("", true)));
         }
 
         return items;
@@ -494,10 +494,12 @@ class RepoViewMenus : IRepoViewMenus
             .OrderBy(b => b.NiceNameUnique);
 
         var items = Menu.Items
-            .SubMenu("Recent", "", ToShowHiarchicalBranchesItems(recentBranches))
-            .SubMenu("Active", "", ToShowHiarchicalBranchesItems(liveBranches))
-            .SubMenu("Active and Deleted", "", ToShowHiarchicalBranchesItems(liveAndDeletedBranches))
-            .Item("Show All", "", () => cmds.ShowBranch("", false, true));
+            .SubMenu("Recent", "", ToShowHiarchicalBranchesItems(recentBranches)
+                .Prepend(Menu.Item("Show 15 Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent))))
+            .SubMenu("Active", "", ToShowHiarchicalBranchesItems(liveBranches)
+                .Prepend(Menu.Item("Show All Active", "", () => cmds.ShowBranch("", false, ShowBranches.AllActive))))
+            .SubMenu("Active and Deleted", "", ToShowHiarchicalBranchesItems(liveAndDeletedBranches)
+                .Prepend(Menu.Item("Show All Active and Deleted", "", () => cmds.ShowBranch("", false, ShowBranches.AllActiveAndDeleted))));
 
         return ambiguousBranches.Any()
             ? items.SubMenu("Ambiguous", "", ToShowBranchesItems(ambiguousBranches, false, true))

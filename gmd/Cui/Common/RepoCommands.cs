@@ -9,7 +9,7 @@ namespace gmd.Cui.Common;
 
 interface IRepoCommands
 {
-    void ShowBranch(string name, bool includeAmbiguous, bool showAllBranches = false);
+    void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified);
     void HideBranch(string name, bool hideAllBranches = false);
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -244,18 +244,21 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void ShowBranch(string name, bool includeAmbiguous, bool showAllBranches = false)
+    public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
     {
-        var count = repo.Repo.AugmentedRepo.Branches.Count;
-        if (showAllBranches)
+        var count = 0;
+        if (show == ShowBranches.AllActive) count = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
+        if (show == ShowBranches.AllActiveAndDeleted) count = repo.Repo.AugmentedRepo.Branches.Count();
+
+        if (count > 20)
         {
-            if (UI.InfoMessage("Show All Branches", $"Do you want to show all {count} branches?", 1, new[] { "Yes", "No" }) != 0)
+            if (UI.InfoMessage("Show Branches", $"Do you want to show {count} branches?", 1, new[] { "Yes", "No" }) != 0)
             {
                 return;
             }
         }
 
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, showAllBranches);
+        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show);
         SetRepo(newRepo, name);
     }
 

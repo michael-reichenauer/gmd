@@ -305,12 +305,8 @@ class AugmentedService : IAugmentedService
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
-        Timing t = Timing.Start();
-
         if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path))) return e;
         fileMonitor.SetReadStatusTime(DateTime.UtcNow);
-
-        Log.Info($"{t} S:{gitStatus}");
         return gitStatus;
     }
 

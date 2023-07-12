@@ -6,7 +6,7 @@ namespace gmd.Server.Private;
 
 interface IViewRepoCreater
 {
-    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, bool showAllBranches = false);
+    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -20,10 +20,10 @@ class ViewRepoCreater : IViewRepoCreater
         this.repoState = repoState;
     }
 
-    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, bool showAllBranches = false)
+    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
     {
         var t = Timing.Start();
-        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, showAllBranches);
+        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, show);
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
 
         if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
@@ -184,22 +184,39 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
     }
 
-    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches, bool showAllBranches)
+    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
     {
         var branches = new Dictionary<string, Augmented.Branch>();
 
-        if (!showAllBranches)
+        switch (show)
         {
-            showBranches
-            .Select(name => repo.Branches.Values
-                .FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
-            .Where(b => b != null)
-            .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
+            case ShowBranches.Specified:
+                showBranches
+                    .Select(name => repo.Branches.Values
+                        .FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
+                    .Where(b => b != null)
+                    .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
+                break;
+            case ShowBranches.AllRecent:
+                repo.Branches.Values.Where(b => !b.IsCircularAncestors)
+                    .OrderBy(b => repo.CommitById[b.TipId].GitIndex)
+                    .Where(b => b.IsPrimary)
+                    .Take(15)
+                    .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
+                break;
+            case ShowBranches.AllActive:
+                repo.Branches.Values
+                    .Where(b => !b.IsCircularAncestors && b.IsGitBranch && b.IsPrimary)
+                    .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
+
+                break;
+            case ShowBranches.AllActiveAndDeleted:
+                repo.Branches.Values
+                     .Where(b => !b.IsCircularAncestors && b.IsPrimary)
+                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
+                break;
         }
-        else
-        {
-            branches = repo.Branches.Values.Where(b => !b.IsCircularAncestors).ToDictionary(b => b.Name, b => b);
-        }
+
 
         if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch

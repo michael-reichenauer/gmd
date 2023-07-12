@@ -190,7 +190,7 @@ class Server : IServer
     }
 
 
-    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, bool showAllBranches = false)
+    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
     {
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
@@ -199,7 +199,7 @@ class Server : IServer
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), showAllBranches);
+        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), show);
     }
 
 
