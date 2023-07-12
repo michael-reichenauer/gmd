@@ -904,27 +904,24 @@ class BranchStructureService : IBranchStructureService
 
     void DetermineAncestors(WorkRepo repo)
     {
-        using (Timing.Start())
+        foreach (var b in repo.Branches.Values)
         {
-            foreach (var b in repo.Branches.Values)
+            var current = b.ParentBranch;
+            while (current != null)
             {
-                var current = b.ParentBranch;
-                while (current != null)
+                if (b.Ancestors.Contains(current))
                 {
-                    if (b.Ancestors.Contains(current))
-                    {
-                        Log.Warn($"Branch {b.Name} has circular ancestor {current.Name}");
-                        Log.Warn("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
-                        b.IsCircularAncestors = true;
-                        break;
-                    }
-                    b.Ancestors.Add(current);
-                    if (b.Ancestors.Count > 50)
-                    {
-                        Log.Warn($"Branch {b} has more than 20 ancestors");
-                    }
-                    current = current.ParentBranch;
+                    Log.Warn($"Branch {b.Name} has circular ancestor {current.Name}");
+                    Log.Warn("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
+                    b.IsCircularAncestors = true;
+                    break;
                 }
+                b.Ancestors.Add(current);
+                if (b.Ancestors.Count > 50)
+                {
+                    Log.Warn($"Branch {b} has more than 20 ancestors");
+                }
+                current = current.ParentBranch;
             }
         }
     }

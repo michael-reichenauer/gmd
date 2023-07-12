@@ -22,6 +22,7 @@ class ViewRepoCreater : IViewRepoCreater
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, bool showAllBranches = false)
     {
+        var t = Timing.Start();
         var filteredBranches = FilterOutViewBranches(augRepo, showBranches, showAllBranches);
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
 
@@ -40,6 +41,7 @@ class ViewRepoCreater : IViewRepoCreater
             converter.ToStashes(augRepo.Stashes),
             augRepo.Status);
 
+        Log.Info($"ViewRepo {t} {repo}");
         return repo;
     }
 
