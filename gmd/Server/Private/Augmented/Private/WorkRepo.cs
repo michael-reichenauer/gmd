@@ -24,21 +24,6 @@ class WorkRepo
         Status = status;
     }
 
-    // public void TryAdd(WorkBranch branch)
-    // {
-    //     if (BranchByName.ContainsKey(branch.Name))
-    //     {
-    //         return;
-    //     }
-    //     Branches.Add(branch);
-    //     BranchByName[branch.Name] = branch;
-    // }
-
-    // public void TryAddAll(IEnumerable<WorkBranch> branches)
-    // {
-    //     branches.ForEach(b => TryAdd(b));
-    // }
-
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
