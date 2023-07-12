@@ -124,6 +124,7 @@ public record Branch(
     string AmbiguousTipId,
     IReadOnlyList<string> AmbiguousBranchNames,
     IReadOnlyList<string> PullMergeBranchNames,
+    IReadOnlyList<string> AncestorNames,
 
     // View properties
     int X,

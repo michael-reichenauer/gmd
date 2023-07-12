@@ -59,10 +59,10 @@ class Server : IServer
 
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
-        converter.ToBranches(repo.AugmentedRepo.Branches);
+        converter.ToBranches(repo.AugmentedRepo.Branches.Values);
 
     public Branch AllBanchByName(Repo repo, string name) =>
-        converter.ToBranch(repo.AugmentedRepo.BranchByName[name]);
+        converter.ToBranch(repo.AugmentedRepo.Branches[name]);
 
     public Commit GetCommit(Repo repo, string commitId) =>
         converter.ToCommit(repo.AugmentedRepo.CommitById[commitId]);
@@ -77,7 +77,7 @@ class Server : IServer
             repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
 
         if (filter == "*") return converter.ToCommits(
-            repo.AugmentedRepo.Branches.Where(b => b.AmbiguousTipId != "")
+            repo.AugmentedRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
                 .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
                 .Where(c => c.IsAmbiguousTip)
                 .Take(maxCount)
@@ -132,7 +132,7 @@ class Server : IServer
             // Get not shown branches of either child or parent commits.
             if (!repo.BranchByName.TryGetValue(cc.BranchName, out var branch))
             {
-                return repo.AugmentedRepo.BranchByName[cc.BranchName];
+                return repo.AugmentedRepo.Branches[cc.BranchName];
             }
 
             return null;
@@ -160,7 +160,7 @@ class Server : IServer
         while (commitQueue.Any() && branches.Count < maxCount)
         {
             var commit = commitQueue.Dequeue();
-            var branch = repo.AugmentedRepo.BranchByName[commit.BranchName];
+            var branch = repo.AugmentedRepo.Branches[commit.BranchName];
 
             if (!branchesSeen.Contains(branch.NiceName))
             {
@@ -190,31 +190,33 @@ class Server : IServer
     }
 
 
-    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous)
+    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
     {
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
         {
-            var branch = repo.AugmentedRepo.BranchByName[branchName];
+            var branch = repo.AugmentedRepo.Branches[branchName];
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray());
+        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), show);
     }
 
 
-    public Repo HideBranch(Repo repo, string name)
+    public Repo HideBranch(Repo repo, string name, bool hideAllBranches = false)
     {
-        Log.Info($"Hide {name}");
-        var branch = repo.AugmentedRepo.BranchByName[name];
+        Log.Info($"Hide {name}, HideAllBranches: {hideAllBranches}");
+
+        if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, new[] { "main" });
+
+        var branch = repo.AugmentedRepo.Branches[name];
         if (branch.RemoteName != "")
         {
-            branch = repo.AugmentedRepo.BranchByName[branch.RemoteName];
+            branch = repo.AugmentedRepo.Branches[branch.RemoteName];
         }
 
         var branchNames = repo.Branches
-            .Where(b => b.Name != branch.Name &&
-                !viewRepoCreater.IsFirstAncestorOfSecond(repo.AugmentedRepo, branch, repo.AugmentedRepo.BranchByName[b.Name]))
+            .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
             .Select(b => b.Name)
             .ToArray();
 

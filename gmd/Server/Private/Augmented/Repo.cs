@@ -10,7 +10,7 @@ record Repo
         DateTime timeStamp,
         string path,
         IReadOnlyList<Commit> commits,
-        IReadOnlyList<Branch> branches,
+        IReadOnlyDictionary<string, Branch> branches,
         IReadOnlyList<Stash> stashes,
         Status status)
     {
@@ -18,19 +18,18 @@ record Repo
         Path = path;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
-        Branches = branches;
+        //Branches = branches;
         Stashes = stashes;
         Status = status;
-        BranchByName = branches.ToDictionary(b => b.Name, b => b);
+        Branches = branches;
     }
 
     public DateTime TimeStamp { get; }
     public string Path { get; }
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
-    public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyList<Stash> Stashes { get; }
-    public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+    public IReadOnlyDictionary<string, Branch> Branches { get; }
     public Status Status { get; init; }
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
@@ -90,13 +89,16 @@ public record Branch(
     bool IsDetached,
     bool IsPrimary,
     bool IsMainBranch,
+    bool IsCircularAncestors,
 
     bool HasAheadCommits,
     bool HasBehindCommits,
 
     string AmbiguousTipId,
+    IReadOnlyList<string> RelatedBranchNames,
     IReadOnlyList<string> AmbiguousBranchNames,
-    IReadOnlyList<string> PullMergeBranchNames)
+    IReadOnlyList<string> PullMergeBranchNames,
+    IReadOnlyList<string> AncestorNames)
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }

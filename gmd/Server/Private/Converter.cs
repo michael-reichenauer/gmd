@@ -2,9 +2,9 @@ namespace gmd.Server.Private;
 
 interface IConverter
 {
-    IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits);
-    IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches);
-    IReadOnlyList<Stash> ToStashes(IReadOnlyList<Augmented.Stash> stashes);
+    IReadOnlyList<Commit> ToCommits(IEnumerable<Augmented.Commit> commits);
+    IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches);
+    IReadOnlyList<Stash> ToStashes(IEnumerable<Augmented.Stash> stashes);
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
     Branch ToBranch(Augmented.Branch branch);
@@ -14,13 +14,13 @@ interface IConverter
 
 class Converter : IConverter
 {
-    public IReadOnlyList<Commit> ToCommits(IReadOnlyList<Augmented.Commit> commits) =>
+    public IReadOnlyList<Commit> ToCommits(IEnumerable<Augmented.Commit> commits) =>
        commits.Select(ToCommit).ToList();
 
-    public IReadOnlyList<Branch> ToBranches(IReadOnlyList<Augmented.Branch> branches) =>
+    public IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches) =>
            branches.Select(ToBranch).ToList();
 
-    public IReadOnlyList<Stash> ToStashes(IReadOnlyList<Augmented.Stash> stashes) =>
+    public IReadOnlyList<Stash> ToStashes(IEnumerable<Augmented.Stash> stashes) =>
         stashes.Select(ToStash).ToList();
 
     public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
@@ -91,6 +91,7 @@ class Converter : IConverter
         AmbiguousTipId: b.AmbiguousTipId,
         AmbiguousBranchNames: b.AmbiguousBranchNames,
         PullMergeBranchNames: b.PullMergeBranchNames,
+        AncestorNames: b.AncestorNames,
 
         X: 0,
         IsIn: false,

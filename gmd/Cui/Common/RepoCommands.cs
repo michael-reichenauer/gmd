@@ -9,8 +9,8 @@ namespace gmd.Cui.Common;
 
 interface IRepoCommands
 {
-    void ShowBranch(string name, bool includeAmbiguous);
-    void HideBranch(string name);
+    void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified);
+    void HideBranch(string name, bool hideAllBranches = false);
     void SwitchTo(string branchName);
     void SwitchToCommit();
 
@@ -244,16 +244,27 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void ShowBranch(string name, bool includeAmbiguous)
+    public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
     {
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous);
-        SetRepo(newRepo, name);
+        var count = 0;
+        if (show == ShowBranches.AllActive) count = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
+        if (show == ShowBranches.AllActiveAndDeleted) count = repo.Repo.AugmentedRepo.Branches.Count();
 
+        if (count > 20)
+        {
+            if (UI.InfoMessage("Show Branches", $"Do you want to show {count} branches?", 1, new[] { "Yes", "No" }) != 0)
+            {
+                return;
+            }
+        }
+
+        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show);
+        SetRepo(newRepo, name);
     }
 
-    public void HideBranch(string name)
+    public void HideBranch(string name, bool hideAllBranches = false)
     {
-        Server.Repo newRepo = server.HideBranch(serverRepo, name);
+        Server.Repo newRepo = server.HideBranch(serverRepo, name, hideAllBranches);
         SetRepo(newRepo);
     }
 
@@ -263,7 +274,8 @@ class RepoCommands : IRepoCommands
         {
             return R.Error($"Failed to switch to {branchName}", e);
         }
-        Refresh();
+
+        Refresh(branchName);
         return R.Ok;
     });
 
