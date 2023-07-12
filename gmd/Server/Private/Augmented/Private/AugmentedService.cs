@@ -131,26 +131,23 @@ class AugmentedService : IAugmentedService
     public async Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
     {
         Log.Info($"Create branch {newBranchName} ...");
-        var branch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
-        Commit? commit = null;
-        if (branch != null)
+        Commit? currentCommit = null;
+        var currentBranch = repo.BranchByName.Values.FirstOrDefault(b => b.IsCurrent);
+        if (currentBranch != null)
         {
-            commit = repo.CommitById[branch.TipId];
+            currentCommit = repo.CommitById[currentBranch.TipId];
         }
 
         using (fileMonitor.Pause())
         {
             if (!Try(out var e, await git.CreateBranchAsync(newBranchName, isCheckout, wd))) return e;
 
-            if (commit == null || branch == null)
-            {
-                return R.Ok;
-            }
+            if (currentCommit == null || currentBranch == null) return R.Ok;
 
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.NiceName);
+            metaData.SetBranched(currentCommit.Sid, currentBranch.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }

@@ -59,7 +59,7 @@ class Server : IServer
 
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
-        converter.ToBranches(repo.AugmentedRepo.Branches);
+        converter.ToBranches(repo.AugmentedRepo.BranchByName.Values);
 
     public Branch AllBanchByName(Repo repo, string name) =>
         converter.ToBranch(repo.AugmentedRepo.BranchByName[name]);
@@ -77,7 +77,7 @@ class Server : IServer
             repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
 
         if (filter == "*") return converter.ToCommits(
-            repo.AugmentedRepo.Branches.Where(b => b.AmbiguousTipId != "")
+            repo.AugmentedRepo.BranchByName.Values.Where(b => b.AmbiguousTipId != "")
                 .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
                 .Where(c => c.IsAmbiguousTip)
                 .Take(maxCount)
