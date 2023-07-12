@@ -44,8 +44,8 @@ class Converter : IConverter
             GitIndex: gitIndex,
 
             BranchName: c.Branch!.Name,
-            BranchCommonName: c.Branch.CommonName,
-            BranchViewName: c.Branch.NiceNameUnique,
+            BranchPrimaryName: c.Branch.PrimaryName,
+            BranchNiceUniqueName: c.Branch.NiceNameUnique,
             AllChildIds: c.AllChildIds,
             FirstChildIds: c.FirstChildIds,
             MergeChildIds: c.MergeChildIds,
@@ -67,9 +67,8 @@ class Converter : IConverter
     {
         return new Branch(
             Name: b.Name,
-            HeadBranchName: b.HeadBranchName,
-            CommonName: b.CommonName,
-            HeadBaseName: b.HeadBaseName,
+            PrimaryName: b.PrimaryName,
+            PrimaryBaseName: b.PrimaryBaseName,
             NiceName: b.NiceName,
             NiceNameUnique: b.NiceNameUnique,
             TipId: b.TipID,
@@ -81,12 +80,11 @@ class Converter : IConverter
             LocalName: b.LocalName,
 
             ParentBranchName: b.ParentBranch?.Name ?? "",
-            ParentBranchCommonName: b.ParentBranch?.CommonName ?? "",
             PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
-            IsSetAsParent: b.IsSetAsParent,
+            IsPrimary: b.IsPrimary,
             IsMainBranch: b.IsMainBranch,
 
             HasAheadCommits: b.HasLocalOnly,

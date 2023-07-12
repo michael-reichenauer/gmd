@@ -295,7 +295,7 @@ class BranchStructureService : IBranchStructureService
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 2 && commit.FirstChildren.Count == 2 &&
-            commit.FirstChildren[0].Branch!.CommonName == commit.FirstChildren[1].Branch!.CommonName)
+            commit.FirstChildren[0].Branch!.PrimaryName == commit.FirstChildren[1].Branch!.PrimaryName)
         {   // Commit has 2 children with same branch use that
             if (commit.FirstChildren[0].Branch!.PullMergeParentBranch != null &&
                 commit.FirstChildren[0].Branch!.PullMergeParentBranch!.Name == commit.FirstChildren[1].Branch!.LocalName)
@@ -713,8 +713,7 @@ class BranchStructureService : IBranchStructureService
         var humanName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
             name: branchName,
-            headName: pullMergeParentBranch.HeadBranchName,
-            commonName: pullMergeParentBranch.CommonName,
+            primaryName: pullMergeParentBranch.PrimaryName,
             niceName: humanName,
             tipID: c.Id);
         branch.PullMergeParentBranch = pullMergeParentBranch;
@@ -728,8 +727,7 @@ class BranchStructureService : IBranchStructureService
         var branchName = truncatedBranchName;
         var branch = new WorkBranch(
             name: branchName,
-            headName: branchName,
-            commonName: branchName,
+            primaryName: branchName,
             niceName: branchName,
             tipID: Repo.TruncatedLogCommitID);
 
@@ -743,8 +741,7 @@ class BranchStructureService : IBranchStructureService
         var niceName = name != "" ? name : "branch";
         var branch = new WorkBranch(
             name: branchName,
-            headName: branchName,
-            commonName: branchName,
+            primaryName: branchName,
             niceName: niceName,
             tipID: c.Id);
 

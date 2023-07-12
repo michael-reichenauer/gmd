@@ -171,8 +171,8 @@ class RepoViewMenus : IRepoViewMenus
         var items = Menu.Items;
 
         // Get possible local, remote, pull merge branches of the row branch
-        var rowCommonName = repo.RowBranch.CommonName;
-        var rowBranches = repo.Branches.Where(b => b.CommonName == rowCommonName);
+        var rowHeadName = repo.RowBranch.PrimaryName;
+        var rowBranches = repo.Branches.Where(b => b.PrimaryName == rowHeadName);
 
         // Get all branches that overlap with any of the row branches
         var overlappingBranches = rowBranches
@@ -190,29 +190,31 @@ class RepoViewMenus : IRepoViewMenus
         for (int i = 0; i < overlappingBranches.Count; i++)
         {
             var b = overlappingBranches[i];
-            if (b.B.CommonName == rowCommonName) break;
+            if (b.B.PrimaryName == rowHeadName) break;
             leftBranch = b.B;
         }
-        var leftCommonName = leftBranch != null && !IsAncestor(leftBranch, repo.RowBranch) ? leftBranch.CommonName : "";
+        var leftHeadName = leftBranch != null && !IsAncestor(leftBranch, repo.RowBranch) ? leftBranch.PrimaryName : "";
 
         // Find possible branch on right side to move to after (skip if ancestor)
         Branch? rightBranch = null;
         for (int i = overlappingBranches.Count - 1; i >= 0; i--)
         {
             var b = overlappingBranches[i];
-            if (b.B.CommonName == rowCommonName) break;
+            if (b.B.PrimaryName == rowHeadName) break;
             rightBranch = b.B;
         }
-        var rightCommonName = rightBranch != null && !IsAncestor(repo.RowBranch, rightBranch) ? rightBranch.CommonName : "";
+        var rightHeadName = rightBranch != null && !IsAncestor(repo.RowBranch, rightBranch) ? rightBranch.PrimaryName : "";
 
         // Add menu items if movable branches found
-        if (leftCommonName != "")
+        if (leftHeadName != "")
         {
-            items.Item($"<= (Move {repo.RowBranch.NiceNameUnique} left of {leftBranch!.NiceNameUnique})", "", () => cmds.MoveBranch(repo.RowBranch.CommonName, leftCommonName, -1));
+            items.Item($"<= (Move {repo.RowBranch.NiceNameUnique} left of {leftBranch!.NiceNameUnique})", "",
+                () => cmds.MoveBranch(repo.RowBranch.PrimaryName, leftHeadName, -1));
         }
-        if (rightCommonName != "")
+        if (rightHeadName != "")
         {
-            items.Item($"=> (Move {repo.RowBranch.NiceNameUnique} right of {rightBranch!.NiceNameUnique})", "", () => cmds.MoveBranch(repo.RowBranch.CommonName, rightCommonName, +1));
+            items.Item($"=> (Move {repo.RowBranch.NiceNameUnique} right of {rightBranch!.NiceNameUnique})", "",
+                () => cmds.MoveBranch(repo.RowBranch.PrimaryName, rightHeadName, +1));
         }
 
         return items;
@@ -267,7 +269,7 @@ class RepoViewMenus : IRepoViewMenus
         var branch = repo.Branch(commit.BranchName);
         return items
             .Concat(branch.AmbiguousBranchNames.Select(n => repo.AllBranchByName(n))
-                .DistinctBy(b => b.CommonName)
+                .DistinctBy(b => b.PrimaryName)
                 .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.ResolveAmbiguity(branch, b.NiceName))));
     }
 
@@ -335,7 +337,7 @@ class RepoViewMenus : IRepoViewMenus
             new[] { repo.GetCurrentBranch() }
             .Concat(repo.GetCommitBranches())
             .Concat(repo.Branches)
-            .Where(b => !repo.Branches.ContainsBy(bb => bb.CommonName == b.CommonName));
+            .Where(b => !repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
 
         return ToShowBranchesItems(branches, true);
     }
@@ -355,10 +357,10 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetSwitchToItems()
     {
-        var currentName = repo.CurrentBranch?.CommonName ?? "";
+        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
         var branches = repo.Branches
-             .Where(b => b.CommonName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
-             .OrderBy(b => b.CommonName);
+             .Where(b => b.PrimaryName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
+             .OrderBy(b => b.PrimaryName);
 
         return ToSwitchBranchesItems(branches);
     }
@@ -368,8 +370,8 @@ class RepoViewMenus : IRepoViewMenus
         var branches = repo.GetAllBranches()
             .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent
                 && b.LocalName == "" && b.PullMergeParentBranchName == "")
-            .OrderBy(b => repo.Branches.ContainsBy(bb => bb.CommonName == b.CommonName) ? 0 : 1)
-            .ThenBy(b => b.CommonName);
+            .OrderBy(b => repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName) ? 0 : 1)
+            .ThenBy(b => b.PrimaryName);
 
         return ToDeleteHiarchicalBranchesItems(branches);
     }
@@ -410,13 +412,13 @@ class RepoViewMenus : IRepoViewMenus
 
         var sidText = Sid(repo.RowCommit.Id);
         var commit = repo.RowCommit;
-        var currentName = repo.CurrentBranch?.CommonName ?? "";
+        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
 
         // Get all branches except current
         var branches = repo.Branches
-             .Where(b => b.CommonName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
+             .Where(b => b.PrimaryName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
              .DistinctBy(b => b.TipId)
-             .OrderBy(b => b.CommonName);
+             .OrderBy(b => b.PrimaryName);
 
         // Include commit if not on current branch
         var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
@@ -441,10 +443,9 @@ class RepoViewMenus : IRepoViewMenus
         if (!repo.Status.IsOk) return Menu.Items;
 
         var commit = repo.RowCommit;
-        var currentName = repo.CurrentBranch?.CommonName ?? "";
+        var currentPrimaryName = repo.CurrentBranch?.PrimaryName ?? "";
         var branches = repo.Branches
-             .Where(b => b.CommonName != currentName &&
-                b.RemoteName == "" && b.PullMergeParentBranchName == "")
+             .Where(b => b.IsPrimary && b.PrimaryName != currentPrimaryName)
              .DistinctBy(b => b.NiceNameUnique)
              .OrderBy(b => b.NiceNameUnique);
 
@@ -455,7 +456,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
-            .Where(b => !b.IsMainBranch && !b.IsDetached && b.CommonName != mainBranch.CommonName &&
+            .Where(b => !b.IsMainBranch && !b.IsDetached && b.PrimaryName != mainBranch.PrimaryName &&
                 b.RemoteName == "" && b.PullMergeParentBranchName == "")
             .DistinctBy(b => b.NiceNameUnique)
             .OrderBy(b => b.NiceNameUnique);
@@ -469,17 +470,16 @@ class RepoViewMenus : IRepoViewMenus
         var allBranches = repo.GetAllBranches();
 
         var liveBranches = allBranches
-            .Where(b => b.IsGitBranch)
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
+            .Where(b => b.IsGitBranch && b.IsPrimary)
             .OrderBy(b => b.NiceNameUnique);
 
         var liveAndDeletedBranches = allBranches
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
+            .Where(b => b.IsPrimary)
             .OrderBy(b => b.NiceNameUnique)
             .ToList();
 
         var recentBranches = liveAndDeletedBranches
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranchName == "")
+            .Where(b => b.IsPrimary)
             .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
             .Take(RecentCount);
 
@@ -536,7 +536,7 @@ class RepoViewMenus : IRepoViewMenus
 
         // Group by first part of the b.commonName (if '/' exists in name)
         var groups = branches
-            .GroupBy(b => b.CommonName.Split('/')[0])
+            .GroupBy(b => b.PrimaryName.TrimPrefix("origin/").Split('/')[0])
             .OrderBy(g => g.Key)
             .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
 
@@ -634,7 +634,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         while (b2 != null)
         {
-            if (b2.CommonName == b1.CommonName)
+            if (b2.PrimaryName == b1.PrimaryName)
             {
                 return true;
             }
