@@ -76,6 +76,13 @@ class Server : IServer
         if (filter == "$") return converter.ToCommits(
             repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
 
+        if (filter == "*") return converter.ToCommits(
+            repo.AugmentedRepo.Branches.Where(b => b.AmbiguousTipId != "")
+                .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
+                .Where(c => c.IsAmbiguousTip)
+                .Take(maxCount)
+                .ToList());
+
         var sc = StringComparison.OrdinalIgnoreCase;
 
         // I need extract all text encloused by double quotes.
@@ -99,7 +106,7 @@ class Server : IServer
                 c.BranchName.Contains(p, sc) ||
                 c.Author.Contains(p, sc) ||
                 c.AuthorTime.IsoDate().Contains(p, sc) ||
-                c.BranchViewName.Contains(p, sc) ||
+                c.BranchNiceUniqueName.Contains(p, sc) ||
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount);
         var result = converter.ToCommits(commits.ToList());

@@ -147,14 +147,14 @@ class Augmenter : IAugmenter
         Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
 
         repo.Branches
-            .Where(b => b.RemoteName == "" && b.PullMergeParentBranch == null)
+            .Where(b => b.IsPrimary)
             .OrderBy(b => b.IsGitBranch ? 0 : 1)
             .ThenBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
         {
             // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
             var bottom = repo.CommitsById[b.BottomID];
-            b.HeadBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.CommonName;
+            b.PrimaryBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.PrimaryName;
 
             if (branchNameCount.TryGetValue(b.NiceName, out var count))
             {   // Multiple branches with same human name, add a counter to the human name
@@ -172,7 +172,7 @@ class Augmenter : IAugmenter
             {
                 var localBranch = repo.BranchByName[b.LocalName]!;
                 localBranch.NiceNameUnique = b.NiceNameUnique;
-                localBranch.HeadBaseName = b.HeadBaseName;
+                localBranch.PrimaryBaseName = b.PrimaryBaseName;
             }
             SetNamesOnPullMergeChildren(repo, b, b);
         });
@@ -184,7 +184,7 @@ class Augmenter : IAugmenter
         childBranch.PullMergeChildBranches.ForEach(pmb =>
         {
             pmb.NiceNameUnique = baseBranch.NiceNameUnique;
-            pmb.HeadBaseName = baseBranch.HeadBaseName;
+            pmb.PrimaryBaseName = baseBranch.PrimaryBaseName;
             SetNamesOnPullMergeChildren(repo, baseBranch, pmb);
         });
     }

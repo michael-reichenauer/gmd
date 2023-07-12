@@ -46,8 +46,8 @@ public record Commit(
     int GitIndex,
 
     string BranchName,
-    string BranchCommonName,
-    string BranchViewName,
+    string BranchPrimaryName,
+    string BranchNiceUniqueName,
     IReadOnlyList<string> ParentIds,
     IReadOnlyList<string> AllChildIds,
     IReadOnlyList<string> FirstChildIds,
@@ -71,9 +71,8 @@ public record Commit(
 
 public record Branch(
     string Name,
-    string HeadBranchName,
-    string CommonName,
-    string HeadBaseName,
+    string PrimaryName,
+    string PrimaryBaseName,
     string NiceName,
     string NiceNameUnique,
     string TipId,
@@ -85,12 +84,11 @@ public record Branch(
     string LocalName,
 
     string ParentBranchName,
-    string ParentBranchCommonName,
     string PullMergeParentBranchName,
 
     bool IsGitBranch,
     bool IsDetached,
-    bool IsSetAsParent,
+    bool IsPrimary,
     bool IsMainBranch,
 
     bool HasAheadCommits,

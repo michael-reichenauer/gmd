@@ -242,7 +242,6 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
-        commitsView.RegisterKeyHandler(Key.x, () => Cmd.SetBranchManuallyAsync());
 
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
@@ -368,7 +367,7 @@ class RepoView : IRepoView
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
-        var names = repo.Branches.Select(b => b.HeadBaseName).Distinct().ToList();
+        var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
     }

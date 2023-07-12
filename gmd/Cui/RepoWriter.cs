@@ -206,7 +206,7 @@ class RepoWriter : IRepoWriter
         else if (c.IsAhead) { text.BrightGreen(c.Subject); }
         else if (c.IsBehind) { text.BrightBlue(c.Subject); }
         else if (c.Id == Repo.TruncatedLogCommitID) { text.Dark(c.Subject); }
-        else if (c.BranchCommonName == currentRowBranch.CommonName) { text.White(c.Subject); }
+        else if (c.BranchPrimaryName == currentRowBranch.PrimaryName) { text.White(c.Subject); }
         else { text.Dark(c.Subject); }
 
         return text;

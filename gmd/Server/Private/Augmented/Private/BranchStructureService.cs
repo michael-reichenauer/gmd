@@ -167,7 +167,7 @@ class BranchStructureService : IBranchStructureService
         {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
             return branch!;
         }
-        else if (TryIsMergedDeletedRemoteBranchTip(repo, commit, out branch))
+        else if (TryIsMergedDeletedBranchTip(repo, commit, out branch))
         {   // Commit has no branches and no children, but has a merge child.
             // The commit is a tip of a deleted branch. It might be a deleted remote branch.
             // Lets try determine branch name based on merge child's subject
@@ -214,7 +214,7 @@ class BranchStructureService : IBranchStructureService
             // Log.Info($"Commit {commit.Sid} has ambiguous child commit {branchNames}");
             return branch!;
         }
-        Log.Warn($"Ambiguous branch {commit}");
+        // Log.Warn($"Ambiguous branch {commit}");
 
         // Commit, has several possible branches, and we could not determine which branch is best,
         // create a new ambiguous branch. Later commits may fix this by parsing subjects of later
@@ -227,16 +227,18 @@ class BranchStructureService : IBranchStructureService
     bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Sid, out var branchHumanName, out var isSetByUser))
+        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Sid, out var branchNiceName, out var isSetByUser))
         {   // Commit has not a branch set by user
             return false;
         }
         // Log.Info($"Commit {commit.Sid} has branch set to {branchHumanName} (by user: {isSetByUser})");
 
-        var branches = commit.Branches.Where(b => b.NiceName == branchHumanName);
+        var branches = commit.Branches.Where(b => b.NiceName == branchNiceName);
         if (!branches.Any())
-        {   // Branch once set by user is no longer possible (might have changed name or something)
-            return false;
+        {   // Branch not found by obvious commit branches, create a new branch
+            commit.IsBranchSetByUser = isSetByUser;
+            branch = AddNamedBranch(repo, commit, branchNiceName);
+            return true;
         }
 
         // Prefer remote branches over local branches 
@@ -293,7 +295,7 @@ class BranchStructureService : IBranchStructureService
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 2 && commit.FirstChildren.Count == 2 &&
-            commit.FirstChildren[0].Branch!.CommonName == commit.FirstChildren[1].Branch!.CommonName)
+            commit.FirstChildren[0].Branch!.PrimaryName == commit.FirstChildren[1].Branch!.PrimaryName)
         {   // Commit has 2 children with same branch use that
             if (commit.FirstChildren[0].Branch!.PullMergeParentBranch != null &&
                 commit.FirstChildren[0].Branch!.PullMergeParentBranch!.Name == commit.FirstChildren[1].Branch!.LocalName)
@@ -323,7 +325,7 @@ class BranchStructureService : IBranchStructureService
     // The commit is a tip of a deleted branch. It might be a deleted remote branch.
     // Lets try determine branch name based on merge child's subject
     // or use a generic branch name based on commit id
-    bool TryIsMergedDeletedRemoteBranchTip(
+    bool TryIsMergedDeletedBranchTip(
         WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.FirstChildren.Count == 0 && commit.MergeChildren.Count == 1)
@@ -711,8 +713,7 @@ class BranchStructureService : IBranchStructureService
         var humanName = name != "" ? name : $"branch@{c.Sid}";
         var branch = new WorkBranch(
             name: branchName,
-            headName: pullMergeParentBranch.HeadBranchName,
-            commonName: pullMergeParentBranch.CommonName,
+            primaryName: pullMergeParentBranch.PrimaryName,
             niceName: humanName,
             tipID: c.Id);
         branch.PullMergeParentBranch = pullMergeParentBranch;
@@ -726,8 +727,7 @@ class BranchStructureService : IBranchStructureService
         var branchName = truncatedBranchName;
         var branch = new WorkBranch(
             name: branchName,
-            headName: branchName,
-            commonName: branchName,
+            primaryName: branchName,
             niceName: branchName,
             tipID: Repo.TruncatedLogCommitID);
 
@@ -738,11 +738,10 @@ class BranchStructureService : IBranchStructureService
     WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
-        var niceName = name != "" ? name : $"branch";
+        var niceName = name != "" ? name : "branch";
         var branch = new WorkBranch(
             name: branchName,
-            headName: branchName,
-            commonName: branchName,
+            primaryName: branchName,
             niceName: niceName,
             tipID: c.Id);
 
@@ -831,6 +830,12 @@ class BranchStructureService : IBranchStructureService
     {
         foreach (var b in repo.Branches)
         {
+            if (b.IsAmbiguousBranch)
+            {
+                // Log.Info($"Ambiguous branch: {b.Name} at {b.AmbiguousTipId}");
+                repo.CommitsById[b.AmbiguousTipId].IsAmbiguousTip = true;
+            }
+
             if (b.BottomID == "")
             {   // For branches with no own commits (multiple tips to same commit)
                 b.BottomID = b.TipID;
