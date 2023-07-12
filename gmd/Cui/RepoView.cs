@@ -117,7 +117,7 @@ class RepoView : IRepoView
     public async Task<R> ShowRepoAsync(string path)
     {
         if (!Try(out var rootDir, out var e, git.RootPath(path))) return e;
-        Log.Info($"Show '{rootDir}' ({path})");
+        Log.Info($"Show repo for '{path}' ({rootDir})");
 
         var branches = repoState.Get(rootDir).Branches;
         if (!Try(out e, await ShowNewRepoAsync(rootDir, branches))) return e;

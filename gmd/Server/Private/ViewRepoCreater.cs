@@ -276,7 +276,7 @@ class ViewRepoCreater : IViewRepoCreater
         branches = branches.DistinctBy(b => b.Name).ToList();
 
         var sorted = SortBranches(repo, branches);
-        Log.Info($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");
+        Log.Debug($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");
         return sorted;
     }
 
