@@ -27,7 +27,7 @@ class Graph
 
     internal GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
 
-    public IReadOnlyList<GraphBranch> GetOverlappinBranches(string branchName)
+    public IReadOnlyList<GraphBranch> GetOverlappingBranches(string branchName)
     {
         var branch = BranchByName(branchName);
         return branches.Where(b => IsOverlapping(b, branch)).ToList();

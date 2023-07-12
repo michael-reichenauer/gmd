@@ -83,22 +83,14 @@ public static class EnumerableExtensions
     }
 
 
-    public static IReadOnlyList<TSource> ToReadOnlyList<TSource>(this IEnumerable<TSource> enumeration)
-    {
-        return enumeration.ToList();
-    }
 
-    /// <summary>
-    ///  Returns elements from a sequence by concating the params parameters
-    /// </summary>
+    // Returns elements from a sequence by concatenating the params parameters
     public static IEnumerable<TSource> Add<TSource>(this IEnumerable<TSource> source,
        params TSource[] items) => source.Concat(items);
 
 
-    /// <summary>
-    ///  Returns distinct elements from a sequence by using a specified 
-    ///  predicate to compare values of two elements.
-    /// </summary>
+    // Returns distinct elements from a sequence by using a specified 
+    // predicate to compare values of two elements.
     public static IEnumerable<TSource> Distinct<TSource>(this IEnumerable<TSource> source,
         Func<TSource, TSource, bool> comparer)
     {

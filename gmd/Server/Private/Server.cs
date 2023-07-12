@@ -61,7 +61,7 @@ class Server : IServer
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
         converter.ToBranches(repo.AugmentedRepo.Branches.Values);
 
-    public Branch AllBanchByName(Repo repo, string name) =>
+    public Branch AllBranchByName(Repo repo, string name) =>
         converter.ToBranch(repo.AugmentedRepo.Branches[name]);
 
     public Commit GetCommit(Repo repo, string commitId) =>
@@ -85,7 +85,7 @@ class Server : IServer
 
         var sc = StringComparison.OrdinalIgnoreCase;
 
-        // I need extract all text encloused by double quotes.
+        // I need extract all text enclosed by double quotes.
         var matches = Regex.Matches(filter, "\"([^\"]*)\"");
         var quoted = matches.Select(m => m.Groups[1].Value).ToList();
 
@@ -95,7 +95,7 @@ class Server : IServer
 
         // Split on space to get all AND parts of the text (and fix newlines to spaces again)
         var andParts = modifiedFilter.Split(' ').Where(p => p != "")
-            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces agian 
+            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces again 
             .ToList();
 
         // Find all commits matching all AND parts.

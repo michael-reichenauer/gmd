@@ -121,12 +121,12 @@ class FileMonitor : IFileMonitor
 
         if (fileEvent != null)
         {
-            Log.Info($"File changed event {fileEvent.TimeStamp.IsoMilli()}");
+            Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
             FileChanged?.Invoke(fileEvent);
         }
         if (repoEvent != null)
         {
-            Log.Info($"Repo changed event {repoEvent.TimeStamp.IsoMilli()}");
+            Log.Info($"Repo changed event {repoEvent.TimeStamp.IsoMs()}");
             RepoChanged?.Invoke(repoEvent);
         }
 
@@ -241,7 +241,7 @@ class FileMonitor : IFileMonitor
 
             if (!repoChangedTimer.Enabled)
             {
-                Log.Info($"Repo changing at {repoChangeTime.IsoMilli()}...");
+                Log.Info($"Repo changing at {repoChangeTime.IsoMs()}...");
                 repoChangedTimer.Enabled = true;
             }
         }
@@ -258,7 +258,7 @@ class FileMonitor : IFileMonitor
 
             if (!fileChangedTimer.Enabled)
             {
-                Log.Info($"File changing for '{fullPath}' at {statusChangeTime.IsoMilli()} ...");
+                Log.Info($"File changing for '{fullPath}' at {statusChangeTime.IsoMs()} ...");
                 fileChangedTimer.Enabled = true;
             }
         }

@@ -20,7 +20,7 @@ interface IServer
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
     IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount);
-    Branch AllBanchByName(Repo repo, string name);
+    Branch AllBranchByName(Repo repo, string name);
     Commit GetCommit(Repo repo, string commitId);
 
     Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified);

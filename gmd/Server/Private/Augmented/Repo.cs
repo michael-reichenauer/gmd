@@ -32,7 +32,7 @@ record Repo
     public IReadOnlyDictionary<string, Branch> Branches { get; }
     public Status Status { get; init; }
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()}";
 }
 
 public record Commit(

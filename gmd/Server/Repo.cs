@@ -45,7 +45,7 @@ record Repo
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()} (@{repo.TimeStamp.IsoMilli()})";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{repo.TimeStamp.IsoMs()})";
 }
 
 

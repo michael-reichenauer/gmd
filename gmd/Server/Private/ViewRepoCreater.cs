@@ -269,7 +269,7 @@ class ViewRepoCreater : IViewRepoCreater
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
         Sorter.Sort(sorted, (b1, b2) => CompareBranches(repo, b1, b2, branchOrders));
 
-        // Reinsert the pullmerge branches just after its parent branch
+        // Reinsert the pullMerge branches just after its parent branch
         var toInsert = new Queue<Augmented.Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
         while (toInsert.Any())
         {
