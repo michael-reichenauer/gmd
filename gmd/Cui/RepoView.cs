@@ -367,7 +367,7 @@ class RepoView : IRepoView
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
-        var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().ToList();
+        var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
     }

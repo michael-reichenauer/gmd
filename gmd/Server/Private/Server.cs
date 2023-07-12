@@ -190,7 +190,7 @@ class Server : IServer
     }
 
 
-    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous)
+    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, bool showAllBranches = false)
     {
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
@@ -199,13 +199,16 @@ class Server : IServer
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray());
+        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), showAllBranches);
     }
 
 
-    public Repo HideBranch(Repo repo, string name)
+    public Repo HideBranch(Repo repo, string name, bool hideAllBranches = false)
     {
-        Log.Info($"Hide {name}");
+        Log.Info($"Hide {name}, HideAllBranches: {hideAllBranches}");
+
+        if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, new[] { "main" });
+
         var branch = repo.AugmentedRepo.Branches[name];
         if (branch.RemoteName != "")
         {

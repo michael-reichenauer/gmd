@@ -17,8 +17,8 @@ interface IServer
     Branch AllBanchByName(Repo repo, string name);
     Commit GetCommit(Repo repo, string commitId);
 
-    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous);
-    Repo HideBranch(Repo repo, string name);
+    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, bool showAllBranches = false);
+    Repo HideBranch(Repo repo, string name, bool hideAllBranches = false);
     Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);

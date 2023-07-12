@@ -6,7 +6,7 @@ namespace gmd.Server.Private;
 
 interface IViewRepoCreater
 {
-    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches);
+    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, bool showAllBranches = false);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -20,9 +20,9 @@ class ViewRepoCreater : IViewRepoCreater
         this.repoState = repoState;
     }
 
-    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches)
+    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, bool showAllBranches = false)
     {
-        var filteredBranches = FilterOutViewBranches(augRepo, showBranches);
+        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, showAllBranches);
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
 
         if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
@@ -182,17 +182,22 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
     }
 
-    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches)
+    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches, bool showAllBranches)
     {
         var branches = new Dictionary<string, Augmented.Branch>();
 
-        showBranches
+        if (!showAllBranches)
+        {
+            showBranches
             .Select(name => repo.Branches.Values
                 .FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
             .Where(b => b != null)
             .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
-
-        branches = repo.Branches.Values.Where(b => !b.IsCircularAncestors).ToDictionary(b => b.Name, b => b);
+        }
+        else
+        {
+            branches = repo.Branches.Values.Where(b => !b.IsCircularAncestors).ToDictionary(b => b.Name, b => b);
+        }
 
         if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch
@@ -223,20 +228,18 @@ class ViewRepoCreater : IViewRepoCreater
 
     void AddBranchAndAncestorsAndRelatives(Augmented.Repo repo, Augmented.Branch? branch, IDictionary<string, Augmented.Branch> branches)
     {
-        if (branch == null) return;
+        if (branch == null || branches.ContainsKey(branch.Name)) return;
         if (branch.IsCircularAncestors)
         {
             Log.Warn($"Skipping branch {branch.Name}, Circular ancestors");
             return;
         }
+
         branches[branch.Name] = branch;
+        branch.AncestorNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.Branches[n], branches));
+
         var primary = repo.Branches[branch.PrimaryName];
-        branches[primary.Name] = primary;
-        branch.AncestorNames.ForEach(n => branches[n] = repo.Branches[n]);
-
-        // Ancestors(repo, primary).ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
-
-        primary.RelatedBranchNames.ForEach(n => branches[n] = repo.Branches[n]);
+        primary.RelatedBranchNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.Branches[n], branches));
     }
 
     List<Augmented.Branch> SortBranches(Augmented.Repo repo, IEnumerable<Augmented.Branch> branches)
