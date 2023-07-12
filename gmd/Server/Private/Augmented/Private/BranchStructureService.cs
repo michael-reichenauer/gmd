@@ -34,6 +34,9 @@ class BranchStructureService : IBranchStructureService
 
         // Determine parent/child branch relationships, where a child branch is branch out of a parent
         DetermineBranchHierarchy(repo);
+
+        // Determine the ancestors of each branch (i.e. parents, grandparents, etc.)
+        DetermineAncestors(repo);
     }
 
 
@@ -43,7 +46,7 @@ class BranchStructureService : IBranchStructureService
     {
         List<string> notFoundBranches = new List<string>();
 
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.Branches.Values)
         {
             if (!repo.CommitsById.TryGetValue(b.TipID, out var tip))
             {   // A branch tip id, which commit id does not exist in the repo (deleted branch or truncated repo)
@@ -62,14 +65,7 @@ class BranchStructureService : IBranchStructureService
         }
 
         // Remove branches that do not have existing tip commit id,
-        foreach (var name in notFoundBranches)
-        {
-            int i = repo.Branches.FindIndex(b => b.Name == name);
-            if (i != -1)
-            {
-                repo.Branches.RemoveAt(i);
-            }
-        }
+        notFoundBranches.ForEach(n => repo.Branches.Remove(n));
     }
 
 
@@ -718,7 +714,8 @@ class BranchStructureService : IBranchStructureService
             tipID: c.Id);
         branch.PullMergeParentBranch = pullMergeParentBranch;
 
-        repo.Branches.Add(branch);
+        repo.Branches[branch.Name] = branch;
+        repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
         return branch;
     }
 
@@ -731,7 +728,8 @@ class BranchStructureService : IBranchStructureService
             niceName: branchName,
             tipID: Repo.TruncatedLogCommitID);
 
-        repo.Branches.Add(branch);
+        repo.Branches[branch.Name] = branch;
+        repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
         return branch;
     }
 
@@ -745,7 +743,8 @@ class BranchStructureService : IBranchStructureService
             niceName: niceName,
             tipID: c.Id);
 
-        repo.Branches.Add(branch);
+        repo.Branches[branch.Name] = branch;
+        repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
         return branch;
     }
 
@@ -828,7 +827,7 @@ class BranchStructureService : IBranchStructureService
     // A child branch is branches from a parent branch
     void DetermineBranchHierarchy(WorkRepo repo)
     {
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.Branches.Values)
         {
             if (b.IsAmbiguousBranch)
             {
@@ -842,7 +841,7 @@ class BranchStructureService : IBranchStructureService
             }
             if (b.RemoteName != "")
             {   // For a local branch with a remote branch, the remote branch is parent.
-                var remoteBranch = repo.Branches.First(bb => bb.Name == b.RemoteName);
+                var remoteBranch = repo.Branches[b.RemoteName];
                 b.ParentBranch = remoteBranch;
                 continue;
             }
@@ -864,8 +863,8 @@ class BranchStructureService : IBranchStructureService
         }
 
         // A repo can have several root branches (e.g. the doc branch in GitHub)
-        var truncatedBranch = repo.Branches.FirstOrDefault(b => b.Name == truncatedBranchName);
-        var rootBranches = repo.Branches.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
+        repo.Branches.TryGetValue(truncatedBranchName, out var truncatedBranch);
+        var rootBranches = repo.Branches.Values.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
         if (!rootBranches.Any()) return;  // No root branches (empty repo)
 
         // Select most likely root branch (but prioritize)
@@ -881,22 +880,49 @@ class BranchStructureService : IBranchStructureService
         }
 
         if (truncatedBranch != null)
-        {
+        {   // Remove the truncated branch and redirect all its children to the root branch
             var truncatedCommit = repo.CommitsById[Repo.TruncatedLogCommitID];
             truncatedCommit.Branch = rootBranch;
             rootBranch.ParentBranch = null;
             rootBranch.BottomID = truncatedCommit.Id;
-            repo.Branches.Remove(truncatedBranch);
-            repo.Branches
+            repo.Branches.Remove(truncatedBranch.Name);
+
+            // Redirect all branches that has the truncated branch as parent to the root branch instead
+            repo.Branches.Values
                 .Where(b => b.ParentBranch == truncatedBranch)
                 .ForEach(b => b.ParentBranch = rootBranch);
         }
 
+        // Mark the main root branch as the main branch (and its corresponding local branch as well)
         rootBranch.IsMainBranch = true;
         if (rootBranch.LocalName != "")
         {
-            var rootLocalBranch = repo.Branches.First(b => b.Name == rootBranch.LocalName);
+            var rootLocalBranch = repo.Branches[rootBranch.LocalName];
             rootLocalBranch.IsMainBranch = true;
+        }
+    }
+
+    void DetermineAncestors(WorkRepo repo)
+    {
+        foreach (var b in repo.Branches.Values)
+        {
+            var current = b.ParentBranch;
+            while (current != null)
+            {
+                if (b.Ancestors.Contains(current))
+                {
+                    Log.Warn($"Branch {b.Name} has circular ancestor {current.Name}");
+                    Log.Warn("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
+                    b.IsCircularAncestors = true;
+                    break;
+                }
+                b.Ancestors.Add(current);
+                if (b.Ancestors.Count > 50)
+                {
+                    Log.Warn($"Branch {b} has more than 20 ancestors");
+                }
+                current = current.ParentBranch;
+            }
         }
     }
 }

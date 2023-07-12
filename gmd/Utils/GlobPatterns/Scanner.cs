@@ -74,7 +74,7 @@ namespace gmd.Utils.GlobPatterns
                 return TakeIdentifier();
             }
 
-            if (IsNumeric(current) || current == '_')
+            if (IsNumeric(current) || current == '_' || current == '$' || current == '~' || current == ' ')
             {
                 return TakeIdentifier();
             }
@@ -139,7 +139,7 @@ namespace gmd.Utils.GlobPatterns
             return TokenKind.Identifier;
         }
 
-        private static bool IsIdentifierCharacter(char c) => char.IsLetter(c) || IsNumeric(c) || c == '_';
+        private static bool IsIdentifierCharacter(char c) => char.IsLetter(c) || IsNumeric(c) || c == '_' || c == '$' || c == '~' || c == ' ';
 
         private static bool IsNumeric(char c) => char.IsDigit(c) || c == '.' || c == '-';
     }

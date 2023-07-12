@@ -11,8 +11,7 @@ class WorkRepo
     public Status Status { get; }
     public List<WorkCommit> Commits { get; } = new List<WorkCommit>();
     public Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
-    public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
-    public Dictionary<string, WorkBranch> BranchByName { get; } = new Dictionary<string, WorkBranch>();
+    public Dictionary<string, WorkBranch> Branches { get; } = new Dictionary<string, WorkBranch>();
     public List<Tag> Tags { get; } = new List<Tag>();
     public Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
     public List<Stash> Stashes { get; } = new List<Stash>();
@@ -24,6 +23,22 @@ class WorkRepo
         Path = path;
         Status = status;
     }
+
+    // public void TryAdd(WorkBranch branch)
+    // {
+    //     if (BranchByName.ContainsKey(branch.Name))
+    //     {
+    //         return;
+    //     }
+    //     Branches.Add(branch);
+    //     BranchByName[branch.Name] = branch;
+    // }
+
+    // public void TryAddAll(IEnumerable<WorkBranch> branches)
+    // {
+    //     branches.ForEach(b => TryAdd(b));
+    // }
+
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
@@ -118,23 +133,25 @@ internal class WorkBranch
 
     public bool IsLocalCurrent { get; set; }  // True if local branch corresponding to this remote is current
     public bool IsGitBranch { get; set; }
-    public bool IsPrimary { get; }
+    public bool IsPrimary { get; set; }
     public bool IsAmbiguousBranch { get; set; }
     public bool IsMainBranch { get; set; }
     public bool HasLocalOnly { get; set; }
     public bool HasRemoteOnly { get; set; }
 
     public string AmbiguousTipId { get; set; } = ""; // Set if this branch has ambigous last part
+    public bool IsCircularAncestors { get; internal set; }
 
+    public List<WorkBranch> RelatedBranches = new List<WorkBranch>();
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
     public List<WorkBranch> PullMergeChildBranches = new List<WorkBranch>();
+    public List<WorkBranch> Ancestors = new List<WorkBranch>();
 
     // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
-        PrimaryName = b.RemoteName == "" ? b.Name : b.RemoteName;
-        IsPrimary = b.RemoteName == "";
+        PrimaryName = "";                // Will be set later
         NiceName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;
