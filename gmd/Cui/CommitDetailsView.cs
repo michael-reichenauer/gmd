@@ -4,13 +4,11 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-
 interface ICommitDetailsView
 {
     ContentView View { get; }
 
     void Set(Repo repo, Commit commit, Branch branch);
-
 }
 
 class CommitDetailsView : ICommitDetailsView
