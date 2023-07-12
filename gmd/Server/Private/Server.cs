@@ -213,8 +213,7 @@ class Server : IServer
         }
 
         var branchNames = repo.Branches
-            .Where(b => b.Name != branch.Name &&
-                !viewRepoCreater.IsFirstAncestorOfSecond(repo.AugmentedRepo, branch, repo.AugmentedRepo.Branches[b.Name]))
+            .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
             .Select(b => b.Name)
             .ToArray();
 

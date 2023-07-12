@@ -140,10 +140,12 @@ internal class WorkBranch
     public bool HasRemoteOnly { get; set; }
 
     public string AmbiguousTipId { get; set; } = ""; // Set if this branch has ambigous last part
+    public bool IsCircularAncestors { get; internal set; }
 
     public List<WorkBranch> RelatedBranches = new List<WorkBranch>();
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
     public List<WorkBranch> PullMergeChildBranches = new List<WorkBranch>();
+    public List<WorkBranch> Ancestors = new List<WorkBranch>();
 
     // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)

@@ -7,7 +7,6 @@ namespace gmd.Server.Private;
 interface IViewRepoCreater
 {
     Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches);
-    bool IsFirstAncestorOfSecond(Augmented.Repo augmentedRepo, Augmented.Branch ancestor, Augmented.Branch branch);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -23,21 +22,16 @@ class ViewRepoCreater : IViewRepoCreater
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches)
     {
-        Log.Info("Start ViewRepo ...");
-        var t = Timing.Start();
         var filteredBranches = FilterOutViewBranches(augRepo, showBranches);
-        t.Log("FilterOutViewBranches");
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
-        t.Log("FilterOutViewCommits");
 
         if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
         {
             AdjustCurrentBranch(augRepo, filteredBranches, filteredCommits, uncommitted);
         }
-        t.Log("TryGetUncommittedCommit");
 
         SetAheadBehind(filteredBranches, filteredCommits);
-        t.Log("SetAheadBehind");
+
         var repo = new Repo(
             DateTime.UtcNow,
             augRepo,
@@ -46,58 +40,9 @@ class ViewRepoCreater : IViewRepoCreater
             converter.ToStashes(augRepo.Stashes),
             augRepo.Status);
 
-        Log.Info($"ViewRepo {t} {repo}");
         return repo;
     }
 
-    public bool IsFirstAncestorOfSecond(Augmented.Repo repo, Augmented.Branch ancestor, Augmented.Branch branch)
-    {
-        if (branch == ancestor)
-        {
-            // Same initial branches (not ancestor)
-            return false;
-        }
-        if (branch.LocalName == ancestor.Name)
-        {
-            // Branch is remote branch of the ancestor
-            return false;
-        }
-        if (branch.RemoteName == ancestor.Name)
-        {
-            // branch is the local name of the is the remote branch of the branch
-            return true;
-        }
-
-        var current = branch;
-        while (true)
-        {
-            if (current == ancestor)
-            {
-                // Current must now be one of its parents and thus is an ancestor
-                return true;
-            }
-            if (current.Name == ancestor.LocalName)
-            {
-                // Current is the local branch of the ancestor, which is an ancestor as well
-                return true;
-            }
-            if (current.Name == ancestor.RemoteName)
-            {
-                // Current is the no the remote branch of the ancestor, which is an ancestor of the
-                //  original branch
-                return true;
-            }
-
-            if (current.ParentBranchName == "")
-            {
-                // Reached root (current usually is origin/main or origin/master)
-                return false;
-            }
-
-            // Try with parent of current
-            current = repo.Branches[current.ParentBranchName];
-        }
-    }
 
     void SetAheadBehind(
         List<Augmented.Branch> filteredBranches,
@@ -239,69 +184,62 @@ class ViewRepoCreater : IViewRepoCreater
 
     List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches)
     {
-        var t = Timing.Start();
-        var branches = showBranches
-            .Select(name => repo.Branches.Values.FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
+        var branches = new Dictionary<string, Augmented.Branch>();
+
+        showBranches
+            .Select(name => repo.Branches.Values
+                .FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
             .Where(b => b != null)
-            .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
-            .ToList();       // To be able to add more
+            .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
 
-        branches = repo.Branches.Values.ToList();
-
-        t.Log("All branches");
+        branches = repo.Branches.Values.Where(b => !b.IsCircularAncestors).ToDictionary(b => b.Name, b => b);
 
         if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch
             var current = repo.Branches.Values.FirstOrDefault(b => b.IsCurrent);
-            AddBranchAndRelatives(repo, current, branches);
+            AddBranchAndAncestorsAndRelatives(repo, current, branches);
         }
 
         // Ensure that main branch is always included 
         var main = repo.Branches.Values.First(b => b.IsMainBranch);
-        AddBranchAndRelatives(repo, main, branches);
-        t.Log("Main branch");
-
-        // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
-        foreach (var b in branches.ToList())
-        {
-            var tipBranch = repo.Branches[repo.CommitById[b.TipId].BranchName];
-            AddBranchAndRelatives(repo, tipBranch, branches);
-        }
-        t.Log("Tip branches");
+        AddBranchAndAncestorsAndRelatives(repo, main, branches);
 
         // If current branch is detached, include it as well (commit is checked out directly)
         var detached = repo.Branches.Values.FirstOrDefault(b => b.IsDetached);
-        if (detached != null) branches.TryAdd(detached);
-        t.Log("Detached branch");
+        if (detached != null) AddBranchAndAncestorsAndRelatives(repo, detached, branches);
 
-        // Ensure all related branches are included
-        branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Values.Where(bb => bb.PrimaryName == b.PrimaryName)));
-        t.Log("Related branches");
+        // Is this still needed?????
+        // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
+        // foreach (var b in branches.Values.ToList())
+        // {
+        //     var tipBranch = repo.Branches[repo.CommitById[b.TipId].BranchName];
+        //     AddBranchAndAncestorsAndRelatives(repo, tipBranch, branches);
+        // }
 
-        // Ensure all ancestors are included
-        foreach (var b in branches.ToList())
-        {
-            Ancestors(repo, b).ForEach(bb => AddBranchAndRelatives(repo, bb, branches));
-        }
-        t.Log("Ancestors");
-
-        // Remove duplicates (ToList(), since Sort works inline)
-        branches = branches.DistinctBy(b => b.Name).ToList();
-        t.Log("Distinct");
-
-        var sorted = SortBranches(repo, branches);
+        var sorted = SortBranches(repo, branches.Values);
         Log.Debug($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");
         return sorted;
     }
 
-    void AddBranchAndRelatives(Augmented.Repo repo, Augmented.Branch? branch, List<Augmented.Branch> branches)
+    void AddBranchAndAncestorsAndRelatives(Augmented.Repo repo, Augmented.Branch? branch, IDictionary<string, Augmented.Branch> branches)
     {
         if (branch == null) return;
-        branches.TryAdd(branch);
-        branches.TryAddAll(repo.Branches.Values.Where(b => b.PrimaryName == branch.PrimaryName));
+        if (branch.IsCircularAncestors)
+        {
+            Log.Warn($"Skipping branch {branch.Name}, Circular ancestors");
+            return;
+        }
+        branches[branch.Name] = branch;
+        var primary = repo.Branches[branch.PrimaryName];
+        branches[primary.Name] = primary;
+        branch.AncestorNames.ForEach(n => branches[n] = repo.Branches[n]);
+
+        // Ancestors(repo, primary).ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
+
+        primary.RelatedBranchNames.ForEach(n => branches[n] = repo.Branches[n]);
     }
 
-    List<Augmented.Branch> SortBranches(Augmented.Repo repo, List<Augmented.Branch> branches)
+    List<Augmented.Branch> SortBranches(Augmented.Repo repo, IEnumerable<Augmented.Branch> branches)
     {
         var sorted = branches.Where(b => b.IsPrimary).ToList();
 
@@ -420,20 +358,6 @@ class ViewRepoCreater : IViewRepoCreater
         filteredCommits[tipCommitIndex] = newTipCommit;
     }
 
-    IReadOnlyList<Augmented.Branch> Ancestors(Augmented.Repo repo, Augmented.Branch branch)
-    {
-        List<Augmented.Branch> ancestors = new List<Augmented.Branch>();
-
-        while (branch.ParentBranchName != "")
-        {
-            var parent = repo.Branches[branch.ParentBranchName];
-            ancestors.Add(parent);
-            branch = parent;
-        }
-
-        return ancestors;
-    }
-
 
     int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2,
         List<BranchOrder> branchOrders)
@@ -442,21 +366,8 @@ class ViewRepoCreater : IViewRepoCreater
         if (b1.Name == b2.ParentBranchName) return -1;   // b1 is parent of b2
         if (b2.Name == b1.ParentBranchName) return 1;   // b2 is parent of b1
 
-        // Check if b1 is ancestor of b2
-        var current = b2.ParentBranchName != "" ? repo.Branches[b2.ParentBranchName] : null;
-        while (current != null)
-        {
-            if (b1 == current) return -1; // Found a b1 in the hiarchy above b2 
-            current = current.ParentBranchName != "" ? repo.Branches[current.ParentBranchName] : null;
-        }
-
-        // Check if b2 is ancestor of b1
-        current = b1.ParentBranchName != "" ? repo.Branches[b1.ParentBranchName] : null;
-        while (current != null)
-        {
-            if (b2 == current) return 1;
-            current = current.ParentBranchName != "" ? repo.Branches[current.ParentBranchName] : null;
-        }
+        if (b2.AncestorNames.Contains(b1.Name)) return -1; // b1 is ancestor of b2
+        if (b1.AncestorNames.Contains(b2.Name)) return 1; // b2 is ancestor of b1
 
         // Check if unrelated branches have been ordered
         var bo = branchOrders.FirstOrDefault(b => b.Branch == b1.PrimaryName && b.Other == b2.PrimaryName);

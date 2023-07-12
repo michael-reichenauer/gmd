@@ -630,18 +630,11 @@ class RepoViewMenus : IRepoViewMenus
         return name.Replace('_', '-');
     }
 
+    // 
     bool IsAncestor(Branch b1, Branch? b2)
     {
-        while (b2 != null)
-        {
-            if (b2.PrimaryName == b1.PrimaryName)
-            {
-                return true;
-            }
-            b2 = repo.Branches.FirstOrDefault(b => b.Name == b2.ParentBranchName);
-        }
-
-        return false;
+        if (b2 == null) return false;
+        return b2.AncestorNames.Contains(b1.Name);
     }
 
 

@@ -86,12 +86,15 @@ class Converter : IConverter
             IsDetached: b.IsDetached,
             IsPrimary: b.IsPrimary,
             IsMainBranch: b.IsMainBranch,
+            IsCircularAncestors: b.IsCircularAncestors,
 
             HasAheadCommits: b.HasLocalOnly,
             HasBehindCommits: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTipId,
+            RelatedBranchNames: b.RelatedBranches.Select(bb => bb.Name).ToList(),
             AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
-            PullMergeBranchNames: b.PullMergeChildBranches.Select(bb => bb.Name).ToList());
+            PullMergeBranchNames: b.PullMergeChildBranches.Select(bb => bb.Name).ToList(),
+            AncestorNames: b.Ancestors.Select(bb => bb.Name).ToList());
     }
 }
 

@@ -34,6 +34,9 @@ class BranchStructureService : IBranchStructureService
 
         // Determine parent/child branch relationships, where a child branch is branch out of a parent
         DetermineBranchHierarchy(repo);
+
+        // Determine the ancestors of each branch (i.e. parents, grandparents, etc.)
+        DetermineAncestors(repo);
     }
 
 
@@ -896,6 +899,33 @@ class BranchStructureService : IBranchStructureService
         {
             var rootLocalBranch = repo.Branches[rootBranch.LocalName];
             rootLocalBranch.IsMainBranch = true;
+        }
+    }
+
+    void DetermineAncestors(WorkRepo repo)
+    {
+        using (Timing.Start())
+        {
+            foreach (var b in repo.Branches.Values)
+            {
+                var current = b.ParentBranch;
+                while (current != null)
+                {
+                    if (b.Ancestors.Contains(current))
+                    {
+                        Log.Warn($"Branch {b.Name} has circular ancestor {current.Name}");
+                        Log.Warn("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
+                        b.IsCircularAncestors = true;
+                        break;
+                    }
+                    b.Ancestors.Add(current);
+                    if (b.Ancestors.Count > 50)
+                    {
+                        Log.Warn($"Branch {b} has more than 20 ancestors");
+                    }
+                    current = current.ParentBranch;
+                }
+            }
         }
     }
 }

@@ -89,13 +89,16 @@ public record Branch(
     bool IsDetached,
     bool IsPrimary,
     bool IsMainBranch,
+    bool IsCircularAncestors,
 
     bool HasAheadCommits,
     bool HasBehindCommits,
 
     string AmbiguousTipId,
+    IReadOnlyList<string> RelatedBranchNames,
     IReadOnlyList<string> AmbiguousBranchNames,
-    IReadOnlyList<string> PullMergeBranchNames)
+    IReadOnlyList<string> PullMergeBranchNames,
+    IReadOnlyList<string> AncestorNames)
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }

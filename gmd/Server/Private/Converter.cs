@@ -91,6 +91,7 @@ class Converter : IConverter
         AmbiguousTipId: b.AmbiguousTipId,
         AmbiguousBranchNames: b.AmbiguousBranchNames,
         PullMergeBranchNames: b.PullMergeBranchNames,
+        AncestorNames: b.AncestorNames,
 
         X: 0,
         IsIn: false,

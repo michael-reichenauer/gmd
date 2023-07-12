@@ -4,7 +4,7 @@ internal static class Sorter
 {
     public static void Sort<T>(IList<T> list, Func<T, T, int> comparer)
     {
-        CustomSort2(list, comparer);
+        BubbleSort(list, comparer);
     }
 
     private static void CustomSort<T>(IList<T> list, Func<T, T, int> comparer)
