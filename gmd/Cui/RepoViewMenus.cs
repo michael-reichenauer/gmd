@@ -596,7 +596,7 @@ class RepoViewMenus : IRepoViewMenus
         bool isBranchOut = false;
         if (canBeOutside && !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
         {   // The branch is currently not shown
-            if (repo.Repo.AugmentedRepo.BranchByName.TryGetValue(branch.Name, out var b))
+            if (repo.Repo.AugmentedRepo.Branches.TryGetValue(branch.Name, out var b))
             {
                 // The branch is not shown, but does exist
                 if (cic.ParentIds.Count > 1 &&

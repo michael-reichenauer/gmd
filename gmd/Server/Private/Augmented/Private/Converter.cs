@@ -17,7 +17,7 @@ class Converter : IConverter
             workRepo.TimeStamp,
             workRepo.Path,
             workRepo.Commits.Select((WorkCommit c, int index) => ToCommit(c, index)).ToList(),
-            workRepo.BranchByName.Values.ToDictionary(b => b.Name, ToBranch),
+            workRepo.Branches.Values.ToDictionary(b => b.Name, ToBranch),
             workRepo.Stashes.ToList(),
             workRepo.Status
         );

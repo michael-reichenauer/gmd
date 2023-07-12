@@ -95,7 +95,7 @@ class ViewRepoCreater : IViewRepoCreater
             }
 
             // Try with parent of current
-            current = repo.BranchByName[current.ParentBranchName];
+            current = repo.Branches[current.ParentBranchName];
         }
     }
 
@@ -241,41 +241,41 @@ class ViewRepoCreater : IViewRepoCreater
     {
         var t = Timing.Start();
         var branches = showBranches
-            .Select(name => repo.BranchByName.Values.FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
+            .Select(name => repo.Branches.Values.FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
             .Where(b => b != null)
             .Select(b => b!) // Workaround since compiler does not recognize the previous Where().
             .ToList();       // To be able to add more
 
-        branches = repo.BranchByName.Values.ToList();
+        branches = repo.Branches.Values.ToList();
 
         t.Log("All branches");
 
         if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch
-            var current = repo.BranchByName.Values.FirstOrDefault(b => b.IsCurrent);
+            var current = repo.Branches.Values.FirstOrDefault(b => b.IsCurrent);
             AddBranchAndRelatives(repo, current, branches);
         }
 
         // Ensure that main branch is always included 
-        var main = repo.BranchByName.Values.First(b => b.IsMainBranch);
+        var main = repo.Branches.Values.First(b => b.IsMainBranch);
         AddBranchAndRelatives(repo, main, branches);
         t.Log("Main branch");
 
         // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
         foreach (var b in branches.ToList())
         {
-            var tipBranch = repo.BranchByName[repo.CommitById[b.TipId].BranchName];
+            var tipBranch = repo.Branches[repo.CommitById[b.TipId].BranchName];
             AddBranchAndRelatives(repo, tipBranch, branches);
         }
         t.Log("Tip branches");
 
         // If current branch is detached, include it as well (commit is checked out directly)
-        var detached = repo.BranchByName.Values.FirstOrDefault(b => b.IsDetached);
+        var detached = repo.Branches.Values.FirstOrDefault(b => b.IsDetached);
         if (detached != null) branches.TryAdd(detached);
         t.Log("Detached branch");
 
         // Ensure all related branches are included
-        branches.ToList().ForEach(b => branches.TryAddAll(repo.BranchByName.Values.Where(bb => bb.PrimaryName == b.PrimaryName)));
+        branches.ToList().ForEach(b => branches.TryAddAll(repo.Branches.Values.Where(bb => bb.PrimaryName == b.PrimaryName)));
         t.Log("Related branches");
 
         // Ensure all ancestors are included
@@ -298,7 +298,7 @@ class ViewRepoCreater : IViewRepoCreater
     {
         if (branch == null) return;
         branches.TryAdd(branch);
-        branches.TryAddAll(repo.BranchByName.Values.Where(b => b.PrimaryName == branch.PrimaryName));
+        branches.TryAddAll(repo.Branches.Values.Where(b => b.PrimaryName == branch.PrimaryName));
     }
 
     List<Augmented.Branch> SortBranches(Augmented.Repo repo, List<Augmented.Branch> branches)
@@ -426,7 +426,7 @@ class ViewRepoCreater : IViewRepoCreater
 
         while (branch.ParentBranchName != "")
         {
-            var parent = repo.BranchByName[branch.ParentBranchName];
+            var parent = repo.Branches[branch.ParentBranchName];
             ancestors.Add(parent);
             branch = parent;
         }
@@ -443,19 +443,19 @@ class ViewRepoCreater : IViewRepoCreater
         if (b2.Name == b1.ParentBranchName) return 1;   // b2 is parent of b1
 
         // Check if b1 is ancestor of b2
-        var current = b2.ParentBranchName != "" ? repo.BranchByName[b2.ParentBranchName] : null;
+        var current = b2.ParentBranchName != "" ? repo.Branches[b2.ParentBranchName] : null;
         while (current != null)
         {
             if (b1 == current) return -1; // Found a b1 in the hiarchy above b2 
-            current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
+            current = current.ParentBranchName != "" ? repo.Branches[current.ParentBranchName] : null;
         }
 
         // Check if b2 is ancestor of b1
-        current = b1.ParentBranchName != "" ? repo.BranchByName[b1.ParentBranchName] : null;
+        current = b1.ParentBranchName != "" ? repo.Branches[b1.ParentBranchName] : null;
         while (current != null)
         {
             if (b2 == current) return 1;
-            current = current.ParentBranchName != "" ? repo.BranchByName[current.ParentBranchName] : null;
+            current = current.ParentBranchName != "" ? repo.Branches[current.ParentBranchName] : null;
         }
 
         // Check if unrelated branches have been ordered

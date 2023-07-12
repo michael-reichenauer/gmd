@@ -21,19 +21,18 @@ record Repo
         //Branches = branches;
         Stashes = stashes;
         Status = status;
-        BranchByName = branches;
+        Branches = branches;
     }
 
     public DateTime TimeStamp { get; }
     public string Path { get; }
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
-    // public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyList<Stash> Stashes { get; }
-    public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+    public IReadOnlyDictionary<string, Branch> Branches { get; }
     public Status Status { get; init; }
 
-    public override string ToString() => $"B:{BranchByName.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
 }
 
 public record Commit(

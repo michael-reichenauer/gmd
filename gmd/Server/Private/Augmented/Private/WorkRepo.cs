@@ -11,8 +11,7 @@ class WorkRepo
     public Status Status { get; }
     public List<WorkCommit> Commits { get; } = new List<WorkCommit>();
     public Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
-    // public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
-    public Dictionary<string, WorkBranch> BranchByName { get; } = new Dictionary<string, WorkBranch>();
+    public Dictionary<string, WorkBranch> Branches { get; } = new Dictionary<string, WorkBranch>();
     public List<Tag> Tags { get; } = new List<Tag>();
     public Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
     public List<Stash> Stashes { get; } = new List<Stash>();
@@ -41,7 +40,7 @@ class WorkRepo
     // }
 
 
-    public override string ToString() => $"B:{BranchByName.Count}, C:{Commits.Count}, S:{Status}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 
 // Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
@@ -142,6 +141,7 @@ internal class WorkBranch
 
     public string AmbiguousTipId { get; set; } = ""; // Set if this branch has ambigous last part
 
+    public List<WorkBranch> RelatedBranches = new List<WorkBranch>();
     public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
     public List<WorkBranch> PullMergeChildBranches = new List<WorkBranch>();
 

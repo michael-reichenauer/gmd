@@ -53,7 +53,7 @@ class Augmenter : IAugmenter
     void AddAugBranches(WorkRepo repo, GitRepo gitRepo)
     {
         // Convert git branches to intial augmented branches
-        gitRepo.Branches.ForEach(b => repo.BranchByName[b.Name] = new WorkBranch(b));
+        gitRepo.Branches.ForEach(b => repo.Branches[b.Name] = new WorkBranch(b));
         SetLocalRemoteBranchNames(repo);
     }
 
@@ -137,7 +137,7 @@ class Augmenter : IAugmenter
     {
         Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
 
-        repo.BranchByName.Values
+        repo.Branches.Values
             .Where(b => b.IsPrimary)
             .OrderBy(b => b.IsGitBranch ? 0 : 1)
             .ThenBy(b => repo.CommitsById[b.BottomID].AuthorTime)
@@ -161,7 +161,7 @@ class Augmenter : IAugmenter
             // Make sure local and pull merge branches have same view and base name as well
             if (b.LocalName != "")
             {
-                var localBranch = repo.BranchByName[b.LocalName]!;
+                var localBranch = repo.Branches[b.LocalName]!;
                 localBranch.NiceNameUnique = b.NiceNameUnique;
                 localBranch.PrimaryBaseName = b.PrimaryBaseName;
             }
@@ -231,11 +231,11 @@ class Augmenter : IAugmenter
     {
         // Set local name of all remote branches, that have a corresponding local branch as well
         // Unset RemoteName of local branch if no corresponding remote branch (deleted on remote server)
-        foreach (var b in repo.BranchByName.Values)
+        foreach (var b in repo.Branches.Values)
         {
             if (b.RemoteName != "")
             {
-                if (repo.BranchByName.TryGetValue(b.RemoteName, out var remoteBranch))
+                if (repo.Branches.TryGetValue(b.RemoteName, out var remoteBranch))
                 {   // Corresponding remote branch, set local branch name property
                     remoteBranch.LocalName = b.Name;
                     if (b.IsCurrent)

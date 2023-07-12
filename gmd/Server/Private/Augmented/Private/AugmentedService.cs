@@ -132,7 +132,7 @@ class AugmentedService : IAugmentedService
     {
         Log.Info($"Create branch {newBranchName} ...");
         Commit? currentCommit = null;
-        var currentBranch = repo.BranchByName.Values.FirstOrDefault(b => b.IsCurrent);
+        var currentBranch = repo.Branches.Values.FirstOrDefault(b => b.IsCurrent);
         if (currentBranch != null)
         {
             currentCommit = repo.CommitById[currentBranch.TipId];
@@ -160,7 +160,7 @@ class AugmentedService : IAugmentedService
             if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd))) return e;
 
             Commit commit = repo.CommitById[sha];
-            var branch = repo.BranchByName[commit.BranchName];
+            var branch = repo.Branches[commit.BranchName];
 
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
@@ -179,13 +179,13 @@ class AugmentedService : IAugmentedService
             return ToMergeCommits(repo, commits2).ToList();
         }
 
-        var branch = repo.BranchByName[name];
+        var branch = repo.Branches[name];
         var tip = repo.CommitById[branch.TipId];
         var mergeName = branch.Name;
 
         if (branch.LocalName != "")
         {   // Branch is a remote branch with an existing local branch, which might have a younger tip
-            var localBranch = repo.BranchByName[branch.LocalName];
+            var localBranch = repo.Branches[branch.LocalName];
             var localTip = repo.CommitById[localBranch.TipId];
             if (localTip.AuthorTime >= tip.AuthorTime)
             {   // The local branch is younger or same, use that.
@@ -194,7 +194,7 @@ class AugmentedService : IAugmentedService
         }
         else if (branch.RemoteName != "")
         {   // Branch is a local branch with an existing remote branch, which might have a younger tip
-            var remoteBranch = repo.BranchByName[branch.RemoteName];
+            var remoteBranch = repo.Branches[branch.RemoteName];
             var remoteTip = repo.CommitById[remoteBranch.TipId];
             if (remoteTip.AuthorTime >= tip.AuthorTime)
             {   // The remote branch is younger or same, use that.
@@ -209,7 +209,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> SwitchToAsync(Repo repo, string branchName)
     {
-        var branch = repo.BranchByName[branchName];
+        var branch = repo.Branches[branchName];
         if (branch.IsGitBranch)
         {
             return await git.CheckoutAsync(branchName, repo.Path);
@@ -237,7 +237,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName)
     {
-        var branch = repo.BranchByName[branchName];
+        var branch = repo.Branches[branchName];
         var ambiguousTip = branch.AmbiguousTipId;
         Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setHumanName} ...");
 
