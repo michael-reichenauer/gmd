@@ -40,7 +40,7 @@ class RepoWriter : IRepoWriter
 
         Columns cw = ColumnWidths(repo, width);
 
-        Branch prevBranch = null;
+        Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
             var c = repo.Commits[i];
