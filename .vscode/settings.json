@@ -4,7 +4,11 @@
     "cmds",
     "Collapseable",
     "Creater",
+    "Dependitor",
+    "devcontainers",
+    "dotnettools",
     "gmdstate",
+    "mhutchie",
     "pullable",
     "pushable",
     "Uncommit",
@@ -12,6 +16,7 @@
     "unpulled",
     "unpushed",
     "Unresolve",
+    "Upgrader",
     "ustring"
   ]
 }

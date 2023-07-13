@@ -6,139 +6,163 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    R<Server.Commit> Show(IRepo repo);
+    R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
 
 class FilterDlg : IFilterDlg
 {
-    const int MaxResults = 1000;
-    private readonly IServer server;
+    const int MaxResults = int.MaxValue;
+    readonly IServer server;
+    readonly IBranchColorService branchColorService;
 
     UIDialog dlg = null!;
     UITextField filterField = null!;
     Label resultCountField = null!;
-    ContentView resultsView = null!;
+    Label commitLabel = null!;
+    Label branchLabel = null!;
 
-    IRepo repo = null!;
+    Action<Repo> onRepoChanged = null!;
+    Server.Repo orgRepo = null!;
+    Server.Repo currentRepo = null!;
     string currentFilter = null!;
-    IReadOnlyList<Server.Commit> filteredCommits = null!;
-    R<Server.Commit> selectedCommit = null!;
+    ContentView resultsView = null!;
+    R<Server.Commit> selectedCommit = R.Error("No commit selected");
 
 
-    internal FilterDlg(IServer server)
+    internal FilterDlg(IServer server, IBranchColorService branchColorService)
     {
         this.server = server;
+        this.branchColorService = branchColorService;
     }
 
 
-    public R<Server.Commit> Show(IRepo repo)
+    public R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
-        this.repo = repo;
+        this.orgRepo = repo;
+        this.currentRepo = repo;
         this.currentFilter = null!;
-        this.filteredCommits = new List<Server.Commit>();
-        this.selectedCommit = R.Error("No commit selected");
+        this.onRepoChanged = onRepoChanged;
+        this.resultsView = commitsView;
 
-        dlg = new UIDialog("Filter Commits", Dim.Fill(), 20, null, options => { options.Y = 0; });
+        dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
 
-        filterField = dlg.AddTextField(1, 0, 40);
-        filterField.KeyUp += (k) => OnKeyUp(k);    // Update results and select commit on keys
+        dlg.AddLabel(0, 0, "Search:");
+        filterField = dlg.AddTextField(9, 0, 40);
+        filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
-        resultCountField = dlg.AddLabel(44, 0);
-
-        // Filtered results
-        resultsView = dlg.AddContentView(0, 2, Dim.Fill(), Dim.Fill(), OnGetContent);
-        resultsView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
-        resultsView.IsShowCursor = false;
-        resultsView.IsScrollMode = false;
-        resultsView.IsCursorMargin = false;
+        // Status fields
+        resultCountField = dlg.AddLabel(53, 0);
+        commitLabel = dlg.AddLabel(67, 0, "");
+        branchLabel = dlg.AddLabel(74, 0, "");
+        branchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.White };
 
         // Initializes results with current repo commits
-        UI.Post(() => UpdateFilterdResults());
+        UI.Post(() => UpdateFilteredResults().RunInBackground());
 
         dlg.Show(filterField);
+
         return selectedCommit;
     }
 
+    // User pressed key in filter field, update results 
+    void OnFilterFieldKeyUp(View.KeyEventEventArgs e)
+    {
+        UpdateFilteredResults().RunInBackground();
+        e.Handled = true;
+    }
 
-    void UpdateFilterdResults()
+    bool OnDialogKey(Key key)
+    {
+        if (key == Key.Enter)
+        {   // User selected commit from list
+            var commit = currentRepo.Commits[resultsView.CurrentIndex];
+            if (commit.BranchName != "<none>")
+                this.selectedCommit = commit;
+            dlg.Close();
+            return true;
+        }
+
+        // Allow user move up/down in results with keys
+        var rsp = StepUpDownInResultList(key);
+        ShowCommitInfo();
+        return rsp;
+    }
+
+
+    bool StepUpDownInResultList(Key key)
+    {
+        // Allow user move up/down in results with keys
+        switch (key)
+        {
+            case Key.CursorUp:
+                resultsView.Move(-1);
+                return true;
+            case Key.CursorDown:
+                resultsView.Move(1);
+                return true;
+            case Key.PageUp:
+                resultsView.Move(-resultsView.ContentHeight);
+                return true;
+            case Key.PageDown:
+                resultsView.Move(resultsView.ContentHeight);
+                return true;
+            case Key.Home:
+                resultsView.Move(-resultsView.Count);
+                return true;
+            case Key.End:
+                resultsView.Move(resultsView.Count);
+                return true;
+        }
+
+        return false;
+    }
+
+
+    async Task UpdateFilteredResults()
     {
         var filter = filterField.Text.Trim();
         if (filter == currentFilter) return;
-
         currentFilter = filter;
-        var commits = server.GetFilterCommits(repo.Repo, filter, MaxResults);
-        resultsView.TriggerUpdateContent(commits.Count);
 
-        this.filteredCommits = commits;
-        resultCountField.Text = commits.Count == 1 ? $"1 result" : $"{commits.Count} results";
+        if (filter != "" && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults)))
+        {   // Got new filtered repo, update results
+            currentRepo = filteredRepo;
+            resultsView.MoveToTop();
+        }
+        else
+        {   // Restore original repo
+            currentRepo = orgRepo;
+        }
+
+        ShowRepoInfo();
+        ShowCommitInfo();
+        onRepoChanged(currentRepo);
     }
 
 
-    // User pressed key in filter field, select commit on enter or update results 
-    void OnKeyUp(View.KeyEventEventArgs e)
+    void ShowCommitInfo()
     {
-        try
+        var index = resultsView.CurrentIndex;
+        if (currentRepo.Commits.Count == 0 || index >= currentRepo.Commits.Count)
         {
-            var key = e.KeyEvent.Key;
-            if (key == Key.Enter)
-            {
-                OnEnter(resultsView.CurrentIndex);
-                return;
-            }
+            commitLabel.Text = "";
+            branchLabel.Text = "";
+            return;
+        };
 
-            UpdateFilterdResults();
-        }
-        finally
-        {
-            e.Handled = true;
-        }
-    }
-
-    // User selected commit from list (or pressed enter on empty results to just close dlg)
-    void OnEnter(int index)
-    {
-        if (filteredCommits.Count > 0)
-        {   // User selected commit from list
-            this.selectedCommit = filteredCommits[index];
-        }
-
-        dlg.Close();
+        var commit = currentRepo.Commits[index];
+        var branch = currentRepo.BranchByName[commit.BranchName];
+        var color = branchColorService.GetColor(currentRepo, branch);
+        commitLabel.Text = commit.Sid;
+        branchLabel.Text = $"({branch.NiceNameUnique})";
+        branchLabel.ColorScheme.Normal = color;
     }
 
 
-    // Show results in list or empyt result message,
-    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    void ShowRepoInfo()
     {
-        if (filteredCommits.Count == 0) return new[] { Text.New.Dark("No matching commits") };
-
-        return filteredCommits.Skip(firstIndex).Take(count).Select((c, i) =>
-        {
-            if (firstIndex + i >= MaxResults - 1) return Text.New.Dark("... <To many results, please adjust filter>");
-
-            // Calculate commit row text columns
-            var sidAuthDate = $"{c.Sid} {c.Author.Max(10),-10} {c.AuthorTime.ToString("yy-MM-dd")}";
-            var branchName = $"({ToShortName(c.BranchNiceUniqueName)})";
-            var tags = c.Tags.Count > 0 ? $"[{string.Join("][", c.Tags.Select(t => t.Name))}]".Max(20) : "";
-
-            // Subject fills the rest of the available row space
-            var subjectLength = width - sidAuthDate.Length - branchName.Length - tags.Length - 2;
-            var subject = c.Subject.Max(subjectLength, true);
-
-            // Show selected or unselected commit row 
-            var isSelectedRow = i + firstIndex == currentIndex;
-            var text = Text.New.White($"{subject} ").Dark(branchName).Green(tags).Dark($" {sidAuthDate}");
-
-            return isSelectedRow ? text.ToHighlight() : text;
-        });
-    }
-
-    string ToShortName(string branchName)
-    {
-        if (branchName.Length > 16)
-        {   // Branch name to long, shorten it (show last 16 chars)
-            branchName = "┅" + branchName.Substring(branchName.Length - 16);
-        }
-        return branchName;
+        var count = currentRepo.Commits.Count(c => c.BranchName != "<none>");
+        resultCountField.Text = count == 1 ? $"1 result" : $"{count} commits,";
     }
 }
 

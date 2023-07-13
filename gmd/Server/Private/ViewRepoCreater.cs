@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using gmd.Common;
 
 namespace gmd.Server.Private;
@@ -7,6 +8,8 @@ namespace gmd.Server.Private;
 interface IViewRepoCreater
 {
     Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified);
+
+    Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -19,6 +22,7 @@ class ViewRepoCreater : IViewRepoCreater
         this.converter = converter;
         this.repoState = repoState;
     }
+
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
     {
@@ -39,12 +43,100 @@ class ViewRepoCreater : IViewRepoCreater
             converter.ToCommits(filteredCommits),
             converter.ToBranches(filteredBranches),
             converter.ToStashes(augRepo.Stashes),
-            augRepo.Status);
+            augRepo.Status,
+            "");
 
         Log.Info($"ViewRepo {t} {repo}");
         return repo;
     }
 
+    public Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount)
+    {
+        using (Timing.Start($"Filtered repo on '{filter}'"))
+        {
+            IReadOnlyDictionary<string, Augmented.Commit> filteredCommits = null!;
+
+            if (filter == "$")
+            {   // Get all commits, where branch was set manually by user
+                filteredCommits = augRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToDictionary(c => c.Id, c => c);
+            }
+            else if (filter == "*")
+            {   // Get all commits, with ambiguous tip
+                filteredCommits = augRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
+                    .Select(b => augRepo.CommitById[b.AmbiguousTipId])
+                    .Where(c => c.IsAmbiguousTip)
+                    .Take(maxCount)
+                    .ToDictionary(c => c.Id, c => c);
+            }
+            else
+            {   // Get all commits matching filter
+                filteredCommits = GetFilteredCommits(augRepo, filter, maxCount);
+            }
+
+            // Get all branch names for the filtered commits
+            var branchNames = filteredCommits.Values.Select(c => c.BranchName).Distinct().ToList();
+            if (!branchNames.Any())
+            {   // No commits matching filter, return empty repo
+                Log.Info($"No commits matching filter'");
+                return EmptyFilteredRepo(augRepo, filter);
+            }
+
+            // First create view repo with all branches and their commits
+            var r = GetViewRepoAsync(augRepo, branchNames);
+
+            // Return repo with filtered commits and their branches
+            var adjustedCommits = r.Commits.Where(c => filteredCommits.ContainsKey(c.Id)).ToList();
+            return new Repo(r.TimeStamp, r.AugmentedRepo, adjustedCommits, r.Branches, r.Stashes, r.Status, filter);
+        }
+    }
+
+    IReadOnlyDictionary<string, Augmented.Commit> GetFilteredCommits(Augmented.Repo augRepo, string filter, int maxCount)
+    {
+        var sc = StringComparison.OrdinalIgnoreCase;
+
+        // Need extract all text enclosed by double quotes in filter (for exact matches of them)
+        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
+        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
+
+        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below. 
+        var modifiedFilter = filter;
+        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
+
+        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
+        var andParts = modifiedFilter.Split(' ').Where(p => p != "")
+            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces again 
+            .ToList();
+
+        // Find all branches matching all AND parts.
+        return augRepo.Commits
+            .Where(c => andParts.All(p =>
+                c.Id.Contains(p, sc) ||
+                c.Subject.Contains(p, sc) ||
+                c.BranchName.Contains(p, sc) ||
+                c.Author.Contains(p, sc) ||
+                c.AuthorTime.IsoDate().Contains(p, sc) ||
+                c.BranchNiceUniqueName.Contains(p, sc) ||
+                c.Tags.Any(t => t.Name.Contains(p, sc))))
+            .Take(maxCount)
+            .ToDictionary(c => c.Id, c => c);
+    }
+
+
+    static Repo EmptyFilteredRepo(Augmented.Repo augRepo, string filter)
+    {
+        var id = Repo.TruncatedLogCommitID;
+        var msg = $"<... No commits matching filter ...>";
+        var branchName = "<none>";
+        var commits = new List<Commit>(){ new Commit( id, id.Sid(),
+            msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
+            new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
+            new List<string>(), false,false,false,false,false,false,false,false,false,false, More.None)};
+        var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
+            id, id, false, false, false, "", "", true, false, true, true, "", "", false, false, "",
+            new List<string>(), new List<string>(), new List<string>(), 0, false, false) };
+
+        return new Repo(DateTime.UtcNow, augRepo, commits, branches, new List<Stash>(), augRepo.Status, filter);
+    }
 
     void SetAheadBehind(
         List<Augmented.Branch> filteredBranches,
@@ -269,7 +361,7 @@ class ViewRepoCreater : IViewRepoCreater
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
         Sorter.Sort(sorted, (b1, b2) => CompareBranches(repo, b1, b2, branchOrders));
 
-        // Reinsert the pullmerge branches just after its parent branch
+        // Reinsert the pullMerge branches just after its parent branch
         var toInsert = new Queue<Augmented.Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
         while (toInsert.Any())
         {

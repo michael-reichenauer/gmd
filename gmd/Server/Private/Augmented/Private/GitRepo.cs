@@ -42,6 +42,6 @@ class GitRepo
     public IReadOnlyList<GitStash> Stashes { get; }
     public bool IsTruncated { get; }
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";
 }
 

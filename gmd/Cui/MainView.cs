@@ -70,7 +70,7 @@ partial class MainView : IMainView
 
         string path = GetWorkingFolder();
         // Environment.CurrentDirectory = "/workspaces";
-        // path = "/lkwjlkj";
+        // path = "/NoExistFolder";
         // path = "/workspaces/Terminal.Gui";
         // path = "/workspaces/gt2";
         // path = "/workspaces/Dependitor";

@@ -45,7 +45,7 @@ class BranchColorService : IBranchColorService
             return GetColor(repo, parentBranch);
         }
 
-        // Parent is a different branch lets use a colore that is different
+        // Parent is a different branch lets use a colors that is different
         Color color = BranchNameColor(branch.PrimaryBaseName, 0);
         Color parentColor = GetColor(repo, parentBranch);
         if (color == parentColor)

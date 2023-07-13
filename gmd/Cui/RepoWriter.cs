@@ -40,13 +40,30 @@ class RepoWriter : IRepoWriter
 
         Columns cw = ColumnWidths(repo, width);
 
+        Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
             var c = repo.Commits[i];
 
             Text text = Text.New;
-            var graphRow = repo.Graph.GetRow(i);
-            WriteGraph(text, graphRow, cw.GraphWidth);
+            if (repo.Repo.Filter == "")
+            {
+                var graphRow = repo.Graph.GetRow(i);
+                WriteGraph(text, graphRow, cw.GraphWidth);
+            }
+            else
+            {
+                var branchSymbol = "╼";
+                var currentBranch = repo.Branch(c.BranchPrimaryName);
+                var nextBranch = i + 1 < firstRow + count ? repo.Branch(repo.Commits[i + 1].BranchPrimaryName) : null;
+                if (currentBranch == prevBranch && currentBranch == nextBranch) branchSymbol = "┣";
+                else if (currentBranch == prevBranch) branchSymbol = "┗";
+                else if (currentBranch == nextBranch) branchSymbol = "┏";
+                prevBranch = currentBranch;
+
+                text.Color(branchColorService.GetColor(repo.Repo, currentBranch), branchSymbol);
+            }
+
             WriteCurrentMarker(text, c, isUncommitted, isBranchDetached);
             WriteAheadBehindMarker(text, c);
             WriteSubjectColumn(text, cw, c, crb, branchTips);
@@ -161,7 +178,7 @@ class RepoWriter : IRepoWriter
                 subjectWidth = columnWidth - tagsWidth - tipsWidth;
             }
             else if (Math.Min(subjectText.Length, 25) + tagsText.Length + tipsText.Length <= columnWidth)
-            {   // Just shorten the subject a bit (will show enaugh)
+            {   // Just shorten the subject a bit (will show enough)
                 tagsWidth = tagsText.Length;
                 tipsWidth = tipsText.Length;
                 subjectWidth = columnWidth - tagsWidth - tipsWidth;
@@ -264,7 +281,7 @@ class RepoWriter : IRepoWriter
             }
 
             if (b.AmbiguousTipId != "")
-            {   // The branch has an ambigous tip id as well, add that
+            {   // The branch has an ambiguous tip id as well, add that
                 if (!branchTips.TryGetValue(b.AmbiguousTipId, out var ambiguousTipText))
                 {
                     ambiguousTipText = Text.New;
@@ -297,7 +314,7 @@ class RepoWriter : IRepoWriter
                             }
                         }
                         else
-                        {   // Remote and local on different commits, (local banch will add itself)
+                        {   // Remote and local on different commits, (local branch will add itself)
                             tipText.Color(color, $"(^/{branchName})");
                         }
                     }
