@@ -27,7 +27,7 @@ class Graph
 
     internal GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
 
-    public IReadOnlyList<GraphBranch> GetOverlappinBranches(string branchName)
+    public IReadOnlyList<GraphBranch> GetOverlappingBranches(string branchName)
     {
         var branch = BranchByName(branchName);
         return branches.Where(b => IsOverlapping(b, branch)).ToList();
@@ -52,11 +52,6 @@ class Graph
             (top2 <= top1 && bottom2 >= bottom1);
     }
 
-
-    internal IReadOnlyList<GraphBranch> GetRowBranches(int rowIndex) =>
-        GetRow(rowIndex).columns
-        .Where(c => c.Branch != null)
-        .Select(c => c.Branch!).ToList();
 
 
     internal void DrawHorizontalLine(int x1, int x2, int y, Color color)

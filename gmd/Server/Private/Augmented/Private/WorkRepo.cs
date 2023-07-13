@@ -60,7 +60,7 @@ class WorkCommit
     public List<string> MergeChildIds { get; } = new List<string>();           // Child id, which have this commit as merge parent
 
     public List<WorkCommit> FirstChildren { get; } = new List<WorkCommit>();   // Children which have this commit as first parent
-    public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>();   // Chilren, which have this commit as merge parent
+    public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>();   // Children, which have this commit as merge parent
 
     public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
     public WorkBranch? Branch { get; set; }
@@ -124,7 +124,7 @@ internal class WorkBranch
     public bool HasLocalOnly { get; set; }
     public bool HasRemoteOnly { get; set; }
 
-    public string AmbiguousTipId { get; set; } = ""; // Set if this branch has ambigous last part
+    public string AmbiguousTipId { get; set; } = ""; // Set if this branch has ambiguous last part
     public bool IsCircularAncestors { get; internal set; }
 
     public List<WorkBranch> RelatedBranches = new List<WorkBranch>();
