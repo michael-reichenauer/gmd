@@ -20,7 +20,8 @@ record Repo
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
         IReadOnlyList<Stash> stashes,
-        Status status)
+        Status status,
+        string filter)
     {
         TimeStamp = timeStamp;
         this.repo = augRepo;
@@ -29,6 +30,7 @@ record Repo
         Branches = branches;
         Stashes = stashes;
         Status = status;
+        Filter = filter;
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
@@ -41,7 +43,7 @@ record Repo
     public IReadOnlyList<Stash> Stashes { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
     public Status Status { get; init; }
-
+    public string Filter { get; }
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 

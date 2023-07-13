@@ -53,7 +53,7 @@ class GraphCreater : IGraphCreater
         SetBranchesXLocation(branches);
 
         // The width is the max branch X +2 room for 'more' branch in/out signs
-        int width = branches.Max(b => b.X) + 2;
+        int width = branches.Any() ? branches.Max(b => b.X) + 2 : 2;
 
         Sorter.Sort(branches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
         Graph graph = new Graph(width, repo.Commits.Count, branches);
@@ -89,7 +89,7 @@ class GraphCreater : IGraphCreater
     {
         foreach (var b in branches)
         {
-            bool isAmbiguous = false; // Is set to true if commit is ambigous, changes branch color
+            bool isAmbiguous = false; // Is set to true if commit is ambiguous, changes branch color
 
             for (int y = b.TipIndex; y <= b.BottomIndex; y++)
             {

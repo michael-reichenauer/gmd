@@ -123,10 +123,7 @@ class ContentView : View
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
-        if (!IsFocus)
-        {
-            return false;
-        }
+        if (!IsFocus) return false;
 
         if (keys.TryGetValue(keyEvent.Key, out var callback))
         {
@@ -510,10 +507,5 @@ class ContentView : View
         }
 
         return (sbStart, sbStart + sbSize);
-    }
-
-    internal void RegisterKeyHandler(object value)
-    {
-        throw new NotImplementedException();
     }
 }

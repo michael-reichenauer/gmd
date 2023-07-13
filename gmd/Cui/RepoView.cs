@@ -22,6 +22,7 @@ interface IRepoView
     void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null);
     void RefreshAndFetch(string addName = "", string commitId = "");
     void ToggleDetails();
+    void ShowFilter();
 }
 
 class RepoView : IRepoView
@@ -41,6 +42,7 @@ class RepoView : IRepoView
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
+    readonly IFilterDlg filterDlg;
     readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView commitsView;
     readonly IRepoWriter repoWriter;
@@ -52,8 +54,8 @@ class RepoView : IRepoView
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
     bool isShowDetails = false;
+    bool isShowFilter;
     bool isRegistered = false;
-
 
     internal RepoView(
         Server.IServer server,
@@ -65,7 +67,8 @@ class RepoView : IRepoView
         IRepoState repoState,
         IProgress progress,
         IGit git,
-        ICommitDetailsView commitDetailsView) : base()
+        ICommitDetailsView commitDetailsView,
+        IFilterDlg filterDlg) : base()
     {
         this.server = server;
         this.newRepoWriter = newRepoWriter;
@@ -77,6 +80,7 @@ class RepoView : IRepoView
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
+        this.filterDlg = filterDlg;
         commitsView = new ContentView(onGetContent)
         {
             X = 0,
@@ -95,6 +99,7 @@ class RepoView : IRepoView
         server.RepoChange += OnRefreshRepo;
         server.StatusChange += OnRefreshStatus;
     }
+
 
 
     public View View => commitsView;
@@ -154,22 +159,39 @@ class RepoView : IRepoView
           ShowRefreshedRepoAsync(addName, commitId, true).RunInBackground();
 
 
+    public void ShowFilter()
+    {
+        isShowFilter = true;
+
+        commitsView.Y = 2;
+        commitsView.IsFocus = false;
+        commitsView.SetNeedsDisplay();
+        filterDlg.Show(repo!.Repo, r => ShowRepo(r));
+
+        // Show Commits again
+        isShowFilter = false;
+        commitsView.Y = 0;
+        commitsView.IsFocus = true;
+        commitsView.SetFocus();
+        commitsView.SetNeedsDisplay();
+    }
+
     public void ToggleDetails()
     {
         isShowDetails = !isShowDetails;
 
-        if (!isShowDetails)
+        if (isShowDetails)
+        {
+            commitsView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+            commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
+            OnCurrentIndexChange();
+        }
+        else
         {
             commitsView.Height = Dim.Fill();
             commitDetailsView.View.Height = 0;
             commitsView.IsFocus = true;
             commitDetailsView.View.IsFocus = false;
-        }
-        else
-        {
-            commitsView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
-            commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
-            OnCurrentIndexChange();
         }
 
         commitsView.SetNeedsDisplay();
@@ -218,7 +240,7 @@ class RepoView : IRepoView
         isRegistered = true;
 
         // Keys on repo view contents
-        commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
+        commitsView.RegisterKeyHandler(Key.Esc, () => OnEsc());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         commitsView.RegisterKeyHandler(Key.o, () => menuService!.ShowOpenMenu());
@@ -239,6 +261,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
+        //commitsView.RegisterKeyHandler(Key.e, () => TogglerFilter());
         commitsView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
@@ -249,6 +272,17 @@ class RepoView : IRepoView
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+
+        // // Keys on filter view.
+        // filterView.RegisterKeyHandler(Key.Esc, () => TogglerFilter());
+        // filterView.RegisterKeyHandler(Key.Enter, () => TogglerFilter());
+
+    }
+
+    private void OnEsc()
+    {
+        Log.Info("Esc pressed, shutting down");
+        UI.Shutdown();
     }
 
     void Copy()
@@ -367,6 +401,8 @@ class RepoView : IRepoView
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
+        if (serverRepo.Filter != "") return;
+
         var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
@@ -401,10 +437,7 @@ class RepoView : IRepoView
 
     private void ToggleDetailsFocus()
     {
-        if (!isShowDetails)
-        {
-            return;
-        }
+        if (!isShowDetails) return;
 
         // Shift focus (unfortunately SetFocus() does not seem to work)
         commitsView.IsFocus = !commitsView.IsFocus;
@@ -451,6 +484,8 @@ class RepoView : IRepoView
 
     async Task<R<Server.Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
+        if (isShowFilter) return repo!.Repo;
+
         try
         {
             isStatusUpdateInProgress = true;
@@ -466,6 +501,8 @@ class RepoView : IRepoView
 
     async Task<R<Server.Repo>> GetUpdateStatusRepoAsync(Server.Repo repo)
     {
+        if (isShowFilter) return repo!;
+
         try
         {
             isStatusUpdateInProgress = true;

@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using gmd.Common;
 
 namespace gmd.Server.Private;
@@ -7,6 +8,8 @@ namespace gmd.Server.Private;
 interface IViewRepoCreater
 {
     Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified);
+
+    Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -19,6 +22,7 @@ class ViewRepoCreater : IViewRepoCreater
         this.converter = converter;
         this.repoState = repoState;
     }
+
 
     public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
     {
@@ -39,12 +43,91 @@ class ViewRepoCreater : IViewRepoCreater
             converter.ToCommits(filteredCommits),
             converter.ToBranches(filteredBranches),
             converter.ToStashes(augRepo.Stashes),
-            augRepo.Status);
+            augRepo.Status,
+            "");
 
         Log.Info($"ViewRepo {t} {repo}");
         return repo;
     }
 
+
+    public Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount)
+    {
+        Log.Info($"GetFilteredViewRepoAsync '{filter}' {maxCount} on {augRepo}");
+        var t = Timing.Start();
+        filter = filter.Trim();
+
+        // var filteredCommits = new List<Augmented.Commit>();
+
+        // if (filter == "$")
+        //     filteredCommits = repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount);
+
+        // if (filter == "*") return converter.ToCommits(
+        //     repo.AugmentedRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
+        //         .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
+        //         .Where(c => c.IsAmbiguousTip)
+        //         .Take(maxCount)
+        //         .ToList());
+
+        var sc = StringComparison.OrdinalIgnoreCase;
+
+        // I need extract all text enclosed by double quotes.
+        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
+        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
+
+        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below. 
+        var modifiedFilter = filter;
+        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
+
+        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
+        var andParts = modifiedFilter.Split(' ').Where(p => p != "")
+            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces again 
+            .ToList();
+
+        // Find all branches matching all AND parts.
+        var branchNames = augRepo.Commits
+            .Where(c => andParts.All(p =>
+                c.Id.Contains(p, sc) ||
+                c.Subject.Contains(p, sc) ||
+                c.BranchName.Contains(p, sc) ||
+                c.Author.Contains(p, sc) ||
+                c.AuthorTime.IsoDate().Contains(p, sc) ||
+                c.BranchNiceUniqueName.Contains(p, sc) ||
+                c.Tags.Any(t => t.Name.Contains(p, sc))))
+            .Take(maxCount)
+            .Select(c => c.BranchName)
+            .Distinct()
+            .ToList();
+        t.Log($"Filtered on '{filter}' => {branchNames.Count} branches");
+
+        if (!branchNames.Any())
+        {
+            Repo r = NewFilteredEmptyRepo(augRepo, filter);
+            return r;
+        }
+
+        var repo = GetViewRepoAsync(augRepo, branchNames);
+
+        t.Log($"Filtered on '{filter}' => repo {repo}");
+
+        return repo;
+    }
+
+    static Repo NewFilteredEmptyRepo(Augmented.Repo augRepo, string filter)
+    {
+        var id = Repo.TruncatedLogCommitID;
+        var msg = $"<... No commits matching filter: '{filter}' ...>";
+        var branchName = "<none>";
+        var commits = new List<Commit>(){ new Commit( id, id.Sid(),
+            msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
+            new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
+            new List<string>(), false,false,false,false,false,false,false,false,false,false,More.None)};
+        var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
+            id, id, false, false, false, "", "", true, false, true, true, "", "", false, false, "",
+            new List<string>(), new List<string>(), new List<string>(), 0, false, false) };
+
+        return new Repo(DateTime.UtcNow, augRepo, commits, branches, new List<Stash>(), augRepo.Status, filter);
+    }
 
     void SetAheadBehind(
         List<Augmented.Branch> filteredBranches,

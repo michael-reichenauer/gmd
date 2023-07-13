@@ -57,6 +57,12 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
+    public async Task<R<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount)
+    {
+        await Task.CompletedTask;
+        return viewRepoCreater.GetFilteredViewRepoAsync(repo.AugmentedRepo, filter, maxCount);
+    }
+
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
         converter.ToBranches(repo.AugmentedRepo.Branches.Values);
@@ -112,7 +118,6 @@ class Server : IServer
         var result = converter.ToCommits(commits.ToList());
         Log.Info($"Filtered on '{filter}' => {result.Count} results {t}");
         return result;
-
     }
 
 

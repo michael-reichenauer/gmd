@@ -282,10 +282,8 @@ class RepoCommands : IRepoCommands
 
     public void Filter() => Do(async () =>
      {
-         if (!Try(out var commit, out var e, filterDlg.Show(repo))) return R.Ok;
-         await Task.Delay(0);
-
-         Refresh(commit.BranchName, commit.Id);
+         await Task.CompletedTask;
+         repoView.ShowFilter();
          return R.Ok;
      });
 
