@@ -40,6 +40,7 @@ class RepoWriter : IRepoWriter
 
         Columns cw = ColumnWidths(repo, width);
 
+        Branch prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
             var c = repo.Commits[i];
@@ -52,8 +53,15 @@ class RepoWriter : IRepoWriter
             }
             else
             {
-                var bbb = repo.Branch(c.BranchPrimaryName);
-                text.Color(branchColorService.GetColor(repo.Repo, bbb), "╼");
+                var branchSymbol = "╼";
+                var currentBranch = repo.Branch(c.BranchPrimaryName);
+                var nextBranch = i + 1 < firstRow + count ? repo.Branch(repo.Commits[i + 1].BranchPrimaryName) : null;
+                if (currentBranch == prevBranch && currentBranch == nextBranch) branchSymbol = "┣";
+                else if (currentBranch == prevBranch) branchSymbol = "┗";
+                else if (currentBranch == nextBranch) branchSymbol = "┏";
+                prevBranch = currentBranch;
+
+                text.Color(branchColorService.GetColor(repo.Repo, currentBranch), branchSymbol);
             }
 
             WriteCurrentMarker(text, c, isUncommitted, isBranchDetached);

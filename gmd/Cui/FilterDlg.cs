@@ -57,7 +57,6 @@ class FilterDlg : IFilterDlg
 
     private bool OnKey(Key key)
     {
-        Log.Info($"FilterDlg.OnKey: {key}");
         switch (key)
         {
             case Key.Enter:
@@ -69,7 +68,18 @@ class FilterDlg : IFilterDlg
             case Key.CursorDown:
                 resultsView.Move(1);
                 return true;
-
+            case Key.PageUp:
+                resultsView.Move(-resultsView.ContentHeight);
+                return true;
+            case Key.PageDown:
+                resultsView.Move(resultsView.ContentHeight);
+                return true;
+            case Key.Home:
+                resultsView.Move(-resultsView.Count);
+                return true;
+            case Key.End:
+                resultsView.Move(resultsView.Count);
+                return true;
         }
         return false;
     }
