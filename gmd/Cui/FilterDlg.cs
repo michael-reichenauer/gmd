@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    void Show(Server.Repo repo, Action<Server.Repo> onRepoChanged);
+    void Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
 
 class FilterDlg : IFilterDlg
@@ -21,7 +21,7 @@ class FilterDlg : IFilterDlg
     Server.Repo orgRepo = null!;
     string currentFilter = null!;
     Action<Repo> onRepoChanged = null!;
-
+    private ContentView resultsView = null!;
 
     internal FilterDlg(IServer server)
     {
@@ -29,18 +29,20 @@ class FilterDlg : IFilterDlg
     }
 
 
-    public void Show(Server.Repo repo, Action<Server.Repo> onRepoChanged)
+    public void Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
         this.orgRepo = repo;
         this.currentFilter = null!;
         this.onRepoChanged = onRepoChanged;
+        this.resultsView = commitsView;
 
-        dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, null, options => { options.X = -1; options.Y = -1; });
+        dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnKey, options => { options.X = -1; options.Y = -1; });
 
-        filterField = dlg.AddTextField(1, 0, 40);
+        dlg.AddLabel(0, 0, "Search:");
+        filterField = dlg.AddTextField(9, 0, 40);
         filterField.KeyUp += (k) => OnKeyUp(k);    // Update results and select commit on keys
 
-        resultCountField = dlg.AddLabel(44, 0);
+        resultCountField = dlg.AddLabel(53, 0);
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());
@@ -48,6 +50,24 @@ class FilterDlg : IFilterDlg
         dlg.Show(filterField);
     }
 
+    private bool OnKey(Key key)
+    {
+        Log.Info($"FilterDlg.OnKey: {key}");
+        switch (key)
+        {
+            case Key.Enter:
+                OnEnter(resultsView.CurrentIndex);
+                return true;
+            case Key.CursorUp:
+                resultsView.Move(-1);
+                return true;
+            case Key.CursorDown:
+                resultsView.Move(1);
+                return true;
+
+        }
+        return false;
+    }
 
     async Task UpdateFilteredResults()
     {
@@ -55,19 +75,17 @@ class FilterDlg : IFilterDlg
         if (filter == currentFilter) return;
 
         currentFilter = filter;
-        if (filter == "")
+        var repo = orgRepo;
+        var count = orgRepo.Commits.Count;
+
+        if (filter != "" && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, 1000)))
         {
-            resultCountField.Text = orgRepo.Commits.Count == 1 ? $"1 result" : $"{orgRepo.Commits.Count} results";
-            onRepoChanged(orgRepo);
-            return;
+            repo = filteredRepo;
+            count = repo.Commits.Count(c => c.BranchName != "<none>");
         }
 
-        if (Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, 1000)))
-        {
-            var commits = filteredRepo.Commits;
-            resultCountField.Text = filteredRepo.Commits.Count == 1 ? $"1 result" : $"{filteredRepo.Commits.Count} results";
-            onRepoChanged(filteredRepo);
-        }
+        resultCountField.Text = count == 1 ? $"1 result" : $"{count} results";
+        onRepoChanged(repo);
     }
 
 
@@ -94,6 +112,7 @@ class FilterDlg : IFilterDlg
     // User selected commit from list (or pressed enter on empty results to just close dlg)
     void OnEnter(int index)
     {
+        Log.Info($"OnEnter: {index}");
         // if (filteredCommits.Count > 0)
         // {   // User selected commit from list
         //     this.selectedCommit = filteredCommits[index];

@@ -48,6 +48,8 @@ class GraphCreater : IGraphCreater
 
     public Graph Create(Server.Repo repo)
     {
+        if (repo.Filter != "") return new Graph(1, 0, new List<GraphBranch>());
+
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);

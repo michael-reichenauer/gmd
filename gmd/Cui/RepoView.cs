@@ -161,12 +161,15 @@ class RepoView : IRepoView
 
     public void ShowFilter()
     {
-        isShowFilter = true;
+        var orgShowDetails = isShowDetails;
+        if (!isShowDetails) ToggleDetails();
 
+        isShowFilter = true;
         commitsView.Y = 2;
         commitsView.IsFocus = false;
         commitsView.SetNeedsDisplay();
-        filterDlg.Show(repo!.Repo, r => ShowRepo(r));
+        var orgRepo = repo!.Repo;
+        filterDlg.Show(repo!.Repo, r => ShowRepo(r), commitsView);
 
         // Show Commits again
         isShowFilter = false;
@@ -174,6 +177,8 @@ class RepoView : IRepoView
         commitsView.IsFocus = true;
         commitsView.SetFocus();
         commitsView.SetNeedsDisplay();
+        if (!orgShowDetails) ToggleDetails();
+        ShowRepo(orgRepo);
     }
 
     public void ToggleDetails()
@@ -240,7 +245,7 @@ class RepoView : IRepoView
         isRegistered = true;
 
         // Keys on repo view contents
-        commitsView.RegisterKeyHandler(Key.Esc, () => OnEsc());
+        commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
         commitsView.RegisterKeyHandler(Key.o, () => menuService!.ShowOpenMenu());
@@ -261,7 +266,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.h, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
-        //commitsView.RegisterKeyHandler(Key.e, () => TogglerFilter());
+
         commitsView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
@@ -272,18 +277,8 @@ class RepoView : IRepoView
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
-
-        // // Keys on filter view.
-        // filterView.RegisterKeyHandler(Key.Esc, () => TogglerFilter());
-        // filterView.RegisterKeyHandler(Key.Enter, () => TogglerFilter());
-
     }
 
-    private void OnEsc()
-    {
-        Log.Info("Esc pressed, shutting down");
-        UI.Shutdown();
-    }
 
     void Copy()
     {

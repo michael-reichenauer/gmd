@@ -53,11 +53,6 @@ class Graph
     }
 
 
-    internal IReadOnlyList<GraphBranch> GetRowBranches(int rowIndex) =>
-        GetRow(rowIndex).columns
-        .Where(c => c.Branch != null)
-        .Select(c => c.Branch!).ToList();
-
 
     internal void DrawHorizontalLine(int x1, int x2, int y, Color color)
     {

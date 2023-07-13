@@ -333,10 +333,15 @@ class RepoViewMenus : IRepoViewMenus
         // Get current branch, commit branch in/out and all shown branches
         var shownBranches = repo.Branches;
         var branches =
-            new[] { repo.GetCurrentBranch() }
+            new Branch[0]
             .Concat(repo.GetCommitBranches())
             .Concat(repo.Branches)
             .Where(b => !repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
+        var currentBranch = repo.CurrentBranch;
+        if (currentBranch != null && !branches.Contains(currentBranch))
+        {
+            branches = branches.Prepend(currentBranch);
+        }
 
         return ToShowBranchesItems(branches, true);
     }

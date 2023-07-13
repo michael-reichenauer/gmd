@@ -22,7 +22,6 @@ class FilterView : View, IFilterView
     Label textEnd = null!;
     Label border = null!;
     string currentFilter = "";
-    string filterText = "";
 
     public event Action? FilterChange;
 

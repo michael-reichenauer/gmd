@@ -85,7 +85,7 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
 
         // Find all branches matching all AND parts.
-        var branchNames = augRepo.Commits
+        var commits = augRepo.Commits
             .Where(c => andParts.All(p =>
                 c.Id.Contains(p, sc) ||
                 c.Subject.Contains(p, sc) ||
@@ -95,18 +95,19 @@ class ViewRepoCreater : IViewRepoCreater
                 c.BranchNiceUniqueName.Contains(p, sc) ||
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount)
-            .Select(c => c.BranchName)
-            .Distinct()
-            .ToList();
-        t.Log($"Filtered on '{filter}' => {branchNames.Count} branches");
+            .ToDictionary(c => c.Id, c => c);
+        var branchNames = commits.Values.Select(c => c.BranchName).Distinct().ToList();
+
+        t.Log($"Filtered on '{filter}' => {commits.Count} commits, {branchNames.Count} branches");
 
         if (!branchNames.Any())
         {
-            Repo r = NewFilteredEmptyRepo(augRepo, filter);
-            return r;
+            return NewFilteredEmptyRepo(augRepo, filter);
         }
 
-        var repo = GetViewRepoAsync(augRepo, branchNames);
+        var r = GetViewRepoAsync(augRepo, branchNames);
+        var adjustedCommits = r.Commits.Where(c => commits.ContainsKey(c.Id)).ToList();
+        var repo = new Repo(r.TimeStamp, r.AugmentedRepo, adjustedCommits, r.Branches, r.Stashes, r.Status, filter);
 
         t.Log($"Filtered on '{filter}' => repo {repo}");
 
@@ -121,7 +122,7 @@ class ViewRepoCreater : IViewRepoCreater
         var commits = new List<Commit>(){ new Commit( id, id.Sid(),
             msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
             new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
-            new List<string>(), false,false,false,false,false,false,false,false,false,false,More.None)};
+            new List<string>(), false,false,false,false,false,false,false,false,false,false, More.None)};
         var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
             id, id, false, false, false, "", "", true, false, true, true, "", "", false, false, "",
             new List<string>(), new List<string>(), new List<string>(), 0, false, false) };

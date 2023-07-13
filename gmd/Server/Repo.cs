@@ -83,6 +83,7 @@ public record Commit(
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser,
+    // bool IsInFilter,
 
     // View properties
     More More)
