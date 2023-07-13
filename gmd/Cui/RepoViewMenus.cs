@@ -335,13 +335,13 @@ class RepoViewMenus : IRepoViewMenus
         var branches =
             new Branch[0]
             .Concat(repo.GetCommitBranches())
-            .Concat(repo.Branches)
-            .Where(b => !repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
+            .Concat(repo.Branches);
         var currentBranch = repo.GetCurrentBranch();
         if (currentBranch != null && !branches.Contains(currentBranch))
         {
             branches = branches.Prepend(currentBranch);
         }
+        branches = branches.Where(b => !repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
 
         return ToShowBranchesItems(branches, true);
     }
