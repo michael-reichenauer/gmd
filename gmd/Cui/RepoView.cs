@@ -161,30 +161,31 @@ class RepoView : IRepoView
 
     public void ShowFilter()
     {
-        var orgShowDetails = isShowDetails;
-        if (!isShowDetails) ToggleDetails();
-
         isShowFilter = true;
+        // Make room for filter dialog
         commitsView.Y = 2;
         commitsView.IsFocus = false;
         commitsView.SetNeedsDisplay();
+
         var orgRepo = repo!.Repo;
+        var orgCommit = repo.RowCommit;
         Try(out var commit, out var e, filterDlg.Show(repo!.Repo, r => ShowRepo(r), commitsView));
 
-        // Show Commits again
+        // Show Commits view normal again
         isShowFilter = false;
         commitsView.Y = 0;
         commitsView.IsFocus = true;
         commitsView.SetFocus();
         commitsView.SetNeedsDisplay();
-        if (!orgShowDetails) ToggleDetails();
+
         if (commit != null)
-        {
+        {   // User selected a commit, show it
             Refresh(commit.BranchName, commit.Id);
         }
         else
         {
             ShowRepo(orgRepo);
+            ScrollToCommit(orgCommit.Id);
         }
     }
 

@@ -50,28 +50,51 @@ class ViewRepoCreater : IViewRepoCreater
         return repo;
     }
 
-
     public Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount)
     {
-        Log.Info($"GetFilteredViewRepoAsync '{filter}' {maxCount} on {augRepo}");
-        var t = Timing.Start();
-        filter = filter.Trim();
+        using (Timing.Start($"Filtered repo on '{filter}'"))
+        {
+            IReadOnlyDictionary<string, Augmented.Commit> filteredCommits = null!;
 
-        // var filteredCommits = new List<Augmented.Commit>();
+            if (filter == "$")
+            {   // Get all commits, where branch was set manually by user
+                filteredCommits = augRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToDictionary(c => c.Id, c => c);
+            }
+            else if (filter == "*")
+            {   // Get all commits, with ambiguous tip
+                filteredCommits = augRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
+                    .Select(b => augRepo.CommitById[b.AmbiguousTipId])
+                    .Where(c => c.IsAmbiguousTip)
+                    .Take(maxCount)
+                    .ToDictionary(c => c.Id, c => c);
+            }
+            else
+            {   // Get all commits matching filter
+                filteredCommits = GetFilteredCommits(augRepo, filter, maxCount);
+            }
 
-        // if (filter == "$")
-        //     filteredCommits = repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount);
+            // Get all branch names for the filtered commits
+            var branchNames = filteredCommits.Values.Select(c => c.BranchName).Distinct().ToList();
+            if (!branchNames.Any())
+            {   // No commits matching filter, return empty repo
+                Log.Info($"No commits matching filter'");
+                return EmptyFilteredRepo(augRepo, filter);
+            }
 
-        // if (filter == "*") return converter.ToCommits(
-        //     repo.AugmentedRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
-        //         .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
-        //         .Where(c => c.IsAmbiguousTip)
-        //         .Take(maxCount)
-        //         .ToList());
+            // First create view repo with all branches and their commits
+            var r = GetViewRepoAsync(augRepo, branchNames);
 
+            // Return repo with filtered commits and their branches
+            var adjustedCommits = r.Commits.Where(c => filteredCommits.ContainsKey(c.Id)).ToList();
+            return new Repo(r.TimeStamp, r.AugmentedRepo, adjustedCommits, r.Branches, r.Stashes, r.Status, filter);
+        }
+    }
+
+    IReadOnlyDictionary<string, Augmented.Commit> GetFilteredCommits(Augmented.Repo augRepo, string filter, int maxCount)
+    {
         var sc = StringComparison.OrdinalIgnoreCase;
 
-        // I need extract all text enclosed by double quotes.
+        // Need extract all text enclosed by double quotes in filter (for exact matches of them)
         var matches = Regex.Matches(filter, "\"([^\"]*)\"");
         var quoted = matches.Select(m => m.Groups[1].Value).ToList();
 
@@ -85,7 +108,7 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
 
         // Find all branches matching all AND parts.
-        var commits = augRepo.Commits
+        return augRepo.Commits
             .Where(c => andParts.All(p =>
                 c.Id.Contains(p, sc) ||
                 c.Subject.Contains(p, sc) ||
@@ -96,28 +119,13 @@ class ViewRepoCreater : IViewRepoCreater
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount)
             .ToDictionary(c => c.Id, c => c);
-        var branchNames = commits.Values.Select(c => c.BranchName).Distinct().ToList();
-
-        t.Log($"Filtered on '{filter}' => {commits.Count} commits, {branchNames.Count} branches");
-
-        if (!branchNames.Any())
-        {
-            return NewFilteredEmptyRepo(augRepo, filter);
-        }
-
-        var r = GetViewRepoAsync(augRepo, branchNames);
-        var adjustedCommits = r.Commits.Where(c => commits.ContainsKey(c.Id)).ToList();
-        var repo = new Repo(r.TimeStamp, r.AugmentedRepo, adjustedCommits, r.Branches, r.Stashes, r.Status, filter);
-
-        t.Log($"Filtered on '{filter}' => repo {repo}");
-
-        return repo;
     }
 
-    static Repo NewFilteredEmptyRepo(Augmented.Repo augRepo, string filter)
+
+    static Repo EmptyFilteredRepo(Augmented.Repo augRepo, string filter)
     {
         var id = Repo.TruncatedLogCommitID;
-        var msg = $"<... No commits matching filter: '{filter}' ...>";
+        var msg = $"<... No commits matching filter ...>";
         var branchName = "<none>";
         var commits = new List<Commit>(){ new Commit( id, id.Sid(),
             msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
