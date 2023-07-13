@@ -169,7 +169,7 @@ class RepoView : IRepoView
         commitsView.IsFocus = false;
         commitsView.SetNeedsDisplay();
         var orgRepo = repo!.Repo;
-        filterDlg.Show(repo!.Repo, r => ShowRepo(r), commitsView);
+        Try(out var commit, out var e, filterDlg.Show(repo!.Repo, r => ShowRepo(r), commitsView));
 
         // Show Commits again
         isShowFilter = false;
@@ -178,7 +178,14 @@ class RepoView : IRepoView
         commitsView.SetFocus();
         commitsView.SetNeedsDisplay();
         if (!orgShowDetails) ToggleDetails();
-        ShowRepo(orgRepo);
+        if (commit != null)
+        {
+            Refresh(commit.BranchName, commit.Id);
+        }
+        else
+        {
+            ShowRepo(orgRepo);
+        }
     }
 
     public void ToggleDetails()

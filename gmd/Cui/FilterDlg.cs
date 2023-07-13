@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    void Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
+    R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
 
 class FilterDlg : IFilterDlg
@@ -19,9 +19,12 @@ class FilterDlg : IFilterDlg
     Label resultCountField = null!;
 
     Server.Repo orgRepo = null!;
+    Server.Repo currentRepo = null!;
+
     string currentFilter = null!;
     Action<Repo> onRepoChanged = null!;
-    private ContentView resultsView = null!;
+    ContentView resultsView = null!;
+    R<Server.Commit> selectedCommit = R.Error("No commit selected");
 
     internal FilterDlg(IServer server)
     {
@@ -29,7 +32,7 @@ class FilterDlg : IFilterDlg
     }
 
 
-    public void Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
+    public R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
         this.orgRepo = repo;
         this.currentFilter = null!;
@@ -48,6 +51,8 @@ class FilterDlg : IFilterDlg
         UI.Post(() => UpdateFilteredResults().RunInBackground());
 
         dlg.Show(filterField);
+
+        return selectedCommit;
     }
 
     private bool OnKey(Key key)
@@ -75,48 +80,36 @@ class FilterDlg : IFilterDlg
         if (filter == currentFilter) return;
 
         currentFilter = filter;
-        var repo = orgRepo;
+        currentRepo = orgRepo;
         var count = orgRepo.Commits.Count;
 
         if (filter != "" && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, 1000)))
         {
-            repo = filteredRepo;
-            count = repo.Commits.Count(c => c.BranchName != "<none>");
+            currentRepo = filteredRepo;
+            count = currentRepo.Commits.Count(c => c.BranchName != "<none>");
+            resultsView.MoveToTop();
         }
 
         resultCountField.Text = count == 1 ? $"1 result" : $"{count} results";
-        onRepoChanged(repo);
+        onRepoChanged(currentRepo);
     }
 
 
-    // User pressed key in filter field, select commit on enter or update results 
+    // User pressed key in filter field, update results 
     void OnKeyUp(View.KeyEventEventArgs e)
     {
-        try
-        {
-            var key = e.KeyEvent.Key;
-            if (key == Key.Enter)
-            {
-                //OnEnter(resultsView.CurrentIndex);
-                return;
-            }
-
-            UpdateFilteredResults().RunInBackground();
-        }
-        finally
-        {
-            e.Handled = true;
-        }
+        UpdateFilteredResults().RunInBackground();
+        e.Handled = true;
     }
 
     // User selected commit from list (or pressed enter on empty results to just close dlg)
     void OnEnter(int index)
     {
         Log.Info($"OnEnter: {index}");
-        // if (filteredCommits.Count > 0)
-        // {   // User selected commit from list
-        //     this.selectedCommit = filteredCommits[index];
-        // }
+        if (currentRepo.Commits.Count > 0)
+        {   // User selected commit from list
+            this.selectedCommit = currentRepo.Commits[index];
+        }
 
         dlg.Close();
     }

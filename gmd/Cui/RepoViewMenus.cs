@@ -337,7 +337,7 @@ class RepoViewMenus : IRepoViewMenus
             .Concat(repo.GetCommitBranches())
             .Concat(repo.Branches);
         var currentBranch = repo.GetCurrentBranch();
-        if (currentBranch != null && !branches.Contains(currentBranch))
+        if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
         {
             branches = branches.Prepend(currentBranch);
         }
