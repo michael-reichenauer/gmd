@@ -56,8 +56,8 @@ class FilterDlg : IFilterDlg
 
         // Status fields
         resultCountField = dlg.AddLabel(43, 0);
-        commitLabel = dlg.AddLabel(57, 0, "");
-        branchLabel = dlg.AddLabel(64, 0, "");
+        commitLabel = dlg.AddLabel(71, 0, "");
+        branchLabel = dlg.AddLabel(78, 0, "");
         branchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.White };
 
         // Initializes results with current repo commits
@@ -200,8 +200,9 @@ class FilterDlg : IFilterDlg
 
     void ShowRepoInfo()
     {
-        var count = currentRepo.Commits.Count(c => c.BranchName != "<none>");
-        resultCountField.Text = count == 1 ? $"1 result" : $"{count} commits,";
+        var commitCount = currentRepo.Commits.Count(c => c.BranchName != "<none>");
+        var branchCount = currentRepo.Commits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
+        resultCountField.Text = $"{commitCount} commits, {branchCount} branches,";
     }
 }
 
