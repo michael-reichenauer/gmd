@@ -296,7 +296,7 @@ class ViewRepoCreater : IViewRepoCreater
                 repo.Branches.Values.Where(b => !b.IsCircularAncestors)
                     .OrderBy(b => repo.CommitById[b.TipId].GitIndex)
                     .Where(b => b.IsPrimary)
-                    .Take(15)
+                    .Take(10)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
                 break;
             case ShowBranches.AllActive:
