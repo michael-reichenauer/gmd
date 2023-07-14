@@ -74,7 +74,10 @@ class CommitDlg : ICommitDlg
             msg += "\n";
         }
 
-        var text = string.Join('\n', commits.Select(c => $"- {indent(c.Message)}"));
+        var text = string.Join('\n', commits
+            .Select(c => indent(c.Message))
+            .Where(m => m.Trim() != "")
+            .Select(m => $"- {m}"));
         message.Text = $"{msg}{text}";
         message.SetNeedsDisplay();
     }
