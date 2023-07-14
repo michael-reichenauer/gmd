@@ -40,30 +40,14 @@ class RepoWriter : IRepoWriter
 
         Columns cw = ColumnWidths(repo, width);
 
-        Branch? prevBranch = null;
+        // Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
             var c = repo.Commits[i];
 
             Text text = Text.New;
-            if (repo.Repo.Filter == "")
-            {
-                var graphRow = repo.Graph.GetRow(i);
-                WriteGraph(text, graphRow, cw.GraphWidth);
-            }
-            else
-            {
-                var branchSymbol = "╼";
-                var currentBranch = repo.Branch(c.BranchPrimaryName);
-                var nextBranch = i + 1 < firstRow + count ? repo.Branch(repo.Commits[i + 1].BranchPrimaryName) : null;
-                if (currentBranch == prevBranch && currentBranch == nextBranch) branchSymbol = "┣";
-                else if (currentBranch == prevBranch) branchSymbol = "┗";
-                else if (currentBranch == nextBranch) branchSymbol = "┏";
-                prevBranch = currentBranch;
-
-                text.Color(branchColorService.GetColor(repo.Repo, currentBranch), branchSymbol);
-            }
-
+            var graphRow = repo.Graph.GetRow(i);
+            WriteGraph(text, graphRow, cw.GraphWidth);
             WriteCurrentMarker(text, c, isUncommitted, isBranchDetached);
             WriteAheadBehindMarker(text, c);
             WriteSubjectColumn(text, cw, c, crb, branchTips);

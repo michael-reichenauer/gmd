@@ -118,6 +118,8 @@ class GraphWriter : IGraphWriter
                 return "┤";
             case Sign.MergeFromLeft:
                 return "╭";
+            case Sign.MergeFromLeft | Sign.Pass:
+                return "╭";
             case Sign.MergeFromLeft | Sign.BranchToLeft:
                 return "├";
             case Sign.MergeFromLeft | Sign.ConnectLine:

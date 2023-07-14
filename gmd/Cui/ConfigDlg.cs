@@ -1,8 +1,6 @@
-using System.Runtime.InteropServices;
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Installation;
-using Terminal.Gui;
 
 namespace gmd.Cui;
 
@@ -46,7 +44,7 @@ class ConfigDlg : IConfigDlg
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
         var isAddGmdToPath = dlg.AddCheckBox(1, 8, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
-        isAddGmdToPath.Visible = !Build.IsDevInstance() && RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        isAddGmdToPath.Visible = !Build.IsDevInstance() && Build.IsWindows;
 
         if (dlg.ShowOkCancel())
         {
@@ -68,7 +66,7 @@ class ConfigDlg : IConfigDlg
 
     static void UpdatePathVariable(bool isAddGmdToPath)
     {
-        if (Build.IsDevInstance() || !RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
+        if (Build.IsDevInstance() || !Build.IsWindows) return;
 
         if (isAddGmdToPath)
         {
@@ -98,7 +96,7 @@ class ConfigDlg : IConfigDlg
         string pathVariable = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
         string newPathVariable = pathVariable != "" ? pathVariable + ";" + folderPath : folderPath;
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
         }
@@ -124,7 +122,7 @@ class ConfigDlg : IConfigDlg
         var parts = pathVariables.Split(';');
         string newPathVariable = String.Join(';', parts.Where(p => p.ToUpper() != folderPath));
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
         }
