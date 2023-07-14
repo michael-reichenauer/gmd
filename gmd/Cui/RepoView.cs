@@ -444,8 +444,7 @@ class RepoView : IRepoView
         var commit = repo!.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
-            var index = Math.Max(0, commit.Index - 5);
-            commitsView.ScrollToShowIndex(index);
+            commitsView.ScrollToShowIndex(commit.Index);
             commitsView.SetCurrentIndex(commit.Index);
         }
     }

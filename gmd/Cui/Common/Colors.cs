@@ -7,7 +7,6 @@ static class TextColor
 {
     public static readonly Terminal.Gui.Attribute Blue = Make(Terminal.Gui.Color.Blue);
     public static readonly Terminal.Gui.Attribute Green = Make(Terminal.Gui.Color.Green);
-    //public static readonly Terminal.Gui.Attribute GreenHighlLight = Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Green);
     public static readonly Terminal.Gui.Attribute Cyan = Make(Terminal.Gui.Color.Cyan);
     public static readonly Terminal.Gui.Attribute Red = Make(Terminal.Gui.Color.Red);
     public static readonly Terminal.Gui.Attribute Magenta = Make(Terminal.Gui.Color.Magenta);
@@ -17,7 +16,6 @@ static class TextColor
     public static readonly Terminal.Gui.Attribute BrightGreen = Make(Terminal.Gui.Color.BrightGreen);
     public static readonly Terminal.Gui.Attribute BrightCyan = Make(Terminal.Gui.Color.BrightCyan);
     public static readonly Terminal.Gui.Attribute BrightRed = Make(Terminal.Gui.Color.BrightRed);
-    //public static readonly Terminal.Gui.Attribute BrightRedHighlight = Make(Terminal.Gui.Color.White, Terminal.Gui.Color.BrightRed);
     public static readonly Terminal.Gui.Attribute BrightMagenta = Make(Terminal.Gui.Color.BrightMagenta);
     public static readonly Terminal.Gui.Attribute BrightYellow = Make(Terminal.Gui.Color.BrightYellow);
     public static readonly Terminal.Gui.Attribute White = Make(Terminal.Gui.Color.White);

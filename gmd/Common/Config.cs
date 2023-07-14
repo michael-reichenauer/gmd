@@ -16,7 +16,7 @@ interface IConfig
     void Set(Action<Config> setState);
 }
 
-
+// cSpell:ignore gmdconfig
 class ConfigImpl : IConfig
 {
     static string FilePath = Path.Join(Environment.GetFolderPath(

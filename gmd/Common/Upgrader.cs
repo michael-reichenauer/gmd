@@ -2,6 +2,7 @@ using static System.Environment;
 
 namespace gmd.Common;
 
+// cSpell:ignore gmdconfig
 class Upgrader
 {
     internal void UpgradeData()

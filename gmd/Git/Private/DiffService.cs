@@ -9,6 +9,7 @@ interface IDiffService
     Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd);
 }
 
+// cSpell:ignore uFEFF
 class DiffService : IDiffService
 {
     private readonly ICmd cmd;
@@ -271,20 +272,20 @@ class DiffService : IDiffService
 
     (int, bool) ParsePossibleIndexRows(int i, string[] lines)
     {
-        bool isBinay = false;
-        if (i >= lines.Length) return (i, isBinay);
+        bool isBinary = false;
+        if (i >= lines.Length) return (i, isBinary);
         if (lines[i].StartsWith("index ")) { i++; }
-        if (i >= lines.Length) return (i, isBinay);
+        if (i >= lines.Length) return (i, isBinary);
         if (lines[i].StartsWith("Binary "))
         {
-            isBinay = true;
+            isBinary = true;
             i++;
         }
-        if (i >= lines.Length) return (i, isBinay);
+        if (i >= lines.Length) return (i, isBinary);
         if (lines[i].StartsWith("--- ")) { i++; }
-        if (i >= lines.Length) return (i, isBinay);
+        if (i >= lines.Length) return (i, isBinary);
         if (lines[i].StartsWith("+++ ")) { i++; }
-        return (i, isBinay);
+        return (i, isBinary);
     }
 
     (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
@@ -388,7 +389,7 @@ class DiffService : IDiffService
 
     List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
     {
-        // Update diffmode on files, which satus has determined are conflicted
+        // Update diff mode on files, which status has determined are conflicted
         return fileDiffs
             .Select(fd => status.ConflictsFiles.Contains(fd.PathAfter)
                             ? fd with { DiffMode = DiffMode.DiffConflicts } : fd)

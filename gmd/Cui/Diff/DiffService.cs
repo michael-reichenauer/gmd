@@ -64,7 +64,7 @@ class DiffService : IDiffService
         commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows));
     }
 
-    // Add a summery of the commit wiht id, author, date and message
+    // Add a summery of the commit with id, author, date and message
     void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.New.Yellow("═"));
@@ -258,7 +258,7 @@ class DiffService : IDiffService
         var leftString = lL.text.TrimStart();
         var rightString = rL.text.TrimStart();
 
-        // Add leading spces back
+        // Add leading spaces back
         var leftText = Text.New.Black(new string(' ', lL.text.Length - leftString.Length));
         var rightText = Text.New.Black(new string(' ', rL.text.Length - rightString.Length));
 
@@ -283,7 +283,7 @@ class DiffService : IDiffService
             return (lT2, rT2);
         }
 
-        // Ther are a few differences in a line, show them marked differently in both sides
+        // There are a few differences in a line, show them marked differently in both sides
         int leftIndex = 0;
         int rightIndex = 0;
         foreach (var diff in result.DiffBlocks)

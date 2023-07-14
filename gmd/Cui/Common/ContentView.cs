@@ -85,15 +85,15 @@ class ContentView : View
         mouses[mouseFlags] = callback;
     }
 
-    internal void ScrollToShowIndex(int index)
+    internal void ScrollToShowIndex(int index, int margin = 5)
     {
-        if (index >= FirstIndex && index <= FirstIndex + ContentHeight)
+        if (index >= FirstIndex + margin && index <= FirstIndex + ContentHeight - margin)
         {
             // index already shown
             return;
         }
 
-        int scroll = index - FirstIndex;
+        int scroll = index - FirstIndex - 5;
         Scroll(scroll);
     }
 
