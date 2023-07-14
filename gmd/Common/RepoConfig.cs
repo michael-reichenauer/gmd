@@ -13,6 +13,7 @@ interface IRepoConfig
     void Set(string rootPath, Action<RepoConfig> set);
 }
 
+// cSpell:ignore gmdconfig
 class RepoConfigImpl : IRepoConfig
 {
     static readonly string FileName = ".gmdconfig";

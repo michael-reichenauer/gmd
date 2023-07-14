@@ -17,7 +17,7 @@ class Text
 
     internal Text Red(string text) => Color(TextColor.Red, text);
     internal Text Blue(string text) => Color(TextColor.Blue, text);
-    internal Text White(string text, bool isHiglight = false) => Color(TextColor.White, text);
+    internal Text White(string text, bool isHighlight = false) => Color(TextColor.White, text);
     internal Text Magenta(string text) => Color(TextColor.Magenta, text);
     internal Text BrightBlue(string text) => Color(TextColor.BrightBlue, text);
     internal Text BrightCyan(string text) => Color(TextColor.BrightCyan, text);

@@ -1,6 +1,3 @@
-
-
-
 namespace System;
 
 public static class TimeDateExtensions

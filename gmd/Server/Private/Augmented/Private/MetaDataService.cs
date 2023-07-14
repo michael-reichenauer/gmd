@@ -87,7 +87,7 @@ class MetaDataService : IMetaDataService
         };
 
         //Log.Info($"Metadata:\n{json}");
-        if (!Try(out var data, out e, Json.Deserilize<MetaData>(json))) return e;
+        if (!Try(out var data, out e, Json.Deserialize<MetaData>(json))) return e;
         //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
         return data;
     }

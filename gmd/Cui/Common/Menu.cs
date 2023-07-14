@@ -6,7 +6,7 @@ namespace gmd.Cui.Common;
 // Context menu
 class Menu
 {
-    record Dimensions(int X, int Y, int Width, int Heigth, int TitleWidth, int ShortcutWidth, int SubMenuMarkerWidth);
+    record Dimensions(int X, int Y, int Width, int Height, int TitleWidth, int ShortcutWidth, int SubMenuMarkerWidth);
 
     const int maxHeight = 30;
     readonly string title;
@@ -62,7 +62,7 @@ class Menu
         dim = GetDimensions();
         itemRows = ToItemsRows();
 
-        dlg = new UIDialog(title, dim.Width, dim.Heigth, null, options =>
+        dlg = new UIDialog(title, dim.Width, dim.Height, null, options =>
         {
             options.X = dim.X;
             options.Y = dim.Y;
@@ -84,10 +84,10 @@ class Menu
 
     Dimensions GetDimensions()
     {
-        var screeenWidth = Application.Driver.Cols;
+        var screenWidth = Application.Driver.Cols;
         var screenHeight = Application.Driver.Rows;
 
-        // Calculate view height based on number of items, screen height and max height if very large screeen 
+        // Calculate view height based on number of items, screen height and max height if very large screen 
         var viewHeight = Math.Min(items.Count + 2, Math.Min(maxHeight, screenHeight));
 
         // Calculate items width based on longest title and shortcut, and if sub menu marker is needed and scrollbar is needed
@@ -98,17 +98,17 @@ class Menu
 
         // Calculate view width based on title, shortcut, sub menu marker and scrollbar
         var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
-        if (viewWidth > screeenWidth)
+        if (viewWidth > screenWidth)
         {   // Too wide view, try to fit on screen (reduce title width)
-            viewWidth = screeenWidth;
+            viewWidth = screenWidth;
             titleWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
         // Calculate view x and y position to be centered if (-1) or based on original x and y 
-        var viewX = xOrg == -1 ? screeenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1
+        var viewX = xOrg == -1 ? screenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1
         var viewY = yOrg == -1 ? screenHeight / 2 - viewHeight / 2 : yOrg; // Centered if y == -1
 
-        if (viewX + viewWidth > screeenWidth)
+        if (viewX + viewWidth > screenWidth)
         {   // Too far to the right, try to move menu left
             if (altX >= 0)
             {   // Use alternative x position (left of parent menu)
@@ -132,7 +132,7 @@ class Menu
     {
         return items.Select(item =>
         {
-            if (item is MenuSeparator ms) return Text.New.BrightMagenta(ToSepratorText(ms));
+            if (item is MenuSeparator ms) return Text.New.BrightMagenta(ToSeparatorText(ms));
 
             // Color if disabled or not
             var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
@@ -170,11 +170,11 @@ class Menu
     }
 
 
-    string ToSepratorText(MenuSeparator item)
+    string ToSeparatorText(MenuSeparator item)
     {
         string title = item.Title;
         var width = dim.Width - 2;
-        var scrollbarWidth = items.Count + 2 > dim.Heigth ? 0 : 1;
+        var scrollbarWidth = items.Count + 2 > dim.Height ? 0 : 1;
         if (title == "")
         {   // Just a line ----
             title = new string('─', dim.Width - 2 + scrollbarWidth);

@@ -9,6 +9,7 @@ interface IProgramCommands
     Task<CommandResult> HandleCommands(string[] args);
 }
 
+// cSpell:ignore updatechangelog
 class ProgramCommands : IProgramCommands
 {
     readonly IUpdater updater;
@@ -36,11 +37,11 @@ class ProgramCommands : IProgramCommands
         }
         if (HasOptions(args, "--changelog"))
         {
-            return new CommandResult(true, ShowShangeLog());
+            return new CommandResult(true, ShowChangeLog());
         }
         if (HasOptions(args, "--updatechangelog"))
         {
-            return new CommandResult(true, UpdateShangeLog());
+            return new CommandResult(true, UpdateChangeLog());
         }
 
         return new CommandResult(false, 0);
@@ -101,7 +102,7 @@ class ProgramCommands : IProgramCommands
     }
 
 
-    int ShowShangeLog()
+    int ShowChangeLog()
     {
         Task.Run(async () =>
         {
@@ -119,7 +120,7 @@ class ProgramCommands : IProgramCommands
         return 0;
     }
 
-    int UpdateShangeLog()
+    int UpdateChangeLog()
     {
         Task.Run(async () =>
         {

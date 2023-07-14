@@ -42,7 +42,7 @@ static class MessageDlg
         }
         int textWidth = Math.Min(TextFormatter.MaxWidth(message, maxWidthLine), Application.Driver.Cols);
         int textHeight = TextFormatter.MaxLines(message, textWidth); // message.Count (ustring.Make ('\n')) + 1;
-        int msgboxHeight = Math.Min(Math.Max(1, textHeight) + 4, Application.Driver.Rows); // textHeight + (top + top padding + buttons + bottom)
+        int msgBoxHeight = Math.Min(Math.Max(1, textHeight) + 4, Application.Driver.Rows); // textHeight + (top + top padding + buttons + bottom)
 
         // Create button array for Dialog
         int count = 0;
@@ -68,7 +68,7 @@ static class MessageDlg
         {
             d = new Dialog(title, buttonList.ToArray())
             {
-                Height = msgboxHeight,
+                Height = msgBoxHeight,
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
                 ColorScheme = ColorSchemes.InfoDialog,
             };
@@ -126,7 +126,7 @@ static class MessageDlg
             }
         }
 
-        // Run the modal; do not shutdown the mainloop driver when done
+        // Run the modal; do not shutdown the main loop driver when done
         Application.Run(d);
         return Clicked;
     }

@@ -31,6 +31,7 @@ public class GitAsset
     public string browser_download_url { get; set; } = "";
 }
 
+// cSpell:ignore RTXZERT
 [SingleInstance]
 class Updater : IUpdater
 {

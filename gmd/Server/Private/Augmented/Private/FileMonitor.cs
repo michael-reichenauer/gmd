@@ -352,7 +352,7 @@ class FileMonitor : IFileMonitor
 
             isFileChanged = false;
 
-            // Log.Info($"File changed at {statusChangeTime.IsoMilli()}");
+            // Log.Info($"File changed at {statusChangeTime.IsoMs()}");
             fileChangedEvent = new ChangeEvent(statusChangeTime);
         }
 
@@ -373,7 +373,7 @@ class FileMonitor : IFileMonitor
 
             isRepoChanged = false;
 
-            // Log.Info($"Repo changed at {repoChangeTime.IsoMilli()}");
+            // Log.Info($"Repo changed at {repoChangeTime.IsoMs()}");
             repoChangedEvent = new ChangeEvent(repoChangeTime);
         }
 

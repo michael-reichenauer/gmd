@@ -224,7 +224,7 @@ class DiffView : IDiffView
     }
 
 
-    // Move boths sides in view left, or select left side text if text is selected
+    // Move both sides in view left, or select left side text if text is selected
     void OnMoveLeft()
     {
         if (!IsSelectedLeft && contentView.SelectCount > 0)
@@ -234,7 +234,7 @@ class DiffView : IDiffView
             return;
         }
 
-        // Move boths sides in view left
+        // Move both sides in view left
         if (rowStartX > 0)
         {
             rowStartX--;
@@ -243,7 +243,7 @@ class DiffView : IDiffView
     }
 
 
-    // Move boths sides in view right, or select right side text if text is selected
+    // Move both sides in view right, or select right side text if text is selected
     void OnMoveRight()
     {
         if (IsSelectedLeft && contentView.SelectCount > 0)
@@ -253,7 +253,7 @@ class DiffView : IDiffView
             return;
         }
 
-        // Move boths sides in view right
+        // Move both sides in view right
         int maxColumnWidth = contentView!.ContentWidth / 2;
         if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
