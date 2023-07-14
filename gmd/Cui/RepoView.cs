@@ -182,6 +182,7 @@ class RepoView : IRepoView
 
         if (commit != null)
         {   // User selected a commit, show it
+            ShowRepo(orgRepo);
             Refresh(commit.BranchName, commit.Id);
         }
         else
@@ -443,7 +444,8 @@ class RepoView : IRepoView
         var commit = repo!.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
-            commitsView.ScrollToShowIndex(commit.Index);
+            var index = Math.Max(0, commit.Index - 5);
+            commitsView.ScrollToShowIndex(index);
             commitsView.SetCurrentIndex(commit.Index);
         }
     }

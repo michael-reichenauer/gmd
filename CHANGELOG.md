@@ -1,9 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-94 releases:
+95 releases:
 
 ## [Current] - 2023-07-14
+- Improve select commit after search
+
+## [v0.80.257.500] - 2023-07-14
 - Add branch count to filter
 - Adjust how add merge commits messages are formated
 - Add graph to filter/search view results
