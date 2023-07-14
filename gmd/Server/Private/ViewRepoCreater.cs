@@ -85,7 +85,10 @@ class ViewRepoCreater : IViewRepoCreater
             var r = GetViewRepoAsync(augRepo, branchNames);
 
             // Return repo with filtered commits and their branches
-            var adjustedCommits = r.Commits.Where(c => filteredCommits.ContainsKey(c.Id)).ToList();
+            var adjustedCommits = r.Commits
+                .Where(c => filteredCommits.ContainsKey(c.Id))
+                .Select((c, i) => c with { Index = i })
+                .ToList();
             return new Repo(r.TimeStamp, r.AugmentedRepo, adjustedCommits, r.Branches, r.Stashes, r.Status, filter);
         }
     }

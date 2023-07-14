@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace gmd.Utils;
 
@@ -15,6 +16,9 @@ static class Build
     const string BaseBuildTimeText = "2022-10-30T00:00:00Z";
     const string DateFormat = "yyyy-MM-ddTHH:mm:ssZ";
 
+    public static bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    public static bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+    public static bool IsMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
     internal static Version Version()
     {
