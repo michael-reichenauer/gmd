@@ -65,8 +65,8 @@ class CommitDlg : ICommitDlg
 
         // Indent all lines except the first in a commit message
         Func<string, string> indent = (msg) => string.Join('\n', msg.Split('\n')
-            .Where((l, i) => !(i == 1 && l == ""))
-            .Select((l, i) => i == 0 ? l : $"  {l}"));
+            .Where((l, i) => !(i == 0 && l.StartsWith("Merge ") && !(i == 1 && l == "")))  // Skip "Merge " subjects and empty line after subject
+            .Select((l, i) => i == 0 ? l : $"{l}"));
 
         var msg = message.Text.ToString();
         if (msg != "")
