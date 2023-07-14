@@ -55,7 +55,8 @@ class FilterDlg : IFilterDlg
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
         // Status fields
-        resultCountField = dlg.AddLabel(43, 0);
+        resultCountField = dlg.AddLabel(41, 0);
+        resultCountField.ColorScheme = new ColorScheme() { Normal = TextColor.Dark };
         commitLabel = dlg.AddLabel(71, 0, "");
         branchLabel = dlg.AddLabel(78, 0, "");
         branchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.White };
