@@ -343,11 +343,7 @@ class ViewRepoCreater : IViewRepoCreater
     void AddBranchAndAncestorsAndRelatives(Augmented.Repo repo, Augmented.Branch? branch, IDictionary<string, Augmented.Branch> branches)
     {
         if (branch == null || branches.ContainsKey(branch.Name)) return;
-        if (branch.IsCircularAncestors)
-        {
-            Log.Warn($"Skipping branch {branch.Name}, Circular ancestors");
-            return;
-        }
+        if (branch.IsCircularAncestors) return;
 
         branches[branch.Name] = branch;
         branch.AncestorNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.Branches[n], branches));
