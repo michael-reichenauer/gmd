@@ -51,13 +51,13 @@ class FilterDlg : IFilterDlg
         dlg.RegisterMouseHandler(OnMouseEvent);
 
         dlg.AddLabel(0, 0, "Search:");
-        filterField = dlg.AddTextField(9, 0, 40);
+        filterField = dlg.AddTextField(9, 0, 30);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
         // Status fields
-        resultCountField = dlg.AddLabel(53, 0);
-        commitLabel = dlg.AddLabel(67, 0, "");
-        branchLabel = dlg.AddLabel(74, 0, "");
+        resultCountField = dlg.AddLabel(43, 0);
+        commitLabel = dlg.AddLabel(57, 0, "");
+        branchLabel = dlg.AddLabel(64, 0, "");
         branchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.White };
 
         // Initializes results with current repo commits

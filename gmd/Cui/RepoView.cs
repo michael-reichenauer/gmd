@@ -136,9 +136,11 @@ class RepoView : IRepoView
 
     public void UpdateRepoTo(Server.Repo serverRepo, string branchName = "")
     {
+        var t = Timing.Start();
         ShowRepo(serverRepo);
 
         ScrollToBranch(branchName);
+        Log.Info($"Showed {t} {serverRepo} with '{branchName}'");
     }
 
 
@@ -169,7 +171,7 @@ class RepoView : IRepoView
 
         var orgRepo = repo!.Repo;
         var orgCommit = repo.RowCommit;
-        Try(out var commit, out var e, filterDlg.Show(repo!.Repo, r => ShowRepo(r), commitsView));
+        Try(out var commit, out var e, filterDlg.Show(repo!.Repo, r => ShowFilteredRepo(r), commitsView));
 
         // Show Commits view normal again
         isShowFilter = false;
@@ -184,9 +186,18 @@ class RepoView : IRepoView
         }
         else
         {
+            var t = Timing.Start();
             ShowRepo(orgRepo);
             ScrollToCommit(orgCommit.Id);
+            Log.Info($"Showed {t} {orgRepo}");
         }
+    }
+
+    void ShowFilteredRepo(Server.Repo serverRepo)
+    {
+        var t = Timing.Start();
+        ShowRepo(serverRepo);
+        Log.Info($"Showed {t} {serverRepo}");
     }
 
     public void ToggleDetails()
