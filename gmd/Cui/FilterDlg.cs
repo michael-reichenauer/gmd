@@ -48,6 +48,7 @@ class FilterDlg : IFilterDlg
         this.resultsView = commitsView;
 
         dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
+        dlg.RegisterMouseHandler(OnMouseEvent);
 
         dlg.AddLabel(0, 0, "Search:");
         filterField = dlg.AddTextField(9, 0, 40);
@@ -124,6 +125,8 @@ class FilterDlg : IFilterDlg
     // Support scrolling with mouse wheel (see ContentView.cs for details)
     bool OnMouseEvent(MouseEvent ev)
     {
+        // Log.Info($"OnMouseEvent:  {ev}");
+
         // On linux (at least dev container console), there is a bug that sends same last mouse event
         // whenever mouse is moved, to still support scroll, we check mouse position.
         bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);

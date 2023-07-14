@@ -51,7 +51,7 @@ class Updater : IUpdater
 
     bool isUpdateCheckerRunning = false;
 
-    // Data for download binary tasks to avoud multiple paralell tasks
+    // Data for download binary tasks to avoid multiple parallel tasks
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 

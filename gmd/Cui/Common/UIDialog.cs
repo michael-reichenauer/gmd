@@ -213,7 +213,10 @@ class UIDialog
             Application.Driver.SetCursorVisibility(CursorVisibility.Default);
         }
 
+        if (onMouse != null) Application.GrabMouse(dlg);
+
         UI.RunDialog(dlg);
+        if (onMouse != null) Application.UngrabMouse();
         Application.Driver.SetCursorVisibility(cursorVisible);
         return IsOK;
     }
@@ -249,6 +252,7 @@ class UIDialog
         public CustomDialog(string title, Button[] buttons, Func<Key, bool>? onKey, Func<MouseEvent, bool>? onMouse)
             : base(title, buttons)
         {
+            Log.Info($"CustomDialog ctor {onKey} {onMouse}");
             this.onKey = onKey;
             this.onMouse = onMouse;
         }
