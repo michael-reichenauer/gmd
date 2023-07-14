@@ -432,8 +432,7 @@ class RepoView : IRepoView
             if (branch != null)
             {
                 var tip = repo.Commit(branch.TipId);
-                var index = Math.Max(0, tip.Index - 5);
-                commitsView.ScrollToShowIndex(index);
+                commitsView.ScrollToShowIndex(tip.Index);
                 commitsView.SetCurrentIndex(tip.Index);
             }
         }
@@ -445,8 +444,7 @@ class RepoView : IRepoView
         var commit = repo!.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
-            var index = Math.Max(0, commit.Index - 5);
-            commitsView.ScrollToShowIndex(index);
+            commitsView.ScrollToShowIndex(commit.Index);
             commitsView.SetCurrentIndex(commit.Index);
         }
     }
