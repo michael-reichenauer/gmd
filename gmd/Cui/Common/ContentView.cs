@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Terminal.Gui;
 
 
@@ -176,7 +174,7 @@ class ContentView : View
     {
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
-        // On linux (dev container console), there is a bug that sends same last mouse event
+        // On linux (at least dev container console), there is a bug that sends same last mouse event
         // whenever mouse is moved, to still support scroll, we check mouse position.
         bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
         mouseEventX = ev.X;
@@ -193,7 +191,7 @@ class ContentView : View
             return true;
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             if (mouses.TryGetValue(ev.Flags, out var callback))
             {

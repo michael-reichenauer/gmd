@@ -1,6 +1,4 @@
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
 using TerminalClipboard = Terminal.Gui.Clipboard;
 
@@ -10,17 +8,17 @@ static class Clipboard
 {
     public static R Set(string text)
     {
-        // if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        // if (Build.IsMacOs) // Does it work ????
         // {
         //    return OsxClipboard.SetText(text);
         // }
         // else
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        if (Build.IsLinux)
         {
             return LinuxClipboard.TrySetText(text);
         }
         else
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             return WindowsClipboard.TrySetText(text);
         }
