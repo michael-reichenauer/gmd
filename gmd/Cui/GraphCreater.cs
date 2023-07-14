@@ -48,8 +48,6 @@ class GraphCreater : IGraphCreater
 
     public Graph Create(Server.Repo repo)
     {
-        // if (repo.Filter != "") return new Graph(1, 0, new List<GraphBranch>());
-
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);
@@ -336,9 +334,7 @@ class GraphCreater : IGraphCreater
         // Branched from parent branch
         int x = commitBranch.X;
         int y = c.Index;
-        //var parent = repo.CommitById[c.ParentIds[0]];
-        if (!repo.CommitById.TryGetValue(c.ParentIds[0], out var parent)) return;
-
+        if (!repo.CommitById.TryGetValue(c.ParentIds[0], out var parent)) return;  // parent filtered out, skip 
 
         var parentBranch = graph.BranchByName(parent.BranchName);
         int x2 = parentBranch.X;
@@ -359,8 +355,7 @@ class GraphCreater : IGraphCreater
             graph.DrawHorizontalLine(x2 + 1, x, y2, color);           //  ──
         }
         else
-        {   // (is this still valid ????)
-            // Other branch is right side, branched from some child branch ╮ 
+        {   // Other branch is right side, branched from some child branch ╮ 
             graph.SetGraphBranch(x, y, Sign.MergeFromRight, color, commitBranch); // ╮
             graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, color); // ╮
             graph.DrawVerticalLine(x + 1, y + 1, y2, color);             // │
@@ -370,84 +365,85 @@ class GraphCreater : IGraphCreater
     }
 
 
-    class TipBottom
-    {
-        public int TipIndex { get; set; }
-        public int BottomIndex { get; set; }
-    }
-
-
+    // Returns a list of branches, with Y location set for tip and bottom commits
     List<GraphBranch> ToGraphBranches(Server.Repo repo)
     {
-        if (repo.Filter == "")
+        if (repo.Filter != "") return ToFilteredGraphBranches(repo);
+
+        List<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
+        foreach (var b in branches)
         {
-            List<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
-            Func<string, GraphBranch> branchByName = name => branches.First(b => b.B.Name == name);
-
-            foreach (var b in branches)
+            b.TipIndex = repo.CommitById[b.B.TipId].Index;
+            b.BottomIndex = repo.CommitById[b.B.BottomId].Index;
+            if (b.B.ParentBranchName != "")
             {
-                b.TipIndex = repo.CommitById[b.B.TipId].Index;
-                b.BottomIndex = repo.CommitById[b.B.BottomId].Index;
-                if (b.B.ParentBranchName != "")
-                {
-                    b.ParentBranch = branchByName(b.B.ParentBranchName);
-                }
+                b.ParentBranch = branches.First(bb => bb.B.Name == b.B.ParentBranchName);
             }
-
-            return branches;
-        }
-        else
-        {
-            Dictionary<string, TipBottom> tipBottoms = new Dictionary<string, TipBottom>();
-            List<GraphBranch> branches = new List<GraphBranch>();
-            for (int i = 0; i < repo.Commits.Count; i++)
-            {
-                var c = repo.Commits[i];
-                if (tipBottoms.TryGetValue(c.BranchName, out var tb))
-                {
-                    tb.BottomIndex = i;
-                }
-                else
-                {
-                    tipBottoms[c.BranchName] = new TipBottom { TipIndex = i, BottomIndex = i };
-                }
-                c.BranchTips.Where(t => t != c.BranchName).ForEach(t =>
-                {
-                    if (tipBottoms.TryGetValue(t, out var tb))
-                    {
-                        tb.BottomIndex = i;
-                    }
-                    else
-                    {
-                        tipBottoms[t] = new TipBottom { TipIndex = i, BottomIndex = i };
-                    }
-                });
-            }
-
-            for (var i = 0; i < repo.Branches.Count; i++)
-            {
-                var b = repo.Branches[i];
-
-                if (!tipBottoms.TryGetValue(b.Name, out var tb))
-                {   // Skipping branches which do not have own commits, e.g. parent or related branches
-                    continue;
-                }
-
-                var gb = new GraphBranch(repo.Branches[i], i);
-                gb.TipIndex = tb.TipIndex;
-                gb.BottomIndex = tb.BottomIndex;
-                if (gb.B.ParentBranchName != "")
-                {
-                    gb.ParentBranch = branches.FirstOrDefault(b => gb.B.Name == gb.B.ParentBranchName);
-                }
-                branches.Add(gb);
-            }
-
-            return branches;
         }
 
+        return branches;
     }
 
+    // Returns a list of branches, with Y location set for first and last commits of a branch.
+    // But not all branches are included, only the ones that do have commits, e.g. 
+    // ancestors and related branches might not have any commits and thus skipped.
+    // Also, since not all commits are included, the tip and bottom commits might not exists,
+    // so first and last existing commits are used instead.
+    List<GraphBranch> ToFilteredGraphBranches(Server.Repo repo)
+    {
+        List<GraphBranch> branches = new List<GraphBranch>();
+        Dictionary<string, FirstLast> firstLast = new Dictionary<string, FirstLast>();
+
+        // Find first and last commits for each branch are located by iterating commits
+        // and updating the first and last index for each branch for each commit
+        for (int i = 0; i < repo.Commits.Count; i++)
+        {
+            var c = repo.Commits[i];
+
+            // Update first and last index for all branch tips on the commit (except the current branch)
+            // And the branch for the current commit
+            c.BranchTips.Where(t => t != c.BranchName).Append(c.BranchName).ForEach(t =>
+            {
+                if (!firstLast.TryGetValue(t, out var tb))
+                {   // First time branch is detected, update both first and last index
+                    firstLast[t] = new FirstLast { FirstIndex = i, LastIndex = i };
+                }
+                else
+                {   // Branch already detected, just update last index
+                    tb.LastIndex = i;
+                }
+            });
+        }
+
+        // Create a GraphBranch for each branch, using the first and last index in previous step
+        // Skipping branches, which did not have own commits, e.g. ancestors or related branches
+        for (var i = 0; i < repo.Branches.Count; i++)
+        {
+            var b = repo.Branches[i];
+
+            if (!firstLast.TryGetValue(b.Name, out var tb))
+            {   // Skipping branches which do not have own commits, e.g. parent or related branches
+                continue;
+            }
+
+            var gb = new GraphBranch(repo.Branches[i], i);
+            gb.TipIndex = tb.FirstIndex;
+            gb.BottomIndex = tb.LastIndex;
+            if (gb.B.ParentBranchName != "")
+            {
+                gb.ParentBranch = branches.FirstOrDefault(b => b.B.Name == gb.B.ParentBranchName);
+            }
+
+            branches.Add(gb);
+        }
+
+        return branches;
+    }
+
+
+    // Sets the X location for each branch, ensuring that branches do not overlap on the same X location
+    // So e.g. Children must be to the right of their parent. But  siblings can share same X location,
+    // if they do not overlap.
     void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
     {
         // Iterating in the order of the view repo branches, Skipping main/master branch
@@ -491,5 +487,11 @@ class GraphCreater : IGraphCreater
                 b.X++;
             }
         }
+    }
+
+    class FirstLast
+    {
+        public int FirstIndex { get; set; }
+        public int LastIndex { get; set; }
     }
 }
