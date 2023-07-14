@@ -18,7 +18,8 @@ class GitRepo
         IReadOnlyList<GitTag> tags,
         GitStatus status,
         MetaData metaData,
-        IReadOnlyList<GitStash> stashes)
+        IReadOnlyList<GitStash> stashes,
+        bool isTruncated)
     {
         TimeStamp = timeStamp;
         Path = path;
@@ -28,6 +29,7 @@ class GitRepo
         Status = status;
         MetaData = metaData;
         Stashes = stashes;
+        IsTruncated = isTruncated;
     }
 
     public DateTime TimeStamp { get; }
@@ -38,7 +40,8 @@ class GitRepo
     public GitStatus Status { get; }
     public MetaData MetaData { get; }
     public IReadOnlyList<GitStash> Stashes { get; }
+    public bool IsTruncated { get; }
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";
 }
 

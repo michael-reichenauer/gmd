@@ -3,14 +3,14 @@ namespace gmd.Server.Private.Augmented;
 
 record Repo
 {
-    internal static readonly string PartialLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
+    internal static readonly string TruncatedLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
     internal static readonly string UncommittedId = "0000000000000000000000000000000000000000";
 
     public Repo(
         DateTime timeStamp,
         string path,
         IReadOnlyList<Commit> commits,
-        IReadOnlyList<Branch> branches,
+        IReadOnlyDictionary<string, Branch> branches,
         IReadOnlyList<Stash> stashes,
         Status status)
     {
@@ -18,22 +18,21 @@ record Repo
         Path = path;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
-        Branches = branches;
+        //Branches = branches;
         Stashes = stashes;
         Status = status;
-        BranchByName = branches.ToDictionary(b => b.Name, b => b);
+        Branches = branches;
     }
 
     public DateTime TimeStamp { get; }
     public string Path { get; }
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
-    public IReadOnlyList<Branch> Branches { get; }
     public IReadOnlyList<Stash> Stashes { get; }
-    public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+    public IReadOnlyDictionary<string, Branch> Branches { get; }
     public Status Status { get; init; }
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()}";
 }
 
 public record Commit(
@@ -46,9 +45,12 @@ public record Commit(
     int GitIndex,
 
     string BranchName,
-    string BranchCommonName,
+    string BranchPrimaryName,
+    string BranchNiceUniqueName,
     IReadOnlyList<string> ParentIds,
-    IReadOnlyList<string> ChildIds,
+    IReadOnlyList<string> AllChildIds,
+    IReadOnlyList<string> FirstChildIds,
+    IReadOnlyList<string> MergeChildIds,
     IReadOnlyList<Tag> Tags,
     IReadOnlyList<string> BranchTips,
 
@@ -58,7 +60,7 @@ public record Commit(
     bool IsConflicted,
     bool IsAhead,
     bool IsBehind,
-    bool IsPartialLogCommit,
+    bool IsTruncatedLogCommit,
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser)
@@ -68,8 +70,10 @@ public record Commit(
 
 public record Branch(
     string Name,
-    string CommonName,
-    string DisplayName,
+    string PrimaryName,
+    string PrimaryBaseName,
+    string NiceName,
+    string NiceNameUnique,
     string TipId,
     string BottomId,
     bool IsCurrent,
@@ -79,22 +83,22 @@ public record Branch(
     string LocalName,
 
     string ParentBranchName,
-    string ParentBranchCommonName,
-    string PullMergeBranchName,
+    string PullMergeParentBranchName,
 
     bool IsGitBranch,
     bool IsDetached,
-    bool IsSetAsParent,
+    bool IsPrimary,
     bool IsMainBranch,
+    bool IsCircularAncestors,
 
-    int AheadCount,
-    int BehindCount,
     bool HasAheadCommits,
     bool HasBehindCommits,
 
     string AmbiguousTipId,
+    IReadOnlyList<string> RelatedBranchNames,
     IReadOnlyList<string> AmbiguousBranchNames,
-    IReadOnlyList<string> PullMergeBranchNames)
+    IReadOnlyList<string> PullMergeBranchNames,
+    IReadOnlyList<string> AncestorNames)
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }

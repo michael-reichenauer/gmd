@@ -31,8 +31,22 @@ class Text
     internal Text Yellow(string text) => Color(TextColor.Yellow, text);
     internal Text Black(string text) => Color(TextColor.Black, text);
 
-    internal Text WhiteSelected(string text) => Color(TextColor.WhiteSelected, text);
-    internal Text YellowSelected(string text) => Color(TextColor.YellowSelected, text);
+    internal Text ToHighlight() => ToHighlight(Terminal.Gui.Color.DarkGray);
+
+    internal Text ToHighlightGreen() => ToHighlight(Terminal.Gui.Color.Green);
+
+    internal Text ToHighlightRed() => ToHighlight(Terminal.Gui.Color.Red);
+
+    internal Text ToHighlight(Terminal.Gui.Color bgc)
+    {
+        var newText = Text.New;
+        foreach (var fragment in fragments)
+        {
+            var color = TextColor.Make(fragment.Color.Foreground, bgc);
+            newText.Color(color, fragment.Text);
+        }
+        return newText;
+    }
 
     internal Text Color(Color color, string text)
     {

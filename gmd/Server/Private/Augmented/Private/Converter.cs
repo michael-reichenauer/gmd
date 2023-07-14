@@ -17,7 +17,7 @@ class Converter : IConverter
             workRepo.TimeStamp,
             workRepo.Path,
             workRepo.Commits.Select((WorkCommit c, int index) => ToCommit(c, index)).ToList(),
-            workRepo.Branches.Select(ToBranch).ToList(),
+            workRepo.Branches.Values.ToDictionary(b => b.Name, ToBranch),
             workRepo.Stashes.ToList(),
             workRepo.Status
         );
@@ -44,17 +44,20 @@ class Converter : IConverter
             GitIndex: gitIndex,
 
             BranchName: c.Branch!.Name,
-            BranchCommonName: c.Branch.CommonName,
-            ChildIds: c.ChildIds,
+            BranchPrimaryName: c.Branch.PrimaryName,
+            BranchNiceUniqueName: c.Branch.NiceNameUnique,
+            AllChildIds: c.AllChildIds,
+            FirstChildIds: c.FirstChildIds,
+            MergeChildIds: c.MergeChildIds,
             Tags: c.Tags,
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,
             IsDetached: c.IsDetached,
-            IsUncommitted: c.IsUncommitted,
-            IsConflicted: c.IsConflicted,
-            IsAhead: c.IsAhead,
-            IsBehind: c.IsBehind,
-            IsPartialLogCommit: c.IsPartialLogCommit,
+            IsUncommitted: false,
+            IsConflicted: false,
+            IsAhead: false,
+            IsBehind: false,
+            IsTruncatedLogCommit: c.IsTruncatedLogCommit,
             IsAmbiguous: c.IsAmbiguous,
             IsAmbiguousTip: c.IsAmbiguousTip,
             IsBranchSetByUser: c.IsBranchSetByUser);
@@ -64,8 +67,10 @@ class Converter : IConverter
     {
         return new Branch(
             Name: b.Name,
-            CommonName: b.CommonName,
-            DisplayName: b.DisplayName,
+            PrimaryName: b.PrimaryName,
+            PrimaryBaseName: b.PrimaryBaseName,
+            NiceName: b.NiceName,
+            NiceNameUnique: b.NiceNameUnique,
             TipId: b.TipID,
             BottomId: b.BottomID,
             IsCurrent: b.IsCurrent,
@@ -75,21 +80,21 @@ class Converter : IConverter
             LocalName: b.LocalName,
 
             ParentBranchName: b.ParentBranch?.Name ?? "",
-            ParentBranchCommonName: b.ParentBranch?.CommonName ?? "",
-            PullMergeBranchName: b.PullMergeBranch?.Name ?? "",
+            PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
 
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
-            IsSetAsParent: b.IsSetAsParent,
+            IsPrimary: b.IsPrimary,
             IsMainBranch: b.IsMainBranch,
+            IsCircularAncestors: b.IsCircularAncestors,
 
-            AheadCount: b.AheadCount,
-            BehindCount: b.BehindCount,
             HasAheadCommits: b.HasLocalOnly,
             HasBehindCommits: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTipId,
+            RelatedBranchNames: b.RelatedBranches.Select(bb => bb.Name).ToList(),
             AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
-            PullMergeBranchNames: b.PullMergeBranches.Select(bb => bb.Name).ToList());
+            PullMergeBranchNames: b.PullMergeChildBranches.Select(bb => bb.Name).ToList(),
+            AncestorNames: b.Ancestors.Select(bb => bb.Name).ToList());
     }
 }
 

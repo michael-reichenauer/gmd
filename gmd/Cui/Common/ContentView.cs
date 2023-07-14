@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Terminal.Gui;
 
 
@@ -61,9 +59,10 @@ class ContentView : View
 
     internal event Action? CurrentIndexChange;
 
-    int ViewHeight => Frame.Height;
+    internal int ViewHeight => Frame.Height;
     internal int ViewWidth => Frame.Width;
-    internal bool IsNoCursor { get; set; } = false;
+    internal bool IsShowCursor { get; set; } = true;
+    internal bool IsScrollMode { get; set; } = false;
     internal bool IsCursorMargin { get; set; } = false;
     internal bool IsTopBorder { get; set; } = false;
     internal bool IsHideCursor { get; set; } = false;
@@ -71,7 +70,7 @@ class ContentView : View
     internal int ContentY => IsTopBorder ? topBorderHeight : 0;
     internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
     internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
-    internal Point CurrentPoint => new Point(0, FirstIndex + CurrentIndex);
+    internal Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
     internal int SelectStartIndex => selectStartIndex;
     internal int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
 
@@ -122,10 +121,7 @@ class ContentView : View
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
-        if (!IsFocus)
-        {
-            return false;
-        }
+        if (!IsFocus) return false;
 
         if (keys.TryGetValue(keyEvent.Key, out var callback))
         {
@@ -176,9 +172,9 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
-        // On linux (dev container console), there is a bug that sends same last mouse event
+        // On linux (at least dev container console), there is a bug that sends same last mouse event
         // whenever mouse is moved, to still support scroll, we check mouse position.
         bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
         mouseEventX = ev.X;
@@ -195,7 +191,7 @@ class ContentView : View
             return true;
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             if (mouses.TryGetValue(ev.Flags, out var callback))
             {
@@ -271,10 +267,11 @@ class ContentView : View
 
 
     // Toggle showing/hiding cursor. Cursor is needed to select text for copy
-    void ToggleShowCursor()
+    public void ToggleShowCursor()
     {
         ClearSelection();
-        IsNoCursor = !IsNoCursor;
+        IsShowCursor = !IsShowCursor;
+        IsScrollMode = !IsShowCursor;
         SetNeedsDisplay();
     }
 
@@ -360,7 +357,7 @@ class ContentView : View
 
     void DrawCursor()
     {
-        if (IsNoCursor || IsHideCursor || !IsFocus)
+        if (!IsShowCursor || IsHideCursor || !IsFocus)
         {
             return;
         }
@@ -428,7 +425,7 @@ class ContentView : View
 
     internal void Move(int move)
     {
-        if (IsNoCursor)
+        if (IsScrollMode)
         {
             Scroll(move);
             return;
@@ -508,10 +505,5 @@ class ContentView : View
         }
 
         return (sbStart, sbStart + sbSize);
-    }
-
-    internal void RegisterKeyHandler(object value)
-    {
-        throw new NotImplementedException();
     }
 }

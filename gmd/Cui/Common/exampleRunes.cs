@@ -32,6 +32,11 @@
 
 // }
 
+// ╼
+// ┏
+// ┣
+// ┗
+
 // const (
 // 	// i := 0x2500; i <= 0x257F;
 // 	lines = `
@@ -45,6 +50,7 @@
 // ╰ ╱ ╲ ╳ ╴ ╵ ╶ ╷ ╸ ╹ ╺ ╻ ╼ ╽ ╾ ╿
 // `
 // ▲ ▼
+// → ←	↑↓↕↖↗↘↙
 
 // 	points = `
 //  Φ Ф * ⊙ ⊛ ├ ∤ ∘ o
@@ -55,9 +61,10 @@
 // ▣
 // ▢ ▣
 // ☐ ☑ ☒ ⊠
-// □ ■ 
-// _ _ 
-
+// □ ■  kkkkkk kkkkkkkk
+// _ _ 〔〕﹉﹍ ﹈﹈﹈﹈[]
+// _ _ _____
+// 🝓🜉 🝖
 
 
 // 	used = `
@@ -83,7 +90,7 @@
 // ┤
 // ├
 // `
-// 	Repov1 = `
+// 	Repo = `
 // ┠┬      Merge branch 'branches/newFeat' into develop (1)
 // ┃└──┰ * Some more cleaning (2)
 // ┠┬  ┃   Merge branch 'branches/diff' into develop (1)
@@ -91,7 +98,7 @@
 // ┃┌┸ ┃   Update git to 2.23 (3)
 // ┃│  ┠   Fixing a bug (2)
 // ┃│ ┌┸   Clean code (2)
-// █┴─┘    Merge branch 'branches/branchcommit' into develop (1)
+// █┴─┘    Merge branch 'branches/branchCommit' into develop (1)
 // ┠       fix tag names with strange char ending (1)
 // ┠       Clean build script (1)
 // ┠┐      Merge branch 'branches/NewBuild' into develop (1)
@@ -107,7 +114,7 @@
 // ┠       Some text  (1)
 // `
 
-// 	Repov = `
+// 	Repo = `
 // ┏╮      Merge branch 'branches/newFeat' into develop (1)
 // ┃╰┲     Some more cleaning (2)
 // ┣─╂╮    Merge branch 'branches/diff' into develop (1)
@@ -115,7 +122,7 @@
 // ┃ ┃╭┺  ╸Update git to 2.23 (3)
 // ┃ ┣│    Fixing a bug (2)
 // ┃╭┺│   │Clean code (2)
-// ┣┴─╯  + Merge branch 'branches/branchcommit' into develop (1)
+// ┣┴─╯  + Merge branch 'branches/branchCommit' into develop (1)
 // ┣       fix tag names with strange char ending (1)
 // ┣       Clean build script (1)
 // ┣╮      Merge branch 'branches/NewBuild' into develop (1)

@@ -15,7 +15,7 @@ interface IGit
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
-    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd);
+    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
     Task<R> FetchAsync(string wd);
     Task<R> PushBranchAsync(string name, string wd);
     Task<R> PullCurrentBranchAsync(string wd);
@@ -65,15 +65,13 @@ public record Commit(
 
 public record Branch(
     string Name,
-    string CommonName,
     string TipID,
     bool IsCurrent,
     bool IsRemote,
-    string RemoteName,
+    string RemoteName,  // The remote name for a local branch 
     bool IsDetached,
-    int AheadCount,
-    int BehindCount,
-    bool IsRemoteMissing
+    int AheadCount,     // Number of commits on local branch not yet synced up to remote branch
+    int BehindCount     // Number of commits on remote branch not yet synced down to local branch
 );
 
 public record Status(
@@ -107,7 +105,7 @@ public record Stash(
 record CommitDiff(
     string Id,
     string Author,
-    string Date,
+    DateTime Time,
     string Message,
     IReadOnlyList<FileDiff> FileDiffs
 );

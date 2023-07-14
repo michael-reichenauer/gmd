@@ -4,13 +4,11 @@ using Terminal.Gui;
 
 namespace gmd.Cui;
 
-
 interface ICommitDetailsView
 {
     ContentView View { get; }
 
     void Set(Repo repo, Commit commit, Branch branch);
-
 }
 
 class CommitDetailsView : ICommitDetailsView
@@ -31,7 +29,8 @@ class CommitDetailsView : ICommitDetailsView
             Height = 0,
             Width = Dim.Fill(),
             IsTopBorder = true,
-            IsNoCursor = true,
+            IsShowCursor = false,
+            IsScrollMode = true,
             IsFocus = false,
             // Height = Dim.Fill(),
         };
@@ -71,6 +70,7 @@ class CommitDetailsView : ICommitDetailsView
         }
 
         var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
+        branchName = $"{branch.NiceNameUnique}  ({branchName})";
 
         if (commit.IsBranchSetByUser)
         {
@@ -85,7 +85,8 @@ class CommitDetailsView : ICommitDetailsView
                 {
                     ambBranches += ",┅";
                 }
-                newRows.Add(Text.New.Dark("Branch:     ").White(branchName + $" (ambiguous: {ambBranches})"));
+                newRows.Add(Text.New.Dark("Branch:     ").White(branchName));
+                newRows.Add(Text.New.Dark("Ambiguous:  ").White($"{ambBranches}"));
             }
             else
             {
@@ -98,7 +99,7 @@ class CommitDetailsView : ICommitDetailsView
             newRows.Add(Text.New.Dark("Author:     ").White($"{commit.Author}").Dark(", time: ").White(commit.AuthorTime.IsoZone()));
         }
 
-        newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.ChildIds.Select(id =>
+        newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.AllChildIds.Select(id =>
             id == Repo.UncommittedId ? "" : id.Sid()))));
         newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id =>
             id.Sid()))));

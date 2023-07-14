@@ -6,99 +6,205 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    R<Server.Commit> Show(IRepo repo);
+    R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
 
 class FilterDlg : IFilterDlg
 {
-    private readonly IServer server;
+    const int MaxResults = int.MaxValue;
+    readonly IServer server;
+    readonly IBranchColorService branchColorService;
 
-    IReadOnlyList<Server.Commit> commits = new List<Server.Commit>();
+    UIDialog dlg = null!;
+    UITextField filterField = null!;
+    Label resultCountField = null!;
+    Label commitLabel = null!;
+    Label branchLabel = null!;
 
-    string currentFilter = "";
-    IRepo? repo;
-    Server.Commit? commit;
+    int mouseEventX = -1;
+    int mouseEventY = -1;
+    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
+    Action<Repo> onRepoChanged = null!;
+    Server.Repo orgRepo = null!;
+    Server.Repo currentRepo = null!;
+    string currentFilter = null!;
+    ContentView resultsView = null!;
+    R<Server.Commit> selectedCommit = R.Error("No commit selected");
 
-    internal FilterDlg(IServer server)
+
+    internal FilterDlg(IServer server, IBranchColorService branchColorService)
     {
         this.server = server;
-    }
-
-    public R<Server.Commit> Show(IRepo repo)
-    {
-        this.repo = repo;
-
-        var width = 86;
-        var dlg = new UIDialog("Filter Commits", width, 20, null, options =>
-        {
-            options.ColorScheme.Focus = TextColor.White;
-            options.ColorScheme.Normal = TextColor.BrightMagenta;
-            options.Y = 0;
-        });
-
-        var contentView = dlg.AddContentView(0, 2, Dim.Fill(), Dim.Fill(), OnGetContent);
-
-        var filter = dlg.AddTextField(1, 0, 40, "");
-        filter.KeyUp += (k) => OnKeyUp(k, filter, contentView);
-
-        dlg.Show(filter);
-
-        if (commit == null) return R.Error();
-
-        return commit;
+        this.branchColorService = branchColorService;
     }
 
 
-    void OnKeyUp(View.KeyEventEventArgs e, UITextField filter, ContentView contentView)
+    public R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
-        try
-        {
-            var key = e.KeyEvent.Key;
+        this.orgRepo = repo;
+        this.currentRepo = repo;
+        this.currentFilter = null!;
+        this.onRepoChanged = onRepoChanged;
+        this.resultsView = commitsView;
 
-            if (key == Key.Enter)
-            {
-                OnEnter(contentView.CurrentIndex);
-                return;
-            }
-            if (filter.Text == currentFilter)
-            {
-                return;
-            }
-            if (filter.Text.Length < 2)
-            {
-                commits = new List<Server.Commit>();
-                contentView.TriggerUpdateContent(commits.Count);
-                return;
-            }
+        dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
+        dlg.RegisterMouseHandler(OnMouseEvent);
 
-            commits = server.GetFilterCommits(repo!.Repo, filter.Text);
-            contentView!.TriggerUpdateContent(commits.Count);
-        }
-        finally
-        {
-            e.Handled = true;
+        dlg.AddLabel(0, 0, "Search:");
+        filterField = dlg.AddTextField(9, 0, 30);
+        filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
+
+        // Status fields
+        resultCountField = dlg.AddLabel(41, 0);
+        resultCountField.ColorScheme = new ColorScheme() { Normal = TextColor.Dark };
+        commitLabel = dlg.AddLabel(71, 0, "");
+        branchLabel = dlg.AddLabel(78, 0, "");
+        branchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.White };
+
+        // Initializes results with current repo commits
+        UI.Post(() => UpdateFilteredResults().RunInBackground());
+
+        dlg.Show(filterField);
+
+        return selectedCommit;
+    }
+
+    // User pressed key in filter field, update results 
+    void OnFilterFieldKeyUp(View.KeyEventEventArgs e)
+    {
+        UpdateFilteredResults().RunInBackground();
+        e.Handled = true;
+    }
+
+    bool OnDialogKey(Key key)
+    {
+        if (key == Key.Enter)
+        {   // User selected commit from list
+            var commit = currentRepo.Commits[resultsView.CurrentIndex];
+            if (commit.BranchName != "<none>")
+                this.selectedCommit = commit;
+            dlg.Close();
+            return true;
         }
 
+        // Allow user move up/down in results with keys
+        var rsp = StepUpDownInResultList(key);
+        ShowCommitInfo();
+        return rsp;
     }
 
 
-    void OnEnter(int index)
+    bool StepUpDownInResultList(Key key)
     {
-        if (commits.Count == 0)
+        // Allow user move up/down in results with keys
+        switch (key)
         {
-            Application.RequestStop();
+            case Key.CursorUp:
+                resultsView.Move(-1);
+                return true;
+            case Key.CursorDown:
+                resultsView.Move(1);
+                return true;
+            case Key.PageUp:
+                resultsView.Move(-resultsView.ContentHeight);
+                return true;
+            case Key.PageDown:
+                resultsView.Move(resultsView.ContentHeight);
+                return true;
+            case Key.Home:
+                resultsView.Move(-resultsView.Count);
+                return true;
+            case Key.End:
+                resultsView.Move(resultsView.Count);
+                return true;
+        }
+
+        return false;
+    }
+
+
+    // Support scrolling with mouse wheel (see ContentView.cs for details)
+    bool OnMouseEvent(MouseEvent ev)
+    {
+        // Log.Info($"OnMouseEvent:  {ev}");
+
+        // On linux (at least dev container console), there is a bug that sends same last mouse event
+        // whenever mouse is moved, to still support scroll, we check mouse position.
+        bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
+        mouseEventX = ev.X;
+        mouseEventY = ev.Y;
+
+        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) && isSamePos)
+        {
+            resultsView.Scroll(1);
+            return true;
+        }
+        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp) && isSamePos)
+        {
+            resultsView.Scroll(-1);
+            return true;
+        }
+
+        if (Build.IsWindows)
+        {
+            if (mouses.TryGetValue(ev.Flags, out var callback))
+            {
+                callback(ev.X, ev.Y);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    async Task UpdateFilteredResults()
+    {
+        var filter = filterField.Text.Trim();
+        if (filter == currentFilter) return;
+        currentFilter = filter;
+
+        if (filter != "" && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults)))
+        {   // Got new filtered repo, update results
+            currentRepo = filteredRepo;
+            resultsView.MoveToTop();
+        }
+        else
+        {   // Restore original repo
+            currentRepo = orgRepo;
+        }
+
+        ShowRepoInfo();
+        ShowCommitInfo();
+        onRepoChanged(currentRepo);
+    }
+
+
+    void ShowCommitInfo()
+    {
+        var index = resultsView.CurrentIndex;
+        if (currentRepo.Commits.Count == 0 || index >= currentRepo.Commits.Count)
+        {
+            commitLabel.Text = "";
+            branchLabel.Text = "";
             return;
-        }
-        this.commit = commits[index];
+        };
 
-        Application.RequestStop();
+        var commit = currentRepo.Commits[index];
+        var branch = currentRepo.BranchByName[commit.BranchName];
+        var color = branchColorService.GetColor(currentRepo, branch);
+        commitLabel.Text = commit.Sid;
+        branchLabel.Text = $"({branch.NiceNameUnique})";
+        branchLabel.ColorScheme.Normal = color;
     }
 
 
-    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
-        commits.Skip(firstIndex).Take(count).Select(c => Text.New
-            .White($"{c.Subject.Max(50),-50}")
-            .Dark($" {c.Sid} {c.Author.Max(15),-15} {c.AuthorTime.ToString("yy-MM-dd")}"));
+    void ShowRepoInfo()
+    {
+        var commitCount = currentRepo.Commits.Count(c => c.BranchName != "<none>");
+        var branchCount = currentRepo.Commits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
+        resultCountField.Text = $"{commitCount} commits, {branchCount} branches,";
+    }
 }
 
 

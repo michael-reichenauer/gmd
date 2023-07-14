@@ -6,8 +6,8 @@ using AugmentedRepo = gmd.Server.Private.Augmented.Repo;
 
 record Repo
 {
-    internal static readonly string PartialLogCommitID =
-        gmd.Server.Private.Augmented.Repo.PartialLogCommitID;
+    internal static readonly string TruncatedLogCommitID =
+        gmd.Server.Private.Augmented.Repo.TruncatedLogCommitID;
     internal static readonly string UncommittedId =
         gmd.Server.Private.Augmented.Repo.UncommittedId;
     internal static readonly string UncommittedSid = UncommittedId.Sid();
@@ -20,7 +20,8 @@ record Repo
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
         IReadOnlyList<Stash> stashes,
-        Status status)
+        Status status,
+        string filter)
     {
         TimeStamp = timeStamp;
         this.repo = augRepo;
@@ -29,6 +30,7 @@ record Repo
         Branches = branches;
         Stashes = stashes;
         Status = status;
+        Filter = filter;
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
@@ -41,11 +43,11 @@ record Repo
     public IReadOnlyList<Stash> Stashes { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
     public Status Status { get; init; }
-
+    public string Filter { get; }
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()} @{repo.TimeStamp.IsoMilli()}";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{repo.TimeStamp.IsoMs()})";
 }
 
 
@@ -62,9 +64,12 @@ public record Commit(
     int Index,
     int GitIndex,
     string BranchName,
-    string BranchCommonName,
+    string BranchPrimaryName,
+    string BranchNiceUniqueName,
     IReadOnlyList<string> ParentIds,
-    IReadOnlyList<string> ChildIds,
+    IReadOnlyList<string> AllChildIds,
+    IReadOnlyList<string> FirstChildIds,
+    IReadOnlyList<string> MergeChildIds,
     IReadOnlyList<Tag> Tags,
     IReadOnlyList<string> BranchTips,
 
@@ -74,10 +79,11 @@ public record Commit(
     bool IsConflicted,
     bool IsAhead,
     bool IsBehind,
-    bool IsPartialLogCommit,
+    bool IsTruncatedLogCommit,
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser,
+    // bool IsInFilter,
 
     // View properties
     More More)
@@ -95,8 +101,10 @@ public enum More
 
 public record Branch(
     string Name,
-    string CommonName,
-    string DisplayName,
+    string PrimaryName,
+    string PrimaryBaseName,
+    string NiceName,
+    string NiceNameUnique,
     string TipId,
     string BottomId,
     bool IsCurrent,
@@ -108,20 +116,18 @@ public record Branch(
     // Augmented properties
     bool IsGitBranch,
     bool IsDetached,
-    bool IsSetAsParent,
+    bool IsPrimary,     // True if this is the primary branch (remote if local/remote pair or the local if only local) 
     bool IsMainBranch,
 
     string ParentBranchName,
-    string ParentBranchCommonName,
-    string PullMergeBranchName,
+    string PullMergeParentBranchName,
 
-    int AheadCount,
-    int BehindCount,
     bool HasLocalOnly,
     bool HasRemoteOnly,
     string AmbiguousTipId,
     IReadOnlyList<string> AmbiguousBranchNames,
     IReadOnlyList<string> PullMergeBranchNames,
+    IReadOnlyList<string> AncestorNames,
 
     // View properties
     int X,
@@ -166,7 +172,7 @@ public record Status(
 record CommitDiff(
     string Id,
     string Author,
-    string Date,
+    DateTime Time,
     string Message,
     IReadOnlyList<FileDiff> FileDiffs
 )

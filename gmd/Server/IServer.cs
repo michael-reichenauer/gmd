@@ -1,6 +1,12 @@
-using gmd.Cui.Common;
-
 namespace gmd.Server;
+
+enum ShowBranches
+{
+    Specified,
+    AllRecent,
+    AllActive,
+    AllActiveAndDeleted,
+}
 
 interface IServer
 {
@@ -9,18 +15,20 @@ interface IServer
 
     Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
+    Task<R<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount);
 
-    IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter);
+    IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount);
     IReadOnlyList<Branch> GetAllBranches(Repo repo);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId);
-    Branch AllBanchByName(Repo repo, string name);
+    IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount);
+    Branch AllBranchByName(Repo repo, string name);
     Commit GetCommit(Repo repo, string commitId);
 
-    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous);
-    Repo HideBranch(Repo repo, string name);
-    Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName);
+    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified);
+    Repo HideBranch(Repo repo, string name, bool hideAllBranches = false);
+    Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
-    Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName);
+    Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
     Task<R> StashAsync(string wd);
@@ -32,7 +40,7 @@ interface IServer
     Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
-    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd);
+    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
     //Task<R<string>> GetFileTextAsync(string path, string wd);
 
     Task<R> PushBranchAsync(string name, string wd);

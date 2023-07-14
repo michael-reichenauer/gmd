@@ -12,7 +12,6 @@ interface IRepoWriter
 class RepoWriter : IRepoWriter
 {
     static readonly int maxTipNameLength = 16;
-    // static readonly int maxTipsLength = 41;
     const int markersWidth = 3; //  1 current marker and 1 ahead/behind and one space
 
     readonly IBranchColorService branchColorService;
@@ -41,20 +40,22 @@ class RepoWriter : IRepoWriter
 
         Columns cw = ColumnWidths(repo, width);
 
+        // Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
-            Text text = Text.New;
             var c = repo.Commits[i];
-            var graphRow = repo.Graph.GetRow(i);
 
+            Text text = Text.New;
+            var graphRow = repo.Graph.GetRow(i);
             WriteGraph(text, graphRow, cw.GraphWidth);
             WriteCurrentMarker(text, c, isUncommitted, isBranchDetached);
             WriteAheadBehindMarker(text, c);
-            WriteSubjectColumn(text, cw, c, crb, branchTips, i == currentIndex);
+            WriteSubjectColumn(text, cw, c, crb, branchTips);
             WriteSid(text, cw, c);
-            WriteAuthor(text, cw, c, i == currentIndex);
+            WriteAuthor(text, cw, c);
             WriteTime(text, cw, c, i == currentIndex);
 
+            if (i == currentIndex) text = text.ToHighlight();
             rows.Add(text);
         }
 
@@ -139,9 +140,9 @@ class RepoWriter : IRepoWriter
     }
 
     void WriteSubjectColumn(Text text, Columns cw, Commit c, Branch currentRowBranch,
-        IReadOnlyDictionary<string, Text> branchTips, bool isCurrent)
+        IReadOnlyDictionary<string, Text> branchTips)
     {
-        Text subjectText = GetSubjectText(c, isCurrent, currentRowBranch);
+        Text subjectText = GetSubjectText(c, currentRowBranch);
         Text tagsText = GetTagsText(c);
         Text tipsText = GetTipsText(c, branchTips);
 
@@ -161,7 +162,7 @@ class RepoWriter : IRepoWriter
                 subjectWidth = columnWidth - tagsWidth - tipsWidth;
             }
             else if (Math.Min(subjectText.Length, 25) + tagsText.Length + tipsText.Length <= columnWidth)
-            {   // Just shorten the subject a bit (will show enaugh)
+            {   // Just shorten the subject a bit (will show enough)
                 tagsWidth = tagsText.Length;
                 tipsWidth = tipsText.Length;
                 subjectWidth = columnWidth - tagsWidth - tipsWidth;
@@ -173,18 +174,6 @@ class RepoWriter : IRepoWriter
                 int rest = (columnWidth - subjectWidth) / 2;
                 tagsWidth = Math.Min(tagsText.Length, columnWidth - subjectWidth - rest);
                 tipsWidth = columnWidth - subjectWidth - tagsWidth;
-            }
-        }
-
-        if (subjectText.Length < subjectWidth)
-        {
-            if (c.IsUncommitted && isCurrent)
-            {
-                subjectText.YellowSelected(new string(' ', subjectWidth - subjectText.Length));
-            }
-            else if (isCurrent)
-            {
-                subjectText.WhiteSelected(new string(' ', subjectWidth - subjectText.Length));
             }
         }
 
@@ -209,17 +198,16 @@ class RepoWriter : IRepoWriter
         text.Add(subText.Subtext(0, maxWidth - 1, true)).Dark("┅");
     }
 
-    Text GetSubjectText(Commit c, bool isCurrent, Branch currentRowBranch)
+    Text GetSubjectText(Commit c, Branch currentRowBranch)
     {
         Text text = Text.New;
-        if (c.IsUncommitted && isCurrent) { text.YellowSelected(c.Subject); }
-        else if (isCurrent) { text.WhiteSelected(c.Subject); }
-        else if (c.IsConflicted) { text.BrightRed(c.Subject); }
+
+        if (c.IsConflicted) { text.BrightRed(c.Subject); }
         else if (c.IsUncommitted) { text.BrightYellow(c.Subject); }
         else if (c.IsAhead) { text.BrightGreen(c.Subject); }
         else if (c.IsBehind) { text.BrightBlue(c.Subject); }
-        else if (c.Id == Repo.PartialLogCommitID) { text.Dark(c.Subject); }
-        else if (c.BranchCommonName == currentRowBranch.CommonName) { text.White(c.Subject); }
+        else if (c.Id == Repo.TruncatedLogCommitID) { text.Dark(c.Subject); }
+        else if (c.BranchPrimaryName == currentRowBranch.PrimaryName) { text.White(c.Subject); }
         else { text.Dark(c.Subject); }
 
         return text;
@@ -242,27 +230,15 @@ class RepoWriter : IRepoWriter
         text.Dark(Txt(" " + c.Sid, cw.Sid));
     }
 
-    void WriteAuthor(Text text, Columns cw, Commit c, bool isCurrent)
+    void WriteAuthor(Text text, Columns cw, Commit c)
     {
         var txt = Txt(" " + c.Author, cw.Author);
-        if (isCurrent)
-        {
-            text.WhiteSelected(txt);
-            return;
-        }
-
         text.Dark(txt);
     }
 
     void WriteTime(Text text, Columns cw, Commit c, bool isCurrent)
     {
         var txt = Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time);
-        if (isCurrent)
-        {
-            text.WhiteSelected(txt);
-            return;
-        }
-
         text.Dark(txt);
     }
 
@@ -289,7 +265,7 @@ class RepoWriter : IRepoWriter
             }
 
             if (b.AmbiguousTipId != "")
-            {   // The branch has an ambigous tip id as well, add that
+            {   // The branch has an ambiguous tip id as well, add that
                 if (!branchTips.TryGetValue(b.AmbiguousTipId, out var ambiguousTipText))
                 {
                     ambiguousTipText = Text.New;
@@ -322,7 +298,7 @@ class RepoWriter : IRepoWriter
                             }
                         }
                         else
-                        {   // Remote and local on different commits, (local banch will add itself)
+                        {   // Remote and local on different commits, (local branch will add itself)
                             tipText.Color(color, $"(^/{branchName})");
                         }
                     }
@@ -365,7 +341,7 @@ class RepoWriter : IRepoWriter
                     }
                 }
             }
-            else if (b.PullMergeBranchName != "")
+            else if (b.PullMergeParentBranchName != "")
             {
                 tipText.Color(color, "(").Dark(branchName).Color(color, ")");
             }
@@ -382,7 +358,7 @@ class RepoWriter : IRepoWriter
 
     string ToShortBranchName(Branch branch)
     {
-        var name = branch.DisplayName;
+        var name = branch.NiceNameUnique;
         if (name.Length > maxTipNameLength)
         {   // Branch name to long, shorten it
             name = "┅" + name.Substring(name.Length - maxTipNameLength);

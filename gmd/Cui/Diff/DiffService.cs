@@ -35,7 +35,7 @@ class DiffService : IDiffService
             rows.Add(Text.New.White($"{commitDiffs.Length} Commits:"));
 
             commitDiffs.ForEach(diff => rows.Add(Text.New.White(
-                $"  {diff.Date}  {diff.Message.Max(60, true)}").Dark($"  {diff.Id.Sid(),6} {diff.Author}")));
+                $"  {diff.Time.Iso()}  {diff.Message.Max(60, true)}").Dark($"  {diff.Id.Sid(),6} {diff.Author}")));
             rows.Add(Text.None);
         }
 
@@ -49,6 +49,7 @@ class DiffService : IDiffService
     {
         return diff.FileDiffs.Select(fd => fd.PathAfter).ToList();
     }
+
 
     public IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff)
     {
@@ -67,18 +68,10 @@ class DiffService : IDiffService
     void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.New.Yellow("═"));
-        if (commitDiff.Id == "")
-        {   // Uncommitted changes has only id and current date
-            rows.Add(Text.New.Dark("Commit: ").White("Uncommitted changes"));
-            rows.Add(Text.New.Dark("Time:   ").White(DateTime.Now.Iso()));
-        }
-        else
-        {   // Some specified commit id
-            rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id));
-            rows.Add(Text.New.Dark("Author:  ").White(commitDiff.Author));
-            rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Date));
-            rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
-        }
+        if (commitDiff.Id != "") rows.Add(Text.New.Dark("Commit:  ").White(commitDiff.Id), "", commitDiff.Id);
+        if (commitDiff.Author != "") rows.Add(Text.New.Dark("Author:  ").White(commitDiff.Author));
+        if (commitDiff.Time != DateTime.MinValue) rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Time.Iso()));
+        if (commitDiff.Message != "") rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
 
         rows.Add(Text.None);
     }
@@ -371,14 +364,14 @@ class DiffService : IDiffService
 
         switch (fd.DiffMode)
         {
+            case DiffMode.DiffConflicts:
+                return "Conflicts:";
             case DiffMode.DiffModified:
                 return "Modified:";
             case DiffMode.DiffAdded:
                 return "Added:";
             case DiffMode.DiffRemoved:
                 return "Removed:";
-            case DiffMode.DiffConflicts:
-                return "Conflicted:";
         }
 
         throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");

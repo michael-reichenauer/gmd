@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Git;
@@ -56,27 +57,67 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
+    public async Task<R<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount)
+    {
+        await Task.CompletedTask;
+        return viewRepoCreater.GetFilteredViewRepoAsync(repo.AugmentedRepo, filter, maxCount);
+    }
+
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
-        converter.ToBranches(repo.AugmentedRepo.Branches);
+        converter.ToBranches(repo.AugmentedRepo.Branches.Values);
 
-    public Branch AllBanchByName(Repo repo, string name) =>
-        converter.ToBranch(repo.AugmentedRepo.BranchByName[name]);
+    public Branch AllBranchByName(Repo repo, string name) =>
+        converter.ToBranch(repo.AugmentedRepo.Branches[name]);
 
     public Commit GetCommit(Repo repo, string commitId) =>
         converter.ToCommit(repo.AugmentedRepo.CommitById[commitId]);
 
-    public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter)
+    public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount)
     {
-        var sc = StringComparison.OrdinalIgnoreCase;
-        var commits = repo.AugmentedRepo.Commits
-         .Where(c =>
-             c.Id.Contains(filter, sc) ||
-             c.Subject.Contains(filter, sc) ||
-             c.BranchName.Contains(filter, sc) ||
-             c.Author.Contains(filter, sc));
-        return converter.ToCommits(commits.ToList());
+        var t = Timing.Start();
+        filter = filter.Trim();
+        if (filter == "") return repo.Commits.Take(maxCount).ToList();
 
+        if (filter == "$") return converter.ToCommits(
+            repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
+
+        if (filter == "*") return converter.ToCommits(
+            repo.AugmentedRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
+                .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
+                .Where(c => c.IsAmbiguousTip)
+                .Take(maxCount)
+                .ToList());
+
+        var sc = StringComparison.OrdinalIgnoreCase;
+
+        // I need extract all text enclosed by double quotes.
+        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
+        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
+
+        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below. 
+        var modifiedFilter = filter;
+        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
+
+        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
+        var andParts = modifiedFilter.Split(' ').Where(p => p != "")
+            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces again 
+            .ToList();
+
+        // Find all commits matching all AND parts.
+        var commits = repo.AugmentedRepo.Commits
+            .Where(c => andParts.All(p =>
+                c.Id.Contains(p, sc) ||
+                c.Subject.Contains(p, sc) ||
+                c.BranchName.Contains(p, sc) ||
+                c.Author.Contains(p, sc) ||
+                c.AuthorTime.IsoDate().Contains(p, sc) ||
+                c.BranchNiceUniqueName.Contains(p, sc) ||
+                c.Tags.Any(t => t.Name.Contains(p, sc))))
+            .Take(maxCount);
+        var result = converter.ToCommits(commits.ToList());
+        Log.Info($"Filtered on '{filter}' => {result.Count} results {t}");
+        return result;
     }
 
 
@@ -88,7 +129,7 @@ class Server : IServer
         }
 
         var c = repo.AugmentedRepo.CommitById[commitId];
-        var ids = c.ChildIds.Concat(c.ParentIds);
+        var ids = c.AllChildIds.Concat(c.ParentIds);
         var branches = ids.Select(id =>
         {
             var cc = repo.AugmentedRepo.CommitById[id];
@@ -96,7 +137,7 @@ class Server : IServer
             // Get not shown branches of either child or parent commits.
             if (!repo.BranchByName.TryGetValue(cc.BranchName, out var branch))
             {
-                return repo.AugmentedRepo.BranchByName[cc.BranchName];
+                return repo.AugmentedRepo.Branches[cc.BranchName];
             }
 
             return null;
@@ -107,32 +148,80 @@ class Server : IServer
         return converter.ToBranches(branches.ToList());
     }
 
+    public IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount)
+    {
+        if (commitId == Repo.UncommittedId) return new List<string>();
 
-    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous)
+        var specifiedCommit = repo.AugmentedRepo.CommitById[commitId];
+
+        var branches = new Queue<string>();
+        var branchesSeen = new HashSet<string>();
+        var commitQueue = new Queue<Augmented.Commit>();
+        var commitSeen = new HashSet<Augmented.Commit>();
+
+        commitQueue.Enqueue(specifiedCommit);
+        commitSeen.Add(specifiedCommit);
+
+        while (commitQueue.Any() && branches.Count < maxCount)
+        {
+            var commit = commitQueue.Dequeue();
+            var branch = repo.AugmentedRepo.Branches[commit.BranchName];
+
+            if (!branchesSeen.Contains(branch.NiceName))
+            {
+                branches.Enqueue(branch.NiceName);
+                branchesSeen.Add(branch.NiceName);
+            }
+
+            foreach (var id in commit.AllChildIds)
+            {
+                var child = repo.AugmentedRepo.CommitById[id];
+
+                if (child.ParentIds[0] != commit.Id ||  // Skip merge children (not have commit as first parent)
+                    child.IsBranchSetByUser)            // Skip children where branch is  set by user
+                {
+                    continue;
+                }
+
+                if (!commitSeen.Contains(child))
+                {
+                    commitQueue.Enqueue(child);
+                    commitSeen.Add(child);
+                }
+            }
+        }
+
+        return branches.ToList();
+    }
+
+
+    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
     {
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
         {
-            var branch = repo.AugmentedRepo.BranchByName[branchName];
+            var branch = repo.AugmentedRepo.Branches[branchName];
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray());
+        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), show);
     }
 
 
-    public Repo HideBranch(Repo repo, string name)
+    public Repo HideBranch(Repo repo, string name, bool hideAllBranches = false)
     {
-        Log.Info($"Hide {name}");
-        var branch = repo.AugmentedRepo.BranchByName[name];
+        Log.Info($"Hide {name}, HideAllBranches: {hideAllBranches}");
+
+        if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, new[] { "main" });
+
+        var branch = repo.AugmentedRepo.Branches[name];
         if (branch.RemoteName != "")
         {
-            branch = repo.AugmentedRepo.BranchByName[branch.RemoteName];
+            branch = repo.AugmentedRepo.Branches[branch.RemoteName];
         }
 
         var branchNames = repo.Branches
-            .Where(b => b.Name != branch.Name &&
-                !viewRepoCreater.IsFirstAncestorOfSecond(repo.AugmentedRepo, branch, repo.AugmentedRepo.BranchByName[b.Name]))
+            .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
             .Select(b => b.Name)
             .ToArray();
 
@@ -156,9 +245,9 @@ class Server : IServer
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
-    public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string wd)
+    public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd)
     {
-        if (!Try(out var gitCommitDiff, out var e, await git.GetPreviewMergeDiffAsync(sha1, sha2, wd))) return e;
+        if (!Try(out var gitCommitDiff, out var e, await git.GetPreviewMergeDiffAsync(sha1, sha2, message, wd))) return e;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }
@@ -229,11 +318,11 @@ class Server : IServer
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
 
-    public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName) =>
-        augmentedService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setDisplayName);
+    public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
+        augmentedService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setHumanName);
 
-    public Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName) =>
-        augmentedService.SetBranchManuallyAsync(repo.AugmentedRepo, commitId, setDisplayName);
+    public Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName) =>
+        augmentedService.SetBranchManuallyAsync(repo.AugmentedRepo, commitId, setHumanName);
 
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
         augmentedService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);

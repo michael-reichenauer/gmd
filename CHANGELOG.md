@@ -1,9 +1,30 @@
 # Change Log for Gmd
 --------------------
 
-93 releases:
+94 releases:
 
-## [Current] - 2023-06-30
+## [Current] - 2023-07-14
+- Add branch count to filter
+- Adjust how add merge commits messages are formated
+- Add graph to filter/search view results
+- Add mouse scroll support to filter/search
+- Adjust how OS detection is handled
+- Improved serach/filter functionality
+- Support showing all recent, all active or all branches
+- Show branch when switching
+- Show ambiguous branches in branch structure menu
+- Support search/filter of ambiguous tips using '*'
+- In repo view highlight whole row
+- Add support for set branch with dialog
+- Add support for combo text fields
+- Adjust menues
+- Add support to scroll to commit in file history
+- In open repo, disable current path in recent paths
+- When delete branch, shown branches are listed first
+- Fix issue when showing complex branch with many pullmerges
+- Adjust how shown branch names are handled
+
+## [v0.80.243.218] - 2023-06-30
 - Adjust commit to offer undo of binary files
 - Add releases count to change log file
 

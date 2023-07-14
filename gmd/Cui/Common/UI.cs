@@ -28,6 +28,7 @@ static class UI
         onActivated = activated;
     }
 
+    public static void CloseDialog() => Application.RequestStop();
 
     static internal void StopInput()
     {
@@ -100,5 +101,4 @@ static class UI
             onActivated?.Invoke();
         });
     }
-
 }

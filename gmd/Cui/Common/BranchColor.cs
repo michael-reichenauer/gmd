@@ -6,7 +6,7 @@ using gmd.Server;
 namespace gmd.Cui.Common;
 using Color = Terminal.Gui.Attribute;
 
-// Mangages brach colors
+// Manages brach colors
 interface IBranchColorService
 {
     Color GetColor(Server.Repo repo, Server.Branch branch);
@@ -27,30 +27,30 @@ class BranchColorService : IBranchColorService
         if (branch.IsDetached) return TextColor.White;
         if (branch.IsMainBranch) return TextColor.Magenta;
 
-        if (repoState.Get(repo.Path).BranchColors.TryGetValue(branch.CommonName, out var colorId))
+        if (repoState.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryBaseName, out var colorId))
         {
             return TextColor.BranchColorById(colorId);
         }
 
         if (branch.ParentBranchName == "")
         {   // branch has no parent, get color based on parent name
-            return BranchNameColor(branch.DisplayName, 0);
+            return BranchNameColor(branch.PrimaryBaseName, 0);
         }
 
         // Branch has a parent, lets check the color of parent to determine branch color
         var parentBranch = repo.BranchByName[branch.ParentBranchName];
 
-        if (branch.CommonName == parentBranch.CommonName)
+        if (branch.PrimaryName == parentBranch.PrimaryName)
         {   // Same common name, lets use parent color
             return GetColor(repo, parentBranch);
         }
 
-        // Parent is a different branch lets use a colore that is different
-        Color color = BranchNameColor(branch.DisplayName, 0);
+        // Parent is a different branch lets use a colors that is different
+        Color color = BranchNameColor(branch.PrimaryBaseName, 0);
         Color parentColor = GetColor(repo, parentBranch);
         if (color == parentColor)
         {   // branch got same color as parent, lets change branch color one step
-            color = BranchNameColor(branch.DisplayName, 1);
+            color = BranchNameColor(branch.PrimaryBaseName, 1);
         }
 
         return color;
@@ -62,7 +62,7 @@ class BranchColorService : IBranchColorService
         var colorId = TextColor.GetBranchColorId(color);
         var newColorId = (colorId + 1) % TextColor.BranchColors.Length;
 
-        repoState.Set(repo.Path, s => s.BranchColors[branch.CommonName] = newColorId);
+        repoState.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
     }
 
     Color BranchNameColor(string name, int addIndex)

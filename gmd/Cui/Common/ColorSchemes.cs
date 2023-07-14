@@ -14,6 +14,24 @@ static class ColorSchemes
         Disabled = TextColor.Dark,
     };
 
+    internal static readonly ColorScheme Border = new ColorScheme()
+    {
+        Normal = TextColor.BrightMagenta,
+        Focus = TextColor.White,
+        HotNormal = TextColor.White,
+        HotFocus = TextColor.White,
+        Disabled = TextColor.Dark,
+    };
+
+    internal static readonly ColorScheme Scrollbar = new ColorScheme()
+    {
+        Normal = TextColor.BrightMagenta,
+        Focus = TextColor.BrightMagenta,
+        HotNormal = TextColor.BrightMagenta,
+        HotFocus = TextColor.BrightMagenta,
+        Disabled = TextColor.Dark,
+    };
+
     internal static readonly ColorScheme ErrorDialog = new ColorScheme()
     {
         Normal = TextColor.BrightRed,

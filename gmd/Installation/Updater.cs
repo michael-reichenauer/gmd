@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using gmd.Common;
 using gmd.Cui.Common;
@@ -12,7 +11,7 @@ interface IUpdater
     Task CheckUpdateAvailableAsync();
     Task<R<Version>> UpdateAsync();
     Task<R<(bool, Version)>> IsUpdateAvailableAsync();
-    Task CheckUpdatesRegularly();
+    Task StartCheckUpdatesRegularly();
 }
 
 public class GitRelease
@@ -32,6 +31,7 @@ public class GitAsset
     public string browser_download_url { get; set; } = "";
 }
 
+[SingleInstance]
 class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
@@ -49,7 +49,9 @@ class Updater : IUpdater
     readonly ICmd cmd;
     readonly Version buildVersion;
 
-    // Data for download binary tasks to avoud multiple paralell tasks
+    bool isUpdateCheckerRunning = false;
+
+    // Data for download binary tasks to avoid multiple parallel tasks
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
@@ -113,13 +115,16 @@ class Updater : IUpdater
     }
 
 
-    public async Task CheckUpdatesRegularly()
+    public async Task StartCheckUpdatesRegularly()
     {
         if (Build.IsDevInstance())
         {
             Log.Info("Dev instance, no update check");
             return;
         }
+
+        if (isUpdateCheckerRunning) return;
+        isUpdateCheckerRunning = true;
 
         while (true)
         {
@@ -318,17 +323,17 @@ class Updater : IUpdater
     (string, string) SelectBinaryPath()
     {
         string name = "";
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (Build.IsMacOS)
         {
             name = "gmd_osx";
         }
         else
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        if (Build.IsLinux)
         {
             name = "gmd_linux";
         }
         else
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             name = "gmd_windows";
         }
@@ -482,11 +487,7 @@ class Updater : IUpdater
 
     R MakeBinaryExecutable(string path)
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            // Not needed on windows
-            return R.Ok;
-        }
+        if (Build.IsWindows) return R.Ok; // Not needed on windows
 
         return cmd.Command("chmod", $"+x {path}", "");
     }

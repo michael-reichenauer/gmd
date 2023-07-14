@@ -74,7 +74,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> FetchAsync(string path)
     {
-        using (Timing.Start("Fetched"))
+        // using (Timing.Start("Fetched"))
         {
             // pull meta data, but ignore error, if error is key not exist, it can be ignored,
             // if error is remote error, the following fetch will handle that
@@ -88,7 +88,6 @@ class AugmentedService : IAugmentedService
             return fetchTask.Result;
         }
     }
-
 
     public Task<R> FetchMetaDataAsync(string path) => metaDataService.FetchMetaDataAsync(path);
 
@@ -114,9 +113,12 @@ class AugmentedService : IAugmentedService
         if (!Try(out var status, out e, statusTask.Result)) return e;
         if (!Try(out var metaData, out e, metaDataTask.Result)) return e;
         if (!Try(out var stashes, out e, stashesTask.Result)) return e;
+        var isTruncated = log.Count == maxCommitCount;
 
         // Combine all git info into one git repo info object
-        var gitRepo = new GitRepo(DateTime.UtcNow, path, log, branches, tags, status, metaData, stashes);
+        var timeStamp = DateTime.UtcNow;
+        fileMonitor.SetReadRepoTime(timeStamp);
+        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes, isTruncated);
         Log.Info($"GitRepo {t} {gitRepo}");
 
         if (gitRepo.Commits.Count == 0)
@@ -129,26 +131,23 @@ class AugmentedService : IAugmentedService
     public async Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
     {
         Log.Info($"Create branch {newBranchName} ...");
-        var branch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
-        Commit? commit = null;
-        if (branch != null)
+        Commit? currentCommit = null;
+        var currentBranch = repo.Branches.Values.FirstOrDefault(b => b.IsCurrent);
+        if (currentBranch != null)
         {
-            commit = repo.CommitById[branch.TipId];
+            currentCommit = repo.CommitById[currentBranch.TipId];
         }
 
         using (fileMonitor.Pause())
         {
             if (!Try(out var e, await git.CreateBranchAsync(newBranchName, isCheckout, wd))) return e;
 
-            if (commit == null || branch == null)
-            {
-                return R.Ok;
-            }
+            if (currentCommit == null || currentBranch == null) return R.Ok;
 
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            metaData.SetBranched(currentCommit.Sid, currentBranch.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -161,12 +160,12 @@ class AugmentedService : IAugmentedService
             if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd))) return e;
 
             Commit commit = repo.CommitById[sha];
-            var branch = repo.BranchByName[commit.BranchName];
+            var branch = repo.Branches[commit.BranchName];
 
             // Get the latest meta data
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
-            metaData.SetBranched(commit.Sid, branch.DisplayName);
+            metaData.SetBranched(commit.Sid, branch.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -180,13 +179,13 @@ class AugmentedService : IAugmentedService
             return ToMergeCommits(repo, commits2).ToList();
         }
 
-        var branch = repo.BranchByName[name];
+        var branch = repo.Branches[name];
         var tip = repo.CommitById[branch.TipId];
         var mergeName = branch.Name;
 
         if (branch.LocalName != "")
         {   // Branch is a remote branch with an existing local branch, which might have a younger tip
-            var localBranch = repo.BranchByName[branch.LocalName];
+            var localBranch = repo.Branches[branch.LocalName];
             var localTip = repo.CommitById[localBranch.TipId];
             if (localTip.AuthorTime >= tip.AuthorTime)
             {   // The local branch is younger or same, use that.
@@ -195,7 +194,7 @@ class AugmentedService : IAugmentedService
         }
         else if (branch.RemoteName != "")
         {   // Branch is a local branch with an existing remote branch, which might have a younger tip
-            var remoteBranch = repo.BranchByName[branch.RemoteName];
+            var remoteBranch = repo.Branches[branch.RemoteName];
             var remoteTip = repo.CommitById[remoteBranch.TipId];
             if (remoteTip.AuthorTime >= tip.AuthorTime)
             {   // The remote branch is younger or same, use that.
@@ -210,7 +209,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R> SwitchToAsync(Repo repo, string branchName)
     {
-        var branch = repo.BranchByName[branchName];
+        var branch = repo.Branches[branchName];
         if (branch.IsGitBranch)
         {
             return await git.CheckoutAsync(branchName, repo.Path);
@@ -219,35 +218,35 @@ class AugmentedService : IAugmentedService
         // Not a git branch so the branch was deleted, lets recreate it
         var tip = repo.CommitById[branch.TipId];
 
-        return await CreateBranchFromCommitAsync(repo, branch.DisplayName, tip.Id, true, repo.Path);
+        return await CreateBranchFromCommitAsync(repo, branch.NiceName, tip.Id, true, repo.Path);
     }
 
-    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setDisplayName)
+    public async Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setNiceName)
     {
-        Log.Info($"Set {commitId.Sid()} to {setDisplayName} ...");
+        Log.Info($"Set {commitId.Sid()} to {setNiceName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(commitId.Sid(), setDisplayName);
+            metaData.SetCommitBranch(commitId.Sid(), setNiceName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
 
-    public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setDisplayName)
+    public async Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName)
     {
-        var branch = repo.BranchByName[branchName];
+        var branch = repo.Branches[branchName];
         var ambiguousTip = branch.AmbiguousTipId;
-        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setDisplayName} ...");
+        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setHumanName} ...");
 
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.SetCommitBranch(ambiguousTip.Sid(), setDisplayName);
+            metaData.SetCommitBranch(ambiguousTip.Sid(), setHumanName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
     }
@@ -260,7 +259,7 @@ class AugmentedService : IAugmentedService
             // Get the latest meta data
             if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path))) return e;
 
-            metaData.Remove(commitId.Sid());
+            metaData.RemoveCommitBranch(commitId.Sid());
 
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
         }
@@ -296,24 +295,20 @@ class AugmentedService : IAugmentedService
     IEnumerable<Commit> ToMergeCommits(Repo repo, IReadOnlyList<Git.Commit> commits)
     {
         if (commits.Count == 0) return Enumerable.Empty<Commit>();
-        var branchName = repo.CommitById[commits[0].Id].BranchCommonName;
+        var branchName = repo.CommitById[commits[0].Id].BranchPrimaryName;
 
         return commits
             .Select(c => repo.CommitById[c.Id])
-            .Where(c => c.BranchCommonName == branchName);
+            .Where(c => c.BranchPrimaryName == branchName);
     }
 
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
-        Timing t = Timing.Start();
-
         if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path))) return e;
-
-        Log.Info($"{t} S:{gitStatus}");
+        fileMonitor.SetReadStatusTime(DateTime.UtcNow);
         return gitStatus;
     }
-
 
     // GetAugmentedRepoAsync returns an augmented git repo, and monitors working folder changes
     async Task<R<Repo>> GetAugmentedRepoAsync(GitRepo gitRepo)
@@ -321,7 +316,7 @@ class AugmentedService : IAugmentedService
         fileMonitor.Monitor(gitRepo.Path);
 
         Timing t = Timing.Start();
-        WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo, maxCommitCount);
+        WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo);
 
         var repo = converter.ToRepo(augRepo);
         Log.Info($"Augmented {t} {repo}");
@@ -338,15 +333,14 @@ class AugmentedService : IAugmentedService
 
     R<GitRepo> EmptyRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
     {
-        var id = Repo.PartialLogCommitID;
+        var id = Repo.TruncatedLogCommitID;
         var msg = "<... empty repo ...>";
         var branchName = "main";
         var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),
             new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
-        var branches = new List<Git.Branch>() { new Git.Branch(branchName, branchName, id,
-             true, false, "", false, 0, 0, false) };
+        var branches = new List<Git.Branch>() { new Git.Branch(branchName, id, true, false, "", false, 0, 0) };
         var stashes = new List<Git.Stash>();
 
-        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes);
+        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes, false);
     }
 }
