@@ -4,7 +4,6 @@ using gmd.Common;
 using gmd.Server;
 
 namespace gmd.Cui.Common;
-using Color = Terminal.Gui.Attribute;
 
 // Manages brach colors
 interface IBranchColorService
@@ -24,12 +23,12 @@ class BranchColorService : IBranchColorService
 
     public Color GetColor(Server.Repo repo, Server.Branch branch)
     {
-        if (branch.IsDetached) return TextColor.White;
-        if (branch.IsMainBranch) return TextColor.Magenta;
+        if (branch.IsDetached) return Color.White;
+        if (branch.IsMainBranch) return Color.Magenta;
 
         if (repoState.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryBaseName, out var colorId))
         {
-            return TextColor.BranchColorById(colorId);
+            return Color.BranchColorById(colorId);
         }
 
         if (branch.ParentBranchName == "")
@@ -59,16 +58,16 @@ class BranchColorService : IBranchColorService
     public void ChangeColor(Repo repo, Branch branch)
     {
         var color = GetColor(repo, branch);
-        var colorId = TextColor.GetBranchColorId(color);
-        var newColorId = (colorId + 1) % TextColor.BranchColors.Length;
+        var colorId = Color.GetBranchColorId(color);
+        var newColorId = (colorId + 1) % Color.BranchColors.Length;
 
         repoState.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
     }
 
     Color BranchNameColor(string name, int addIndex)
     {
-        var branchColorId = (Hash(name) + addIndex) % TextColor.BranchColors.Length;
-        return TextColor.BranchColorById(branchColorId);
+        var branchColorId = (Hash(name) + addIndex) % Color.BranchColors.Length;
+        return Color.BranchColorById(branchColorId);
     }
 
 

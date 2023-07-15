@@ -1,5 +1,4 @@
 using gmd.Cui.Common;
-using Attribute = Terminal.Gui.Attribute;
 
 namespace gmd.Cui.Diff;
 
@@ -48,12 +47,12 @@ enum DiffRowMode
     DividerLine,
 }
 
-record Line(int lineNbr, string text, Attribute color);
+record Line(int lineNbr, string text, Color color);
 
 class Block
 {
     public List<Line> Lines { get; } = new List<Line>();
-    public void Add(int lineNbr, string text, Attribute color)
+    public void Add(int lineNbr, string text, Color color)
     {
         Lines.Add(new Line(lineNbr, text, color));
     }

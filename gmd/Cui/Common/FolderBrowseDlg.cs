@@ -59,8 +59,8 @@ public class FolderBrowseDlg
     {
         var yellow = new ColorScheme
         {
-            Focus = new Terminal.Gui.Attribute(Color.White, Color.DarkGray),
-            Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
+            Focus = new Color(Color.White, Color.Dark),
+            Normal = Color.White
         };
 
         treeView.ColorGetter = m => m is DirectoryInfo ? yellow : null;

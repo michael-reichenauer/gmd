@@ -51,16 +51,16 @@ class FilterDlg : IFilterDlg
         dlg.RegisterMouseHandler(OnMouseEvent);
 
         var searchLabel = dlg.AddLabel(0, 0, "Search:");
-        searchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.BrightMagenta };
+        searchLabel.ColorScheme = new ColorScheme() { Normal = Common.Color.BrightMagenta };
         filterField = dlg.AddTextField(9, 0, 30);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
         // Status fields
         resultCountField = dlg.AddLabel(41, 0);
-        resultCountField.ColorScheme = new ColorScheme() { Normal = TextColor.Dark };
+        resultCountField.ColorScheme = new ColorScheme() { Normal = Common.Color.Dark };
         commitLabel = dlg.AddLabel(71, 0, "");
         branchLabel = dlg.AddLabel(78, 0, "");
-        branchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.White };
+        branchLabel.ColorScheme = new ColorScheme() { Normal = Common.Color.White };
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());

@@ -135,7 +135,7 @@ class Menu
             if (item is MenuSeparator ms) return Text.New.BrightMagenta(ToSeparatorText(ms));
 
             // Color if disabled or not
-            var titleColor = item.IsDisabled ? TextColor.Dark : TextColor.White;
+            var titleColor = item.IsDisabled ? Color.Dark : Color.White;
 
             // Title text might need to be truncated
             var text = Text.New;

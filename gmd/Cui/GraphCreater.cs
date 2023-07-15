@@ -1,7 +1,5 @@
 using gmd.Cui.Common;
 using gmd.Server;
-using Color = Terminal.Gui.Attribute;
-
 
 namespace gmd.Cui;
 
@@ -38,7 +36,7 @@ interface IGraphCreater
 
 class GraphCreater : IGraphCreater
 {
-    static readonly Color MoreColor = TextColor.Dark;
+    static readonly Color MoreColor = Color.Dark;
     readonly IBranchColorService branchColorService;
 
     public GraphCreater(IBranchColorService branchColorService)
@@ -147,10 +145,8 @@ class GraphCreater : IGraphCreater
         // this tip commit is not part of the branch (multiple branch tips on the same commit)
         graph.DrawHorizontalLine(x1 + 1, x2 + 1, y2, color);  //   ─
 
-        if (c.IsAmbiguous)
-        {
-            color = TextColor.Ambiguous;
-        }
+        if (c.IsAmbiguous) color = Color.White;
+
         graph.SetGraphBranch(x2, y2, Sign.Bottom | Sign.Pass, color, b); //       ┺
     }
 
@@ -159,11 +155,11 @@ class GraphCreater : IGraphCreater
     {
         int x = b.X;
         int y = c.Index;
-        Color color = c.IsAmbiguous ? TextColor.Ambiguous : b.Color;
+        Color color = c.IsAmbiguous ? Color.White : b.Color;
 
         if (c.BranchName != b.B.Name && c.Id != b.B.TipId)
         {   // Other branch commit, normal branch line (no commit on that branch)
-            Color otherColor = !isAmbiguous ? b.Color : TextColor.Ambiguous;
+            Color otherColor = !isAmbiguous ? b.Color : Color.White;
             graph.SetGraphBranch(x, y, Sign.BLine, otherColor, b); //      ┃  (other branch, not this commit)
             return;
         }
@@ -175,7 +171,7 @@ class GraphCreater : IGraphCreater
 
         if (c.IsBranchSetByUser)
         {
-            graph.SetGraphBranch(x, y, Sign.Resolve, TextColor.Ambiguous, b); //       Φ   (Resolved/set by user)
+            graph.SetGraphBranch(x, y, Sign.Resolve, Color.White, b); //       Φ   (Resolved/set by user)
             return;
         }
         if (c.Id == b.B.TipId)
@@ -251,7 +247,7 @@ class GraphCreater : IGraphCreater
         Color color = commitBranch.Color;
         if (commit.IsAmbiguous)
         {
-            color = TextColor.Ambiguous;
+            color = Color.White;
         }
 
         graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color, commitBranch); //     ╭
@@ -280,7 +276,7 @@ class GraphCreater : IGraphCreater
 
         if (mergeParent.IsAmbiguous)
         {
-            color = TextColor.Ambiguous;
+            color = Color.White;
         }
 
         if (commitBranch != parentBranch)
@@ -311,7 +307,7 @@ class GraphCreater : IGraphCreater
 
         if (mergeParent.IsAmbiguous)
         {
-            color = TextColor.Ambiguous;
+            color = Color.White;
         }
         graph.DrawHorizontalLine(x + 1, x2, y, color); //                 ─
 
@@ -343,7 +339,7 @@ class GraphCreater : IGraphCreater
 
         if (c.IsAmbiguous)
         {
-            color = TextColor.Ambiguous;
+            color = Color.White;
         }
 
         if (parentBranch.X < commitBranch.X)

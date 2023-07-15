@@ -1,58 +1,67 @@
-using Terminal.Gui;
-
 
 namespace gmd.Cui.Common;
 
-static class TextColor
+class Color
 {
-    public static readonly Terminal.Gui.Attribute Blue = Make(Terminal.Gui.Color.Blue);
-    public static readonly Terminal.Gui.Attribute Green = Make(Terminal.Gui.Color.Green);
-    public static readonly Terminal.Gui.Attribute Cyan = Make(Terminal.Gui.Color.Cyan);
-    public static readonly Terminal.Gui.Attribute Red = Make(Terminal.Gui.Color.Red);
-    public static readonly Terminal.Gui.Attribute Magenta = Make(Terminal.Gui.Color.Magenta);
-    public static readonly Terminal.Gui.Attribute Yellow = Make(Terminal.Gui.Color.Brown);
-    public static readonly Terminal.Gui.Attribute Dark = Make(Terminal.Gui.Color.DarkGray);
-    public static readonly Terminal.Gui.Attribute BrightBlue = Make(Terminal.Gui.Color.BrightBlue);
-    public static readonly Terminal.Gui.Attribute BrightGreen = Make(Terminal.Gui.Color.BrightGreen);
-    public static readonly Terminal.Gui.Attribute BrightCyan = Make(Terminal.Gui.Color.BrightCyan);
-    public static readonly Terminal.Gui.Attribute BrightRed = Make(Terminal.Gui.Color.BrightRed);
-    public static readonly Terminal.Gui.Attribute BrightMagenta = Make(Terminal.Gui.Color.BrightMagenta);
-    public static readonly Terminal.Gui.Attribute BrightYellow = Make(Terminal.Gui.Color.BrightYellow);
-    public static readonly Terminal.Gui.Attribute White = Make(Terminal.Gui.Color.White);
-    public static readonly Terminal.Gui.Attribute Black = Make(Terminal.Gui.Color.Black);
+    // Predefined colors
+    public static readonly Color Blue = Make(Terminal.Gui.Color.Blue);
+    public static readonly Color Green = Make(Terminal.Gui.Color.Green);
+    public static readonly Color Cyan = Make(Terminal.Gui.Color.Cyan);
+    public static readonly Color Red = Make(Terminal.Gui.Color.Red);
+    public static readonly Color Magenta = Make(Terminal.Gui.Color.Magenta);
+    public static readonly Color Yellow = Make(Terminal.Gui.Color.Brown);
+    public static readonly Color Dark = Make(Terminal.Gui.Color.DarkGray);
+    public static readonly Color BrightBlue = Make(Terminal.Gui.Color.BrightBlue);
+    public static readonly Color BrightGreen = Make(Terminal.Gui.Color.BrightGreen);
+    public static readonly Color BrightCyan = Make(Terminal.Gui.Color.BrightCyan);
+    public static readonly Color BrightRed = Make(Terminal.Gui.Color.BrightRed);
+    public static readonly Color BrightMagenta = Make(Terminal.Gui.Color.BrightMagenta);
+    public static readonly Color BrightYellow = Make(Terminal.Gui.Color.BrightYellow);
+    public static readonly Color White = Make(Terminal.Gui.Color.White);
+    public static readonly Color Black = Make(Terminal.Gui.Color.Black);
 
-    public static readonly Terminal.Gui.Attribute None = Make(Terminal.Gui.Color.Black);
-    public static readonly Terminal.Gui.Attribute Ambiguous = Make(Terminal.Gui.Color.White);
+    static readonly Color[] Colors = { Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Magenta,
+        Color.Yellow, Color.BrightBlue, Color.BrightGreen, Color.BrightCyan, Color.BrightRed, Color.BrightMagenta,
+        Color.BrightYellow , Color.White, Color.Black};
 
-    public static readonly Terminal.Gui.Attribute WhiteSelected = HighMake(Terminal.Gui.Color.White);
-    public static readonly Terminal.Gui.Attribute YellowSelected = HighMake(Terminal.Gui.Color.BrightYellow);
 
-    internal static readonly Terminal.Gui.Attribute[] BranchColors = { Blue, Green, Cyan, Red, Yellow };
+    readonly Terminal.Gui.Color fg;
+    readonly Terminal.Gui.Color bg;
 
-    internal static Terminal.Gui.Attribute BranchColorById(int colorId)
+    public static readonly Color[] BranchColors = { Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow };
+
+    public static Color BranchColorById(int colorId)
     {
-        colorId = Math.Min(colorId, BranchColors.Length - 1);
-        return BranchColors[colorId];
+        var index = Math.Min(colorId, BranchColors.Length - 1);
+        return BranchColors[index];
     }
 
-    internal static int GetBranchColorId(Terminal.Gui.Attribute color)
-    {
-        return Array.FindIndex(TextColor.BranchColors, c => c == color);
-    }
-
-    static Terminal.Gui.Attribute Make(Terminal.Gui.Color fg)
-    {
-        return Make(fg, Terminal.Gui.Color.Black);
-    }
-
-    static Terminal.Gui.Attribute HighMake(Terminal.Gui.Color fg)
-    {
-        return Make(fg, Terminal.Gui.Color.DarkGray);
-    }
+    public static int GetBranchColorId(Color color) =>
+        Array.FindIndex(Color.BranchColors, c => c == color);
 
 
-    public static Terminal.Gui.Attribute Make(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
+    public Color(Color fg, Color bg) : this(fg.fg, bg.fg) { }
+
+    public Color(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
     {
-        return View.Driver.MakeAttribute(fg, bg);
+        this.fg = fg;
+        this.bg = bg;
     }
+
+    public Terminal.Gui.Color Foreground => fg;
+
+    public Terminal.Gui.Color Background => bg;
+
+    public static implicit operator Color(Terminal.Gui.Attribute c) =>
+        Colors.FirstOrDefault(c => c.fg == c.Foreground && c.bg == c.Background) ??
+        new Color(c.Foreground, c.Background);
+
+    public static implicit operator Terminal.Gui.Attribute(Color color) =>
+        new Terminal.Gui.Attribute(color.fg, color.bg);
+
+    public static implicit operator Terminal.Gui.Color(Color color) =>
+       color.fg;
+
+    static Color Make(Terminal.Gui.Color color) => new Color(color, Terminal.Gui.Color.Black);
 }
+

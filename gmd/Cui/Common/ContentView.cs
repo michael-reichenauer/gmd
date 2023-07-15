@@ -344,12 +344,12 @@ class ContentView : View
         Move(0, 0);
         if (IsFocus)
         {
-            Driver.SetAttribute(TextColor.White);
+            Driver.SetAttribute(Color.White);
             Driver.AddStr(new string('━', ViewWidth));
         }
         else
         {
-            Driver.SetAttribute(TextColor.Dark);
+            Driver.SetAttribute(Color.Dark);
             Driver.AddStr(new string('─', ViewWidth));
         }
     }
@@ -363,7 +363,7 @@ class ContentView : View
         }
 
         Move(0, ContentY + (CurrentIndex - FirstIndex));
-        Driver.SetAttribute(TextColor.White);
+        Driver.SetAttribute(Color.White);
         Driver.AddStr("┃");
     }
 
@@ -478,7 +478,7 @@ class ContentView : View
         for (int i = sbStart; i <= sbEnd; i++)
         {
             Move(x, i + ContentY);
-            Driver.SetAttribute(TextColor.Magenta);
+            Driver.SetAttribute(Color.Magenta);
             Driver.AddStr("┃");
         }
     }

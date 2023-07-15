@@ -17,11 +17,11 @@ class Progress : IProgress
     const int progressWidth = 6;
     static readonly ColorScheme colorScheme = new ColorScheme()
     {
-        Normal = TextColor.Magenta,
-        Focus = TextColor.Magenta,
-        HotNormal = TextColor.Magenta,
-        HotFocus = TextColor.Magenta,
-        Disabled = TextColor.Magenta,
+        Normal = Color.Magenta,
+        Focus = Color.Magenta,
+        HotNormal = Color.Magenta,
+        HotFocus = Color.Magenta,
+        Disabled = Color.Magenta,
     };
 
     Timer? progressTimer;

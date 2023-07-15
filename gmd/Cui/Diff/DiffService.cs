@@ -159,15 +159,15 @@ class DiffService : IDiffService
                 case DiffMode.DiffRemoved:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(leftNr, dl.Line, TextColor.Yellow);
+                        leftBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(leftNr, dl.Line, TextColor.Yellow);
+                        rightBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
                     else
                     {
-                        leftBlock.Add(leftNr, dl.Line, TextColor.Red);
+                        leftBlock.Add(leftNr, dl.Line, Color.Red);
                     }
 
                     leftNr++;
@@ -176,15 +176,15 @@ class DiffService : IDiffService
                 case DiffMode.DiffAdded:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        leftBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        rightBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else
                     {
-                        rightBlock.Add(rightNr, dl.Line, TextColor.Green);
+                        rightBlock.Add(rightNr, dl.Line, Color.Green);
                     }
 
                     rightNr++;
@@ -193,17 +193,17 @@ class DiffService : IDiffService
                 case DiffMode.DiffSame:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        leftBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        rightBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else
                     {
                         AddBlocks(ref leftBlock, ref rightBlock, rows);
-                        leftBlock.Add(leftNr, dl.Line, TextColor.White);
-                        rightBlock.Add(rightNr, dl.Line, TextColor.White);
+                        leftBlock.Add(leftNr, dl.Line, Color.White);
+                        rightBlock.Add(rightNr, dl.Line, Color.White);
                     }
 
                     leftNr++;
