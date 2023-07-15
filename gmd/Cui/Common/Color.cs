@@ -1,7 +1,7 @@
 
 namespace gmd.Cui.Common;
 
-class Color
+record Color
 {
     // Predefined colors
     public static readonly Color Blue = Make(Terminal.Gui.Color.Blue);
