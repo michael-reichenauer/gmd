@@ -17,9 +17,7 @@ class FilterDlg : IFilterDlg
 
     UIDialog dlg = null!;
     UITextField filterField = null!;
-    Label resultCountField = null!;
-    Label commitLabel = null!;
-    Label branchLabel = null!;
+    UILabel statusLabel = null!;
 
     int mouseEventX = -1;
     int mouseEventY = -1;
@@ -30,6 +28,7 @@ class FilterDlg : IFilterDlg
     string currentFilter = null!;
     ContentView resultsView = null!;
     R<Server.Commit> selectedCommit = R.Error("No commit selected");
+    Text repoInfo = Text.New;
 
 
     internal FilterDlg(IServer server, IBranchColorService branchColorService)
@@ -50,17 +49,11 @@ class FilterDlg : IFilterDlg
         dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
         dlg.RegisterMouseHandler(OnMouseEvent);
 
-        var searchLabel = dlg.AddLabel(0, 0, "Search:");
-        searchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.BrightMagenta };
+        dlg.AddLabel(0, 0, Text.New.BrightMagenta("Search:"));
         filterField = dlg.AddTextField(9, 0, 30);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
-        // Status fields
-        resultCountField = dlg.AddLabel(41, 0);
-        resultCountField.ColorScheme = new ColorScheme() { Normal = TextColor.Dark };
-        commitLabel = dlg.AddLabel(71, 0, "");
-        branchLabel = dlg.AddLabel(78, 0, "");
-        branchLabel.ColorScheme = new ColorScheme() { Normal = TextColor.White };
+        statusLabel = dlg.AddLabel(41, 0);
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());
@@ -175,7 +168,7 @@ class FilterDlg : IFilterDlg
             currentRepo = orgRepo;
         }
 
-        ShowRepoInfo();
+        repoInfo = GetRepoInfo();
         ShowCommitInfo();
         onRepoChanged(currentRepo);
     }
@@ -186,25 +179,22 @@ class FilterDlg : IFilterDlg
         var index = resultsView.CurrentIndex;
         if (currentRepo.Commits.Count == 0 || index >= currentRepo.Commits.Count)
         {
-            commitLabel.Text = "";
-            branchLabel.Text = "";
+            statusLabel.Text = repoInfo;
             return;
         };
 
         var commit = currentRepo.Commits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];
         var color = branchColorService.GetColor(currentRepo, branch);
-        commitLabel.Text = commit.Sid;
-        branchLabel.Text = $"({branch.NiceNameUnique})";
-        branchLabel.ColorScheme.Normal = color;
+        statusLabel.Text = Text.New.Add(repoInfo).White($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
     }
 
 
-    void ShowRepoInfo()
+    Text GetRepoInfo()
     {
         var commitCount = currentRepo.Commits.Count(c => c.BranchName != "<none>");
         var branchCount = currentRepo.Commits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
-        resultCountField.Text = $"{commitCount} commits, {branchCount} branches,";
+        return Text.New.Dark($"{commitCount} commits, {branchCount} branches,");
     }
 }
 

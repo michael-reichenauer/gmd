@@ -153,19 +153,22 @@ public record Status(
     int Added,
     int Deleted,
     int Conflicted,
+    int Renamed,
     bool IsMerging,
     string MergeMessage,
     string MergeHeadId,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
-    string[] ConflictsFiles
+    string[] ConflictsFiles,
+    string[] RenamedSourceFiles,
+    string[] RenamedTargetFiles
 )
 {
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
-    internal int ChangesCount => Modified + Added + Deleted + Conflicted;
+    internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
 
-    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
+    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }
 
 

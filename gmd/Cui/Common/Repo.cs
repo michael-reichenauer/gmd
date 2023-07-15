@@ -109,6 +109,7 @@ class RepoImpl : IRepo
         .Concat(Status.AddedFiles)
         .Concat(Status.DeletedFiles)
         .Concat(Status.ConflictsFiles)
+        .Concat(Status.RenamedTargetFiles)
         .OrderBy(f => f)
         .ToList();
 }

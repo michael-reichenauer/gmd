@@ -22,28 +22,28 @@ class GraphWriter : IGraphWriter
 
             // Draw connect runes (left of the branch)
             if (row[i].ConnectSign == Sign.Pass &&
-                passColor != TextColor.None &&
-                passColor != TextColor.Ambiguous)
+                passColor != Color.Black &&
+                passColor != Color.White)
             {
                 connectColor = passColor;
             }
             else if (row[i].ConnectSign.HasFlag(Sign.Pass))
             {
-                connectColor = TextColor.Ambiguous;
+                connectColor = Color.White;
             }
 
             text.Color(connectColor, ConnectRune(row[i].ConnectSign));
 
             // Draw the branch rune
             if (row[i].BranchSign == Sign.Pass &&
-                passColor != TextColor.None &&
-                passColor != TextColor.Ambiguous)
+                passColor != Color.Black &&
+                passColor != Color.White)
             {
                 branchColor = passColor;
             }
             else if (row[i].BranchSign == Sign.Pass)
             {
-                branchColor = TextColor.Ambiguous;
+                branchColor = Color.White;
             }
             text.Color(branchColor, BranchRune(row[i].BranchSign));
         }

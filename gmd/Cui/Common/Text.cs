@@ -1,54 +1,53 @@
-using System.Text;
-using Terminal.Gui;
-using Color = Terminal.Gui.Attribute;
-
-
 namespace gmd.Cui.Common;
 
 
 class Text
 {
-    record Fragment(string Text, Color Color);
+    record Fragment(string Text, Common.Color Color);
     readonly List<Fragment> fragments = new List<Fragment>();
-    internal int Length { get; private set; } = 0;
+    public int Length { get; private set; } = 0;
 
-    internal static Text None => new Text();
-    internal static Text New => new Text();
+    public static Text Empty => new Text();
+    public static Text New => new Text();
 
-    internal Text Red(string text) => Color(TextColor.Red, text);
-    internal Text Blue(string text) => Color(TextColor.Blue, text);
-    internal Text White(string text, bool isHighlight = false) => Color(TextColor.White, text);
-    internal Text Magenta(string text) => Color(TextColor.Magenta, text);
-    internal Text BrightBlue(string text) => Color(TextColor.BrightBlue, text);
-    internal Text BrightCyan(string text) => Color(TextColor.BrightCyan, text);
-    internal Text BrightGreen(string text) => Color(TextColor.BrightGreen, text);
-    internal Text BrightMagenta(string text) => Color(TextColor.BrightMagenta, text);
-    internal Text BrightRed(string text) => Color(TextColor.BrightRed, text);
-    internal Text BrightYellow(string text) => Color(TextColor.BrightYellow, text);
-    internal Text Cyan(string text) => Color(TextColor.Cyan, text);
-    internal Text Dark(string text) => Color(TextColor.Dark, text);
-    internal Text Green(string text) => Color(TextColor.Green, text);
-    internal Text Yellow(string text) => Color(TextColor.Yellow, text);
-    internal Text Black(string text) => Color(TextColor.Black, text);
+    public Text Red(string text) => Add(Common.Color.Red, text);
+    public Text Blue(string text) => Add(Common.Color.Blue, text);
+    public Text White(string text, bool isHighlight = false) => Add(Common.Color.White, text);
+    public Text Magenta(string text) => Add(Common.Color.Magenta, text);
+    public Text BrightBlue(string text) => Add(Common.Color.BrightBlue, text);
+    public Text BrightCyan(string text) => Add(Common.Color.BrightCyan, text);
+    public Text BrightGreen(string text) => Add(Common.Color.BrightGreen, text);
+    public Text BrightMagenta(string text) => Add(Common.Color.BrightMagenta, text);
+    public Text BrightRed(string text) => Add(Common.Color.BrightRed, text);
+    public Text BrightYellow(string text) => Add(Common.Color.BrightYellow, text);
+    public Text Cyan(string text) => Add(Common.Color.Cyan, text);
+    public Text Dark(string text) => Add(Common.Color.Dark, text);
+    public Text Green(string text) => Add(Common.Color.Green, text);
+    public Text Yellow(string text) => Add(Common.Color.Yellow, text);
+    public Text Black(string text) => Add(Common.Color.Black, text);
+    public Text Color(Common.Color color, string text) => Add(color, text);
 
-    internal Text ToHighlight() => ToHighlight(Terminal.Gui.Color.DarkGray);
+    public Text ToHighlight() => ToHighlight(Common.Color.Dark);
 
-    internal Text ToHighlightGreen() => ToHighlight(Terminal.Gui.Color.Green);
+    public Text ToHighlightGreen() => ToHighlight(Common.Color.Green);
 
-    internal Text ToHighlightRed() => ToHighlight(Terminal.Gui.Color.Red);
+    public Text ToHighlightRed() => ToHighlight(Common.Color.Red);
 
-    internal Text ToHighlight(Terminal.Gui.Color bgc)
+    public Text ToHighlight(Common.Color bg)
     {
         var newText = Text.New;
         foreach (var fragment in fragments)
         {
-            var color = TextColor.Make(fragment.Color.Foreground, bgc);
+            var fg = fragment.Color;
+            if (fg == Common.Color.Dark && bg == Common.Color.Dark) fg = Common.Color.White;
+            var color = new Common.Color(fg, bg);
             newText.Color(color, fragment.Text);
         }
+
         return newText;
     }
 
-    internal Text Color(Color color, string text)
+    public Text Add(Common.Color color, string text)
     {
         if (fragments.Count == 0 || fragments[^1].Color != color)
         {
@@ -63,14 +62,13 @@ class Text
         return this;
     }
 
-
-    internal Text Add(Text text)
+    public Text Add(Text text)
     {
         text.fragments.ForEach(f => Color(f.Color, f.Text));
         return this;
     }
 
-    internal Text AddLine(int width)
+    public Text AddLine(int width)
     {
         if (!fragments.Any() || fragments[0].Text == "")
         {
@@ -80,7 +78,7 @@ class Text
         return Text.New.Color(fragments[0].Color, new string(fragments[0].Text[0], width));
     }
 
-    internal Text Subtext(int startIndex, int length, bool isFillRest = false)
+    public Text Subtext(int startIndex, int length, bool isFillRest = false)
     {
         var newText = Text.New;
         int x = 0;
@@ -123,7 +121,7 @@ class Text
     }
 
 
-    internal void Draw(View view, int x, int y, int startIndex = 0, int length = int.MaxValue)
+    internal void Draw(Terminal.Gui.View view, int x, int y, int startIndex = 0, int length = int.MaxValue)
     {
         view.Move(x, y);
         Draw(startIndex, length);
@@ -171,8 +169,8 @@ class Text
                 continue;
             }
 
-            View.Driver.SetAttribute(fragment.Color);
-            View.Driver.AddStr(text);
+            Terminal.Gui.View.Driver.SetAttribute(fragment.Color);
+            Terminal.Gui.View.Driver.AddStr(text);
             x += text.Length;
         }
     }

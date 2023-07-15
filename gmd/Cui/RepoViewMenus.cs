@@ -515,9 +515,11 @@ class RepoViewMenus : IRepoViewMenus
     {
         string id = repo.RowCommit.Id;
         string sid = repo.RowCommit.Sid;
-        var binaryPaths = repo.Status.AddedFiles.Concat(repo.Status.ModifiedFiles)
-                .Where(f => !Files.IsText(Path.Join(repo.RepoPath, f)))
-                .ToList();
+        var binaryPaths = repo.Status.AddedFiles
+            .Concat(repo.Status.ModifiedFiles)
+            .Concat(repo.Status.RenamedTargetFiles)
+            .Where(f => !Files.IsText(Path.Join(repo.RepoPath, f)))
+            .ToList();
 
         return Menu.Items
             .SubMenu("Undo/Restore Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
