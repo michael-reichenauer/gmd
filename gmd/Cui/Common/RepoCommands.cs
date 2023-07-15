@@ -901,7 +901,10 @@ class RepoCommands : IRepoCommands
             var msg = $"There are {binaryFiles.Count} binary modified files:\n" +
             $"  {string.Join("\n  ", binaryFiles)}" +
             "\n\nDo you want to commit them as they are\nor first undo/revert them and then commit?";
-            if (0 != UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo" }))
+            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo", "Cancel" });
+            if (rsp == 2 || rsp == -1) return false; // Cancel
+
+            if (rsp == 1)
             {
                 UI.Post(() =>
                 {
