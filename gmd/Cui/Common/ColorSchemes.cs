@@ -14,15 +14,6 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static ColorScheme Border => new ColorScheme()
-    {
-        Normal = Color.BrightMagenta,
-        Focus = Color.White,
-        HotNormal = Color.White,
-        HotFocus = Color.White,
-        Disabled = Color.Dark,
-    };
-
     internal static ColorScheme Scrollbar => new ColorScheme()
     {
         Normal = Color.BrightMagenta,
@@ -75,15 +66,6 @@ static class ColorSchemes
         HotNormal = Color.White,
         HotFocus = Color.White,
         Disabled = Color.Dark,
-    };
-
-    internal static ColorScheme AllNormal => new ColorScheme()
-    {
-        Normal = Color.White,
-        Focus = Color.White,
-        HotNormal = Color.White,
-        HotFocus = Color.White,
-        Disabled = Color.White,
     };
 
     internal static ColorScheme CheckBox => new ColorScheme()
