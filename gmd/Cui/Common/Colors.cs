@@ -28,18 +28,6 @@ class Color
     readonly Terminal.Gui.Color fg;
     readonly Terminal.Gui.Color bg;
 
-    public static readonly Color[] BranchColors = { Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow };
-
-    public static Color BranchColorById(int colorId)
-    {
-        var index = Math.Min(colorId, BranchColors.Length - 1);
-        return BranchColors[index];
-    }
-
-    public static int GetBranchColorId(Color color) =>
-        Array.FindIndex(Color.BranchColors, c => c == color);
-
-
     public Color(Color fg, Color bg) : this(fg.fg, bg.fg) { }
 
     public Color(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
@@ -48,20 +36,22 @@ class Color
         this.bg = bg;
     }
 
+    // Foreground and background Terminal.Gui colors
     public Terminal.Gui.Color Foreground => fg;
-
     public Terminal.Gui.Color Background => bg;
 
-    public static implicit operator Color(Terminal.Gui.Attribute c) =>
-        Colors.FirstOrDefault(c => c.fg == c.Foreground && c.bg == c.Background) ??
-        new Color(c.Foreground, c.Background);
+    // Converters to Color from Gui.Attribute and Gui.Color
+    // Try to find a predefined color that matches fg and bg otherwise create a new color
+    public static implicit operator Color(Terminal.Gui.Attribute a) =>
+      Colors.FirstOrDefault(c => c.fg == a.Foreground && c.bg == a.Background) ??
+        new Color(a.Foreground, a.Background);
 
+    // Converters to Gui.Attribute and Gui.Color from Color
     public static implicit operator Terminal.Gui.Attribute(Color color) =>
         new Terminal.Gui.Attribute(color.fg, color.bg);
+    public static implicit operator Terminal.Gui.Color(Color color) => color.fg;
 
-    public static implicit operator Terminal.Gui.Color(Color color) =>
-       color.fg;
-
-    static Color Make(Terminal.Gui.Color color) => new Color(color, Terminal.Gui.Color.Black);
+    static Color Make(Terminal.Gui.Color color) => Make(color, Terminal.Gui.Color.Black);
+    static Color Make(Terminal.Gui.Color fg, Terminal.Gui.Color bg) => new Color(fg, bg);
 }
 
