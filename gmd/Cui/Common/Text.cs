@@ -7,7 +7,7 @@ class Text
     readonly List<Fragment> fragments = new List<Fragment>();
     public int Length { get; private set; } = 0;
 
-    public static Text None => new Text();
+    public static Text Empty => new Text();
     public static Text New => new Text();
 
     public Text Red(string text) => Add(Common.Color.Red, text);

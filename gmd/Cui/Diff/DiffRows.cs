@@ -12,13 +12,13 @@ class DiffRows
     public IReadOnlyList<DiffRow> Rows => rows;
 
     internal void Add(Text oneRow, string filePath = "", string commitId = "") =>
-        Add(oneRow, Text.None, DiffRowMode.SpanBoth, filePath, commitId);
+        Add(oneRow, Text.Empty, DiffRowMode.SpanBoth, filePath, commitId);
 
     internal void Add(Text left, Text right) =>
         Add(left, right, DiffRowMode.SideBySide, "", "");
 
     internal void AddLine(Text line) =>
-       Add(line, Text.None, DiffRowMode.DividerLine, "", "");
+       Add(line, Text.Empty, DiffRowMode.DividerLine, "", "");
 
     void Add(Text left, Text right, DiffRowMode mode, string filePath, string commitId)
     {
