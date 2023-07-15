@@ -40,7 +40,7 @@ class UIDialog
         this.onMouse = onMouse;
     }
 
-    internal UILabel AddLabel(int x, int y, string text = "") => AddLabel(x, y, Text.New.White(text == "" ? " " : text));
+    internal UILabel AddLabel(int x, int y, string text = "") => AddLabel(x, y, Text.White(text == "" ? " " : text));
 
     internal UILabel AddLabel(int x, int y, Text text)
     {
@@ -364,8 +364,8 @@ class UIComboTextField : TextField
         isShowList = true;
         items = getItems().ToList();
         itemTexts = items.Select(item => item.Length > w + 1
-            ? Common.Text.New.Dark("…").White(item.Substring(item.Length - w))
-            : Common.Text.New.White(item.Max(w + 1, true))).ToList();
+            ? Common.Text.Dark("…").White(item.Substring(item.Length - w)).ToText()
+            : Common.Text.White(item.Max(w + 1, true)).ToText()).ToList();
 
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
 

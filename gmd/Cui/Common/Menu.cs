@@ -132,13 +132,13 @@ class Menu
     {
         return items.Select(item =>
         {
-            if (item is MenuSeparator ms) return Text.New.BrightMagenta(ToSeparatorText(ms));
+            if (item is MenuSeparator ms) return Text.BrightMagenta(ToSeparatorText(ms));
 
             // Color if disabled or not
             var titleColor = item.IsDisabled ? Color.Dark : Color.White;
 
             // Title text might need to be truncated
-            var text = Text.New;
+            var text = new TextBuilder();
             if (item.Title.Length > dim.TitleWidth)
             {
                 text.Color(titleColor, item.Title.Max(dim.TitleWidth - 1, true)).Dark("…");
@@ -164,7 +164,7 @@ class Menu
             if (dim.SubMenuMarkerWidth > 0)
                 text.Black("  ");
 
-            return text;
+            return text.ToText();
         })
         .ToList();
     }
