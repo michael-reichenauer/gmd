@@ -40,9 +40,11 @@ class UIDialog
         this.onMouse = onMouse;
     }
 
-    internal Label AddLabel(int x, int y, string text = "")
+    internal UILabel AddLabel(int x, int y, string text = "") => AddLabel(x, y, Text.New.White(text == "" ? " " : text));
+
+    internal UILabel AddLabel(int x, int y, Text text)
     {
-        var label = new Label(x, y, text) { ColorScheme = ColorSchemes.Label };
+        var label = new UILabel(x, y, text);
         views.Add(label);
         return label;
     }
@@ -239,7 +241,7 @@ class UIDialog
         return true;
     }
 
-    internal Label AddLine(int x, int y, int width)
+    internal UILabel AddLine(int x, int y, int width)
     {
         return AddLabel(x, y, new string('─', width));
     }
@@ -261,6 +263,34 @@ class UIDialog
     }
 }
 
+class UILabel : View
+{
+    Text text;
+
+    public UILabel(int x, int y, Text text) : base(x, y, text.ToString())
+    {
+        this.text = text;
+        Width = text.Length;
+        SetNeedsDisplay();
+    }
+
+    public override void Redraw(Rect bounds)
+    {
+        Clear();
+        text.Draw(this, 0, 0);
+    }
+
+    public new Text Text
+    {
+        get => text;
+        set
+        {
+            Width = text.Length;
+            text = value;
+            SetNeedsDisplay();
+        }
+    }
+}
 
 class UITextField : TextField
 {

@@ -5,7 +5,7 @@ namespace gmd.Cui.Common;
 
 static class ColorSchemes
 {
-    internal static readonly ColorScheme Dialog = new ColorScheme()
+    internal static ColorScheme Dialog => new ColorScheme()
     {
         Normal = Color.BrightMagenta,
         Focus = Color.White,
@@ -14,7 +14,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme Border = new ColorScheme()
+    internal static ColorScheme Border => new ColorScheme()
     {
         Normal = Color.BrightMagenta,
         Focus = Color.White,
@@ -23,7 +23,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme Scrollbar = new ColorScheme()
+    internal static ColorScheme Scrollbar => new ColorScheme()
     {
         Normal = Color.BrightMagenta,
         Focus = Color.BrightMagenta,
@@ -32,7 +32,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme ErrorDialog = new ColorScheme()
+    internal static ColorScheme ErrorDialog => new ColorScheme()
     {
         Normal = Color.BrightRed,
         Focus = Color.White,
@@ -41,7 +41,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme InfoDialog = new ColorScheme()
+    internal static ColorScheme InfoDialog => new ColorScheme()
     {
         Normal = Color.BrightCyan,
         Focus = Color.White,
@@ -50,7 +50,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme Label = new ColorScheme()
+    internal static ColorScheme Label => new ColorScheme()
     {
         Normal = Color.White,
         Focus = new Color(Color.White, Color.Dark),
@@ -59,7 +59,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme Indicator = new ColorScheme()
+    internal static ColorScheme Indicator => new ColorScheme()
     {
         Normal = Color.Dark,
         Focus = Color.Dark,
@@ -68,7 +68,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme TextField = new ColorScheme()
+    internal static ColorScheme TextField => new ColorScheme()
     {
         Normal = Color.White,
         Focus = Color.White,
@@ -77,7 +77,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme AllNormal = new ColorScheme()
+    internal static ColorScheme AllNormal => new ColorScheme()
     {
         Normal = Color.White,
         Focus = Color.White,
@@ -86,7 +86,7 @@ static class ColorSchemes
         Disabled = Color.White,
     };
 
-    internal static readonly ColorScheme CheckBox = new ColorScheme()
+    internal static ColorScheme CheckBox => new ColorScheme()
     {
         Normal = Color.White,
         Focus = new Color(Color.White, Color.Dark),
@@ -95,7 +95,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme Button = new ColorScheme()
+    internal static ColorScheme Button => new ColorScheme()
     {
         Normal = Color.White,
         Focus = new Color(Color.White, Color.Dark),
@@ -104,7 +104,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme Window = new ColorScheme()
+    internal static ColorScheme Window => new ColorScheme()
     {
         Normal = Color.White,
         Focus = Color.White,
@@ -113,7 +113,7 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
-    internal static readonly ColorScheme Menu = new ColorScheme()
+    internal static ColorScheme Menu => new ColorScheme()
     {
         Normal = Color.White,
         Focus = new Color(Color.White, Color.Dark),
