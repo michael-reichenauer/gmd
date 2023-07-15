@@ -31,7 +31,7 @@ class ProgramCommands : IProgramCommands
         {
             return new CommandResult(true, ShowVersion());
         }
-        if (HasOptions(args, "--update"))
+        if (HasOptions(args, "--update", "-u"))
         {
             return new CommandResult(true, await UpdateAsync());
         }
@@ -57,7 +57,7 @@ class ProgramCommands : IProgramCommands
 
         options:
           --version           Show current version
-          --update            Update gmd to latest version (downloading from GitHub)
+          --update|-u         Update gmd to latest version (downloading from GitHub)
           --changelog         Show change log
           --updatechangelog   Update change log file CHANGELOG.md
           -d <path>           Show repo for working folder specified by <path>
