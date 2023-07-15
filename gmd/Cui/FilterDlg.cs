@@ -28,7 +28,7 @@ class FilterDlg : IFilterDlg
     string currentFilter = null!;
     ContentView resultsView = null!;
     R<Server.Commit> selectedCommit = R.Error("No commit selected");
-    Text repoInfo = Text.New;
+    Text repoInfo = Text.Empty;
 
 
     internal FilterDlg(IServer server, IBranchColorService branchColorService)
@@ -49,7 +49,7 @@ class FilterDlg : IFilterDlg
         dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
         dlg.RegisterMouseHandler(OnMouseEvent);
 
-        dlg.AddLabel(0, 0, Text.New.BrightMagenta("Search:"));
+        dlg.AddLabel(0, 0, Text.BrightMagenta("Search:"));
         filterField = dlg.AddTextField(9, 0, 30);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
@@ -186,7 +186,7 @@ class FilterDlg : IFilterDlg
         var commit = currentRepo.Commits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];
         var color = branchColorService.GetColor(currentRepo, branch);
-        statusLabel.Text = Text.New.Add(repoInfo).White($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
+        statusLabel.Text = Text.Add(repoInfo).White($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
     }
 
 
@@ -194,7 +194,7 @@ class FilterDlg : IFilterDlg
     {
         var commitCount = currentRepo.Commits.Count(c => c.BranchName != "<none>");
         var branchCount = currentRepo.Commits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
-        return Text.New.Dark($"{commitCount} commits, {branchCount} branches,");
+        return Text.Dark($"{commitCount} commits, {branchCount} branches,");
     }
 }
 

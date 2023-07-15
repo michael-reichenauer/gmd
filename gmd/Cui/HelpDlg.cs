@@ -44,10 +44,10 @@ class HelpDlg : IHelpDlg
 
             if (row.StartsWith("#"))
             {
-                return Text.New.Cyan(row);
+                return Text.Cyan(row);
             }
 
-            var text = Text.New;
+            var text = new TextBuilder();
             int index = 0;
             while (index < row.Length)
             {
@@ -55,7 +55,7 @@ class HelpDlg : IHelpDlg
                 text.Add(fragment);
             }
 
-            return text;
+            return text.ToText();
         });
 
         return rows.ToList();
@@ -67,17 +67,17 @@ class HelpDlg : IHelpDlg
         int i1 = row.IndexOfAny(chars, index);
         if (i1 == -1)
         {
-            return (Text.New.White(row.Substring(index)), row.Length);
+            return (Text.White(row.Substring(index)), row.Length);
         }
         char c = row[i1];
         int i2 = row.IndexOf(c, i1 + 1);
         if (i2 == -1)
         {
-            return (Text.New.White(row.Substring(index)), row.Length);
+            return (Text.White(row.Substring(index)), row.Length);
         }
 
         int l = i2 - i1 - 1;
-        Text text = Text.New.White(row.Substring(index, i1 - index));
+        var text = Text.White(row.Substring(index, i1 - index));
         return c switch
         {
             '`' => (text.Yellow(row.Substring(i1 + 1, l)), i1 + l + 2),

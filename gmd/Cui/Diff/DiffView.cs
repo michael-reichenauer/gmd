@@ -13,7 +13,7 @@ interface IDiffView
 
 class DiffView : IDiffView
 {
-    static readonly Text splitLineChar = Text.New.Dark("│");
+    static readonly Text splitLineChar = Text.Dark("│");
 
     readonly IDiffService diffService;
     private readonly IProgress progress;
@@ -278,7 +278,7 @@ class DiffView : IDiffView
         var isHighlighted = contentView.IsRowSelected(index);
         if (row.Mode == DiffRowMode.DividerLine)
         {   // A line in the view, e.g. ━━━━, ══════, that need to be expanded to the full view width
-            var line = row.Left.AddLine(viewWidth);
+            var line = row.Left.ToLine(viewWidth);
             return isHighlighted ? line.ToHighlight() : line;
         }
 
@@ -291,13 +291,13 @@ class DiffView : IDiffView
         // The left and right text is shown side by side with a gray vertical line char in between
         var left = (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffService.NoLine) ?
             row.Left.Subtext(rowStartX, columnWidth, true) :
-            row.Left.Subtext(rowStartX, columnWidth - 1, true).Add(Text.New.Dark("…"));
+            row.Left.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         var right = (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffService.NoLine) ?
             row.Right.Subtext(rowStartX, columnWidth, true) :
-            row.Right.Subtext(rowStartX, columnWidth - 1, true).Add(Text.New.Dark("…"));
+            row.Right.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
-        return Text.New
+        return Text
             .Add(isHighlighted && IsSelectedLeft ? left.ToHighlight() : left)
             .Add(splitLineChar)
             .Add(isHighlighted && !IsSelectedLeft ? right.ToHighlight() : right);

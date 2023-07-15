@@ -11,7 +11,7 @@ class GraphWriter : IGraphWriter
 {
     public Text ToText(GraphRow row, int maxWidth)
     {
-        Text text = Text.New;
+        var text = new TextBuilder();
         int width = Math.Min(row.Width, maxWidth / 2);
         for (int i = 0; i < width; i++)
         {

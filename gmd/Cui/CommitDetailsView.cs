@@ -62,11 +62,11 @@ class CommitDetailsView : ICommitDetailsView
 
         if (commit.Id == Repo.UncommittedId)
         {
-            newRows.Add(Text.New.Dark("Id:         ").BrightYellow(id).Dark(repoText));
+            newRows.Add(Text.Dark("Id:         ").BrightYellow(id).Dark(repoText));
         }
         else
         {
-            newRows.Add(Text.New.Dark("Id:         ").White(id).Dark(repoText));
+            newRows.Add(Text.Dark("Id:         ").White(id).Dark(repoText));
         }
 
         var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
@@ -74,7 +74,7 @@ class CommitDetailsView : ICommitDetailsView
 
         if (commit.IsBranchSetByUser)
         {
-            newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName).White("   Φ").Dark(" (ambiguity resolved by user)"));
+            newRows.Add(Text.Dark("Branch:     ").Color(color, branchName).White("   Φ").Dark(" (ambiguity resolved by user)"));
         }
         else
         {
@@ -85,49 +85,46 @@ class CommitDetailsView : ICommitDetailsView
                 {
                     ambBranches += ",┅";
                 }
-                newRows.Add(Text.New.Dark("Branch:     ").White(branchName));
-                newRows.Add(Text.New.Dark("Ambiguous:  ").White($"{ambBranches}"));
+                newRows.Add(Text.Dark("Branch:     ").White(branchName));
+                newRows.Add(Text.Dark("Ambiguous:  ").White($"{ambBranches}"));
             }
             else
             {
-                newRows.Add(Text.New.Dark("Branch:     ").Color(color, branchName));
+                newRows.Add(Text.Dark("Branch:     ").Color(color, branchName));
             }
         }
 
         if (commit.Author != "")
         {
-            newRows.Add(Text.New.Dark("Author:     ").White($"{commit.Author}").Dark(", time: ").White(commit.AuthorTime.IsoZone()));
+            newRows.Add(Text.Dark("Author:     ").White($"{commit.Author}").Dark(", time: ").White(commit.AuthorTime.IsoZone()));
         }
 
-        newRows.Add(Text.New.Dark("Children:   ").White(string.Join(", ", commit.AllChildIds.Select(id =>
+        newRows.Add(Text.Dark("Children:   ").White(string.Join(", ", commit.AllChildIds.Select(id =>
             id == Repo.UncommittedId ? "" : id.Sid()))));
-        newRows.Add(Text.New.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id =>
+        newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id =>
             id.Sid()))));
         if (commit.IsAhead)
         {
-            newRows.Add(Text.New.Dark("Remote:   ").Green("▲ pushable"));
+            newRows.Add(Text.Dark("Remote:   ").Green("▲ pushable"));
         }
         if (commit.IsBehind)
         {
-            newRows.Add(Text.New.Dark("Remote:   ").Blue("▼ pullable"));
+            newRows.Add(Text.Dark("Remote:   ").Blue("▼ pullable"));
         }
         if (commit.Tags.Any())
         {
             var tagText = "[" + string.Join("][", commit.Tags.Select(t => t.Name)) + "]";
-            newRows.Add(Text.New.Dark("Tags:       ").Green(tagText));
+            newRows.Add(Text.Dark("Tags:       ").Green(tagText));
         }
         var tips = repo.Branches.Where(b => b.TipId == commit.Id);
         if (tips.Any())
         {
-            var tipText = Text.New;
-            tips.ForEach(t => tipText.Add(
-                Text.New.Color(branchColorService.GetColor(repo, t),
-                $"({t.Name})")));
-            // var tipText = "(" + string.Join(")(", commit.BranchTips) + ")";
-            newRows.Add(Text.New.Dark("Tips:       ").Add(tipText));
+            var tipText = new TextBuilder();
+            tips.ForEach(t => tipText.Color(branchColorService.GetColor(repo, t), $"({t.Name})"));
+            newRows.Add(Text.Dark("Tips:       ").Add(tipText));
         }
-        newRows.AddRange(commit.Message.Split('\n').Select(l => Text.New.White(l)));
-        newRows.Add(Text.New.Black(""));
+        newRows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
+        newRows.Add(Text.Black(""));
 
         rows = newRows;
         contentView!.TriggerUpdateContent(rows.Count);
