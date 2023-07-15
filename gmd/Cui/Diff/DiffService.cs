@@ -36,11 +36,11 @@ class DiffService : IDiffService
 
             commitDiffs.ForEach(diff => rows.Add(Text.New.White(
                 $"  {diff.Time.Iso()}  {diff.Message.Max(60, true)}").Dark($"  {diff.Id.Sid(),6} {diff.Author}")));
-            rows.Add(Text.None);
+            rows.Add(Text.Empty);
         }
 
         commitDiffs.ForEach(diff => AddCommitDiff(diff, rows));
-        rows.Add(Text.None);
+        rows.Add(Text.Empty);
         rows.AddLine(Text.New.Yellow("━"));
         return rows;
     }
@@ -73,7 +73,7 @@ class DiffService : IDiffService
         if (commitDiff.Time != DateTime.MinValue) rows.Add(Text.New.Dark("Date:    ").White(commitDiff.Time.Iso()));
         if (commitDiff.Message != "") rows.Add(Text.New.Dark("Message: ").White(commitDiff.Message));
 
-        rows.Add(Text.None);
+        rows.Add(Text.Empty);
     }
 
     // Add a summery of the files in the commit
@@ -101,7 +101,7 @@ class DiffService : IDiffService
     // Add a diff for the file, which consists of several file section diffs
     void AddFileDiff(FileDiff fileDiff, DiffRows rows)
     {
-        rows.Add(Text.None);
+        rows.Add(Text.Empty);
         rows.AddLine(Text.New.Blue("━"));
 
         var fd = fileDiff;
@@ -124,7 +124,7 @@ class DiffService : IDiffService
     // Add a file section diff (the actual diff lines for a sub section of a file)
     void AddSectionDiff(SectionDiff sectionDiff, DiffRows rows)
     {
-        rows.Add(Text.None);
+        rows.Add(Text.Empty);
         rows.AddLine(Text.New.Dark("─"));
 
         var leftBlock = new Block();
@@ -159,15 +159,15 @@ class DiffService : IDiffService
                 case DiffMode.DiffRemoved:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(leftNr, dl.Line, TextColor.Yellow);
+                        leftBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(leftNr, dl.Line, TextColor.Yellow);
+                        rightBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
                     else
                     {
-                        leftBlock.Add(leftNr, dl.Line, TextColor.Red);
+                        leftBlock.Add(leftNr, dl.Line, Color.Red);
                     }
 
                     leftNr++;
@@ -176,15 +176,15 @@ class DiffService : IDiffService
                 case DiffMode.DiffAdded:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        leftBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        rightBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else
                     {
-                        rightBlock.Add(rightNr, dl.Line, TextColor.Green);
+                        rightBlock.Add(rightNr, dl.Line, Color.Green);
                     }
 
                     rightNr++;
@@ -193,17 +193,17 @@ class DiffService : IDiffService
                 case DiffMode.DiffSame:
                     if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        leftBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(rightNr, dl.Line, TextColor.Yellow);
+                        rightBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else
                     {
                         AddBlocks(ref leftBlock, ref rightBlock, rows);
-                        leftBlock.Add(leftNr, dl.Line, TextColor.White);
-                        rightBlock.Add(rightNr, dl.Line, TextColor.White);
+                        leftBlock.Add(leftNr, dl.Line, Color.White);
+                        rightBlock.Add(rightNr, dl.Line, Color.White);
                     }
 
                     leftNr++;

@@ -26,9 +26,9 @@ class Converter : IConverter
     public Status ToStatus(GitStatus gitStatus)
     {
         var s = gitStatus;
-        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
+        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted, s.Renamed,
             s.IsMerging, s.MergeMessage, s.MergeHeadId, s.ModifiedFiles,
-            s.AddedFiles, s.DeletedFiles, s.ConflictsFiles);
+            s.AddedFiles, s.DeletedFiles, s.ConflictsFiles, s.RenamedSourceFiles, s.RenamedTargetFiles);
     }
 
     Commit ToCommit(WorkCommit c, int gitIndex)
