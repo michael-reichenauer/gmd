@@ -336,7 +336,10 @@ class ViewRepoCreater : IViewRepoCreater
         // }
 
         var sorted = SortBranches(repo, branches.Values);
-        Log.Debug($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");
+
+        // Log.Info($"Filtered {sorted.Count} branches:\n  {sorted.Select(b => b.Name).Join("\n  ")}");
+        // var mainBranches = sorted.Where(b => b.IsPrimary || b.RemoteName != "").ToList();
+        // Log.Debug($"Filtered {mainBranches.Count} main branches:\n  {mainBranches.Select(b => b.Name).Join("\n  ")}");
         return sorted;
     }
 

@@ -35,6 +35,9 @@ class BranchStructureService : IBranchStructureService
         // Determine parent/child branch relationships, where a child branch is branch out of a parent
         DetermineBranchHierarchy(repo);
 
+        // Determine the most likely root/main branch of the repository
+        DetermineRootBranch(repo);
+
         // Determine the ancestors of each branch (i.e. parents, grandparents, etc.)
         DetermineAncestors(repo);
     }
@@ -855,14 +858,25 @@ class BranchStructureService : IBranchStructureService
             if (bottom.Branch != b)
             {   // Branch does not own the bottom (or tip commit), i.e. a branch pointer to another branch with no own commits yet 
                 b.ParentBranch = bottom.Branch;
+                continue;
             }
-            else if (bottom.FirstParent != null)
+            if (bottom.FirstParent != null)
             {   // Branch bottom commit has a first parent, use that as parent branch
                 b.ParentBranch = bottom.FirstParent.Branch;
+                continue;
             }
-        }
 
-        // A repo can have several root branches (e.g. the doc branch in GitHub)
+            Log.Error($"Branch {b.Name} has no parent branch");
+        }
+    }
+
+    // Determine the root branch, i.e. the branch that has no parent branch, and which branch is the main branch
+    // A repository can have several root branches, e.g. the doc branch in GitHub. So we try to determine
+    // the most likely root branch, and set that as the main branch.    
+    void DetermineRootBranch(WorkRepo repo)
+    {
+        // A repo can have several root branches (e.g. the doc branch in GitHub). If the repo is truncated
+        // we need to remove the truncated branch and redirect all its children to the most likely root branch 
         repo.Branches.TryGetValue(truncatedBranchName, out var truncatedBranch);
         var rootBranches = repo.Branches.Values.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
         if (!rootBranches.Any()) return;  // No root branches (empty repo)
@@ -878,6 +892,7 @@ class BranchStructureService : IBranchStructureService
                 break;
             }
         }
+        Log.Error($"Repo has root branch {rootBranch}");
 
         if (truncatedBranch != null)
         {   // Remove the truncated branch and redirect all its children to the root branch
