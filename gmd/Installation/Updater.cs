@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using gmd.Common;
 using gmd.Cui.Common;
@@ -32,6 +31,7 @@ public class GitAsset
     public string browser_download_url { get; set; } = "";
 }
 
+// cSpell:ignore RTXZERT
 [SingleInstance]
 class Updater : IUpdater
 {
@@ -52,7 +52,7 @@ class Updater : IUpdater
 
     bool isUpdateCheckerRunning = false;
 
-    // Data for download binary tasks to avoud multiple paralell tasks
+    // Data for download binary tasks to avoid multiple parallel tasks
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
@@ -324,17 +324,17 @@ class Updater : IUpdater
     (string, string) SelectBinaryPath()
     {
         string name = "";
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (Build.IsMacOS)
         {
             name = "gmd_osx";
         }
         else
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        if (Build.IsLinux)
         {
             name = "gmd_linux";
         }
         else
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             name = "gmd_windows";
         }
@@ -488,11 +488,7 @@ class Updater : IUpdater
 
     R MakeBinaryExecutable(string path)
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            // Not needed on windows
-            return R.Ok;
-        }
+        if (Build.IsWindows) return R.Ok; // Not needed on windows
 
         return cmd.Command("chmod", $"+x {path}", "");
     }

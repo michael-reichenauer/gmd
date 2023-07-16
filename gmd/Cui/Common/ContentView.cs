@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Terminal.Gui;
 
 
@@ -87,15 +85,15 @@ class ContentView : View
         mouses[mouseFlags] = callback;
     }
 
-    internal void ScrollToShowIndex(int index)
+    internal void ScrollToShowIndex(int index, int margin = 5)
     {
-        if (index >= FirstIndex && index <= FirstIndex + ContentHeight)
+        if (index >= FirstIndex + margin && index <= FirstIndex + ContentHeight - margin)
         {
             // index already shown
             return;
         }
 
-        int scroll = index - FirstIndex;
+        int scroll = index - FirstIndex - 5;
         Scroll(scroll);
     }
 
@@ -123,10 +121,7 @@ class ContentView : View
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
-        if (!IsFocus)
-        {
-            return false;
-        }
+        if (!IsFocus) return false;
 
         if (keys.TryGetValue(keyEvent.Key, out var callback))
         {
@@ -177,9 +172,9 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
-        // On linux (dev container console), there is a bug that sends same last mouse event
+        // On linux (at least dev container console), there is a bug that sends same last mouse event
         // whenever mouse is moved, to still support scroll, we check mouse position.
         bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
         mouseEventX = ev.X;
@@ -196,7 +191,7 @@ class ContentView : View
             return true;
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (Build.IsWindows)
         {
             if (mouses.TryGetValue(ev.Flags, out var callback))
             {
@@ -349,12 +344,12 @@ class ContentView : View
         Move(0, 0);
         if (IsFocus)
         {
-            Driver.SetAttribute(TextColor.White);
+            Driver.SetAttribute(Color.White);
             Driver.AddStr(new string('━', ViewWidth));
         }
         else
         {
-            Driver.SetAttribute(TextColor.Dark);
+            Driver.SetAttribute(Color.Dark);
             Driver.AddStr(new string('─', ViewWidth));
         }
     }
@@ -368,7 +363,7 @@ class ContentView : View
         }
 
         Move(0, ContentY + (CurrentIndex - FirstIndex));
-        Driver.SetAttribute(TextColor.White);
+        Driver.SetAttribute(Color.White);
         Driver.AddStr("┃");
     }
 
@@ -483,7 +478,7 @@ class ContentView : View
         for (int i = sbStart; i <= sbEnd; i++)
         {
             Move(x, i + ContentY);
-            Driver.SetAttribute(TextColor.Magenta);
+            Driver.SetAttribute(Color.Magenta);
             Driver.AddStr("┃");
         }
     }
@@ -510,10 +505,5 @@ class ContentView : View
         }
 
         return (sbStart, sbStart + sbSize);
-    }
-
-    internal void RegisterKeyHandler(object value)
-    {
-        throw new NotImplementedException();
     }
 }

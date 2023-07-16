@@ -4,14 +4,21 @@
     "cmds",
     "Collapseable",
     "Creater",
+    "Dependitor",
+    "devcontainers",
+    "DISTRO",
+    "dotnettools",
     "gmdstate",
+    "mhutchie",
     "pullable",
     "pushable",
     "Uncommit",
+    "Ungrab",
     "uninstallation",
     "unpulled",
     "unpushed",
     "Unresolve",
+    "Upgrader",
     "ustring"
   ]
 }

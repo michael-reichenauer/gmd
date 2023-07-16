@@ -40,11 +40,13 @@ class RepoWriter : IRepoWriter
 
         Columns cw = ColumnWidths(repo, width);
 
+        // Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
             var c = repo.Commits[i];
 
-            Text text = Text.New;
+            // Build row
+            var text = new TextBuilder();
             var graphRow = repo.Graph.GetRow(i);
             WriteGraph(text, graphRow, cw.GraphWidth);
             WriteCurrentMarker(text, c, isUncommitted, isBranchDetached);
@@ -54,8 +56,10 @@ class RepoWriter : IRepoWriter
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c, i == currentIndex);
 
-            if (i == currentIndex) text = text.ToHighlight();
-            rows.Add(text);
+            // Handle highlighting of current row
+            Text txt = (i == currentIndex) ? text.ToText().ToHighlight() : text;
+
+            rows.Add(txt);
         }
 
         return rows;
@@ -94,13 +98,13 @@ class RepoWriter : IRepoWriter
     }
 
 
-    void WriteGraph(Text text, GraphRow graphRow, int maxGraphWidth)
+    void WriteGraph(TextBuilder text, GraphRow graphRow, int maxGraphWidth)
     {
         text.Add(graphWriter.ToText(graphRow, maxGraphWidth));
     }
 
 
-    void WriteCurrentMarker(Text text, Commit c, bool isUncommitted, bool isBranchDetached)
+    void WriteCurrentMarker(TextBuilder text, Commit c, bool isUncommitted, bool isBranchDetached)
     {
         if (c.IsDetached && c.IsCurrent && !isUncommitted || c.Id == Repo.UncommittedId && isBranchDetached)
         {   // Detached head, so the is shown at the current commit
@@ -122,7 +126,7 @@ class RepoWriter : IRepoWriter
     }
 
 
-    void WriteAheadBehindMarker(Text text, Commit c)
+    void WriteAheadBehindMarker(TextBuilder text, Commit c)
     {
         if (c.IsAhead)
         {
@@ -138,12 +142,12 @@ class RepoWriter : IRepoWriter
         text.Black(" ");
     }
 
-    void WriteSubjectColumn(Text text, Columns cw, Commit c, Branch currentRowBranch,
-        IReadOnlyDictionary<string, Text> branchTips)
+    void WriteSubjectColumn(TextBuilder text, Columns cw, Commit c, Branch currentRowBranch,
+        IReadOnlyDictionary<string, TextBuilder> branchTips)
     {
         Text subjectText = GetSubjectText(c, currentRowBranch);
         Text tagsText = GetTagsText(c);
-        Text tipsText = GetTipsText(c, branchTips);
+        var tipsText = GetTipsText(c, branchTips);
 
         int columnWidth = cw.Subject;
 
@@ -161,7 +165,7 @@ class RepoWriter : IRepoWriter
                 subjectWidth = columnWidth - tagsWidth - tipsWidth;
             }
             else if (Math.Min(subjectText.Length, 25) + tagsText.Length + tipsText.Length <= columnWidth)
-            {   // Just shorten the subject a bit (will show enaugh)
+            {   // Just shorten the subject a bit (will show enough)
                 tagsWidth = tagsText.Length;
                 tipsWidth = tipsText.Length;
                 subjectWidth = columnWidth - tagsWidth - tipsWidth;
@@ -181,7 +185,7 @@ class RepoWriter : IRepoWriter
         WriteSubText(text, tagsText, tagsWidth);
     }
 
-    void WriteSubText(Text text, Text subText, int maxWidth)
+    void WriteSubText(TextBuilder text, Text subText, int maxWidth)
     {
         if (maxWidth == 0)
         {
@@ -199,7 +203,7 @@ class RepoWriter : IRepoWriter
 
     Text GetSubjectText(Commit c, Branch currentRowBranch)
     {
-        Text text = Text.New;
+        var text = new TextBuilder();
 
         if (c.IsConflicted) { text.BrightRed(c.Subject); }
         else if (c.IsUncommitted) { text.BrightYellow(c.Subject); }
@@ -213,13 +217,13 @@ class RepoWriter : IRepoWriter
     }
 
     Text GetTagsText(Commit c) => c.Tags.Any()
-        ? Text.New.Green($"[{string.Join("][", c.Tags.Select(t => t.Name))}]") : Text.New;
+        ? Text.Green($"[{string.Join("][", c.Tags.Select(t => t.Name))}]") : Text.Empty;
 
-    Text GetTipsText(Commit c, IReadOnlyDictionary<string, Text> branchTips) =>
-        branchTips.ContainsKey(c.Id) ? Text.New.Add(branchTips[c.Id]) : Text.New;
+    Text GetTipsText(Commit c, IReadOnlyDictionary<string, TextBuilder> branchTips) =>
+        branchTips.ContainsKey(c.Id) ? Text.Add(branchTips[c.Id]) : Text.Empty;
 
 
-    void WriteSid(Text text, Columns cw, Commit c)
+    void WriteSid(TextBuilder text, Columns cw, Commit c)
     {
         if (c.IsUncommitted)
         {
@@ -229,13 +233,13 @@ class RepoWriter : IRepoWriter
         text.Dark(Txt(" " + c.Sid, cw.Sid));
     }
 
-    void WriteAuthor(Text text, Columns cw, Commit c)
+    void WriteAuthor(TextBuilder text, Columns cw, Commit c)
     {
         var txt = Txt(" " + c.Author, cw.Author);
         text.Dark(txt);
     }
 
-    void WriteTime(Text text, Columns cw, Commit c, bool isCurrent)
+    void WriteTime(TextBuilder text, Columns cw, Commit c, bool isCurrent)
     {
         var txt = Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time);
         text.Dark(txt);
@@ -252,22 +256,22 @@ class RepoWriter : IRepoWriter
     }
 
 
-    IReadOnlyDictionary<string, Text> GetBranchTips(IRepo repo)
+    IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IRepo repo)
     {
-        var branchTips = new Dictionary<string, Text>();
+        var branchTips = new Dictionary<string, TextBuilder>();
 
         foreach (var b in repo.Branches)
         {
             if (!branchTips.TryGetValue(b.TipId, out var tipText))
             {   //  Commit has no tip yet, crating tip text
-                tipText = Text.New;
+                tipText = new TextBuilder();
             }
 
             if (b.AmbiguousTipId != "")
-            {   // The branch has an ambigous tip id as well, add that
+            {   // The branch has an ambiguous tip id as well, add that
                 if (!branchTips.TryGetValue(b.AmbiguousTipId, out var ambiguousTipText))
                 {
-                    ambiguousTipText = Text.New;
+                    ambiguousTipText = new TextBuilder();
                 }
 
                 ambiguousTipText.White("(~").Dark("ambiguous").White(")");
@@ -297,7 +301,7 @@ class RepoWriter : IRepoWriter
                             }
                         }
                         else
-                        {   // Remote and local on different commits, (local banch will add itself)
+                        {   // Remote and local on different commits, (local branch will add itself)
                             tipText.Color(color, $"(^/{branchName})");
                         }
                     }

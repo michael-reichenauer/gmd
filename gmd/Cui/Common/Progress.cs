@@ -5,22 +5,23 @@ namespace gmd.Cui.Common;
 
 interface IProgress
 {
-    Disposable Show(bool isShowImediately = false);
+    Disposable Show(bool isShowImmediately = false);
 }
 
 
+// cspell:ignore Wakeup
 [SingleInstance]
 class Progress : IProgress
 {
-    const int defautlIntitialDelay = 800;
+    const int defaultInitialDelay = 800;
     const int progressWidth = 6;
     static readonly ColorScheme colorScheme = new ColorScheme()
     {
-        Normal = TextColor.Magenta,
-        Focus = TextColor.Magenta,
-        HotNormal = TextColor.Magenta,
-        HotFocus = TextColor.Magenta,
-        Disabled = TextColor.Magenta,
+        Normal = Color.Magenta,
+        Focus = Color.Magenta,
+        HotNormal = Color.Magenta,
+        HotFocus = Color.Magenta,
+        Disabled = Color.Magenta,
     };
 
     Timer? progressTimer;
@@ -28,15 +29,15 @@ class Progress : IProgress
     Toplevel? currentParentView;
     View? progressView;
 
-    public Disposable Show(bool isShowImediately = false)
+    public Disposable Show(bool isShowImmediately = false)
     {
-        Start(isShowImediately);
+        Start(isShowImmediately);
         return new Disposable(() => Stop());
     }
 
-    void Start(bool isShowImediately)
+    void Start(bool isShowImmediately)
     {
-        int initialDelay = isShowImediately ? 0 : defautlIntitialDelay;
+        int initialDelay = isShowImmediately ? 0 : defaultInitialDelay;
         count++;
         if (count > 1)
         {   // Already started

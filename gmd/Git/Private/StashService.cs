@@ -65,6 +65,4 @@ class StashService : IStashService
 
     public Task<R<CommitDiff>> GetDiffAsync(string name, string wd) =>
         diffService.GetStashDiffAsync(name, wd);
-
-
 }

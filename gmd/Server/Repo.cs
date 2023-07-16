@@ -20,7 +20,8 @@ record Repo
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
         IReadOnlyList<Stash> stashes,
-        Status status)
+        Status status,
+        string filter)
     {
         TimeStamp = timeStamp;
         this.repo = augRepo;
@@ -29,6 +30,7 @@ record Repo
         Branches = branches;
         Stashes = stashes;
         Status = status;
+        Filter = filter;
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
@@ -41,11 +43,11 @@ record Repo
     public IReadOnlyList<Stash> Stashes { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
     public Status Status { get; init; }
-
+    public string Filter { get; }
 
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMilli()} (@{repo.TimeStamp.IsoMilli()})";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{repo.TimeStamp.IsoMs()})";
 }
 
 
@@ -81,6 +83,7 @@ public record Commit(
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser,
+    // bool IsInFilter,
 
     // View properties
     More More)
@@ -150,19 +153,22 @@ public record Status(
     int Added,
     int Deleted,
     int Conflicted,
+    int Renamed,
     bool IsMerging,
     string MergeMessage,
     string MergeHeadId,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
-    string[] ConflictsFiles
+    string[] ConflictsFiles,
+    string[] RenamedSourceFiles,
+    string[] RenamedTargetFiles
 )
 {
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
-    internal int ChangesCount => Modified + Added + Deleted + Conflicted;
+    internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
 
-    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
+    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }
 
 

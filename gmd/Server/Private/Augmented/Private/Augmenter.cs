@@ -39,7 +39,7 @@ class Augmenter : IAugmenter
         var status = ToStatus(gitRepo);
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status);
 
-        AddAugStashes(repo, gitRepo); // Must be done before adding augcommits
+        AddAugStashes(repo, gitRepo); // Must be done before adding augmented commits
         AddAugBranches(repo, gitRepo);
         AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
@@ -52,7 +52,7 @@ class Augmenter : IAugmenter
 
     void AddAugBranches(WorkRepo repo, GitRepo gitRepo)
     {
-        // Convert git branches to intial augmented branches
+        // Convert git branches to initial augmented branches
         gitRepo.Branches.ForEach(b => repo.Branches[b.Name] = new WorkBranch(b));
 
         // Set local name of all remote branches, that have a corresponding local branch as well
@@ -110,7 +110,7 @@ class Augmenter : IAugmenter
 
             if (isTruncatedPossible)
             {   // Check if parents need to be replaced with truncated commit
-                isTruncatedNeeded = FixTuncatedParents(repo, isTruncatedNeeded, commit);
+                isTruncatedNeeded = FixTruncatedParents(repo, isTruncatedNeeded, commit);
             }
 
             commit.GitIndex = i;
@@ -216,12 +216,12 @@ class Augmenter : IAugmenter
     Status ToStatus(GitRepo repo)
     {
         var s = repo.Status;
-        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted,
+        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted, s.Renamed,
             s.IsMerging, s.MergeMessage, s.MergeHeadId, s.ModifiedFiles, s.AddedFiles,
-            s.DeletedFiles, s.ConflictsFiles);
+            s.DeletedFiles, s.ConflictsFiles, s.RenamedSourceFiles, s.RenamedTargetFiles);
     }
 
-    static bool FixTuncatedParents(WorkRepo repo, bool isTruncatedNeeded, WorkCommit commit)
+    static bool FixTruncatedParents(WorkRepo repo, bool isTruncatedNeeded, WorkCommit commit)
     {
         // The repo was truncated, check if commits have missing parents, which will be set
         // to a virtual "truncated commit"

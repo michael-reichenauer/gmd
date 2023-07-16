@@ -282,10 +282,8 @@ class RepoCommands : IRepoCommands
 
     public void Filter() => Do(async () =>
      {
-         if (!Try(out var commit, out var e, filterDlg.Show(repo))) return R.Ok;
-         await Task.Delay(0);
-
-         Refresh(commit.BranchName, commit.Id);
+         await Task.CompletedTask;
+         repoView.ShowFilter();
          return R.Ok;
      });
 
@@ -894,16 +892,20 @@ class RepoCommands : IRepoCommands
     bool CheckBinaryOrLargeAddedFiles()
     {
         var addFiles = serverRepo.Status.AddedFiles.ToList();
-        var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles).ToList();
+        var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles)
+            .Concat(serverRepo.Status.RenamedTargetFiles).ToList();
 
         var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
 
         if (binaryFiles.Any())
         {
-            var msg = $"There are {binaryFiles.Count} binary mdified files:\n" +
+            var msg = $"There are {binaryFiles.Count} binary modified files:\n" +
             $"  {string.Join("\n  ", binaryFiles)}" +
             "\n\nDo you want to commit them as they are\nor first undo/revert them and then commit?";
-            if (0 != UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo" }))
+            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo", "Cancel" });
+            if (rsp == 2 || rsp == -1) return false; // Cancel
+
+            if (rsp == 1)
             {
                 UI.Post(() =>
                 {

@@ -100,8 +100,8 @@ internal class Git : IGit
     public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
     public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) =>
         diffService.GetStashDiffAsync(name, wd);
-    public Task<R> AddTagAsync(string name, string comitId, string wd) =>
-        tagService.AddTagAsync(name, comitId, wd);
+    public Task<R> AddTagAsync(string name, string commitId, string wd) =>
+        tagService.AddTagAsync(name, commitId, wd);
     public Task<R> RemoveTagAsync(string name, string wd) =>
         tagService.RemoveTagAsync(name, wd);
 

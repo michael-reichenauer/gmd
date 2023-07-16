@@ -28,8 +28,8 @@ class BranchStructureService : IBranchStructureService
         // Set parents and children on commits to be able to traverse the commit graph easier
         SetCommitParentsAndChildren(repo);
 
-        // Not iterate all commits from the lates (top of log) and down to the first commit
-        // If multiple possible branchea exist for a commit, try to determine the most likely branch
+        // Not iterate all commits from the latest (top of log) and down to the first commit
+        // If multiple possible branches exist for a commit, try to determine the most likely branch
         DetermineAllCommitsBranches(repo, gitRepo);
 
         // Determine parent/child branch relationships, where a child branch is branch out of a parent
@@ -83,7 +83,7 @@ class BranchStructureService : IBranchStructureService
                 // The order of parents are switched, to make the branch structure more logical.
                 // So the first parent is the now remote branch and second parent the local branch
                 // This makes the local commits to look like they where merged into the remote
-                // branch, instead of existin remote commits merged/moved into the local branch,
+                // branch, instead of existing remote commits merged/moved into the local branch,
                 // which would make the remote branch alter commit order whenever local commits 
                 // are not updated to remote server in time.
                 var tmp = c.ParentIds[0];
@@ -123,13 +123,13 @@ class BranchStructureService : IBranchStructureService
             }
             c.Branches.TryAdd(branch);
 
-            // Set the IsLikely property if the branch is likly to be the correct branch
+            // Set the IsLikely property if the branch is likely to be the correct branch
             if (branchNameService.TryGetBranchName(c.Id, out string name) && branch.Name == name)
             {   // This flag might improve other commits below to select correct branch;
                 c.IsLikely = true;
             }
 
-            // If this commit is a main branch, then its first parent will likey be it too.
+            // If this commit is a main branch, then its first parent will likely be it too.
             SetMasterBackbone(c);
 
             // Advance tha bottom id to eventually determine the bottom commit of the branch
@@ -696,7 +696,7 @@ class BranchStructureService : IBranchStructureService
 
         if (MainBranchNamePriority.Contains(c.Branch.Name))
         {   // main and develop are special and will make a "backbone" for other branches to depend on
-            // Adding this branch to the first parent branches will make it likly to be set as
+            // Adding this branch to the first parent branches will make it likely to be set as
             // branch for the parent as well, and so on up to the first (oldest/last) commit.
             c.FirstParent.Branches.TryAdd(c.Branch);
         }

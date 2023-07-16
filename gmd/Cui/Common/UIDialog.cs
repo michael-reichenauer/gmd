@@ -8,6 +8,7 @@ class UIDialog
     readonly List<Button> buttons = new List<Button>();
     readonly Dictionary<string, bool> buttonsClicked = new Dictionary<string, bool>();
     readonly Func<Key, bool>? onKey;
+    private Func<MouseEvent, bool>? onMouse;
     readonly Action<Dialog>? options;
 
     record Validation(Func<bool> IsValid, string ErrorMsg);
@@ -22,7 +23,6 @@ class UIDialog
 
     Dialog dlg = null!;
 
-
     internal UIDialog(string title, Dim width, Dim height,
         Func<Key, bool>? onKey = null, Action<Dialog>? options = null)
     {
@@ -35,9 +35,16 @@ class UIDialog
 
     public void Close() => Application.RequestStop();
 
-    internal Label AddLabel(int x, int y, string text = "")
+    public void RegisterMouseHandler(Func<MouseEvent, bool> onMouse)
     {
-        var label = new Label(x, y, text) { ColorScheme = ColorSchemes.Label };
+        this.onMouse = onMouse;
+    }
+
+    internal UILabel AddLabel(int x, int y, string text = "") => AddLabel(x, y, Text.White(text == "" ? " " : text));
+
+    internal UILabel AddLabel(int x, int y, Text text)
+    {
+        var label = new UILabel(x, y, text);
         views.Add(label);
         return label;
     }
@@ -173,8 +180,8 @@ class UIDialog
 
     internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
     {
-        dlg = onKey != null ?
-            new CustomDialog(Title, buttons.ToArray(), onKey)
+        dlg = onKey != null || onMouse != null ?
+            new CustomDialog(Title, buttons.ToArray(), onKey, onMouse)
             {
                 Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
                 ColorScheme = ColorSchemes.Dialog,
@@ -208,7 +215,10 @@ class UIDialog
             Application.Driver.SetCursorVisibility(CursorVisibility.Default);
         }
 
+        if (onMouse != null) Application.GrabMouse(dlg);
+
         UI.RunDialog(dlg);
+        if (onMouse != null) Application.UngrabMouse();
         Application.Driver.SetCursorVisibility(cursorVisible);
         return IsOK;
     }
@@ -231,7 +241,7 @@ class UIDialog
         return true;
     }
 
-    internal Label AddLine(int x, int y, int width)
+    internal UILabel AddLine(int x, int y, int width)
     {
         return AddLabel(x, y, new string('─', width));
     }
@@ -239,17 +249,48 @@ class UIDialog
     class CustomDialog : Dialog
     {
         private readonly Func<Key, bool>? onKey;
+        private readonly Func<MouseEvent, bool>? onMouse;
 
-        public CustomDialog(string title, Button[] buttons, Func<Key, bool>? onKey)
+        public CustomDialog(string title, Button[] buttons, Func<Key, bool>? onKey, Func<MouseEvent, bool>? onMouse)
             : base(title, buttons)
         {
             this.onKey = onKey;
+            this.onMouse = onMouse;
         }
 
         public override bool ProcessHotKey(KeyEvent keyEvent) => onKey?.Invoke(keyEvent.Key) ?? false;
+        public override bool MouseEvent(MouseEvent ev) => onMouse?.Invoke(ev) ?? false;
     }
 }
 
+class UILabel : View
+{
+    Text text;
+
+    public UILabel(int x, int y, Text text) : base(x, y, text.ToString())
+    {
+        this.text = text;
+        Width = text.Length;
+        SetNeedsDisplay();
+    }
+
+    public override void Redraw(Rect bounds)
+    {
+        Clear();
+        text.Draw(this, 0, 0);
+    }
+
+    public new Text Text
+    {
+        get => text;
+        set
+        {
+            Width = text.Length;
+            text = value;
+            SetNeedsDisplay();
+        }
+    }
+}
 
 class UITextField : TextField
 {
@@ -265,6 +306,7 @@ class UITextField : TextField
         set => base.Text = value;
     }
 }
+
 
 class UIComboTextField : TextField
 {
@@ -322,8 +364,8 @@ class UIComboTextField : TextField
         isShowList = true;
         items = getItems().ToList();
         itemTexts = items.Select(item => item.Length > w + 1
-            ? Common.Text.New.Dark("…").White(item.Substring(item.Length - w))
-            : Common.Text.New.White(item.Max(w + 1, true))).ToList();
+            ? Common.Text.Dark("…").White(item.Substring(item.Length - w)).ToText()
+            : Common.Text.White(item.Max(w + 1, true)).ToText()).ToList();
 
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
 

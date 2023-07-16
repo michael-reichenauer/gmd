@@ -1,6 +1,3 @@
-
-
-
 namespace System;
 
 public static class TimeDateExtensions
@@ -9,7 +6,7 @@ public static class TimeDateExtensions
     {
         return $"{source:yyyy-MM-dd HH:mm:ss}";
     }
-    public static string IsoMilli(this DateTime source)
+    public static string IsoMs(this DateTime source)
     {
         return $"{source:yyyy-MM-dd HH:mm:ss.fff}";
     }

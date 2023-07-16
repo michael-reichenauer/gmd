@@ -71,7 +71,7 @@ class RepoImpl : IRepo
     public Server.Commit RowCommit => Commits[CurrentRow];
     public Server.Branch RowBranch => Branch(RowCommit.BranchName);
     public Server.Branch? CurrentBranch => Branches.FirstOrDefault(b => b.IsCurrent);
-    public Server.Branch AllBranchByName(string name) => server.AllBanchByName(Repo, name);
+    public Server.Branch AllBranchByName(string name) => server.AllBranchByName(Repo, name);
 
     public Graph Graph { get; init; }
 
@@ -109,6 +109,7 @@ class RepoImpl : IRepo
         .Concat(Status.AddedFiles)
         .Concat(Status.DeletedFiles)
         .Concat(Status.ConflictsFiles)
+        .Concat(Status.RenamedTargetFiles)
         .OrderBy(f => f)
         .ToList();
 }
