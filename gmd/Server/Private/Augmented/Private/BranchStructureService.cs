@@ -922,23 +922,23 @@ class BranchStructureService : IBranchStructureService
         int circularAncestors = 0;
         foreach (var b in repo.Branches.Values)
         {
-            var current = b.ParentBranch;
-            while (current != null)
+            var ancestor = b.ParentBranch;
+            while (ancestor != null)
             {
-                if (b.Ancestors.Contains(current))
+                if (b.Ancestors.Contains(ancestor))
                 {
-                    Log.Debug($"Branch {b.Name} has circular ancestor {current.Name}");
-                    Log.Debug("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
+                    Log.Info($"Branch {b.Name} has circular ancestor {ancestor.Name}");
+                    Log.Info("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
                     b.IsCircularAncestors = true;
                     circularAncestors++;
                     break;
                 }
-                b.Ancestors.Add(current);
+                b.Ancestors.Add(ancestor);
                 if (b.Ancestors.Count > 50)
                 {
-                    Log.Warn($"Branch {b} has more than 20 ancestors");
+                    Log.Warn($"Branch {b} has more than 50 ancestors");
                 }
-                current = current.ParentBranch;
+                ancestor = ancestor.ParentBranch;
             }
         }
 
