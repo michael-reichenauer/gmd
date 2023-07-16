@@ -904,6 +904,7 @@ class BranchStructureService : IBranchStructureService
 
     void DetermineAncestors(WorkRepo repo)
     {
+        int circularAncestors = 0;
         foreach (var b in repo.Branches.Values)
         {
             var current = b.ParentBranch;
@@ -911,9 +912,10 @@ class BranchStructureService : IBranchStructureService
             {
                 if (b.Ancestors.Contains(current))
                 {
-                    Log.Warn($"Branch {b.Name} has circular ancestor {current.Name}");
-                    Log.Warn("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
+                    Log.Debug($"Branch {b.Name} has circular ancestor {current.Name}");
+                    Log.Debug("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
                     b.IsCircularAncestors = true;
+                    circularAncestors++;
                     break;
                 }
                 b.Ancestors.Add(current);
@@ -924,6 +926,8 @@ class BranchStructureService : IBranchStructureService
                 current = current.ParentBranch;
             }
         }
+
+        if (circularAncestors > 0) Log.Warn($"Repo has {circularAncestors} circular ancestors");
     }
 }
 
