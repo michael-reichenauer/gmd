@@ -1,4 +1,3 @@
-using NStack;
 using Terminal.Gui;
 
 namespace gmd.Cui.Common;
@@ -6,20 +5,20 @@ namespace gmd.Cui.Common;
 
 static class MessageDlg
 {
-    internal static int ShowInfo(ustring title, ustring message,
+    internal static int ShowInfo(string title, string message,
         int defaultButton = 0, params string[] buttons) =>
             ShowFull(false, 0, 0, title, message, defaultButton, buttons);
 
-    internal static int ShowError(ustring message,
+    internal static int ShowError(string message,
          int defaultButton = 0, params string[] buttons) =>
                 ShowFull(true, 0, 0, "Error !", message, defaultButton, buttons);
 
-    internal static int ShowError(ustring title, ustring message,
+    internal static int ShowError(string title, string message,
         int defaultButton = 0, params string[] buttons) =>
             ShowFull(true, 0, 0, title, message, defaultButton, buttons);
 
 
-    static int ShowFull(bool useErrorColors, int width, int height, ustring title, ustring message,
+    static int ShowFull(bool useErrorColors, int width, int height, string title, string message,
             int defaultButton = 0, params string[] buttons)
     {
         int defaultWidth = 30;
@@ -106,7 +105,7 @@ static class MessageDlg
         if (width == 0 & height == 0)
         {
             // Dynamically size Width
-            d.Width = Math.Min(Math.Max(maxWidthLine, Math.Max(title.ConsoleWidth, Math.Max(textWidth + 2, GetButtonsWidth(buttonList)))), Application.Driver.Cols); // textWidth + (left + padding + padding + right)
+            d.Width = Math.Min(Math.Max(maxWidthLine, Math.Max(title.Length, Math.Max(textWidth + 2, GetButtonsWidth(buttonList)))), Application.Driver.Cols); // textWidth + (left + padding + padding + right)
         }
 
         // Setup actions

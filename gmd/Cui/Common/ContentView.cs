@@ -1,4 +1,3 @@
-using NStack;
 using Terminal.Gui;
 
 

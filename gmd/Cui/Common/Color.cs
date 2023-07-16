@@ -1,7 +1,7 @@
 
 namespace gmd.Cui.Common;
 
-class Color
+record Color
 {
     // Predefined colors
     public static readonly Color Blue = Make(Terminal.Gui.Color.Blue);
@@ -41,9 +41,7 @@ class Color
     public Terminal.Gui.Color Background => bg;
 
     // Converters to Color from Gui.Attribute and Gui.Color
-    // Try to find a predefined color that matches fg and bg otherwise create a new color
     public static implicit operator Color(Terminal.Gui.Attribute a) =>
-      Colors.FirstOrDefault(c => c.fg == a.Foreground && c.bg == a.Background) ??
         new Color(a.Foreground, a.Background);
 
     // Converters to Gui.Attribute and Gui.Color from Color
