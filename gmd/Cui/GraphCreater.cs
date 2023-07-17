@@ -92,6 +92,10 @@ class GraphCreater : IGraphCreater
             for (int y = b.TipIndex; y <= b.BottomIndex; y++)
             {
                 var c = repo.Commits[y];
+                if (c.Sid == "652206")
+                {
+
+                }
                 if (c.IsAmbiguous && c.BranchName == b.B.Name)
                 {
                     isAmbiguous = true;
@@ -475,7 +479,8 @@ class GraphCreater : IGraphCreater
             // Ensure that siblings do not overlap (with a little margin)
             while (true)
             {
-                if (null == branches.FirstOrDefault(v => IsOverlapping(v, b)))
+                if (null == branches.FirstOrDefault(v => IsOverlapping(v, b)) &&
+                    null == branches.FirstOrDefault(v => IsOverlapping(b, v)))
                 {   // Found a free spot for the branch
                     break;
                 }
@@ -483,6 +488,8 @@ class GraphCreater : IGraphCreater
                 b.X++;
             }
         }
+        // var mainBranches = branches.Where(b => b.B.IsPrimary || b.B.RemoteName != "").OrderBy(b => b.X).ToList();
+        // Log.Info($"Ordered {mainBranches.Count} main branches:\n  {mainBranches.Select(b => $"{b.X,2} {b.B.Name}").Join("\n  ")}");
     }
 
     class FirstLast
