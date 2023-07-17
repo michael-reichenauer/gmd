@@ -55,8 +55,14 @@ class Menu
 
     void Show(IEnumerable<MenuItem> items)
     {
-        this.items = items.ToList();
-        this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute() || i is SubMenu sm && !sm.Children.Any());
+        this.items = items
+        .Select(i => i with
+        {
+            IsDisabled = i.IsDisabled || !(i.CanExecute?.Invoke() ?? true) || i is SubMenu sm && !sm.Children.Any()
+        })
+        .ToList();
+
+
         this.isAllDisabled = this.items.All(i => i.IsDisabled);
 
         dim = GetDimensions();
@@ -233,7 +239,7 @@ class Menu
         // Handle enter key on 'normal' menu item
         RootMenu.Closed += () =>
         {
-            if (items.Any() && CurrentItem.CanExecute() && CurrentItem.Action != null)
+            if (items.Any() && !CurrentItem.IsDisabled && CurrentItem.Action != null)
             {
                 UI.Post(() => CurrentItem.Action());
             }
@@ -328,21 +334,9 @@ class Menu
 
 
 // A normal menu item and base class for SubMenu and MenuSeparator
-record MenuItem
+record MenuItem(string Title, string Shortcut, Action Action, Func<bool>? CanExecute = null)
 {
-    public MenuItem(string title, string shortcut, Action action, Func<bool>? canExecute = null)
-    {
-        Title = title;
-        Shortcut = shortcut;
-        Action = action;
-        CanExecute = canExecute ?? (() => true);
-    }
-
-    public string Title { get; set; }
-    public string Shortcut { get; }
-    public Action Action { get; }
-    public Func<bool> CanExecute { get; }
-    public bool IsDisabled { get; set; }
+    public bool IsDisabled { get; init; }
 }
 
 
@@ -355,15 +349,15 @@ record SubMenu : MenuItem
         Children = children;
     }
 
-    public IEnumerable<MenuItem> Children { get; }
+    public IEnumerable<MenuItem> Children { get; init; }
 }
 
 
 // To create a menu separator line or header line
 record MenuSeparator : MenuItem
 {
-    public MenuSeparator(string text = "")
-        : base(text, "", () => { }, () => false)
+    public MenuSeparator(string title = "")
+        : base(title, "", () => { })
     { }
 }
 

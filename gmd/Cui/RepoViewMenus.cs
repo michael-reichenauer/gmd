@@ -352,7 +352,7 @@ class RepoViewMenus : IRepoViewMenus
              .Where(b => b.PrimaryName != currentName)
              .OrderBy(b => b.PrimaryName);
 
-        return ToHierarchicalBranchesItems(branches, b => cmds.SwitchTo(b.LocalName != "" ? b.LocalName : b.Name));
+        return ToHierarchicalBranchesItems(branches, b => cmds.SwitchTo(b.LocalName != "" ? b.LocalName : b.Name), null, true);
     }
 
     IEnumerable<MenuItem> GetDeleteItems()
@@ -418,12 +418,11 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetHideItems()
     {
-        var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
             .Where(b => !b.IsMainBranch && !b.IsDetached)
             .OrderBy(b => b.NiceNameUnique);
 
-        var items = ToHierarchicalBranchesItems(branches, b => cmds.HideBranch(b.Name));
+        var items = ToHierarchicalBranchesItems(branches, b => cmds.HideBranch(b.Name), null, true);
         if (repo.Branches.Count > 15)
         {
             items = items.Prepend(Menu.Item("Hide All", "", () => cmds.HideBranch("", true)));
@@ -499,19 +498,19 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(
-        IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute = null)
+        IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute = null, bool isNoShowIcon = false)
     {
         var filteredBranches = branches.Where(b => b.IsPrimary).DistinctBy(b => b.PrimaryName);
-        return ToHierarchicalBranchesItems(filteredBranches, action, canExecute, 0);
+        return ToHierarchicalBranchesItemsImpl(filteredBranches, action, canExecute, isNoShowIcon, 0);
     }
 
 
-    IEnumerable<MenuItem> ToHierarchicalBranchesItems(
-           IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute, int level)
+    IEnumerable<MenuItem> ToHierarchicalBranchesItemsImpl(
+           IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute, bool isNoShowIcon, int level)
     {
         if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
-            return ToBranchesItems(branches, action, canExecute);
+            return ToBranchesItems(branches, action, canExecute, false, isNoShowIcon);
         }
 
         // Group by first part of the b.commonName (if '/' exists in name)
@@ -531,8 +530,8 @@ class RepoViewMenus : IRepoViewMenus
             ? $"    {bs.Key}(*)" : $"    {bs.Key}/*";
         return groups.Select(g =>
             g.Count() == 1
-                ? ToBranchesItems(g, action, canExecute).First()
-                : Menu.SubMenu(toGroupName(g), "", ToHierarchicalBranchesItems(g, action, canExecute, level + 1)));
+                ? ToBranchesItems(g, action, canExecute, false, isNoShowIcon).First()
+                : Menu.SubMenu(toGroupName(g), "", ToHierarchicalBranchesItemsImpl(g, action, canExecute, isNoShowIcon, level + 1)));
     }
 
 
@@ -540,15 +539,16 @@ class RepoViewMenus : IRepoViewMenus
         IEnumerable<Branch> branches,
         Action<Branch> action,
         Func<Branch, bool>? canExecute = null,
-        bool canBeOutside = false)
+        bool canBeOutside = false,
+        bool isNoShowIcon = false)
     {
         canExecute = canExecute ?? (b => true);
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside), "",
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), "",
             () => action(b), () => canExecute(b)));
     }
 
 
-    string ToBranchMenuName(Branch branch, bool canBeOutside = false)
+    string ToBranchMenuName(Branch branch, bool canBeOutside = false, bool isNoShowIcon = false)
     {
         var cic = repo.RowCommit;
         bool isBranchIn = false;
@@ -571,7 +571,7 @@ class RepoViewMenus : IRepoViewMenus
             }
         }
 
-        var isShown = repo.Repo.BranchByName.TryGetValue(branch.Name, out var _);
+        var isShown = !isNoShowIcon && repo.Repo.BranchByName.TryGetValue(branch.Name, out var _);
         string name = branch.NiceNameUnique;
 
         name = branch.IsGitBranch ? " " + branch.NiceNameUnique : "~" + name;
