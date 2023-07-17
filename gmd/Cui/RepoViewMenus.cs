@@ -499,7 +499,7 @@ class RepoViewMenus : IRepoViewMenus
 
         var items = Menu.Items
             .SubMenu("Recent", "", ToShowHierarchicalBranchesItems(recentBranches)
-                .Prepend(Menu.Item("Show 5 Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))))
+                .Prepend(Menu.Item("Show 5 more Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))))
             .SubMenu("Active", "", ToShowHierarchicalBranchesItems(liveBranches)
                 .Prepend(Menu.Item("Show All Active", "", () => cmds.ShowBranch("", false, ShowBranches.AllActive))))
             .SubMenu("Active and Deleted", "", ToShowHierarchicalBranchesItems(liveAndDeletedBranches)

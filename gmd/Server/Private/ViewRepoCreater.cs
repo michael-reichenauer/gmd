@@ -119,6 +119,7 @@ class ViewRepoCreater : IViewRepoCreater
                 c.Author.Contains(p, sc) ||
                 c.AuthorTime.IsoDate().Contains(p, sc) ||
                 c.BranchNiceUniqueName.Contains(p, sc) ||
+                c.BranchName.Contains(p, sc) ||
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount)
             .ToDictionary(c => c.Id, c => c);
@@ -296,8 +297,9 @@ class ViewRepoCreater : IViewRepoCreater
             case ShowBranches.AllRecent:
                 repo.Branches.Values.Where(b => !b.IsCircularAncestors)
                     .OrderBy(b => repo.CommitById[b.TipId].GitIndex)
-                    .Where(b => b.IsPrimary)
+                    .Where(b => b.IsPrimary && !showBranches.Contains(b.Name))
                     .Take(count)
+                    .Concat(showBranches.Select(n => repo.Branches.TryGetValue(n, out var bbb) ? bbb : null).Where(b => b != null))
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
                 break;
             case ShowBranches.AllActive:
