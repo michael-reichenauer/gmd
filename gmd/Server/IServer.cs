@@ -24,7 +24,7 @@ interface IServer
     Branch AllBranchByName(Repo repo, string name);
     Commit GetCommit(Repo repo, string commitId);
 
-    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified);
+    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
     Repo HideBranch(Repo repo, string name, bool hideAllBranches = false);
     Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);

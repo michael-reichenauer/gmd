@@ -71,7 +71,7 @@ class Text
             var fg = fragment.Color.Foreground;
 
             // Make sure foreground color is readable on new background
-            if (fg == newBg && fg == Common.Color.White || fg == Common.Color.Yellow)
+            if (fg == newBg && fg == Common.Color.White)
             {   // White or yellow on white is not readable 
                 fg = Common.Color.Black;
             }
@@ -80,7 +80,7 @@ class Text
                 fg = Common.Color.White;
             }
             else if (fg == newBg)
-            {   // Same color as background, use white, since background is not wite or yellow
+            {   // Same color as background, use white, since background is not white or yellow
                 fg = Common.Color.White;
             }
 

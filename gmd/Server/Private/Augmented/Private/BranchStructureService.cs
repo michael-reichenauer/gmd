@@ -35,6 +35,9 @@ class BranchStructureService : IBranchStructureService
         // Determine parent/child branch relationships, where a child branch is branch out of a parent
         DetermineBranchHierarchy(repo);
 
+        // Determine the most likely root/main branch of the repository
+        DetermineRootBranch(repo);
+
         // Determine the ancestors of each branch (i.e. parents, grandparents, etc.)
         DetermineAncestors(repo);
     }
@@ -830,39 +833,47 @@ class BranchStructureService : IBranchStructureService
         foreach (var b in repo.Branches.Values)
         {
             if (b.IsAmbiguousBranch)
-            {
-                // Log.Info($"Ambiguous branch: {b.Name} at {b.AmbiguousTipId}");
+            {   // Set ambiguous tip on commit
                 repo.CommitsById[b.AmbiguousTipId].IsAmbiguousTip = true;
             }
 
-            if (b.BottomID == "")
-            {   // For branches with no own commits (multiple tips to same commit)
-                b.BottomID = b.TipID;
-            }
             if (b.RemoteName != "")
-            {   // For a local branch with a remote branch, the remote branch is parent.
+            {   // For a local branch with a remote branch, the remote branch should be parent.
                 var remoteBranch = repo.Branches[b.RemoteName];
                 b.ParentBranch = remoteBranch;
-                continue;
-            }
-            if (b.PullMergeParentBranch != null)
-            {   // A pull merge branch branch 
-                b.ParentBranch = b.PullMergeParentBranch;
+
+                var bb = repo.CommitsById[b.BottomID];
+                if (bb.FirstParent?.Branch != remoteBranch)
+                {  // The bottom commit of the local branch does not have the remote branch as first parent
+                    Log.Warn($"Branch {b.Name} has bottom commit {bb.Sid} with wrong branch '{bb.FirstParent?.Branch}'");
+                }
                 continue;
             }
 
             var bottom = repo.CommitsById[b.BottomID];
-            if (bottom.Branch != b)
-            {   // Branch does not own the bottom (or tip commit), i.e. a branch pointer to another branch with no own commits yet 
+            if (b.TipID == b.BottomID && bottom.Branch != b)
+            {   // Branch does not own the bottom (or tip) commit, i.e. a branch pointer to another branch with no own commits yet 
                 b.ParentBranch = bottom.Branch;
+                continue;
             }
-            else if (bottom.FirstParent != null)
-            {   // Branch bottom commit has a first parent, use that as parent branch
-                b.ParentBranch = bottom.FirstParent.Branch;
+            if (bottom.FirstParent == null)
+            {   // Branch bottom commit has no first parent, is a root branch like e.g. main/master, or doc branch
+                // Log.Warn($"Branch {b.Name} has bottom commit {bottom.Sid} with no first parent");
+                continue;
             }
-        }
 
-        // A repo can have several root branches (e.g. the doc branch in GitHub)
+            // Branch bottom commit has a first parent, use that as parent branch (this is the normal case)
+            b.ParentBranch = bottom.FirstParent.Branch;
+        }
+    }
+
+    // Determine the root branch, i.e. the branch that has no parent branch, and which branch is the main branch
+    // A repository can have several root branches, e.g. the doc branch in GitHub. So we try to determine
+    // the most likely root branch, and set that as the main branch.    
+    void DetermineRootBranch(WorkRepo repo)
+    {
+        // A repo can have several root branches (e.g. the doc branch in GitHub). If the repo is truncated
+        // we need to remove the truncated branch and redirect all its children to the most likely root branch 
         repo.Branches.TryGetValue(truncatedBranchName, out var truncatedBranch);
         var rootBranches = repo.Branches.Values.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
         if (!rootBranches.Any()) return;  // No root branches (empty repo)
@@ -904,26 +915,26 @@ class BranchStructureService : IBranchStructureService
 
     void DetermineAncestors(WorkRepo repo)
     {
+        int circularAncestors = 0;
         foreach (var b in repo.Branches.Values)
         {
-            var current = b.ParentBranch;
-            while (current != null)
+            var ancestor = b.ParentBranch;
+            while (ancestor != null)
             {
-                if (b.Ancestors.Contains(current))
-                {
-                    Log.Warn($"Branch {b.Name} has circular ancestor {current.Name}");
-                    Log.Warn("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
-                    b.IsCircularAncestors = true;
-                    break;
-                }
-                b.Ancestors.Add(current);
-                if (b.Ancestors.Count > 50)
-                {
-                    Log.Warn($"Branch {b} has more than 20 ancestors");
-                }
-                current = current.ParentBranch;
+                // if (b.Ancestors.Contains(ancestor))
+                // {   // Debug code in case of circular ancestors (should no happen)
+                //     Log.Error($"Branch {b.Name} has circular ancestor {ancestor.Name}");
+                //     Log.Error("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
+                //     b.IsCircularAncestors = true;
+                //     circularAncestors++;
+                //     break;
+                // }
+                b.Ancestors.Add(ancestor);
+                ancestor = ancestor.ParentBranch;
             }
         }
+
+        if (circularAncestors > 0) Log.Error($"Repo has {circularAncestors} circular ancestors");
     }
 }
 

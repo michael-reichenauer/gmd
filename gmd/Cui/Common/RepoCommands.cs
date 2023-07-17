@@ -9,7 +9,7 @@ namespace gmd.Cui.Common;
 
 interface IRepoCommands
 {
-    void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified);
+    void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
     void HideBranch(string name, bool hideAllBranches = false);
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -244,21 +244,21 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
+    public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
-        var count = 0;
-        if (show == ShowBranches.AllActive) count = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
-        if (show == ShowBranches.AllActiveAndDeleted) count = repo.Repo.AugmentedRepo.Branches.Count();
+        var totalCount = 0;
+        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
+        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count();
 
-        if (count > 20)
+        if (totalCount > 20)
         {
-            if (UI.InfoMessage("Show Branches", $"Do you want to show {count} branches?", 1, new[] { "Yes", "No" }) != 0)
+            if (UI.InfoMessage("Show Branches", $"Do you want to show {totalCount} branches?", 1, new[] { "Yes", "No" }) != 0)
             {
                 return;
             }
         }
 
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show);
+        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show, count);
         SetRepo(newRepo, name);
     }
 
