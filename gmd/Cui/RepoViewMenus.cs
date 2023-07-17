@@ -326,7 +326,7 @@ class RepoViewMenus : IRepoViewMenus
         return items.DistinctBy(b => b.Title);
     }
 
-    IEnumerable<MenuItem> GetShowItems()
+    IEnumerable<MenuItem> GetCommitInOutItems()
     {
         // Get current branch, commit branch in/out and all shown branches
         var shownBranches = repo.Branches;
@@ -344,27 +344,15 @@ class RepoViewMenus : IRepoViewMenus
         return ToShowBranchesItems(branches, true);
     }
 
-    IEnumerable<MenuItem> GetScrollToItems()
-    {
-        // Get current branch, commit branch in/out and all shown branches
-        var branches =
-            new[] { repo.GetCurrentBranch() }
-            .Concat(repo.GetCommitBranches())
-            .Concat(repo.Branches)
-            .Where(b => repo.Branches.Contains(b));
-
-        return ToShowBranchesItems(branches, true);
-    }
-
 
     IEnumerable<MenuItem> GetSwitchToItems()
     {
         var currentName = repo.CurrentBranch?.PrimaryName ?? "";
         var branches = repo.Branches
-             .Where(b => b.PrimaryName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
+             .Where(b => b.PrimaryName != currentName)
              .OrderBy(b => b.PrimaryName);
 
-        return ToSwitchHierarchicalBranchesItems(branches);
+        return ToHierarchicalBranchesItemsX(branches, b => cmds.SwitchTo(b.LocalName != "" ? b.LocalName : b.Name));
     }
 
     IEnumerable<MenuItem> GetDeleteItems()
@@ -458,12 +446,11 @@ class RepoViewMenus : IRepoViewMenus
     {
         var mainBranch = repo.Branches.First(b => b.IsMainBranch);
         var branches = repo.Branches
-            .Where(b => !b.IsMainBranch && !b.IsDetached && b.PrimaryName != mainBranch.PrimaryName &&
-                b.RemoteName == "" && b.PullMergeParentBranchName == "")
-            .DistinctBy(b => b.NiceNameUnique)
+            .Where(b => !b.IsMainBranch && !b.IsDetached)
             .OrderBy(b => b.NiceNameUnique);
 
-        var items = ToHideHierarchicalBranchesItems(branches);
+        var items = ToHierarchicalBranchesItemsX(branches, b => cmds.HideBranch(b.Name));
+        //var items = ToHideHierarchicalBranchesItems(branches);
         if (repo.Branches.Count > 15)
         {
             items = items.Prepend(Menu.Item("Hide All", "", () => cmds.HideBranch("", true)));
@@ -498,7 +485,7 @@ class RepoViewMenus : IRepoViewMenus
         var show = (Branch b) => cmds.ShowBranch(b.Name, false);
 
         var items = Menu.Items
-            .Items(GetShowItems())
+            .Items(GetCommitInOutItems())
             .SubMenu("    Recent", "", ToBranchesItemsX(recentBranches, show)
                 .Prepend(Menu.Item("Show 5 more Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))))
             .SubMenu("    Active", "", ToHierarchicalBranchesItemsX(liveBranches, show)
@@ -668,7 +655,7 @@ class RepoViewMenus : IRepoViewMenus
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;
         name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
-        name = isShown ? "Ͽ" + name : " " + name;
+        name = isShown ? "∘" + name : " " + name;
 
         return name;
     }
