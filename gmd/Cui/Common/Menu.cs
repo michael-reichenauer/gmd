@@ -30,7 +30,7 @@ class Menu
 
     Menu RootMenu => parent == null ? this : parent.RootMenu;
 
-    public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "", Action? onEscAction = null)
+    public static void Show(string title, int x, int y, IEnumerable<MenuItem> items, Action? onEscAction = null)
     {
         var menu = new Menu(x, y, title, null, -1, onEscAction);
         menu.Show(items);
@@ -224,6 +224,13 @@ class Menu
 
     void OnEnter()
     {
+        if (items.Any() && CurrentItem is SubMenu)
+        {
+            UI.Post(() => OnCursorRight());
+            return;
+        }
+
+        // Handle enter key on 'normal' menu item
         RootMenu.Closed += () =>
         {
             if (items.Any() && CurrentItem.CanExecute() && CurrentItem.Action != null)
@@ -321,7 +328,7 @@ class Menu
 
 
 // A normal menu item and base class for SubMenu and MenuSeparator
-class MenuItem
+record MenuItem
 {
     public MenuItem(string title, string shortcut, Action action, Func<bool>? canExecute = null)
     {
@@ -331,7 +338,7 @@ class MenuItem
         CanExecute = canExecute ?? (() => true);
     }
 
-    public string Title { get; }
+    public string Title { get; set; }
     public string Shortcut { get; }
     public Action Action { get; }
     public Func<bool> CanExecute { get; }
@@ -340,7 +347,7 @@ class MenuItem
 
 
 // To create a sub menu
-class SubMenu : MenuItem
+record SubMenu : MenuItem
 {
     public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
         : base(title, shortcut, () => { }, canExecute)
@@ -353,7 +360,7 @@ class SubMenu : MenuItem
 
 
 // To create a menu separator line or header line
-class MenuSeparator : MenuItem
+record MenuSeparator : MenuItem
 {
     public MenuSeparator(string text = "")
         : base(text, "", () => { }, () => false)

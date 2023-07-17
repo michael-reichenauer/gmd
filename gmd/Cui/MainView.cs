@@ -109,7 +109,7 @@ partial class MainView : IMainView
 
     void ShowMainMenu()
     {
-        Menu.Show(4, 0, Menu.Items
+        Menu.Show("Recent Repos", 4, 0, Menu.Items
             .Items(GetRecentRepoItems())
             .Separator()
             .Item("Browse ...", "", () => ShowBrowseDialog())
@@ -117,7 +117,6 @@ partial class MainView : IMainView
             .Item("Help ...", "", () => ShowHelp())
             .Item("About ...", "", () => ShowAbout())
             .Item("Quit", "Esc ", () => Application.RequestStop()),
-            "Recent Repos",
             () => OnCancelMenu());
     }
 

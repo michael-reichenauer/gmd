@@ -41,30 +41,28 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowMainMenu()
     {
-        Menu.Show(-1, 0, GetMainMenuItems(), "Main Menu");
+        Menu.Show("Main Menu", -1, 0, GetMainMenuItems());
     }
 
 
     public void ShowShowBranchesMenu()
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, Menu.Items
+        Menu.Show("Switch to Branch", repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, Menu.Items
             .Items(GetSwitchToItems())
-            .Separator("Show/Open")
-            .Items(GetShowItems())
+            .Separator("Show/Open Branch")
+            .Items(GetShowBranchItems())
             .Separator()
-            .SubMenu("Show Branch", "", GetShowBranchItems())
-            .SubMenu("Main Menu", "M", GetMainMenuItems()),
-            "Switch to");
+            .SubMenu("Main Menu", "M", GetMainMenuItems()));
     }
 
     public void ShowHideBranchesMenu()
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, GetHideItems(), "Close/Hide");
+        Menu.Show("Close/Hide", repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, GetHideItems());
     }
 
     public void ShowOpenMenu()
     {
-        Menu.Show(-1, 0, GetOpenRepoItems(), "Open Repo");
+        Menu.Show("Open Repo", -1, 0, GetOpenRepoItems());
     }
 
     IEnumerable<MenuItem> GetMainMenuItems()
@@ -497,16 +495,19 @@ class RepoViewMenus : IRepoViewMenus
             .Where(b => b.AmbiguousTipId != "")
             .OrderBy(b => b.NiceNameUnique);
 
+        var show = (Branch b) => cmds.ShowBranch(b.Name, false);
+
         var items = Menu.Items
-            .SubMenu("Recent", "", ToShowHierarchicalBranchesItems(recentBranches)
+            .Items(GetShowItems())
+            .SubMenu("    Recent", "", ToBranchesItemsX(recentBranches, show)
                 .Prepend(Menu.Item("Show 5 more Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))))
-            .SubMenu("Active", "", ToShowHierarchicalBranchesItems(liveBranches)
+            .SubMenu("    Active", "", ToHierarchicalBranchesItemsX(liveBranches, show)
                 .Prepend(Menu.Item("Show All Active", "", () => cmds.ShowBranch("", false, ShowBranches.AllActive))))
-            .SubMenu("Active and Deleted", "", ToShowHierarchicalBranchesItems(liveAndDeletedBranches)
+            .SubMenu("    Active and Deleted", "", ToHierarchicalBranchesItemsX(liveAndDeletedBranches, show)
                 .Prepend(Menu.Item("Show All Active and Deleted", "", () => cmds.ShowBranch("", false, ShowBranches.AllActiveAndDeleted))));
 
         return ambiguousBranches.Any()
-            ? items.SubMenu("Ambiguous", "", ToShowBranchesItems(ambiguousBranches, false, true))
+            ? items.SubMenu("   Ambiguous", "", ToShowBranchesItems(ambiguousBranches, false, true))
             : items;
     }
 
@@ -541,7 +542,7 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> ToSwitchBranchesItems(IEnumerable<Branch> branches) =>
-        branches.Select(b => Menu.Item(ToBranchMenuName(b, repo.RowCommit, false, false), "", () => cmds.SwitchTo(b.Name)));
+        branches.Select(b => Menu.Item(ToBranchMenuName(b, false, false), "", () => cmds.SwitchTo(b.Name)));
 
     IEnumerable<MenuItem> ToSwitchHierarchicalBranchesItems(IEnumerable<Branch> branches)
     {
@@ -559,7 +560,7 @@ class RepoViewMenus : IRepoViewMenus
         // If only one item in group, then just show branch, otherwise show submenu
         return groups.Select(g =>
             g.Count() == 1
-                ? Menu.Item(ToBranchMenuName(g.First(), repo.RowCommit, false), "", () => cmds.SwitchTo(g.First().Name))
+                ? Menu.Item(ToBranchMenuName(g.First(), false), "", () => cmds.SwitchTo(g.First().Name))
                 : Menu.SubMenu($"    {g.Key}/┅", "", ToSwitchBranchesItems(g)))
             .ToList();
     }
@@ -581,7 +582,7 @@ class RepoViewMenus : IRepoViewMenus
         // If only one item in group, then just show branch, otherwise show submenu
         return groups.Select(g =>
             g.Count() == 1
-                ? Menu.Item(ToBranchMenuName(g.First(), repo.RowCommit, false), "", () => cmds.HideBranch(g.First().Name))
+                ? Menu.Item(ToBranchMenuName(g.First(), false), "", () => cmds.HideBranch(g.First().Name))
                 : Menu.SubMenu($"    {g.Key}/┅", "", ToHideBranchesItems(g)))
             .ToList();
     }
@@ -603,9 +604,75 @@ class RepoViewMenus : IRepoViewMenus
         // If only one item in group, then just show branch, otherwise show submenu
         return groups.Select(g =>
             g.Count() == 1
-                ? Menu.Item(ToBranchMenuName(g.First(), repo.RowCommit, false), "", () => cmds.ShowBranch(g.First().Name, false))
+                ? Menu.Item(ToBranchMenuName(g.First(), false), "", () => cmds.ShowBranch(g.First().Name, false))
                 : Menu.SubMenu($"    {g.Key}/┅", "", ToShowBranchesItems(g, false, false)));
     }
+
+
+    IEnumerable<MenuItem> ToHierarchicalBranchesItemsX(
+        IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute = null)
+    {
+        var filteredBranches = branches.Where(b => b.IsPrimary).DistinctBy(b => b.PrimaryName);
+        return ToHierarchicalBranchesItemsX(filteredBranches, action, canExecute, 0);
+    }
+
+
+    IEnumerable<MenuItem> ToHierarchicalBranchesItemsX(
+           IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute, int level)
+    {
+        if (branches.Count() <= MaxItemCount)
+        {   // Too few branches to bother with submenus
+            return ToBranchesItemsX(branches, action, canExecute);
+        }
+
+        // Group by first part of the b.commonName (if '/' exists in name)
+        var groups = branches
+            .GroupBy(b =>
+            {
+                var parts = b.NiceNameUnique.Split('/', '(');
+                if (parts.Length <= level) return parts.Last();
+                return parts[level];
+            })
+            .OrderBy(g => g.Count() > 1 ? 0 : 1) // Sort groups first;
+            .ThenBy(g => g.Key);
+
+        // If only one item in group, then just show branch, otherwise show submenu
+        // Group name is either group/* or group(*) depending on if all branches in group have same nice name
+        var toGroupName = (IGrouping<string, Branch> bs) => bs.All(b => b.NiceName == bs.First().NiceName)
+            ? $"    {bs.Key}(*)" : $"    {bs.Key}/*";
+        return groups.Select(g =>
+            g.Count() == 1
+                ? ToBranchesItemsX(g, action, canExecute).First()
+                : Menu.SubMenu(toGroupName(g), "", ToHierarchicalBranchesItemsX(g, action, canExecute, level + 1)));
+    }
+
+
+
+    IEnumerable<MenuItem> ToBranchesItemsX(
+        IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute = null)
+    {
+        canExecute = canExecute ?? (b => true);
+        return branches.Select(b => Menu.Item(ToBranchMenuNameX(b), "", () => action(b), () => canExecute(b)));
+    }
+
+    string ToBranchMenuNameX(Branch branch)
+    {
+        bool isBranchIn = false;
+        bool isBranchOut = false;
+
+        var isShown = repo.Repo.BranchByName.TryGetValue(branch.Name, out var _);
+        string name = branch.NiceNameUnique;
+
+        name = branch.IsGitBranch ? " " + branch.NiceNameUnique : "~" + name;
+        name = isBranchIn ? "╮" + name : name;
+        name = isBranchOut ? "╯" + name : name;
+        name = isBranchIn || isBranchOut ? name : " " + name;
+        name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
+        name = isShown ? "Ͽ" + name : " " + name;
+
+        return name;
+    }
+
 
 
     IEnumerable<MenuItem> ToShowBranchesItems(
@@ -615,13 +682,14 @@ class RepoViewMenus : IRepoViewMenus
             .Where(b => branches.ContainsBy(bb => bb.Name != b.RemoteName) && // Skip local if remote
                 branches.ContainsBy(bb => bb.Name != b.PullMergeParentBranchName)) // Skip pull merge if main
             .DistinctBy(b => b.Name)
-            .Select(b => Menu.Item(ToBranchMenuName(b, repo.RowCommit, canBeOutside), "",
+            .Select(b => Menu.Item(ToShowBranchMenuNameX(b, canBeOutside), "",
                 () => cmds.ShowBranch(b.Name, includeAmbiguous)));
     }
 
 
-    string ToBranchMenuName(Branch branch, Commit cic, bool canBeOutside, bool isShowShown = true)
+    string ToShowBranchMenuNameX(Branch branch, bool canBeOutside, bool isShowShown = true)
     {
+        var cic = repo.RowCommit;
         bool isBranchIn = false;
         bool isBranchOut = false;
         if (canBeOutside && !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
@@ -644,6 +712,7 @@ class RepoViewMenus : IRepoViewMenus
 
         return ToBranchMenuName(branch, isBranchIn, isBranchOut, isShowShown);
     }
+
 
     string ToBranchMenuName(Branch branch, bool isBranchIn = false, bool isBranchOut = false, bool isShowShown = true)
     {

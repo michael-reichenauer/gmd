@@ -84,7 +84,7 @@ class DiffView : IDiffView
         var undoItems = GetUndoItems();
         var scrollToItems = GetScrollToItems();
 
-        Menu.Show(1, 2, Menu.Items
+        Menu.Show("Diff Menu", 1, 2, Menu.Items
             .SubMenu("Scroll to", "S", scrollToItems)
             .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
             .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
@@ -93,8 +93,7 @@ class DiffView : IDiffView
             .Item("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
             .Item("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
             .Item("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
-            .Item("Close", "Esc", () => Application.RequestStop()),
-            "Diff Menu");
+            .Item("Close", "Esc", () => Application.RequestStop()));
     }
 
 
@@ -103,14 +102,14 @@ class DiffView : IDiffView
         var scrollToItems = GetScrollToItems();
         if (!scrollToItems.Any()) return;
 
-        Menu.Show(1, 2, scrollToItems, "Scroll to");
+        Menu.Show("Scroll to", 1, 2, scrollToItems);
     }
 
     void ShowUndoMenu()
     {
         var undoItems = GetUndoItems();
         if (!undoItems.Any()) return;
-        Menu.Show(1, 2, undoItems, "Undo/Restore Uncommitted");
+        Menu.Show("Undo/Restore Uncommitted", 1, 2, undoItems);
     }
 
     void TriggerCommit()
