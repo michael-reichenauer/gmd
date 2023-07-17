@@ -6,21 +6,6 @@ using gmd.Server;
 namespace gmd.Cui.Common;
 
 
-class BranchColor
-{
-    public static readonly Color[] BranchColors = { Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow };
-
-    public static Color ColorById(int colorId)
-    {
-        var index = Math.Min(colorId, BranchColors.Length - 1);
-        return BranchColors[index];
-    }
-
-    public static int GetColorId(Color color) =>
-        Array.FindIndex(BranchColor.BranchColors, c => c == color);
-}
-
-
 // Manages brach colors
 interface IBranchColorService
 {
@@ -30,6 +15,8 @@ interface IBranchColorService
 
 class BranchColorService : IBranchColorService
 {
+    static readonly Color[] BranchColors = { Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow };
+
     readonly IRepoState repoState;
 
     internal BranchColorService(IRepoState repoState)
@@ -44,7 +31,7 @@ class BranchColorService : IBranchColorService
 
         if (repoState.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryBaseName, out var colorId))
         {
-            return BranchColor.ColorById(colorId);
+            return ColorById(colorId);
         }
 
         if (branch.ParentBranchName == "")
@@ -74,16 +61,16 @@ class BranchColorService : IBranchColorService
     public void ChangeColor(Repo repo, Branch branch)
     {
         var color = GetColor(repo, branch);
-        var colorId = BranchColor.GetColorId(color);
-        var newColorId = (colorId + 1) % BranchColor.BranchColors.Length;
+        var colorId = GetColorId(color);
+        var newColorId = (colorId + 1) % BranchColors.Length;
 
         repoState.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
     }
 
     Color BranchNameColor(string name, int addIndex)
     {
-        var branchColorId = (Hash(name) + addIndex) % BranchColor.BranchColors.Length;
-        return BranchColor.ColorById(branchColorId);
+        var branchColorId = (Hash(name) + addIndex) % BranchColors.Length;
+        return ColorById(branchColorId);
     }
 
 
@@ -97,4 +84,14 @@ class BranchColorService : IBranchColorService
             return Math.Abs(BitConverter.ToInt32(bytes, 0));
         }
     }
+
+
+    static Color ColorById(int colorId)
+    {
+        var index = Math.Min(colorId, BranchColors.Length - 1);
+        return BranchColors[index];
+    }
+
+    static int GetColorId(Color color) =>
+        Array.FindIndex(BranchColors, c => c == color);
 }
