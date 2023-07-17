@@ -69,7 +69,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var items = Menu.Items;
 
-        if (true || states.Get().Releases.IsUpdateAvailable && !Build.IsDevInstance())
+        if (states.Get().Releases.IsUpdateAvailable && !Build.IsDevInstance())
         {
             items.Separator("New Release Available !!!")
                 .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
