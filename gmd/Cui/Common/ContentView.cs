@@ -23,11 +23,13 @@ class ContentView : View
     readonly IReadOnlyList<Text>? content;
 
     int currentIndex = 0;
-    int mouseEventX = -1;
-    int mouseEventY = -1;
     int selectStartIndex = -1;
     int selectEndIndex = -1;
-
+    bool isMouseDragging = false;
+    int mouseDragEndX;
+    int mouseDragEndY;
+    int mouseDragStartX;
+    int mouseDragStartY;
 
     internal ContentView(GetContentCallback onGetContent)
     {
@@ -57,6 +59,7 @@ class ContentView : View
 
     public event Action? CurrentIndexChange;
 
+    public bool IsHighlightCurrentIndex { get; set; } = false;
     public int ViewHeight => Frame.Height;
     public int ViewWidth => Frame.Width;
     public bool IsShowCursor { get; set; } = true;
@@ -172,60 +175,49 @@ class ContentView : View
     {
         // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
-        // On linux (at least dev container console), there is a bug that sends same last mouse event
-        // whenever mouse is moved, to still support scroll, we check mouse position.
-        bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
-        mouseEventX = ev.X;
-        mouseEventY = ev.Y;
-
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) && isSamePos)
+        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
             Scroll(1);
             return true;
         }
-        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp) && isSamePos)
+        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
         {
             Scroll(-1);
             return true;
         }
 
-        if (Build.IsWindows)
+        if (mouses.TryGetValue(ev.Flags, out var callback))
         {
-            if (mouses.TryGetValue(ev.Flags, out var callback))
-            {
-                callback(ev.X, ev.Y);
-                return true;
-            }
+            callback(ev.X, ev.Y);
+            return true;
         }
 
+        if (ev.Flags.HasFlag(MouseFlags.Button1Pressed) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
+        {
+            if (!isMouseDragging)
+            {
+                Log.Info($"Mouse Start Drag: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+                isMouseDragging = true;
+                mouseDragStartX = ev.X;
+                mouseDragStartY = ev.Y;
+            }
+            Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+            return true;
+        }
 
-        // if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        // {
-        //     if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
-        //     {
-        //         Scroll(1);
-        //     }
-        //     if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        //     {
-        //         Scroll(-1);
-        //     }
-        // }
+        if (ev.Flags.HasFlag(MouseFlags.Button1Released))
+        {
+            if (isMouseDragging)
+            {
+                Log.Info($"Mouse Stop Drag: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+                isMouseDragging = false;
+                mouseDragEndX = ev.X;
+                mouseDragEndY = ev.Y;
+            }
+            return true;
+        }
 
         return false;
-        // if (!ev.Flags.HasFlag(MouseFlags.Button1Clicked) && !ev.Flags.HasFlag(MouseFlags.Button1Pressed)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1Pressed | MouseFlags.ReportMousePosition)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1Released)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1Pressed | MouseFlags.ButtonShift)
-        //     && !ev.Flags.HasFlag(MouseFlags.WheeledDown) && !ev.Flags.HasFlag(MouseFlags.WheeledUp)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1DoubleClicked)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1DoubleClicked | MouseFlags.ButtonShift)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1TripleClicked))
-        // {
-        //     return false;
-        // }
-
-
-        // return false;
     }
 
     public override void Redraw(Rect bounds)
@@ -235,17 +227,16 @@ class ContentView : View
         var topMargin = IsTopBorder ? topBorderHeight : 0;
         var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
 
-        if (content != null)
+        IEnumerable<Text> rows = (content != null)
+            ? content.Skip(FirstIndex).Take(drawCount)
+            : onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+
+        int y = ContentY;
+        rows.ForEach((row, i) =>
         {
-            int y = ContentY;
-            content.Skip(FirstIndex).Take(drawCount).ForEach(row => row.Draw(this, ContentX, y++));
-        }
-        else if (onGetContent != null)
-        {
-            var rows = onGetContent(FirstIndex, drawCount, CurrentIndex, ContentWidth);
-            int y = ContentY;
-            rows.ForEach(row => row.Draw(this, ContentX, y++));
-        }
+            Text txt = IsHighlightCurrentIndex && (i + FirstIndex == currentIndex) ? row.ToHighlight() : row;
+            txt.Draw(this, ContentX, y++);
+        });
 
         DrawTopBorder();
         DrawCursor();

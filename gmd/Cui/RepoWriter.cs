@@ -56,10 +56,7 @@ class RepoWriter : IRepoWriter
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c, i == currentIndex);
 
-            // Handle highlighting of current row
-            Text txt = (i == currentIndex) ? text.ToText().ToHighlight() : text;
-
-            rows.Add(txt);
+            rows.Add(text);
         }
 
         return rows;

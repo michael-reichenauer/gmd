@@ -91,6 +91,7 @@ class RepoView : IRepoView
             IsShowCursor = false,
             IsCursorMargin = false,
             IsScrollMode = false,
+            IsHighlightCurrentIndex = true,
         };
         commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
 
