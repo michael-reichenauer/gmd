@@ -52,7 +52,7 @@ class RepoViewMenus : IRepoViewMenus
             .Separator("Show/Open Branch")
             .Items(GetShowBranchItems())
             .Separator()
-            .SubMenu("Main Menu", "M", GetMainMenuItems()));
+            .SubMenu("    Main Menu", "M", GetMainMenuItems()));
     }
 
     public void ShowHideBranchesMenu()
@@ -576,8 +576,8 @@ class RepoViewMenus : IRepoViewMenus
         name = isBranchIn ? "╮" + name : name;
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;
-        name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
         name = isShown ? "∘" + name : " " + name;
+        name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
 
         return name;
     }
