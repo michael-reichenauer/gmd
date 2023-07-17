@@ -858,6 +858,7 @@ class BranchStructureService : IBranchStructureService
             }
             if (bottom.FirstParent == null)
             {   // Branch bottom commit has no first parent, is a root branch like e.g. main/master, or doc branch
+                // Log.Warn($"Branch {b.Name} has bottom commit {bottom.Sid} with no first parent");
                 continue;
             }
 

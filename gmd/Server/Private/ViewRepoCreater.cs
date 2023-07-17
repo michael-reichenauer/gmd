@@ -7,7 +7,7 @@ namespace gmd.Server.Private;
 
 interface IViewRepoCreater
 {
-    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified);
+    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1);
 
     Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount);
 }
@@ -24,10 +24,10 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
 
-    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
+    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var t = Timing.Start();
-        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, show);
+        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, show, count);
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
 
         if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
@@ -279,7 +279,8 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
     }
 
-    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
+    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo,
+    IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var branches = new Dictionary<string, Augmented.Branch>();
 
@@ -296,7 +297,7 @@ class ViewRepoCreater : IViewRepoCreater
                 repo.Branches.Values.Where(b => !b.IsCircularAncestors)
                     .OrderBy(b => repo.CommitById[b.TipId].GitIndex)
                     .Where(b => b.IsPrimary)
-                    .Take(10)
+                    .Take(count)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
                 break;
             case ShowBranches.AllActive:

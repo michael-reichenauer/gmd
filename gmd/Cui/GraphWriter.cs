@@ -59,6 +59,7 @@ class GraphWriter : IGraphWriter
             && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "┺";
 
         if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "╼";
+        if (bm.HasFlag(Sign.Bottom) && bm.HasFlag(Sign.ActiveTip)) return "┗";
 
         // commit is tip
         if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "╊";
@@ -67,9 +68,10 @@ class GraphWriter : IGraphWriter
         if (bm.HasFlag(Sign.Tip)) return "┏";
 
         // commit is bottom
+
         if (bm.HasFlag(Sign.Bottom) && hasRight(bm)) return "┗";
         if (bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "┺";
-        if (bm.HasFlag(Sign.Bottom)) return "┚";
+        if (bm.HasFlag(Sign.Bottom)) return "┗";
 
         // commit is within branch
         if (bm.HasFlag(Sign.Commit) && hasLeft(bm)) return "╊";
