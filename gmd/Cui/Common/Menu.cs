@@ -357,7 +357,7 @@ record SubMenu : MenuItem
 record MenuSeparator : MenuItem
 {
     public MenuSeparator(string title = "")
-        : base(title, "", () => { })
+        : base(title, "", () => { }, () => false)
     { }
 }
 

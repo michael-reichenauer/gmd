@@ -67,20 +67,19 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetMainMenuItems()
     {
-        var releases = states.Get().Releases;
         var items = Menu.Items;
-        var branchName = repo.CurrentBranch?.NiceNameUnique ?? "";
-        var commit = repo.RowCommit;
-        var sidText = Sid(repo.RowCommit.Id);
-        var currentSidText = Sid(repo.GetCurrentCommit().Sid);
-        var isAhead = repo.GetCurrentCommit().IsAhead;
 
-        if (releases.IsUpdateAvailable && !Build.IsDevInstance())
+        if (true || states.Get().Releases.IsUpdateAvailable && !Build.IsDevInstance())
         {
             items.Separator("New Release Available !!!")
-                .Item("Update to Latest ...", "", () => cmds.UpdateRelease())
+                .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
                 .Separator();
         }
+
+        var switchItems = GetSwitchToItems()
+                .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "",
+                    () => cmds.SwitchToCommit(),
+                    () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id));
 
         return items
             .SubMenu("Commit", "", GetCommitItems())
@@ -88,8 +87,7 @@ class RepoViewMenus : IRepoViewMenus
             .SubMenu("Diff", "", GetDiffItems())
             .SubMenu("Show/Open Branch", "→", GetShowBranchItems())
             .SubMenu("Hide Branch", "←", GetHideItems())
-            .SubMenu("Switch/Checkout", "→", GetSwitchToItems()
-                .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)))
+            .SubMenu("Switch/Checkout", "→", switchItems)
             .SubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush())
             .SubMenu("Pull/Update", "", GetPullItems(), () => cmds.CanPull())
             .SubMenu($"Merge", "", GetMergeFromItems())
@@ -118,7 +116,6 @@ class RepoViewMenus : IRepoViewMenus
         return Menu.Items
            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
            .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
-           //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
            .SubMenu("Show Ambiguous Branches", "", ambiguousBranches)
            .Item("Set Branch Manually ...", "", () => cmds.SetBranchManuallyAsync())
            .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
@@ -127,6 +124,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCreateBranchItems() => Menu.Items
         .Item("Create Branch ...", "B", () => cmds.CreateBranch())
         .Item("Create Branch from commit ...", "", () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk);
+
 
     IEnumerable<MenuItem> GetCommitItems() => Menu.Items
         .Item("Commit ...", "C",
