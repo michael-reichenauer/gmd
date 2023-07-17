@@ -4,7 +4,7 @@ using Terminal.Gui;
 namespace gmd.Cui.Common;
 
 
-internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int width);
+internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
 internal delegate void OnKeyCallback();
 internal delegate void OnMouseCallback(int x, int y);
 
@@ -21,6 +21,7 @@ class ContentView : View
     const int contentXMargin = cursorWidth + verticalScrollbarWidth;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
     readonly IReadOnlyList<Text>? content;
+
     int currentIndex = 0;
     int mouseEventX = -1;
     int mouseEventY = -1;
@@ -39,53 +40,50 @@ class ContentView : View
         this.TriggerUpdateContent(this.content.Count);
     }
 
-    internal bool IsFocus { get; set; } = true;
-    internal int FirstIndex { get; private set; } = 0;
-    internal int Count { get; private set; } = 0;
+    public bool IsFocus { get; set; } = true;
+    public int FirstIndex { get; private set; } = 0;
+    public int TotalCount { get; private set; } = 0;
 
-    internal int CurrentIndex
+    public int CurrentIndex
     {
         get { return currentIndex; }
         private set
         {
             var v = currentIndex;
             currentIndex = value;
-            if (v != value)
-            {
-                CurrentIndexChange?.Invoke();
-            }
+            if (v != value) CurrentIndexChange?.Invoke();
         }
     }
 
-    internal event Action? CurrentIndexChange;
+    public event Action? CurrentIndexChange;
 
-    internal int ViewHeight => Frame.Height;
-    internal int ViewWidth => Frame.Width;
-    internal bool IsShowCursor { get; set; } = true;
-    internal bool IsScrollMode { get; set; } = false;
-    internal bool IsCursorMargin { get; set; } = false;
-    internal bool IsTopBorder { get; set; } = false;
-    internal bool IsHideCursor { get; set; } = false;
-    internal int ContentX => IsCursorMargin ? cursorWidth : 0;
-    internal int ContentY => IsTopBorder ? topBorderHeight : 0;
-    internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
-    internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
-    internal Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
-    internal int SelectStartIndex => selectStartIndex;
-    internal int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
+    public int ViewHeight => Frame.Height;
+    public int ViewWidth => Frame.Width;
+    public bool IsShowCursor { get; set; } = true;
+    public bool IsScrollMode { get; set; } = false;
+    public bool IsCursorMargin { get; set; } = false;
+    public bool IsTopBorder { get; set; } = false;
+    public bool IsHideCursor { get; set; } = false;
+    public int ContentX => IsCursorMargin ? cursorWidth : 0;
+    public int ContentY => IsTopBorder ? topBorderHeight : 0;
+    public int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
+    public int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
+    public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
+    public int SelectStartIndex => selectStartIndex;
+    public int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
 
 
-    internal void RegisterKeyHandler(Key key, OnKeyCallback callback)
+    public void RegisterKeyHandler(Key key, OnKeyCallback callback)
     {
         keys[key] = callback;
     }
 
-    internal void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
+    public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
     {
         mouses[mouseFlags] = callback;
     }
 
-    internal void ScrollToShowIndex(int index, int margin = 5)
+    public void ScrollToShowIndex(int index, int margin = 5)
     {
         if (index >= FirstIndex + margin && index <= FirstIndex + ContentHeight - margin)
         {
@@ -98,9 +96,9 @@ class ContentView : View
     }
 
 
-    internal void TriggerUpdateContent(int totalCount)
+    public void TriggerUpdateContent(int totalCount)
     {
-        this.Count = totalCount;
+        this.TotalCount = totalCount;
         if (FirstIndex > totalCount)
         {
             FirstIndex = totalCount - 1;
@@ -159,11 +157,11 @@ class ContentView : View
                 return true;
             case Key.Home:
                 ClearSelection();
-                Move(-Math.Max(0, Count));
+                Move(-Math.Max(0, TotalCount));
                 return true;
             case Key.End:
                 ClearSelection();
-                Move(Math.Max(0, Count));
+                Move(Math.Max(0, TotalCount));
                 return true;
         }
 
@@ -235,7 +233,7 @@ class ContentView : View
         Clear();
 
         var topMargin = IsTopBorder ? topBorderHeight : 0;
-        var drawCount = Math.Min(ContentHeight, Count - FirstIndex);
+        var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
 
         if (content != null)
         {
@@ -318,7 +316,7 @@ class ContentView : View
             return;
         }
 
-        if (currentIndex >= Count - 1)
+        if (currentIndex >= TotalCount - 1)
         {   // Already at bottom of page, no need to move         
             return;
         }
@@ -370,7 +368,7 @@ class ContentView : View
 
     internal void Scroll(int scroll)
     {
-        if (Count == 0)
+        if (TotalCount == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -381,9 +379,9 @@ class ContentView : View
         {
             newFirst = 0;
         }
-        if (newFirst + ViewHeight >= Count)
+        if (newFirst + ViewHeight >= TotalCount)
         {
-            newFirst = Count - ViewHeight;
+            newFirst = TotalCount - ViewHeight;
         }
         if (newFirst == FirstIndex)
         {   // No move, reached top or bottom
@@ -432,7 +430,7 @@ class ContentView : View
         }
 
         // Log.Info($"move {move}, current: {currentIndex}");
-        if (Count == 0)
+        if (TotalCount == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -441,12 +439,12 @@ class ContentView : View
 
         if (newCurrent < 0)
         {   // Reached top, wrap or stay
-            newCurrent = isMoveUpDownWrap ? Count - 1 : 0;
+            newCurrent = isMoveUpDownWrap ? TotalCount - 1 : 0;
         }
 
-        if (newCurrent >= Count)
+        if (newCurrent >= TotalCount)
         {   // Reached bottom, wrap or stay 
-            newCurrent = isMoveUpDownWrap ? 0 : Count - 1;
+            newCurrent = isMoveUpDownWrap ? 0 : TotalCount - 1;
         }
 
         if (newCurrent == CurrentIndex)
@@ -485,12 +483,12 @@ class ContentView : View
 
     (int, int) GetVerticalScrollbarIndexes()
     {
-        if (Count == 0 || Count <= ContentHeight)
+        if (TotalCount == 0 || TotalCount <= ContentHeight)
         {   // No need for a scrollbar
             return (0, -1);
         }
 
-        float scrollbarFactor = (float)ContentHeight / (float)Count;
+        float scrollbarFactor = (float)ContentHeight / (float)TotalCount;
 
         int sbStart = (int)Math.Floor((float)FirstIndex * scrollbarFactor);
         int sbSize = (int)Math.Ceiling((float)ContentHeight * scrollbarFactor);

@@ -288,7 +288,7 @@ class Menu
     void OnHome()
     {
         if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
-        itemsView.Move(-itemsView.Count);
+        itemsView.Move(-itemsView.TotalCount);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
         if (CurrentItem.IsDisabled) OnCursorUp();
@@ -297,7 +297,7 @@ class Menu
     void OnEnd()
     {
         if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
-        itemsView.Move(itemsView.Count);
+        itemsView.Move(itemsView.TotalCount);
 
         if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
         if (CurrentItem.IsDisabled) OnCursorDown();
