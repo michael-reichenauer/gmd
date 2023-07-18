@@ -41,6 +41,11 @@ public static class EnumerableExtensions
         return string.Join(separator, source);
     }
 
+    public static string Join(this IEnumerable<string> source, char separator)
+    {
+        return string.Join(separator, source);
+    }
+
 
     public static void TryAdd<TSource>(this List<TSource> source, TSource item)
     {

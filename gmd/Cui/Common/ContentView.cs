@@ -44,7 +44,6 @@ class ContentView : View
     }
 
     public event Action? CurrentIndexChange;
-    public event Action<Selection>? Selected;
     public event Action<Selection>? SelectionChange;
 
 
