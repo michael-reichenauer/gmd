@@ -1,12 +1,12 @@
 using Terminal.Gui;
 
-
 namespace gmd.Cui.Common;
 
 
 internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
 internal delegate void OnKeyCallback();
 internal delegate void OnMouseCallback(int x, int y);
+record class MouseDrag(int X1, int Y1, int X2, int Y2);
 
 
 class ContentView : View
@@ -22,14 +22,15 @@ class ContentView : View
     readonly bool isMoveUpDownWrap = false;  // Not used yet
     readonly IReadOnlyList<Text>? content;
 
+    List<Text> currentRows = new List<Text>();
     int currentIndex = 0;
     int selectStartIndex = -1;
     int selectEndIndex = -1;
-    bool isMouseDragging = false;
-    int mouseDragEndX;
-    int mouseDragEndY;
-    int mouseDragStartX;
-    int mouseDragStartY;
+    bool isSelecting = false;
+    bool isSelected = false;
+    MouseDrag mouseDrag = new MouseDrag(0, 0, 0, 0);
+    Point point = new Point(0, 0);
+
 
     internal ContentView(GetContentCallback onGetContent)
     {
@@ -41,6 +42,11 @@ class ContentView : View
         this.content = content;
         this.TriggerUpdateContent(this.content.Count);
     }
+
+    public event Action? CurrentIndexChange;
+    public event Action<MouseDrag>? MouseDragged;
+    public event Action<MouseDrag>? MouseDragging;
+
 
     public bool IsFocus { get; set; } = true;
     public int FirstIndex { get; private set; } = 0;
@@ -57,7 +63,7 @@ class ContentView : View
         }
     }
 
-    public event Action? CurrentIndexChange;
+
 
     public bool IsHighlightCurrentIndex { get; set; } = false;
     public int ViewHeight => Frame.Height;
@@ -173,7 +179,7 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
@@ -194,26 +200,13 @@ class ContentView : View
 
         if (ev.Flags.HasFlag(MouseFlags.Button1Pressed) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
         {
-            if (!isMouseDragging)
-            {
-                Log.Info($"Mouse Start Drag: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
-                isMouseDragging = true;
-                mouseDragStartX = ev.X;
-                mouseDragStartY = ev.Y;
-            }
-            Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+            MouseDrag(ev);
             return true;
         }
 
         if (ev.Flags.HasFlag(MouseFlags.Button1Released))
         {
-            if (isMouseDragging)
-            {
-                Log.Info($"Mouse Stop Drag: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
-                isMouseDragging = false;
-                mouseDragEndX = ev.X;
-                mouseDragEndY = ev.Y;
-            }
+            MouseReleased(ev);
             return true;
         }
 
@@ -224,24 +217,64 @@ class ContentView : View
     {
         Clear();
 
-        var topMargin = IsTopBorder ? topBorderHeight : 0;
-        var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
-
-        IEnumerable<Text> rows = (content != null)
-            ? content.Skip(FirstIndex).Take(drawCount)
-            : onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
-
-        int y = ContentY;
-        rows.ForEach((row, i) =>
+        if (isSelecting)
         {
-            Text txt = IsHighlightCurrentIndex && (i + FirstIndex == currentIndex) ? row.ToHighlight() : row;
-            txt.Draw(this, ContentX, y++);
-        });
+            RedrawSelect();
+        }
+        else
+        {
+            RedrawNormal();
+        }
 
         DrawTopBorder();
         DrawCursor();
         DrawVerticalScrollbar();
     }
+
+
+    public void RedrawNormal()
+    {
+        var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
+
+        currentRows = (content != null)
+            ? content.Skip(FirstIndex).Take(drawCount).ToList()
+            : onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth).ToList();
+
+        int y = ContentY;
+        currentRows.ForEach((row, i) =>
+        {
+            var index = i + FirstIndex;
+            Text txt = IsHighlightCurrentIndex && index == currentIndex ? row.ToHighlight() : row;
+            txt.Draw(this, ContentX, y++);
+        });
+    }
+
+    public void RedrawSelect()
+    {
+        var drawCount = currentRows.Count;
+
+        int y = ContentY;
+        currentRows.ForEach((row, i) =>
+        {
+            Text txt = row;
+            var index = i + FirstIndex;
+            var isRowSelected = index >= mouseDrag.Y1 && index <= mouseDrag.Y2;
+            if (isRowSelected && mouseDrag.Y1 == mouseDrag.Y2)
+            {   // One row is selected, highlight the selected sub text
+                var part1 = txt.Subtext(0, mouseDrag.X1);
+                var part2 = txt.Subtext(mouseDrag.X1, mouseDrag.X2 - mouseDrag.X1);
+                var part3 = txt.Subtext(mouseDrag.X2, txt.Length - mouseDrag.X2);
+                txt = part1.ToTextBuilder().Add(part2.ToSelect()).Add(part3);
+            }
+            else if (isRowSelected)
+            {   // Multiple rows are selected, highlight the whole rows
+                txt = txt.ToSelect();
+            }
+
+            txt.Draw(this, ContentX, y++);
+        });
+    }
+
 
     public bool IsRowSelected(int index) => selectStartIndex != -1 && index >= selectStartIndex && index <= selectEndIndex;
 
@@ -323,6 +356,66 @@ class ContentView : View
 
         Move(1);
     }
+
+    void MouseDrag(MouseEvent ev)
+    {
+        isSelected = false;
+        var x = ev.X;
+        var y = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
+
+        if (!isSelecting)
+        {   // Start mouse dragging
+            isSelecting = true;
+            mouseDrag = new MouseDrag(x, y, x, y);
+            point = new Point(x, y);
+            Log.Info($"Mouse Start Drag: {mouseDrag}");
+        }
+
+        var x1 = mouseDrag.X1;
+        var y1 = mouseDrag.Y1;
+        var x2 = mouseDrag.X2;
+        var y2 = mouseDrag.Y2;
+
+        if (x < point.X)
+        {   // Moving left, expand selection on left or shrink selection on right side
+            if (x < x1) x1 = x; else x2 = x;
+        }
+        else if (x > point.X)
+        {   // Moving right expand selection on right or shrink selection on left side
+            if (x > x2) x2 = x; else x1 = x;
+        }
+
+        if (y < point.Y)
+        {   // Moving upp, expand selection upp or shrink selection on bottom side
+            if (y < y1) y1 = y; else y2 = y;
+        }
+        else if (y > point.Y)
+        {   // // Moving down, expand selection down or shrink selection on top side
+            if (y > y2) y2 = y; else y1 = y;
+        }
+
+        mouseDrag = new MouseDrag(x1, y1, x2, y2);
+        point = new Point(x, y);
+        // Log.Info($"Mouse Drag: {mouseDrag}");
+
+        SetNeedsDisplay();
+        MouseDragging?.Invoke(mouseDrag);
+    }
+
+    void MouseReleased(MouseEvent ev)
+    {
+        isSelected = false;
+        if (isSelecting)
+        {
+            isSelecting = false;
+            isSelected = true;
+            mouseDrag = mouseDrag with { X2 = ev.X, Y2 = ev.Y + FirstIndex };
+            Log.Info($"Mouse Stop Drag: {mouseDrag}");
+            SetNeedsDisplay();
+            MouseDragged?.Invoke(mouseDrag);
+        }
+    }
+
 
     void DrawTopBorder()
     {
