@@ -24,7 +24,7 @@ class DiffView : IDiffView
     int rowStartX = 0;
     string commitId = "";
     string repoPath = "";
-    bool IsSelectedLeft = true;
+    bool IsFocusLeft = true;
     bool isCommitTriggered = false;
     bool IsSelected => contentView.SelectCount > 0;
 
@@ -46,13 +46,22 @@ class DiffView : IDiffView
         this.rowStartX = 0;
         this.commitId = commitId;
         this.repoPath = repoPath;
-        this.IsSelectedLeft = true;
+        this.IsFocusLeft = true;
         this.isCommitTriggered = false;
         this.diffRows = diffService.ToDiffRows(diffs);
 
         Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView = new ContentView(OnGetContent)
-        { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), IsShowCursor = false, IsScrollMode = true, IsCursorMargin = true };
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            IsShowCursor = false,
+            IsScrollMode = false,
+            IsCursorMargin = true,
+            IsCustomShowSelection = true,
+        };
 
         diffView.Add(contentView);
         RegisterShortcuts(contentView);
@@ -76,8 +85,25 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.s, () => ShowScrollMenu());
         view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
+
+        view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(x, y));
+
     }
 
+    private bool OnMouseClick(int x, int y)
+    {
+        // Switch focus sides if clicking on other side
+        int columnWidth = (contentView.ContentWidth - 2) / 2;
+        if (x > columnWidth && IsFocusLeft) IsFocusLeft = false;
+        if (x < columnWidth && !IsFocusLeft) IsFocusLeft = true;
+
+        contentView.SetIndex(y);
+
+        contentView.SetNeedsDisplay();
+        return false;
+
+
+    }
 
     void ShowMainMenu()
     {
@@ -89,7 +115,7 @@ class DiffView : IDiffView
             .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
             .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
             .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
-            .Item("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
+            // .Item("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
             .Item("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
             .Item("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
             .Item("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
@@ -226,9 +252,9 @@ class DiffView : IDiffView
     // Move both sides in view left, or select left side text if text is selected
     void OnMoveLeft()
     {
-        if (!IsSelectedLeft && contentView.SelectCount > 0)
+        if (!IsFocusLeft)
         {   // Text is selected, lets move selection from right to left side
-            IsSelectedLeft = true;
+            IsFocusLeft = true;
             contentView.SetNeedsDisplay();
             return;
         }
@@ -245,9 +271,9 @@ class DiffView : IDiffView
     // Move both sides in view right, or select right side text if text is selected
     void OnMoveRight()
     {
-        if (IsSelectedLeft && contentView.SelectCount > 0)
+        if (IsFocusLeft)
         {   // Text is selected, lets move selection from left to right side
-            IsSelectedLeft = false;
+            IsFocusLeft = false;
             contentView.SetNeedsDisplay();
             return;
         }
@@ -262,29 +288,31 @@ class DiffView : IDiffView
     }
 
     // Returns the content for the view
-    IEnumerable<Text> OnGetContent(int firstRow, int rowCount, int rowStartX, int contentWidth)
+    IEnumerable<Text> OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
         int columnWidth = (contentWidth - 2) / 2;
         int viewWidth = columnWidth * 2 + 1;
 
         return diffRows.Rows.Skip(firstRow).Take(rowCount)
-            .Select((r, i) => ToDiffRowText(r, i + firstRow, columnWidth, viewWidth));
+            .Select((r, i) => ToDiffRowText(r, i + firstRow, columnWidth, currentIndex, viewWidth));
     }
 
     // Returns a row with either a line, a span or two columns of side by side text
-    Text ToDiffRowText(DiffRow row, int index, int columnWidth, int viewWidth)
+    Text ToDiffRowText(DiffRow row, int index, int columnWidth, int currentIndex, int viewWidth)
     {
-        var isHighlighted = contentView.IsRowSelected(index);
+        var isSelectedRow = contentView.IsRowSelected(index);
+        var isCurrentRow = !isSelectedRow && index == currentIndex;
         if (row.Mode == DiffRowMode.DividerLine)
         {   // A line in the view, e.g. ━━━━, ══════, that need to be expanded to the full view width
             var line = row.Left.ToLine(viewWidth);
-            return isHighlighted ? line.ToHighlight() : line;
+            if (isCurrentRow) line = line.ToHighlight();
+            return line;
         }
 
         if (row.Mode == DiffRowMode.SpanBoth)
         {   // The left text spans over full width 
             var text = row.Left.Subtext(0, viewWidth);
-            return isHighlighted ? text.ToHighlight() : text;
+            return isSelectedRow ? text.ToSelect() : isCurrentRow ? text.ToHighlight() : text;
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
@@ -297,9 +325,9 @@ class DiffView : IDiffView
             row.Right.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         return Text
-            .Add(isHighlighted && IsSelectedLeft ? left.ToHighlight() : left)
+            .Add(isSelectedRow && IsFocusLeft ? left.ToSelect() : isCurrentRow && IsFocusLeft ? left.ToHighlight() : left)
             .Add(splitLineChar)
-            .Add(isHighlighted && !IsSelectedLeft ? right.ToHighlight() : right);
+            .Add(isSelectedRow && !IsFocusLeft ? right.ToSelect() : isCurrentRow && !IsFocusLeft ? right.ToHighlight() : right);
     }
 
 
@@ -313,7 +341,7 @@ class DiffView : IDiffView
         // Convert left or right rows to text, remove empty lines and line numbers
         var text = string.Join("\n", rows
             .Where(r => r.Mode != DiffRowMode.DividerLine)
-            .Select(r => IsSelectedLeft || r.Mode != DiffRowMode.SideBySide ? r.Left : r.Right)
+            .Select(r => IsFocusLeft || r.Mode != DiffRowMode.SideBySide ? r.Left : r.Right)
             .Where(l => l != DiffService.NoLine)
             .Select(l => l.ToString())
             .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t.Substring(5) : t)

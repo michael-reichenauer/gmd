@@ -55,6 +55,7 @@ class Text
     public override string ToString() => string.Concat(fragments.Select(f => f.Text));
 
     public Text ToHighlight() => ToHighlight(Common.Color.Dark);
+    public Text ToSelect() => ToHighlight(Common.Color.White);
 
     public Text ToHighlightGreen() => ToHighlight(Common.Color.Green);
 

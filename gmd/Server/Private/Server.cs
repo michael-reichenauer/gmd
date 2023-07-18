@@ -369,6 +369,15 @@ class Server : IServer
                 message = $"- {parts[0]}";
             }
 
+            // Adjust some message lines
+            message = message.Split('\n').Select(l =>
+            {
+                if (l.StartsWith("- Fix ")) l = $"- Fixed {l.Substring(6)}";
+                if (l.StartsWith("- Add ")) l = $"- Added {l.Substring(6)}";
+                if (l.StartsWith("- Update ")) l = $"- Updated {l.Substring(9)}";
+                return l;
+            }).Join("\n");
+
             var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name.Substring(1), out var _));
             if (tag != null)
             {   // New version
