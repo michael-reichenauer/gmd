@@ -85,8 +85,25 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.s, () => ShowScrollMenu());
         view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
+
+        view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(x, y));
+
     }
 
+    private bool OnMouseClick(int x, int y)
+    {
+        // Switch focus sides if clicking on other side
+        int columnWidth = (contentView.ContentWidth - 2) / 2;
+        if (x > columnWidth && IsFocusLeft) IsFocusLeft = false;
+        if (x < columnWidth && !IsFocusLeft) IsFocusLeft = true;
+
+        contentView.SetIndex(y);
+
+        contentView.SetNeedsDisplay();
+        return false;
+
+
+    }
 
     void ShowMainMenu()
     {
@@ -284,7 +301,7 @@ class DiffView : IDiffView
     Text ToDiffRowText(DiffRow row, int index, int columnWidth, int currentIndex, int viewWidth)
     {
         var isSelectedRow = contentView.IsRowSelected(index);
-        var isCurrentRow = index == currentIndex;
+        var isCurrentRow = !isSelectedRow && index == currentIndex;
         if (row.Mode == DiffRowMode.DividerLine)
         {   // A line in the view, e.g. ━━━━, ══════, that need to be expanded to the full view width
             var line = row.Left.ToLine(viewWidth);

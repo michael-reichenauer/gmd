@@ -6,15 +6,17 @@ namespace gmd.Cui.Common;
 
 internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
 internal delegate void OnKeyCallback();
+internal delegate bool OnKeyCallbackReturn();
 internal delegate void OnMouseCallback(int x, int y);
+internal delegate bool OnMouseCallbackReturn(int x, int y);
 record class Selection(int X1, int I1, int X2, int I2);
 
 
 class ContentView : View
 {
     readonly GetContentCallback? onGetContent;
-    readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
-    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
+    readonly Dictionary<Key, OnKeyCallbackReturn> keys = new Dictionary<Key, OnKeyCallbackReturn>();
+    readonly Dictionary<MouseFlags, OnMouseCallbackReturn> mouses = new Dictionary<MouseFlags, OnMouseCallbackReturn>();
 
     const int topBorderHeight = 1;
     const int cursorWidth = 1;
@@ -23,11 +25,8 @@ class ContentView : View
     readonly bool isMoveUpDownWrap = false;  // Not used yet
     readonly IReadOnlyList<Text>? content;
 
-    //List<Text> currentRows = new List<Text>();
     int currentIndex = 0;
-    // int selectStartIndex = -1;
-    // int selectEndIndex = -1;
-    bool isSelecting = false;
+    bool isSelected = false;
 
     Selection selection = new Selection(0, 0, 0, 0);
     Point point = new Point(0, 0);
@@ -80,18 +79,26 @@ class ContentView : View
     public int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
     public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
     public int SelectStartIndex => selection.I1;
-    public int SelectCount => isSelecting || IsSelected ? selection.I2 - selection.I1 + 1 : 0;
+    public int SelectCount => isSelected ? selection.I2 - selection.I1 + 1 : 0;
     public bool IsCustomShowSelection { get; set; } = false;
 
-    public bool IsSelected { get; private set; } = false;
+    //public bool IsSelected { get; private set; } = false;
     public Selection Selection => selection;
 
     public void RegisterKeyHandler(Key key, OnKeyCallback callback)
+    {
+        keys[key] = () => { callback(); return true; };
+    }
+    public void RegisterKeyHandler(Key key, OnKeyCallbackReturn callback)
     {
         keys[key] = callback;
     }
 
     public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
+    {
+        mouses[mouseFlags] = (x, y) => { callback(x, y); return true; };
+    }
+    public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallbackReturn callback)
     {
         mouses[mouseFlags] = callback;
     }
@@ -134,10 +141,11 @@ class ContentView : View
     {
         if (!IsFocus) return false;
 
+        //Log.Info($"HotKey: {keyEvent}");
+
         if (keys.TryGetValue(keyEvent.Key, out var callback))
         {
-            callback();
-            return true;
+            if (callback()) return true;
         }
 
         switch (keyEvent.Key)
@@ -182,6 +190,11 @@ class ContentView : View
     {
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
+        if (mouses.TryGetValue(ev.Flags, out var callback))
+        {
+            if (callback(ev.X, ev.Y)) return true;
+        }
+
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
             Scroll(1);
@@ -193,21 +206,20 @@ class ContentView : View
             return true;
         }
 
-        if (mouses.TryGetValue(ev.Flags, out var callback))
-        {
-            callback(ev.X, ev.Y);
-            return true;
-        }
-
         if (ev.Flags.HasFlag(MouseFlags.Button1Pressed) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
         {
-            MouseDrag(ev);
+            MouseDrag(ev, false);
+            return true;
+        }
+        else if (ev.Flags.HasFlag(MouseFlags.Button1Pressed))
+        {
+            ClearSelection();
             return true;
         }
 
-        if (ev.Flags.HasFlag(MouseFlags.Button1Released))
+        if (ev.Flags.HasFlag(MouseFlags.ButtonShift) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
         {
-            MouseReleased(ev);
+            MouseDrag(ev, true);
             return true;
         }
 
@@ -230,7 +242,7 @@ class ContentView : View
             Text txt = row;
             var index = i + FirstIndex;
 
-            if ((isSelecting || IsSelected) && !IsCustomShowSelection)
+            if (isSelected && !IsCustomShowSelection)
             {
                 var isRowSelected = index >= selection.I1 && index <= selection.I2;
                 if (isRowSelected && selection.I1 == selection.I2)
@@ -260,19 +272,18 @@ class ContentView : View
     }
 
 
-    public bool IsRowSelected(int index) => (isSelecting || IsSelected) && index >= selection.I1 && index <= selection.I2;
+    public bool IsRowSelected(int index) => isSelected && index >= selection.I1 && index <= selection.I2;
 
     public void ClearSelection()
     {
-        if (!IsSelected && !isSelecting) return;
-        IsSelected = false;
-        isSelecting = false;
+        if (!isSelected) return;
+        isSelected = false;
         SetNeedsDisplay();
     }
 
     public string CopySelectedText()
     {
-        if (!IsSelected) return "";
+        if (!isSelected) return "";
 
         var copyText = new StringBuilder();
         var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
@@ -316,9 +327,9 @@ class ContentView : View
     {
         int currentIndex = CurrentIndex;
 
-        if (!isSelecting)
+        if (!isSelected)
         {   // Start selection of current row
-            isSelecting = true;
+            isSelected = true;
             selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
             SetNeedsDisplay();
             return;
@@ -346,9 +357,9 @@ class ContentView : View
     {
         int currentIndex = CurrentIndex;
 
-        if (!isSelecting)
+        if (!isSelected)
         {   // Start selection of current row
-            isSelecting = true;
+            isSelected = true;
             selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
             SetNeedsDisplay();
             return;
@@ -371,15 +382,14 @@ class ContentView : View
         Move(1);
     }
 
-    void MouseDrag(MouseEvent ev)
+    void MouseDrag(MouseEvent ev, bool isShift)
     {
-        IsSelected = false;
         var x = ev.X;
         var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
 
-        if (!isSelecting)
+        if (!isSelected)
         {   // Start mouse dragging
-            isSelecting = true;
+            isSelected = true;
             selection = new Selection(x, i, x, i);
             point = new Point(x, i);
             Log.Info($"Mouse Start Drag: {selection}");
@@ -414,20 +424,6 @@ class ContentView : View
 
         SetNeedsDisplay();
         SelectionChange?.Invoke(selection);
-    }
-
-    void MouseReleased(MouseEvent ev)
-    {
-        IsSelected = false;
-        if (isSelecting)
-        {
-            isSelecting = false;
-            IsSelected = true;
-            selection = selection with { X2 = ev.X, I2 = ev.Y + FirstIndex };
-            Log.Info($"Mouse Stop Drag: {selection}");
-            SetNeedsDisplay();
-            Selected?.Invoke(selection);
-        }
     }
 
 
