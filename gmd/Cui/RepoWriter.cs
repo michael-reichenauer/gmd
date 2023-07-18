@@ -25,7 +25,7 @@ class RepoWriter : IRepoWriter
         this.graphWriter = graphWriter;
     }
 
-    public bool IShowSid { get; set; } = false;
+    public bool IShowSid { get; set; } = true;
 
 
     public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex, int width)
@@ -81,6 +81,11 @@ class RepoWriter : IRepoWriter
         else if (commitWidth < 100)
         {   // Reducing sid, author and and time if narrow view
             sidWidth = 0;
+            authorWidth = 10;
+            timeWidth = 9;
+        }
+        else if (commitWidth < 110)
+        {   // Reducing  author and and time if narrow view
             authorWidth = 10;
             timeWidth = 9;
         }
@@ -227,7 +232,7 @@ class RepoWriter : IRepoWriter
             text.Black(Txt("       ", cw.Sid));
             return;
         }
-        text.Dark(Txt(" " + c.Sid, cw.Sid));
+        text.Cyan(Txt(" " + c.Sid, cw.Sid));
     }
 
     void WriteAuthor(TextBuilder text, Columns cw, Commit c)
