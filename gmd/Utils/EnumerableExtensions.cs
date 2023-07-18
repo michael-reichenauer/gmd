@@ -13,6 +13,15 @@ public static class EnumerableExtensions
         }
     }
 
+    public static void ForEach<T>(this IEnumerable<T> enumeration, Action<T, int> action)
+    {
+        int i = 0;
+        foreach (T item in enumeration)
+        {
+            action(item, i++);
+        }
+    }
+
     public static string AsString<T1, T2>(this IDictionary<T1, T2> dictionary) =>
         dictionary == null ? "{}" :
             "{" + string.Join(",", dictionary.Select(p => $"{p.Key}={p.Value}")) + "}";
@@ -28,6 +37,11 @@ public static class EnumerableExtensions
     }
 
     public static string Join(this IEnumerable<string> source, string separator)
+    {
+        return string.Join(separator, source);
+    }
+
+    public static string Join(this IEnumerable<string> source, char separator)
     {
         return string.Join(separator, source);
     }

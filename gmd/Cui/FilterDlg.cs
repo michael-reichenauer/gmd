@@ -106,10 +106,10 @@ class FilterDlg : IFilterDlg
                 resultsView.Move(resultsView.ContentHeight);
                 return true;
             case Key.Home:
-                resultsView.Move(-resultsView.Count);
+                resultsView.Move(-resultsView.TotalCount);
                 return true;
             case Key.End:
-                resultsView.Move(resultsView.Count);
+                resultsView.Move(resultsView.TotalCount);
                 return true;
         }
 

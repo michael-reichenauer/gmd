@@ -30,7 +30,7 @@ class Menu
 
     Menu RootMenu => parent == null ? this : parent.RootMenu;
 
-    public static void Show(int x, int y, IEnumerable<MenuItem> items, string title = "", Action? onEscAction = null)
+    public static void Show(string title, int x, int y, IEnumerable<MenuItem> items, Action? onEscAction = null)
     {
         var menu = new Menu(x, y, title, null, -1, onEscAction);
         menu.Show(items);
@@ -55,8 +55,14 @@ class Menu
 
     void Show(IEnumerable<MenuItem> items)
     {
-        this.items = items.ToList();
-        this.items.ForEach(i => i.IsDisabled = i.IsDisabled || !i.CanExecute() || i is SubMenu sm && !sm.Children.Any());
+        this.items = items
+        .Select(i => i with
+        {
+            IsDisabled = i.IsDisabled || !(i.CanExecute?.Invoke() ?? true) || i is SubMenu sm && !sm.Children.Any()
+        })
+        .ToList();
+
+
         this.isAllDisabled = this.items.All(i => i.IsDisabled);
 
         dim = GetDimensions();
@@ -207,8 +213,12 @@ class Menu
         view.RegisterKeyHandler(Key.End, () => OnEnd());
         view.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         view.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
+
+        view.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClick(x, y));
         return view;
     }
+
+
 
     void Close()
     {
@@ -224,15 +234,28 @@ class Menu
 
     void OnEnter()
     {
+        if (items.Any() && CurrentItem is SubMenu)
+        {
+            UI.Post(() => OnCursorRight());
+            return;
+        }
+
+        // Handle enter key on 'normal' menu item
         RootMenu.Closed += () =>
         {
-            if (items.Any() && CurrentItem.CanExecute() && CurrentItem.Action != null)
+            if (items.Any() && !CurrentItem.IsDisabled && CurrentItem.Action != null)
             {
                 UI.Post(() => CurrentItem.Action());
             }
         };
 
         UI.Post(() => CloseAll());
+    }
+
+    void OnClick(int x, int y)
+    {
+        itemsView.SetIndex(y);
+        OnEnter();
     }
 
 
@@ -275,7 +298,7 @@ class Menu
     void OnHome()
     {
         if (itemsView.CurrentIndex <= 0 || isAllDisabled) return;
-        itemsView.Move(-itemsView.Count);
+        itemsView.Move(-itemsView.TotalCount);
 
         if (itemsView.CurrentIndex <= 0 && CurrentItem.IsDisabled) OnCursorDown();
         if (CurrentItem.IsDisabled) OnCursorUp();
@@ -284,7 +307,7 @@ class Menu
     void OnEnd()
     {
         if (itemsView.CurrentIndex >= items.Count - 1 || isAllDisabled) return;
-        itemsView.Move(itemsView.Count);
+        itemsView.Move(itemsView.TotalCount);
 
         if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
         if (CurrentItem.IsDisabled) OnCursorDown();
@@ -321,26 +344,14 @@ class Menu
 
 
 // A normal menu item and base class for SubMenu and MenuSeparator
-class MenuItem
+record MenuItem(string Title, string Shortcut, Action Action, Func<bool>? CanExecute = null)
 {
-    public MenuItem(string title, string shortcut, Action action, Func<bool>? canExecute = null)
-    {
-        Title = title;
-        Shortcut = shortcut;
-        Action = action;
-        CanExecute = canExecute ?? (() => true);
-    }
-
-    public string Title { get; }
-    public string Shortcut { get; }
-    public Action Action { get; }
-    public Func<bool> CanExecute { get; }
-    public bool IsDisabled { get; set; }
+    public bool IsDisabled { get; init; }
 }
 
 
 // To create a sub menu
-class SubMenu : MenuItem
+record SubMenu : MenuItem
 {
     public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
         : base(title, shortcut, () => { }, canExecute)
@@ -348,15 +359,15 @@ class SubMenu : MenuItem
         Children = children;
     }
 
-    public IEnumerable<MenuItem> Children { get; }
+    public IEnumerable<MenuItem> Children { get; init; }
 }
 
 
 // To create a menu separator line or header line
-class MenuSeparator : MenuItem
+record MenuSeparator : MenuItem
 {
-    public MenuSeparator(string text = "")
-        : base(text, "", () => { }, () => false)
+    public MenuSeparator(string title = "")
+        : base(title, "", () => { }, () => false)
     { }
 }
 
