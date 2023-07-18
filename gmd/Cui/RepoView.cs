@@ -303,13 +303,19 @@ class RepoView : IRepoView
 
     void Copy()
     {
-        if (isShowDetails)
+        var text = commitsView.CopySelectedText();
+        if (text != "")
         {
-            Cmd.CopyCommitMessage();
-            return;
+            var lines = text.Split('\n');
+            if (lines.Length > 1)
+            {
+                text = lines
+                    .Where(l => l.Trim() != "")
+                    .Select(l => l.Substring(repo!.Graph.Width + 3))
+                    .Join("\n");
+            }
+            Utils.Clipboard.Set(text);
         }
-
-        Cmd.CopyCommitId();
     }
 
     void DoubleClicked(int x, int y)

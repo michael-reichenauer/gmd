@@ -1,3 +1,4 @@
+using System.Text;
 using Terminal.Gui;
 
 namespace gmd.Cui.Common;
@@ -6,7 +7,7 @@ namespace gmd.Cui.Common;
 internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
 internal delegate void OnKeyCallback();
 internal delegate void OnMouseCallback(int x, int y);
-record class MouseDrag(int X1, int Y1, int X2, int Y2);
+record class Selection(int X1, int I1, int X2, int I2);
 
 
 class ContentView : View
@@ -22,13 +23,13 @@ class ContentView : View
     readonly bool isMoveUpDownWrap = false;  // Not used yet
     readonly IReadOnlyList<Text>? content;
 
-    List<Text> currentRows = new List<Text>();
+    //List<Text> currentRows = new List<Text>();
     int currentIndex = 0;
-    int selectStartIndex = -1;
-    int selectEndIndex = -1;
+    // int selectStartIndex = -1;
+    // int selectEndIndex = -1;
     bool isSelecting = false;
-    bool isSelected = false;
-    MouseDrag mouseDrag = new MouseDrag(0, 0, 0, 0);
+
+    Selection selection = new Selection(0, 0, 0, 0);
     Point point = new Point(0, 0);
 
 
@@ -44,8 +45,8 @@ class ContentView : View
     }
 
     public event Action? CurrentIndexChange;
-    public event Action<MouseDrag>? MouseDragged;
-    public event Action<MouseDrag>? MouseDragging;
+    public event Action<Selection>? Selected;
+    public event Action<Selection>? SelectionChange;
 
 
     public bool IsFocus { get; set; } = true;
@@ -78,9 +79,12 @@ class ContentView : View
     public int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
     public int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
     public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
-    public int SelectStartIndex => selectStartIndex;
-    public int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
+    public int SelectStartIndex => selection.I1;
+    public int SelectCount => isSelecting || IsSelected ? selection.I2 - selection.I1 + 1 : 0;
+    public bool IsCustomShowSelection { get; set; } = false;
 
+    public bool IsSelected { get; private set; } = false;
+    public Selection Selection => selection;
 
     public void RegisterKeyHandler(Key key, OnKeyCallback callback)
     {
@@ -138,9 +142,6 @@ class ContentView : View
 
         switch (keyEvent.Key)
         {
-            case Key.i:
-                ToggleShowCursor();
-                return true;
             case Key.CursorUp:
                 ClearSelection();
                 Move(-1);
@@ -217,14 +218,41 @@ class ContentView : View
     {
         Clear();
 
-        if (isSelecting)
+        var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
+
+        var currentRows = (content != null)
+            ? content.Skip(FirstIndex).Take(drawCount).ToList()
+            : onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth).ToList();
+
+        int y = ContentY;
+        currentRows.ForEach((row, i) =>
         {
-            RedrawSelect();
-        }
-        else
-        {
-            RedrawNormal();
-        }
+            Text txt = row;
+            var index = i + FirstIndex;
+
+            if ((isSelecting || IsSelected) && !IsCustomShowSelection)
+            {
+                var isRowSelected = index >= selection.I1 && index <= selection.I2;
+                if (isRowSelected && selection.I1 == selection.I2)
+                {   // One row is selected, highlight the selected sub text
+                    var x2 = Math.Min(selection.X2, txt.Length);
+                    var part1 = txt.Subtext(0, selection.X1);
+                    var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
+                    var part3 = txt.Subtext(x2, txt.Length - x2);
+                    txt = part1.ToTextBuilder().Add(part2.ToSelect()).Add(part3);
+                }
+                else if (isRowSelected)
+                {   // Multiple rows are selected, highlight the whole rows
+                    txt = txt.ToSelect();
+                }
+            }
+            else
+            {
+                txt = IsHighlightCurrentIndex && index == currentIndex ? row.ToHighlight() : row;
+            }
+
+            txt.Draw(this, ContentX, y++);
+        });
 
         DrawTopBorder();
         DrawCursor();
@@ -232,80 +260,66 @@ class ContentView : View
     }
 
 
-    public void RedrawNormal()
+    public bool IsRowSelected(int index) => (isSelecting || IsSelected) && index >= selection.I1 && index <= selection.I2;
+
+    public void ClearSelection()
     {
+        if (!IsSelected && !isSelecting) return;
+        IsSelected = false;
+        isSelecting = false;
+        SetNeedsDisplay();
+    }
+
+    public string CopySelectedText()
+    {
+        if (!IsSelected) return "";
+
+        var copyText = new StringBuilder();
         var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
 
-        currentRows = (content != null)
+        var currentRows = (content != null)
             ? content.Skip(FirstIndex).Take(drawCount).ToList()
             : onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth).ToList();
 
         int y = ContentY;
         currentRows.ForEach((row, i) =>
         {
-            var index = i + FirstIndex;
-            Text txt = IsHighlightCurrentIndex && index == currentIndex ? row.ToHighlight() : row;
-            txt.Draw(this, ContentX, y++);
-        });
-    }
-
-    public void RedrawSelect()
-    {
-        var drawCount = currentRows.Count;
-
-        int y = ContentY;
-        currentRows.ForEach((row, i) =>
-        {
             Text txt = row;
             var index = i + FirstIndex;
-            var isRowSelected = index >= mouseDrag.Y1 && index <= mouseDrag.Y2;
-            if (isRowSelected && mouseDrag.Y1 == mouseDrag.Y2)
-            {   // One row is selected, highlight the selected sub text
-                var part1 = txt.Subtext(0, mouseDrag.X1);
-                var part2 = txt.Subtext(mouseDrag.X1, mouseDrag.X2 - mouseDrag.X1);
-                var part3 = txt.Subtext(mouseDrag.X2, txt.Length - mouseDrag.X2);
-                txt = part1.ToTextBuilder().Add(part2.ToSelect()).Add(part3);
+
+            var isRowSelected = index >= selection.I1 && index <= selection.I2;
+            if (!isRowSelected) return;
+
+            if (selection.I1 == selection.I2)
+            {   // One row is selected, copy selected sub text
+                var x2 = Math.Min(selection.X2, txt.Length);
+
+                var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
+                copyText.Append(part2.ToString());
             }
-            else if (isRowSelected)
-            {   // Multiple rows are selected, highlight the whole rows
-                txt = txt.ToSelect();
+            else
+            {   // Multiple rows are selected, copy whole rows
+                copyText.AppendLine(txt.ToString());
             }
 
             txt.Draw(this, ContentX, y++);
         });
-    }
 
-
-    public bool IsRowSelected(int index) => selectStartIndex != -1 && index >= selectStartIndex && index <= selectEndIndex;
-
-    public void ClearSelection()
-    {
-        if (selectStartIndex == -1) return;
-
-        selectStartIndex = -1;
-        selectEndIndex = -1;
-        SetNeedsDisplay();
-    }
-
-
-    // Toggle showing/hiding cursor. Cursor is needed to select text for copy
-    public void ToggleShowCursor()
-    {
         ClearSelection();
-        IsShowCursor = !IsShowCursor;
-        IsScrollMode = !IsShowCursor;
         SetNeedsDisplay();
-    }
 
+        return copyText.ToString();
+
+    }
 
     void OnSelectUp()
     {
         int currentIndex = CurrentIndex;
 
-        if (selectStartIndex == -1)
+        if (!isSelecting)
         {   // Start selection of current row
-            selectStartIndex = currentIndex;
-            selectEndIndex = currentIndex;
+            isSelecting = true;
+            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
             SetNeedsDisplay();
             return;
         }
@@ -315,13 +329,13 @@ class ContentView : View
             return;
         }
 
-        if (currentIndex <= selectStartIndex)
+        if (currentIndex <= selection.I1)
         {   // Expand selection upp
-            selectStartIndex = currentIndex - 1;
+            selection = selection with { I1 = currentIndex - 1 };
         }
         else
         {   // Shrink selection upp
-            selectEndIndex = selectEndIndex - 1;
+            selection = selection with { I2 = currentIndex - 1 };
         }
 
         Move(-1);
@@ -332,10 +346,10 @@ class ContentView : View
     {
         int currentIndex = CurrentIndex;
 
-        if (selectStartIndex == -1)
+        if (!isSelecting)
         {   // Start selection of current row
-            selectStartIndex = currentIndex;
-            selectEndIndex = currentIndex;
+            isSelecting = true;
+            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
             SetNeedsDisplay();
             return;
         }
@@ -345,13 +359,13 @@ class ContentView : View
             return;
         }
 
-        if (currentIndex >= selectEndIndex)
+        if (currentIndex >= selection.I2)
         {   // Expand selection down
-            selectEndIndex = currentIndex + 1;
+            selection = selection with { I2 = currentIndex + 1 };
         }
-        else if (currentIndex <= selectStartIndex)
+        else if (currentIndex <= selection.I1)
         {   // Shrink selection down
-            selectStartIndex = selectStartIndex + 1;
+            selection = selection with { I1 = currentIndex + 1 };
         }
 
         Move(1);
@@ -359,22 +373,22 @@ class ContentView : View
 
     void MouseDrag(MouseEvent ev)
     {
-        isSelected = false;
+        IsSelected = false;
         var x = ev.X;
-        var y = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
+        var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
 
         if (!isSelecting)
         {   // Start mouse dragging
             isSelecting = true;
-            mouseDrag = new MouseDrag(x, y, x, y);
-            point = new Point(x, y);
-            Log.Info($"Mouse Start Drag: {mouseDrag}");
+            selection = new Selection(x, i, x, i);
+            point = new Point(x, i);
+            Log.Info($"Mouse Start Drag: {selection}");
         }
 
-        var x1 = mouseDrag.X1;
-        var y1 = mouseDrag.Y1;
-        var x2 = mouseDrag.X2;
-        var y2 = mouseDrag.Y2;
+        var x1 = selection.X1;
+        var i1 = selection.I1;
+        var x2 = selection.X2;
+        var i2 = selection.I2;
 
         if (x < point.X)
         {   // Moving left, expand selection on left or shrink selection on right side
@@ -385,34 +399,34 @@ class ContentView : View
             if (x > x2) x2 = x; else x1 = x;
         }
 
-        if (y < point.Y)
+        if (i < point.Y)
         {   // Moving upp, expand selection upp or shrink selection on bottom side
-            if (y < y1) y1 = y; else y2 = y;
+            if (i < i1) i1 = i; else i2 = i;
         }
-        else if (y > point.Y)
+        else if (i > point.Y)
         {   // // Moving down, expand selection down or shrink selection on top side
-            if (y > y2) y2 = y; else y1 = y;
+            if (i > i2) i2 = i; else i1 = i;
         }
 
-        mouseDrag = new MouseDrag(x1, y1, x2, y2);
-        point = new Point(x, y);
+        selection = new Selection(x1, i1, x2, i2);
+        point = new Point(x, i);
         // Log.Info($"Mouse Drag: {mouseDrag}");
 
         SetNeedsDisplay();
-        MouseDragging?.Invoke(mouseDrag);
+        SelectionChange?.Invoke(selection);
     }
 
     void MouseReleased(MouseEvent ev)
     {
-        isSelected = false;
+        IsSelected = false;
         if (isSelecting)
         {
             isSelecting = false;
-            isSelected = true;
-            mouseDrag = mouseDrag with { X2 = ev.X, Y2 = ev.Y + FirstIndex };
-            Log.Info($"Mouse Stop Drag: {mouseDrag}");
+            IsSelected = true;
+            selection = selection with { X2 = ev.X, I2 = ev.Y + FirstIndex };
+            Log.Info($"Mouse Stop Drag: {selection}");
             SetNeedsDisplay();
-            MouseDragged?.Invoke(mouseDrag);
+            Selected?.Invoke(selection);
         }
     }
 
