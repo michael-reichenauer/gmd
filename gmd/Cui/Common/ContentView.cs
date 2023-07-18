@@ -29,7 +29,7 @@ class ContentView : View
     bool isSelected = false;
 
     Selection selection = new Selection(0, 0, 0, 0);
-    Point point = new Point(0, 0);
+    Point lastMousePoint = new Point(0, 0);
 
 
     internal ContentView(GetContentCallback onGetContent)
@@ -188,7 +188,7 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
         if (mouses.TryGetValue(ev.Flags, out var callback))
         {
@@ -391,7 +391,7 @@ class ContentView : View
         {   // Start mouse dragging
             isSelected = true;
             selection = new Selection(x, i, x, i);
-            point = new Point(x, i);
+            lastMousePoint = new Point(x, i);
             Log.Info($"Mouse Start Drag: {selection}");
         }
 
@@ -400,26 +400,28 @@ class ContentView : View
         var x2 = selection.X2;
         var i2 = selection.I2;
 
-        if (x < point.X)
+        if (x < lastMousePoint.X)
         {   // Moving left, expand selection on left or shrink selection on right side
             if (x < x1) x1 = x; else x2 = x;
         }
-        else if (x > point.X)
+        else if (x > lastMousePoint.X)
         {   // Moving right expand selection on right or shrink selection on left side
             if (x > x2) x2 = x; else x1 = x;
         }
 
-        if (i < point.Y)
+        if (i < lastMousePoint.Y)
         {   // Moving upp, expand selection upp or shrink selection on bottom side
+            if (ev.Y <= 2) Scroll(-1);
             if (i < i1) i1 = i; else i2 = i;
         }
-        else if (i > point.Y)
+        else if (i > lastMousePoint.Y)
         {   // // Moving down, expand selection down or shrink selection on top side
+            if (ev.Y >= ContentHeight - 2) Scroll(1);
             if (i > i2) i2 = i; else i1 = i;
         }
 
         selection = new Selection(x1, i1, x2, i2);
-        point = new Point(x, i);
+        lastMousePoint = new Point(x, i);
         // Log.Info($"Mouse Drag: {mouseDrag}");
 
         SetNeedsDisplay();

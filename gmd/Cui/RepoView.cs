@@ -295,9 +295,15 @@ class RepoView : IRepoView
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
 
+        if (Build.IsWindows)
+        {   // On VS code linux, right click is not working (past chars to terminal)
+            commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => menuService!.ShowMainMenu(x, y));
+        }
+
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+
     }
 
 

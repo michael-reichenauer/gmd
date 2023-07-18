@@ -213,8 +213,12 @@ class Menu
         view.RegisterKeyHandler(Key.End, () => OnEnd());
         view.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         view.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
+
+        view.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClick(x, y));
         return view;
     }
+
+
 
     void Close()
     {
@@ -246,6 +250,12 @@ class Menu
         };
 
         UI.Post(() => CloseAll());
+    }
+
+    void OnClick(int x, int y)
+    {
+        itemsView.SetIndex(y);
+        OnEnter();
     }
 
 
