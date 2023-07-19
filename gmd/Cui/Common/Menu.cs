@@ -43,6 +43,7 @@ class Menu
     public static MenuItem SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
         new SubMenu(title, shortcut, children, canExecute);
 
+
     public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)
     {
         this.xOrg = x;
@@ -52,6 +53,7 @@ class Menu
         this.altX = altX;
         this.onEscAction = onEscAction ?? (() => { });
     }
+
 
     void Show(IEnumerable<MenuItem> items)
     {
@@ -87,6 +89,7 @@ class Menu
         Closed?.Invoke();
     }
 
+
     // Called for all mouse events, both within and also outside this menu, 
     // Skipping if not focused or not clicked events
     void OnRootMouseEvent(MouseEvent e)
@@ -94,9 +97,19 @@ class Menu
         e.Handled = false;
 
         if (!isFocus) return;
-        if (!e.Flags.HasFlag(MouseFlags.Button1Clicked)) return;
 
-        OnMouseClicked(e.X, e.Y);
+        if (e.Flags.HasFlag(MouseFlags.Button1Clicked)) OnMouseClicked(e.X, e.Y);
+        if (e.Flags == MouseFlags.ReportMousePosition) OnMouseMove(e.X, e.Y);
+    }
+
+
+    void OnMouseMove(int screenX, int screenY)
+    {
+        // Map screen coordinates to this menu view coordinates
+        var x = screenX - dlg.View.Frame.X;
+        var y = screenY - dlg.View.Frame.Y;
+        if (x < 0 || y < 0 || x >= dim.Width || y >= dim.Height) return;
+        UI.Post(() => itemsView.SetIndex(y - 1));
     }
 
 
@@ -114,8 +127,9 @@ class Menu
         }
 
         // Is inside this menu, handle click
-        UI.Post(() => OnClick(x, y + itemsView.FirstIndex - 1));
+        UI.Post(() => OnClick(x, y - 1));
     }
+
 
     // Closes this menu and all parent menus as well. Used menu item action is called.
     void CloseAll()
@@ -123,6 +137,7 @@ class Menu
         Close();
         UI.Post(() => parent?.CloseAll());
     }
+
 
     // Calculates menu view dimensions based on screen size and number of items
     Dimensions GetDimensions()
@@ -170,6 +185,7 @@ class Menu
 
         return new Dimensions(viewX, viewY, viewWidth, viewHeight, titleWidth, shortcutWidth, subMenuMarkerWidth);
     }
+
 
     IReadOnlyList<Text> ToMenuItemsRows()
     {
@@ -232,6 +248,7 @@ class Menu
         return title;
     }
 
+
     ContentView CreateItemsView()
     {
         var view = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), OnGetContent);
@@ -254,16 +271,19 @@ class Menu
         return view;
     }
 
+
     void Close()
     {
         dlg.Close();
     }
+
 
     void OnEsc()
     {
         RootMenu.Closed += () => UI.Post(() => onEscAction());
         UI.Post(() => Close());
     }
+
 
     void OnEnter()
     {
