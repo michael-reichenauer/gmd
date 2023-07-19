@@ -21,6 +21,8 @@ class UIDialog
     internal bool IsOK => buttonsClicked.ContainsKey("OK");
     internal bool IsCanceled => buttonsClicked.ContainsKey("Cancel");
 
+    public View View { get; internal set; } = null!;
+
     Dialog dlg = null!;
 
     internal UIDialog(string title, Dim width, Dim height,
@@ -178,7 +180,7 @@ class UIDialog
         return Show(setViewFocused);
     }
 
-    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
+    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null, Action<View>? onAfterShow = null)
     {
         dlg = onKey != null || onMouse != null ?
             new CustomDialog(Title, buttons.ToArray(), onKey, onMouse)
@@ -195,7 +197,7 @@ class UIDialog
                 Width = Width,
                 Height = Height,
             };
-
+        View = dlg;
         if (options != null)
         {
             options(dlg);
@@ -217,6 +219,10 @@ class UIDialog
 
         if (onMouse != null) Application.GrabMouse(dlg);
 
+        if (onAfterShow != null)
+        {
+            UI.AddTimeout(TimeSpan.FromMilliseconds(100), (_) => { onAfterShow(dlg); return false; });
+        }
         UI.RunDialog(dlg);
         if (onMouse != null) Application.UngrabMouse();
         Application.Driver.SetCursorVisibility(cursorVisible);

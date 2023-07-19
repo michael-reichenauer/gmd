@@ -87,6 +87,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(x, y));
+        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x, y));
 
     }
 
@@ -105,20 +106,20 @@ class DiffView : IDiffView
 
     }
 
-    void ShowMainMenu()
+    void ShowMainMenu(int x = -1, int y = 0)
     {
         var undoItems = GetUndoItems();
         var scrollToItems = GetScrollToItems();
 
-        Menu.Show("Diff Menu", 1, 2, Menu.Items
+        Menu.Show("Diff Menu", x, y, Menu.Items
             .SubMenu("Scroll to", "S", scrollToItems)
             .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
             .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
             .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
             // .Item("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
             .Item("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
-            .Item("Select in Left Column", "←", () => OnMoveLeft(), () => IsSelected)
-            .Item("Select in Right Column", "→", () => OnMoveRight(), () => IsSelected)
+            .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected)
+            .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
             .Item("Close", "Esc", () => Application.RequestStop()));
     }
 
