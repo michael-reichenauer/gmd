@@ -391,7 +391,6 @@ class ContentView : View
             isSelected = true;
             selection = new Selection(x, i, x, i);
             lastMousePoint = new Point(x, i);
-            Log.Info($"Mouse Start Drag: {selection}");
         }
 
         var x1 = selection.X1;
