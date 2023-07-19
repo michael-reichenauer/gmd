@@ -27,6 +27,7 @@ class Menu
     bool hasMovedMouse = false;
 
     public event Action? Closed;
+    public const int Center = -int.MaxValue;
 
 
     Menu RootMenu => parent == null ? this : parent.RootMenu;
@@ -36,6 +37,7 @@ class Menu
         var menu = new Menu(x, y, title, null, -1, onEscAction);
         menu.Show(items);
     }
+
 
     public static ICollection<MenuItem> Items => new List<MenuItem>();
     public static MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
@@ -180,26 +182,28 @@ class Menu
             titleWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
-        // Calculate view x and y position to be centered if (-1) or based on original x and y 
-        var viewX = xOrg == -1 ? screenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == -1
-        var viewY = yOrg == -1 ? screenHeight / 2 - viewHeight / 2 : yOrg; // Centered if y == -1
+        // Calculate view x and y position to be centered if Menu.Center or based on original x and y 
+        var viewX = xOrg == Center ? screenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == Center
+        var viewY = yOrg == Center ? screenHeight / 2 - viewHeight / 2 : yOrg; // Centered if y == Center
 
         if (viewX + viewWidth > screenWidth)
         {   // Too far to the right, try to move menu left
             if (altX >= 0)
             {   // Use alternative x position (left of parent menu)
-                viewX = Math.Max(0, altX - viewWidth);
+                viewX = altX - viewWidth;
             }
             else
             {   // Adjust original x position
-                viewX = Math.Max(0, viewX - viewWidth);
+                viewX = viewX - viewWidth;
             }
         }
+        viewX = Math.Max(0, viewX);
 
         if (viewY + viewHeight > screenHeight)
         {   // Too far down, try to move up
-            viewY = Math.Max(0, screenHeight - viewHeight);
+            viewY = screenHeight - viewHeight;
         }
+        viewY = Math.Max(0, viewY);
 
         return new Dimensions(viewX, viewY, viewWidth, viewHeight, titleWidth, shortcutWidth, subMenuMarkerWidth);
     }

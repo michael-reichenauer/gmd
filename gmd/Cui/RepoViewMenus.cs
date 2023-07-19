@@ -8,7 +8,7 @@ namespace gmd.Cui;
 
 interface IRepoViewMenus
 {
-    void ShowMainMenu(int x = -1, int y = 0);
+    void ShowMainMenu(int x = Menu.Center, int y = 0);
     void ShowShowBranchesMenu();
     void ShowHideBranchesMenu();
     void ShowOpenMenu();
@@ -40,7 +40,7 @@ class RepoViewMenus : IRepoViewMenus
         this.configDlg = configDlg;
     }
 
-    public void ShowMainMenu(int x = -1, int y = 0)
+    public void ShowMainMenu(int x = Menu.Center, int y = 0)
     {
         Menu.Show("Main Menu", x, y, GetMainMenuItems());
     }
@@ -68,7 +68,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowOpenMenu()
     {
-        Menu.Show("Open Repo", -1, 0, GetOpenRepoItems());
+        Menu.Show("Open Repo", Menu.Center, 0, GetOpenRepoItems());
     }
 
     IEnumerable<MenuItem> GetMainMenuItems()

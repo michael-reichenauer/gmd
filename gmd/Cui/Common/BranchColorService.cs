@@ -36,7 +36,7 @@ class BranchColorService : IBranchColorService
 
         if (branch.ParentBranchName == "")
         {   // branch has no parent, get color based on parent name
-            return BranchNameColor(branch.PrimaryBaseName, 0);
+            return BranchNameColor(branch.PrimaryBaseName);
         }
 
         // Branch has a parent, lets check the color of parent to determine branch color
@@ -48,7 +48,7 @@ class BranchColorService : IBranchColorService
         }
 
         // Parent is a different branch lets use a colors that is different
-        Color color = BranchNameColor(branch.PrimaryBaseName, 0);
+        Color color = BranchNameColor(branch.PrimaryBaseName);
         Color parentColor = GetColor(repo, parentBranch);
         if (color == parentColor)
         {   // branch got same color as parent, lets change branch color one step
@@ -67,7 +67,7 @@ class BranchColorService : IBranchColorService
         repoState.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
     }
 
-    Color BranchNameColor(string name, int addIndex)
+    Color BranchNameColor(string name, int addIndex = 0)
     {
         var branchColorId = (Hash(name) + addIndex) % BranchColors.Length;
         return ColorById(branchColorId);
