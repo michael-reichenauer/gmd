@@ -19,8 +19,6 @@ class FilterDlg : IFilterDlg
     UITextField filterField = null!;
     UILabel statusLabel = null!;
 
-    int mouseEventX = -1;
-    int mouseEventY = -1;
     readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
     Action<Repo> onRepoChanged = null!;
     Server.Repo orgRepo = null!;
@@ -122,30 +120,31 @@ class FilterDlg : IFilterDlg
     {
         // Log.Info($"OnMouseEvent:  {ev}");
 
-        // On linux (at least dev container console), there is a bug that sends same last mouse event
-        // whenever mouse is moved, to still support scroll, we check mouse position.
-        bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
-        mouseEventX = ev.X;
-        mouseEventY = ev.Y;
 
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) && isSamePos)
+        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
             resultsView.Scroll(1);
             return true;
         }
-        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp) && isSamePos)
+        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
         {
             resultsView.Scroll(-1);
             return true;
         }
+        // else if (ev.Flags.HasFlag(MouseFlags.Button1Clicked))
+        // {
+        //     resultsView.SetIndex(ev.Y + resultsView.FirstIndex);
+        //     var commit = currentRepo.Commits[resultsView.CurrentIndex];
+        //     if (commit.BranchName != "<none>")
+        //         this.selectedCommit = commit;
+        //     dlg.Close();
+        //     return true;
+        // }
 
-        if (Build.IsWindows)
+        if (mouses.TryGetValue(ev.Flags, out var callback))
         {
-            if (mouses.TryGetValue(ev.Flags, out var callback))
-            {
-                callback(ev.X, ev.Y);
-                return true;
-            }
+            callback(ev.X, ev.Y);
+            return true;
         }
 
         return false;

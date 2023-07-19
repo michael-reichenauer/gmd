@@ -87,7 +87,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(x, y));
-        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x, y));
+        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
 
     }
 

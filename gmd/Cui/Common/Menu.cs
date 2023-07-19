@@ -24,6 +24,7 @@ class Menu
     MenuItem CurrentItem => items[itemsView.CurrentIndex];
     bool isAllDisabled = false;
     bool isFocus = false;
+    bool hasMovedMouse = false;
 
     public event Action? Closed;
 
@@ -82,7 +83,7 @@ class Menu
         if (this.items.Any() && this.items[0].IsDisabled && !isAllDisabled) UI.Post(() => OnCursorDown());
 
         isFocus = true;
-        Application.RootMouseEvent += OnRootMouseEvent;  // To handle mouse clicks both within and alsoe outside this menu to close it
+        Application.RootMouseEvent += OnRootMouseEvent;  // To handle mouse clicks both within and also outside this menu to close it
         dlg.Show();
         Application.RootMouseEvent -= OnRootMouseEvent;
         isFocus = false;
@@ -108,8 +109,25 @@ class Menu
         // Map screen coordinates to this menu view coordinates
         var x = screenX - dlg.View.Frame.X;
         var y = screenY - dlg.View.Frame.Y;
-        if (x < 0 || y < 0 || x >= dim.Width || y >= dim.Height) return;
-        UI.Post(() => itemsView.SetIndex(y - 1));
+        if (x < 0 || y < 0 || x >= dim.Width || y >= dim.Height)
+        { // Outside this menu, forward click to parent menu and close this menu
+            if (hasMovedMouse)
+            {
+                Closed += () => parent?.OnMouseClicked(screenX, screenY);
+                UI.Post(() => Close());
+            }
+            return;
+        }
+        //hasMovedMouse = true;
+
+        UI.Post(() =>
+        {
+            itemsView.SetIndex(y - 1);
+            // if (CurrentItem is SubMenu && !CurrentItem.IsDisabled)
+            // {
+            //     OnCursorRight();
+            // }
+        });
     }
 
 
@@ -390,6 +408,7 @@ class Menu
 
             var subMenu = new Menu(x, y, sm.Title, this, dim.X, null);
             isFocus = false;
+            hasMovedMouse = false;
             subMenu.Show(sm.Children);
             isFocus = true;
         }

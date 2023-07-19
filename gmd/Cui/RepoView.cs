@@ -294,7 +294,7 @@ class RepoView : IRepoView
 
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
-        commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => menuService!.ShowMainMenu(x, y));
+        commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => menuService!.ShowMainMenu(x - 1, y - 1));
 
 
         // Keys on commit details view.
