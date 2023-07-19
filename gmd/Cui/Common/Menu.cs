@@ -82,7 +82,7 @@ class Menu
         if (this.items.Any() && this.items[0].IsDisabled && !isAllDisabled) UI.Post(() => OnCursorDown());
 
         isFocus = true;
-        Application.RootMouseEvent += OnRootMouseEvent;  // To handle mouse clicks both within and alsoe outside this menu to close it
+        Application.RootMouseEvent += OnRootMouseEvent;  // To handle mouse clicks both within and also outside this menu to close it
         dlg.Show();
         Application.RootMouseEvent -= OnRootMouseEvent;
         isFocus = false;
