@@ -12,6 +12,7 @@ interface IRepoViewMenus
     void ShowShowBranchesMenu();
     void ShowHideBranchesMenu();
     void ShowOpenMenu();
+    void ShowCommitBranchesMenu(int x, int y);
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -53,6 +54,11 @@ class RepoViewMenus : IRepoViewMenus
             .Items(GetShowBranchItems())
             .Separator()
             .SubMenu("    Main Menu", "M", GetMainMenuItems()));
+    }
+
+    public void ShowCommitBranchesMenu(int x, int y)
+    {
+        Menu.Show("Show/Open Branch", x, y, GetCommitBranchItems());
     }
 
     public void ShowHideBranchesMenu()
@@ -327,17 +333,22 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitInOutItems()
     {
         // Get current branch, commit branch in/out and all shown branches
-        var shownBranches = repo.Branches;
-        var branches =
-            new Branch[0]
-            .Concat(repo.GetCommitBranches())
-            .Concat(repo.Branches);
+        var branches = repo.GetCommitBranches().Concat(repo.Branches);
+
         var currentBranch = repo.GetCurrentBranch();
         if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
         {
             branches = branches.Prepend(currentBranch);
         }
         branches = branches.Where(b => !repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
+
+        return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
+    }
+
+    IEnumerable<MenuItem> GetCommitBranchItems()
+    {
+        // Get commit branch in/out
+        var branches = repo.GetCommitBranches();
 
         return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
     }

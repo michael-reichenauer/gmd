@@ -143,6 +143,7 @@ class Server : IServer
             return null;
         })
         .Where(b => b != null)
+        .DistinctBy(b => b!.PrimaryName)
         .Cast<Augmented.Branch>();
 
         return converter.ToBranches(branches.ToList());

@@ -18,6 +18,7 @@ interface IRepoView
     Task<R> ShowInitialRepoAsync(string path);
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Server.Repo repo, string branchName = "");
+    void UpdateRepoToAtCommit(Server.Repo repo, string commitId);
     void Refresh(string addName = "", string commitId = "");
     void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null);
     void RefreshAndFetch(string addName = "", string commitId = "");
@@ -144,6 +145,15 @@ class RepoView : IRepoView
         Log.Info($"Showed {t} {serverRepo} with '{branchName}'");
     }
 
+
+    public void UpdateRepoToAtCommit(Server.Repo repo, string commitId)
+    {
+        var t = Timing.Start();
+        ShowRepo(repo);
+
+        ScrollToCommit(commitId);
+        Log.Info($"Showed {t} {repo} with '{commitId}'");
+    }
 
     public void Refresh(string addName = "", string commitId = "") =>
         ShowRefreshedRepoAsync(addName, commitId, false).RunInBackground();
@@ -330,6 +340,29 @@ class RepoView : IRepoView
     void Clicked(int x, int y)
     {
         commitsView.SetIndex(y);
+
+        var commit = repo!.RowCommit;
+        var branch = repo.Graph.BranchByName(commit.BranchName);
+
+        if (Math.Abs(branch.X * 2 - (x - 1)) <= 2)
+        {
+            var commitBranches = repo.GetCommitBranches();
+            var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
+                repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent);
+
+            if (isMergeTargetOpen && commitBranches.Count == 0)
+            {   // Close the merged branch
+                Cmd.HideBranch(repo.Commit(commit.ParentIds[1]).BranchName);
+            }
+            else if (commitBranches.Count == 1)
+            {   // Just one possible branch, open it
+                Cmd.ShowBranch(commitBranches[0].Name, commit.Id);
+            }
+            else if (commitBranches.Count > 1)
+            {   // Multiple possible branches, show menu to select which to open
+                menuService!.ShowCommitBranchesMenu(x, y);
+            }
+        }
     }
 
     IEnumerable<Text> onGetContent(int firstIndex, int count, int currentIndex, int width)

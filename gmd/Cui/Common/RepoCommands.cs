@@ -10,6 +10,7 @@ namespace gmd.Cui.Common;
 interface IRepoCommands
 {
     void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
+    void ShowBranch(string name, string showCommitId);
     void HideBranch(string name, bool hideAllBranches = false);
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -260,6 +261,12 @@ class RepoCommands : IRepoCommands
 
         Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show, count);
         SetRepo(newRepo, name);
+    }
+
+    public void ShowBranch(string name, string showCommitId)
+    {
+        Server.Repo newRepo = server.ShowBranch(serverRepo, name, false);
+        SetRepoAttCommit(newRepo, showCommitId);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)
@@ -874,6 +881,8 @@ class RepoCommands : IRepoCommands
 
 
     void SetRepo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
+    void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
+
 
     void Do(Func<Task<R>> action)
     {
