@@ -83,7 +83,7 @@ class Menu
 
         itemsView = CreateItemsView();
 
-        itemsView.TriggerUpdateContent(this.items.Count);
+        itemsView.SetNeedsDisplay();
         if (this.items.Any() && this.items[0].IsDisabled && !isAllDisabled) UI.Post(() => OnCursorDown());
 
         isFocus = true;
@@ -391,14 +391,17 @@ class Menu
     }
 
 
-    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        return itemRows.Skip(firstIndex).Take(count).Select((row, i) =>
+        var rows = itemRows.Skip(firstIndex).Take(count).Select((row, i) =>
         {
             var isSelectedRow = i + firstIndex == currentIndex && !isAllDisabled;
             return isSelectedRow ? row.ToHighlight() : row;
         });
+
+        return (rows, itemRows.Count);
     }
+
 
     (int x, int y) ToViewCoordinates(int screenX, int screenY)
     {
@@ -408,8 +411,6 @@ class Menu
     }
 
     bool IsInside(int x, int y) => x >= 0 && x < dimensions.Width && y >= 0 && y < dimensions.Height;
-
-
 }
 
 

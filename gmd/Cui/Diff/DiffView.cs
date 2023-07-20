@@ -66,7 +66,7 @@ class DiffView : IDiffView
         diffView.Add(contentView);
         RegisterShortcuts(contentView);
 
-        contentView.TriggerUpdateContent(diffRows.Rows.Count);
+        contentView.SetNeedsDisplay();
         UI.RunDialog(diffView);
         return isCommitTriggered;
     }
@@ -245,7 +245,7 @@ class DiffView : IDiffView
 
             diffs = new[] { diff! };
             diffRows = diffService.ToDiffRows(diff!);
-            contentView.TriggerUpdateContent(diffRows.Rows.Count);
+            contentView.SetNeedsDisplay();
         }
     }
 
@@ -264,7 +264,7 @@ class DiffView : IDiffView
         if (rowStartX > 0)
         {
             rowStartX--;
-            contentView.TriggerUpdateContent(diffRows!.Count);
+            contentView.SetNeedsDisplay();
         }
     }
 
@@ -284,18 +284,19 @@ class DiffView : IDiffView
         if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
             rowStartX++;
-            contentView.TriggerUpdateContent(diffRows!.Count);
+            contentView.SetNeedsDisplay();
         }
     }
 
     // Returns the content for the view
-    IEnumerable<Text> OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
+    (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
         int columnWidth = (contentWidth - 2) / 2;
         int viewWidth = columnWidth * 2 + 1;
 
-        return diffRows.Rows.Skip(firstRow).Take(rowCount)
+        var rows = diffRows.Rows.Skip(firstRow).Take(rowCount)
             .Select((r, i) => ToDiffRowText(r, i + firstRow, columnWidth, currentIndex, viewWidth));
+        return (rows, diffRows.Rows.Count);
     }
 
     // Returns a row with either a line, a span or two columns of side by side text

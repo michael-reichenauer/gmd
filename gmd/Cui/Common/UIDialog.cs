@@ -401,7 +401,7 @@ class UIComboTextField : TextField
         listView.IsScrollMode = false;
         listView.IsCursorMargin = false;
         listView.ColorScheme = ColorSchemes.TextField;
-        listView.TriggerUpdateContent(itemTexts.Count);
+        listView.SetNeedsDisplay();
 
         Dialog dlg = (Dialog)this.SuperView.SuperView;
         dlg.Add(borderTop);
@@ -425,14 +425,16 @@ class UIComboTextField : TextField
     }
 
 
-    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        return itemTexts.Skip(firstIndex).Take(count).Select((item, i) =>
+        var rows = itemTexts.Skip(firstIndex).Take(count).Select((item, i) =>
         {
             // Show selected or unselected commit row 
             var isSelectedRow = i + firstIndex == currentIndex;
             return isSelectedRow ? item.ToHighlight() : item;
         });
+
+        return (rows, itemTexts.Count);
     }
 }
 
