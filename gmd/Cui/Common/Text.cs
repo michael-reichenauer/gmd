@@ -26,21 +26,21 @@ class Text
     public IReadOnlyList<TextFragment> Fragments => fragments;
 
     // Initial fragment of text with color, additional fragments will be added using TextBuilder
-    public static TextBuilder Red(string text) => new TextBuilder(Common.Color.Red, text);
     public static TextBuilder Blue(string text) => new TextBuilder(Common.Color.Blue, text);
-    public static TextBuilder White(string text) => new TextBuilder(Common.Color.White, text);
-    public static TextBuilder Magenta(string text) => new TextBuilder(Common.Color.Magenta, text);
-    public static TextBuilder BrightBlue(string text) => new TextBuilder(Common.Color.BrightBlue, text);
-    public static TextBuilder BrightCyan(string text) => new TextBuilder(Common.Color.BrightCyan, text);
-    public static TextBuilder BrightGreen(string text) => new TextBuilder(Common.Color.BrightGreen, text);
-    public static TextBuilder BrightMagenta(string text) => new TextBuilder(Common.Color.BrightMagenta, text);
-    public static TextBuilder BrightRed(string text) => new TextBuilder(Common.Color.BrightRed, text);
-    public static TextBuilder BrightYellow(string text) => new TextBuilder(Common.Color.BrightYellow, text);
-    public static TextBuilder Cyan(string text) => new TextBuilder(Common.Color.Cyan, text);
-    public static TextBuilder Dark(string text) => new TextBuilder(Common.Color.Dark, text);
     public static TextBuilder Green(string text) => new TextBuilder(Common.Color.Green, text);
+    public static TextBuilder Cyan(string text) => new TextBuilder(Common.Color.Cyan, text);
     public static TextBuilder Yellow(string text) => new TextBuilder(Common.Color.Yellow, text);
+    public static TextBuilder Red(string text) => new TextBuilder(Common.Color.Red, text);
+    public static TextBuilder Magenta(string text) => new TextBuilder(Common.Color.Magenta, text);
+    public static TextBuilder Dark(string text) => new TextBuilder(Common.Color.Dark, text);
+    public static TextBuilder White(string text) => new TextBuilder(Common.Color.White, text);
     public static TextBuilder Black(string text) => new TextBuilder(Common.Color.Black, text);
+    public static TextBuilder BrightBlue(string text) => new TextBuilder(Common.Color.BrightBlue, text);
+    public static TextBuilder BrightGreen(string text) => new TextBuilder(Common.Color.BrightGreen, text);
+    public static TextBuilder BrightCyan(string text) => new TextBuilder(Common.Color.BrightCyan, text);
+    public static TextBuilder BrightYellow(string text) => new TextBuilder(Common.Color.BrightYellow, text);
+    public static TextBuilder BrightRed(string text) => new TextBuilder(Common.Color.BrightRed, text);
+    public static TextBuilder BrightMagenta(string text) => new TextBuilder(Common.Color.BrightMagenta, text);
     public static TextBuilder Color(Common.Color color, string text) => new TextBuilder(color, text);
 
     public static TextBuilder Add(Text text)
