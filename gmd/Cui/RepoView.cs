@@ -365,14 +365,14 @@ class RepoView : IRepoView
         }
     }
 
-    IEnumerable<Text> onGetContent(int firstIndex, int count, int currentIndex, int width)
+    (IEnumerable<Text> rows, int total) onGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         if (repo == null)
         {
-            return Enumerable.Empty<Text>();
+            return (Enumerable.Empty<Text>(), 0);
         }
 
-        return repoWriter.ToPage(repo, firstIndex, count, currentIndex, width);
+        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, width), repo.Commits.Count);
     }
 
 
@@ -455,7 +455,7 @@ class RepoView : IRepoView
     {
         repo = newViewRepo(this, serverRepo);
         menuService = newMenuService(repo);
-        commitsView.TriggerUpdateContent(repo.TotalRows);
+        commitsView.SetNeedsDisplay();
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program

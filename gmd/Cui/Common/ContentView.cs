@@ -4,7 +4,7 @@ using Terminal.Gui;
 namespace gmd.Cui.Common;
 
 
-internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
+internal delegate (IEnumerable<Text> rows, int total) GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
 internal delegate void OnKeyCallback();
 internal delegate bool OnKeyCallbackReturn();
 internal delegate void OnMouseCallback(int x, int y);
@@ -23,7 +23,7 @@ class ContentView : View
     const int verticalScrollbarWidth = 1;
     const int contentXMargin = cursorWidth + verticalScrollbarWidth;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
-    readonly IReadOnlyList<Text>? content;
+    readonly IReadOnlyList<Text>? contentRows;
 
     int currentIndex = 0;
     bool isSelected = false;
@@ -39,8 +39,9 @@ class ContentView : View
 
     internal ContentView(IReadOnlyList<Text> content)
     {
-        this.content = content;
-        this.TriggerUpdateContent(this.content.Count);
+        this.contentRows = content;
+        TotalCount = content.Count;
+        SetNeedsDisplay();
     }
 
     public event Action? CurrentIndexChange;
@@ -81,7 +82,6 @@ class ContentView : View
     public int SelectCount => isSelected ? selection.I2 - selection.I1 + 1 : 0;
     public bool IsCustomShowSelection { get; set; } = false;
 
-    //public bool IsSelected { get; private set; } = false;
     public Selection Selection => selection;
 
     public void RegisterKeyHandler(Key key, OnKeyCallback callback)
@@ -115,27 +115,6 @@ class ContentView : View
     }
 
 
-    public void TriggerUpdateContent(int totalCount)
-    {
-        this.TotalCount = totalCount;
-        if (FirstIndex > totalCount)
-        {
-            FirstIndex = totalCount - 1;
-        }
-        if (CurrentIndex < FirstIndex)
-        {
-            CurrentIndex = FirstIndex;
-        }
-        if (CurrentIndex > FirstIndex + ContentHeight)
-        {
-            CurrentIndex = FirstIndex + ContentHeight - 1;
-        }
-        CurrentIndex = Math.Min(totalCount - 1, CurrentIndex);
-        CurrentIndex = Math.Max(0, CurrentIndex);
-
-        SetNeedsDisplay();
-    }
-
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
         if (!IsFocus) return false;
@@ -159,7 +138,7 @@ class ContentView : View
                 return true;
             case Key.PageUp:
                 ClearSelection();
-                Move(-Math.Max(0, ContentHeight - 1));
+                Move(-(ContentHeight - 1));
                 return true;
             case Key.CursorDown:
                 ClearSelection();
@@ -170,15 +149,15 @@ class ContentView : View
                 return true;
             case Key.PageDown:
                 ClearSelection();
-                Move(Math.Max(0, ContentHeight - 1));
+                Move(ContentHeight - 1);
                 return true;
             case Key.Home:
                 ClearSelection();
-                Move(-Math.Max(0, TotalCount));
+                Move(-TotalCount);
                 return true;
             case Key.End:
                 ClearSelection();
-                Move(Math.Max(0, TotalCount));
+                Move(TotalCount);
                 return true;
         }
 
@@ -229,11 +208,7 @@ class ContentView : View
     {
         Clear();
 
-        var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
-
-        var currentRows = (content != null)
-            ? content.Skip(FirstIndex).Take(drawCount).ToList()
-            : onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth).ToList();
+        IReadOnlyList<Text> currentRows = GetContentRows();
 
         int y = ContentY;
         currentRows.ForEach((row, i) =>
@@ -271,6 +246,7 @@ class ContentView : View
     }
 
 
+
     public bool IsRowSelected(int index) => isSelected && index >= selection.I1 && index <= selection.I2;
 
     public void ClearSelection()
@@ -287,9 +263,7 @@ class ContentView : View
         var copyText = new StringBuilder();
         var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
 
-        var currentRows = (content != null)
-            ? content.Skip(FirstIndex).Take(drawCount).ToList()
-            : onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth).ToList();
+        var currentRows = GetContentRows();
 
         int y = ContentY;
         currentRows.ForEach((row, i) =>
@@ -319,8 +293,34 @@ class ContentView : View
         SetNeedsDisplay();
 
         return copyText.ToString();
-
     }
+
+    IReadOnlyList<Text> GetContentRows()
+    {
+        var drawCount = ContentHeight; //  Math.Min(ContentHeight, TotalCount - FirstIndex);
+
+
+        if (contentRows != null)
+        {   // Use content provided in constructor
+            return contentRows.Skip(FirstIndex).Take(drawCount).ToList();
+        }
+
+        var (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+        IReadOnlyList<Text> currentRows = rows.ToList();
+        TotalCount = totalCount;
+
+        while (!currentRows.Any() && TotalCount > 0)
+        {   // TotalCount now less than previous FirstIndex, need to adjust FirstIndex and CurrentIndex and try again
+            FirstIndex = Math.Max(0, TotalCount - 3);
+            CurrentIndex = TotalCount - 1;
+            (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+            currentRows = rows.ToList();
+            TotalCount = totalCount;
+        }
+
+        return currentRows;
+    }
+
 
     void OnSelectUp()
     {

@@ -127,12 +127,12 @@ class CommitDetailsView : ICommitDetailsView
         newRows.Add(Text.Black(""));
 
         rows = newRows;
-        contentView!.TriggerUpdateContent(rows.Count);
+        contentView!.SetNeedsDisplay();
         contentView!.MoveToTop();
     });
 
 
-    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
-        rows.Skip(firstIndex).Take(count);
+    (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
+        (rows.Skip(firstIndex).Take(count), rows.Count);
 }
 
