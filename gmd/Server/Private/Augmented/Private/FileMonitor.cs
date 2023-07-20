@@ -56,8 +56,8 @@ class FileMonitor : IFileMonitor
 
 
     bool isPaused = false;
-    DateTime readRepoTime = DateTime.MinValue;
-    DateTime readStatusTime = DateTime.MinValue;
+    // DateTime readRepoTime = DateTime.MinValue;
+    // DateTime readStatusTime = DateTime.MinValue;
 
 
     public event Action<ChangeEvent>? FileChanged;
@@ -88,8 +88,8 @@ class FileMonitor : IFileMonitor
     {
         lock (syncRoot)
         {
-            this.readRepoTime = time;
-            this.readStatusTime = time;
+            this.repoChangedEvent = null;
+            this.fileChangedEvent = null;
         }
     }
 
@@ -97,9 +97,10 @@ class FileMonitor : IFileMonitor
     {
         lock (syncRoot)
         {
-            this.readStatusTime = time;
+            this.fileChangedEvent = null;
         }
     }
+
 
     bool OnTimer(MainLoop loop)
     {
@@ -111,13 +112,9 @@ class FileMonitor : IFileMonitor
         ChangeEvent? fileEvent = null;
         ChangeEvent? repoEvent = null;
 
-        DateTime statusTime;
-        DateTime repoTime;
         lock (syncRoot)
         {
             // Copy FileChangedEvents, RepoChangedEvents, read times
-            statusTime = readStatusTime;
-            repoTime = readRepoTime;
             var timeStamp = DateTime.UtcNow;
 
             if (fileChangedEvent != null && fileChangedEvent.TimeStamp + StatusDelayTriggerTime < timeStamp)
@@ -133,15 +130,16 @@ class FileMonitor : IFileMonitor
             }
         }
 
-        if (fileEvent != null && fileEvent.TimeStamp > readStatusTime)
-        {   // Event newer than last time status was read
-            Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
-            Cui.Common.UI.Post(() => FileChanged?.Invoke(fileEvent));
-        }
-        if (repoEvent != null && repoEvent.TimeStamp > readRepoTime)
-        {   // Event newer than last time repo was read
+        if (repoEvent != null)
+        {
             Log.Info($"Repo changed event {repoEvent.TimeStamp.IsoMs()}");
             Cui.Common.UI.Post(() => RepoChanged?.Invoke(repoEvent));
+        }
+
+        if (fileEvent != null && repoEvent == null)  // no need to send status event if repo changed event
+        {
+            Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
+            Cui.Common.UI.Post(() => FileChanged?.Invoke(fileEvent));
         }
 
         return true;
