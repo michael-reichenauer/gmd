@@ -9,28 +9,30 @@ class Menu
     record Dimensions(int X, int Y, int Width, int Height, int TitleWidth, int ShortcutWidth, int SubMenuMarkerWidth);
 
     const int maxHeight = 30;
+
     readonly string title;
-    readonly Menu? parent;
     readonly int xOrg;
     readonly int yOrg;
     readonly int altX;
     readonly Action onEscAction;
+    readonly Menu? parent;
+    Menu? childSubMenu;
+    int childSubMenuIndex;
 
     UIDialog dlg = null!;
     ContentView itemsView = null!;
     IReadOnlyList<Text> itemRows = null!;
     IReadOnlyList<MenuItem> items = null!;
-    Dimensions dim = null!;
+    Dimensions dimensions = null!;
     MenuItem CurrentItem => items[itemsView.CurrentIndex];
     bool isAllDisabled = false;
     bool isFocus = false;
-    bool hasMovedMouse = false;
+    readonly TaskCompletionSource<bool> done = new TaskCompletionSource<bool>();
+    Menu RootMenu => parent == null ? this : parent.RootMenu;
 
-    public event Action? Closed;
+
     public const int Center = -int.MaxValue;
 
-
-    Menu RootMenu => parent == null ? this : parent.RootMenu;
 
     public static void Show(string title, int x, int y, IEnumerable<MenuItem> items, Action? onEscAction = null)
     {
@@ -38,7 +40,7 @@ class Menu
         menu.Show(items);
     }
 
-
+    // Creating menu helpers
     public static ICollection<MenuItem> Items => new List<MenuItem>();
     public static MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
         new MenuItem(title, shortcut, action, canExecute);
@@ -70,13 +72,13 @@ class Menu
 
         this.isAllDisabled = this.items.All(i => i.IsDisabled);
 
-        dim = GetDimensions();
+        dimensions = GetDimensions();
         itemRows = ToMenuItemsRows();
 
-        dlg = new UIDialog(title, dim.Width, dim.Height, null, options =>
+        dlg = new UIDialog(title, dimensions.Width, dimensions.Height, null, options =>
         {
-            options.X = dim.X;
-            options.Y = dim.Y;
+            options.X = dimensions.X;
+            options.Y = dimensions.Y;
         });
 
         itemsView = CreateItemsView();
@@ -89,21 +91,28 @@ class Menu
         dlg.Show();
         Application.RootMouseEvent -= OnRootMouseEvent;
         isFocus = false;
-        Closed?.Invoke();
+        done.TrySetResult(true);
     }
+
+
+    public async Task CloseAsync()
+    {
+        if (childSubMenu != null)
+        {
+            await childSubMenu.CloseAsync();
+        }
+
+        await dlg.CloseAsync();
+        await done.Task;
+    }
+
+    public void Close() => CloseAsync().RunInBackground();
 
 
     // Called for all mouse events, both within and also outside this menu, 
     // Skipping if not focused or not clicked events
     void OnRootMouseEvent(MouseEvent e)
     {
-        var x = e.X - dlg.View.Frame.X;
-        var y = e.Y - dlg.View.Frame.Y;
-        if (!(x < 0 || y < 0 || x >= dim.Width || y >= dim.Height))
-        {
-            Log.Info($"Move in {title}: {x} {y} ({e.Flags} {e.X} {e.Y}) {dlg.View.Frame}");
-        }
-
         e.Handled = false;
 
         if (!isFocus) return;
@@ -115,54 +124,24 @@ class Menu
 
     void OnMouseMove(int screenX, int screenY)
     {
-        // Map screen coordinates to this menu view coordinates
-        var x = screenX - dlg.View.Frame.X;
-        var y = screenY - dlg.View.Frame.Y;
-        if (x < 0 || y < 0 || x >= dim.Width || y >= dim.Height)
-        { // Outside this menu, forward click to parent menu and close this menu
-            if (hasMovedMouse)
-            {
-                Closed += () => parent?.OnMouseClicked(screenX, screenY);
-                UI.Post(() => Close());
-            }
-            return;
-        }
-        //hasMovedMouse = true;
-
-        UI.Post(() =>
-        {
-            itemsView.SetIndex(y - 1);
-            // if (CurrentItem is SubMenu && !CurrentItem.IsDisabled)
-            // {
-            //     OnCursorRight();
-            // }
-        });
+        (var x, var y) = ToViewCoordinates(screenX, screenY);
+        if (!IsInside(x, y)) return;
+        itemsView.SetIndex(y - 1);
     }
 
 
-    void OnMouseClicked(int screenX, int screenY)
+    async void OnMouseClicked(int screenX, int screenY)
     {
-        // Map screen coordinates to this menu view coordinates
-        var x = screenX - dlg.View.Frame.X;
-        var y = screenY - dlg.View.Frame.Y;
-
-        if (x < 0 || y < 0 || x >= dim.Width || y >= dim.Height)
-        {   // Outside this menu, forward click to parent menu and close this menu
-            Closed += () => parent?.OnMouseClicked(screenX, screenY);
-            UI.Post(() => Close());
+        (var x, var y) = ToViewCoordinates(screenX, screenY);
+        if (!IsInside(x, y))
+        {   // Clicked outside this menu, close this menu and forward click to parent menu
+            await CloseAsync();
+            parent?.OnMouseClicked(screenX, screenY);
             return;
         }
 
         // Is inside this menu, handle click
         UI.Post(() => OnClick(x, y - 1));
-    }
-
-
-    // Closes this menu and all parent menus as well. Used menu item action is called.
-    void CloseAll()
-    {
-        Close();
-        UI.Post(() => parent?.CloseAll());
     }
 
 
@@ -227,29 +206,29 @@ class Menu
 
             // Title text might need to be truncated
             var text = new TextBuilder();
-            if (item.Title.Length > dim.TitleWidth)
+            if (item.Title.Length > dimensions.TitleWidth)
             {
-                text.Color(titleColor, item.Title.Max(dim.TitleWidth - 1, true)).Dark("…");
+                text.Color(titleColor, item.Title.Max(dimensions.TitleWidth - 1, true)).Dark("…");
             }
             else
             {
-                text.Color(titleColor, item.Title.Max(dim.TitleWidth, true));
+                text.Color(titleColor, item.Title.Max(dimensions.TitleWidth, true));
             }
 
             // Shortcut
             if (!item.IsDisabled && item.Shortcut != "")
-                text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
+                text.Black(new string(' ', dimensions.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
             else if (item.Shortcut != "")
-                text.Black(new string(' ', dim.ShortcutWidth - item.Shortcut.Length)).Dark(item.Shortcut);
-            else if (dim.ShortcutWidth > 0)
-                text.Black(new string(' ', dim.ShortcutWidth));
+                text.Black(new string(' ', dimensions.ShortcutWidth - item.Shortcut.Length)).Dark(item.Shortcut);
+            else if (dimensions.ShortcutWidth > 0)
+                text.Black(new string(' ', dimensions.ShortcutWidth));
 
             // Submenu marker >
             if (!item.IsDisabled && item is SubMenu)
                 text.BrightMagenta(" >");
             if (item.IsDisabled && item is SubMenu)
                 text.Dark(" >");
-            if (dim.SubMenuMarkerWidth > 0)
+            if (dimensions.SubMenuMarkerWidth > 0)
                 text.Black("  ");
 
             return text.ToText();
@@ -261,11 +240,11 @@ class Menu
     string ToSeparatorText(MenuSeparator item)
     {
         string title = item.Title;
-        var width = dim.Width - 2;
-        var scrollbarWidth = items.Count + 2 > dim.Height ? 0 : 1;
+        var width = dimensions.Width - 2;
+        var scrollbarWidth = items.Count + 2 > dimensions.Height ? 0 : 1;
         if (title == "")
         {   // Just a line ----
-            title = new string('─', dim.Width - 2 + scrollbarWidth);
+            title = new string('─', dimensions.Width - 2 + scrollbarWidth);
         }
         else
         {   // A line with text, e.g. '-- text ------
@@ -281,12 +260,11 @@ class Menu
     ContentView CreateItemsView()
     {
         var view = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), OnGetContent);
-        view.RegisterKeyHandler(Key.Esc, () => Close());
         view.IsShowCursor = false;
         view.IsScrollMode = false;
         view.IsCursorMargin = false;
 
-        view.RegisterKeyHandler(Key.Esc, () => OnEsc());
+        view.RegisterKeyHandler(Key.Esc, () => CloseAsync().RunInBackground());
         view.RegisterKeyHandler(Key.Enter, () => OnEnter());
         view.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
         view.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
@@ -295,44 +273,30 @@ class Menu
         view.RegisterKeyHandler(Key.Home, () => OnHome());
         view.RegisterKeyHandler(Key.End, () => OnEnd());
         view.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
-        view.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
+        view.RegisterKeyHandler(Key.CursorRight, () => OpenSubMenu());
 
         return view;
     }
 
 
-    void Close()
-    {
-        dlg.Close();
-    }
-
-
-    void OnEsc()
-    {
-        RootMenu.Closed += () => UI.Post(() => onEscAction());
-        UI.Post(() => Close());
-    }
-
-
-    void OnEnter()
+    async void OnEnter()
     {
         if (items.Any() && CurrentItem is SubMenu)
         {   // For a sub menu, the action is to open menu as if right arrow was pressed
-            UI.Post(() => OnCursorRight());
+            if (childSubMenuIndex == itemsView.CurrentIndex)
+            {   // Clicked on same item as before, ignore
+                childSubMenuIndex = -1;
+                return;
+            }
+            UI.Post(() => OpenSubMenu());
             return;
         }
 
-        // Handle enter key on 'normal' menu item (after root menu has been closed)
-        RootMenu.Closed += () =>
-        {
-            if (items.Any() && !CurrentItem.IsDisabled && CurrentItem.Action != null)
-            {
-                UI.Post(() => CurrentItem.Action());
-            }
-        };
+        // Store items action before closing menu
+        Action? action = items.Any() && !CurrentItem.IsDisabled ? CurrentItem.Action : null;
+        await RootMenu.CloseAsync();
 
-        // Close menu and all parent menus, this will trigger the above action
-        UI.Post(() => CloseAll());
+        action?.Invoke();
     }
 
 
@@ -340,7 +304,7 @@ class Menu
     {
         itemsView.SetIndex(y);
         if (CurrentItem.IsDisabled)
-        {
+        {   // Clicked on disabled item, lets try select next enabled item
             if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();
             if (CurrentItem.IsDisabled) OnCursorDown();
             return;
@@ -407,20 +371,21 @@ class Menu
     void OnCursorLeft()
     {
         if (parent == null) return; // Do not close top level menu on left arrow (only sub menus)
-        Close();
+        CloseAsync().RunInBackground();
     }
 
-    void OnCursorRight()
+    void OpenSubMenu()
     {
         if (items.Any() && CurrentItem is SubMenu sm && !sm.IsDisabled)
         {
-            var x = dim.X + dim.Width;
-            var y = dim.Y + (itemsView.CurrentIndex - itemsView.FirstIndex);
+            var x = dimensions.X + dimensions.Width;
+            var y = dimensions.Y + (itemsView.CurrentIndex - itemsView.FirstIndex);
 
-            var subMenu = new Menu(x, y, sm.Title, this, dim.X, null);
+            childSubMenu = new Menu(x, y, sm.Title, this, dimensions.X, null);
+            childSubMenuIndex = itemsView.CurrentIndex;
             isFocus = false;
-            hasMovedMouse = false;
-            subMenu.Show(sm.Children);
+            childSubMenu.Show(sm.Children);
+            childSubMenu = null;
             isFocus = true;
         }
     }
@@ -434,6 +399,17 @@ class Menu
             return isSelectedRow ? row.ToHighlight() : row;
         });
     }
+
+    (int x, int y) ToViewCoordinates(int screenX, int screenY)
+    {
+        var x = screenX - dlg.View.Frame.X;
+        var y = screenY - dlg.View.Frame.Y;
+        return (x, y);
+    }
+
+    bool IsInside(int x, int y) => x >= 0 && x < dimensions.Width && y >= 0 && y < dimensions.Height;
+
+
 }
 
 

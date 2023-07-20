@@ -8,8 +8,9 @@ class UIDialog
     readonly List<Button> buttons = new List<Button>();
     readonly Dictionary<string, bool> buttonsClicked = new Dictionary<string, bool>();
     readonly Func<Key, bool>? onKey;
-    private Func<MouseEvent, bool>? onMouse;
+    Func<MouseEvent, bool>? onMouse;
     readonly Action<Dialog>? options;
+    readonly TaskCompletionSource<bool> done = new TaskCompletionSource<bool>();
 
     record Validation(Func<bool> IsValid, string ErrorMsg);
     readonly List<Validation> validations = new List<Validation>();
@@ -35,7 +36,13 @@ class UIDialog
         this.options = options;
     }
 
-    public void Close() => Application.RequestStop();
+    public Task CloseAsync()
+    {
+        Application.RequestStop();
+        return done.Task;
+    }
+
+    public void Close() => CloseAsync().RunInBackground();
 
     public void RegisterMouseHandler(Func<MouseEvent, bool> onMouse)
     {
@@ -226,6 +233,7 @@ class UIDialog
         UI.RunDialog(dlg);
         if (onMouse != null) Application.UngrabMouse();
         Application.Driver.SetCursorVisibility(cursorVisible);
+        done.TrySetResult(true);
         return IsOK;
     }
 
