@@ -106,7 +106,7 @@ class DiffView : IDiffView
 
     }
 
-    void ShowMainMenu(int x = -1, int y = 0)
+    void ShowMainMenu(int x = Menu.Center, int y = 0)
     {
         var undoItems = GetUndoItems();
         var scrollToItems = GetScrollToItems();
