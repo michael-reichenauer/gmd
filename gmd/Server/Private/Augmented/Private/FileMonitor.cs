@@ -128,12 +128,12 @@ class FileMonitor : IFileMonitor
         if (fileEvent != null)
         {
             Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
-            FileChanged?.Invoke(fileEvent);
+            Cui.Common.UI.Post(() => FileChanged?.Invoke(fileEvent));
         }
         if (repoEvent != null)
         {
             Log.Info($"Repo changed event {repoEvent.TimeStamp.IsoMs()}");
-            RepoChanged?.Invoke(repoEvent);
+            Cui.Common.UI.Post(() => RepoChanged?.Invoke(repoEvent));
         }
 
         return true;
