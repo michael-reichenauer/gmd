@@ -98,6 +98,7 @@ class AugmentedService : IAugmentedService
         Timing t = Timing.Start();
 
         // Start some git commands in parallel to get commits, branches, status, ...
+        var timeStamp = DateTime.UtcNow;
         var logTask = git.GetLogAsync(maxCommitCount, path);
         var branchesTask = git.GetBranchesAsync(path);
         var tagsTask = git.GetTagsAsync(path);
@@ -116,8 +117,8 @@ class AugmentedService : IAugmentedService
         var isTruncated = log.Count == maxCommitCount;
 
         // Combine all git info into one git repo info object
-        var timeStamp = DateTime.UtcNow;
         fileMonitor.SetReadRepoTime(timeStamp);
+
         var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes, isTruncated);
         Log.Info($"GitRepo {t} {gitRepo}");
 

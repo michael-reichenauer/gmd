@@ -57,6 +57,12 @@ class FileMonitor : IFileMonitor
     DateTime readRepoTime = DateTime.MinValue;
     DateTime readStatusTime = DateTime.MinValue;
 
+
+    public event Action<ChangeEvent>? FileChanged;
+
+    public event Action<ChangeEvent>? RepoChanged;
+
+
     public FileMonitor()
     {
         fileChangedTimer = new Timer(StatusDelayTriggerTime.TotalMilliseconds);
@@ -132,10 +138,6 @@ class FileMonitor : IFileMonitor
 
         return true;
     }
-
-    public event Action<ChangeEvent>? FileChanged;
-
-    public event Action<ChangeEvent>? RepoChanged;
 
     public void Monitor(string workingFolder)
     {
