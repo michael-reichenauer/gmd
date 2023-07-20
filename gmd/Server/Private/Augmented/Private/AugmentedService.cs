@@ -107,7 +107,7 @@ class AugmentedService : IAugmentedService
         var statusTask = git.GetStatusAsync(path);
         var metaDataTask = metaDataService.GetMetaDataAsync(path);
         var stashesTask = git.GetStashesAsync(path);
-        await Task.WhenAll(logTask, branchesTask, statusTask, metaDataTask, stashesTask);
+        await Task.WhenAll(logTask, branchesTask, tagsTask, statusTask, metaDataTask, stashesTask);
 
         // Check all tasks for errors
         if (!Try(out var log, out var e, logTask.Result)) return e;
