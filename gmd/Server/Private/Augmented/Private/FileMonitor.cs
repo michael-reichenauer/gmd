@@ -21,7 +21,7 @@ public delegate bool Ignorer(string path);
 [SingleInstance]
 class FileMonitor : IFileMonitor
 {
-    static readonly TimeSpan StatusDelayTriggerTime = TimeSpan.FromSeconds(2);
+    static readonly TimeSpan StatusDelayTriggerTime = TimeSpan.FromSeconds(1);
     static readonly TimeSpan RepositoryDelayTriggerTime = TimeSpan.FromSeconds(1);
 
     const string GitFolder = ".git";
@@ -47,7 +47,7 @@ class FileMonitor : IFileMonitor
 
     // private readonly Timer repoChangedTimer;
     // private bool isRepoChanged = false;
-    // private DateTime repoChangeTime;
+    // private DateTime repoChangeTime;;;
 
     private string workingFolder = "";
     object timer = null!;
@@ -120,13 +120,13 @@ class FileMonitor : IFileMonitor
             repoTime = readRepoTime;
             var timeStamp = DateTime.UtcNow;
 
-            if (fileChangedEvent != null && fileChangedEvent.TimeStamp + StatusDelayTriggerTime > timeStamp)
+            if (fileChangedEvent != null && fileChangedEvent.TimeStamp + StatusDelayTriggerTime < timeStamp)
             {
                 fileEvent = fileChangedEvent;
                 fileChangedEvent = null;
             }
 
-            if (repoChangedEvent != null && repoChangedEvent.TimeStamp + RepositoryDelayTriggerTime > timeStamp)
+            if (repoChangedEvent != null && repoChangedEvent.TimeStamp + RepositoryDelayTriggerTime < timeStamp)
             {
                 repoEvent = repoChangedEvent;
                 repoChangedEvent = null;
