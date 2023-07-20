@@ -151,6 +151,10 @@ class ContentView : View
                 ClearSelection();
                 Move(ContentHeight - 1);
                 return true;
+            case Key.Space:
+                ClearSelection();
+                Move(ContentHeight - 1);
+                return true;
             case Key.Home:
                 ClearSelection();
                 Move(-TotalCount);
