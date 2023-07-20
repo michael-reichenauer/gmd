@@ -843,7 +843,7 @@ class BranchStructureService : IBranchStructureService
                 b.ParentBranch = remoteBranch;
 
                 var bb = repo.CommitsById[b.BottomID];
-                if (b.TipID != b.BottomID && bb.FirstParent?.Branch != remoteBranch)
+                if (b.TipID != b.BottomID && bb.FirstParent?.Branch != remoteBranch && remoteBranch.TipID != bb.FirstParent?.Id)
                 {  // The bottom commit of the local branch does not have the remote branch as first parent
                     Log.Warn($"Branch {b.Name} has unexpected bottom branch '{bb.FirstParent?.Branch}', expected: {b.ParentBranch}");
                 }
