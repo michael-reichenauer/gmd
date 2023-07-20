@@ -97,6 +97,13 @@ class Menu
     // Skipping if not focused or not clicked events
     void OnRootMouseEvent(MouseEvent e)
     {
+        var x = e.X - dlg.View.Frame.X;
+        var y = e.Y - dlg.View.Frame.Y;
+        if (!(x < 0 || y < 0 || x >= dim.Width || y >= dim.Height))
+        {
+            Log.Info($"Move in {title}: {x} {y} ({e.Flags} {e.X} {e.Y}) {dlg.View.Frame}");
+        }
+
         e.Handled = false;
 
         if (!isFocus) return;
