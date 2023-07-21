@@ -87,21 +87,13 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetMainMenuItems()
     {
-        var items = Menu.Items;
-
-        if (states.Get().Releases.IsUpdateAvailable && !Build.IsDevInstance())
-        {
-            items.Separator("New Release Available !!!")
-                .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
-                .Separator();
-        }
-
         var switchItems = GetSwitchToItems()
                 .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "",
                     () => cmds.SwitchToCommit(),
                     () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id));
 
-        return items
+        return Menu.Items
+            .Items(GetNewReleaseItems())
             .SubMenu("Commit", "", GetCommitItems())
             .SubMenu("Undo", "", GetUndoItems())
             .SubMenu("Diff", "", GetDiffItems())
@@ -129,40 +121,34 @@ class RepoViewMenus : IRepoViewMenus
     {
         var b = repo.Branch(name);
         var cb = repo.CurrentBranch;
-        var isOK = repo.Status.IsOk;
+        var isStatusOK = repo.Status.IsOk;
 
-        var items = Menu.Items;
-
-        if (states.Get().Releases.IsUpdateAvailable && !Build.IsDevInstance())
-        {
-            items.Separator("New Release Available !!!")
-                .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
-                .Separator();
-        }
-
-        var switchItems = GetSwitchToItems()
-                .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "",
-                    () => cmds.SwitchToCommit(),
-                    () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id));
-
-        return items
+        return Menu.Items
+            .Items(GetNewReleaseItems())
             .Items(GetSwitchToBranchItem(name))
-            .SubMenu("Diff Branch to", "", GetPreviewMergeItems(false, false, name))
+            .Item($"Merge to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && isStatusOK)
             .Item("Hide Branch", "H", () => cmds.HideBranch(name))
-            .Item("Push/Publish", "", () => cmds.PushBranch(name), () => b.HasLocalOnly)
-            .Item("Push/Publish", "", () => cmds.PullBranch(name), () => b.HasRemoteOnly)
-            .Item($"Merge to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && isOK)
+            .Item("Pull/Update", "U", () => cmds.PullBranch(name), () => b.HasRemoteOnly && isStatusOK)
+            .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)
+            .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
+            .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !repo.Status.IsOk && b.PrimaryName == cb?.PrimaryName)
+            .SubMenu("Diff Branch to", "", GetPreviewMergeItems(false, false, name))
             .SubMenu("Show/Open Branch", "", GetShowBranchItems())
-
-            // .SubMenu("Stash", "", GetStashMenuItems())
-
-            // .SubMenu("Branch Structure", "", GetBranchStructureItems())
-
-            ;
+            .SubMenu("Main Menu", "M", GetMainMenuItems());
     }
+
+    IEnumerable<MenuItem> GetNewReleaseItems()
+    {
+        if (!states.Get().Releases.IsUpdateAvailable && Build.IsDevInstance()) return Menu.Items;
+        return Menu.Items
+           .Separator("New Release Available !!!")
+           .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
+           .Separator();
+    }
+
 
 
     IEnumerable<MenuItem> GetBranchStructureItems()
@@ -331,7 +317,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetPushItems()
     {
         var items = Menu.Items
-            .Item("Push All Branches", "P", () => cmds.PushAllBranches());
+            .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches());
 
         if (repo.CurrentBranch != null)
         {
