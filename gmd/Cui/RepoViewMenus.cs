@@ -147,14 +147,14 @@ class RepoViewMenus : IRepoViewMenus
 
         return items
             .Items(GetSwitchToBranchItem(name))
-            .SubMenu("Diff Branch to", "", GetPreviewMergeItems(false, false))
+            .SubMenu("Diff Branch to", "", GetPreviewMergeItems(false, false, name))
             .Item("Hide Branch", "H", () => cmds.HideBranch(name))
             .Item("Push/Publish", "", () => cmds.PushBranch(name), () => b.HasLocalOnly)
             .Item("Push/Publish", "", () => cmds.PullBranch(name), () => b.HasRemoteOnly)
             .Item($"Merge to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && isOK)
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
-
+            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !repo.Status.IsOk && b.PrimaryName == cb?.PrimaryName)
             .SubMenu("Show/Open Branch", "", GetShowBranchItems())
 
             // .SubMenu("Stash", "", GetStashMenuItems())
@@ -472,14 +472,13 @@ class RepoViewMenus : IRepoViewMenus
         return items;
     }
 
-    IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit, bool isSwitch)
+    IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit, bool isSwitch, string branchName = "")
     {
         if (!repo.Status.IsOk) return Menu.Items;
 
-        var commit = repo.RowCommit;
-        var currentPrimaryName = repo.CurrentBranch?.PrimaryName ?? "";
+        var primaryName = branchName == "" ? repo.CurrentBranch?.PrimaryName ?? "" : repo.Branch(branchName).PrimaryName;
         var branches = repo.Branches
-             .Where(b => b.IsPrimary && b.PrimaryName != currentPrimaryName)
+             .Where(b => b.IsPrimary && b.PrimaryName != primaryName)
              .DistinctBy(b => b.NiceNameUnique)
              .OrderBy(b => b.NiceNameUnique);
 
