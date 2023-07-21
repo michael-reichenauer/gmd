@@ -76,7 +76,7 @@ class RepoImpl : IRepo
     public Graph Graph { get; init; }
 
     public int TotalRows => Commits.Count;
-    public int CurrentRow => repoView.CurrentIndex;
+    public int CurrentRow => Math.Min(repoView.CurrentIndex, TotalRows - 1);
     public int ContentWidth => repoView.ContentWidth;
     public Point CurrentPoint => repoView.CurrentPoint;
 

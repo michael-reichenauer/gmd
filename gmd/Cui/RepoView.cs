@@ -372,17 +372,35 @@ class RepoView : IRepoView
 
     bool MouseMoved(int x, int y)
     {
-        hoverBranchName = "";
-        hoverCommitId = "";
         if (x > repo.Graph.Width)
         {
-            hoverCommitId = repo.RowCommit.Id;
+            if (repo.RowCommit.Id != hoverCommitId)
+            {
+                Log.Info($"Hoover over commit {repo.RowCommit}");
+                hoverCommitId = repo.RowCommit.Id;
+                commitsView.SetNeedsDisplay();
+            }
+
+            return false;
         }
 
-        else if (repo!.Graph.TryGetBranchByPos(x, y + commitsView.FirstIndex, out var branch))
+        if (repo!.Graph.TryGetBranchByPos(x, y + commitsView.FirstIndex, out var branch))
         {
-            Log.Info($"Hover over branch {branch.Name}");
-            hoverBranchName = branch.Name;
+            if (hoverBranchName != branch.Name)
+            {
+                Log.Info($"Hoover over branch {branch.Name}");
+                hoverBranchName = branch.Name;
+                commitsView.SetNeedsDisplay();
+            }
+
+            return false;
+        }
+
+        if (hoverBranchName != "" || hoverCommitId != "")
+        {
+            hoverBranchName = "";
+            hoverCommitId = "";
+            commitsView.SetNeedsDisplay();
         }
         return false;
     }
@@ -390,7 +408,7 @@ class RepoView : IRepoView
 
     (IEnumerable<Text> rows, int total) onGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, width), repo.Commits.Count);
+        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hoverBranchName, width), repo.Commits.Count);
     }
 
 

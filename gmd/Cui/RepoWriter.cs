@@ -5,7 +5,7 @@ namespace gmd.Cui;
 
 interface IRepoWriter
 {
-    IEnumerable<Text> ToPage(IRepo repo, int firstRow, int rowCount, int currentIndex, int width);
+    IEnumerable<Text> ToPage(IRepo repo, int firstRow, int rowCount, int currentIndex, string currentBranchName, int width);
     bool IShowSid { get; set; }
 }
 
@@ -27,9 +27,10 @@ class RepoWriter : IRepoWriter
     public bool IShowSid { get; set; } = true;
 
 
-    public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex, int width)
+    public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex, string currentBranchName, int width)
     {
         if (!repo.Commits.Any() || count == 0) return new List<Text>();
+        count = Math.Min(count, repo.Commits.Count - firstRow);
 
         List<Text> rows = new List<Text>();
         var branchTips = GetBranchTips(repo);
@@ -47,17 +48,20 @@ class RepoWriter : IRepoWriter
             var c = repo.Commits[i];
 
             // Build row
-            var text = new TextBuilder();
+            var graphText = new TextBuilder();
             var graphRow = repo.Graph.GetRow(i);
-            WriteGraph(text, graphRow, cw.GraphWidth);
-            WriteCurrentMarker(text, c, isUncommitted, isBranchDetached);
-            WriteAheadBehindMarker(text, c);
+            WriteGraph(graphText, graphRow, cw.GraphWidth, currentBranchName);
+            WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached);
+            WriteAheadBehindMarker(graphText, c);
+
+            var text = new TextBuilder();
             WriteSubjectColumn(text, cw, c, crb, branchTips);
             WriteSid(text, cw, c);
             WriteAuthor(text, cw, c);
-            WriteTime(text, cw, c, i == currentIndex);
+            WriteTime(text, cw, c);
+            if (i == currentIndex) text.Highlight();
 
-            rows.Add(text);
+            rows.Add(graphText.Add(text));
         }
 
         return rows;
@@ -101,9 +105,9 @@ class RepoWriter : IRepoWriter
     }
 
 
-    void WriteGraph(TextBuilder text, GraphRow graphRow, int maxGraphWidth)
+    void WriteGraph(TextBuilder text, GraphRow graphRow, int maxGraphWidth, string highlightBranchName = "")
     {
-        text.Add(graphWriter.ToText(graphRow, maxGraphWidth));
+        text.Add(graphWriter.ToText(graphRow, maxGraphWidth, highlightBranchName));
     }
 
 
@@ -242,7 +246,7 @@ class RepoWriter : IRepoWriter
         text.Dark(txt);
     }
 
-    void WriteTime(TextBuilder text, Columns cw, Commit c, bool isCurrent)
+    void WriteTime(TextBuilder text, Columns cw, Commit c)
     {
         var txt = Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time);
         text.Dark(txt);
