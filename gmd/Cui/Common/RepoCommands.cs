@@ -488,10 +488,9 @@ class RepoCommands : IRepoCommands
         var sha2 = branch2.TipId;
         if (sha1 == Repo.UncommittedId || sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
 
-        message = $"Diff '{branch1.NiceNameUnique}' with '{branch2.NiceNameUnique}'";
+        message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
-
-        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, repoPath)))
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha2, sha1, message, repoPath)))
         {
             return R.Error($"Failed to get diff", e);
         }
