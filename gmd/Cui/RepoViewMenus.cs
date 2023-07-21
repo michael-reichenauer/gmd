@@ -50,13 +50,13 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowCommitMenu(int x, int y, int index)
     {
         var c = repo.Commits[index];
-        Menu.Show($"Commit {Sid(c.Id)} Menu", x, y, GetCommitMenuItems(c.Id));
+        Menu.Show($"Commit: {Sid(c.Id)}", x, y, GetCommitMenuItems(c.Id));
     }
 
     public void ShowBranchMenu(int x, int y, string branchName)
     {
         var b = repo.Branch(branchName);
-        Menu.Show($"Branch {b.ShortNiceUniqueName()} Menu", x, y, GetBranchMenuItems(branchName));
+        Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y, GetBranchMenuItems(branchName));
     }
 
 
@@ -144,10 +144,10 @@ class RepoViewMenus : IRepoViewMenus
 
         return Menu.Items
             .Items(GetNewReleaseItems())
-            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
+            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => c.IsUncommitted)
             .Item($"Amend {sid} ...", "A", () => cmds.CommitFromMenu(true), () => cc.IsAhead && c.Id == cc.Id)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
-            .SubMenu("Undo", "", GetUndoItems())
+            .SubMenu("Undo", "", GetUndoItems(), () => c.IsUncommitted)
             .Item($"Switch to Commit {sid}", "",
                     () => cmds.SwitchToCommit(),
                     () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)

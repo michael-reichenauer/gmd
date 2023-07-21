@@ -57,8 +57,7 @@ class RepoView : IRepoView
     bool isShowDetails = false;
     bool isShowFilter;
     bool isRegistered = false;
-    string hoverBranchName = "";
-    string hoverCommitId = "";
+    string hooverBranchName = "";
 
     internal RepoView(
         Server.IServer server,
@@ -360,55 +359,46 @@ class RepoView : IRepoView
         if (x > repo.Graph.Width)
         {
             Log.Info($"Right clicked on commit");
-            menuService.ShowCommitMenu(x - 1, y - 1, index);
+            commitsView.SetIndex(index);
+            menuService.ShowCommitMenu(x + 2, y - 1, index);
         }
         else if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {
             Log.Info($"Right clicked on branch {branch.Name}");
-            menuService.ShowBranchMenu(x - 1, y - 1, branch.Name);
+            commitsView.SetIndex(index);
+            menuService.ShowBranchMenu(x + 2, y - 1, branch.Name);
         }
 
     }
 
     bool MouseMoved(int x, int y)
     {
-        if (x > repo.Graph.Width)
+        var index = y + commitsView.FirstIndex;
+        if (repo!.Graph.TryGetBranchByPos(x, index, out var branch))
         {
-            if (repo.RowCommit.Id != hoverCommitId)
-            {
-                Log.Info($"Hoover over commit {repo.RowCommit}");
-                hoverCommitId = repo.RowCommit.Id;
-                commitsView.SetNeedsDisplay();
-            }
-
-            return false;
-        }
-
-        if (repo!.Graph.TryGetBranchByPos(x, y + commitsView.FirstIndex, out var branch))
-        {
-            if (hoverBranchName != branch.Name)
+            if (hooverBranchName != branch.Name)
             {
                 Log.Info($"Hoover over branch {branch.Name}");
-                hoverBranchName = branch.Name;
+                hooverBranchName = branch.Name;
                 commitsView.SetNeedsDisplay();
             }
 
             return false;
         }
 
-        if (hoverBranchName != "" || hoverCommitId != "")
+        if (hooverBranchName != "")
         {
-            hoverBranchName = "";
-            hoverCommitId = "";
+            hooverBranchName = "";
             commitsView.SetNeedsDisplay();
         }
+
         return false;
     }
 
 
     (IEnumerable<Text> rows, int total) onGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hoverBranchName, width), repo.Commits.Count);
+        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, width), repo.Commits.Count);
     }
 
 

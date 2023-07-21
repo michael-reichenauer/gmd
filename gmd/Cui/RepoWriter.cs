@@ -59,7 +59,7 @@ class RepoWriter : IRepoWriter
             WriteSid(text, cw, c);
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c);
-            if (i == currentIndex) text.Highlight();
+            if (i == currentIndex && currentBranchName == "") text.Highlight();
 
             rows.Add(graphText.Add(text));
         }

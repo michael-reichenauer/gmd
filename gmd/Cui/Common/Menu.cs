@@ -126,7 +126,10 @@ class Menu
     {
         (var x, var y) = ToViewCoordinates(screenX, screenY);
         if (!IsInside(x, y)) return;
-        itemsView.SetIndex(y - 1);
+        var index = y - 1;
+
+        if (index < 0 || index >= items.Count || !items.Any() || items[index].IsDisabled) return;
+        itemsView.SetIndex(index);
     }
 
 
