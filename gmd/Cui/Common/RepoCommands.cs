@@ -32,6 +32,7 @@ interface IRepoCommands
 
     void ShowUncommittedDiff(bool isFromDiff = false);
     void ShowCurrentRowDiff();
+    void ShowDiff(string commitId, bool isFromDiff = false);
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
 
     void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);

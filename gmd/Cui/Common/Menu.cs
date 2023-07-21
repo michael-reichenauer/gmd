@@ -485,6 +485,12 @@ static class MenuExtensions
         return items;
     }
 
+    public static ICollection<MenuItem> Item(this ICollection<MenuItem> items, MenuItem item)
+    {
+        items.Add(item);
+        return items;
+    }
+
     public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, params MenuItem[] moreItems)
     {
         moreItems.Where(i => i != null).ForEach(i => items.Add(i));
