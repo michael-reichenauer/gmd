@@ -30,6 +30,8 @@ class RepoWriter : IRepoWriter
 
     public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex, int width)
     {
+        if (!repo.Commits.Any() || count == 0) return new List<Text>();
+
         List<Text> rows = new List<Text>();
         var branchTips = GetBranchTips(repo);
 

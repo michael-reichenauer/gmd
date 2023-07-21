@@ -35,12 +35,14 @@ class ContentView : View
     internal ContentView(GetContentCallback onGetContent)
     {
         this.onGetContent = onGetContent;
+        WantMousePositionReports = true;
     }
 
     internal ContentView(IReadOnlyList<Text> content)
     {
         this.contentRows = content;
         TotalCount = content.Count;
+        WantMousePositionReports = true;
         SetNeedsDisplay();
     }
 

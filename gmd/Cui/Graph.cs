@@ -8,9 +8,9 @@ class Graph
     GraphRow[] rows;
     readonly IReadOnlyList<GraphBranch> branches;
 
-    internal int Width { get; private set; }
+    public int Width { get; private set; }
 
-    internal Graph(int columnCount, int height, IReadOnlyList<GraphBranch> branches)
+    public Graph(int columnCount, int height, IReadOnlyList<GraphBranch> branches)
     {
         Width = columnCount * 2;
         rows = new GraphRow[height];
@@ -21,9 +21,19 @@ class Graph
         this.branches = branches;
     }
 
-    internal GraphRow GetRow(int index) => rows[index];
+    public GraphRow GetRow(int index) => rows[index];
 
-    internal GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
+    public GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
+
+    public bool TryGetBranchByPos(int x, int y, out Server.Branch branch)
+    {
+        // Find the branch that is at the given position (return Server.Branch B)
+        // Log.Info($"TryGetBranchByPos({x}, {y}, {branches.Select(b => $"{b.B.Name}, {b.X} {b.TipIndex}, {b.BottomIndex}").Join("\n")})");
+        branch = branches
+            .FirstOrDefault(b => (b.X * 2 == (x - 1) && y >= b.TipIndex && y <= b.BottomIndex))
+            ?.B ?? null!;
+        return branch != null;
+    }
 
     public IReadOnlyList<GraphBranch> GetOverlappingBranches(string branchName)
     {
@@ -52,7 +62,7 @@ class Graph
 
 
 
-    internal void DrawHorizontalLine(int x1, int x2, int y, Color color)
+    public void DrawHorizontalLine(int x1, int x2, int y, Color color)
     {
         for (int x = x1; x < x2; x++)
         {
@@ -61,7 +71,7 @@ class Graph
         }
     }
 
-    internal void DrawVerticalLine(int x, int y1, int y2, Color color)
+    public void DrawVerticalLine(int x, int y1, int y2, Color color)
     {
         for (int y = y1; y < y2; y++)
         {
@@ -70,12 +80,12 @@ class Graph
     }
 
 
-    internal void SetGraphConnect(int x, int y, Sign sign, Color color) =>
+    public void SetGraphConnect(int x, int y, Sign sign, Color color) =>
         rows[y].SetConnect(x, sign, color);
 
 
 
-    internal void SetGraphBranch(int x, int y, Sign sign, Color color, GraphBranch branch) =>
+    public void SetGraphBranch(int x, int y, Sign sign, Color color, GraphBranch branch) =>
         rows[y].SetBranch(x, sign, color, branch);
 
     void SetGraphBranchPass(int x, int y, Sign sign, Color color) =>
