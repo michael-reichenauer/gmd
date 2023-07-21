@@ -11,7 +11,6 @@ interface IRepoWriter
 
 class RepoWriter : IRepoWriter
 {
-    static readonly int maxTipNameLength = 16;
     const int markersWidth = 3; //  1 current marker and 1 ahead/behind and one space
 
     readonly IBranchColorService branchColorService;
@@ -282,7 +281,7 @@ class RepoWriter : IRepoWriter
                 branchTips[b.AmbiguousTipId] = ambiguousTipText;
             }
 
-            string branchName = ToShortBranchName(b);
+            string branchName = b.ShortNiceUniqueName();
             var color = branchColorService.GetColor(repo.Repo, b);
 
             if (b.IsGitBranch)
@@ -361,16 +360,6 @@ class RepoWriter : IRepoWriter
         }
 
         return branchTips;
-    }
-
-    string ToShortBranchName(Branch branch)
-    {
-        var name = branch.NiceNameUnique;
-        if (name.Length > maxTipNameLength)
-        {   // Branch name to long, shorten it
-            name = "┅" + name.Substring(name.Length - maxTipNameLength);
-        }
-        return name;
     }
 }
 

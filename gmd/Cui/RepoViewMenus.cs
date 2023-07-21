@@ -13,6 +13,8 @@ interface IRepoViewMenus
     void ShowHideBranchesMenu();
     void ShowOpenMenu();
     void ShowCommitBranchesMenu(int x, int y);
+    void ShowCommitMenu(int x, int y, int index);
+    void ShowBranchMenu(int x, int y, string branchName);
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -43,6 +45,18 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowMainMenu(int x = Menu.Center, int y = 0)
     {
         Menu.Show("Main Menu", x, y, GetMainMenuItems());
+    }
+
+    public void ShowCommitMenu(int x, int y, int index)
+    {
+        var c = repo.Commits[index];
+        Menu.Show($"Commit {c.Sid} Menu", x, y, GetMainMenuItems());
+    }
+
+    public void ShowBranchMenu(int x, int y, string branchName)
+    {
+        var b = repo.Branch(branchName);
+        Menu.Show($"Branch {b.ShortNiceUniqueName()} Menu", x, y, GetBranchMenuItems(branchName));
     }
 
 
@@ -109,6 +123,45 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Help ...", "H", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Esc", () => UI.Shutdown());
+    }
+
+    IEnumerable<MenuItem> GetBranchMenuItems(string name)
+    {
+        var b = repo.Branch(name);
+        var cb = repo.CurrentBranch;
+        var isOK = repo.Status.IsOk;
+
+        var items = Menu.Items;
+
+        if (states.Get().Releases.IsUpdateAvailable && !Build.IsDevInstance())
+        {
+            items.Separator("New Release Available !!!")
+                .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
+                .Separator();
+        }
+
+        var switchItems = GetSwitchToItems()
+                .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "",
+                    () => cmds.SwitchToCommit(),
+                    () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id));
+
+        return items
+            .Items(GetSwitchToBranchItem(name))
+            .SubMenu("Diff Branch to", "", GetPreviewMergeItems(false, false))
+            .Item("Hide Branch", "H", () => cmds.HideBranch(name))
+            .Item("Push/Publish", "", () => cmds.PushBranch(name), () => b.HasLocalOnly)
+            .Item("Push/Publish", "", () => cmds.PullBranch(name), () => b.HasRemoteOnly)
+            .Item($"Merge to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && isOK)
+            .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
+            .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
+
+            .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+
+            // .SubMenu("Stash", "", GetStashMenuItems())
+
+            // .SubMenu("Branch Structure", "", GetBranchStructureItems())
+
+            ;
     }
 
 
@@ -362,6 +415,14 @@ class RepoViewMenus : IRepoViewMenus
              .OrderBy(b => b.PrimaryName);
 
         return ToHierarchicalBranchesItems(branches, b => cmds.SwitchTo(b.LocalName != "" ? b.LocalName : b.Name), null, true);
+    }
+
+    MenuItem GetSwitchToBranchItem(string branchName)
+    {
+        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+        var branch = repo.Branch(branchName);
+        if (branch.LocalName != "") branchName = branch.LocalName;
+        return Menu.Item("Switch to Branch", "S", () => cmds.SwitchTo(branchName), () => branch.PrimaryName != currentName);
     }
 
     IEnumerable<MenuItem> GetDeleteItems()

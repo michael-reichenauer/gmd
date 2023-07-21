@@ -154,18 +154,20 @@ class Menu
         // Calculate view height based on number of items, screen height and max height if very large screen 
         var viewHeight = Math.Min(items.Count + 2, Math.Min(maxHeight, screenHeight));
 
-        // Calculate items width based on longest title and shortcut, and if sub menu marker is needed and scrollbar is needed
-        var titleWidth = Math.Max(items.Any() ? items.Max(i => i.Title.Length) : 0, title.Length + 4);
+        // Calculate items width based on longest item tex and shortcut, and if sub menu marker is needed and scrollbar is needed
         var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length + 1) : 0;  // Include space before
         var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space before 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
+        var suffixWidth = shortcutWidth + subMenuMarkerWidth + screenWidth;
+        var titleMargin = Math.Max(-3, 4 - suffixWidth);
+        var itemText = Math.Max(items.Any() ? items.Max(i => i.Title.Length) : 0, title.Length + titleMargin);
 
         // Calculate view width based on title, shortcut, sub menu marker and scrollbar
-        var viewWidth = titleWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
+        var viewWidth = itemText + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
         if (viewWidth > screenWidth)
         {   // Too wide view, try to fit on screen (reduce title width)
             viewWidth = screenWidth;
-            titleWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
+            itemText = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
         // Calculate view x and y position to be centered if Menu.Center or based on original x and y 
@@ -191,7 +193,7 @@ class Menu
         }
         viewY = Math.Max(0, viewY);
 
-        return new Dimensions(viewX, viewY, viewWidth, viewHeight, titleWidth, shortcutWidth, subMenuMarkerWidth);
+        return new Dimensions(viewX, viewY, viewWidth, viewHeight, itemText, shortcutWidth, subMenuMarkerWidth);
     }
 
 

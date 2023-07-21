@@ -51,7 +51,7 @@ class RepoView : IRepoView
     // State data
     IRepo repo; // Is set once the repo has been retrieved the first time in ShowRepo().
     IRepoCommands Cmd => repo.Cmd;
-    IRepoViewMenus? menuService;
+    IRepoViewMenus menuService = null!;
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
     bool isShowDetails = false;
@@ -91,10 +91,10 @@ class RepoView : IRepoView
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             IsFocus = true,
-            IsShowCursor = false,
+            IsShowCursor = true,
             IsCursorMargin = false,
             IsScrollMode = false,
-            IsHighlightCurrentIndex = true,
+            IsHighlightCurrentIndex = false,
         };
         commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
 
@@ -104,7 +104,6 @@ class RepoView : IRepoView
         server.RepoChange += OnRefreshRepo;
         server.StatusChange += OnRefreshStatus;
     }
-
 
 
     public View View => commitsView;
@@ -240,32 +239,18 @@ class RepoView : IRepoView
     void OnRefreshRepo(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
-        if (isRepoUpdateInProgress)
-        {
-            return;
-        }
+        if (isRepoUpdateInProgress) return;
+        if (e.TimeStamp - repo.Repo.RepoTimeStamp < minRepoUpdateInterval) return;
 
-        if (e.TimeStamp - repo.Repo.RepoTimeStamp < minRepoUpdateInterval)
-        {
-            Log.Debug("New repo event to soon, skipping update");
-            return;
-        }
         ShowRefreshedRepoAsync("", "").RunInBackground();
     }
 
     void OnRefreshStatus(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
-        if (isStatusUpdateInProgress || isRepoUpdateInProgress)
-        {
-            return;
-        }
+        if (isStatusUpdateInProgress || isRepoUpdateInProgress) return;
+        if (e.TimeStamp - repo.Repo.RepoTimeStamp < minStatusUpdateInterval) return;
 
-        if (e.TimeStamp - repo.Repo.RepoTimeStamp < minStatusUpdateInterval)
-        {
-            Log.Debug("New status event to soon, skipping update");
-            return;
-        }
         ShowUpdatedStatusRepoAsync().RunInBackground();
     }
 
@@ -281,10 +266,10 @@ class RepoView : IRepoView
         // Keys on repo view contents
         commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
-        commitsView.RegisterKeyHandler(Key.m, () => menuService!.ShowMainMenu());
-        commitsView.RegisterKeyHandler(Key.o, () => menuService!.ShowOpenMenu());
-        commitsView.RegisterKeyHandler(Key.CursorRight, () => menuService!.ShowShowBranchesMenu());
-        commitsView.RegisterKeyHandler(Key.CursorLeft, () => menuService!.ShowHideBranchesMenu());
+        commitsView.RegisterKeyHandler(Key.m, () => menuService.ShowMainMenu());
+        commitsView.RegisterKeyHandler(Key.o, () => menuService.ShowOpenMenu());
+        commitsView.RegisterKeyHandler(Key.CursorRight, () => menuService.ShowShowBranchesMenu());
+        commitsView.RegisterKeyHandler(Key.CursorLeft, () => menuService.ShowHideBranchesMenu());
         commitsView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
         commitsView.RegisterKeyHandler(Key.F5, () => RefreshAndFetch());
         commitsView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
@@ -314,9 +299,7 @@ class RepoView : IRepoView
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
-
     }
-
 
 
     void Copy()
@@ -366,21 +349,23 @@ class RepoView : IRepoView
             }
             else if (commitBranches.Count > 1)
             {   // Multiple possible branches, show menu to select which to open
-                menuService!.ShowCommitBranchesMenu(x, y);
+                menuService.ShowCommitBranchesMenu(x, y);
             }
         }
     }
 
     void RightClicked(int x, int y)
     {
+        int index = y + commitsView.FirstIndex;
         if (x > repo.Graph.Width)
         {
             Log.Info($"Right clicked on commit");
-            menuService!.ShowMainMenu(x - 1, y - 1);
+            menuService.ShowCommitMenu(x - 1, y - 1, index);
         }
-        else if (repo.Graph.TryGetBranchByPos(x, y + commitsView.FirstIndex, out var branch))
+        else if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {
             Log.Info($"Right clicked on branch {branch.Name}");
+            menuService.ShowBranchMenu(x - 1, y - 1, branch.Name);
         }
 
     }

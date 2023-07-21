@@ -151,6 +151,24 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    public async Task<R> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout, string wd)
+    {
+        Log.Info($"Create branch {newBranchName} ...");
+
+        var source = repo.Branches[sourceBranch];
+
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd))) return e;
+
+            // Get the latest meta data
+            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
+
+            metaData.SetBranched(source.TipId, source.NiceName);
+            return await metaDataService.SetMetaDataAsync(wd, metaData);
+        }
+    }
+
     public async Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd)
     {
         Log.Info($"Create branch {newBranchName} from {sha} ...");

@@ -38,6 +38,7 @@ interface IRepoCommands
     void CommitFromMenu(bool isAmend);
 
     void CreateBranch();
+    void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
     void MergeBranch(string name);
@@ -706,6 +707,31 @@ class RepoCommands : IRepoCommands
         Refresh(rsp.Name);
         return R.Ok;
     });
+
+
+    public void CreateBranchFromBranch(string name) => Do(async () =>
+    {
+        //var currentBranchName = repo.GetCurrentBranch().Name;
+        var branch = repo.Branch(name);
+        if (branch.LocalName != "") name = branch.LocalName;
+
+        if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
+
+        if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, repoPath)))
+        {
+            return R.Error($"Failed to create branch {rsp.Name}", e);
+        }
+
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
+        {
+            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+        }
+
+        Refresh(rsp.Name);
+        return R.Ok;
+    });
+
+
 
 
     public void CreateBranchFromCommit() => Do(async () =>
