@@ -34,6 +34,7 @@ interface IRepoCommands
     void ShowCurrentRowDiff();
     void ShowDiff(string commitId, bool isFromDiff = false);
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
+    void DiffBranchesBranch(string branchName1, string branchName2);
 
     void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
@@ -472,6 +473,30 @@ class RepoCommands : IRepoCommands
 
 
         RefreshAndCommit("", "", commits);
+        return R.Ok;
+    });
+
+
+    public void DiffBranchesBranch(string branchName1, string branchName2) => Do(async () =>
+    {
+        if (repo.CurrentBranch == null) return R.Ok;
+        string message = "";
+        var branch1 = repo.Branch(branchName1);
+        var branch2 = repo.Branch(branchName2);
+
+        var sha1 = branch1.TipId;
+        var sha2 = branch2.TipId;
+        if (sha1 == Repo.UncommittedId || sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
+
+        message = $"Diff '{branch1.NiceNameUnique}' with '{branch2.NiceNameUnique}'";
+
+
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, repoPath)))
+        {
+            return R.Error($"Failed to get diff", e);
+        }
+
+        diffView.Show(diff, sha1, repoPath);
         return R.Ok;
     });
 
