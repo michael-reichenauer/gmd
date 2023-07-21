@@ -130,6 +130,7 @@ class RepoViewMenus : IRepoViewMenus
             .SubMenu("Branch Structure", "", GetBranchStructureItems())
             .Item("Search/Filter ...", "F", () => cmds.Filter())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
+            .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
             .Item("Help ...", "H", () => cmds.ShowHelp())
@@ -151,7 +152,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => c.IsUncommitted)
             .Item($"Amend {sid} ...", "A", () => cmds.CommitFromMenu(true), () => cc.IsAhead && c.Id == cc.Id)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
-            .SubMenu("Undo", "", GetUndoItems(), () => c.IsUncommitted)
+            .SubMenu("Undo", "", GetCommitUndoItems(), () => c.IsUncommitted)
             .Item($"Switch to Commit {sid}", "",
                     () => cmds.SwitchToCommit(),
                     () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
@@ -232,7 +233,7 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> GetTagItems() => Menu.Items
-        .Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
+        .Item("Add Tag ...", "T", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
         .SubMenu("Remove Tag", "", GetDeleteTagItems());
 
 
@@ -589,6 +590,26 @@ class RepoViewMenus : IRepoViewMenus
             : items;
     }
 
+    IEnumerable<MenuItem> GetCommitUndoItems()
+    {
+        string id = repo.RowCommit.Id;
+        string sid = repo.RowCommit.Sid;
+        var binaryPaths = repo.Status.AddedFiles
+            .Concat(repo.Status.ModifiedFiles)
+            .Concat(repo.Status.RenamedTargetFiles)
+            .Where(f => !Files.IsText(Path.Join(repo.RepoPath, f)))
+            .ToList();
+
+        return Menu.Items
+            .SubMenu("Undo/Restore Uncommitted Files", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
+            .Item($"Undo Commit {sid}", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
+            .Item($"Uncommit Last Commit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
+            .Separator()
+            .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
+            .Item("Undo/Restore all Uncommitted Changes", "",
+                () => cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted());
+    }
+
 
     IEnumerable<MenuItem> GetUndoItems()
     {
@@ -607,8 +628,7 @@ class RepoViewMenus : IRepoViewMenus
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
             .Item("Undo/Restore all Uncommitted Changes", "",
-                () => cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted())
-            .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder());
+                () => cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted());
     }
 
 

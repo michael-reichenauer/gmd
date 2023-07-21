@@ -359,13 +359,13 @@ class RepoView : IRepoView
         if (x > repo.Graph.Width)
         {
             Log.Info($"Right clicked on commit");
-            commitsView.SetIndex(index);
+            commitsView.SetIndex(y);
             menuService.ShowCommitMenu(x + 2, y - 1, index);
         }
         else if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {
             Log.Info($"Right clicked on branch {branch.Name}");
-            commitsView.SetIndex(index);
+            commitsView.SetIndex(y);
             menuService.ShowBranchMenu(x + 2, y - 1, branch.Name);
         }
 
