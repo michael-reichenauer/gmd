@@ -57,8 +57,8 @@ class RepoView : IRepoView
     bool isShowDetails = false;
     bool isShowFilter;
     bool isRegistered = false;
-    string hooverPrimaryBranchName = "";
-    int hooverRow;
+    string hooverBranchName = "";
+    int hooverIndex;
     //int hooverPreCommitRow;
 
     internal RepoView(
@@ -269,8 +269,11 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
         commitsView.RegisterKeyHandler(Key.o, () => menuService.ShowOpenMenu());
-        commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         commitsView.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
+        commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
+        commitsView.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
+        commitsView.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
+
         commitsView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
         commitsView.RegisterKeyHandler(Key.F5, () => RefreshAndFetch());
         commitsView.RegisterKeyHandler(Key.c, () => Cmd.Commit(false));
@@ -308,13 +311,13 @@ class RepoView : IRepoView
 
     void OnKeyE()
     {
-        if (hooverPrimaryBranchName != "")
+        if (hooverBranchName != "")
         {
-            var branch = repo.Branch(hooverPrimaryBranchName);
+            var branch = repo.Branch(hooverBranchName);
             if (branch.LocalName != "") branch = repo.Branch(branch.LocalName);
             if (!branch.IsCurrent && repo.Status.IsOk)
             {
-                Cmd.MergeBranch(hooverPrimaryBranchName);
+                Cmd.MergeBranch(hooverBranchName);
             }
         }
     }
@@ -322,9 +325,9 @@ class RepoView : IRepoView
 
     void OnKeyS()
     {
-        if (hooverPrimaryBranchName != "")
+        if (hooverBranchName != "")
         {
-            var branchName = hooverPrimaryBranchName;
+            var branchName = hooverBranchName;
             var currentName = repo.CurrentBranch?.PrimaryName ?? "";
             var branch = repo.Branch(branchName);
             if (branch.LocalName != "") branchName = branch.LocalName;
@@ -340,10 +343,10 @@ class RepoView : IRepoView
 
     void OnKeyEnter()
     {
-        if (hooverPrimaryBranchName != "")
+        if (hooverBranchName != "")
         {
-            var branch = repo.Graph.GetRowBranches(repo.CurrentRow)
-               .FirstOrDefault(b => b.B.PrimaryName == hooverPrimaryBranchName);
+            var branch = repo.Graph.GetRowBranches(repo.CurrentIndex)
+               .FirstOrDefault(b => b.B.PrimaryName == hooverBranchName);
             if (branch != null)
             {
                 TryShowHideCommitBranch(branch.X * 2 + 3, commitsView.CurrentPoint.Y + 1);
@@ -358,18 +361,18 @@ class RepoView : IRepoView
 
     void OnMenu()
     {
-        if (hooverPrimaryBranchName != "")
+        if (hooverBranchName != "")
         {
-            var branch = repo.Graph.GetRowBranches(repo.CurrentRow)
-                .FirstOrDefault(b => b.B.PrimaryName == hooverPrimaryBranchName);
+            var branch = repo.Graph.GetRowBranches(repo.CurrentIndex)
+                .FirstOrDefault(b => b.B.PrimaryName == hooverBranchName);
             if (branch == null)
             {
-                hooverPrimaryBranchName = "";
+                hooverBranchName = "";
                 commitsView.SetNeedsDisplay();
                 return;
             }
 
-            menuService.ShowBranchMenu(branch.X * 2 + 3, commitsView.CurrentPoint.Y, hooverPrimaryBranchName);
+            menuService.ShowBranchMenu(branch.X * 2 + 3, commitsView.CurrentPoint.Y, hooverBranchName);
             return;
         }
 
@@ -378,15 +381,15 @@ class RepoView : IRepoView
 
     private void OnCursorLeft()
     {
-        var branches = repo.Graph.GetRowBranches(repo.CurrentRow);
+        var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
 
-        var hooverIndex = hooverPrimaryBranchName == ""
-            ? -1 : branches.FindIndexOf(b => b.B.PrimaryName == hooverPrimaryBranchName);
+        var hooverIndex = hooverBranchName == ""
+            ? -1 : branches.FindIndexOf(b => b.B.PrimaryName == hooverBranchName);
 
         if (hooverIndex < 0)
         {   // No hoover branch, or not found, select right most branch
-            hooverPrimaryBranchName = branches.Last().B.PrimaryName;
-            hooverRow = repo.CurrentRow;
+            hooverBranchName = branches.Last().B.PrimaryName;
+            this.hooverIndex = repo.CurrentIndex;
             commitsView.SetNeedsDisplay();
             return;
         }
@@ -394,30 +397,77 @@ class RepoView : IRepoView
         if (hooverIndex == 0) return; // Reached left side
 
         var branch = branches[hooverIndex - 1];
-        hooverPrimaryBranchName = branches[hooverIndex - 1].B.PrimaryName;
-        hooverRow = repo.CurrentRow;
+        hooverBranchName = branches[hooverIndex - 1].B.PrimaryName;
+        this.hooverIndex = repo.CurrentIndex;
         commitsView.SetNeedsDisplay();
     }
 
     private void OnCursorRight()
     {
-        if (hooverPrimaryBranchName == "") return;
+        if (hooverBranchName == "") return;
 
-        var branches = repo.Graph.GetRowBranches(repo.CurrentRow);
-        var hooverIndex = branches.FindLastIndexOf(b => b.B.PrimaryName == hooverPrimaryBranchName);
+        var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
+        var hooverIndex = branches.FindLastIndexOf(b => b.B.PrimaryName == hooverBranchName);
 
         if (hooverIndex == branches.Count - 1 || hooverIndex == -1)
         {   // Reached right side (or hover branch not found), select commit
-            hooverPrimaryBranchName = "";
-            hooverRow = repo.CurrentRow;
+            hooverBranchName = "";
+            this.hooverIndex = repo.CurrentIndex;
             commitsView.SetNeedsDisplay();
             return;
         }
 
-        hooverPrimaryBranchName = branches[hooverIndex + 1].B.PrimaryName;
-        hooverRow = repo.CurrentRow;
+        hooverBranchName = branches[hooverIndex + 1].B.PrimaryName;
+        this.hooverIndex = repo.CurrentIndex;
         commitsView.SetNeedsDisplay();
     }
+
+    void OnCursorUp()
+    {
+        var hoverName = hooverBranchName;
+        var hoverColumnIndex = hoverName != "" ? repo.Graph.GetRowBranches(repo.CurrentIndex).FindIndexOf(b => b.B.PrimaryName == hoverName) : -1;
+
+        commitsView.ClearSelection();
+        commitsView.Move(-1);
+
+        if (hoverName != "")
+        {   // Try locate the same branch on the previous row or the next branch on the previous row
+            var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
+            var branch = branches.FirstOrDefault(b => b.B.PrimaryName == hoverName);
+            if (branch == null)
+            {// Try locate some other branch on this row
+                branch = branches[Math.Min(hoverColumnIndex, branches.Count - 1)];
+            }
+
+            hooverBranchName = branch.B.PrimaryName;
+            hooverIndex = repo.CurrentIndex;
+            commitsView.SetNeedsDisplay();
+        }
+    }
+
+    void OnCursorDown()
+    {
+        var hoverName = hooverBranchName;
+        var hoverColumnIndex = hoverName != "" ? repo.Graph.GetRowBranches(repo.CurrentIndex).FindIndexOf(b => b.B.PrimaryName == hoverName) : -1;
+
+        commitsView.ClearSelection();
+        commitsView.Move(1);
+
+        if (hoverName != "")
+        {   // Try locate the same branch on the previous row or the next branch on the previous row
+            var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
+            var branch = branches.FirstOrDefault(b => b.B.PrimaryName == hoverName);
+            if (branch == null)
+            {// Try locate some other branch on this row
+                branch = branches[Math.Min(hoverColumnIndex, branches.Count - 1)];
+            }
+
+            hooverBranchName = branch.B.PrimaryName;
+            hooverIndex = repo.CurrentIndex;
+            commitsView.SetNeedsDisplay();
+        }
+    }
+
 
     void Copy()
     {
@@ -496,10 +546,10 @@ class RepoView : IRepoView
         var index = y + commitsView.FirstIndex;
         if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {   // Moved over a branch
-            if (hooverPrimaryBranchName != branch.PrimaryName)
+            if (hooverBranchName != branch.PrimaryName)
             {
-                hooverPrimaryBranchName = branch.PrimaryName;
-                hooverRow = index;
+                hooverBranchName = branch.PrimaryName;
+                hooverIndex = index;
                 commitsView.SetNeedsDisplay();
             }
 
@@ -508,9 +558,9 @@ class RepoView : IRepoView
             return false;
         }
 
-        if (hooverPrimaryBranchName != "")
+        if (hooverBranchName != "")
         {   // No longer hovering over branch,
-            hooverPrimaryBranchName = "";
+            hooverBranchName = "";
             commitsView.SetNeedsDisplay();
         }
 
@@ -520,18 +570,18 @@ class RepoView : IRepoView
 
     (IEnumerable<Text> rows, int total) onGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        if (hooverPrimaryBranchName != "" && hooverRow != currentIndex)
+        if (hooverBranchName != "" && hooverIndex != currentIndex)
         {
             if (null == repo.Graph
-                .GetRowBranches(repo.CurrentRow)
-                .FirstOrDefault(b => b.B.PrimaryName == hooverPrimaryBranchName))
+                .GetRowBranches(repo.CurrentIndex)
+                .FirstOrDefault(b => b.B.PrimaryName == hooverBranchName))
             {
-                hooverPrimaryBranchName = "";
+                hooverBranchName = "";
             }
-            hooverRow = currentIndex;
+            hooverIndex = currentIndex;
         }
 
-        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverPrimaryBranchName, hooverRow, width), repo.Commits.Count);
+        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverIndex, width), repo.Commits.Count);
     }
 
 
