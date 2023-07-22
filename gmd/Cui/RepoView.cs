@@ -287,7 +287,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
 
-        commitsView.RegisterKeyHandler(Key.Enter, () => ToggleDetails());
+        commitsView.RegisterKeyHandler(Key.Enter, () => OnKeyEnter());
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
 
@@ -302,7 +302,40 @@ class RepoView : IRepoView
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
     }
 
-    private void OnMenu()
+    void OnKeyS()
+    {
+        if (hooverPrimaryBranchName != "")
+        {
+            if (repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
+            {
+                Cmd.SwitchToCommit();
+            }
+
+            return;
+        }
+
+        ToggleDetails();
+    }
+
+    void OnKeyEnter()
+    {
+        if (hooverPrimaryBranchName != "")
+        {
+            var branch = repo.Graph.GetRowBranches(repo.CurrentRow)
+               .FirstOrDefault(b => b.B.PrimaryName == hooverPrimaryBranchName);
+            if (branch != null)
+            {
+                TryShowHideCommitBranch(branch.X * 2 + 3, commitsView.CurrentPoint.Y + 1);
+                return;
+            }
+
+            return;
+        }
+
+        ToggleDetails();
+    }
+
+    void OnMenu()
     {
         if (hooverPrimaryBranchName != "")
         {
@@ -394,25 +427,32 @@ class RepoView : IRepoView
 
         if (repo.Graph.TryGetBranchByPos(x, y + commitsView.FirstIndex, out var branch))
         {
-            var commit = repo!.RowCommit;
-            var commitBranches = repo.GetCommitBranches();
-            var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
-                repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent);
-
-            if (isMergeTargetOpen && commitBranches.Count == 0)
-            {   // Close the merged branch
-                Cmd.HideBranch(repo.Commit(commit.ParentIds[1]).BranchName);
-            }
-            else if (commitBranches.Count == 1)
-            {   // Just one possible branch, open it
-                Cmd.ShowBranch(commitBranches[0].Name, commit.Id);
-            }
-            else if (commitBranches.Count > 1)
-            {   // Multiple possible branches, show menu to select which to open
-                menuService.ShowCommitBranchesMenu(x, y);
-            }
+            TryShowHideCommitBranch(x, y);
         }
     }
+
+    void TryShowHideCommitBranch(int x, int y)
+    {
+        var commit = repo!.RowCommit;
+        var commitBranches = repo.GetCommitBranches();
+        var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
+            repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent);
+
+        if (isMergeTargetOpen && commitBranches.Count == 0)
+        {   // Close the merged branch
+            Cmd.HideBranch(repo.Commit(commit.ParentIds[1]).BranchName);
+        }
+        else if (commitBranches.Count == 1)
+        {   // Just one possible branch, open it
+            Cmd.ShowBranch(commitBranches[0].Name, commit.Id);
+        }
+        else if (commitBranches.Count > 1)
+        {   // Multiple possible branches, show menu to select which to open
+            menuService.ShowCommitBranchesMenu(x, y);
+        }
+    }
+
+
 
     void RightClicked(int x, int y)
     {
