@@ -204,14 +204,14 @@ class RepoCommands : IRepoCommands
 
     public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
     {
+        if (!isAmend && repo.Status.IsOk) return R.Ok;
+        if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
+
         if (repo.CurrentBranch?.IsDetached == true)
         {
             UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
             return R.Ok;
         }
-
-        if (!isAmend && repo.Status.IsOk) return R.Ok;
-        if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
 
         if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 
