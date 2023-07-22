@@ -298,9 +298,9 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
 
-        commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => Clicked(x, y));
-        commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => DoubleClicked(x, y));
-        commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => RightClicked(x, y));
+        commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClicked(x, y));
+        commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => OnDoubleClicked(x, y));
+        commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => OnRightClicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.ReportMousePosition, (x, y) => MouseMoved(x, y));
 
         // Keys on commit details view.
@@ -497,13 +497,13 @@ class RepoView : IRepoView
         }
     }
 
-    void DoubleClicked(int x, int y)
+    void OnDoubleClicked(int x, int y)
     {
         commitsView.SetIndex(y);
         ToggleDetails();
     }
 
-    void Clicked(int x, int y)
+    void OnClicked(int x, int y)
     {
         commitsView.SetIndex(y);
 
@@ -515,7 +515,7 @@ class RepoView : IRepoView
 
     void TryShowHideCommitBranch(int x, int y)
     {
-        var commit = repo!.RowCommit;
+        var commit = repo.RowCommit;
         var commitBranches = repo.GetCommitBranches();
         var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
             repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent);
@@ -532,11 +532,16 @@ class RepoView : IRepoView
         {   // Multiple possible branches, show menu to select which to open
             menuService.ShowCommitBranchesMenu(x, y);
         }
+        else if (commit.Id == repo.Branch(commit.BranchPrimaryName).TipId
+            || commit.Id == repo.Branch(commit.BranchPrimaryName).BottomId)
+        {
+            Cmd.HideBranch(commit.BranchPrimaryName);
+        }
     }
 
 
 
-    void RightClicked(int x, int y)
+    void OnRightClicked(int x, int y)
     {
         int index = y + commitsView.FirstIndex;
         if (x > repo.Graph.Width)

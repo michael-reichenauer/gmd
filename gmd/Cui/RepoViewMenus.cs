@@ -158,6 +158,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit())
             .Separator()
             .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+            .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", GetRepoMenuItems());
     }
