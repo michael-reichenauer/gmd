@@ -288,7 +288,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
 
         commitsView.RegisterKeyHandler(Key.s, () => OnKeyS());
-        commitsView.RegisterKeyHandler(Key.w, () => OnKeyE());
+        commitsView.RegisterKeyHandler(Key.e, () => OnKeyE());
 
         commitsView.RegisterKeyHandler(Key.Enter, () => OnKeyEnter());
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
