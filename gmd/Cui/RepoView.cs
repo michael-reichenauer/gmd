@@ -307,9 +307,14 @@ class RepoView : IRepoView
     {
         if (hooverPrimaryBranchName != "")
         {
-            if (repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
+            var branchName = hooverPrimaryBranchName;
+            var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+            var branch = repo.Branch(branchName);
+            if (branch.LocalName != "") branchName = branch.LocalName;
+
+            if (branch.PrimaryName != currentName)
             {
-                Cmd.SwitchToCommit();
+                Cmd.SwitchTo(branchName);
             }
 
             return;
