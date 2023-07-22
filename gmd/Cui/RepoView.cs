@@ -289,6 +289,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
 
+        commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, () => OnKeyS());
         commitsView.RegisterKeyHandler(Key.e, () => OnKeyE());
         commitsView.RegisterKeyHandler(Key.h, () => OnKeyH());
@@ -302,11 +303,12 @@ class RepoView : IRepoView
         commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => RightClicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.ReportMousePosition, (x, y) => MouseMoved(x, y));
 
-
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
     }
+
+
 
     void OnKeyH()
     {
@@ -413,11 +415,7 @@ class RepoView : IRepoView
 
     private void OnCursorRight()
     {
-        if (hooverBranchName == "")
-        {
-            menuService.ShowShowBranchesMenu();
-            return;
-        }
+        if (hooverBranchName == "") return;
 
         var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
         var hooverIndex = branches.FindLastIndexOf(b => b.B.PrimaryName == hooverBranchName);
