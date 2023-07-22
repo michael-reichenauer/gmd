@@ -93,6 +93,21 @@ public static class EnumerableExtensions
         return -1;
     }
 
+    public static int FindLastIndexOf<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+    {
+        var index = 0;
+        var reverseSource = source.Reverse();
+        foreach (var item in reverseSource)
+        {
+            if (predicate(item))
+            {
+                return source.Count() - 1 - index;
+            }
+            index++;
+        }
+        return -1;
+    }
+
 
 
     // Returns elements from a sequence by concatenating the params parameters

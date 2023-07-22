@@ -25,15 +25,23 @@ class Graph
 
     public GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
 
-    public bool TryGetBranchByPos(int x, int y, out Server.Branch branch)
+    public bool TryGetBranchByPos(int x, int index, out Server.Branch branch)
     {
         // Find the branch that is at the given position (return Server.Branch B)
         // Log.Info($"TryGetBranchByPos({x}, {y}, {branches.Select(b => $"{b.B.Name}, {b.X} {b.TipIndex}, {b.BottomIndex}").Join("\n")})");
         branch = branches
-            .FirstOrDefault(b => (b.X * 2 == (x - 1) && y >= b.TipIndex && y <= b.BottomIndex))
+            .FirstOrDefault(b => (b.X * 2 == (x - 1) && index >= b.TipIndex && index <= b.BottomIndex))
             ?.B ?? null!;
         return branch != null;
     }
+
+
+    public IReadOnlyList<GraphBranch> GetRowBranches(int index) =>
+        branches
+            .Where(b => index >= b.TipIndex && index <= b.BottomIndex)
+            .OrderBy(b => b.X)
+            .ToList();
+
 
     public IReadOnlyList<GraphBranch> GetOverlappingBranches(string branchName)
     {

@@ -5,7 +5,8 @@ namespace gmd.Cui;
 
 interface IRepoWriter
 {
-    IEnumerable<Text> ToPage(IRepo repo, int firstRow, int rowCount, int currentIndex, string currentBranchName, int width);
+    IEnumerable<Text> ToPage(IRepo repo, int firstRow, int rowCount, int currentIndex,
+        string currentBranchName, int hooverRow, int width);
     bool IShowSid { get; set; }
 }
 
@@ -27,7 +28,8 @@ class RepoWriter : IRepoWriter
     public bool IShowSid { get; set; } = true;
 
 
-    public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex, string currentBranchName, int width)
+    public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex,
+        string currentBranchName, int hooverRow, int width)
     {
         if (!repo.Commits.Any() || count == 0) return new List<Text>();
         count = Math.Min(count, repo.Commits.Count - firstRow);
@@ -50,7 +52,7 @@ class RepoWriter : IRepoWriter
             // Build row
             var graphText = new TextBuilder();
             var graphRow = repo.Graph.GetRow(i);
-            WriteGraph(graphText, graphRow, cw.GraphWidth, currentBranchName);
+            WriteGraph(graphText, graphRow, cw.GraphWidth, currentBranchName, i == hooverRow);
             WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached);
             WriteAheadBehindMarker(graphText, c);
 
@@ -105,9 +107,10 @@ class RepoWriter : IRepoWriter
     }
 
 
-    void WriteGraph(TextBuilder text, GraphRow graphRow, int maxGraphWidth, string highlightBranchName = "")
+    void WriteGraph(TextBuilder text, GraphRow graphRow, int maxGraphWidth,
+        string highlightBranchName, bool isHoverIndex)
     {
-        text.Add(graphWriter.ToText(graphRow, maxGraphWidth, highlightBranchName));
+        text.Add(graphWriter.ToText(graphRow, maxGraphWidth, highlightBranchName, isHoverIndex));
     }
 
 

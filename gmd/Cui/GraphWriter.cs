@@ -4,12 +4,12 @@ namespace gmd.Cui;
 
 interface IGraphWriter
 {
-    Text ToText(GraphRow row, int maxWidth, string highlightBranchName);
+    Text ToText(GraphRow row, int maxWidth, string highlightPrimaryBranchName, bool isHoverIndex);
 }
 
 class GraphWriter : IGraphWriter
 {
-    public Text ToText(GraphRow row, int maxWidth, string highlightBranchName)
+    public Text ToText(GraphRow row, int maxWidth, string highlightBranchName, bool isHoverIndex)
     {
         var text = new TextBuilder();
         int width = Math.Min(row.Width, maxWidth / 2);
@@ -17,8 +17,7 @@ class GraphWriter : IGraphWriter
         {
             // Colors
             var column = row[i];
-            var isHighlightBranch = highlightBranchName != "" && column.Branch?.B.Name == highlightBranchName;
-            var branchColor = isHighlightBranch ? column.BranchColor with { Background = Color.Dark } : column.BranchColor;
+            var branchColor = GetBranchColor(column, highlightBranchName, isHoverIndex);
             var connectColor = column.ConnectColor;
             var passColor = column.PassColor;
 
@@ -51,6 +50,22 @@ class GraphWriter : IGraphWriter
         }
 
         return text;
+    }
+
+    Color GetBranchColor(GraphColumn column, string highlightBranchName, bool isCurrentIndex)
+    {
+        var isHighlightBranch = highlightBranchName != "" && column.Branch?.B.PrimaryName == highlightBranchName;
+
+        if (isHighlightBranch && isCurrentIndex)
+        {
+            return column.BranchColor with { Background = Color.White };  // Current branch and current index
+        }
+        if (isHighlightBranch)
+        {
+            return column.BranchColor with { Background = Color.Dark }; // Current branch
+        }
+
+        return column.BranchColor;
     }
 
 
