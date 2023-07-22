@@ -62,7 +62,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowShowBranchesMenu()
     {
-        Menu.Show("Switch to Branch", repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, Menu.Items
+        Menu.Show("Switch to Branch", repo.Graph.Width + 5, repo.CurrentIndex + 1, Menu.Items
             .Items(GetSwitchToItems())
             .Separator("Show/Open Branch")
             .Items(GetShowBranchItems())
@@ -147,20 +147,19 @@ class RepoViewMenus : IRepoViewMenus
         return Menu.Items
             .Items(GetNewReleaseItems())
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => c.IsUncommitted)
-            .Item($"Amend {sid} ...", "A", () => cmds.CommitFromMenu(true), () => cc.IsAhead && c.Id == cc.Id)
+            .Item($"Amend ...", "A", () => cmds.CommitFromMenu(true), () => cc.IsAhead && c.Id == cc.Id)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
             .SubMenu("Undo", "", GetCommitUndoItems(), () => c.IsUncommitted)
-            .Item($"Switch to Commit {sid}", "",
+            .Item($"Switch to Commit", "",
                     () => cmds.SwitchToCommit(),
                     () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .Item("Stash Changes", "", () => cmds.Stash(), () => c.Id == Repo.UncommittedId)
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
-            .Item($"Merge Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(c.Id), () => isStatusOK)
             .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit())
             .Separator()
             .SubMenu("Show/Open Branch", "", GetShowBranchItems())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
-            .SubMenu("Repo Menu", "M", GetRepoMenuItems());
+            .SubMenu("Repo Menu", "", GetRepoMenuItems());
     }
 
 
@@ -169,11 +168,12 @@ class RepoViewMenus : IRepoViewMenus
         var b = repo.Branch(name);
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Status.IsOk;
+        var mergeToName = b.IsCurrent || b.IsLocalCurrent ? "current branch" : cb?.ShortNiceUniqueName() ?? "";
 
         return Menu.Items
             .Items(GetNewReleaseItems())
             .Item(GetSwitchToBranchItem(name))
-            .Item($"Merge to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && isStatusOK)
+            .Item($"Merge to {mergeToName}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
             .Item("Hide Branch", "H", () => cmds.HideBranch(name))
             .Item("Pull/Update", "U", () => cmds.PullBranch(name), () => b.HasRemoteOnly && isStatusOK)
             .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)
@@ -188,7 +188,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .SubMenu("Branch Structure", "", GetBranchStructureItems())
-            .SubMenu("Repo Menu", "M", GetRepoMenuItems());
+            .SubMenu("Repo Menu", "", GetRepoMenuItems());
     }
 
     IEnumerable<MenuItem> GetNewReleaseItems()
@@ -591,7 +591,6 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitUndoItems()
     {
         string id = repo.RowCommit.Id;
-        string sid = repo.RowCommit.Sid;
         var binaryPaths = repo.Status.AddedFiles
             .Concat(repo.Status.ModifiedFiles)
             .Concat(repo.Status.RenamedTargetFiles)
@@ -599,9 +598,9 @@ class RepoViewMenus : IRepoViewMenus
             .ToList();
 
         return Menu.Items
-            .SubMenu("Undo/Restore Uncommitted Files", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
-            .Item($"Undo Commit {sid}", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
-            .Item($"Uncommit Last Commit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
+            .SubMenu("Undo/Restore an Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
+            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
+            .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
             .Item("Undo/Restore all Uncommitted Changes", "",
