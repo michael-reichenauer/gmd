@@ -449,7 +449,7 @@ class RepoView : IRepoView
             var branch = branches.FirstOrDefault(b => b.B.PrimaryName == hoverName);
             if (branch == null)
             {// Try locate some other branch on this row
-                branch = branches[Math.Min(hoverColumnIndex, branches.Count - 1)];
+                branch = branches[Math.Max(0, Math.Min(hoverColumnIndex, branches.Count - 1))];
             }
 
             hooverBranchName = branch.B.PrimaryName;
@@ -472,7 +472,7 @@ class RepoView : IRepoView
             var branch = branches.FirstOrDefault(b => b.B.PrimaryName == hoverName);
             if (branch == null)
             {// Try locate some other branch on this row
-                branch = branches[Math.Min(hoverColumnIndex, branches.Count - 1)];
+                branch = branches[Math.Max(0, Math.Min(hoverColumnIndex, branches.Count - 1))];
             }
 
             hooverBranchName = branch.B.PrimaryName;
