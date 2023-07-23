@@ -61,10 +61,10 @@ class Progress : IProgress
 
         progressView = new View()
         {
-            X = 0,
+            X = 4,
             Y = 0,
             Width = progressWidth + 3,
-            Height = 2,
+            Height = 1,
             ColorScheme = colorScheme,
             Visible = false,
         };

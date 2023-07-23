@@ -11,6 +11,7 @@ interface IRepoView
 {
     View View { get; }
     View DetailsView { get; }
+    View ApplicationBarView { get; }
     int CurrentIndex { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
@@ -43,6 +44,7 @@ class RepoView : IRepoView
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
+    readonly IApplicationBarView applicationBarView;
     readonly IFilterDlg filterDlg;
     readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView commitsView;
@@ -72,6 +74,7 @@ class RepoView : IRepoView
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
+        IApplicationBarView applicationBarView,
         IFilterDlg filterDlg) : base()
     {
         this.server = server;
@@ -84,15 +87,16 @@ class RepoView : IRepoView
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
+        this.applicationBarView = applicationBarView;
         this.filterDlg = filterDlg;
         commitsView = new ContentView(onGetContent)
         {
             X = 0,
-            Y = 0,
+            Y = 2,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             IsFocus = true,
-            IsShowCursor = true,
+            IsShowCursor = false,
             IsCursorMargin = false,
             IsScrollMode = false,
             IsHighlightCurrentIndex = false,
@@ -109,6 +113,8 @@ class RepoView : IRepoView
 
     public View View => commitsView;
     public View DetailsView => commitDetailsView.View;
+    public View ApplicationBarView => applicationBarView.View;
+
     public int ContentWidth => commitsView.ContentWidth;
 
     public int CurrentIndex => commitsView.CurrentIndex;
@@ -179,7 +185,6 @@ class RepoView : IRepoView
     {
         isShowFilter = true;
         // Make room for filter dialog
-        commitsView.Y = 2;
         commitsView.IsFocus = false;
         commitsView.SetNeedsDisplay();
 
@@ -189,7 +194,6 @@ class RepoView : IRepoView
 
         // Show Commits view normal again
         isShowFilter = false;
-        commitsView.Y = 0;
         commitsView.IsFocus = true;
         commitsView.SetFocus();
         commitsView.SetNeedsDisplay();
@@ -434,9 +438,9 @@ class RepoView : IRepoView
 
         // Reached right side, try find branch further upp this page that is to the right side
         var pageBranches = repo.Graph.GetPageBranches(commitsView.FirstIndex, commitsView.FirstIndex + commitsView.ContentHeight);
-        var hooverPageIndex = pageBranches.FindIndexOf(b => b.B.PrimaryName == hooverBranchName);
-        if (hooverPageIndex == branches.Count - 1)
-        {// Reached right side on this page as well
+        var hooverPageIndex = pageBranches.FindLastIndexOf(b => b.B.PrimaryName == hooverBranchName);
+        if (hooverPageIndex == pageBranches.Count - 1)
+        {   // Reached right side on this page as well
             ClearHoover();
             return;
         }
@@ -528,6 +532,13 @@ class RepoView : IRepoView
         if (repo.Graph.TryGetBranchByPos(x, index, out var _))
         {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
             TryShowHideCommitBranch(x, y);
+            return;
+        }
+
+        if (x > repo.Graph.Width)
+        {   // Clicked on a commit
+            ClearHoover();
+            return;
         }
     }
 
@@ -609,12 +620,12 @@ class RepoView : IRepoView
 
     void SetHooverBranch(GraphBranch branch, int index)
     {
-        if (hooverBranchName != branch.B.PrimaryName)
+        if (hooverBranchName != branch.B.PrimaryName || index != hooverIndex)
         {
-            Log.Info($"Set hoover branch: {branch.B.PrimaryName}");
             hooverBranchName = branch.B.PrimaryName;
             hooverIndex = index;
             hooverCurrentCommitIndex = repo.CurrentIndex;
+            applicationBarView.SetBranch(branch);
             commitsView.SetNeedsDisplay();
         }
     }
@@ -736,6 +747,10 @@ class RepoView : IRepoView
     {
         repo = newViewRepo(this, serverRepo);
         menuService = newMenuService(repo);
+
+        Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
+        applicationBarView.SetRepo(serverRepo);
+
         commitsView.SetNeedsDisplay();
         OnCurrentIndexChange();
 
@@ -744,7 +759,7 @@ class RepoView : IRepoView
 
         var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
-        Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
+
     }
 
 
@@ -789,11 +804,13 @@ class RepoView : IRepoView
 
     void OnCurrentIndexChange()
     {
+        var commit = repo.RowCommit;
+        var branch = repo.Graph.BranchByName(commit.BranchName);
+        applicationBarView.SetBranch(branch);
+
         if (isShowDetails)
         {
-            var commit = repo.RowCommit;
-            var branch = repo.Branch(commit.BranchName);
-            commitDetailsView.Set(repo.Repo, commit, branch);
+            commitDetailsView.Set(repo.Repo, commit, branch.B);
         }
     }
 
