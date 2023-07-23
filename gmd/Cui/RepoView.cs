@@ -369,8 +369,7 @@ class RepoView : IRepoView
                 .FirstOrDefault(b => b.B.PrimaryName == hooverBranchName);
             if (branch == null)
             {
-                hooverBranchName = "";
-                commitsView.SetNeedsDisplay();
+                ClearHoover();
                 return;
             }
 
@@ -397,14 +396,12 @@ class RepoView : IRepoView
         if (hooverIndex == 0) return; // Reached left side
 
         var branch = branches[hooverIndex - 1];
-        hooverBranchName = branches[hooverIndex - 1].B.PrimaryName;
-        this.hooverIndex = repo.CurrentIndex;
-        commitsView.SetNeedsDisplay();
+        SetHooverBranch(branch.B.PrimaryName, branch.X, repo.CurrentIndex);
     }
 
     private void OnCursorRight()
     {
-        if (hooverBranchName == "") return;
+        if (hooverBranchName == "") return; // Commit is hoovered or selected
 
         var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
         var hooverIndex = branches.FindLastIndexOf(b => b.B.PrimaryName == hooverBranchName);
@@ -528,6 +525,23 @@ class RepoView : IRepoView
     }
 
 
+    (IEnumerable<Text> rows, int total) onGetContent(int firstIndex, int count, int currentIndex, int width)
+    {
+        if (hooverBranchName != "" && hooverCurrentCommitIndex != currentIndex)
+        {
+            if (null == repo.Graph
+                .GetRowBranches(repo.CurrentIndex)
+                .FirstOrDefault(b => b.B.PrimaryName == hooverBranchName))
+            {
+                ClearHoover();
+            }
+            hooverIndex = currentIndex;
+        }
+
+        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverIndex, width), repo.Commits.Count);
+    }
+
+
     void SetHoover(int x, int y)
     {
         if (x > repo.Graph.Width)
@@ -559,6 +573,7 @@ class RepoView : IRepoView
         }
     }
 
+
     void SetHooverBranch(string branchName, int graphColumn, int index)
     {
         if (hooverBranchName != branchName)
@@ -579,23 +594,6 @@ class RepoView : IRepoView
             hooverCurrentCommitIndex = -1;
             commitsView.SetNeedsDisplay();
         }
-    }
-
-
-    (IEnumerable<Text> rows, int total) onGetContent(int firstIndex, int count, int currentIndex, int width)
-    {
-        if (hooverBranchName != "" && hooverCurrentCommitIndex != currentIndex)
-        {
-            if (null == repo.Graph
-                .GetRowBranches(repo.CurrentIndex)
-                .FirstOrDefault(b => b.B.PrimaryName == hooverBranchName))
-            {
-                hooverBranchName = "";
-            }
-            hooverIndex = currentIndex;
-        }
-
-        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverIndex, width), repo.Commits.Count);
     }
 
     void TryShowHideCommitBranch(int x, int y)
