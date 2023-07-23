@@ -10,6 +10,7 @@ namespace gmd.Cui.Common;
 interface IBranchColorService
 {
     Color GetColor(Server.Repo repo, Server.Branch branch);
+    Color GetBranchNameColor(string primaryBaseName);
     void ChangeColor(Server.Repo repo, Server.Branch branch);
 }
 
@@ -57,6 +58,9 @@ class BranchColorService : IBranchColorService
 
         return color;
     }
+
+    public Color GetBranchNameColor(string primaryBaseName) => BranchNameColor(primaryBaseName);
+
 
     public void ChangeColor(Repo repo, Branch branch)
     {

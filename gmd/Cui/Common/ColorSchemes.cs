@@ -104,6 +104,15 @@ static class ColorSchemes
         Disabled = Color.Dark,
     };
 
+    internal static ColorScheme Border => new ColorScheme()
+    {
+        Normal = Color.BrightMagenta,
+        Focus = Color.Dark,
+        HotNormal = Color.Dark,
+        HotFocus = Color.Dark,
+        Disabled = Color.Dark,
+    };
+
 
     // 		Colors.TopLevel.Normal = MakeColor (Color.BrightGreen, Color.Black);
     // 		Colors.TopLevel.Focus = MakeColor (Color.White, Color.Cyan);

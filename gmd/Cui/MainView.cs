@@ -57,7 +57,7 @@ partial class MainView : IMainView
         var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         mainView.ColorScheme = ColorSchemes.Window;
 
-        mainView.Add(repoView.View, repoView.DetailsView);
+        mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView);
         repoView.View.SetFocus();
 
         return mainView;
