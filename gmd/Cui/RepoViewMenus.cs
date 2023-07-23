@@ -116,12 +116,14 @@ class RepoViewMenus : IRepoViewMenus
         var b = repo.Branch(name);
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Status.IsOk;
-        var mergeToName = b.IsCurrent || b.IsLocalCurrent ? "current branch" : cb?.ShortNiceUniqueName() ?? "";
+        var isCurrent = b.IsCurrent || b.IsLocalCurrent;
+        var mergeToName = isCurrent ? "current branch" : cb?.ShortNiceUniqueName() ?? "";
 
         return Menu.Items
             .Items(GetNewReleaseItems())
             .Item(GetSwitchToBranchItem(name))
-            .Item($"Merge to {mergeToName}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
+            .Item(!isCurrent, $"Merge to {mergeToName}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
+            .SubMenu(isCurrent, "Merge from", "", GetMergeFromItems())
             .Item("Hide Branch", "H", () => cmds.HideBranch(name))
             .Item("Pull/Update", "U", () => cmds.PullBranch(name), () => b.HasRemoteOnly && isStatusOK)
             .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)
@@ -256,6 +258,22 @@ class RepoViewMenus : IRepoViewMenus
 
         return items;
     }
+
+    IEnumerable<MenuItem> GetMergeFromItems()
+    {
+        if (!repo.Status.IsOk) return Menu.Items;
+
+        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+
+        // Get all branches except current
+        var branches = repo.Branches
+             .Where(b => b.IsPrimary && b.PrimaryName != currentName)
+             .DistinctBy(b => b.TipId)
+             .OrderBy(b => b.PrimaryName);
+
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
+    }
+
 
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items
