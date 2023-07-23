@@ -140,6 +140,7 @@ class Menu
         {   // Clicked outside this menu, close this menu and forward click to parent menu
             await CloseAsync();
             parent?.OnMouseClicked(screenX, screenY);
+            if (parent == null) onEscAction();
             return;
         }
 
@@ -269,7 +270,7 @@ class Menu
         view.IsScrollMode = false;
         view.IsCursorMargin = false;
 
-        view.RegisterKeyHandler(Key.Esc, () => CloseAsync().RunInBackground());
+        view.RegisterKeyHandler(Key.Esc, () => OnKeyEsc());
         view.RegisterKeyHandler(Key.Enter, () => OnEnter());
         view.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
         view.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
@@ -283,6 +284,14 @@ class Menu
         return view;
     }
 
+    async void OnKeyEsc()
+    {
+        await CloseAsync();
+        if (parent == null)
+        {
+            onEscAction();
+        }
+    }
 
     async void OnEnter()
     {
