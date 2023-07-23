@@ -60,7 +60,7 @@ class Menu
     }
 
 
-    void Show(IEnumerable<MenuItem> items)
+    public void Show(IEnumerable<MenuItem> items)
     {
         this.items = items
         .Select(i => i with

@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Git;
+using gmd.Installation;
 using gmd.Server;
 using Terminal.Gui;
 using MenuItem = gmd.Cui.Common.MenuItem;
@@ -22,6 +23,7 @@ partial class MainView : IMainView
     readonly IServer server;
     readonly IProgress progress;
     readonly IAboutDlg aboutDlg;
+    readonly IUpdater updater;
     readonly Lazy<View> toplevel;
 
     MainView(
@@ -32,7 +34,8 @@ partial class MainView : IMainView
         IHelpDlg helpDlg,
         IServer server,
         IProgress progress,
-        IAboutDlg aboutDlg) : base()
+        IAboutDlg aboutDlg,
+        IUpdater updater) : base()
     {
         this.repoView = repoView;
         this.git = git;
@@ -42,6 +45,7 @@ partial class MainView : IMainView
         this.server = server;
         this.progress = progress;
         this.aboutDlg = aboutDlg;
+        this.updater = updater;
         toplevel = new Lazy<View>(CreateView);
     }
 
@@ -109,16 +113,78 @@ partial class MainView : IMainView
 
     void ShowMainMenu()
     {
-        Menu.Show("Recent Repos", 4, 2, Menu.Items
+        Log.Info("Show main menu");
+        Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu());
+
+        if (!states.Get().Releases.IsUpdateAvailable())
+        {   // Check for update ...
+            updater.CheckUpdateAvailableAsync().ContinueWith(t =>
+            {
+                UI.Post(async () =>
+                {
+                    if (!states.Get().Releases.IsUpdateAvailable()) return;  // No update available
+
+                    // Update is available, show menu again, which now will show the update available menu item
+                    await menu.CloseAsync();
+                    UI.Post(() => ShowMainMenu());
+                });
+            });
+        }
+
+        menu.Show(Menu.Items
+            .Items(GetNewReleaseItems())
             .Items(GetRecentRepoItems())
             .Separator()
             .Item("Browse ...", "", () => ShowBrowseDialog())
-            .Item("Clone ...", "", () => Clone())
             .Item("Help ...", "", () => ShowHelp())
             .Item("About ...", "", () => ShowAbout())
-            .Item("Quit", "Esc ", () => Application.RequestStop()),
-            () => OnCancelMenu());
+            .Item("Quit", "Esc ", () => Application.RequestStop()));
     }
+
+
+    IEnumerable<MenuItem> GetNewReleaseItems()
+    {
+        if (!states.Get().Releases.IsUpdateAvailable()) return Menu.Items;
+
+        return Menu.Items
+           .Separator("New Release Available !!!")
+           .Item("Update to Latest Version ...", "", () => UpdateRelease().RunInBackground())
+           .Separator();
+    }
+
+
+    public async Task UpdateRelease()
+    {
+        var releases = states.Get().Releases;
+        var typeText = releases.IsPreview ? "(preview)" : "";
+        string msg = $"A new release is available:\n" +
+            $"New Version:     {releases.LatestVersion} {typeText}\n" +
+            $"\nCurrent Version: {Build.Version()}\n\n" +
+            "Do you want to update?";
+
+        var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
+        if (button != 0)
+        {
+            Log.Info($"Skip update");
+            ShowMainMenu();
+            return;
+        }
+
+        Log.Info($"Updating release ...");
+        using (progress.Show())
+        {
+            if (!Try(out var _, out var e, await updater.UpdateAsync()))
+            {
+                UI.ErrorMessage($"Failed to update:\n{e}");
+                ShowMainMenu();
+                return;
+            }
+        }
+
+        UI.InfoMessage("Restart Required", "A program restart is required,\nplease start Gmd again.");
+        Application.RequestStop();
+    }
+
 
     void OnCancelMenu()
     {

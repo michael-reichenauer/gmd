@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Cui.Common;
 using Terminal.Gui;
 
@@ -15,6 +16,8 @@ class ApplicationBarView : View, IApplicationBarView
 {
     const int maxRepoLength = 30;
     readonly IBranchColorService branchColorService;
+    readonly IState state;
+
     UILabel label;
     Text repoText = Common.Text.Empty;
     Text branchText = Common.Text.Empty;
@@ -23,10 +26,10 @@ class ApplicationBarView : View, IApplicationBarView
 
     public View View => this;
 
-    public ApplicationBarView(IBranchColorService branchColorService)
+    public ApplicationBarView(IBranchColorService branchColorService, IState state)
     {
         this.branchColorService = branchColorService;
-
+        this.state = state;
         X = 0;
         Y = 0;
         Height = 2;
@@ -36,7 +39,9 @@ class ApplicationBarView : View, IApplicationBarView
         var border = new Label(0, 1, new string('─', 200)) { ColorScheme = ColorSchemes.Border };
 
         Add(label, border);
-        UpdateBar();
+        UpdateView();
+
+        UI.AddTimeout(TimeSpan.FromSeconds(5), () => UpdateView());
     }
 
     public void SetRepo(Server.Repo repo)
@@ -54,7 +59,7 @@ class ApplicationBarView : View, IApplicationBarView
         if (aheadCount > 0) text.Dark(", ").Green("▲ ").Dark($"{aheadCount}");
 
         repoText = text;
-        UpdateBar();
+        UpdateView();
     }
 
 
@@ -67,12 +72,15 @@ class ApplicationBarView : View, IApplicationBarView
             ? Common.Text.BrightMagenta(" | ").Color(branch.Color, branch.B.NiceNameUnique)
             : Common.Text.BrightMagenta(" | ").Dark("");
 
-        UpdateBar();
+        UpdateView();
     }
 
-    void UpdateBar()
+
+    void UpdateView()
     {
-        label.Text = Common.Text.BrightMagenta("Gmd ").Add(repoText).Add(branchText);
+        var updateText = state.Get().Releases.IsUpdateAvailable()
+            ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
+        label.Text = Common.Text.Add(updateText).BrightMagenta("Gmd ").Add(repoText).Add(branchText);
     }
 
 
