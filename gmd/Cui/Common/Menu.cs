@@ -129,7 +129,7 @@ class Menu
         var index = y - 1;
 
         if (index < 0 || index >= items.Count || !items.Any() || items[index].IsDisabled) return;
-        itemsView.SetIndex(index);
+        itemsView.SetCurrentIndex(index);
     }
 
 
@@ -307,7 +307,7 @@ class Menu
 
     void OnClick(int x, int y)
     {
-        itemsView.SetIndex(y);
+        itemsView.SetIndexAtViewY(y);
         if (CurrentItem.IsDisabled)
         {   // Clicked on disabled item, lets try select next enabled item
             if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled) OnCursorUp();

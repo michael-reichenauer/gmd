@@ -507,11 +507,11 @@ class ContentView : View
 
     internal void MoveToTop() => Move(-FirstIndex);
 
-    internal void SetIndex(int y)
+    internal void SetIndexAtViewY(int viewY)
     {
-        int currentY = CurrentIndex - FirstIndex;
+        int currentViewY = CurrentIndex - FirstIndex;
 
-        Move(y - currentY);
+        Move(viewY - currentViewY);
     }
 
     internal void SetCurrentIndex(int index)

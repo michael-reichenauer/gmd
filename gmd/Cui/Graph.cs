@@ -25,13 +25,11 @@ class Graph
 
     public GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
 
-    public bool TryGetBranchByPos(int x, int index, out Server.Branch branch)
+    public bool TryGetBranchByPos(int x, int index, out GraphBranch branch)
     {
-        // Find the branch that is at the given position (return Server.Branch B)
-        // Log.Info($"TryGetBranchByPos({x}, {y}, {branches.Select(b => $"{b.B.Name}, {b.X} {b.TipIndex}, {b.BottomIndex}").Join("\n")})");
+        // Find the branch that is at the given position
         branch = branches
-            .FirstOrDefault(b => (b.X * 2 == (x - 1) && index >= b.TipIndex && index <= b.BottomIndex))
-            ?.B ?? null!;
+            .FirstOrDefault(b => (b.X * 2 == (x - 1) && index >= b.TipIndex && index <= b.BottomIndex))!;
         return branch != null;
     }
 

@@ -98,7 +98,7 @@ class DiffView : IDiffView
         if (x > columnWidth && IsFocusLeft) IsFocusLeft = false;
         if (x < columnWidth && !IsFocusLeft) IsFocusLeft = true;
 
-        contentView.SetIndex(y);
+        contentView.SetIndexAtViewY(y);
 
         contentView.SetNeedsDisplay();
         return false;
