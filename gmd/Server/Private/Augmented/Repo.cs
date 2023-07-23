@@ -20,7 +20,6 @@ record Repo
         Path = path;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
-        //Branches = branches;
         Stashes = stashes;
         Status = status;
         Branches = branches;
@@ -33,6 +32,14 @@ record Repo
     public IReadOnlyList<Stash> Stashes { get; }
     public IReadOnlyDictionary<string, Branch> Branches { get; }
     public Status Status { get; init; }
+
+    public static Repo Empty => new Repo(
+        DateTime.UtcNow,
+        "",
+        new List<Commit>(),
+        new Dictionary<string, Branch>(),
+        new List<Stash>(),
+        new Status(0, 0, 0, 0, 0, false, "", "", new string[0], new string[0], new string[0], new string[0], new string[0], new string[0]));
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()}";
 }

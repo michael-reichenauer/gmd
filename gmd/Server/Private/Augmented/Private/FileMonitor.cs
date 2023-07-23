@@ -217,7 +217,7 @@ class FileMonitor : IFileMonitor
             return;
         }
 
-        Log.Info($"Repo change for '{fullPath}' {changeType}");
+        // Log.Info($"Repo change for '{fullPath}' {changeType}");
         lock (syncRoot)
         {
             repoChangedEvent = new ChangeEvent(DateTime.UtcNow);
@@ -227,7 +227,7 @@ class FileMonitor : IFileMonitor
 
     void FileChange(string fullPath)
     {
-        Log.Info($"Status change '{fullPath}'");
+        // Log.Info($"Status change '{fullPath}'");
         lock (syncRoot)
         {
             fileChangedEvent = new ChangeEvent(DateTime.UtcNow);

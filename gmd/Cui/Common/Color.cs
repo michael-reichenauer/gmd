@@ -25,20 +25,17 @@ record Color
         Color.BrightYellow , Color.White, Color.Black};
 
 
-    readonly Terminal.Gui.Color fg;
-    readonly Terminal.Gui.Color bg;
-
-    public Color(Color fg, Color bg) : this(fg.fg, bg.fg) { }
+    public Color(Color fg, Color bg) : this(fg.Foreground, bg.Background) { }
 
     public Color(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
     {
-        this.fg = fg;
-        this.bg = bg;
+        Foreground = fg;
+        Background = bg;
     }
 
     // Foreground and background Terminal.Gui colors
-    public Terminal.Gui.Color Foreground => fg;
-    public Terminal.Gui.Color Background => bg;
+    public Terminal.Gui.Color Foreground { get; init; }
+    public Terminal.Gui.Color Background { get; init; }
 
     // Converters to Color from Gui.Attribute and Gui.Color
     public static implicit operator Color(Terminal.Gui.Attribute a) =>
@@ -46,8 +43,8 @@ record Color
 
     // Converters to Gui.Attribute and Gui.Color from Color
     public static implicit operator Terminal.Gui.Attribute(Color color) =>
-        new Terminal.Gui.Attribute(color.fg, color.bg);
-    public static implicit operator Terminal.Gui.Color(Color color) => color.fg;
+        new Terminal.Gui.Attribute(color.Foreground, color.Background);
+    public static implicit operator Terminal.Gui.Color(Color color) => color.Foreground;
 
     static Color Make(Terminal.Gui.Color color) => Make(color, Terminal.Gui.Color.Black);
     static Color Make(Terminal.Gui.Color fg, Terminal.Gui.Color bg) => new Color(fg, bg);

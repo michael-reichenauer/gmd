@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-
-
 namespace System.Linq;
 
 public static class EnumerableExtensions
@@ -90,6 +87,21 @@ public static class EnumerableExtensions
             if (predicate(item))
             {
                 return index;
+            }
+            index++;
+        }
+        return -1;
+    }
+
+    public static int FindLastIndexOf<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+    {
+        var index = 0;
+        var reverseSource = source.Reverse();
+        foreach (var item in reverseSource)
+        {
+            if (predicate(item))
+            {
+                return source.Count() - 1 - index;
             }
             index++;
         }

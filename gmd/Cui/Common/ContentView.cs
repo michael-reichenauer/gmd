@@ -35,12 +35,14 @@ class ContentView : View
     internal ContentView(GetContentCallback onGetContent)
     {
         this.onGetContent = onGetContent;
+        WantMousePositionReports = true;
     }
 
     internal ContentView(IReadOnlyList<Text> content)
     {
         this.contentRows = content;
         TotalCount = content.Count;
+        WantMousePositionReports = true;
         SetNeedsDisplay();
     }
 
@@ -148,6 +150,10 @@ class ContentView : View
                 OnSelectDown();
                 return true;
             case Key.PageDown:
+                ClearSelection();
+                Move(ContentHeight - 1);
+                return true;
+            case Key.Space:
                 ClearSelection();
                 Move(ContentHeight - 1);
                 return true;
@@ -501,11 +507,11 @@ class ContentView : View
 
     internal void MoveToTop() => Move(-FirstIndex);
 
-    internal void SetIndex(int y)
+    internal void SetIndexAtViewY(int viewY)
     {
-        int currentY = CurrentIndex - FirstIndex;
+        int currentViewY = CurrentIndex - FirstIndex;
 
-        Move(y - currentY);
+        Move(viewY - currentViewY);
     }
 
     internal void SetCurrentIndex(int index)

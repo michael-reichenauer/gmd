@@ -264,6 +264,10 @@ class Server : IServer
     public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
       augmentedService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
 
+    public Task<R> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout, string wd) =>
+        augmentedService.CreateBranchFromBranchAsync(repo.AugmentedRepo, newBranchName, sourceBranch, isCheckout, wd);
+
+
     public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
         augmentedService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, sha, isCheckout, wd);
 
