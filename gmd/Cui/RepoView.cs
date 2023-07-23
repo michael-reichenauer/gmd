@@ -380,23 +380,37 @@ class RepoView : IRepoView
         menuService.ShowCommitMenu(repo.Graph.Width + 5, commitsView.CurrentIndex + 1, commitsView.CurrentIndex);
     }
 
-    private void OnCursorLeft()
+
+    void OnCursorLeft()
     {
         var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
-        var hooverIndex = hooverBranchName == ""
+        var hooverRowIndex = hooverBranchName == ""
             ? -1 : branches.FindIndexOf(b => b.B.PrimaryName == hooverBranchName);
 
-        if (hooverIndex < 0)
+        if (hooverRowIndex < 0)
         {   // No hoover branch, or not found, select right most branch
-            var hb = branches.Last();
-            SetHooverBranch(hb.B.PrimaryName, hb.X, repo.CurrentIndex);
+            SetHooverBranch(branches.Last(), repo.CurrentIndex);
             return;
         }
 
-        if (hooverIndex == 0) return; // Reached left side
+        if (hooverRowIndex > 0)
+        {   // Hoover branch found, move to the left on this row
+            SetHooverBranch(branches[hooverRowIndex - 1], repo.CurrentIndex);
+            return;
+        }
 
-        var branch = branches[hooverIndex - 1];
-        SetHooverBranch(branch.B.PrimaryName, branch.X, repo.CurrentIndex);
+        // Reached left side on this row
+        // Try to find some branch further down this page that is to the left side
+        var pageBranches = repo.Graph.GetPageBranches(commitsView.FirstIndex, commitsView.FirstIndex + commitsView.ContentHeight);
+        var hooverPageIndex = pageBranches.FindIndexOf(b => b.B.PrimaryName == hooverBranchName);
+
+        if (hooverPageIndex == 0) return; // Reached left side on this page as well
+
+        // Hoover branch found on this page, move to the left on this page (further down)
+        var branch = pageBranches[hooverPageIndex - 1];
+        commitsView.SetCurrentIndex(branch.TipIndex);
+        SetHooverBranch(branch, repo.CurrentIndex);
+        return;
     }
 
     private void OnCursorRight()
@@ -404,15 +418,34 @@ class RepoView : IRepoView
         if (hooverBranchName == "") return; // Commit is hoovered or selected
 
         var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
-        var hooverIndex = branches.FindLastIndexOf(b => b.B.PrimaryName == hooverBranchName);
+        var hooverRowIndex = branches.FindLastIndexOf(b => b.B.PrimaryName == hooverBranchName);
 
-        if (hooverIndex == branches.Count - 1 || hooverIndex == -1)
-        {   // Reached right side (or hover branch not found), clear hoover commit
+        if (hooverRowIndex == -1)
+        {   // Hoover branch not found, clear hoover and select commit
             ClearHoover();
             return;
         }
-        var hb = branches[hooverIndex + 1];
-        SetHooverBranch(hb.B.PrimaryName, hb.X, repo.CurrentIndex);
+
+        if (hooverRowIndex < branches.Count - 1)
+        {   // Hoover branch found, move to the right on this row
+            SetHooverBranch(branches[hooverRowIndex + 1], repo.CurrentIndex);
+            return;
+        }
+
+        // Reached right side, try find branch further upp this page that is to the right side
+        var pageBranches = repo.Graph.GetPageBranches(commitsView.FirstIndex, commitsView.FirstIndex + commitsView.ContentHeight);
+        var hooverPageIndex = pageBranches.FindIndexOf(b => b.B.PrimaryName == hooverBranchName);
+        if (hooverPageIndex == branches.Count - 1)
+        {// Reached right side on this page as well
+            ClearHoover();
+            return;
+        }
+
+        // Hoover branch found on this page, move to the right on this page (further upp)
+        var branch = pageBranches[hooverPageIndex + 1];
+        commitsView.SetCurrentIndex(branch.BottomIndex);
+        SetHooverBranch(branch, repo.CurrentIndex);
+        return;
     }
 
     void OnCursorUp()
@@ -427,7 +460,7 @@ class RepoView : IRepoView
 
         if (hoverName != "")
         {    // Try restore hover branch after moving upp
-            // Try locate the same branch on the previous row or the next branch on the previous row
+             // Try locate the same branch on the previous row or the next branch on the previous row
             var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
             var branch = branches.FirstOrDefault(b => b.B.PrimaryName == hoverName);
             if (branch == null)
@@ -435,7 +468,7 @@ class RepoView : IRepoView
                 branch = branches[Math.Max(0, Math.Min(hoverColumnIndex, branches.Count - 1))];
             }
 
-            SetHooverBranch(branch.B.PrimaryName, branch.X, repo.CurrentIndex);
+            SetHooverBranch(branch, repo.CurrentIndex);
         }
     }
 
@@ -459,7 +492,7 @@ class RepoView : IRepoView
                 branch = branches[Math.Max(0, Math.Min(hoverColumnIndex, branches.Count - 1))];
             }
 
-            SetHooverBranch(branch.B.PrimaryName, branch.X, repo.CurrentIndex);
+            SetHooverBranch(branch, repo.CurrentIndex);
         }
     }
 
@@ -553,7 +586,7 @@ class RepoView : IRepoView
         var index = y + commitsView.FirstIndex;
         if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {   // Moved over a branch
-            SetHooverBranch(branch.B.PrimaryName, branch.X * 2 + 3, index);
+            SetHooverBranch(branch, index);
             return;
         }
 
@@ -574,11 +607,12 @@ class RepoView : IRepoView
     }
 
 
-    void SetHooverBranch(string branchName, int graphColumn, int index)
+    void SetHooverBranch(GraphBranch branch, int index)
     {
-        if (hooverBranchName != branchName)
+        if (hooverBranchName != branch.B.PrimaryName)
         {
-            hooverBranchName = branchName;
+            Log.Info($"Set hoover branch: {branch.B.PrimaryName}");
+            hooverBranchName = branch.B.PrimaryName;
             hooverIndex = index;
             hooverCurrentCommitIndex = repo.CurrentIndex;
             commitsView.SetNeedsDisplay();

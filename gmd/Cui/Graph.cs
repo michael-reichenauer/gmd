@@ -40,6 +40,14 @@ class Graph
             .OrderBy(b => b.X)
             .ToList();
 
+    public IReadOnlyList<GraphBranch> GetPageBranches(int firstIndex, int lastIndex) =>
+            branches
+                .Where(b => (b.TipIndex >= firstIndex && b.TipIndex <= lastIndex) ||
+                            (b.BottomIndex >= firstIndex && b.BottomIndex <= lastIndex) ||
+                            (b.TipIndex <= firstIndex && b.BottomIndex >= lastIndex))
+                .OrderBy(b => b.X)
+                .ThenBy(b => b.TipIndex)
+                .ToList();
 
     public IReadOnlyList<GraphBranch> GetOverlappingBranches(string branchName)
     {
