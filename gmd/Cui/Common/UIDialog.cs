@@ -281,6 +281,8 @@ class UILabel : View
 {
     Text text;
 
+    public UILabel(int x, int y) : this(x, y, Text.Black(" ")) { }  // For some reason text need to be set to something, otherwise it will not be drawn
+
     public UILabel(int x, int y, Text text) : base(x, y, text.ToString())
     {
         this.text = text;

@@ -6,178 +6,93 @@ namespace gmd.Cui;
 interface IApplicationBarView
 {
     View View { get; }
+
+    void SetBranch(GraphBranch branch);
+    void SetRepo(Server.Repo repo);
 }
 
 class ApplicationBarView : View, IApplicationBarView
 {
+    const int maxRepoLength = 30;
+    readonly IBranchColorService branchColorService;
     UILabel label;
+    Text repoText = Common.Text.Empty;
+    Text branchText = Common.Text.Empty;
+    string currentBranchName = "";
+    GraphBranch branch = null!;
 
     public View View => this;
 
-    public ApplicationBarView()
+    public ApplicationBarView(IBranchColorService branchColorService)
     {
+        this.branchColorService = branchColorService;
+
         X = 0;
         Y = 0;
         Height = 2;
         Width = Dim.Fill();
-        label = new UILabel(0, 0, Common.Text.BrightMagenta("Gmd"));
 
+        label = new UILabel(0, 0);
         var border = new Label(0, 1, new string('─', 200)) { ColorScheme = ColorSchemes.Border };
+
         Add(label, border);
+        UpdateBar();
+    }
+
+    public void SetRepo(Server.Repo repo)
+    {
+        var behindCount = repo.Commits.Where(c => c.IsBehind).Count();
+        var aheadCount = repo.Commits.Where(c => c.IsAhead).Count();
+        var path = repo.Path;
+
+        if (path.Length > maxRepoLength) path = "┅" + path.Substring(path.Length - maxRepoLength);
+        var text = Common.Text.Dark($"{path}, ");
+
+        AddCurrentBranch(text, repo);
+        if (!repo.Status.IsOk) text.Dark(", ").Yellow("* ").Dark($"{repo.Status.ChangesCount}");
+        if (behindCount > 0) text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}");
+        if (aheadCount > 0) text.Dark(", ").Green("▲ ").Dark($"{aheadCount}");
+
+        repoText = text;
+        UpdateBar();
+    }
+
+
+    public void SetBranch(GraphBranch branch)
+    {
+        if (this.branch == branch) return;
+        this.branch = branch;
+
+        branchText = branch != null
+            ? Common.Text.BrightMagenta(" | ").Color(branch.Color, branch.B.NiceNameUnique)
+            : Common.Text.Black("");
+
+        UpdateBar();
+    }
+
+    void UpdateBar()
+    {
+        label.Text = Common.Text.BrightMagenta("Gmd ").Add(repoText).Add(branchText);
+    }
+
+
+    void AddCurrentBranch(TextBuilder text, Server.Repo repo)
+    {
+        var currentBranch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        if (currentBranch != null)
+        {   // Current branch is shown
+            var color = branchColorService.GetColor(repo, currentBranch);
+            text.White("● ").Color(color, currentBranch.NiceNameUnique);
+            currentBranchName = currentBranch.NiceNameUnique;
+        }
+        else
+        {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
+            var cb = repo.AugmentedRepo.Branches.Values.First(b => b.IsCurrent);
+            var color = branchColorService.GetBranchNameColor(cb.PrimaryBaseName);
+            text.White("● ").Color(color, cb.NiceNameUnique);
+            currentBranchName = cb.NiceNameUnique;
+        }
     }
 }
-
-// class FilterView : View, IFilterView
-// {
-//     readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
-//     bool isFocus = false;
-//     Label label = null!;
-//     UITextField filterField = null!;
-//     Label textEnd = null!;
-//     Label border = null!;
-//     string currentFilter = "";
-
-//     public event Action? FilterChange;
-
-//     public FilterView()
-//     {
-//         X = 0;
-//         Y = 0;
-//         Height = 0;
-//         Width = Dim.Fill();
-//     }
-
-//     public string Filter => filterField.Text;
-
-//     public View View => this;
-//     public bool IsFocus
-//     {
-//         get => isFocus;
-//         set
-//         {
-//             if (label == null)
-//             {
-//                 label = new Label(0, 0, "Search:") { ColorScheme = ColorSchemes.Label };
-//                 filterField = new UITextField(8, 0, 40, "") { ColorScheme = ColorSchemes.TextField };
-//                 //filterField.KeyUp += OnKeyUp;    // Update results and select commit on keys
-//                 textEnd = new Label(48, 0, "│") { ColorScheme = ColorSchemes.Indicator };
-//                 border = new Label(0, 1, new string('─', 200)) { ColorScheme = ColorSchemes.Border };
-//             }
-
-//             isFocus = value;
-//             if (isFocus)
-//             {
-//                 Add(label, textEnd, border);
-//                 label.PositionCursor();
-//                 //Application.Driver.Cols = ;
-//                 UI.ShowCursor();
-//             }
-//             else
-//             {
-//                 Log.Info("Remove");
-//                 RemoveAll();
-//             }
-//             SetNeedsDisplay();
-//         }
-//     }
-
-//     // User pressed key in filter field, select commit on enter or update results 
-//     void OnKeyUp(View.KeyEventEventArgs e)
-//     {
-//         if (!IsFocus) return;
-//         try
-//         {
-//             var key = e.KeyEvent.Key;
-//             if (key == Key.Enter)
-//             {
-//                 Log.Info("Enter");
-//                 // OnEnter(resultsView.CurrentIndex);
-//                 return;
-//             }
-
-//             // Log.Info($"Key: {key}");
-//             OnFilterChanged();
-
-//         }
-//         finally
-//         {
-//             e.Handled = true;
-//         }
-//     }
-
-//     void OnFilterChanged()
-//     {
-//         if (Filter == currentFilter) return;
-//         currentFilter = Filter;
-
-//         FilterChange?.Invoke();
-//     }
-
-//     // User selected commit from list (or pressed enter on empty results to just close dlg)
-//     void OnEnter(int index)
-//     {
-//         // if (filteredCommits.Count > 0)
-//         // {   // User selected commit from list
-//         //     this.selectedCommit = filteredCommits[index];
-//         // }
-
-//         // dlg.Close();
-//     }
-
-
-
-
-//     public void RegisterKeyHandler(Key key, OnKeyCallback callback)
-//     {
-//         keys[key] = callback;
-//     }
-
-//     public override bool ProcessHotKey(KeyEvent keyEvent)
-//     {
-//         Log.Info($"ProcessHotKey: {keyEvent.Key}");
-//         if (!IsFocus) return false;
-//         Log.Info($"Filter:IsFocus {IsFocus}");
-
-//         if (keys.TryGetValue(keyEvent.Key, out var callback))
-//         {
-//             callback();
-//             return true;
-//         }
-
-//         // // if keyEvent is a letter char, add it to the filter
-//         // if (keyEvent.KeyValue >= 32 && keyEvent.KeyValue <= 126)
-//         // {
-//         //     var c = (char)keyEvent.KeyValue;
-//         //     filterText += c;
-//         //     filterField.SetFocus();
-//         //     return true;
-//         // }
-
-
-
-
-
-
-//         // if (keyEvent.KeyValue )
-//         // {
-//         //     Log.Info("Enter");
-//         //     // OnEnter(resultsView.CurrentIndex);
-//         //     return true;
-//         // }
-
-//         return true;
-//     }
-
-// internal static ColorScheme Border => new ColorScheme()
-// {
-//     Normal = Color.BrightMagenta,
-//     Focus = Color.White,
-//     HotNormal = Color.White,
-//     HotFocus = Color.White,
-//     Disabled = Color.Dark,
-// };
-
-// }
-
 
 

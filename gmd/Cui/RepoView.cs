@@ -625,6 +625,7 @@ class RepoView : IRepoView
             hooverBranchName = branch.B.PrimaryName;
             hooverIndex = index;
             hooverCurrentCommitIndex = repo.CurrentIndex;
+            applicationBarView.SetBranch(branch);
             commitsView.SetNeedsDisplay();
         }
     }
@@ -746,6 +747,10 @@ class RepoView : IRepoView
     {
         repo = newViewRepo(this, serverRepo);
         menuService = newMenuService(repo);
+
+        Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
+        applicationBarView.SetRepo(serverRepo);
+
         commitsView.SetNeedsDisplay();
         OnCurrentIndexChange();
 
@@ -754,7 +759,7 @@ class RepoView : IRepoView
 
         var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
-        Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
+
     }
 
 
@@ -799,11 +804,13 @@ class RepoView : IRepoView
 
     void OnCurrentIndexChange()
     {
+        var commit = repo.RowCommit;
+        var branch = repo.Graph.BranchByName(commit.BranchName);
+        applicationBarView.SetBranch(branch);
+
         if (isShowDetails)
         {
-            var commit = repo.RowCommit;
-            var branch = repo.Branch(commit.BranchName);
-            commitDetailsView.Set(repo.Repo, commit, branch);
+            commitDetailsView.Set(repo.Repo, commit, branch.B);
         }
     }
 
