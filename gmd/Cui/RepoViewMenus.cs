@@ -112,7 +112,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
-            .Item("Help ...", "H", () => cmds.ShowHelp())
+            .Item("Help ...", "1, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Esc", () => UI.Shutdown());
     }
@@ -130,7 +130,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
-            .Item("Help ...", "H", () => cmds.ShowHelp())
+            .Item("Help ...", "1, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Esc", () => UI.Shutdown());
     }
@@ -146,16 +146,17 @@ class RepoViewMenus : IRepoViewMenus
 
         return Menu.Items
             .Items(GetNewReleaseItems())
-            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => c.IsUncommitted)
-            .Item($"Amend ...", "A", () => cmds.CommitFromMenu(true), () => cc.IsAhead && c.Id == cc.Id)
+            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
+            .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
             .SubMenu("Undo", "", GetCommitUndoItems(), () => c.IsUncommitted)
-            .Item($"Switch to Commit", "",
-                    () => cmds.SwitchToCommit(),
-                    () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .Item("Stash Changes", "", () => cmds.Stash(), () => c.Id == Repo.UncommittedId)
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
-            .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit())
+            .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
+            .Item("Merge From Commit", "", () => cmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
+            .Item("Cherry Pick Commit", "", () => cmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
+            .Item("Switch to Commit", "", () => cmds.SwitchToCommit(),
+                    () => isStatusOK && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .Separator()
             .SubMenu("Show/Open Branch", "", GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
@@ -497,7 +498,7 @@ class RepoViewMenus : IRepoViewMenus
 
         // Include cherry pic if not on current branch
         var cherryPicItems = repo.RowCommit.Id != repo.CurrentBranch?.TipId
-            ? Menu.Items.Item($"Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk)
+            ? Menu.Items.Item($"Cherry Pic {sidText}", "", () => cmds.CherryPick(commit.Id), () => repo.Status.IsOk)
             : Menu.Items;
 
         var items = branches

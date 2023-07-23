@@ -44,7 +44,7 @@ interface IRepoCommands
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void CherryPic(string id);
+    void CherryPick(string id);
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -531,11 +531,11 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void CherryPic(string id) => Do(async () =>
+    public void CherryPick(string id) => Do(async () =>
     {
         if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
         {
-            return R.Error($"Failed to cherry pic {id.Sid()}", e);
+            return R.Error($"Failed to cherry pick {id.Sid()}", e);
         }
 
         RefreshAndCommit();

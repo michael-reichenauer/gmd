@@ -266,6 +266,7 @@ class RepoView : IRepoView
 
         // Keys on repo view contents
         commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
+        commitsView.RegisterKeyHandler(Key.q, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
         commitsView.RegisterKeyHandler(Key.o, () => menuService.ShowOpenMenu());
@@ -286,13 +287,14 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
         commitsView.RegisterKeyHandler(Key.u, () => Cmd.PullCurrentBranch());
         commitsView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
+        commitsView.RegisterKeyHandler(Key.D1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
 
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, () => OnKeyS());
         commitsView.RegisterKeyHandler(Key.e, () => OnKeyE());
-        commitsView.RegisterKeyHandler(Key.h, () => OnKeyH());
+        commitsView.RegisterKeyHandler(Key.h, () => Cmd.HideBranch(repo.RowBranch.Name));
 
         commitsView.RegisterKeyHandler(Key.Enter, () => OnKeyEnter());
         commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
@@ -308,17 +310,6 @@ class RepoView : IRepoView
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
     }
 
-
-
-    void OnKeyH()
-    {
-        if (hooverBranchName != "")
-        {
-            Cmd.HideBranch(hooverBranchName);
-            return;
-        }
-        Cmd.ShowHelp();
-    }
 
     void OnKeyE()
     {
