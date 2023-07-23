@@ -98,7 +98,7 @@ class DiffView : IDiffView
         if (x > columnWidth && IsFocusLeft) IsFocusLeft = false;
         if (x < columnWidth && !IsFocusLeft) IsFocusLeft = true;
 
-        contentView.SetIndex(y);
+        contentView.SetIndexAtViewY(y);
 
         contentView.SetNeedsDisplay();
         return false;
@@ -116,8 +116,6 @@ class DiffView : IDiffView
             .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
             .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
             .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
-            // .Item("Toggle Select Mode", "I", () => contentView.ToggleShowCursor())
-            .Item("Copy Selected Text", "Ctrl+C", () => OnCopy(), () => IsSelected)
             .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected)
             .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
             .Item("Close", "Esc", () => Application.RequestStop()));

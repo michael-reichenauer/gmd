@@ -26,21 +26,21 @@ class Text
     public IReadOnlyList<TextFragment> Fragments => fragments;
 
     // Initial fragment of text with color, additional fragments will be added using TextBuilder
-    public static TextBuilder Red(string text) => new TextBuilder(Common.Color.Red, text);
     public static TextBuilder Blue(string text) => new TextBuilder(Common.Color.Blue, text);
-    public static TextBuilder White(string text) => new TextBuilder(Common.Color.White, text);
-    public static TextBuilder Magenta(string text) => new TextBuilder(Common.Color.Magenta, text);
-    public static TextBuilder BrightBlue(string text) => new TextBuilder(Common.Color.BrightBlue, text);
-    public static TextBuilder BrightCyan(string text) => new TextBuilder(Common.Color.BrightCyan, text);
-    public static TextBuilder BrightGreen(string text) => new TextBuilder(Common.Color.BrightGreen, text);
-    public static TextBuilder BrightMagenta(string text) => new TextBuilder(Common.Color.BrightMagenta, text);
-    public static TextBuilder BrightRed(string text) => new TextBuilder(Common.Color.BrightRed, text);
-    public static TextBuilder BrightYellow(string text) => new TextBuilder(Common.Color.BrightYellow, text);
-    public static TextBuilder Cyan(string text) => new TextBuilder(Common.Color.Cyan, text);
-    public static TextBuilder Dark(string text) => new TextBuilder(Common.Color.Dark, text);
     public static TextBuilder Green(string text) => new TextBuilder(Common.Color.Green, text);
+    public static TextBuilder Cyan(string text) => new TextBuilder(Common.Color.Cyan, text);
     public static TextBuilder Yellow(string text) => new TextBuilder(Common.Color.Yellow, text);
+    public static TextBuilder Red(string text) => new TextBuilder(Common.Color.Red, text);
+    public static TextBuilder Magenta(string text) => new TextBuilder(Common.Color.Magenta, text);
+    public static TextBuilder Dark(string text) => new TextBuilder(Common.Color.Dark, text);
+    public static TextBuilder White(string text) => new TextBuilder(Common.Color.White, text);
     public static TextBuilder Black(string text) => new TextBuilder(Common.Color.Black, text);
+    public static TextBuilder BrightBlue(string text) => new TextBuilder(Common.Color.BrightBlue, text);
+    public static TextBuilder BrightGreen(string text) => new TextBuilder(Common.Color.BrightGreen, text);
+    public static TextBuilder BrightCyan(string text) => new TextBuilder(Common.Color.BrightCyan, text);
+    public static TextBuilder BrightYellow(string text) => new TextBuilder(Common.Color.BrightYellow, text);
+    public static TextBuilder BrightRed(string text) => new TextBuilder(Common.Color.BrightRed, text);
+    public static TextBuilder BrightMagenta(string text) => new TextBuilder(Common.Color.BrightMagenta, text);
     public static TextBuilder Color(Common.Color color, string text) => new TextBuilder(color, text);
 
     public static TextBuilder Add(Text text)
@@ -57,9 +57,6 @@ class Text
     public Text ToHighlight() => ToHighlight(Common.Color.Dark);
     public Text ToSelect() => ToHighlight(Common.Color.White);
 
-    public Text ToHighlightGreen() => ToHighlight(Common.Color.Green);
-
-    public Text ToHighlightRed() => ToHighlight(Common.Color.Red);
 
     public Text ToHighlight(Common.Color newBg)
     {
@@ -274,6 +271,38 @@ class TextBuilder
 
         // Same color as previous fragment, append text to previous fragment to avoid too many fragments
         fragments[^1] = f with { Text = f.Text + text };
+        return this;
+    }
+
+    public TextBuilder Highlight() => Highlight(Common.Color.Dark);
+
+    public TextBuilder Highlight(Common.Color newBg)
+    {
+        // Replace all fragments with new background color,
+        // and make sure foreground color is readable on new background
+        for (int i = 0; i < fragments.Count; i++)
+        {
+            var fragment = fragments[i];
+            var fg = fragment.Color.Foreground;
+
+            // Make sure foreground color is readable on new background
+            if (fg == newBg && fg == Common.Color.White)
+            {   // White or yellow on white is not readable 
+                fg = Common.Color.Black;
+            }
+            else if (fg == newBg && fg == Common.Color.Black)
+            {   // Black on black is not readable
+                fg = Common.Color.White;
+            }
+            else if (fg == newBg)
+            {   // Same color as background, use white, since background is not white or yellow
+                fg = Common.Color.White;
+            }
+
+            var color = new Common.Color(fg, newBg);
+            fragments[i] = fragment with { Color = color };
+        }
+
         return this;
     }
 }

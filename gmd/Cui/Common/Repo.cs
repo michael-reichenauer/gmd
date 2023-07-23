@@ -20,7 +20,7 @@ interface IRepo
     Graph Graph { get; }
 
     int TotalRows { get; }
-    int CurrentRow { get; }
+    int CurrentIndex { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
     Server.Commit RowCommit { get; }
@@ -68,7 +68,7 @@ class RepoImpl : IRepo
     public Server.Branch Branch(string branchName) => serverRepo.BranchByName[branchName];
     public Server.Commit Commit(string commitId) => serverRepo.CommitById[commitId];
 
-    public Server.Commit RowCommit => Commits[CurrentRow];
+    public Server.Commit RowCommit => Commits[CurrentIndex];
     public Server.Branch RowBranch => Branch(RowCommit.BranchName);
     public Server.Branch? CurrentBranch => Branches.FirstOrDefault(b => b.IsCurrent);
     public Server.Branch AllBranchByName(string name) => server.AllBranchByName(Repo, name);
@@ -76,7 +76,7 @@ class RepoImpl : IRepo
     public Graph Graph { get; init; }
 
     public int TotalRows => Commits.Count;
-    public int CurrentRow => repoView.CurrentIndex;
+    public int CurrentIndex => Math.Min(repoView.CurrentIndex, TotalRows - 1);
     public int ContentWidth => repoView.ContentWidth;
     public Point CurrentPoint => repoView.CurrentPoint;
 

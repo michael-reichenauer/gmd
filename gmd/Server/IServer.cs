@@ -30,6 +30,7 @@ interface IServer
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
+    Task<R> CreateBranchFromBranchAsync(Repo serverRepo, string newBranchName, string sourceBranch, bool isCheckout, string repoPath);
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
     Task<R> StashAsync(string wd);
     Task<R> StashPopAsync(string name, string wd);
