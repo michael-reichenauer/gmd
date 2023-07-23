@@ -63,9 +63,9 @@ class ApplicationBarView : View, IApplicationBarView
         if (this.branch == branch) return;
         this.branch = branch;
 
-        branchText = branch != null
+        branchText = branch != null && branch.B.NiceNameUnique != currentBranchName
             ? Common.Text.BrightMagenta(" | ").Color(branch.Color, branch.B.NiceNameUnique)
-            : Common.Text.Black("");
+            : Common.Text.BrightMagenta(" | ").Dark("");
 
         UpdateBar();
     }
