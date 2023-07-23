@@ -62,7 +62,9 @@ class RepoWriter : IRepoWriter
             WriteSid(text, cw, c);
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c);
-            if (i == highlightIndex && hooverBranchName == "") text.Highlight();
+            if (i == hooverIndex && hooverBranchName == "") text.Highlight(); // hoover commit
+            else if (i == currentIndex) text.Highlight();      // current commit
+
 
             rows.Add(graphText.Add(text));
         }
