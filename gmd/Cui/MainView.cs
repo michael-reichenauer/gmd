@@ -116,13 +116,13 @@ partial class MainView : IMainView
         Log.Info("Show main menu");
         Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu());
 
-        if (!states.Get().Releases.IsUpdateAvailable)
-        {
+        if (!states.Get().Releases.IsUpdateAvailable())
+        {   // Check for update ...
             updater.CheckUpdateAvailableAsync().ContinueWith(t =>
             {
                 UI.Post(async () =>
                 {
-                    if (!states.Get().Releases.IsUpdateAvailable) return;  // No update available
+                    if (!states.Get().Releases.IsUpdateAvailable()) return;  // No update available
 
                     // Update is available, show menu again, which now will show the update available menu item
                     await menu.CloseAsync();
@@ -144,7 +144,8 @@ partial class MainView : IMainView
 
     IEnumerable<MenuItem> GetNewReleaseItems()
     {
-        if (!states.Get().Releases.IsUpdateAvailable || Build.IsDevInstance()) return Menu.Items;
+        if (!states.Get().Releases.IsUpdateAvailable()) return Menu.Items;
+
         return Menu.Items
            .Separator("New Release Available !!!")
            .Item("Update to Latest Version ...", "", () => UpdateRelease().RunInBackground())

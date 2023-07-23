@@ -184,14 +184,12 @@ class Updater : IUpdater
             s.Releases.IsPreview = release.IsPreview;
         });
 
-        if (!IsLeftNewer(release.Version, buildVersion.ToString()))
+        if (!states.Get().Releases.IsUpdateAvailable())
         {
             Log.Debug("No new remote release available");
-            states.Set(s => s.Releases.IsUpdateAvailable = false);
             return (false, buildVersion);
         }
         Log.Info($"Update available, local {buildVersion} < {release.Version} remote (preview={release.IsPreview})");
-        states.Set(s => s.Releases.IsUpdateAvailable = true);
 
         return (true, new Version(release.Version));
     }

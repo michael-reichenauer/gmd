@@ -142,7 +142,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetNewReleaseItems()
     {
-        if (!states.Get().Releases.IsUpdateAvailable || Build.IsDevInstance()) return Menu.Items;
+        if (!states.Get().Releases.IsUpdateAvailable()) return Menu.Items;
         return Menu.Items
            .Separator("New Release Available !!!")
            .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())

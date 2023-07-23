@@ -19,12 +19,29 @@ public class Asset
 
 public class Releases
 {
-    public bool IsUpdateAvailable { get; set; } = false;
     public string LatestVersion { get; set; } = "";
     public bool IsPreview { get; set; } = false;
     public Release PreRelease { get; set; } = new Release();
     public Release StableRelease { get; set; } = new Release();
     public string Etag { get; set; } = "";
+
+    public bool IsUpdateAvailable()
+    {
+        if (Build.IsDevInstance()) return false;
+
+        string v1Text = LatestVersion;
+        string v2Text = Build.Version().ToString();
+
+        if (!System.Version.TryParse(v1Text, out var v1))
+        {
+            return false;
+        }
+        if (!System.Version.TryParse(v2Text, out var v2))
+        {
+            return true;
+        }
+        return v1 > v2;
+    }
 }
 
 public class State

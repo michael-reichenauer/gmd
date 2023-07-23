@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Cui.Common;
 using Terminal.Gui;
 
@@ -23,7 +24,7 @@ class ApplicationBarView : View, IApplicationBarView
 
     public View View => this;
 
-    public ApplicationBarView(IBranchColorService branchColorService)
+    public ApplicationBarView(IBranchColorService branchColorService, IState spanFormattable)
     {
         this.branchColorService = branchColorService;
 
@@ -69,6 +70,7 @@ class ApplicationBarView : View, IApplicationBarView
 
         UpdateBar();
     }
+
 
     void UpdateBar()
     {
