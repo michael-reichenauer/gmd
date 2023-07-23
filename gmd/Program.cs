@@ -2,7 +2,6 @@
 using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
-using gmd.Installation;
 using gmd.Common;
 using gmd.Server;
 
@@ -12,7 +11,7 @@ class Program
 {
     // Current major.minor version
     public const int MajorVersion = 0;
-    public const int MinorVersion = 80;
+    public const int MinorVersion = 90;
 
     private static DependencyInjection dependencyInjection = new DependencyInjection();
     private readonly IMainView mainView;
