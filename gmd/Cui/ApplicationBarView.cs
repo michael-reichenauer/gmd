@@ -23,6 +23,7 @@ class ApplicationBarView : View, IApplicationBarView
     Text branchText = Common.Text.Empty;
     string currentBranchName = "";
     GraphBranch branch = null!;
+    Rect bounds = Rect.Empty;
 
     public View View => this;
 
@@ -41,7 +42,7 @@ class ApplicationBarView : View, IApplicationBarView
         Add(label, border);
 
         label.MouseClick += OnMouseClicked;
-
+        bounds = Frame;
         UpdateView();
 
         UI.AddTimeout(TimeSpan.FromSeconds(5), () => UpdateView());
@@ -50,6 +51,17 @@ class ApplicationBarView : View, IApplicationBarView
     void OnMouseClicked(MouseEventArgs e)
     {
         //Log.Info($"Clicked on {e.MouseEvent.X}, {e.MouseEvent.Y}");
+    }
+
+    public override void Redraw(Rect bounds)
+    {
+        if (bounds != this.bounds)
+        {
+            this.bounds = bounds;
+            UpdateView();
+        }
+
+        base.Redraw(bounds);
     }
 
     public void SetRepo(Server.Repo repo)
@@ -62,7 +74,7 @@ class ApplicationBarView : View, IApplicationBarView
         var text = Common.Text.Dark($"{path}, ");
 
         AddCurrentBranch(text, repo);
-        if (!repo.Status.IsOk) text.Dark(", ").Yellow("Ͼ ").Dark($"{repo.Status.ChangesCount}");
+        if (!repo.Status.IsOk) text.Dark(", ").Yellow("Θ ").Dark($"{repo.Status.ChangesCount}");
         if (behindCount > 0) text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}");
         if (aheadCount > 0) text.Dark(", ").Green("▲ ").Dark($"{aheadCount}");
 
@@ -76,14 +88,12 @@ class ApplicationBarView : View, IApplicationBarView
         if (this.branch == branch) return;
         this.branch = branch;
 
-        branchText = branch != null && branch.B.NiceNameUnique != currentBranchName
-            ? Common.Text.BrightMagenta(" | ").Color(branch.Color, branch.B.NiceNameUnique)
+        branchText = branch != null
+            ? Common.Text.BrightMagenta(" | ").Color(branch.Color, $"({branch.B.NiceNameUnique})")
             : Common.Text.BrightMagenta(" | ").Dark("");
 
         UpdateView();
     }
-
-
 
 
     void UpdateView()

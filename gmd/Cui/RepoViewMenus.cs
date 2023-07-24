@@ -76,9 +76,9 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
-            .Item("Help ...", "1, F1", () => cmds.ShowHelp())
+            .Item("Help ...", "?, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
-            .Item("Quit", "Esc", () => UI.Shutdown());
+            .Item("Quit", "Q, Esc", () => UI.Shutdown());
     }
 
     IEnumerable<MenuItem> GetCommitMenuItems(string commitId)

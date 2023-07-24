@@ -47,11 +47,11 @@ class FilterDlg : IFilterDlg
         dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
         dlg.RegisterMouseHandler(OnMouseEvent);
 
-        dlg.AddLabel(0, 0, Text.BrightMagenta("Search:"));
-        filterField = dlg.AddTextField(9, 0, 30);
+        dlg.AddLabel(0, 0, Text.BrightMagenta("Gmd Search:"));
+        filterField = dlg.AddTextField(13, 0, 30);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
-        statusLabel = dlg.AddLabel(41, 0);
+        statusLabel = dlg.AddLabel(45, 0);
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());
