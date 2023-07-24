@@ -1,9 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-96 releases:
+97 releases:
 
 ## [Current] - 2023-07-24
+- Improve ApplicationBar
+- Updated help file
+- Support double click on branch to switch to branch
+
+## [v0.90.267.349] - 2023-07-24
 - Added support for updating from mainn view menu
 - Added support for ApplicationBar with repo and commit info
 - Adjust dialog button focus color

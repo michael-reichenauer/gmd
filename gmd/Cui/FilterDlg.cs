@@ -46,12 +46,15 @@ class FilterDlg : IFilterDlg
 
         dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
         dlg.RegisterMouseHandler(OnMouseEvent);
+        Log.Info($"FilterDlg.Show: {Application.Driver.Cols}");
 
-        dlg.AddLabel(0, 0, Text.BrightMagenta("Search:"));
-        filterField = dlg.AddTextField(9, 0, 30);
+        dlg.AddLabel(0, 0, Text.BrightMagenta("Gmd"));
+
+        dlg.AddLabel(Application.Driver.Cols - 41, 0, Text.BrightMagenta("Search"));
+        filterField = dlg.AddTextField(Application.Driver.Cols - 34, 0, 30);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
-        statusLabel = dlg.AddLabel(41, 0);
+        statusLabel = dlg.AddLabel(6, 0);
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());
@@ -185,7 +188,7 @@ class FilterDlg : IFilterDlg
         var commit = currentRepo.Commits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];
         var color = branchColorService.GetColor(currentRepo, branch);
-        statusLabel.Text = Text.Add(repoInfo).White($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
+        statusLabel.Text = Text.Add(repoInfo).Cyan($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
     }
 
 

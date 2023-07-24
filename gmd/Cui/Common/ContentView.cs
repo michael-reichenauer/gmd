@@ -121,7 +121,7 @@ class ContentView : View
     {
         if (!IsFocus) return false;
 
-        // Log.Info($"HotKey: {keyEvent}");
+        // Log.Info($"HotKey: {keyEvent}, {keyEvent.Key}");
 
         if (keys.TryGetValue(keyEvent.Key, out var callback))
         {

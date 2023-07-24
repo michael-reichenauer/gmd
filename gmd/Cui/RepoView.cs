@@ -273,7 +273,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.q, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
-        commitsView.RegisterKeyHandler(Key.o, () => menuService.ShowOpenMenu());
+        commitsView.RegisterKeyHandler(Key.o, () => menuService.ShowOpenRepoMenu());
         commitsView.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         commitsView.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
@@ -293,6 +293,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.U, () => Cmd.PullAllBranches());
         commitsView.RegisterKeyHandler(Key.D1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
+        commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
 
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
@@ -312,8 +313,47 @@ class RepoView : IRepoView
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+
+        applicationBarView.ItemClicked += OnApplicationClick;
     }
 
+    void OnApplicationClick(int x, int y, ApplicationBarItem item)
+    {
+        Log.Info($"Application bar clicked: {item}");
+        switch (item)
+        {
+            case ApplicationBarItem.Update:
+                Cmd.UpdateRelease();
+                break;
+            case ApplicationBarItem.Gmd:
+                menuService.ShowRepoMenu(x - 5, y + 2);
+                break;
+            case ApplicationBarItem.Repo:
+                menuService.ShowOpenRepoMenu(x - 5, y + 2);
+                break;
+            case ApplicationBarItem.CurrentBranch:
+                Cmd.ShowBranch(repo.GetCurrentBranch().Name, false);
+                break;
+            case ApplicationBarItem.Status:
+                Cmd.CommitFromMenu(false);
+                break;
+            case ApplicationBarItem.Behind:
+                Cmd.PullAllBranches();
+                break;
+            case ApplicationBarItem.Ahead:
+                Cmd.PushAllBranches();
+                break;
+            case ApplicationBarItem.BranchName:
+                menuService.ShowOpenBranchesMenu(x - 5, y + 2);
+                break;
+            case ApplicationBarItem.Search:
+                Cmd.Filter();
+                break;
+            case ApplicationBarItem.Help:
+                Cmd.ShowHelp();
+                break;
+        }
+    }
 
     void OnKeyE()
     {
@@ -531,8 +571,29 @@ class RepoView : IRepoView
 
     void OnDoubleClicked(int x, int y)
     {
-        commitsView.SetIndexAtViewY(y);
-        ToggleDetails();
+        var index = y + commitsView.FirstIndex;
+        commitsView.SetCurrentIndex(index);
+
+        if (x > repo.Graph.Width)
+        {
+            ClearHoover();
+            ToggleDetails();
+        }
+
+        if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
+        {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
+            var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+
+            var branchName = branch.B.Name;
+            if (branch.B.LocalName != "") branchName = branch.B.LocalName;
+
+            if (branch.B.PrimaryName != currentName)
+            {
+                Cmd.SwitchTo(branchName);
+            }
+            return;
+        }
+
     }
 
     void OnClicked(int x, int y)

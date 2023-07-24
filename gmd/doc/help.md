@@ -6,34 +6,54 @@ Some especially useful keyboard shortcuts are:
 
 | Key        | Description                                                 |
 | ---------- | ------------------------------------------------------------|
-| m          | Shows the main menu with all available commands             |
-| RightArrow | Shows menu to open/show and switch branch                   |
-| LeftArrow  | Show menu to close branches                                 |
+| M          | Shows a menu with available commands when commit or         |  
+|            | branch is highlighted                                       |
+| LeftArrow  | Highlights branch to the left                               |
+| RightArrow | Highlights branch to the right (or commit)                  |
 | Esc        | Close a menu or a dialog                                    |
-| Esc        | Quit the application in repo view                           |
+| Esc or Q   | Quit the application in log view                            |
 | Tab        | Switch between repo and commit details views (if shown)     |
-|            |                                                             |
-| c          | Shows the commit dialog                                     |
-| d          | Shows the commit diff view in repo and commit               |
-| Ctrl+d     | Shows the commit diff in commit dialog                      |
+| C          | Shows the commit dialog                                     |
+| D          | Shows the commit diff view in log view                      |
+| Ctrl+D     | Shows the commit diff in commit dialog                      |
 | Enter      | Shows commit details                                        |
-| Ctrl+o     | To trigger click on 'OK' buttons in dialogs                 |
+| Ctrl+O     | To trigger click on 'OK' buttons in dialogs                 |
+| ? or F1    | Show this help page                                         |
 ----------------------------------------------------------------------------
 
-More shortcut keys are available and indicated in the menus.
+More shortcut keys are available and indicated in the menus.\
+
+Some signs/characters used in the views:
+
+| Sign | Description                                                       |
+| -----| ------------------------------------------------------------------|
+| ●    | The current commit and current branch                             |  
+| *    | The current commit is detached (checked out a commit)             |
+| ^    | Short for 'origin' in branch names, e.g. '^/main' = 'origin/main' |
+| ~    | Indicates the branch is deleted                                   |
+| ▼    | Indicates the commit has not yet been pulled (blue line)          |
+| ▲    | Indicate the commit has not yet been pushed (green line)          |
+| ©    | Indicates current uncommitted changes (yellow)                    | 
+| ⇓    | Indicates an updated release is available to download (use menu)  |
+| ┅    | Indicates the name/text has been truncated.                       |
+| ╯    | A branch not yet shown is branching out at the commit in graph    |
+| ╮    | A Branch not yet shown is merging in at the commit int graph      |
+| ╂┸   | Remote and local branch tips are synced (no need to pull/push)    |
+| Φ    | The branch for that commit has been manually set                  |
+----------------------------------------------------------------------------
 
 
 ## Branches Graphs
 The branches graph on the left side visualizes the selected
-branches. More or less branches can be shown by clicking the
-'`RightArrow`', '`LeftArrow`' or '`m`' key.
+branches. Highlight branches using the '`LeftArrow`' and '`RightArrow`' keys.
+Show branch specific menu using the '`M`' key.
 
 
 ### Indicators for not Shown Branches
 Seemingly cutoff start or end branch indicators '╮' and '╯' to the right
-of a branch, indicates a merge in or branch out for not yet shown branches. 
-Use the '`RightArrow`' key on such a commit line to show the branches menu,
-and select branch to open.
+of a branch, indicates a merge in or branch out for not yet shown branches.
+Click using the mouse or highlight the commit in the branch and press '`Enter`'
+to show/hide branch. Also top and bottom branch commits will hide the branch.
 
 
 ### Remote and Local Branches
@@ -47,13 +67,14 @@ if synced and on different rows:
   (indicated with green subject lines and preceded by a '▲')
 
 Use push and update/pull in main menu to sync 
-(keys `'p'` and `'u'` key will push, update/pull current branch)\
-(keys `'P'` and `'U'` key will push, update/pull all shown branches)
+(keys `'P'` and `'U'` key will push, update/pull current branch)\
+(keys `'Shift-P'` and `'Shift-U'` key will push, update/pull all shown branches)
 
 
 ### Current Commit/Branch
 A '●' indicates the current commit and current branch.\
 A '*' indicates the current commit is detached (checked out a commit).
+
 
 ### Branch Tips
 Branch tips are shown to the right of the subject. Long branch names are
@@ -68,9 +89,9 @@ will be restored/resumed if user switches to that branch.
 * *Toggle Details ...* (`'Enter'`)\
   Shows some more commit details at the bottom. E.g. to see full commit
   message. Use tab to focus details to scroll and tab to focus log view again.
-* *Commit ...* (`'c'`)\
+* *Commit ...* (`'C'`)\
   Commit uncommitted changes. A warning for large or binary files is shown.
-* *Commit Diff ...* (`'d'`)\
+* *Commit Diff ...* (`'D'`)\
   Shows a side-by-side diff of all changes in the commit.
 * *Undo | Clean/Restore Working Folder*:\
   Ensures a working folder is as if folder just has been checked out. 
@@ -115,7 +136,7 @@ which branch a commit most likely belongs to. If Gmd is confident, the commit
 get a branch color. But in some cases, it is hard to determine and thus the
 branch color will be white and commits and branch is marked as `ambiguous`;
 
-In those cases, the user can use the `Resolve Ambiguity` command in the
-main menu. 
+In those cases, the user can use the `Set Branch Manually` command in the
+branch menu. 
 
   

@@ -173,6 +173,9 @@ class UIDialog
     internal Button AddDlgCancel(bool isDefault = false, Func<bool>? clicked = null)
         => AddDlgButton("Cancel", isDefault, clicked);
 
+    internal Button AddDlgClose(bool isDefault = false, Func<bool>? clicked = null)
+          => AddDlgButton("Close", isDefault, clicked);
+
 
     internal void Add(View view)
     {

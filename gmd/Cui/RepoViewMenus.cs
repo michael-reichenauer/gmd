@@ -8,10 +8,12 @@ namespace gmd.Cui;
 
 interface IRepoViewMenus
 {
+    void ShowRepoMenu(int x, int y);
     void ShowCommitMenu(int x, int y, int index);
     void ShowBranchMenu(int x, int y, string branchName);
     void ShowCommitBranchesMenu(int x, int y);
-    void ShowOpenMenu();
+    void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0);
+    void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -39,6 +41,10 @@ class RepoViewMenus : IRepoViewMenus
         this.configDlg = configDlg;
     }
 
+    public void ShowRepoMenu(int x, int y)
+    {
+        Menu.Show($"Repo Menu", x, y, GetRepoMenuItems());
+    }
 
     public void ShowCommitMenu(int x, int y, int index)
     {
@@ -57,11 +63,15 @@ class RepoViewMenus : IRepoViewMenus
         Menu.Show("Show/Open Branch", x, y, GetCommitBranchItems());
     }
 
-    public void ShowOpenMenu()
+    public void ShowOpenRepoMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Open Repo", Menu.Center, 0, GetOpenRepoItems());
+        Menu.Show("Open Repo", x, y, GetOpenRepoItems());
     }
 
+    public void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0)
+    {
+        Menu.Show("Open Branch", x, y, GetShowBranchItems());
+    }
 
     IEnumerable<MenuItem> GetRepoMenuItems()
     {
@@ -76,9 +86,9 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
-            .Item("Help ...", "1, F1", () => cmds.ShowHelp())
+            .Item("Help ...", "?, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
-            .Item("Quit", "Esc", () => UI.Shutdown());
+            .Item("Quit", "Q, Esc", () => UI.Shutdown());
     }
 
     IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
