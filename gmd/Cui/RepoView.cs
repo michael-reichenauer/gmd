@@ -369,8 +369,8 @@ class RepoView : IRepoView
 
             if ((branch.IsCurrent) && repo.Status.IsOk)
             {
-                var hb = repo.Graph.BranchByName(hooverBranchName);
-                menuService.ShowMergeFromMenu(hb.X * 2 + 3, hooverIndex + 1);
+                var hb = repo.Graph.BranchByName(branch.Name);
+                menuService.ShowMergeFromMenu(hb.X * 2 + 3, commitsView.CurrentPoint.Y + 1);
                 return;
             }
         }
