@@ -33,7 +33,7 @@ Some signs/characters used in the views:
 | ~    | Indicates the branch is deleted                                   |
 | ▼    | Indicates the commit has not yet been pulled (blue line)          |
 | ▲    | Indicate the commit has not yet been pushed (green line)          |
-| Θ    | Indicates current uncommitted changes (yellow)                    | 
+| ©    | Indicates current uncommitted changes (yellow)                    | 
 | ⇓    | Indicates an updated release is available to download (use menu)  |
 | ┅    | Indicates the name/text has been truncated.                       |
 | ╯    | A branch not yet shown is branching out at the commit in graph    |

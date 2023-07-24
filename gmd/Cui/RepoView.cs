@@ -273,7 +273,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.q, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
-        commitsView.RegisterKeyHandler(Key.o, () => menuService.ShowOpenMenu());
+        commitsView.RegisterKeyHandler(Key.o, () => menuService.ShowOpenRepoMenu());
         commitsView.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         commitsView.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
@@ -313,8 +313,47 @@ class RepoView : IRepoView
         // Keys on commit details view.
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+
+        applicationBarView.ItemClicked += OnApplicationClick;
     }
 
+    void OnApplicationClick(int x, int y, ApplicationBarItem item)
+    {
+        Log.Info($"Application bar clicked: {item}");
+        switch (item)
+        {
+            case ApplicationBarItem.Update:
+                Cmd.UpdateRelease();
+                break;
+            case ApplicationBarItem.Gmd:
+                menuService.ShowRepoMenu(x - 5, y + 2);
+                break;
+            case ApplicationBarItem.Repo:
+                menuService.ShowOpenRepoMenu(x - 5, y + 2);
+                break;
+            case ApplicationBarItem.CurrentBranch:
+                Cmd.ShowBranch(repo.GetCurrentBranch().Name, false);
+                break;
+            case ApplicationBarItem.Status:
+                Cmd.CommitFromMenu(false);
+                break;
+            case ApplicationBarItem.Behind:
+                Cmd.PullAllBranches();
+                break;
+            case ApplicationBarItem.Ahead:
+                Cmd.PushAllBranches();
+                break;
+            case ApplicationBarItem.BranchName:
+                menuService.ShowOpenBranchesMenu(x - 5, y + 2);
+                break;
+            case ApplicationBarItem.Search:
+                Cmd.Filter();
+                break;
+            case ApplicationBarItem.Help:
+                Cmd.ShowHelp();
+                break;
+        }
+    }
 
     void OnKeyE()
     {

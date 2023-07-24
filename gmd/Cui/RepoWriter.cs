@@ -126,7 +126,7 @@ class RepoWriter : IRepoWriter
         }
         if (c.Id == Repo.UncommittedId)
         {   // There are uncommitted changes, so the current marker is at the uncommitted commit
-            text.Yellow(" Θ");
+            text.Yellow(" ©");
             return;
         }
         if (c.IsCurrent && !isUncommitted)
