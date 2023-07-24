@@ -39,7 +39,7 @@ Some signs/characters used in the views:
 | ╯    | A branch not yet shown is branching out at the commit in graph    |
 | ╮    | A Branch not yet shown is merging in at the commit int graph      |
 | ╂┸   | Remote and local branch tips are synced (no need to pull/push)    |
-| Φ    | The commit branch has been manually specified.                    |
+| Φ    | The branch for that commit has been manually set                  |
 ----------------------------------------------------------------------------
 
 
