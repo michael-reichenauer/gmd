@@ -601,7 +601,8 @@ class RepoView : IRepoView
         var index = y + commitsView.FirstIndex;
         commitsView.SetCurrentIndex(index);
 
-        if (repo.Graph.TryGetBranchByPos(x, index, out var _))
+        if (repo.Graph.TryGetBranchByPos(x, index, out var branch) &&
+            repo.RowCommit.BranchPrimaryName == branch.B.PrimaryName)
         {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
             TryShowHideCommitBranch(x, y);
             return;
