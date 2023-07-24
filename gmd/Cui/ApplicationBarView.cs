@@ -39,9 +39,17 @@ class ApplicationBarView : View, IApplicationBarView
         var border = new Label(0, 1, new string('─', 200)) { ColorScheme = ColorSchemes.Border };
 
         Add(label, border);
+
+        label.MouseClick += OnMouseClicked;
+
         UpdateView();
 
         UI.AddTimeout(TimeSpan.FromSeconds(5), () => UpdateView());
+    }
+
+    void OnMouseClicked(MouseEventArgs e)
+    {
+        //Log.Info($"Clicked on {e.MouseEvent.X}, {e.MouseEvent.Y}");
     }
 
     public void SetRepo(Server.Repo repo)
@@ -54,7 +62,7 @@ class ApplicationBarView : View, IApplicationBarView
         var text = Common.Text.Dark($"{path}, ");
 
         AddCurrentBranch(text, repo);
-        if (!repo.Status.IsOk) text.Dark(", ").Yellow("* ").Dark($"{repo.Status.ChangesCount}");
+        if (!repo.Status.IsOk) text.Dark(", ").Yellow("Ͼ ").Dark($"{repo.Status.ChangesCount}");
         if (behindCount > 0) text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}");
         if (aheadCount > 0) text.Dark(", ").Green("▲ ").Dark($"{aheadCount}");
 
@@ -74,6 +82,8 @@ class ApplicationBarView : View, IApplicationBarView
 
         UpdateView();
     }
+
+
 
 
     void UpdateView()
