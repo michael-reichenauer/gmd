@@ -3,19 +3,19 @@ namespace gmd.Utils;
 static class Threading
 {
     static int mainThreadId = Thread.CurrentThread.ManagedThreadId;
-    static SynchronizationContext sctx = SynchronizationContext.Current!;
+    static SynchronizationContext context = SynchronizationContext.Current!;
 
     public static int CurrentId => Thread.CurrentThread.ManagedThreadId;
 
     internal static void SetUp()
     {
         mainThreadId = Thread.CurrentThread.ManagedThreadId;
-        sctx = SynchronizationContext.Current!;
+        context = SynchronizationContext.Current!;
     }
 
     internal static void PostOnMain(Action action)
     {
-        sctx.Post((o) => action(), null);
+        context.Post((o) => action(), null);
     }
 
     internal static void AssertIsMainThread()

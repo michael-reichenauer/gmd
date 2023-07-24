@@ -10,6 +10,7 @@ interface ICommitService
     Task<R> UncommitLastCommitAsync(string wd);
 }
 
+// cSpell:ignore pathspec
 class CommitService : ICommitService
 {
     private readonly ICmd cmd;
@@ -48,7 +49,7 @@ class CommitService : ICommitService
             // Some error while restore file
             if (IsFileUnknown(e, path))
             {
-                // Was an unkown (new/added) file, we just remove it
+                // Was an unknown (new/added) file, we just remove it
                 var fullPath = Path.Combine(wd, path);
                 if (!Try(out e, Files.Delete(fullPath))) return R.Error("Failed to reset", e);
                 Log.Info($"File '{path}' (new/added) was removed");

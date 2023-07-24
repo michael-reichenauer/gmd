@@ -34,6 +34,10 @@ class StatusService : IStatusService
         List<string> deletedFiles = new List<string>();
         int modified = 0;
         List<string> modifiedFiles = new List<string>();
+        int renamed = 0;
+        List<string> renamedSourceFiles = new List<string>();
+        List<string> renamedTargetFiles = new List<string>();
+
 
         foreach (var lineText in lines)
         {
@@ -80,6 +84,13 @@ class StatusService : IStatusService
                 deleted++;
                 deletedFiles.Add(line.Substring(2).Trim().Replace("\"", ""));
             }
+            else if (line.StartsWith("R"))
+            {
+                renamed++;
+                var parts = line.Substring(2).Split(" -> ");
+                renamedSourceFiles.Add(parts[0].Trim().Replace("\"", ""));
+                renamedTargetFiles.Add(parts[1].Trim().Replace("\"", ""));
+            }
             else
             {
                 modified++;
@@ -88,8 +99,9 @@ class StatusService : IStatusService
         }
         (string mergeMessage, string mergeHeadId, bool isMerging) = GetMergeStatus(wd);
 
-        return new Status(modified, added, deleted, conflicted, isMerging, mergeMessage, mergeHeadId,
-            modifiedFiles.ToArray(), addedFiles.ToArray(), deletedFiles.ToArray(), conflictsFiles.ToArray());
+        return new Status(modified, added, deleted, conflicted, renamed, isMerging, mergeMessage, mergeHeadId,
+            modifiedFiles.ToArray(), addedFiles.ToArray(), deletedFiles.ToArray(), conflictsFiles.ToArray(),
+            renamedSourceFiles.ToArray(), renamedTargetFiles.ToArray());
     }
 
     (string, string, bool) GetMergeStatus(string wd)

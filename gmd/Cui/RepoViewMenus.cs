@@ -8,9 +8,9 @@ namespace gmd.Cui;
 
 interface IRepoViewMenus
 {
-    void ShowMainMenu();
-    void ShowShowBranchesMenu();
-    void ShowHideBranchesMenu();
+    void ShowCommitMenu(int x, int y, int index);
+    void ShowBranchMenu(int x, int y, string branchName);
+    void ShowCommitBranchesMenu(int x, int y);
     void ShowOpenMenu();
 }
 
@@ -39,74 +39,116 @@ class RepoViewMenus : IRepoViewMenus
         this.configDlg = configDlg;
     }
 
-    public void ShowMainMenu()
+
+    public void ShowCommitMenu(int x, int y, int index)
     {
-        Menu.Show(-1, 0, GetMainMenuItems(), "Main Menu");
+        var c = repo.Commits[index];
+        Menu.Show($"Commit: {Sid(c.Id)}", x, y, GetCommitMenuItems(c.Id));
     }
 
-
-    public void ShowShowBranchesMenu()
+    public void ShowBranchMenu(int x, int y, string branchName)
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, Menu.Items
-            .Items(GetSwitchToItems())
-            .Separator("Show/Open")
-            .Items(GetShowItems())
-            .Separator()
-            .SubMenu("Show Branch", "", GetShowBranchItems())
-            .SubMenu("Main Menu", "M", GetMainMenuItems()),
-            "Switch to");
+        var b = repo.Branch(branchName);
+        Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y, GetBranchMenuItems(branchName));
     }
 
-    public void ShowHideBranchesMenu()
+    public void ShowCommitBranchesMenu(int x, int y)
     {
-        Menu.Show(repo.CurrentPoint.X, repo.CurrentPoint.Y + 1, GetHideItems(), "Close/Hide");
+        Menu.Show("Show/Open Branch", x, y, GetCommitBranchItems());
     }
 
     public void ShowOpenMenu()
     {
-        Menu.Show(-1, 0, GetOpenRepoItems(), "Open Repo");
+        Menu.Show("Open Repo", Menu.Center, 0, GetOpenRepoItems());
     }
 
-    IEnumerable<MenuItem> GetMainMenuItems()
+
+    IEnumerable<MenuItem> GetRepoMenuItems()
     {
-        var releases = states.Get().Releases;
-        var items = Menu.Items;
-        var branchName = repo.CurrentBranch?.NiceNameUnique ?? "";
-        var commit = repo.RowCommit;
-        var sidText = Sid(repo.RowCommit.Id);
-        var currentSidText = Sid(repo.GetCurrentCommit().Sid);
-        var isAhead = repo.GetCurrentCommit().IsAhead;
+        var isStatusOK = repo.Status.IsOk;
 
-        if (releases.IsUpdateAvailable && !Build.IsDevInstance())
-        {
-            items.Separator("New Release Available !!!")
-                .Item("Update to Latest ...", "", () => cmds.UpdateRelease())
-                .Separator();
-        }
-
-        return items
-            .SubMenu("Commit", "", GetCommitItems())
-            .SubMenu("Undo", "", GetUndoItems())
-            .SubMenu("Diff", "", GetDiffItems())
-            .SubMenu("Show/Open Branch", "→", GetShowBranchItems())
-            .SubMenu("Hide Branch", "←", GetHideItems())
-            .SubMenu("Switch/Checkout", "→", GetSwitchToItems()
-                .Append(Menu.Item($"Switch to Commit {Sid(repo.RowCommit.Id)}", "", () => cmds.SwitchToCommit(), () => repo.Status.IsOk && repo.RowCommit.Id != repo.GetCurrentCommit().Id)))
-            .SubMenu("Push/Publish", "", GetPushItems(), () => cmds.CanPush())
-            .SubMenu("Pull/Update", "", GetPullItems(), () => cmds.CanPull())
-            .SubMenu($"Merge", "", GetMergeFromItems())
-            .SubMenu("Create Branch", "", GetCreateBranchItems())
-            .SubMenu("Delete Branch", "", GetDeleteItems())
+        return Menu.Items
+            .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
+            .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .SubMenu("Stash", "", GetStashMenuItems())
-            .SubMenu("Tag", "", GetTagItems())
-            .SubMenu("Branch Structure", "", GetBranchStructureItems())
             .Item("Search/Filter ...", "F", () => cmds.Filter())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
+            .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
             .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
-            .Item("Help ...", "H", () => cmds.ShowHelp())
+            .Item("Help ...", "1, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Esc", () => UI.Shutdown());
+    }
+
+    IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
+    {
+        var c = repo.Commit(commitId);
+        var cc = repo.GetCurrentCommit();
+        var rb = repo.RowBranch;
+        var cb = repo.CurrentBranch;
+        var isStatusOK = repo.Status.IsOk;
+        var sid = Sid(c.Id);
+
+        return Menu.Items
+            .Items(GetNewReleaseItems())
+            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
+            .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
+            .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
+            .SubMenu("Undo", "", GetCommitUndoItems(), () => c.IsUncommitted)
+            .Item("Stash Changes", "", () => cmds.Stash(), () => c.Id == Repo.UncommittedId)
+            .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
+            .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
+            .Item($"Merge From Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
+            .Item($"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
+            .Item("Switch to Commit", "", () => cmds.SwitchToCommit(),
+                    () => isStatusOK && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
+            .Separator()
+            .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+            .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
+            .Item("File History ...", "", () => cmds.ShowFileHistory())
+            .SubMenu("Repo Menu", "", GetRepoMenuItems());
+    }
+
+
+    IEnumerable<MenuItem> GetBranchMenuItems(string name)
+    {
+        var b = repo.Branch(name);
+        var cb = repo.CurrentBranch;
+        var isStatusOK = repo.Status.IsOk;
+        var isCurrent = b.IsCurrent || b.IsLocalCurrent;
+        var mergeToName = cb?.ShortNiceUniqueName() ?? "";
+
+        return Menu.Items
+            .Items(GetNewReleaseItems())
+            .Item(GetSwitchToBranchItem(name))
+            .Item(!isCurrent, $"Merge to {mergeToName}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
+            .SubMenu(isCurrent, "Merge from", "", GetMergeFromItems())
+            .Item("Hide Branch", "H", () => cmds.HideBranch(name))
+            .Item("Pull/Update", "U", () => cmds.PullBranch(name), () => b.HasRemoteOnly && isStatusOK)
+            .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)
+            .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
+            .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
+            .SubMenu("Diff Branch to", "", GetBranchDiffItems(name))
+            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
+            .Items(GetMoveBranchItems(name))
+            .Separator()
+            .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+            .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
+            .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
+            .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
+            .SubMenu("Branch Structure", "", GetBranchStructureItems())
+            .SubMenu("Repo Menu", "", GetRepoMenuItems());
+    }
+
+
+    IEnumerable<MenuItem> GetNewReleaseItems()
+    {
+        if (!states.Get().Releases.IsUpdateAvailable()) return Menu.Items;
+        return Menu.Items
+           .Separator("New Release Available !!!")
+           .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
+           .Separator();
     }
 
 
@@ -118,17 +160,15 @@ class RepoViewMenus : IRepoViewMenus
             .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.ShowBranch(b.Name, true)));
 
         return Menu.Items
-           .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
-           .SubMenu("Move Branch left/right", "", GetMoveBranchItems())
-           //.SubMenu("Resolve Ambiguity", "", GetAmbiguousItems())
-           .SubMenu("Show Ambiguous Branches", "", ambiguousBranches)
-           .Item("Set Branch Manually ...", "", () => cmds.SetBranchManuallyAsync())
-           .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
+            .SubMenu("Show Ambiguous Branches", "", ambiguousBranches)
+            .Item("Set Branch Manually ...", "", () => cmds.SetBranchManuallyAsync())
+            .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
     }
 
     IEnumerable<MenuItem> GetCreateBranchItems() => Menu.Items
         .Item("Create Branch ...", "B", () => cmds.CreateBranch())
         .Item("Create Branch from commit ...", "", () => cmds.CreateBranchFromCommit(), () => repo.Status.IsOk);
+
 
     IEnumerable<MenuItem> GetCommitItems() => Menu.Items
         .Item("Commit ...", "C",
@@ -141,7 +181,7 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> GetTagItems() => Menu.Items
-        .Item("Add Tag ...", "", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
+        .Item("Add Tag ...", "T", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
         .SubMenu("Remove Tag", "", GetDeleteTagItems());
 
 
@@ -164,22 +204,19 @@ class RepoViewMenus : IRepoViewMenus
             .SubMenu("Stash Diff", "", GetStashDiffItems());
     }
 
-
-    IEnumerable<MenuItem> GetMoveBranchItems()
+    IEnumerable<MenuItem> GetMoveBranchItems(string branchPrimaryName)
     {
-        var items = Menu.Items;
-
         // Get possible local, remote, pull merge branches of the row branch
-        var rowHeadName = repo.RowBranch.PrimaryName;
-        var rowBranches = repo.Branches.Where(b => b.PrimaryName == rowHeadName);
+        var relatedBranches = repo.Branches.Where(b => b.PrimaryName == branchPrimaryName);
+        var branch = repo.Branch(branchPrimaryName);
 
-        // Get all branches that overlap with any of the row branches
-        var overlappingBranches = rowBranches
+        // Get all branches that overlap with any of the related branches
+        var overlappingBranches = relatedBranches
             .SelectMany(b => repo.Graph.GetOverlappingBranches(b.Name))
             .Distinct()
             .ToList();
 
-        if (!overlappingBranches.Any()) return items;
+        if (!overlappingBranches.Any()) return Menu.Items;
 
         // Sort on left to right shown order
         Sorter.Sort(overlappingBranches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
@@ -189,35 +226,54 @@ class RepoViewMenus : IRepoViewMenus
         for (int i = 0; i < overlappingBranches.Count; i++)
         {
             var b = overlappingBranches[i];
-            if (b.B.PrimaryName == rowHeadName) break;
+            if (b.B.PrimaryName == branchPrimaryName) break;
             leftBranch = b.B;
         }
-        var leftHeadName = leftBranch != null && !IsAncestor(leftBranch, repo.RowBranch) ? leftBranch.PrimaryName : "";
+        leftBranch = leftBranch != null ? repo.Branch(leftBranch.PrimaryName) : null;
+        var leftPrimaryName = leftBranch != null && !IsAncestor(leftBranch, branch) ? leftBranch.PrimaryName : "";
 
         // Find possible branch on right side to move to after (skip if ancestor)
         Branch? rightBranch = null;
         for (int i = overlappingBranches.Count - 1; i >= 0; i--)
         {
             var b = overlappingBranches[i];
-            if (b.B.PrimaryName == rowHeadName) break;
+            if (b.B.PrimaryName == branchPrimaryName) break;
             rightBranch = b.B;
         }
-        var rightHeadName = rightBranch != null && !IsAncestor(repo.RowBranch, rightBranch) ? rightBranch.PrimaryName : "";
+        rightBranch = rightBranch != null ? repo.Branch(rightBranch.PrimaryName) : null;
+        var rightPrimaryName = rightBranch != null && !IsAncestor(branch, rightBranch) ? rightBranch.PrimaryName : "";
 
+        var items = Menu.Items;
         // Add menu items if movable branches found
-        if (leftHeadName != "")
+        if (leftPrimaryName != "")
         {
-            items.Item($"<= (Move {repo.RowBranch.NiceNameUnique} left of {leftBranch!.NiceNameUnique})", "",
-                () => cmds.MoveBranch(repo.RowBranch.PrimaryName, leftHeadName, -1));
+            items.Item($"<= (Move Branch left of {leftBranch!.NiceNameUnique})", "",
+                () => cmds.MoveBranch(branch.PrimaryName, leftPrimaryName, -1));
         }
-        if (rightHeadName != "")
+        if (rightPrimaryName != "")
         {
-            items.Item($"=> (Move {repo.RowBranch.NiceNameUnique} right of {rightBranch!.NiceNameUnique})", "",
-                () => cmds.MoveBranch(repo.RowBranch.PrimaryName, rightHeadName, +1));
+            items.Item($"=> (Move right of {rightBranch!.NiceNameUnique})", "",
+                () => cmds.MoveBranch(branch.PrimaryName, rightPrimaryName, +1));
         }
 
         return items;
     }
+
+    IEnumerable<MenuItem> GetMergeFromItems()
+    {
+        if (!repo.Status.IsOk) return Menu.Items;
+
+        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+
+        // Get all branches except current
+        var branches = repo.Branches
+             .Where(b => b.IsPrimary && b.PrimaryName != currentName)
+             .DistinctBy(b => b.TipId)
+             .OrderBy(b => b.PrimaryName);
+
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
+    }
+
 
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items
@@ -269,14 +325,14 @@ class RepoViewMenus : IRepoViewMenus
         return items
             .Concat(branch.AmbiguousBranchNames.Select(n => repo.AllBranchByName(n))
                 .DistinctBy(b => b.PrimaryName)
-                .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.ResolveAmbiguity(branch, b.NiceName))));
+                .Select(b => Menu.Item(ToBranchMenuName(b, false), "", () => cmds.ResolveAmbiguity(branch, b.NiceName))));
     }
 
 
     IEnumerable<MenuItem> GetPushItems()
     {
         var items = Menu.Items
-            .Item("Push All Branches", "P", () => cmds.PushAllBranches());
+            .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches());
 
         if (repo.CurrentBranch != null)
         {
@@ -328,14 +384,11 @@ class RepoViewMenus : IRepoViewMenus
         return items.DistinctBy(b => b.Title);
     }
 
-    IEnumerable<MenuItem> GetShowItems()
+    IEnumerable<MenuItem> GetCommitInOutItems()
     {
         // Get current branch, commit branch in/out and all shown branches
-        var shownBranches = repo.Branches;
-        var branches =
-            new Branch[0]
-            .Concat(repo.GetCommitBranches())
-            .Concat(repo.Branches);
+        var branches = repo.GetCommitBranches().Concat(repo.Branches);
+
         var currentBranch = repo.GetCurrentBranch();
         if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
         {
@@ -343,19 +396,15 @@ class RepoViewMenus : IRepoViewMenus
         }
         branches = branches.Where(b => !repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
 
-        return ToShowBranchesItems(branches, true);
+        return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
     }
 
-    IEnumerable<MenuItem> GetScrollToItems()
+    IEnumerable<MenuItem> GetCommitBranchItems()
     {
-        // Get current branch, commit branch in/out and all shown branches
-        var branches =
-            new[] { repo.GetCurrentBranch() }
-            .Concat(repo.GetCommitBranches())
-            .Concat(repo.Branches)
-            .Where(b => repo.Branches.Contains(b));
+        // Get commit branch in/out
+        var branches = repo.GetCommitBranches();
 
-        return ToShowBranchesItems(branches, true);
+        return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
     }
 
 
@@ -363,116 +412,58 @@ class RepoViewMenus : IRepoViewMenus
     {
         var currentName = repo.CurrentBranch?.PrimaryName ?? "";
         var branches = repo.Branches
-             .Where(b => b.PrimaryName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
+             .Where(b => b.PrimaryName != currentName)
              .OrderBy(b => b.PrimaryName);
 
-        return ToSwitchHierarchicalBranchesItems(branches);
+        return ToHierarchicalBranchesItems(branches, b => cmds.SwitchTo(b.LocalName != "" ? b.LocalName : b.Name), null, true);
+    }
+
+    MenuItem GetSwitchToBranchItem(string branchName)
+    {
+        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+        var branch = repo.Branch(branchName);
+        if (branch.LocalName != "") branchName = branch.LocalName;
+        return Menu.Item("Switch to Branch", "S", () => cmds.SwitchTo(branchName), () => branch.PrimaryName != currentName);
     }
 
     IEnumerable<MenuItem> GetDeleteItems()
     {
         var branches = repo.GetAllBranches()
-            .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent
-                && b.LocalName == "" && b.PullMergeParentBranchName == "")
+            .Where(b => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
             .OrderBy(b => repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName) ? 0 : 1)
             .ThenBy(b => b.PrimaryName);
 
-        return ToDeleteHierarchicalBranchesItems(branches);
+        return ToHierarchicalBranchesItems(branches, b => cmds.DeleteBranch(b.Name))
+            .Select(i => i with { Title = $"{i.Title} ..." });
     }
 
 
-    IEnumerable<MenuItem> ToDeleteItems(IEnumerable<Branch> branches) => branches.Select(b =>
-            Menu.Item($"{ToBranchMenuName(b)} ...", "", () => cmds.DeleteBranch(b.Name)));
-
-
-    IEnumerable<MenuItem> ToDeleteHierarchicalBranchesItems(IEnumerable<Branch> branches)
-    {
-        if (branches.Count() <= MaxItemCount)
-        {   // Too few branches to bother with submenus
-            return ToDeleteItems(branches);
-        }
-
-        var cic = repo.RowCommit;
-
-        // Group by first part of the b.commonName (if '/' or '(' exists in name)
-        var groups = branches
-            .GroupBy(b => b.NiceNameUnique.Split('/', '(')[0])
-            .OrderBy(g => g.Key)
-            .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
-
-        // If only one item in group, then just show branch, otherwise show submenu
-        return groups.Select(g =>
-            g.Count() == 1
-                ? Menu.Item($"{ToBranchMenuName(g.First())} ...", "", () => cmds.DeleteBranch(g.First().Name))
-                : Menu.SubMenu($"    {g.Key}/┅", "", ToDeleteItems(g)));
-    }
-
-    IEnumerable<MenuItem> GetMergeFromItems()
-    {
-        if (!repo.Status.IsOk)
-        {
-            return Menu.Items;
-        }
-
-        var sidText = Sid(repo.RowCommit.Id);
-        var commit = repo.RowCommit;
-        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
-
-        // Get all branches except current
-        var branches = repo.Branches
-             .Where(b => b.PrimaryName != currentName && b.LocalName == "" && b.PullMergeParentBranchName == "")
-             .DistinctBy(b => b.TipId)
-             .OrderBy(b => b.PrimaryName);
-
-        // Include commit if not on current branch
-        var commitItems = repo.Branch(commit.BranchName) != repo.CurrentBranch
-            ? Menu.Items.Item($"From Commit {commit.Sid}", "", () => cmds.MergeBranch(commit.Id))
-            : Menu.Items;
-
-        // Include cherry pic if not on current branch
-        var cherryPicItems = repo.RowCommit.Id != repo.CurrentBranch?.TipId
-            ? Menu.Items.Item($"Cherry Pic {sidText}", "", () => cmds.CherryPic(commit.Id), () => repo.Status.IsOk)
-            : Menu.Items;
-
-        var items = branches
-            .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)))
-            .Concat(commitItems)
-            .Concat(cherryPicItems);
-
-        return items;
-    }
-
-    IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit, bool isSwitch)
+    IEnumerable<MenuItem> GetBranchDiffItems(string branchName)
     {
         if (!repo.Status.IsOk) return Menu.Items;
 
-        var commit = repo.RowCommit;
-        var currentPrimaryName = repo.CurrentBranch?.PrimaryName ?? "";
+        var primaryName = repo.Branch(branchName).PrimaryName;
         var branches = repo.Branches
-             .Where(b => b.IsPrimary && b.PrimaryName != currentPrimaryName)
+             .Where(b => b.IsPrimary && b.PrimaryName != primaryName)
              .DistinctBy(b => b.NiceNameUnique)
              .OrderBy(b => b.NiceNameUnique);
 
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b, false, false, false), "", () => cmds.DiffWithOtherBranch(b.Name, isFromCurrentCommit, isSwitch)));
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.DiffBranchesBranch(branchName, b.Name)));
     }
 
-    IEnumerable<MenuItem> GetHideItems()
+    IEnumerable<MenuItem> GetPreviewMergeItems(bool isFromCurrentCommit, bool isSwitch, string branchName = "")
     {
-        var mainBranch = repo.Branches.First(b => b.IsMainBranch);
+        if (!repo.Status.IsOk) return Menu.Items;
+
+        var primaryName = branchName == "" ? repo.CurrentBranch?.PrimaryName ?? "" : repo.Branch(branchName).PrimaryName;
         var branches = repo.Branches
-            .Where(b => !b.IsMainBranch && !b.IsDetached && b.PrimaryName != mainBranch.PrimaryName &&
-                b.RemoteName == "" && b.PullMergeParentBranchName == "")
-            .DistinctBy(b => b.NiceNameUnique)
-            .OrderBy(b => b.NiceNameUnique);
+             .Where(b => b.IsPrimary && b.PrimaryName != primaryName)
+             .DistinctBy(b => b.NiceNameUnique)
+             .OrderBy(b => b.NiceNameUnique);
 
-        var items = ToHideHierarchicalBranchesItems(branches);
-        if (repo.Branches.Count > 15)
-        {
-            items = items.Prepend(Menu.Item("Hide All", "", () => cmds.HideBranch("", true)));
-        }
-
-        return items;
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.DiffWithOtherBranch(b.Name, isFromCurrentCommit, isSwitch)));
     }
+
 
 
     IEnumerable<MenuItem> GetShowBranchItems()
@@ -497,129 +488,101 @@ class RepoViewMenus : IRepoViewMenus
             .Where(b => b.AmbiguousTipId != "")
             .OrderBy(b => b.NiceNameUnique);
 
+        var show = (Branch b) => cmds.ShowBranch(b.Name, false);
+
         var items = Menu.Items
-            .SubMenu("Recent", "", ToShowHierarchicalBranchesItems(recentBranches)
-                .Prepend(Menu.Item("Show 15 Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent))))
-            .SubMenu("Active", "", ToShowHierarchicalBranchesItems(liveBranches)
+            .Items(GetCommitInOutItems())
+            .SubMenu("    Recent", "", ToBranchesItems(recentBranches, show)
+                .Prepend(Menu.Item("Show 5 more Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))))
+            .SubMenu("    Active", "", ToHierarchicalBranchesItems(liveBranches, show)
                 .Prepend(Menu.Item("Show All Active", "", () => cmds.ShowBranch("", false, ShowBranches.AllActive))))
-            .SubMenu("Active and Deleted", "", ToShowHierarchicalBranchesItems(liveAndDeletedBranches)
+            .SubMenu("    Active and Deleted", "", ToHierarchicalBranchesItems(liveAndDeletedBranches, show)
                 .Prepend(Menu.Item("Show All Active and Deleted", "", () => cmds.ShowBranch("", false, ShowBranches.AllActiveAndDeleted))));
 
         return ambiguousBranches.Any()
-            ? items.SubMenu("Ambiguous", "", ToShowBranchesItems(ambiguousBranches, false, true))
+            ? items.SubMenu("    Ambiguous", "", ToBranchesItems(ambiguousBranches, b => cmds.ShowBranch(b.Name, true)))
             : items;
     }
 
 
-    IEnumerable<MenuItem> GetUndoItems()
+    IEnumerable<MenuItem> GetCommitUndoItems()
     {
         string id = repo.RowCommit.Id;
-        string sid = repo.RowCommit.Sid;
-        var binaryPaths = repo.Status.AddedFiles.Concat(repo.Status.ModifiedFiles)
-                .Where(f => !Files.IsText(Path.Join(repo.RepoPath, f)))
-                .ToList();
+        var binaryPaths = repo.Status.AddedFiles
+            .Concat(repo.Status.ModifiedFiles)
+            .Concat(repo.Status.RenamedTargetFiles)
+            .Where(f => !Files.IsText(Path.Join(repo.RepoPath, f)))
+            .ToList();
 
         return Menu.Items
-            .SubMenu("Undo/Restore Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
-            .Item($"Undo Commit {sid}", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
-            .Item($"Uncommit Last Commit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
+            .SubMenu("Undo/Restore an Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
+            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
+            .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
             .Item("Undo/Restore all Uncommitted Changes", "",
-                () => cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted())
-            .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder());
+                () => cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted());
     }
 
 
     IEnumerable<MenuItem> GetUncommittedFileItems() =>
         repo.GetUncommittedFiles().Select(f => Menu.Item(f, "", () => cmds.UndoUncommittedFile(f)));
 
-    IEnumerable<MenuItem> ToHideBranchesItems(IEnumerable<Branch> branches) => branches.Select(b =>
-        Menu.Item(ToBranchMenuName(b, false, false, false), "", () => cmds.HideBranch(b.Name)));
+
+    IEnumerable<MenuItem> ToHierarchicalBranchesItems(
+        IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute = null, bool isNoShowIcon = false)
+    {
+        var filteredBranches = branches.Where(b => b.IsPrimary).DistinctBy(b => b.PrimaryName);
+        return ToHierarchicalBranchesItemsImpl(filteredBranches, action, canExecute, isNoShowIcon, 0);
+    }
 
 
-    IEnumerable<MenuItem> ToSwitchBranchesItems(IEnumerable<Branch> branches) =>
-        branches.Select(b => Menu.Item(ToBranchMenuName(b, repo.RowCommit, false, false), "", () => cmds.SwitchTo(b.Name)));
-
-    IEnumerable<MenuItem> ToSwitchHierarchicalBranchesItems(IEnumerable<Branch> branches)
+    IEnumerable<MenuItem> ToHierarchicalBranchesItemsImpl(
+           IEnumerable<Branch> branches, Action<Branch> action, Func<Branch, bool>? canExecute, bool isNoShowIcon, int level)
     {
         if (branches.Count() <= MaxItemCount)
         {   // Too few branches to bother with submenus
-            return ToSwitchBranchesItems(branches);
+            return ToBranchesItems(branches, action, canExecute, false, isNoShowIcon);
         }
 
         // Group by first part of the b.commonName (if '/' exists in name)
         var groups = branches
-            .GroupBy(b => b.PrimaryName.TrimPrefix("origin/").Split('/')[0])
-            .OrderBy(g => g.Key)
-            .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
+            .GroupBy(b =>
+            {
+                var parts = b.NiceNameUnique.Split('/', '(');
+                if (parts.Length <= level) return parts.Last();
+                return parts[level];
+            })
+            .OrderBy(g => g.Count() > 1 ? 0 : 1) // Sort groups first;
+            .ThenBy(g => g.Key);
 
         // If only one item in group, then just show branch, otherwise show submenu
+        // Group name is either group/* or group(*) depending on if all branches in group have same nice name
+        var toGroupName = (IGrouping<string, Branch> bs) => bs.All(b => b.NiceName == bs.First().NiceName)
+            ? $"    {bs.Key}(*)" : $"    {bs.Key}/*";
         return groups.Select(g =>
             g.Count() == 1
-                ? Menu.Item(ToBranchMenuName(g.First(), repo.RowCommit, false), "", () => cmds.SwitchTo(g.First().Name))
-                : Menu.SubMenu($"    {g.Key}/┅", "", ToSwitchBranchesItems(g)))
-            .ToList();
+                ? ToBranchesItems(g, action, canExecute, false, isNoShowIcon).First()
+                : Menu.SubMenu(toGroupName(g), "", ToHierarchicalBranchesItemsImpl(g, action, canExecute, isNoShowIcon, level + 1)));
     }
 
 
-    IEnumerable<MenuItem> ToHideHierarchicalBranchesItems(IEnumerable<Branch> branches)
+    IEnumerable<MenuItem> ToBranchesItems(
+        IEnumerable<Branch> branches,
+        Action<Branch> action,
+        Func<Branch, bool>? canExecute = null,
+        bool canBeOutside = false,
+        bool isNoShowIcon = false)
     {
-        if (branches.Count() <= MaxItemCount)
-        {   // Too few branches to bother with submenus
-            return ToHideBranchesItems(branches);
-        }
-
-        // Group by first part of the b.commonName (if '/' exists in name)
-        var groups = branches
-            .GroupBy(b => b.PrimaryName.TrimPrefix("origin/").Split('/')[0])
-            .OrderBy(g => g.Key)
-            .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
-
-        // If only one item in group, then just show branch, otherwise show submenu
-        return groups.Select(g =>
-            g.Count() == 1
-                ? Menu.Item(ToBranchMenuName(g.First(), repo.RowCommit, false), "", () => cmds.HideBranch(g.First().Name))
-                : Menu.SubMenu($"    {g.Key}/┅", "", ToHideBranchesItems(g)))
-            .ToList();
+        canExecute = canExecute ?? (b => true);
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), "",
+            () => action(b), () => canExecute(b)));
     }
 
 
-    IEnumerable<MenuItem> ToShowHierarchicalBranchesItems(IEnumerable<Branch> branches)
+    string ToBranchMenuName(Branch branch, bool canBeOutside = false, bool isNoShowIcon = false)
     {
-        if (branches.Count() <= MaxItemCount)
-        {   // Too few branches to bother with submenus
-            return ToShowBranchesItems(branches, false, false);
-        }
-
-        // Group by first part of the b.commonName (if '/' exists in name)
-        var groups = branches
-            .GroupBy(b => b.NiceNameUnique.Split('/', '(')[0])
-            .OrderBy(g => g.Key)
-            .OrderBy(g => g.Count() > 1 ? 0 : 1);  // Sort groups first;
-
-        // If only one item in group, then just show branch, otherwise show submenu
-        return groups.Select(g =>
-            g.Count() == 1
-                ? Menu.Item(ToBranchMenuName(g.First(), repo.RowCommit, false), "", () => cmds.ShowBranch(g.First().Name, false))
-                : Menu.SubMenu($"    {g.Key}/┅", "", ToShowBranchesItems(g, false, false)));
-    }
-
-
-    IEnumerable<MenuItem> ToShowBranchesItems(
-        IEnumerable<Branch> branches, bool canBeOutside = false, bool includeAmbiguous = false)
-    {
-        return branches
-            .Where(b => branches.ContainsBy(bb => bb.Name != b.RemoteName) && // Skip local if remote
-                branches.ContainsBy(bb => bb.Name != b.PullMergeParentBranchName)) // Skip pull merge if main
-            .DistinctBy(b => b.Name)
-            .Select(b => Menu.Item(ToBranchMenuName(b, repo.RowCommit, canBeOutside), "",
-                () => cmds.ShowBranch(b.Name, includeAmbiguous)));
-    }
-
-
-    string ToBranchMenuName(Branch branch, Commit cic, bool canBeOutside, bool isShowShown = true)
-    {
+        var cic = repo.RowCommit;
         bool isBranchIn = false;
         bool isBranchOut = false;
         if (canBeOutside && !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
@@ -640,25 +603,20 @@ class RepoViewMenus : IRepoViewMenus
             }
         }
 
-        return ToBranchMenuName(branch, isBranchIn, isBranchOut, isShowShown);
-    }
-
-    string ToBranchMenuName(Branch branch, bool isBranchIn = false, bool isBranchOut = false, bool isShowShown = true)
-    {
-        var isShown = isShowShown && repo.Repo.BranchByName.TryGetValue(branch.Name, out var _);
+        var isShown = !isNoShowIcon && repo.Repo.BranchByName.TryGetValue(branch.Name, out var _);
         string name = branch.NiceNameUnique;
 
         name = branch.IsGitBranch ? " " + branch.NiceNameUnique : "~" + name;
         name = isBranchIn ? "╮" + name : name;
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;
+        name = isShown ? "∘" + name : " " + name;
         name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
-        name = isShown ? "╾" + name : " " + name;
 
-        return name.Replace('_', '-');
+        return name;
     }
 
-    // 
+
     bool IsAncestor(Branch b1, Branch? b2)
     {
         if (b2 == null) return false;

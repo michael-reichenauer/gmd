@@ -4,7 +4,7 @@ namespace gmd.Utils;
 
 class Json
 {
-    internal static string Serilize<T>(T value)
+    internal static string Serialize<T>(T value)
     {
         return JsonSerializer.Serialize(value);
     }
@@ -15,7 +15,7 @@ class Json
         return JsonSerializer.Serialize(value, options);
     }
 
-    internal static R<T> Deserilize<T>(string json)
+    internal static R<T> Deserialize<T>(string json)
     {
         try
         {

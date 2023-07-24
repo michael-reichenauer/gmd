@@ -97,6 +97,9 @@ class AugmentedService : IAugmentedService
     {
         Timing t = Timing.Start();
 
+        var timeStamp = DateTime.UtcNow;
+        fileMonitor.SetReadRepoTime(timeStamp);
+
         // Start some git commands in parallel to get commits, branches, status, ...
         var logTask = git.GetLogAsync(maxCommitCount, path);
         var branchesTask = git.GetBranchesAsync(path);
@@ -104,27 +107,23 @@ class AugmentedService : IAugmentedService
         var statusTask = git.GetStatusAsync(path);
         var metaDataTask = metaDataService.GetMetaDataAsync(path);
         var stashesTask = git.GetStashesAsync(path);
+        await Task.WhenAll(logTask, branchesTask, tagsTask, statusTask, metaDataTask, stashesTask);
 
-        await Task.WhenAll(logTask, branchesTask, statusTask, metaDataTask, stashesTask);
-
+        // Check all tasks for errors
         if (!Try(out var log, out var e, logTask.Result)) return e;
         if (!Try(out var branches, out e, branchesTask.Result)) return e;
         if (!Try(out var tags, out e, tagsTask.Result)) return e;
         if (!Try(out var status, out e, statusTask.Result)) return e;
         if (!Try(out var metaData, out e, metaDataTask.Result)) return e;
         if (!Try(out var stashes, out e, stashesTask.Result)) return e;
+
         var isTruncated = log.Count == maxCommitCount;
+        if (log.Count == 0) return EmptyGitRepo(path, tags, status, metaData);
 
         // Combine all git info into one git repo info object
-        var timeStamp = DateTime.UtcNow;
-        fileMonitor.SetReadRepoTime(timeStamp);
         var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes, isTruncated);
         Log.Info($"GitRepo {t} {gitRepo}");
 
-        if (gitRepo.Commits.Count == 0)
-        {
-            return EmptyRepo(path, tags, status, metaData);
-        }
         return gitRepo;
     }
 
@@ -148,6 +147,24 @@ class AugmentedService : IAugmentedService
             if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
 
             metaData.SetBranched(currentCommit.Sid, currentBranch.NiceName);
+            return await metaDataService.SetMetaDataAsync(wd, metaData);
+        }
+    }
+
+    public async Task<R> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout, string wd)
+    {
+        Log.Info($"Create branch {newBranchName} ...");
+
+        var source = repo.Branches[sourceBranch];
+
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd))) return e;
+
+            // Get the latest meta data
+            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd))) return e;
+
+            metaData.SetBranched(source.TipId, source.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
@@ -305,8 +322,8 @@ class AugmentedService : IAugmentedService
     // GetGitStatusAsync returns a fresh git status
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
-        if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path))) return e;
         fileMonitor.SetReadStatusTime(DateTime.UtcNow);
+        if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path))) return e;
         return gitStatus;
     }
 
@@ -331,9 +348,9 @@ class AugmentedService : IAugmentedService
         return repo with { Status = status };
     }
 
-    R<GitRepo> EmptyRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
+    R<GitRepo> EmptyGitRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
     {
-        var id = Repo.TruncatedLogCommitID;
+        var id = Repo.EmptyRepoCommit;
         var msg = "<... empty repo ...>";
         var branchName = "main";
         var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),

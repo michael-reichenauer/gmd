@@ -9,7 +9,8 @@ namespace gmd.Cui.Common;
 
 interface IRepoCommands
 {
-    void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified);
+    void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
+    void ShowBranch(string name, string showCommitId);
     void HideBranch(string name, bool hideAllBranches = false);
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -31,16 +32,19 @@ interface IRepoCommands
 
     void ShowUncommittedDiff(bool isFromDiff = false);
     void ShowCurrentRowDiff();
+    void ShowDiff(string commitId, bool isFromDiff = false);
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
+    void DiffBranchesBranch(string branchName1, string branchName2);
 
     void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void CreateBranch();
+    void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void CherryPic(string id);
+    void CherryPick(string id);
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -200,14 +204,14 @@ class RepoCommands : IRepoCommands
 
     public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
     {
+        if (!isAmend && repo.Status.IsOk) return R.Ok;
+        if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
+
         if (repo.CurrentBranch?.IsDetached == true)
         {
             UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
             return R.Ok;
         }
-
-        if (!isAmend && repo.Status.IsOk) return R.Ok;
-        if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
 
         if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
 
@@ -244,22 +248,28 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
+    public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
-        var count = 0;
-        if (show == ShowBranches.AllActive) count = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
-        if (show == ShowBranches.AllActiveAndDeleted) count = repo.Repo.AugmentedRepo.Branches.Count();
+        var totalCount = 0;
+        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
+        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count();
 
-        if (count > 20)
+        if (totalCount > 20)
         {
-            if (UI.InfoMessage("Show Branches", $"Do you want to show {count} branches?", 1, new[] { "Yes", "No" }) != 0)
+            if (UI.InfoMessage("Show Branches", $"Do you want to show {totalCount} branches?", 1, new[] { "Yes", "No" }) != 0)
             {
                 return;
             }
         }
 
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show);
+        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show, count);
         SetRepo(newRepo, name);
+    }
+
+    public void ShowBranch(string name, string showCommitId)
+    {
+        Server.Repo newRepo = server.ShowBranch(serverRepo, name, false);
+        SetRepoAttCommit(newRepo, showCommitId);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)
@@ -467,6 +477,29 @@ class RepoCommands : IRepoCommands
     });
 
 
+    public void DiffBranchesBranch(string branchName1, string branchName2) => Do(async () =>
+    {
+        if (repo.CurrentBranch == null) return R.Ok;
+        string message = "";
+        var branch1 = repo.Branch(branchName1);
+        var branch2 = repo.Branch(branchName2);
+
+        var sha1 = branch1.TipId;
+        var sha2 = branch2.TipId;
+        if (sha1 == Repo.UncommittedId || sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
+
+        message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
+
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha2, sha1, message, repoPath)))
+        {
+            return R.Error($"Failed to get diff", e);
+        }
+
+        diffView.Show(diff, sha1, repoPath);
+        return R.Ok;
+    });
+
+
     public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
         if (repo.CurrentBranch == null) return R.Ok;
@@ -498,11 +531,11 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void CherryPic(string id) => Do(async () =>
+    public void CherryPick(string id) => Do(async () =>
     {
         if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
         {
-            return R.Error($"Failed to cherry pic {id.Sid()}", e);
+            return R.Error($"Failed to cherry pick {id.Sid()}", e);
         }
 
         RefreshAndCommit();
@@ -516,18 +549,19 @@ class RepoCommands : IRepoCommands
 
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pushing");
         if (branch == null) return R.Error("No current branch to push");
-        if (!branch.HasLocalOnly) return R.Error("No local changes to push on current branch");
+        if (!branch.HasLocalOnly) return R.Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
 
         if (branch.RemoteName != "")
         {   // Cannot push local branch if remote needs to be pulled first
             var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
             if (remoteBranch != null && remoteBranch.HasRemoteOnly)
-                return R.Error("Pull current remote branch first before pushing");
+                return R.Error("Pull current remote branch first before pushing:\n" +
+                    $"{remoteBranch.NiceNameUnique}");
         }
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
         {
-            return R.Error($"Failed to push branch {branch.Name}", e);
+            return R.Error($"Failed to push branch:\n{branch.Name}", e);
         }
 
         Refresh();
@@ -541,7 +575,7 @@ class RepoCommands : IRepoCommands
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
         {
-            return R.Error($"Failed to publish branch {branch.Name}", e);
+            return R.Error($"Failed to publish branch:\n{branch.Name}", e);
         }
 
         Refresh();
@@ -553,7 +587,7 @@ class RepoCommands : IRepoCommands
     {
         if (!Try(out var e, await server.PushBranchAsync(name, repoPath)))
         {
-            return R.Error($"Failed to push branch {name}", e);
+            return R.Error($"Failed to push branch:\n{name}", e);
         }
 
         Refresh();
@@ -699,6 +733,31 @@ class RepoCommands : IRepoCommands
         Refresh(rsp.Name);
         return R.Ok;
     });
+
+
+    public void CreateBranchFromBranch(string name) => Do(async () =>
+    {
+        //var currentBranchName = repo.GetCurrentBranch().Name;
+        var branch = repo.Branch(name);
+        if (branch.LocalName != "") name = branch.LocalName;
+
+        if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
+
+        if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, repoPath)))
+        {
+            return R.Error($"Failed to create branch {rsp.Name}", e);
+        }
+
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
+        {
+            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+        }
+
+        Refresh(rsp.Name);
+        return R.Ok;
+    });
+
+
 
 
     public void CreateBranchFromCommit() => Do(async () =>
@@ -874,6 +933,8 @@ class RepoCommands : IRepoCommands
 
 
     void SetRepo(Server.Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
+    void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
+
 
     void Do(Func<Task<R>> action)
     {
@@ -892,7 +953,8 @@ class RepoCommands : IRepoCommands
     bool CheckBinaryOrLargeAddedFiles()
     {
         var addFiles = serverRepo.Status.AddedFiles.ToList();
-        var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles).ToList();
+        var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles)
+            .Concat(serverRepo.Status.RenamedTargetFiles).ToList();
 
         var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
 
@@ -901,7 +963,10 @@ class RepoCommands : IRepoCommands
             var msg = $"There are {binaryFiles.Count} binary modified files:\n" +
             $"  {string.Join("\n  ", binaryFiles)}" +
             "\n\nDo you want to commit them as they are\nor first undo/revert them and then commit?";
-            if (0 != UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo" }))
+            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo", "Cancel" });
+            if (rsp == 2 || rsp == -1) return false; // Cancel
+
+            if (rsp == 1)
             {
                 UI.Post(() =>
                 {

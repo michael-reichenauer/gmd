@@ -1,139 +1,135 @@
+using System.Text;
 using Terminal.Gui;
-
 
 namespace gmd.Cui.Common;
 
 
-internal delegate IEnumerable<Text> GetContentCallback(int firstIndex, int count, int currentIndex, int width);
+internal delegate (IEnumerable<Text> rows, int total) GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
 internal delegate void OnKeyCallback();
+internal delegate bool OnKeyCallbackReturn();
 internal delegate void OnMouseCallback(int x, int y);
+internal delegate bool OnMouseCallbackReturn(int x, int y);
+record class Selection(int X1, int I1, int X2, int I2);
 
 
 class ContentView : View
 {
     readonly GetContentCallback? onGetContent;
-    readonly Dictionary<Key, OnKeyCallback> keys = new Dictionary<Key, OnKeyCallback>();
-    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
+    readonly Dictionary<Key, OnKeyCallbackReturn> keys = new Dictionary<Key, OnKeyCallbackReturn>();
+    readonly Dictionary<MouseFlags, OnMouseCallbackReturn> mouses = new Dictionary<MouseFlags, OnMouseCallbackReturn>();
 
     const int topBorderHeight = 1;
     const int cursorWidth = 1;
     const int verticalScrollbarWidth = 1;
     const int contentXMargin = cursorWidth + verticalScrollbarWidth;
     readonly bool isMoveUpDownWrap = false;  // Not used yet
-    readonly IReadOnlyList<Text>? content;
+    readonly IReadOnlyList<Text>? contentRows;
+
     int currentIndex = 0;
-    int mouseEventX = -1;
-    int mouseEventY = -1;
-    int selectStartIndex = -1;
-    int selectEndIndex = -1;
+    bool isSelected = false;
+
+    Selection selection = new Selection(0, 0, 0, 0);
+    Point lastMousePoint = new Point(0, 0);
 
 
     internal ContentView(GetContentCallback onGetContent)
     {
         this.onGetContent = onGetContent;
+        WantMousePositionReports = true;
     }
 
     internal ContentView(IReadOnlyList<Text> content)
     {
-        this.content = content;
-        this.TriggerUpdateContent(this.content.Count);
+        this.contentRows = content;
+        TotalCount = content.Count;
+        WantMousePositionReports = true;
+        SetNeedsDisplay();
     }
 
-    internal bool IsFocus { get; set; } = true;
-    internal int FirstIndex { get; private set; } = 0;
-    internal int Count { get; private set; } = 0;
+    public event Action? CurrentIndexChange;
+    public event Action<Selection>? SelectionChange;
 
-    internal int CurrentIndex
+
+    public bool IsFocus { get; set; } = true;
+    public int FirstIndex { get; private set; } = 0;
+    public int TotalCount { get; private set; } = 0;
+
+    public int CurrentIndex
     {
         get { return currentIndex; }
         private set
         {
             var v = currentIndex;
             currentIndex = value;
-            if (v != value)
-            {
-                CurrentIndexChange?.Invoke();
-            }
+            if (v != value) CurrentIndexChange?.Invoke();
         }
     }
 
-    internal event Action? CurrentIndexChange;
-
-    internal int ViewHeight => Frame.Height;
-    internal int ViewWidth => Frame.Width;
-    internal bool IsShowCursor { get; set; } = true;
-    internal bool IsScrollMode { get; set; } = false;
-    internal bool IsCursorMargin { get; set; } = false;
-    internal bool IsTopBorder { get; set; } = false;
-    internal bool IsHideCursor { get; set; } = false;
-    internal int ContentX => IsCursorMargin ? cursorWidth : 0;
-    internal int ContentY => IsTopBorder ? topBorderHeight : 0;
-    internal int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
-    internal int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
-    internal Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
-    internal int SelectStartIndex => selectStartIndex;
-    internal int SelectCount => selectStartIndex == -1 ? 0 : selectEndIndex - selectStartIndex + 1;
 
 
-    internal void RegisterKeyHandler(Key key, OnKeyCallback callback)
+    public bool IsHighlightCurrentIndex { get; set; } = false;
+    public int ViewHeight => Frame.Height;
+    public int ViewWidth => Frame.Width;
+    public bool IsShowCursor { get; set; } = true;
+    public bool IsScrollMode { get; set; } = false;
+    public bool IsCursorMargin { get; set; } = false;
+    public bool IsTopBorder { get; set; } = false;
+    public bool IsHideCursor { get; set; } = false;
+    public int ContentX => IsCursorMargin ? cursorWidth : 0;
+    public int ContentY => IsTopBorder ? topBorderHeight : 0;
+    public int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
+    public int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
+    public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
+    public int SelectStartIndex => selection.I1;
+    public int SelectCount => isSelected ? selection.I2 - selection.I1 + 1 : 0;
+    public bool IsCustomShowSelection { get; set; } = false;
+
+    public Selection Selection => selection;
+
+    public void RegisterKeyHandler(Key key, OnKeyCallback callback)
+    {
+        keys[key] = () => { callback(); return true; };
+    }
+    public void RegisterKeyHandler(Key key, OnKeyCallbackReturn callback)
     {
         keys[key] = callback;
     }
 
-    internal void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
+    public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
+    {
+        mouses[mouseFlags] = (x, y) => { callback(x, y); return true; };
+    }
+    public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallbackReturn callback)
     {
         mouses[mouseFlags] = callback;
     }
 
-    internal void ScrollToShowIndex(int index)
+    public void ScrollToShowIndex(int index, int margin = 5)
     {
-        if (index >= FirstIndex && index <= FirstIndex + ContentHeight)
+        if (index >= FirstIndex + margin && index <= FirstIndex + ContentHeight - margin)
         {
             // index already shown
             return;
         }
 
-        int scroll = index - FirstIndex;
+        int scroll = index - FirstIndex - 5;
         Scroll(scroll);
     }
 
-
-    internal void TriggerUpdateContent(int totalCount)
-    {
-        this.Count = totalCount;
-        if (FirstIndex > totalCount)
-        {
-            FirstIndex = totalCount - 1;
-        }
-        if (CurrentIndex < FirstIndex)
-        {
-            CurrentIndex = FirstIndex;
-        }
-        if (CurrentIndex > FirstIndex + ContentHeight)
-        {
-            CurrentIndex = FirstIndex + ContentHeight - 1;
-        }
-        CurrentIndex = Math.Min(totalCount - 1, CurrentIndex);
-        CurrentIndex = Math.Max(0, CurrentIndex);
-
-        SetNeedsDisplay();
-    }
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
         if (!IsFocus) return false;
 
+        // Log.Info($"HotKey: {keyEvent}");
+
         if (keys.TryGetValue(keyEvent.Key, out var callback))
         {
-            callback();
-            return true;
+            if (callback()) return true;
         }
 
         switch (keyEvent.Key)
         {
-            case Key.i:
-                ToggleShowCursor();
-                return true;
             case Key.CursorUp:
                 ClearSelection();
                 Move(-1);
@@ -144,7 +140,7 @@ class ContentView : View
                 return true;
             case Key.PageUp:
                 ClearSelection();
-                Move(-Math.Max(0, ContentHeight - 1));
+                Move(-(ContentHeight - 1));
                 return true;
             case Key.CursorDown:
                 ClearSelection();
@@ -155,15 +151,19 @@ class ContentView : View
                 return true;
             case Key.PageDown:
                 ClearSelection();
-                Move(Math.Max(0, ContentHeight - 1));
+                Move(ContentHeight - 1);
+                return true;
+            case Key.Space:
+                ClearSelection();
+                Move(ContentHeight - 1);
                 return true;
             case Key.Home:
                 ClearSelection();
-                Move(-Math.Max(0, Count));
+                Move(-TotalCount);
                 return true;
             case Key.End:
                 ClearSelection();
-                Move(Math.Max(0, Count));
+                Move(TotalCount);
                 return true;
         }
 
@@ -174,105 +174,157 @@ class ContentView : View
     {
         // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
-        // On linux (at least dev container console), there is a bug that sends same last mouse event
-        // whenever mouse is moved, to still support scroll, we check mouse position.
-        bool isSamePos = (ev.X == mouseEventX && ev.Y == mouseEventY);
-        mouseEventX = ev.X;
-        mouseEventY = ev.Y;
+        if (mouses.TryGetValue(ev.Flags, out var callback))
+        {
+            if (callback(ev.X, ev.Y)) return true;
+        }
 
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) && isSamePos)
+        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
             Scroll(1);
             return true;
         }
-        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp) && isSamePos)
+        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
         {
             Scroll(-1);
             return true;
         }
 
-        if (Build.IsWindows)
+        if (ev.Flags.HasFlag(MouseFlags.Button1Pressed) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
         {
-            if (mouses.TryGetValue(ev.Flags, out var callback))
-            {
-                callback(ev.X, ev.Y);
-                return true;
-            }
+            MouseDrag(ev, false);
+            return true;
+        }
+        else if (ev.Flags.HasFlag(MouseFlags.Button1Pressed))
+        {
+            ClearSelection();
+            return true;
         }
 
-
-        // if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        // {
-        //     if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
-        //     {
-        //         Scroll(1);
-        //     }
-        //     if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        //     {
-        //         Scroll(-1);
-        //     }
-        // }
+        if (ev.Flags.HasFlag(MouseFlags.ButtonShift) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
+        {
+            MouseDrag(ev, true);
+            return true;
+        }
 
         return false;
-        // if (!ev.Flags.HasFlag(MouseFlags.Button1Clicked) && !ev.Flags.HasFlag(MouseFlags.Button1Pressed)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1Pressed | MouseFlags.ReportMousePosition)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1Released)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1Pressed | MouseFlags.ButtonShift)
-        //     && !ev.Flags.HasFlag(MouseFlags.WheeledDown) && !ev.Flags.HasFlag(MouseFlags.WheeledUp)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1DoubleClicked)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1DoubleClicked | MouseFlags.ButtonShift)
-        //     && !ev.Flags.HasFlag(MouseFlags.Button1TripleClicked))
-        // {
-        //     return false;
-        // }
-
-
-        // return false;
     }
 
     public override void Redraw(Rect bounds)
     {
         Clear();
 
-        var topMargin = IsTopBorder ? topBorderHeight : 0;
-        var drawCount = Math.Min(ContentHeight, Count - FirstIndex);
+        IReadOnlyList<Text> currentRows = GetContentRows();
 
-        if (content != null)
+        int y = ContentY;
+        currentRows.ForEach((row, i) =>
         {
-            int y = ContentY;
-            content.Skip(FirstIndex).Take(drawCount).ForEach(row => row.Draw(this, ContentX, y++));
-        }
-        else if (onGetContent != null)
-        {
-            var rows = onGetContent(FirstIndex, drawCount, CurrentIndex, ContentWidth);
-            int y = ContentY;
-            rows.ForEach(row => row.Draw(this, ContentX, y++));
-        }
+            Text txt = row;
+            var index = i + FirstIndex;
+
+            if (isSelected && !IsCustomShowSelection)
+            {
+                var isRowSelected = index >= selection.I1 && index <= selection.I2;
+                if (isRowSelected && selection.I1 == selection.I2)
+                {   // One row is selected, highlight the selected sub text
+                    var x2 = Math.Min(selection.X2, txt.Length);
+                    var part1 = txt.Subtext(0, selection.X1);
+                    var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
+                    var part3 = txt.Subtext(x2, txt.Length - x2);
+                    txt = part1.ToTextBuilder().Add(part2.ToSelect()).Add(part3);
+                }
+                else if (isRowSelected)
+                {   // Multiple rows are selected, highlight the whole rows
+                    txt = txt.ToSelect();
+                }
+            }
+            else
+            {
+                txt = IsHighlightCurrentIndex && index == currentIndex ? row.ToHighlight() : row;
+            }
+
+            txt.Draw(this, ContentX, y++);
+        });
 
         DrawTopBorder();
         DrawCursor();
         DrawVerticalScrollbar();
     }
 
-    public bool IsRowSelected(int index) => selectStartIndex != -1 && index >= selectStartIndex && index <= selectEndIndex;
+
+
+    public bool IsRowSelected(int index) => isSelected && index >= selection.I1 && index <= selection.I2;
 
     public void ClearSelection()
     {
-        if (selectStartIndex == -1) return;
-
-        selectStartIndex = -1;
-        selectEndIndex = -1;
+        if (!isSelected) return;
+        isSelected = false;
         SetNeedsDisplay();
     }
 
-
-    // Toggle showing/hiding cursor. Cursor is needed to select text for copy
-    public void ToggleShowCursor()
+    public string CopySelectedText()
     {
+        if (!isSelected) return "";
+
+        var copyText = new StringBuilder();
+        var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
+
+        var currentRows = GetContentRows();
+
+        int y = ContentY;
+        currentRows.ForEach((row, i) =>
+        {
+            Text txt = row;
+            var index = i + FirstIndex;
+
+            var isRowSelected = index >= selection.I1 && index <= selection.I2;
+            if (!isRowSelected) return;
+
+            if (selection.I1 == selection.I2)
+            {   // One row is selected, copy selected sub text
+                var x2 = Math.Min(selection.X2, txt.Length);
+
+                var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
+                copyText.Append(part2.ToString());
+            }
+            else
+            {   // Multiple rows are selected, copy whole rows
+                copyText.AppendLine(txt.ToString());
+            }
+
+            txt.Draw(this, ContentX, y++);
+        });
+
         ClearSelection();
-        IsShowCursor = !IsShowCursor;
-        IsScrollMode = !IsShowCursor;
         SetNeedsDisplay();
+
+        return copyText.ToString();
+    }
+
+    IReadOnlyList<Text> GetContentRows()
+    {
+        var drawCount = ContentHeight; //  Math.Min(ContentHeight, TotalCount - FirstIndex);
+
+
+        if (contentRows != null)
+        {   // Use content provided in constructor
+            return contentRows.Skip(FirstIndex).Take(drawCount).ToList();
+        }
+
+        var (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+        IReadOnlyList<Text> currentRows = rows.ToList();
+        TotalCount = totalCount;
+
+        while (!currentRows.Any() && TotalCount > 0)
+        {   // TotalCount now less than previous FirstIndex, need to adjust FirstIndex and CurrentIndex and try again
+            FirstIndex = Math.Max(0, TotalCount - 3);
+            CurrentIndex = TotalCount - 1;
+            (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+            currentRows = rows.ToList();
+            TotalCount = totalCount;
+        }
+
+        return currentRows;
     }
 
 
@@ -280,10 +332,10 @@ class ContentView : View
     {
         int currentIndex = CurrentIndex;
 
-        if (selectStartIndex == -1)
+        if (!isSelected)
         {   // Start selection of current row
-            selectStartIndex = currentIndex;
-            selectEndIndex = currentIndex;
+            isSelected = true;
+            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
             SetNeedsDisplay();
             return;
         }
@@ -293,13 +345,13 @@ class ContentView : View
             return;
         }
 
-        if (currentIndex <= selectStartIndex)
+        if (currentIndex <= selection.I1)
         {   // Expand selection upp
-            selectStartIndex = currentIndex - 1;
+            selection = selection with { I1 = currentIndex - 1 };
         }
         else
         {   // Shrink selection upp
-            selectEndIndex = selectEndIndex - 1;
+            selection = selection with { I2 = currentIndex - 1 };
         }
 
         Move(-1);
@@ -310,30 +362,76 @@ class ContentView : View
     {
         int currentIndex = CurrentIndex;
 
-        if (selectStartIndex == -1)
+        if (!isSelected)
         {   // Start selection of current row
-            selectStartIndex = currentIndex;
-            selectEndIndex = currentIndex;
+            isSelected = true;
+            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
             SetNeedsDisplay();
             return;
         }
 
-        if (currentIndex >= Count - 1)
+        if (currentIndex >= TotalCount - 1)
         {   // Already at bottom of page, no need to move         
             return;
         }
 
-        if (currentIndex >= selectEndIndex)
+        if (currentIndex >= selection.I2)
         {   // Expand selection down
-            selectEndIndex = currentIndex + 1;
+            selection = selection with { I2 = currentIndex + 1 };
         }
-        else if (currentIndex <= selectStartIndex)
+        else if (currentIndex <= selection.I1)
         {   // Shrink selection down
-            selectStartIndex = selectStartIndex + 1;
+            selection = selection with { I1 = currentIndex + 1 };
         }
 
         Move(1);
     }
+
+    void MouseDrag(MouseEvent ev, bool isShift)
+    {
+        var x = ev.X;
+        var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
+
+        if (!isSelected)
+        {   // Start mouse dragging
+            isSelected = true;
+            selection = new Selection(x, i, x, i);
+            lastMousePoint = new Point(x, i);
+        }
+
+        var x1 = selection.X1;
+        var i1 = selection.I1;
+        var x2 = selection.X2;
+        var i2 = selection.I2;
+
+        if (x < lastMousePoint.X)
+        {   // Moving left, expand selection on left or shrink selection on right side
+            if (x < x1) x1 = x; else x2 = x;
+        }
+        else if (x > lastMousePoint.X)
+        {   // Moving right expand selection on right or shrink selection on left side
+            if (x > x2) x2 = x; else x1 = x;
+        }
+
+        if (i < lastMousePoint.Y)
+        {   // Moving upp, expand selection upp or shrink selection on bottom side
+            if (ev.Y <= 2) Scroll(-1);
+            if (i < i1) i1 = i; else i2 = i;
+        }
+        else if (i > lastMousePoint.Y)
+        {   // // Moving down, expand selection down or shrink selection on top side
+            if (ev.Y >= ContentHeight - 2) Scroll(1);
+            if (i > i2) i2 = i; else i1 = i;
+        }
+
+        selection = new Selection(x1, i1, x2, i2);
+        lastMousePoint = new Point(x, i);
+        // Log.Info($"Mouse Drag: {mouseDrag}");
+
+        SetNeedsDisplay();
+        SelectionChange?.Invoke(selection);
+    }
+
 
     void DrawTopBorder()
     {
@@ -344,12 +442,12 @@ class ContentView : View
         Move(0, 0);
         if (IsFocus)
         {
-            Driver.SetAttribute(TextColor.White);
+            Driver.SetAttribute(Color.White);
             Driver.AddStr(new string('━', ViewWidth));
         }
         else
         {
-            Driver.SetAttribute(TextColor.Dark);
+            Driver.SetAttribute(Color.Dark);
             Driver.AddStr(new string('─', ViewWidth));
         }
     }
@@ -363,14 +461,14 @@ class ContentView : View
         }
 
         Move(0, ContentY + (CurrentIndex - FirstIndex));
-        Driver.SetAttribute(TextColor.White);
+        Driver.SetAttribute(Color.White);
         Driver.AddStr("┃");
     }
 
 
     internal void Scroll(int scroll)
     {
-        if (Count == 0)
+        if (TotalCount == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -381,9 +479,9 @@ class ContentView : View
         {
             newFirst = 0;
         }
-        if (newFirst + ViewHeight >= Count)
+        if (newFirst + ViewHeight >= TotalCount)
         {
-            newFirst = Count - ViewHeight;
+            newFirst = TotalCount - ViewHeight;
         }
         if (newFirst == FirstIndex)
         {   // No move, reached top or bottom
@@ -409,11 +507,11 @@ class ContentView : View
 
     internal void MoveToTop() => Move(-FirstIndex);
 
-    internal void SetIndex(int y)
+    internal void SetIndexAtViewY(int viewY)
     {
-        int currentY = CurrentIndex - FirstIndex;
+        int currentViewY = CurrentIndex - FirstIndex;
 
-        Move(y - currentY);
+        Move(viewY - currentViewY);
     }
 
     internal void SetCurrentIndex(int index)
@@ -432,7 +530,7 @@ class ContentView : View
         }
 
         // Log.Info($"move {move}, current: {currentIndex}");
-        if (Count == 0)
+        if (TotalCount == 0)
         {   // Cannot scroll empty view
             return;
         }
@@ -441,12 +539,12 @@ class ContentView : View
 
         if (newCurrent < 0)
         {   // Reached top, wrap or stay
-            newCurrent = isMoveUpDownWrap ? Count - 1 : 0;
+            newCurrent = isMoveUpDownWrap ? TotalCount - 1 : 0;
         }
 
-        if (newCurrent >= Count)
+        if (newCurrent >= TotalCount)
         {   // Reached bottom, wrap or stay 
-            newCurrent = isMoveUpDownWrap ? 0 : Count - 1;
+            newCurrent = isMoveUpDownWrap ? 0 : TotalCount - 1;
         }
 
         if (newCurrent == CurrentIndex)
@@ -478,19 +576,19 @@ class ContentView : View
         for (int i = sbStart; i <= sbEnd; i++)
         {
             Move(x, i + ContentY);
-            Driver.SetAttribute(TextColor.Magenta);
+            Driver.SetAttribute(Color.Magenta);
             Driver.AddStr("┃");
         }
     }
 
     (int, int) GetVerticalScrollbarIndexes()
     {
-        if (Count == 0 || Count <= ContentHeight)
+        if (TotalCount == 0 || TotalCount <= ContentHeight)
         {   // No need for a scrollbar
             return (0, -1);
         }
 
-        float scrollbarFactor = (float)ContentHeight / (float)Count;
+        float scrollbarFactor = (float)ContentHeight / (float)TotalCount;
 
         int sbStart = (int)Math.Floor((float)FirstIndex * scrollbarFactor);
         int sbSize = (int)Math.Ceiling((float)ContentHeight * scrollbarFactor);

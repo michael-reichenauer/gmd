@@ -79,16 +79,19 @@ public record Status(
     int Added,
     int Deleted,
     int Conflicted,
+    int Renamed,
     bool IsMerging,
     string MergeMessage,
     string MergeHeadId,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
-    string[] ConflictsFiles
+    string[] ConflictsFiles,
+    string[] RenamedSourceFiles,
+    string[] RenamedTargetFiles
 )
 {
-    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
+    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }
 
 public record Tag(string Name, string CommitId);

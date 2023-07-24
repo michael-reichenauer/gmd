@@ -21,7 +21,7 @@ public delegate bool Ignorer(string path);
 [SingleInstance]
 class FileMonitor : IFileMonitor
 {
-    static readonly TimeSpan StatusDelayTriggerTime = TimeSpan.FromSeconds(2);
+    static readonly TimeSpan StatusDelayTriggerTime = TimeSpan.FromSeconds(1);
     static readonly TimeSpan RepositoryDelayTriggerTime = TimeSpan.FromSeconds(1);
 
     const string GitFolder = ".git";
@@ -39,36 +39,26 @@ class FileMonitor : IFileMonitor
     IReadOnlyList<Glob> matchers = new List<Glob>();
 
     readonly object syncRoot = new object();
-    readonly object pauseLock = new object();
 
-    private readonly Timer fileChangedTimer;
-    private bool isFileChanged = false;
-    private DateTime statusChangeTime;
-
-    private readonly Timer repoChangedTimer;
-    private bool isRepoChanged = false;
-    private DateTime repoChangeTime;
 
     private string workingFolder = "";
     object timer = null!;
     ChangeEvent? fileChangedEvent = null;
     ChangeEvent? repoChangedEvent = null;
+
     bool isPaused = false;
-    DateTime readRepoTime = DateTime.MinValue;
-    DateTime readStatusTime = DateTime.MinValue;
+
+    public event Action<ChangeEvent>? FileChanged;
+
+    public event Action<ChangeEvent>? RepoChanged;
+
 
     public FileMonitor()
     {
-        fileChangedTimer = new Timer(StatusDelayTriggerTime.TotalMilliseconds);
-        fileChangedTimer.Elapsed += (s, e) => OnFileChanged();
-
         workFolderWatcher.Changed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Created += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Deleted += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Renamed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
-
-        repoChangedTimer = new Timer(RepositoryDelayTriggerTime.TotalMilliseconds);
-        repoChangedTimer.Elapsed += (s, e) => OnRepoChanged();
 
         refsWatcher.Changed += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
         refsWatcher.Created += (s, e) => RepoChange(e.FullPath, e.Name, e.ChangeType);
@@ -80,8 +70,8 @@ class FileMonitor : IFileMonitor
     {
         lock (syncRoot)
         {
-            this.readRepoTime = time;
-            this.readStatusTime = time;
+            this.repoChangedEvent = null;
+            this.fileChangedEvent = null;
         }
     }
 
@@ -89,9 +79,10 @@ class FileMonitor : IFileMonitor
     {
         lock (syncRoot)
         {
-            this.readStatusTime = time;
+            this.fileChangedEvent = null;
         }
     }
+
 
     bool OnTimer(MainLoop loop)
     {
@@ -102,40 +93,39 @@ class FileMonitor : IFileMonitor
 
         ChangeEvent? fileEvent = null;
         ChangeEvent? repoEvent = null;
+
         lock (syncRoot)
         {
-            // Copy FileChangedEvents and RepoChangedEvents.
-            fileEvent = fileChangedEvent;
-            repoEvent = repoChangedEvent;
-            fileChangedEvent = null;
-            repoChangedEvent = null;
-            if (fileEvent != null && fileEvent.TimeStamp < readStatusTime)
-            {   // Event older than last time status was read
-                fileEvent = null;
+            // Copy FileChangedEvents, RepoChangedEvents, read times
+            var timeStamp = DateTime.UtcNow;
+
+            if (fileChangedEvent != null && fileChangedEvent.TimeStamp + StatusDelayTriggerTime < timeStamp)
+            {
+                fileEvent = fileChangedEvent;
+                fileChangedEvent = null;
             }
-            if (repoEvent != null && repoEvent.TimeStamp < readRepoTime)
-            {   // Event older than last time repo was read
-                repoEvent = null;
+
+            if (repoChangedEvent != null && repoChangedEvent.TimeStamp + RepositoryDelayTriggerTime < timeStamp)
+            {
+                repoEvent = repoChangedEvent;
+                repoChangedEvent = null;
             }
         }
 
-        if (fileEvent != null)
-        {
-            Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
-            FileChanged?.Invoke(fileEvent);
-        }
         if (repoEvent != null)
         {
             Log.Info($"Repo changed event {repoEvent.TimeStamp.IsoMs()}");
-            RepoChanged?.Invoke(repoEvent);
+            Cui.Common.UI.Post(() => RepoChanged?.Invoke(repoEvent));
+        }
+
+        if (fileEvent != null && repoEvent == null)  // no need to send status event if repo changed event
+        {
+            Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
+            Cui.Common.UI.Post(() => FileChanged?.Invoke(fileEvent));
         }
 
         return true;
     }
-
-    public event Action<ChangeEvent>? FileChanged;
-
-    public event Action<ChangeEvent>? RepoChanged;
 
     public void Monitor(string workingFolder)
     {
@@ -158,8 +148,6 @@ class FileMonitor : IFileMonitor
 
         workFolderWatcher.EnableRaisingEvents = false;
         refsWatcher.EnableRaisingEvents = false;
-        fileChangedTimer.Enabled = false;
-        repoChangedTimer.Enabled = false;
 
         matchers = GetMatches(workingFolder);
 
@@ -172,9 +160,6 @@ class FileMonitor : IFileMonitor
         refsWatcher.NotifyFilter = NotifyFilters;
         refsWatcher.Filter = "*.*";
         refsWatcher.IncludeSubdirectories = true;
-
-        statusChangeTime = DateTime.UtcNow;
-        repoChangeTime = DateTime.UtcNow;
 
         workFolderWatcher.EnableRaisingEvents = true;
         refsWatcher.EnableRaisingEvents = true;
@@ -196,7 +181,7 @@ class FileMonitor : IFileMonitor
     }
 
 
-    private void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
+    void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
         if (path == GitHeadFile)
         {
@@ -221,7 +206,7 @@ class FileMonitor : IFileMonitor
         }
     }
 
-    private void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
+    void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
         // Log.Debug($"'{fullPath}'");
 
@@ -232,40 +217,25 @@ class FileMonitor : IFileMonitor
             return;
         }
 
-        // Log.Debug($"Repo change for '{fullPath}' {changeType}");.
-
+        // Log.Info($"Repo change for '{fullPath}' {changeType}");
         lock (syncRoot)
         {
-            isRepoChanged = true;
-            repoChangeTime = DateTime.UtcNow;
-
-            if (!repoChangedTimer.Enabled)
-            {
-                Log.Info($"Repo changing at {repoChangeTime.IsoMs()}...");
-                repoChangedTimer.Enabled = true;
-            }
+            repoChangedEvent = new ChangeEvent(DateTime.UtcNow);
         }
     }
 
 
-    private void FileChange(string fullPath)
+    void FileChange(string fullPath)
     {
         // Log.Info($"Status change '{fullPath}'");
         lock (syncRoot)
         {
-            isFileChanged = true;
-            statusChangeTime = DateTime.UtcNow;
-
-            if (!fileChangedTimer.Enabled)
-            {
-                Log.Info($"File changing for '{fullPath}' at {statusChangeTime.IsoMs()} ...");
-                fileChangedTimer.Enabled = true;
-            }
+            fileChangedEvent = new ChangeEvent(DateTime.UtcNow);
         }
     }
 
 
-    private IReadOnlyList<Glob> GetMatches(string workingFolder)
+    IReadOnlyList<Glob> GetMatches(string workingFolder)
     {
         List<Glob> patterns = new List<Glob>();
         string gitIgnorePath = Path.Combine(workingFolder, ".gitignore");
@@ -296,7 +266,6 @@ class FileMonitor : IFileMonitor
                 continue;
             }
 
-
             if (pattern.EndsWith("/"))
             {
                 pattern = pattern + "**/*";
@@ -324,7 +293,7 @@ class FileMonitor : IFileMonitor
     }
 
 
-    private bool IsIgnored(string path)
+    bool IsIgnored(string path)
     {
         foreach (Glob matcher in matchers)
         {
@@ -337,47 +306,5 @@ class FileMonitor : IFileMonitor
 
         // Log.Info($"Allow '{path}'");
         return false;
-    }
-
-
-    private void OnFileChanged()
-    {
-        lock (syncRoot)
-        {
-            if (!isFileChanged)
-            {
-                fileChangedTimer.Enabled = false;
-                return;
-            }
-
-            isFileChanged = false;
-
-            // Log.Info($"File changed at {statusChangeTime.IsoMilli()}");
-            fileChangedEvent = new ChangeEvent(statusChangeTime);
-        }
-
-        // Log.Info("File changed");
-        // Threading.PostOnMain(() => FileChanged?.Invoke(new ChangeEvent(statusChangeTime)));
-    }
-
-
-    private void OnRepoChanged()
-    {
-        lock (syncRoot)
-        {
-            if (!isRepoChanged)
-            {
-                repoChangedTimer.Enabled = false;
-                return;
-            }
-
-            isRepoChanged = false;
-
-            // Log.Info($"Repo changed at {repoChangeTime.IsoMilli()}");
-            repoChangedEvent = new ChangeEvent(repoChangeTime);
-        }
-
-        // Log.Info("Repo changed");
-        // Threading.PostOnMain(() => RepoChanged?.Invoke(new ChangeEvent(repoChangeTime)));
     }
 }

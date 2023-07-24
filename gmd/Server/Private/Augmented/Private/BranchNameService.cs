@@ -16,6 +16,7 @@ record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
 record Indexes(int from, int into, int direction);
 
 
+// cspell:ignore erged
 class BranchNameService : IBranchNameService
 {
     readonly Dictionary<string, FromInto> parsedCommits = new Dictionary<string, FromInto>();
@@ -105,7 +106,6 @@ class BranchNameService : IBranchNameService
     public FromInto ParseSubject(string subject)
     {
         subject = subject.Trim();
-        //var matches = nameRegExp.FindAllStringSubmatch(subject, -1);
         var matches = branchesRegEx.Matches(subject);
 
         if (matches.Count == 0)

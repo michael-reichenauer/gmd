@@ -45,6 +45,16 @@ record Repo
     public Status Status { get; init; }
     public string Filter { get; }
 
+    public static Repo Empty => new Repo(
+        DateTime.UtcNow,
+        AugmentedRepo.Empty,
+        new List<Commit>(),
+        new List<Branch>(),
+        new List<Stash>(),
+        new Status(0, 0, 0, 0, 0, false, "", "", new string[0], new string[0], new string[0], new string[0], new string[0], new string[0]),
+        "");
+
+
     internal Private.Augmented.Repo AugmentedRepo => repo;
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{repo.TimeStamp.IsoMs()})";
@@ -153,19 +163,22 @@ public record Status(
     int Added,
     int Deleted,
     int Conflicted,
+    int Renamed,
     bool IsMerging,
     string MergeMessage,
     string MergeHeadId,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
-    string[] ConflictsFiles
+    string[] ConflictsFiles,
+    string[] RenamedSourceFiles,
+    string[] RenamedTargetFiles
 )
 {
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
-    internal int ChangesCount => Modified + Added + Deleted + Conflicted;
+    internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
 
-    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted}";
+    public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }
 
 

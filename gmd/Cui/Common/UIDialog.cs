@@ -8,8 +8,9 @@ class UIDialog
     readonly List<Button> buttons = new List<Button>();
     readonly Dictionary<string, bool> buttonsClicked = new Dictionary<string, bool>();
     readonly Func<Key, bool>? onKey;
-    private Func<MouseEvent, bool>? onMouse;
+    Func<MouseEvent, bool>? onMouse;
     readonly Action<Dialog>? options;
+    readonly TaskCompletionSource<bool> done = new TaskCompletionSource<bool>();
 
     record Validation(Func<bool> IsValid, string ErrorMsg);
     readonly List<Validation> validations = new List<Validation>();
@@ -20,6 +21,8 @@ class UIDialog
 
     internal bool IsOK => buttonsClicked.ContainsKey("OK");
     internal bool IsCanceled => buttonsClicked.ContainsKey("Cancel");
+
+    public View View { get; internal set; } = null!;
 
     Dialog dlg = null!;
 
@@ -33,16 +36,24 @@ class UIDialog
         this.options = options;
     }
 
-    public void Close() => Application.RequestStop();
+    public Task CloseAsync()
+    {
+        Application.RequestStop();
+        return done.Task;
+    }
+
+    public void Close() => CloseAsync().RunInBackground();
 
     public void RegisterMouseHandler(Func<MouseEvent, bool> onMouse)
     {
         this.onMouse = onMouse;
     }
 
-    internal Label AddLabel(int x, int y, string text = "")
+    internal UILabel AddLabel(int x, int y, string text = "") => AddLabel(x, y, Text.White(text == "" ? " " : text));
+
+    internal UILabel AddLabel(int x, int y, Text text)
     {
-        var label = new Label(x, y, text) { ColorScheme = ColorSchemes.Label };
+        var label = new UILabel(x, y, text);
         views.Add(label);
         return label;
     }
@@ -176,7 +187,7 @@ class UIDialog
         return Show(setViewFocused);
     }
 
-    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
+    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null, Action<View>? onAfterShow = null)
     {
         dlg = onKey != null || onMouse != null ?
             new CustomDialog(Title, buttons.ToArray(), onKey, onMouse)
@@ -193,7 +204,7 @@ class UIDialog
                 Width = Width,
                 Height = Height,
             };
-
+        View = dlg;
         if (options != null)
         {
             options(dlg);
@@ -215,9 +226,14 @@ class UIDialog
 
         if (onMouse != null) Application.GrabMouse(dlg);
 
+        if (onAfterShow != null)
+        {
+            UI.AddTimeout(TimeSpan.FromMilliseconds(100), (_) => { onAfterShow(dlg); return false; });
+        }
         UI.RunDialog(dlg);
         if (onMouse != null) Application.UngrabMouse();
         Application.Driver.SetCursorVisibility(cursorVisible);
+        done.TrySetResult(true);
         return IsOK;
     }
 
@@ -239,7 +255,7 @@ class UIDialog
         return true;
     }
 
-    internal Label AddLine(int x, int y, int width)
+    internal UILabel AddLine(int x, int y, int width)
     {
         return AddLabel(x, y, new string('─', width));
     }
@@ -261,6 +277,36 @@ class UIDialog
     }
 }
 
+class UILabel : View
+{
+    Text text;
+
+    public UILabel(int x, int y) : this(x, y, Text.Black(" ")) { }  // For some reason text need to be set to something, otherwise it will not be drawn
+
+    public UILabel(int x, int y, Text text) : base(x, y, text.ToString())
+    {
+        this.text = text;
+        Width = text.Length;
+        SetNeedsDisplay();
+    }
+
+    public override void Redraw(Rect bounds)
+    {
+        Clear();
+        text.Draw(this, 0, 0);
+    }
+
+    public new Text Text
+    {
+        get => text;
+        set
+        {
+            Width = text.Length;
+            text = value;
+            SetNeedsDisplay();
+        }
+    }
+}
 
 class UITextField : TextField
 {
@@ -334,8 +380,8 @@ class UIComboTextField : TextField
         isShowList = true;
         items = getItems().ToList();
         itemTexts = items.Select(item => item.Length > w + 1
-            ? Common.Text.New.Dark("…").White(item.Substring(item.Length - w))
-            : Common.Text.New.White(item.Max(w + 1, true))).ToList();
+            ? Common.Text.Dark("…").White(item.Substring(item.Length - w)).ToText()
+            : Common.Text.White(item.Max(w + 1, true)).ToText()).ToList();
 
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
 
@@ -357,7 +403,7 @@ class UIComboTextField : TextField
         listView.IsScrollMode = false;
         listView.IsCursorMargin = false;
         listView.ColorScheme = ColorSchemes.TextField;
-        listView.TriggerUpdateContent(itemTexts.Count);
+        listView.SetNeedsDisplay();
 
         Dialog dlg = (Dialog)this.SuperView.SuperView;
         dlg.Add(borderTop);
@@ -381,14 +427,16 @@ class UIComboTextField : TextField
     }
 
 
-    IEnumerable<Text> OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
-        return itemTexts.Skip(firstIndex).Take(count).Select((item, i) =>
+        var rows = itemTexts.Skip(firstIndex).Take(count).Select((item, i) =>
         {
             // Show selected or unselected commit row 
             var isSelectedRow = i + firstIndex == currentIndex;
             return isSelectedRow ? item.ToHighlight() : item;
         });
+
+        return (rows, itemTexts.Count);
     }
 }
 

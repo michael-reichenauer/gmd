@@ -4,51 +4,68 @@ namespace gmd.Cui;
 
 interface IGraphWriter
 {
-    Text ToText(GraphRow row, int maxWidth);
+    Text ToText(GraphRow row, int maxWidth, string highlightPrimaryBranchName, bool isHoverIndex);
 }
 
 class GraphWriter : IGraphWriter
 {
-    public Text ToText(GraphRow row, int maxWidth)
+    public Text ToText(GraphRow row, int maxWidth, string highlightBranchName, bool isHoverIndex)
     {
-        Text text = Text.New;
+        var text = new TextBuilder();
         int width = Math.Min(row.Width, maxWidth / 2);
         for (int i = 0; i < width; i++)
         {
             // Colors
-            var branchColor = row[i].BranchColor;
-            var connectColor = row[i].ConnectColor;
-            var passColor = row[i].PassColor;
+            var column = row[i];
+            var branchColor = GetBranchColor(column, highlightBranchName, isHoverIndex);
+            var connectColor = column.ConnectColor;
+            var passColor = column.PassColor;
 
             // Draw connect runes (left of the branch)
-            if (row[i].ConnectSign == Sign.Pass &&
-                passColor != TextColor.None &&
-                passColor != TextColor.Ambiguous)
+            if (column.ConnectSign == Sign.Pass &&
+                passColor != Color.Black &&
+                passColor != Color.White)
             {
                 connectColor = passColor;
             }
-            else if (row[i].ConnectSign.HasFlag(Sign.Pass))
+            else if (column.ConnectSign.HasFlag(Sign.Pass))
             {
-                connectColor = TextColor.Ambiguous;
+                connectColor = Color.White;
             }
 
-            text.Color(connectColor, ConnectRune(row[i].ConnectSign));
+            text.Color(connectColor, ConnectRune(column.ConnectSign));
 
             // Draw the branch rune
-            if (row[i].BranchSign == Sign.Pass &&
-                passColor != TextColor.None &&
-                passColor != TextColor.Ambiguous)
+            if (column.BranchSign == Sign.Pass &&
+                passColor != Color.Black &&
+                passColor != Color.White)
             {
                 branchColor = passColor;
             }
-            else if (row[i].BranchSign == Sign.Pass)
+            else if (column.BranchSign == Sign.Pass)
             {
-                branchColor = TextColor.Ambiguous;
+                branchColor = Color.White;
             }
-            text.Color(branchColor, BranchRune(row[i].BranchSign));
+            text.Color(branchColor, BranchRune(column.BranchSign));
         }
 
         return text;
+    }
+
+    Color GetBranchColor(GraphColumn column, string highlightBranchName, bool isCurrentIndex)
+    {
+        var isHighlightBranch = highlightBranchName != "" && column.Branch?.B.PrimaryName == highlightBranchName;
+
+        if (isHighlightBranch && isCurrentIndex)
+        {
+            return column.BranchColor with { Background = Color.White };  // Current branch and current index
+        }
+        if (isHighlightBranch)
+        {
+            return column.BranchColor with { Background = Color.Dark }; // Current branch
+        }
+
+        return column.BranchColor;
     }
 
 
@@ -59,6 +76,7 @@ class GraphWriter : IGraphWriter
             && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "┺";
 
         if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "╼";
+        if (bm.HasFlag(Sign.Bottom) && bm.HasFlag(Sign.ActiveTip)) return "┗";
 
         // commit is tip
         if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "╊";
@@ -67,9 +85,10 @@ class GraphWriter : IGraphWriter
         if (bm.HasFlag(Sign.Tip)) return "┏";
 
         // commit is bottom
+
         if (bm.HasFlag(Sign.Bottom) && hasRight(bm)) return "┗";
         if (bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "┺";
-        if (bm.HasFlag(Sign.Bottom)) return "┚";
+        if (bm.HasFlag(Sign.Bottom)) return "┗";
 
         // commit is within branch
         if (bm.HasFlag(Sign.Commit) && hasLeft(bm)) return "╊";
@@ -111,7 +130,6 @@ class GraphWriter : IGraphWriter
                 return "┼";
             case Sign.BranchToRight | Sign.ConnectLine | Sign.Pass | Sign.MergeFromRight:
                 return "┼";
-
             case Sign.BranchToRight | Sign.Pass:
                 return "┴";
             case Sign.BranchToRight | Sign.ConnectLine:
@@ -121,6 +139,8 @@ class GraphWriter : IGraphWriter
             case Sign.MergeFromLeft | Sign.Pass:
                 return "╭";
             case Sign.MergeFromLeft | Sign.BranchToLeft:
+                return "├";
+            case Sign.MergeFromLeft | Sign.BranchToLeft | Sign.Pass:
                 return "├";
             case Sign.MergeFromLeft | Sign.ConnectLine:
                 return "├";

@@ -7,7 +7,7 @@ namespace gmd.Server.Private;
 
 interface IViewRepoCreater
 {
-    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified);
+    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1);
 
     Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount);
 }
@@ -24,10 +24,10 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
 
-    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
+    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var t = Timing.Start();
-        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, show);
+        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, show, count);
         var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
 
         if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
@@ -119,6 +119,7 @@ class ViewRepoCreater : IViewRepoCreater
                 c.Author.Contains(p, sc) ||
                 c.AuthorTime.IsoDate().Contains(p, sc) ||
                 c.BranchNiceUniqueName.Contains(p, sc) ||
+                c.BranchName.Contains(p, sc) ||
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount)
             .ToDictionary(c => c.Id, c => c);
@@ -279,7 +280,8 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
     }
 
-    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified)
+    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo,
+    IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var branches = new Dictionary<string, Augmented.Branch>();
 
@@ -295,8 +297,9 @@ class ViewRepoCreater : IViewRepoCreater
             case ShowBranches.AllRecent:
                 repo.Branches.Values.Where(b => !b.IsCircularAncestors)
                     .OrderBy(b => repo.CommitById[b.TipId].GitIndex)
-                    .Where(b => b.IsPrimary)
-                    .Take(15)
+                    .Where(b => b.IsPrimary && !showBranches.Contains(b.Name))
+                    .Take(count)
+                    .Concat(showBranches.Select(n => repo.Branches.TryGetValue(n, out var bbb) ? bbb : null).Where(b => b != null))
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
                 break;
             case ShowBranches.AllActive:
@@ -336,7 +339,10 @@ class ViewRepoCreater : IViewRepoCreater
         // }
 
         var sorted = SortBranches(repo, branches.Values);
-        Log.Debug($"Filtered branches: {sorted.Count} {sorted.Select(b => b.Name).Join(",")}");
+
+        // Log.Info($"Filtered {sorted.Count} branches:\n  {sorted.Select(b => b.Name).Join("\n  ")}");
+        // var mainBranches = sorted.Where(b => b.IsPrimary || b.RemoteName != "").ToList();
+        // Log.Debug($"Filtered {mainBranches.Count} main branches:\n  {mainBranches.Select(b => b.Name).Join("\n  ")}");
         return sorted;
     }
 

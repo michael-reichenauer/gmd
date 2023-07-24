@@ -78,8 +78,8 @@ public class FileBrowseDlg
     {
         var scheme = new ColorScheme
         {
-            Focus = new Terminal.Gui.Attribute(Color.White, Color.DarkGray),
-            Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
+            Focus = new Color(Color.White, Color.Dark),
+            Normal = Color.White
         };
 
         treeView.ColorGetter = m => scheme;

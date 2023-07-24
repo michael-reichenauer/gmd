@@ -1,6 +1,4 @@
 using gmd.Cui.Common;
-using System.Linq;
-using Color = Terminal.Gui.Attribute;
 
 
 namespace gmd.Cui;
@@ -10,9 +8,9 @@ class Graph
     GraphRow[] rows;
     readonly IReadOnlyList<GraphBranch> branches;
 
-    internal int Width { get; private set; }
+    public int Width { get; private set; }
 
-    internal Graph(int columnCount, int height, IReadOnlyList<GraphBranch> branches)
+    public Graph(int columnCount, int height, IReadOnlyList<GraphBranch> branches)
     {
         Width = columnCount * 2;
         rows = new GraphRow[height];
@@ -23,9 +21,33 @@ class Graph
         this.branches = branches;
     }
 
-    internal GraphRow GetRow(int index) => rows[index];
+    public GraphRow GetRow(int index) => rows[index];
 
-    internal GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
+    public GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
+
+    public bool TryGetBranchByPos(int x, int index, out GraphBranch branch)
+    {
+        // Find the branch that is at the given position
+        branch = branches
+            .FirstOrDefault(b => (b.X * 2 == (x - 1) && index >= b.TipIndex && index <= b.BottomIndex))!;
+        return branch != null;
+    }
+
+
+    public IReadOnlyList<GraphBranch> GetRowBranches(int index) =>
+        branches
+            .Where(b => index >= b.TipIndex && index <= b.BottomIndex)
+            .OrderBy(b => b.X)
+            .ToList();
+
+    public IReadOnlyList<GraphBranch> GetPageBranches(int firstIndex, int lastIndex) =>
+            branches
+                .Where(b => (b.TipIndex >= firstIndex && b.TipIndex <= lastIndex) ||
+                            (b.BottomIndex >= firstIndex && b.BottomIndex <= lastIndex) ||
+                            (b.TipIndex <= firstIndex && b.BottomIndex >= lastIndex))
+                .OrderBy(b => b.X)
+                .ThenBy(b => b.TipIndex)
+                .ToList();
 
     public IReadOnlyList<GraphBranch> GetOverlappingBranches(string branchName)
     {
@@ -54,7 +76,7 @@ class Graph
 
 
 
-    internal void DrawHorizontalLine(int x1, int x2, int y, Color color)
+    public void DrawHorizontalLine(int x1, int x2, int y, Color color)
     {
         for (int x = x1; x < x2; x++)
         {
@@ -63,7 +85,7 @@ class Graph
         }
     }
 
-    internal void DrawVerticalLine(int x, int y1, int y2, Color color)
+    public void DrawVerticalLine(int x, int y1, int y2, Color color)
     {
         for (int y = y1; y < y2; y++)
         {
@@ -72,12 +94,12 @@ class Graph
     }
 
 
-    internal void SetGraphConnect(int x, int y, Sign sign, Color color) =>
+    public void SetGraphConnect(int x, int y, Sign sign, Color color) =>
         rows[y].SetConnect(x, sign, color);
 
 
 
-    internal void SetGraphBranch(int x, int y, Sign sign, Color color, GraphBranch branch) =>
+    public void SetGraphBranch(int x, int y, Sign sign, Color color, GraphBranch branch) =>
         rows[y].SetBranch(x, sign, color, branch);
 
     void SetGraphBranchPass(int x, int y, Sign sign, Color color) =>
@@ -134,21 +156,21 @@ class GraphColumn
 {
     internal Sign ConnectSign { get; private set; } = Sign.Blank;
     internal Sign BranchSign { get; private set; } = Sign.Blank;
-    internal Color BranchColor { get; private set; } = TextColor.None;
-    internal Color ConnectColor { get; private set; } = TextColor.None;
-    internal Color PassColor { get; private set; } = TextColor.None;
+    internal Color BranchColor { get; private set; } = Color.Black;
+    internal Color ConnectColor { get; private set; } = Color.Black;
+    internal Color PassColor { get; private set; } = Color.Black;
     internal GraphBranch? Branch { get; private set; }
 
     internal void SetConnect(Sign sign, Color color)
     {
         ConnectSign |= sign;
-        if (ConnectColor == TextColor.None)
+        if (ConnectColor == Color.Black)
         {
             ConnectColor = color;
         }
         else if (ConnectColor != color)
         {
-            ConnectColor = TextColor.Ambiguous;
+            ConnectColor = Color.White;
         }
     }
 
@@ -163,7 +185,7 @@ class GraphColumn
     {
         BranchSign |= sign;
 
-        if (BranchColor == TextColor.None)
+        if (BranchColor == Color.Black)
         {
             BranchColor = color;
         }
@@ -173,13 +195,13 @@ class GraphColumn
     {
         ConnectSign |= sign;
 
-        if (PassColor == TextColor.None)
+        if (PassColor == Color.Black)
         {
             PassColor = color;
         }
         else if (PassColor != color)
         {
-            PassColor = TextColor.Ambiguous;
+            PassColor = Color.White;
         }
     }
 }
@@ -194,7 +216,7 @@ class GraphBranch
     internal int TipIndex { get; set; }
     internal int BottomIndex { get; set; }
     internal GraphBranch? ParentBranch { get; set; }
-    internal Color Color { get; set; }
+    internal Color Color { get; set; } = Color.Black;
 
     internal GraphBranch(Server.Branch branch, int index)
     {
@@ -202,5 +224,5 @@ class GraphBranch
         Index = index;
     }
 
-    public override string ToString() => $"{B}";
+    public override string ToString() => $"XY: ({X},{Index}) TB: ({TipIndex},{BottomIndex}), {B}";
 }

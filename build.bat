@@ -27,14 +27,24 @@ if exist "gmd_osx" (
 ) 
 
 
-echo "Building ...."
+echo "Building Windows ...."
 dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 copy gmd\bin\Release\%DOTNET%\win-x64\publish\gmd.exe gmd.exe
 copy gmd\bin\Release\%DOTNET%\win-x64\publish\gmd.exe gmd_windows
 
+rem if command arg is '-w' only windows version will be built and the script will exit
+if "%1"=="-w" (
+    echo "Version:"
+    gmd.exe --version
+    pause
+    exit 0
+)
+
+echo "Building Linux ...."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 copy gmd\bin\Release\%DOTNET%\linux-x64\publish\gmd gmd_linux
 
+echo "Building OSX ...."
 dotnet publish gmd/gmd.csproj -c Release -r osx-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 copy gmd\bin\Release\%DOTNET%\osx-x64\publish\gmd gmd_osx
 

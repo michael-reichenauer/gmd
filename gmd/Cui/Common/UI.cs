@@ -54,6 +54,11 @@ static class UI
         return Application.MainLoop?.AddTimeout(timeout, callback)!;
     }
 
+    internal static object AddTimeout(TimeSpan timeout, Action callback)
+    {
+        return Application.MainLoop?.AddTimeout(timeout, (_) => { callback(); return false; })!;
+    }
+
     internal static void Shutdown()
     {
         Application.RequestStop();

@@ -143,6 +143,7 @@ class Server : IServer
             return null;
         })
         .Where(b => b != null)
+        .DistinctBy(b => b!.PrimaryName)
         .Cast<Augmented.Branch>();
 
         return converter.ToBranches(branches.ToList());
@@ -195,7 +196,7 @@ class Server : IServer
     }
 
 
-    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified)
+    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
@@ -204,7 +205,7 @@ class Server : IServer
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), show);
+        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), show, count);
     }
 
 
@@ -262,6 +263,10 @@ class Server : IServer
 
     public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
       augmentedService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
+
+    public Task<R> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout, string wd) =>
+        augmentedService.CreateBranchFromBranchAsync(repo.AugmentedRepo, newBranchName, sourceBranch, isCheckout, wd);
+
 
     public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
         augmentedService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, sha, isCheckout, wd);
@@ -368,6 +373,15 @@ class Server : IServer
             {
                 message = $"- {parts[0]}";
             }
+
+            // Adjust some message lines
+            message = message.Split('\n').Select(l =>
+            {
+                if (l.StartsWith("- Fix ")) l = $"- Fixed {l.Substring(6)}";
+                if (l.StartsWith("- Add ")) l = $"- Added {l.Substring(6)}";
+                if (l.StartsWith("- Update ")) l = $"- Updated {l.Substring(9)}";
+                return l;
+            }).Join("\n");
 
             var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name.Substring(1), out var _));
             if (tag != null)
