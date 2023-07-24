@@ -23,6 +23,7 @@ class ApplicationBarView : View, IApplicationBarView
     Text branchText = Common.Text.Empty;
     string currentBranchName = "";
     GraphBranch branch = null!;
+    Rect bounds = Rect.Empty;
 
     public View View => this;
 
@@ -41,7 +42,7 @@ class ApplicationBarView : View, IApplicationBarView
         Add(label, border);
 
         label.MouseClick += OnMouseClicked;
-
+        bounds = Frame;
         UpdateView();
 
         UI.AddTimeout(TimeSpan.FromSeconds(5), () => UpdateView());
@@ -50,6 +51,17 @@ class ApplicationBarView : View, IApplicationBarView
     void OnMouseClicked(MouseEventArgs e)
     {
         //Log.Info($"Clicked on {e.MouseEvent.X}, {e.MouseEvent.Y}");
+    }
+
+    public override void Redraw(Rect bounds)
+    {
+        if (bounds != this.bounds)
+        {
+            this.bounds = bounds;
+            UpdateView();
+        }
+
+        base.Redraw(bounds);
     }
 
     public void SetRepo(Server.Repo repo)
