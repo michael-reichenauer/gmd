@@ -460,6 +460,7 @@ class RepoView : IRepoView
             .FindIndexOf(b => b.B.PrimaryName == hoverName) : -1;
 
         commitsView.ClearSelection();
+        ClearHoover();
         commitsView.Move(-1);
 
         if (hoverName != "")
@@ -484,6 +485,7 @@ class RepoView : IRepoView
             .FindIndexOf(b => b.B.PrimaryName == hoverName) : -1;
 
         commitsView.ClearSelection();
+        ClearHoover();
         commitsView.Move(1);
 
         if (hoverName != "")

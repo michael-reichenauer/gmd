@@ -549,18 +549,19 @@ class RepoCommands : IRepoCommands
 
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pushing");
         if (branch == null) return R.Error("No current branch to push");
-        if (!branch.HasLocalOnly) return R.Error("No local changes to push on current branch");
+        if (!branch.HasLocalOnly) return R.Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
 
         if (branch.RemoteName != "")
         {   // Cannot push local branch if remote needs to be pulled first
             var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
             if (remoteBranch != null && remoteBranch.HasRemoteOnly)
-                return R.Error("Pull current remote branch first before pushing");
+                return R.Error("Pull current remote branch first before pushing:\n" +
+                    $"{remoteBranch.NiceNameUnique}");
         }
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
         {
-            return R.Error($"Failed to push branch {branch.Name}", e);
+            return R.Error($"Failed to push branch:\n{branch.Name}", e);
         }
 
         Refresh();
@@ -574,7 +575,7 @@ class RepoCommands : IRepoCommands
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
         {
-            return R.Error($"Failed to publish branch {branch.Name}", e);
+            return R.Error($"Failed to publish branch:\n{branch.Name}", e);
         }
 
         Refresh();
@@ -586,7 +587,7 @@ class RepoCommands : IRepoCommands
     {
         if (!Try(out var e, await server.PushBranchAsync(name, repoPath)))
         {
-            return R.Error($"Failed to push branch {name}", e);
+            return R.Error($"Failed to push branch:\n{name}", e);
         }
 
         Refresh();

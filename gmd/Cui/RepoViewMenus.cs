@@ -99,8 +99,8 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Stash Changes", "", () => cmds.Stash(), () => c.Id == Repo.UncommittedId)
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
             .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
-            .Item("Merge From Commit", "", () => cmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
-            .Item("Cherry Pick Commit", "", () => cmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
+            .Item($"Merge From Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
+            .Item($"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
             .Item("Switch to Commit", "", () => cmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .Separator()
@@ -117,7 +117,7 @@ class RepoViewMenus : IRepoViewMenus
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
-        var mergeToName = isCurrent ? "current branch" : cb?.ShortNiceUniqueName() ?? "";
+        var mergeToName = cb?.ShortNiceUniqueName() ?? "";
 
         return Menu.Items
             .Items(GetNewReleaseItems())
