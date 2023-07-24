@@ -21,7 +21,7 @@ enum ApplicationBarItem
 }
 
 
-interface IApplicationBarView
+interface IApplicationBar
 {
     View View { get; }
     event Action<int, int, ApplicationBarItem> ItemClicked;
@@ -30,7 +30,7 @@ interface IApplicationBarView
 }
 
 
-class ApplicationBarView : View, IApplicationBarView
+class ApplicationBar : View, IApplicationBar
 {
     const int maxRepoLength = 30;
     readonly IBranchColorService branchColorService;
@@ -46,7 +46,7 @@ class ApplicationBarView : View, IApplicationBarView
 
     public event Action<int, int, ApplicationBarItem>? ItemClicked = null;
 
-    public ApplicationBarView(IBranchColorService branchColorService, IState state)
+    public ApplicationBar(IBranchColorService branchColorService, IState state)
     {
         this.branchColorService = branchColorService;
         this.state = state;
@@ -109,7 +109,6 @@ class ApplicationBarView : View, IApplicationBarView
     {
         if (bounds != this.bounds)
         {
-            Log.Info($"Redraw: {bounds}");
             this.bounds = bounds;
             UpdateView();
         }

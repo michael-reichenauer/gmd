@@ -44,7 +44,7 @@ class RepoView : IRepoView
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
-    readonly IApplicationBarView applicationBarView;
+    readonly IApplicationBar applicationBarView;
     readonly IFilterDlg filterDlg;
     readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView commitsView;
@@ -74,7 +74,7 @@ class RepoView : IRepoView
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
-        IApplicationBarView applicationBarView,
+        IApplicationBar applicationBarView,
         IFilterDlg filterDlg) : base()
     {
         this.server = server;
