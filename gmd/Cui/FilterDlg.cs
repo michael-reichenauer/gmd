@@ -188,7 +188,7 @@ class FilterDlg : IFilterDlg
         var commit = currentRepo.Commits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];
         var color = branchColorService.GetColor(currentRepo, branch);
-        statusLabel.Text = Text.Add(repoInfo).White($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
+        statusLabel.Text = Text.Add(repoInfo).Cyan($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
     }
 
 
