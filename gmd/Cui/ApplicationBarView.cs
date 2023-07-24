@@ -148,14 +148,17 @@ class ApplicationBarView : View, IApplicationBarView
     void UpdateView()
     {
         texts[(int)ApplicationBarItem.Update] = GetUpdateText();
+        texts[(int)ApplicationBarItem.Space] = GetSpace();
 
+        label.Text = Common.Text.Add(texts);
+    }
+
+    Text GetSpace()
+    {
         texts[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         var count = texts.Sum(t => t.Length);
-        Log.Info($"Count: {count}");
         var space = new string(' ', Math.Max(0, bounds.Width - count));
-        texts[(int)ApplicationBarItem.Space] = Common.Text.White(space);
-
-        label.Text = Common.Text.Add(texts); // Common.Text.Add(updateText).BrightMagenta("Gmd ").Add(repoText).Add(branchText);
+        return Common.Text.White(space);
     }
 
     Text GetRepoPath(Server.Repo repo)
