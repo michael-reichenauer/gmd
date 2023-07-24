@@ -162,12 +162,12 @@ class Menu
         var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length + 1) : 0;  // Include space before
         var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space before 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
-        var suffixWidth = shortcutWidth + subMenuMarkerWidth + screenWidth;
-        var titleMargin = Math.Max(-3, 4 - suffixWidth);
-        var itemText = Math.Max(items.Any() ? items.Max(i => i.Title.Length) : 0, title.Length + titleMargin);
+
+        var itemText = items.Any() ? items.Max(i => i.Title.Length) : 5;
 
         // Calculate view width based on title, shortcut, sub menu marker and scrollbar
         var viewWidth = itemText + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
+        viewWidth = Math.Max(viewWidth, title.Length + 4);  // (4 for extra space around title)
         if (viewWidth > screenWidth)
         {   // Too wide view, try to fit on screen (reduce title width)
             viewWidth = screenWidth;
