@@ -13,6 +13,7 @@ interface IRepoViewMenus
     void ShowBranchMenu(int x, int y, string branchName);
     void ShowCommitBranchesMenu(int x, int y);
     void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0);
+    void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
     void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
 }
 
@@ -61,6 +62,11 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowCommitBranchesMenu(int x, int y)
     {
         Menu.Show("Show/Open Branch", x, y, GetCommitBranchItems());
+    }
+
+    public void ShowMergeFromMenu(int x = Menu.Center, int y = 0)
+    {
+        Menu.Show("Merge from", x, y, GetMergeFromItems());
     }
 
     public void ShowOpenRepoMenu(int x = Menu.Center, int y = 0)
@@ -132,8 +138,8 @@ class RepoViewMenus : IRepoViewMenus
         return Menu.Items
             .Items(GetNewReleaseItems())
             .Item(GetSwitchToBranchItem(name))
-            .Item(!isCurrent, $"Merge to {mergeToName}", "", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
-            .SubMenu(isCurrent, "Merge from", "", GetMergeFromItems())
+            .Item(!isCurrent, $"Merge to {mergeToName}", "E", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
+            .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
             .Item("Hide Branch", "H", () => cmds.HideBranch(name))
             .Item("Pull/Update", "U", () => cmds.PullBranch(name), () => b.HasRemoteOnly && isStatusOK)
             .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)

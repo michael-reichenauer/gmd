@@ -364,6 +364,14 @@ class RepoView : IRepoView
             if (!branch.IsCurrent && repo.Status.IsOk)
             {
                 Cmd.MergeBranch(hooverBranchName);
+                return;
+            }
+
+            if ((branch.IsCurrent) && repo.Status.IsOk)
+            {
+                var hb = repo.Graph.BranchByName(hooverBranchName);
+                menuService.ShowMergeFromMenu(hb.X * 2 + 3, commitsView.CurrentIndex + 1);
+                return;
             }
         }
     }
