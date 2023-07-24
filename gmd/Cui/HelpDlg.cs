@@ -24,11 +24,12 @@ class HelpDlg : IHelpDlg
 
         var dlg = new UIDialog("Help", width, height);
 
-        var contentView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), ToHelpText(content));
+        var contentView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill() - 2, ToHelpText(content));
         contentView.IsShowCursor = false;
         contentView.IsScrollMode = true;
         contentView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
-
+        
+        dlg.AddDlgClose();
         dlg.Show(contentView);
     }
 

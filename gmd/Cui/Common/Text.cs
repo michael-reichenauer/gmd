@@ -49,6 +49,13 @@ class Text
         return tb;
     }
 
+    public static TextBuilder Add(IEnumerable<Text> texts)
+    {
+        var tb = new TextBuilder();
+        tb.Add(texts);
+        return tb;
+    }
+
     // Converter methods
     public TextBuilder ToTextBuilder() => new TextBuilder(fragments.ToList());
 
@@ -252,6 +259,11 @@ class TextBuilder
         return this;
     }
 
+    public TextBuilder Add(IEnumerable<Text> texts)
+    {
+        texts.ForEach(t => Add(t));
+        return this;
+    }
 
     TextBuilder Add(Common.Color color, string text)
     {
