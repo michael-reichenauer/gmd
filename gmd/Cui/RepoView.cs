@@ -571,8 +571,29 @@ class RepoView : IRepoView
 
     void OnDoubleClicked(int x, int y)
     {
-        commitsView.SetIndexAtViewY(y);
-        ToggleDetails();
+        var index = y + commitsView.FirstIndex;
+        commitsView.SetCurrentIndex(index);
+
+        if (x > repo.Graph.Width)
+        {
+            ClearHoover();
+            ToggleDetails();
+        }
+
+        if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
+        {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
+            var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+
+            var branchName = branch.B.Name;
+            if (branch.B.LocalName != "") branchName = branch.B.LocalName;
+
+            if (branch.B.PrimaryName != currentName)
+            {
+                Cmd.SwitchTo(branchName);
+            }
+            return;
+        }
+
     }
 
     void OnClicked(int x, int y)
