@@ -224,5 +224,5 @@ class GraphBranch
         Index = index;
     }
 
-    public override string ToString() => $"{B}";
+    public override string ToString() => $"XY: ({X},{Index}) TB: ({TipIndex},{BottomIndex}), {B}";
 }
