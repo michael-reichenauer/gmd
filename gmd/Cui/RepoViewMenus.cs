@@ -44,24 +44,24 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowRepoMenu(int x, int y)
     {
-        Menu.Show($"Repo Menu", x, y, GetRepoMenuItems());
+        Menu.Show($"Repo Menu", x, y + 2, GetRepoMenuItems());
     }
 
     public void ShowCommitMenu(int x, int y, int index)
     {
         var c = repo.Commits[index];
-        Menu.Show($"Commit: {Sid(c.Id)}", x, y, GetCommitMenuItems(c.Id));
+        Menu.Show($"Commit: {Sid(c.Id)}", x, y + 2, GetCommitMenuItems(c.Id));
     }
 
     public void ShowBranchMenu(int x, int y, string branchName)
     {
         var b = repo.Branch(branchName);
-        Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y, GetBranchMenuItems(branchName));
+        Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y + 2, GetBranchMenuItems(branchName));
     }
 
     public void ShowCommitBranchesMenu(int x, int y)
     {
-        Menu.Show("Show/Open Branch", x, y, GetCommitBranchItems());
+        Menu.Show("Show/Open Branch", x, y + 2, GetCommitBranchItems());
     }
 
     public void ShowMergeFromMenu(int x = Menu.Center, int y = 0)
@@ -71,12 +71,12 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowOpenRepoMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Open Repo", x, y, GetOpenRepoItems());
+        Menu.Show("Open Repo", x, y + 2, GetOpenRepoItems());
     }
 
     public void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Open Branch", x, y, GetShowBranchItems());
+        Menu.Show("Open Branch", x, y + 2, GetShowBranchItems());
     }
 
     IEnumerable<MenuItem> GetRepoMenuItems()
