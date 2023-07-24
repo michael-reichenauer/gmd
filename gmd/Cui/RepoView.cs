@@ -46,6 +46,7 @@ class RepoView : IRepoView
     readonly ICommitDetailsView commitDetailsView;
     readonly IApplicationBar applicationBarView;
     readonly IFilterDlg filterDlg;
+    readonly ICharDlg charDlg;
     readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView commitsView;
     readonly IRepoWriter repoWriter;
@@ -75,7 +76,8 @@ class RepoView : IRepoView
         IGit git,
         ICommitDetailsView commitDetailsView,
         IApplicationBar applicationBarView,
-        IFilterDlg filterDlg) : base()
+        IFilterDlg filterDlg,
+        ICharDlg charDlg) : base()
     {
         this.server = server;
         this.newRepoWriter = newRepoWriter;
@@ -89,6 +91,7 @@ class RepoView : IRepoView
         this.commitDetailsView = commitDetailsView;
         this.applicationBarView = applicationBarView;
         this.filterDlg = filterDlg;
+        this.charDlg = charDlg;
         commitsView = new ContentView(onGetContent)
         {
             X = 0,
@@ -295,6 +298,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
+        commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
 
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, () => OnKeyS());
