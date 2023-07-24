@@ -74,7 +74,7 @@ class ApplicationBarView : View, IApplicationBarView
         var text = Common.Text.Dark($"{path}, ");
 
         AddCurrentBranch(text, repo);
-        if (!repo.Status.IsOk) text.Dark(", ").Yellow("Ͼ ").Dark($"{repo.Status.ChangesCount}");
+        if (!repo.Status.IsOk) text.Dark(", ").Yellow("Θ ").Dark($"{repo.Status.ChangesCount}");
         if (behindCount > 0) text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}");
         if (aheadCount > 0) text.Dark(", ").Green("▲ ").Dark($"{aheadCount}");
 
@@ -88,14 +88,12 @@ class ApplicationBarView : View, IApplicationBarView
         if (this.branch == branch) return;
         this.branch = branch;
 
-        branchText = branch != null && branch.B.NiceNameUnique != currentBranchName
-            ? Common.Text.BrightMagenta(" | ").Color(branch.Color, branch.B.NiceNameUnique)
+        branchText = branch != null
+            ? Common.Text.BrightMagenta(" | ").Color(branch.Color, $"({branch.B.NiceNameUnique})")
             : Common.Text.BrightMagenta(" | ").Dark("");
 
         UpdateView();
     }
-
-
 
 
     void UpdateView()
