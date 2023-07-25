@@ -46,7 +46,7 @@ class RepoView : IRepoView
     readonly ICommitDetailsView commitDetailsView;
     readonly IApplicationBar applicationBarView;
     readonly IFilterDlg filterDlg;
-    readonly ICharDlg charDlg;
+    readonly IUnicodeSetsDlg charDlg;
     readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView commitsView;
     readonly IRepoWriter repoWriter;
@@ -77,7 +77,7 @@ class RepoView : IRepoView
         ICommitDetailsView commitDetailsView,
         IApplicationBar applicationBarView,
         IFilterDlg filterDlg,
-        ICharDlg charDlg) : base()
+        IUnicodeSetsDlg charDlg) : base()
     {
         this.server = server;
         this.newRepoWriter = newRepoWriter;
