@@ -172,7 +172,7 @@ class ContentView : View
 
     public override bool MouseEvent(MouseEvent ev)
     {
-        // Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
 
         if (mouses.TryGetValue(ev.Flags, out var callback))
         {

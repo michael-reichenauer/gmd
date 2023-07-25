@@ -44,8 +44,9 @@ class RepoView : IRepoView
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
-    readonly IApplicationBarView applicationBarView;
+    readonly IApplicationBar applicationBarView;
     readonly IFilterDlg filterDlg;
+    readonly ICharDlg charDlg;
     readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView commitsView;
     readonly IRepoWriter repoWriter;
@@ -74,8 +75,9 @@ class RepoView : IRepoView
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
-        IApplicationBarView applicationBarView,
-        IFilterDlg filterDlg) : base()
+        IApplicationBar applicationBarView,
+        IFilterDlg filterDlg,
+        ICharDlg charDlg) : base()
     {
         this.server = server;
         this.newRepoWriter = newRepoWriter;
@@ -89,6 +91,7 @@ class RepoView : IRepoView
         this.commitDetailsView = commitDetailsView;
         this.applicationBarView = applicationBarView;
         this.filterDlg = filterDlg;
+        this.charDlg = charDlg;
         commitsView = new ContentView(onGetContent)
         {
             X = 0,
@@ -295,6 +298,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
+        commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
 
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, () => OnKeyS());
@@ -306,6 +310,8 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
 
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClicked(x, y));
+        commitsView.RegisterMouseHandler(MouseFlags.Button2Clicked, (x, y) => OnClickedMiddle(x, y));
+
         commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => OnDoubleClicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => OnRightClicked(x, y));
         commitsView.RegisterMouseHandler(MouseFlags.ReportMousePosition, (x, y) => OnMouseMoved(x, y));
@@ -362,8 +368,16 @@ class RepoView : IRepoView
             var branch = repo.Branch(hooverBranchName);
             if (branch.LocalName != "") branch = repo.Branch(branch.LocalName);
             if (!branch.IsCurrent && repo.Status.IsOk)
-            {
+            {   // Some other branch merging to current
                 Cmd.MergeBranch(hooverBranchName);
+                return;
+            }
+
+            if (branch.IsCurrent && repo.Status.IsOk)
+            {   // Current branch showing menu of branches to merge from
+                var hb = repo.Graph.BranchByName(branch.Name);
+                menuService.ShowMergeFromMenu(hb.X * 2 + 3, repo.CurrentIndex + 1);
+                return;
             }
         }
     }
@@ -601,7 +615,8 @@ class RepoView : IRepoView
         var index = y + commitsView.FirstIndex;
         commitsView.SetCurrentIndex(index);
 
-        if (repo.Graph.TryGetBranchByPos(x, index, out var _))
+        if (repo.Graph.TryGetBranchByPos(x, index, out var branch) &&
+            repo.RowCommit.BranchPrimaryName == branch.B.PrimaryName)
         {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
             TryShowHideCommitBranch(x, y);
             return;
@@ -610,6 +625,25 @@ class RepoView : IRepoView
         if (x > repo.Graph.Width)
         {   // Clicked on a commit
             ClearHoover();
+            return;
+        }
+    }
+
+    void OnClickedMiddle(int x, int y)
+    {
+        var index = y + commitsView.FirstIndex;
+        commitsView.SetCurrentIndex(index);
+
+        if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
+        {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
+            var hb = branch.B;
+            if (hb.LocalName != "") hb = repo.Branch(hb.LocalName);
+            if (!hb.IsCurrent && repo.Status.IsOk)
+            {   // Some other branch merging to current
+                Cmd.MergeBranch(hb.Name);
+                return;
+            }
+
             return;
         }
     }

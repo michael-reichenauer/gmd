@@ -1,9 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-97 releases:
+98 releases:
 
-## [Current] - 2023-07-24
+## [Current] - 2023-07-25
+- Support middle mouse botton click to merge from branch
+- Fixed click on branch issue
+
+## [v0.90.267.1006] - 2023-07-24
 - Improve ApplicationBar
 - Updated help file
 - Support double click on branch to switch to branch
