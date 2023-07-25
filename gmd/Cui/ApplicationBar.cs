@@ -40,7 +40,7 @@ class ApplicationBar : View, IApplicationBar
     string currentBranchName = "";
     GraphBranch branch = null!;
     Rect bounds = Rect.Empty;
-    List<Text> texts = new List<Text>();
+    List<Text> items = new List<Text>();
 
     public View View => this;
 
@@ -60,29 +60,31 @@ class ApplicationBar : View, IApplicationBar
 
         Add(label, border);
 
-        label.MouseClick += OnMouseClicked;
+        label.MouseClick += OnLabelMouseClicked;
         bounds = Frame;
 
         // Initialize some text values 
         Enumerable.Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Count())
-            .ForEach(i => texts.Add(Common.Text.Empty));
-        texts[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta("Gmd ");
-        texts[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
-        texts[(int)ApplicationBarItem.Space] = Common.Text.Empty;
-        texts[(int)ApplicationBarItem.Search] = Common.Text.Dark("|Ϙ Search|");
-        texts[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
+            .ForEach(i => items.Add(Common.Text.Empty));
+        items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta("Gmd ");
+        items[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
+        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
+        items[(int)ApplicationBarItem.Search] = Common.Text.Dark("|Ϙ Search|");
+        items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
 
         UpdateView();
 
         UI.AddTimeout(TimeSpan.FromSeconds(5), () => UpdateView());
     }
 
-    void OnMouseClicked(MouseEventArgs e)
+    // Called when clicking on the label
+    void OnLabelMouseClicked(MouseEventArgs e)
     {
         if (e.MouseEvent.Flags == MouseFlags.Button1Clicked) OnClicked(e.MouseEvent.X, e.MouseEvent.Y);
         e.Handled = false;
     }
 
+    // Mouse events from the view not handled by the label mouse clicks
     public override bool MouseEvent(MouseEvent e)
     {
         if (e.Flags == MouseFlags.Button1Clicked) OnClicked(e.X, e.Y);
@@ -93,9 +95,9 @@ class ApplicationBar : View, IApplicationBar
     void OnClicked(int x, int y)
     {
         int s = 0;
-        for (int i = 0; i < texts.Count; i++)
+        for (int i = 0; i < items.Count; i++)
         {
-            var e = s + texts[i].Length;
+            var e = s + items[i].Length;
             if (e > s && x >= s && x <= e)  // Skipping empty texts and check if the click is within the text bounds
             {
                 ItemClicked?.Invoke(x, y, (ApplicationBarItem)i);
@@ -105,6 +107,7 @@ class ApplicationBar : View, IApplicationBar
         }
     }
 
+    // Monitors if the view has been resized
     public override void Redraw(Rect bounds)
     {
         if (bounds != this.bounds)
@@ -122,11 +125,11 @@ class ApplicationBar : View, IApplicationBar
         var behindCount = repo.Commits.Where(c => c.IsBehind).Count();
         var aheadCount = repo.Commits.Where(c => c.IsAhead).Count();
 
-        texts[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
+        items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
         SetCurrentBranch(repo);
-        texts[(int)ApplicationBarItem.Status] = !repo.Status.IsOk ? Common.Text.Dark(", ").Yellow("© ").Dark($"{repo.Status.ChangesCount}") : Common.Text.Empty;
-        texts[(int)ApplicationBarItem.Behind] = behindCount > 0 ? Common.Text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}") : Common.Text.Empty;
-        texts[(int)ApplicationBarItem.Ahead] = aheadCount > 0 ? Common.Text.Dark(", ").Green("▲ ").Dark($"{aheadCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Status] = !repo.Status.IsOk ? Common.Text.Dark(", ").Yellow("© ").Dark($"{repo.Status.ChangesCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Behind] = behindCount > 0 ? Common.Text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Ahead] = aheadCount > 0 ? Common.Text.Dark(", ").Green("▲ ").Dark($"{aheadCount}") : Common.Text.Empty;
         UpdateView();
     }
 
@@ -136,7 +139,7 @@ class ApplicationBar : View, IApplicationBar
         if (this.branch == branch) return;
         this.branch = branch;
 
-        texts[(int)ApplicationBarItem.BranchName] = branch != null
+        items[(int)ApplicationBarItem.BranchName] = branch != null
             ? Common.Text.Color(branch.Color, $"({branch.B.NiceNameUnique})")
             : Common.Text.Empty;
 
@@ -146,16 +149,16 @@ class ApplicationBar : View, IApplicationBar
 
     void UpdateView()
     {
-        texts[(int)ApplicationBarItem.Update] = GetUpdateText();
-        texts[(int)ApplicationBarItem.Space] = GetSpace();
+        items[(int)ApplicationBarItem.Update] = GetUpdateText();
+        items[(int)ApplicationBarItem.Space] = GetSpace();
 
-        label.Text = Common.Text.Add(texts);
+        label.Text = Common.Text.Add(items);
     }
 
     Text GetSpace()
     {
-        texts[(int)ApplicationBarItem.Space] = Common.Text.Empty;
-        var count = texts.Sum(t => t.Length);
+        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
+        var count = items.Sum(t => t.Length);
         var space = new string(' ', Math.Max(0, bounds.Width - count));
         return Common.Text.White(space);
     }
@@ -177,14 +180,14 @@ class ApplicationBar : View, IApplicationBar
         if (currentBranch != null)
         {   // Current branch is shown
             var color = branchColorService.GetColor(repo, currentBranch);
-            texts[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, currentBranch.NiceNameUnique);
+            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, currentBranch.NiceNameUnique);
             currentBranchName = currentBranch.NiceNameUnique;
         }
         else
         {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
             var cb = repo.AugmentedRepo.Branches.Values.First(b => b.IsCurrent);
             var color = branchColorService.GetBranchNameColor(cb.PrimaryBaseName);
-            texts[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, cb.NiceNameUnique);
+            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, cb.NiceNameUnique);
             currentBranchName = cb.NiceNameUnique;
         }
     }
