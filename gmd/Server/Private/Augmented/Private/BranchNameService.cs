@@ -72,21 +72,31 @@ class BranchNameService : IBranchNameService
 
         fi = ParseSubject(c.Subject);
 
-        // Cache the result
-        parsedCommits[c.Id] = fi;
+        // Some child commit might have already specified the branch name of this commit
+        // E.g. a child, which merged from this commit might have a subject like
+        // 'Merge from some-branch'
+        var name = branchNames.TryGetValue(c.Id, out var n) ? n : "";
 
         if (fi.Into != "")
-        {   // Prioritize commits own subject
-            branchNames[c.Id] = fi.Into;
-        }
-        else
-        {   // Commit subject did not have an into value, some child might already have
-            // info about this commits branch name so we do not clear that info
-            if (!branchNames.TryGetValue(c.Id, out var name) || name == "")
-            {
-                branchNames[c.Id] = fi.Into;
+        {   // Subject does specify own commit, lets check if it is matches a possible child commit
+            // subject
+            if (name.EndsWith(fi.Into))
+            {   // The child branch name is a prefix of the into value, so we can use the child branch name
+                fi = fi with { Into = name };
+                Log.Warn($"Expand, {fi.Into}, into {name}");
             }
         }
+        else
+        {   // Commit subject did not have an into value specifying the branch name of this commit
+            if (name != "")
+            {   // Some child subject contained info about this commits branch name so we can use that
+                fi = fi with { Into = name };
+            }
+        }
+
+        // Cache the result
+        parsedCommits[c.Id] = fi;
+        branchNames[c.Id] = fi.Into;
 
         if (IsPullMergeCommit(fi))
         {

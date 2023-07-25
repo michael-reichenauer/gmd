@@ -297,7 +297,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.D1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
-        commitsView.RegisterKeyHandler(Key.f, () => Cmd.Filter());
+        commitsView.RegisterKeyHandler(Key.f, () => OnKeyF());
         commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
 
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
@@ -323,9 +323,14 @@ class RepoView : IRepoView
         applicationBarView.ItemClicked += OnApplicationClick;
     }
 
+    void OnKeyF()
+    {
+        ClearHoover();
+        Cmd.Filter();
+    }
+
     void OnApplicationClick(int x, int y, ApplicationBarItem item)
     {
-        Log.Info($"Application bar clicked: {item}");
         switch (item)
         {
             case ApplicationBarItem.Update:

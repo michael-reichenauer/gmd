@@ -11,15 +11,16 @@ public class BranchNameServiceTest
         //      "author", DateTime.Now, new[] { "2", "3" });
 
         var fd = bs.ParseSubject("Merge branch 'develop' into main");
-        Assert.AreEqual("develop", fd.From);
-        Assert.AreEqual("main", fd.Into);
-        Assert.AreEqual(false, fd.IsPullMerge);
-        Assert.AreEqual(false, fd.IsPullRequest);
+        Assert.AreEqual(new FromInto("develop", "main", false, false), fd);
 
         fd = bs.ParseSubject("Merge branch 'dev' of https://github.com/michael-reichenauer/gmd into dev");
-        Assert.AreEqual("dev", fd.From);
-        Assert.AreEqual("dev", fd.Into);
-        Assert.AreEqual(true, fd.IsPullMerge);
-        Assert.AreEqual(false, fd.IsPullRequest);
+        Assert.AreEqual(new FromInto("dev", "dev", true, false), fd);
+
+        fd = bs.ParseSubject("Merge pull request #1 from mich/dev");
+        Assert.AreEqual(new FromInto("mich/dev", "", false, true), fd);
+
+        fd = bs.ParseSubject("Merge branch 'main' into main");
+        Assert.AreEqual(new FromInto("main", "main", true, false), fd);
+
     }
 }
