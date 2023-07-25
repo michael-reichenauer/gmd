@@ -65,7 +65,6 @@ class RepoWriter : IRepoWriter
             // if (i == hooverIndex && hooverBranchName == "") text.Highlight(); // hoover commit
             if (i == currentIndex && hooverBranchName == "") text.Highlight();      // current commit
 
-
             rows.Add(graphText.Add(text));
         }
 
