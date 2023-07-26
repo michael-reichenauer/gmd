@@ -11,7 +11,7 @@ interface IFilterDlg
 
 class FilterDlg : IFilterDlg
 {
-    const int MaxResults = int.MaxValue;
+    const int MaxResults = 5000;
     readonly IServer server;
     readonly IBranchColorService branchColorService;
 
