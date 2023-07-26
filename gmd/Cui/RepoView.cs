@@ -282,6 +282,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         commitsView.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
         commitsView.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
+        commitsView.RegisterKeyHandler(Key.CursorRight | Key.ShiftMask, OnKeyShiftCursorRight);
 
         commitsView.RegisterKeyHandler(Key.r, () => RefreshAndFetch());
         commitsView.RegisterKeyHandler(Key.F5, () => RefreshAndFetch());
@@ -322,6 +323,13 @@ class RepoView : IRepoView
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
 
         applicationBarView.ItemClicked += OnApplicationClick;
+    }
+
+    void OnKeyShiftCursorRight()
+    {
+        var x = hooverBranchName == "" ? repo.Graph.Width + 2 : hooverColumnIndex;
+        var y = hooverRowIndex == -1 ? repo.CurrentIndex : hooverRowIndex;
+        menuService.ShowOpenBranchesMenu(x + 2, y + 1);
     }
 
     void OnKeyD()
@@ -734,7 +742,7 @@ class RepoView : IRepoView
             var index = y + commitsView.FirstIndex;
             hooverBranchName = "";
             hooverRowIndex = index;
-            hooverColumnIndex = -1;
+            hooverColumnIndex = repo.Graph.Width + 2;
             hooverCurrentCommitIndex = repo.CurrentIndex;
             commitsView.SetNeedsDisplay();
             return;

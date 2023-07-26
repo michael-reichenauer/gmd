@@ -126,7 +126,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Switch to Commit", "", () => cmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .Separator()
-            .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+            .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", GetRepoMenuItems());
@@ -155,7 +155,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
             .Items(GetMoveBranchItems(name))
             .Separator()
-            .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+            .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
             .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
