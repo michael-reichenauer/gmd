@@ -61,7 +61,8 @@ class RepoView : IRepoView
     bool isShowFilter;
     bool isRegistered = false;
     string hooverBranchName = "";
-    int hooverIndex = -1;
+    int hooverRowIndex = -1;
+    private int hooverColumnIndex;
     int hooverCurrentCommitIndex = -1;
 
     internal RepoView(
@@ -288,7 +289,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.a, () => Cmd.Commit(true));
         commitsView.RegisterKeyHandler(Key.t, () => Cmd.AddTag());
         commitsView.RegisterKeyHandler(Key.b, () => Cmd.CreateBranch());
-        commitsView.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
+        commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => Cmd.ShowCurrentRowDiff());
         commitsView.RegisterKeyHandler(Key.p, () => Cmd.PushCurrentBranch());
         commitsView.RegisterKeyHandler(Key.P, () => Cmd.PushAllBranches());
@@ -321,6 +322,17 @@ class RepoView : IRepoView
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => Cmd.ShowCurrentRowDiff());
 
         applicationBarView.ItemClicked += OnApplicationClick;
+    }
+
+    void OnKeyD()
+    {
+        if (hooverBranchName != "")
+        {
+            menuService.ShowDiffBranchToMenu(hooverColumnIndex + 2, hooverRowIndex + 1, hooverBranchName);
+            return;
+        }
+
+        Cmd.ShowCurrentRowDiff();
     }
 
     void OnKeyF()
@@ -690,10 +702,10 @@ class RepoView : IRepoView
             {
                 ClearHoover();
             }
-            hooverIndex = currentIndex;
+            hooverRowIndex = currentIndex;
         }
 
-        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverIndex, width), repo.Commits.Count);
+        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverRowIndex, width), repo.Commits.Count);
     }
 
 
@@ -721,7 +733,8 @@ class RepoView : IRepoView
         {
             var index = y + commitsView.FirstIndex;
             hooverBranchName = "";
-            hooverIndex = index;
+            hooverRowIndex = index;
+            hooverColumnIndex = -1;
             hooverCurrentCommitIndex = repo.CurrentIndex;
             commitsView.SetNeedsDisplay();
             return;
@@ -731,10 +744,11 @@ class RepoView : IRepoView
 
     void SetHooverBranch(GraphBranch branch, int index)
     {
-        if (hooverBranchName != branch.B.PrimaryName || index != hooverIndex)
+        if (hooverBranchName != branch.B.PrimaryName || index != hooverRowIndex || branch.X * 2 != hooverColumnIndex)
         {
             hooverBranchName = branch.B.PrimaryName;
-            hooverIndex = index;
+            hooverRowIndex = index;
+            hooverColumnIndex = branch.X * 2;
             hooverCurrentCommitIndex = repo.CurrentIndex;
             applicationBarView.SetBranch(branch);
             commitsView.SetNeedsDisplay();
@@ -743,10 +757,11 @@ class RepoView : IRepoView
 
     void ClearHoover()
     {
-        if (hooverBranchName != "" || hooverIndex != -1 || hooverCurrentCommitIndex != -1)
+        if (hooverBranchName != "" || hooverRowIndex != -1 || hooverCurrentCommitIndex != -1 || hooverColumnIndex != -1)
         {
             hooverBranchName = "";
-            hooverIndex = -1;
+            hooverRowIndex = -1;
+            hooverColumnIndex = -1;
             hooverCurrentCommitIndex = -1;
             commitsView.SetNeedsDisplay();
         }
