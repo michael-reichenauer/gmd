@@ -349,10 +349,10 @@ class RepoView : IRepoView
                 Cmd.UpdateRelease();
                 break;
             case ApplicationBarItem.Gmd:
-                menuService.ShowRepoMenu(x - 5, y + 2);
+                menuService.ShowRepoMenu(x - 5, y);
                 break;
             case ApplicationBarItem.Repo:
-                menuService.ShowOpenRepoMenu(x - 5, y + 2);
+                menuService.ShowOpenRepoMenu(x - 5, y);
                 break;
             case ApplicationBarItem.CurrentBranch:
                 Cmd.ShowBranch(repo.GetCurrentBranch().Name, false);
@@ -367,7 +367,7 @@ class RepoView : IRepoView
                 Cmd.PushAllBranches();
                 break;
             case ApplicationBarItem.BranchName:
-                menuService.ShowOpenBranchesMenu(x - 5, y + 2);
+                menuService.ShowOpenBranchesMenu(x - 5, y);
                 break;
             case ApplicationBarItem.Search:
                 Cmd.Filter();
