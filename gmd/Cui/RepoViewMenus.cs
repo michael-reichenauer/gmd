@@ -15,6 +15,7 @@ interface IRepoViewMenus
     void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
     void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
+    void ShowDiffBranchToMenu(int x, int y, string branchName);
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -77,6 +78,11 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0)
     {
         Menu.Show("Open Branch", x, y + 2, GetShowBranchItems());
+    }
+
+    public void ShowDiffBranchToMenu(int x, int y, string branchName)
+    {
+        Menu.Show($"Diff Branch to {branchName}", x, y + 2, GetBranchDiffItems(branchName));
     }
 
     IEnumerable<MenuItem> GetRepoMenuItems()
@@ -145,7 +151,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
-            .SubMenu("Diff Branch to", "", GetBranchDiffItems(name))
+            .SubMenu("Diff Branch to", "D", GetBranchDiffItems(name))
             .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
             .Items(GetMoveBranchItems(name))
             .Separator()
