@@ -1,32 +1,67 @@
 
 using gmd.Cui.Common;
 using Terminal.Gui;
+using Clipboard = gmd.Utils.Clipboard;
 
-interface ICharDlg
+interface IUnicodeSetsDlg
 {
     void Show();
 }
 
-class CharDlg : ICharDlg
+class UnicodeSetsDlg : IUnicodeSetsDlg
 {
     record Set(string Name, int start, int end);
+    IReadOnlyList<Text> content = null!;
+    ContentView contentView = null!;
+
     public void Show()
     {
-        var dlg = new UIDialog("Help", 100, 30);
+        var dlg = new UIDialog("Unicode Character Sets", 110, 30);
 
-        var contentView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill() - 2, ToContent());
+        content = GetContent();
+        contentView = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill() - 2, content);
         contentView.IsShowCursor = false;
         contentView.IsScrollMode = true;
         contentView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
+
         dlg.AddDlgClose();
+        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
         dlg.Show(contentView);
     }
 
-    IReadOnlyList<Text> ToContent()
+    void OnCopy()
+    {
+        var text = contentView.CopySelectedText();
+        Log.Info($"Copy: '{text}'");
+        Clipboard.Set(text);
+    }
+
+    // Returns a list of texts of all the characters in each set in batches 
+    // Not all sets are included, only those most likely to be useful
+    IReadOnlyList<Text> GetContent()
     {
         var sets = new List<Set>(){
-            new Set("Basic Latin", 0x0000, 0x007F),
-            new Set("Latin-1 Supplement", 0x0080, 0x00FF),
+            new Set("Basic Latin", 0x0020, 0x007E),
+            new Set("Box Drawing", 0x2500, 0x257F),
+            new Set("Block Elements", 0x2580, 0x259F),
+            new Set("Geometric Shapes", 0x25A0, 0x25FF),
+            new Set("Miscellaneous Symbols", 0x2600, 0x26FF),
+            new Set("Symbols for Legacy Computing", 0x1FB00, 0x1FBFF),
+            new Set("Dingbats", 0x2700, 0x27BF),
+            new Set("Miscellaneous Mathematical Symbols-A", 0x27C0, 0x27EF),
+            new Set("Supplemental Arrows-A", 0x27F0, 0x27FF),
+            new Set("Supplemental Arrows-B", 0x2900, 0x297F),
+            new Set("Miscellaneous Mathematical Symbols-B", 0x2980, 0x29FF),
+            new Set("Supplemental Mathematical Operators", 0x2A00, 0x2AFF),
+            new Set("Miscellaneous Symbols and Arrows", 0x2B00, 0x2BFF),
+
+            new Set("CJK Compatibility Forms", 0xFE30, 0xFE4F),
+            new Set("CJK Symbols and Punctuation", 0x3000, 0x303F),
+            new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
+            new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
+            new Set("Alchemical Symbols", 0x1F700, 0x1F77F),
+
+            new Set("Latin-1 Supplement", 0x00A0, 0x00FF),
             new Set("Latin Extended-A", 0x0100, 0x017F),
             new Set("Latin Extended-B", 0x0180, 0x024F),
             new Set("Latin Extended Additional", 0x1E00, 0x1EFF),
@@ -35,8 +70,6 @@ class CharDlg : ICharDlg
             new Set("Latin Extended-E", 0xAB30, 0xAB6F),
             new Set("Latin Extended-F", 0x2DE0, 0x2DFF),
             new Set("Latin Extended-G", 0xA7F2, 0xA7FF),
-
-
             new Set("IPA Extensions", 0x0250, 0x02AF),
             new Set("Spacing Modifier Letters", 0x02B0, 0x02FF),
 
@@ -64,29 +97,10 @@ class CharDlg : ICharDlg
             new Set("Control Pictures", 0x2400, 0x243F),
             new Set("Optical Character Recognition", 0x2440, 0x245F),
             new Set("Enclosed Alphanumerics", 0x2460, 0x24FF),
-
-            new Set("Box Drawing", 0x2500, 0x257F),
-            new Set("Block Elements", 0x2580, 0x259F),
-            new Set("Geometric Shapes", 0x25A0, 0x25FF),
-            new Set("Miscellaneous Symbols", 0x2600, 0x26FF),
-            new Set("Dingbats", 0x2700, 0x27BF),
-            new Set("Miscellaneous Mathematical Symbols-A", 0x27C0, 0x27EF),
-            new Set("Supplemental Arrows-A", 0x27F0, 0x27FF),
             new Set("Braille Patterns", 0x2800, 0x28FF),
-            new Set("Supplemental Arrows-B", 0x2900, 0x297F),
-            new Set("Miscellaneous Mathematical Symbols-B", 0x2980, 0x29FF),
-            new Set("Supplemental Mathematical Operators", 0x2A00, 0x2AFF),
-            new Set("Miscellaneous Symbols and Arrows", 0x2B00, 0x2BFF),
-
-            new Set("CJK Compatibility Forms", 0xFE30, 0xFE4F),
-            new Set("CJK Symbols and Punctuation", 0x3000, 0x303F),
-            new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
-            new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
-
-
+           
 
             // Strange characters
-
             // new Set("Armenian", 0x0530, 0x058F),
             // new Set("Hebrew", 0x0590, 0x05FF),
             // new Set("Arabic", 0x0600, 0x06FF),
@@ -116,8 +130,6 @@ class CharDlg : ICharDlg
             // new Set("Ethiopic", 0x1200, 0x137F),
             // new Set("Ethiopic Supplement", 0x1380, 0x139F),
             // new Set("Cherokee", 0x13A0, 0x13FF),
-
-
             // new Set("Tagalog", 0x1700, 0x171F),
             // new Set("Hanunoo", 0x1720, 0x173F),
             // new Set("Buhid", 0x1740, 0x175F),
@@ -135,45 +147,55 @@ class CharDlg : ICharDlg
             // new Set("Sundanese", 0x1B80, 0x1BBF),
             // new Set("Batak", 0x1BC0, 0x1BFF),
             // new Set("Lepcha", 0x1C00, 0x1C4F),
-
             // new Set("Glagolitic", 0x2C00, 0x2C5F),
-
             // new Set("CJK Compatibility Ideographs", 0xF900, 0xFAFF),
             // new Set("CJK Compatibility Ideographs Supplement", 0x2F800, 0x2FA1F),
             // new Set("CJK Radicals Supplement", 0x2E80, 0x2EFF),
             // new Set("Kangxi Radicals", 0x2F00, 0x2FDF),
             // new Set("Ideographic Description Characters", 0x2FF0, 0x2FFF),
-
             // new Set("Hiragana", 0x3040, 0x309F),
-
             // new Set("Combining Diacritical Marks for Symbols", 0x20D0, 0x20FF),
-
-
         };
 
-        // Create a list of texts of all the characters in each set in batches of 15 chars per row
+        // Create a list of texts of all the characters in each set in batches of 32 chars per row
         // But do include set title before each set
-        int width = 40;
-        var texts = new List<Text>();
+        int charsPerRow = 32;
+        var borderLine = new string('─', charsPerRow * 2 + 5);
+        var allRows = new List<Text>();
+
+        // Add all sets in box with title and character codes in hex and rows of characters
         foreach (var set in sets)
         {
-            texts.Add(Text.Cyan(set.Name).Dark($"  {set.start:X4} - {set.end:X4}"));
-            for (int i = set.start; i <= set.end; i += width)
+            // Add Title
+            allRows.Add(Text.Empty);
+            allRows.Add(Text.Cyan($"  {set.Name}").Dark($"  {set.start:X4} - {set.end:X4}"));
+
+            // Top border
+            allRows.Add(Text.Dark(" ┌─").Dark(borderLine).Dark("┐"));
+
+            // Add all rows in the set
+            for (int i = set.start; i <= set.end; i += charsPerRow)
             {
-                var chars = new List<char>();
-                for (int j = i; j < i + width && j <= set.end; j++)
+                // Add a row of characters
+                var rowChars = new List<char>();
+                for (int j = i; j < i + charsPerRow; j++)
                 {
-                    chars.Add((char)j);
-                    chars.Add(' ');
+                    var c = j <= set.end ? (char)j : ' ';  // Fill out the end of the row with spaces
+                    rowChars.Add(c);
+                    rowChars.Add(' ');
                 }
-                texts.Add(Text.White(string.Join("", chars.ToArray())));
+
+                // Add the row of characters with border sides
+                var codeText = Text.Dark($"{i:X4}").Dark("│ ");
+                allRows.Add(Text.Dark(" │").Add(codeText).White(string.Join("", rowChars.ToArray())).Dark("│"));
+                if (i + charsPerRow <= set.end) allRows.Add(Text.Dark(" ├─").Dark(borderLine).Dark("┤"));
             }
-            texts.Add(Text.Empty);
+
+            // Bottom border
+            allRows.Add(Text.Dark(" └─").Dark(borderLine).Dark("┘"));
         }
 
-
-        return texts;
-
+        return allRows;
     }
 }
 

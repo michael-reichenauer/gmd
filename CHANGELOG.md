@@ -1,9 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-98 releases:
+99 releases:
 
-## [Current] - 2023-07-25
+## [Current] - 2023-07-26
+- Improve combobox with mouseclick support
+- Improve branch name parsing
+- Improve unicode char set dialog
+
+## [v0.90.268.282] - 2023-07-25
 - Support middle mouse botton click to merge from branch
 - Fixed click on branch issue
 

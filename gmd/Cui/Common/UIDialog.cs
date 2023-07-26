@@ -80,6 +80,7 @@ class UIDialog
         views.Add(textField);
 
         var comboMarc = new Label(x + w - 1, y, "▼") { ColorScheme = ColorSchemes.Scrollbar };
+        comboMarc.MouseClick += (e) => textField.OnFieldMouseClicked(e);
         views.Add(comboMarc);
 
         var line = new Label(x - 1, y + 1, "└" + new string('─', w) + "┘") { ColorScheme = ColorSchemes.Indicator };
@@ -358,6 +359,14 @@ class UIComboTextField : TextField
         borderTop = new Label(x - 1, y + 1, "├" + new string('─', w + 2) + "┤") { ColorScheme = ColorSchemes.Scrollbar };
         borderSides = Enumerable.Range(0, h).Select(i => new Label(x - 1, y + 2 + i, "│" + new string('─', w + 2) + "│") { ColorScheme = ColorSchemes.Scrollbar }).ToList();
         borderBottom = new Label(x - 1, y + h + 1, "└" + new string('─', w + 2) + "┘") { ColorScheme = ColorSchemes.Scrollbar };
+    }
+
+    // Called when clicking on the down arrow
+    public void OnFieldMouseClicked(MouseEventArgs e)
+    {
+        if (e.MouseEvent.Flags == MouseFlags.Button1Clicked && !isShowList) UI.Post(() => ShowListView());
+        if (e.MouseEvent.Flags == MouseFlags.Button1Clicked && isShowList) UI.Post(() => CloseListView());
+        e.Handled = false;
     }
 
     public override bool ProcessKey(KeyEvent keyEvent)
