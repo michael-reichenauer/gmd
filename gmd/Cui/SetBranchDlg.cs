@@ -36,7 +36,7 @@ class SetBranchDlg : ISetBranchDlg
         listView.IsScrollMode = false;
         listView.IsCursorMargin = false;
         listView.IsHighlightCurrentIndex = true;
-        dlg.AddBorderView(x - 1, y - 1, w + 2, h + 2, Color.Dark);
+        dlg.AddBorderView(listView, Color.Dark);
 
         dlg.AddLabel(1, 14, "Name:");
         var nameField = dlg.AddInputField(7, 14, 39, items.FirstOrDefault() ?? "");

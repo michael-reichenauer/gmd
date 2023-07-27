@@ -135,14 +135,6 @@ class UIDialog
         return contentView;
     }
 
-    // internal UITextX AddContentViewX(int x, int y, Dim w, Dim h, IReadOnlyList<Text> content)
-    // {
-    //     var contentView = new UITextX(content)
-    //     { X = x, Y = y, Width = w, Height = h };
-    //     views.Add(contentView);
-    //     return contentView;
-    // }
-
 
     internal CheckBox AddCheckBox(int x, int y, string name, bool isChecked)
     {
@@ -153,9 +145,13 @@ class UIDialog
     }
 
 
-    internal BorderView AddBorderView(int x, int y, int w, int h, Color color)
+    internal BorderView AddBorderView(View view, Color color) =>
+        AddBorderView(view.X - 1, view.Y - 1, view.Width + 2, view.Height + 2, color);
+
+
+    internal BorderView AddBorderView(Pos x, Pos y, Dim w, Dim h, Color color)
     {
-        var borderView = new BorderView(x, y, w, h, color);
+        var borderView = new BorderView(color) { X = x, Y = y, Width = w, Height = h };
         views.Add(borderView);
         return borderView;
     }
@@ -307,157 +303,6 @@ class UIDialog
     }
 }
 
-// class UITextX : View
-// {
-//     IReadOnlyList<Text> contentRows = new List<Text>();
-//     int currentIndex;
-
-//     public UITextX(IReadOnlyList<Text> rows)
-//         : base(" ")
-//     {
-//         this.contentRows = rows;
-//         Initialize(false);
-//     }
-
-//     public UITextX(int x, int y, IReadOnlyList<Text> rows, bool autosize = true)
-//         : base(x, y, " ")
-//     {
-//         this.contentRows = rows;
-//         Initialize(autosize);
-//     }
-
-//     void Initialize(bool autosize = true)
-//     {
-//         AutoSize = autosize;
-//         CanFocus = true;
-//     }
-
-//     public int ContentHeight => ViewHeight; // IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
-//     public int ViewHeight => Frame.Height;
-//     public int FirstIndex { get; private set; } = 0;
-//     public int TotalCount { get; private set; } = 0;
-
-//     public int ContentX => 0; // IsCursorMargin ? cursorWidth : 0;
-//     public int ContentY => 0; // IsTopBorder ? topBorderHeight : 0;
-
-//     public int CurrentIndex
-//     {
-//         get { return currentIndex; }
-//         private set
-//         {
-//             var v = currentIndex;
-//             currentIndex = value;
-//             if (v != value) CurrentIndexChange?.Invoke();
-//         }
-//     }
-
-
-//     public event Action? CurrentIndexChange;
-//     public event Action? Clicked;
-
-//     public override void Redraw(Rect bounds)
-//     {
-//         Clear();
-
-//         IReadOnlyList<Text> currentRows = GetContentRows();
-
-//         int y = ContentY;
-//         currentRows.ForEach((row, i) =>
-//         {
-//             Text txt = row;
-//             var index = i + FirstIndex;
-
-
-//             txt.Draw(this, ContentX, y++);
-//         });
-//     }
-
-
-//     IReadOnlyList<Text> GetContentRows()
-//     {
-//         var drawCount = ContentHeight; //  Math.Min(ContentHeight, TotalCount - FirstIndex);
-
-//         if (contentRows != null)
-//         {   // Use content provided in constructor
-//             return contentRows.Skip(FirstIndex).Take(drawCount).ToList();
-//         }
-
-//         return contentRows!; // !!!!!!!!!!!!!! remove
-
-//         // var (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
-//         // IReadOnlyList<Text> currentRows = rows.ToList();
-//         // TotalCount = totalCount;
-
-//         // while (!currentRows.Any() && TotalCount > 0)
-//         // {   // TotalCount now less than previous FirstIndex, need to adjust FirstIndex and CurrentIndex and try again
-//         //     FirstIndex = Math.Max(0, TotalCount - 3);
-//         //     CurrentIndex = TotalCount - 1;
-//         //     (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
-//         //     currentRows = rows.ToList();
-//         //     TotalCount = totalCount;
-//         // }
-
-//         // return currentRows;
-//     }
-
-
-
-//     public override bool OnMouseEvent(MouseEvent mouseEvent)
-//     {
-//         MouseEventArgs args = new MouseEventArgs(mouseEvent);
-//         if (OnMouseClick(args))
-//             return true;
-//         if (MouseEvent(mouseEvent))
-//             return true;
-
-//         if (mouseEvent.Flags == MouseFlags.Button1Clicked)
-//         {
-//             if (!HasFocus && SuperView != null)
-//             {
-//                 if (!SuperView.HasFocus)
-//                 {
-//                     SuperView.SetFocus();
-//                 }
-//                 SetFocus();
-//                 SetNeedsDisplay();
-//             }
-
-//             OnClicked();
-//             return true;
-//         }
-//         return false;
-//     }
-
-
-//     public override bool OnEnter(View view)
-//     {
-//         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
-
-//         return base.OnEnter(view);
-//     }
-
-
-//     public override bool ProcessHotKey(KeyEvent ke)
-//     {
-//         if (ke.Key == (Key.AltMask | HotKey))
-//         {
-//             if (!HasFocus)
-//             {
-//                 SetFocus();
-//             }
-//             OnClicked();
-//             return true;
-//         }
-//         return base.ProcessHotKey(ke);
-//     }
-
-
-//     public virtual void OnClicked()
-//     {
-//         Clicked?.Invoke();
-//     }
-// }
-
 
 class UILabel : View
 {
@@ -562,38 +407,6 @@ class UILabel : View
     }
 }
 
-
-
-class UILabelOld : View
-{
-    Text text;
-
-    public UILabelOld(int x, int y) : this(x, y, Text.Black(" ")) { }  // For some reason text need to be set to something, otherwise it will not be drawn
-
-    public UILabelOld(int x, int y, Text text) : base(x, y, text.ToString())
-    {
-        this.text = text;
-        Width = text.Length;
-        SetNeedsDisplay();
-    }
-
-    public override void Redraw(Rect bounds)
-    {
-        Clear();
-        text.Draw(this, 0, 0);
-    }
-
-    public new Text Text
-    {
-        get => text;
-        set
-        {
-            Width = text.Length;
-            text = value;
-            SetNeedsDisplay();
-        }
-    }
-}
 
 class UITextField : TextField
 {
@@ -762,12 +575,8 @@ class BorderView : View
 {
     readonly Color color;
 
-    public BorderView(int x, int y, int w, int h, Color color)
+    public BorderView(Color color)
     {
-        X = x;
-        Y = y;
-        Width = w;
-        Height = h;
         CanFocus = false;
         this.color = color;
     }

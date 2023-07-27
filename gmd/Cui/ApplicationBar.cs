@@ -69,7 +69,7 @@ class ApplicationBar : View, IApplicationBar
         items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta("Gmd ");
         items[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
-        items[(int)ApplicationBarItem.Search] = Common.Text.Dark("|Ϙ Search|");
+        items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
         items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
 
         UpdateView();
