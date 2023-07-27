@@ -201,6 +201,7 @@ class RepoView : IRepoView
         commitsView.IsFocus = true;
         commitsView.SetFocus();
         commitsView.SetNeedsDisplay();
+        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
         if (commit != null)
         {   // User selected a commit, show it
@@ -894,7 +895,6 @@ class RepoView : IRepoView
 
         var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoState.Set(serverRepo.Path, s => s.Branches = names);
-
     }
 
 
@@ -939,6 +939,8 @@ class RepoView : IRepoView
 
     void OnCurrentIndexChange()
     {
+        if (repo.CurrentIndex < 0) return;
+
         var commit = repo.RowCommit;
         var branch = repo.Graph.BranchByName(commit.BranchName);
         applicationBarView.SetBranch(branch);

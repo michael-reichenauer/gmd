@@ -50,8 +50,8 @@ class FilterDlg : IFilterDlg
 
         dlg.AddLabel(0, 0, Text.BrightMagenta("Gmd"));
 
-        dlg.AddLabel(Application.Driver.Cols - 41, 0, Text.BrightMagenta("Search"));
-        filterField = dlg.AddInputField(Application.Driver.Cols - 34, 0, 30);
+        dlg.AddLabel(Application.Driver.Cols - 41, 0, Text.BrightMagenta("Search:"));
+        filterField = dlg.AddInputField(Application.Driver.Cols - 33, 0, 29);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
         statusLabel = dlg.AddLabel(6, 0);

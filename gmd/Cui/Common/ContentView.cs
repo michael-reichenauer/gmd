@@ -484,14 +484,13 @@ class ContentView : View
 
         int newFirst = FirstIndex + scroll;
 
-        if (newFirst < 0)
-        {
-            newFirst = 0;
-        }
+        if (newFirst < 0) newFirst = 0;
+
         if (newFirst + ViewHeight >= TotalCount)
         {
             newFirst = TotalCount - ViewHeight;
         }
+        if (newFirst < 0) newFirst = 0;
         if (newFirst == FirstIndex)
         {   // No move, reached top or bottom
             return;
@@ -507,6 +506,7 @@ class ContentView : View
         {   // Need to scroll view down to the new current line
             newCurrent = newFirst - ContentHeight - 1;
         }
+        if (newCurrent < 0) newCurrent = 0;
 
         FirstIndex = newFirst;
         CurrentIndex = newCurrent;
