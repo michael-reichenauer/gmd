@@ -74,6 +74,17 @@ class UIDialog
         return textField;
     }
 
+    internal UITextField AddInputField(int x, int y, int w, string text = "")
+    {
+        var textField = new UITextField(x, y, w, text) { ColorScheme = ColorSchemes.TextField };
+        views.Add(textField);
+
+        var endMarc = new Label(x + w, y, "]") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(endMarc);
+
+        return textField;
+    }
+
     internal UIComboTextField AddComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
     {
         var textField = new UIComboTextField(x, y, w - 2, h, getItems, text) { ColorScheme = ColorSchemes.TextField };
@@ -124,6 +135,14 @@ class UIDialog
         return contentView;
     }
 
+    // internal UITextX AddContentViewX(int x, int y, Dim w, Dim h, IReadOnlyList<Text> content)
+    // {
+    //     var contentView = new UITextX(content)
+    //     { X = x, Y = y, Width = w, Height = h };
+    //     views.Add(contentView);
+    //     return contentView;
+    // }
+
 
     internal CheckBox AddCheckBox(int x, int y, string name, bool isChecked)
     {
@@ -133,6 +152,13 @@ class UIDialog
         return checkBox;
     }
 
+
+    internal BorderView AddBorderView(int x, int y, int w, int h, Color color)
+    {
+        var borderView = new BorderView(x, y, w, h, color);
+        views.Add(borderView);
+        return borderView;
+    }
 
     internal Button AddButton(int x, int y, string text, Action clicked)
     {
@@ -281,13 +307,270 @@ class UIDialog
     }
 }
 
+// class UITextX : View
+// {
+//     IReadOnlyList<Text> contentRows = new List<Text>();
+//     int currentIndex;
+
+//     public UITextX(IReadOnlyList<Text> rows)
+//         : base(" ")
+//     {
+//         this.contentRows = rows;
+//         Initialize(false);
+//     }
+
+//     public UITextX(int x, int y, IReadOnlyList<Text> rows, bool autosize = true)
+//         : base(x, y, " ")
+//     {
+//         this.contentRows = rows;
+//         Initialize(autosize);
+//     }
+
+//     void Initialize(bool autosize = true)
+//     {
+//         AutoSize = autosize;
+//         CanFocus = true;
+//     }
+
+//     public int ContentHeight => ViewHeight; // IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
+//     public int ViewHeight => Frame.Height;
+//     public int FirstIndex { get; private set; } = 0;
+//     public int TotalCount { get; private set; } = 0;
+
+//     public int ContentX => 0; // IsCursorMargin ? cursorWidth : 0;
+//     public int ContentY => 0; // IsTopBorder ? topBorderHeight : 0;
+
+//     public int CurrentIndex
+//     {
+//         get { return currentIndex; }
+//         private set
+//         {
+//             var v = currentIndex;
+//             currentIndex = value;
+//             if (v != value) CurrentIndexChange?.Invoke();
+//         }
+//     }
+
+
+//     public event Action? CurrentIndexChange;
+//     public event Action? Clicked;
+
+//     public override void Redraw(Rect bounds)
+//     {
+//         Clear();
+
+//         IReadOnlyList<Text> currentRows = GetContentRows();
+
+//         int y = ContentY;
+//         currentRows.ForEach((row, i) =>
+//         {
+//             Text txt = row;
+//             var index = i + FirstIndex;
+
+
+//             txt.Draw(this, ContentX, y++);
+//         });
+//     }
+
+
+//     IReadOnlyList<Text> GetContentRows()
+//     {
+//         var drawCount = ContentHeight; //  Math.Min(ContentHeight, TotalCount - FirstIndex);
+
+//         if (contentRows != null)
+//         {   // Use content provided in constructor
+//             return contentRows.Skip(FirstIndex).Take(drawCount).ToList();
+//         }
+
+//         return contentRows!; // !!!!!!!!!!!!!! remove
+
+//         // var (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+//         // IReadOnlyList<Text> currentRows = rows.ToList();
+//         // TotalCount = totalCount;
+
+//         // while (!currentRows.Any() && TotalCount > 0)
+//         // {   // TotalCount now less than previous FirstIndex, need to adjust FirstIndex and CurrentIndex and try again
+//         //     FirstIndex = Math.Max(0, TotalCount - 3);
+//         //     CurrentIndex = TotalCount - 1;
+//         //     (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
+//         //     currentRows = rows.ToList();
+//         //     TotalCount = totalCount;
+//         // }
+
+//         // return currentRows;
+//     }
+
+
+
+//     public override bool OnMouseEvent(MouseEvent mouseEvent)
+//     {
+//         MouseEventArgs args = new MouseEventArgs(mouseEvent);
+//         if (OnMouseClick(args))
+//             return true;
+//         if (MouseEvent(mouseEvent))
+//             return true;
+
+//         if (mouseEvent.Flags == MouseFlags.Button1Clicked)
+//         {
+//             if (!HasFocus && SuperView != null)
+//             {
+//                 if (!SuperView.HasFocus)
+//                 {
+//                     SuperView.SetFocus();
+//                 }
+//                 SetFocus();
+//                 SetNeedsDisplay();
+//             }
+
+//             OnClicked();
+//             return true;
+//         }
+//         return false;
+//     }
+
+
+//     public override bool OnEnter(View view)
+//     {
+//         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+
+//         return base.OnEnter(view);
+//     }
+
+
+//     public override bool ProcessHotKey(KeyEvent ke)
+//     {
+//         if (ke.Key == (Key.AltMask | HotKey))
+//         {
+//             if (!HasFocus)
+//             {
+//                 SetFocus();
+//             }
+//             OnClicked();
+//             return true;
+//         }
+//         return base.ProcessHotKey(ke);
+//     }
+
+
+//     public virtual void OnClicked()
+//     {
+//         Clicked?.Invoke();
+//     }
+// }
+
+
 class UILabel : View
 {
     Text text;
 
-    public UILabel(int x, int y) : this(x, y, Text.Black(" ")) { }  // For some reason text need to be set to something, otherwise it will not be drawn
+    public UILabel(int x, int y)
+        : this(x, y, Text.Black(" "))
+    {
+        AutoSize = true;
+        this.text = Text.Empty;
+    }  // For some reason text need to be set to something, otherwise it will not be drawn
 
-    public UILabel(int x, int y, Text text) : base(x, y, text.ToString())
+
+    public UILabel(int x, int y, string text, bool autosize = true)
+        : base(x, y, text)
+    {
+        AutoSize = autosize;
+        this.text = Text.White(text);
+    }
+
+    public UILabel(int x, int y, Text text, bool autosize = true)
+        : base(x, y, text.ToString())
+    {
+        AutoSize = autosize;
+        this.text = text;
+    }
+
+
+    public event Action? Clicked;
+
+    public override void Redraw(Rect bounds)
+    {
+        Clear();
+        text.Draw(this, 0, 0);
+    }
+
+    public new Text Text
+    {
+        get => text;
+        set
+        {
+            Width = text.Length;
+            text = value;
+            SetNeedsDisplay();
+        }
+    }
+
+
+    public override bool OnMouseEvent(MouseEvent mouseEvent)
+    {
+        MouseEventArgs args = new MouseEventArgs(mouseEvent);
+        if (OnMouseClick(args))
+            return true;
+        if (MouseEvent(mouseEvent))
+            return true;
+
+        if (mouseEvent.Flags == MouseFlags.Button1Clicked)
+        {
+            if (!HasFocus && SuperView != null)
+            {
+                if (!SuperView.HasFocus)
+                {
+                    SuperView.SetFocus();
+                }
+                SetFocus();
+                SetNeedsDisplay();
+            }
+
+            OnClicked();
+            return true;
+        }
+        return false;
+    }
+
+
+    public override bool OnEnter(View view)
+    {
+        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+
+        return base.OnEnter(view);
+    }
+
+
+    public override bool ProcessHotKey(KeyEvent ke)
+    {
+        if (ke.Key == (Key.AltMask | HotKey))
+        {
+            if (!HasFocus)
+            {
+                SetFocus();
+            }
+            OnClicked();
+            return true;
+        }
+        return base.ProcessHotKey(ke);
+    }
+
+
+    public virtual void OnClicked()
+    {
+        Clicked?.Invoke();
+    }
+}
+
+
+
+class UILabelOld : View
+{
+    Text text;
+
+    public UILabelOld(int x, int y) : this(x, y, Text.Black(" ")) { }  // For some reason text need to be set to something, otherwise it will not be drawn
+
+    public UILabelOld(int x, int y, Text text) : base(x, y, text.ToString())
     {
         this.text = text;
         Width = text.Length;
@@ -474,5 +757,57 @@ class UITextView : TextView
 }
 
 
+
+class BorderView : View
+{
+    readonly Color color;
+
+    public BorderView(int x, int y, int w, int h, Color color)
+    {
+        X = x;
+        Y = y;
+        Width = w;
+        Height = h;
+        CanFocus = false;
+        this.color = color;
+    }
+
+
+    public override void Redraw(Rect bounds)
+    {
+        base.Redraw(bounds);
+        var b = bounds;
+
+        Driver.SetAttribute(color);
+
+        // Draw corners
+        Move(b.X, b.Y);
+        Driver.AddRune('┌');
+        Move(b.X + b.Width - 1, b.Y);
+        Driver.AddRune('┐');
+        Move(b.X, b.Y + b.Height - 1);
+        Driver.AddRune('└');
+        Move(b.X + b.Width - 1, b.Y + b.Height - 1);
+        Driver.AddRune('┘');
+
+        // Draw top/bottom
+        for (int i = 1; i < b.Width - 1; i++)
+        {
+            Move(b.X + i, b.Y);
+            Driver.AddRune('─');
+            Move(b.X + i, b.Y + b.Height - 1);
+            Driver.AddRune('─');
+        }
+
+        // Draw left/right sides
+        for (int i = 1; i < b.Height - 1; i++)
+        {
+            Move(b.X, b.Y + i);
+            Driver.AddRune('│');
+            Move(b.X + b.Width - 1, b.Y + i);
+            Driver.AddRune('│');
+        }
+    }
+}
 
 
