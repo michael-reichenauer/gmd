@@ -74,6 +74,17 @@ class UIDialog
         return textField;
     }
 
+    internal UITextField AddInputField(int x, int y, int w, string text = "")
+    {
+        var textField = new UITextField(x, y, w, text) { ColorScheme = ColorSchemes.TextField };
+        views.Add(textField);
+
+        var endMarc = new Label(x + w, y, "]") { ColorScheme = ColorSchemes.Indicator };
+        views.Add(endMarc);
+
+        return textField;
+    }
+
     internal UIComboTextField AddComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
     {
         var textField = new UIComboTextField(x, y, w - 2, h, getItems, text) { ColorScheme = ColorSchemes.TextField };
@@ -133,6 +144,17 @@ class UIDialog
         return checkBox;
     }
 
+
+    internal BorderView AddBorderView(View view, Color color) =>
+        AddBorderView(view.X - 1, view.Y - 1, view.Width + 2, view.Height + 2, color);
+
+
+    internal BorderView AddBorderView(Pos x, Pos y, Dim w, Dim h, Color color)
+    {
+        var borderView = new BorderView(color) { X = x, Y = y, Width = w, Height = h };
+        views.Add(borderView);
+        return borderView;
+    }
 
     internal Button AddButton(int x, int y, string text, Action clicked)
     {
@@ -281,18 +303,35 @@ class UIDialog
     }
 }
 
+
 class UILabel : View
 {
     Text text;
 
-    public UILabel(int x, int y) : this(x, y, Text.Black(" ")) { }  // For some reason text need to be set to something, otherwise it will not be drawn
-
-    public UILabel(int x, int y, Text text) : base(x, y, text.ToString())
+    public UILabel(int x, int y)
+        : this(x, y, Text.Black(" "))
     {
-        this.text = text;
-        Width = text.Length;
-        SetNeedsDisplay();
+        AutoSize = true;
+        this.text = Text.Empty;
+    }  // For some reason text need to be set to something, otherwise it will not be drawn
+
+
+    public UILabel(int x, int y, string text, bool autosize = true)
+        : base(x, y, text)
+    {
+        AutoSize = autosize;
+        this.text = Text.White(text);
     }
+
+    public UILabel(int x, int y, Text text, bool autosize = true)
+        : base(x, y, text.ToString())
+    {
+        AutoSize = autosize;
+        this.text = text;
+    }
+
+
+    public event Action? Clicked;
 
     public override void Redraw(Rect bounds)
     {
@@ -310,7 +349,64 @@ class UILabel : View
             SetNeedsDisplay();
         }
     }
+
+
+    public override bool OnMouseEvent(MouseEvent mouseEvent)
+    {
+        MouseEventArgs args = new MouseEventArgs(mouseEvent);
+        if (OnMouseClick(args))
+            return true;
+        if (MouseEvent(mouseEvent))
+            return true;
+
+        if (mouseEvent.Flags == MouseFlags.Button1Clicked)
+        {
+            if (!HasFocus && SuperView != null)
+            {
+                if (!SuperView.HasFocus)
+                {
+                    SuperView.SetFocus();
+                }
+                SetFocus();
+                SetNeedsDisplay();
+            }
+
+            OnClicked();
+            return true;
+        }
+        return false;
+    }
+
+
+    public override bool OnEnter(View view)
+    {
+        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+
+        return base.OnEnter(view);
+    }
+
+
+    public override bool ProcessHotKey(KeyEvent ke)
+    {
+        if (ke.Key == (Key.AltMask | HotKey))
+        {
+            if (!HasFocus)
+            {
+                SetFocus();
+            }
+            OnClicked();
+            return true;
+        }
+        return base.ProcessHotKey(ke);
+    }
+
+
+    public virtual void OnClicked()
+    {
+        Clicked?.Invoke();
+    }
 }
+
 
 class UITextField : TextField
 {
@@ -474,5 +570,53 @@ class UITextView : TextView
 }
 
 
+
+class BorderView : View
+{
+    readonly Color color;
+
+    public BorderView(Color color)
+    {
+        CanFocus = false;
+        this.color = color;
+    }
+
+
+    public override void Redraw(Rect bounds)
+    {
+        base.Redraw(bounds);
+        var b = bounds;
+
+        Driver.SetAttribute(color);
+
+        // Draw corners
+        Move(b.X, b.Y);
+        Driver.AddRune('┌');
+        Move(b.X + b.Width - 1, b.Y);
+        Driver.AddRune('┐');
+        Move(b.X, b.Y + b.Height - 1);
+        Driver.AddRune('└');
+        Move(b.X + b.Width - 1, b.Y + b.Height - 1);
+        Driver.AddRune('┘');
+
+        // Draw top/bottom
+        for (int i = 1; i < b.Width - 1; i++)
+        {
+            Move(b.X + i, b.Y);
+            Driver.AddRune('─');
+            Move(b.X + i, b.Y + b.Height - 1);
+            Driver.AddRune('─');
+        }
+
+        // Draw left/right sides
+        for (int i = 1; i < b.Height - 1; i++)
+        {
+            Move(b.X, b.Y + i);
+            Driver.AddRune('│');
+            Move(b.X + b.Width - 1, b.Y + i);
+            Driver.AddRune('│');
+        }
+    }
+}
 
 

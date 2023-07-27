@@ -301,6 +301,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => OnKeyF());
         commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
+        commitsView.RegisterKeyHandler(Key.D5, () => Cmd.SetBranchManuallyAsync());
 
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, () => OnKeyS());

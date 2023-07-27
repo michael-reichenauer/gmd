@@ -36,6 +36,7 @@ class ContentView : View
     {
         this.onGetContent = onGetContent;
         WantMousePositionReports = true;
+        CanFocus = true;
     }
 
     internal ContentView(IReadOnlyList<Text> content)
@@ -43,6 +44,7 @@ class ContentView : View
         this.contentRows = content;
         TotalCount = content.Count;
         WantMousePositionReports = true;
+        CanFocus = true;
         SetNeedsDisplay();
     }
 
@@ -116,10 +118,16 @@ class ContentView : View
         Scroll(scroll);
     }
 
+    public override bool OnEnter(View view)
+    {
+        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+
+        return base.OnEnter(view);
+    }
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
-        if (!IsFocus) return false;
+        if (!HasFocus) return base.ProcessHotKey(keyEvent);
 
         // Log.Info($"HotKey: {keyEvent}, {keyEvent.Key}");
 
@@ -167,12 +175,13 @@ class ContentView : View
                 return true;
         }
 
-        return true;
+        return base.ProcessHotKey(keyEvent);
     }
 
     public override bool MouseEvent(MouseEvent ev)
     {
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        if (!HasFocus) return base.MouseEvent(ev);
 
         if (mouses.TryGetValue(ev.Flags, out var callback))
         {
@@ -222,7 +231,7 @@ class ContentView : View
             Text txt = row;
             var index = i + FirstIndex;
 
-            if (isSelected && !IsCustomShowSelection)
+            if (isSelected && !IsCustomShowSelection && HasFocus)
             {
                 var isRowSelected = index >= selection.I1 && index <= selection.I2;
                 if (isRowSelected && selection.I1 == selection.I2)
@@ -240,7 +249,7 @@ class ContentView : View
             }
             else
             {
-                txt = IsHighlightCurrentIndex && index == currentIndex ? row.ToHighlight() : row;
+                txt = IsHighlightCurrentIndex && index == currentIndex && HasFocus ? row.ToHighlight() : row;
             }
 
             txt.Draw(this, ContentX, y++);
@@ -455,7 +464,7 @@ class ContentView : View
 
     void DrawCursor()
     {
-        if (!IsShowCursor || IsHideCursor || !IsFocus)
+        if (!IsShowCursor || IsHideCursor || !IsFocus || !HasFocus)
         {
             return;
         }
@@ -572,11 +581,12 @@ class ContentView : View
     {
         (int sbStart, int sbEnd) = GetVerticalScrollbarIndexes();
 
+        var color = HasFocus ? Color.Magenta : Color.Dark;
         var x = Math.Max(ViewWidth - 1, 0);
         for (int i = sbStart; i <= sbEnd; i++)
         {
             Move(x, i + ContentY);
-            Driver.SetAttribute(Color.Magenta);
+            Driver.SetAttribute(color);
             Driver.AddStr("┃");
         }
     }
