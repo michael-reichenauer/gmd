@@ -75,6 +75,7 @@ class DiffView : IDiffView
     void RegisterShortcuts(ContentView view)
     {
         view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
+        view.RegisterKeyHandler(Key.Q, () => Application.RequestStop());
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
