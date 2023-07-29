@@ -1,9 +1,16 @@
 # Change Log for Gmd
 --------------------
 
-99 releases:
+100 releases:
 
-## [Current] - 2023-07-26
+## [Current] - 2023-07-29
+- Impoved set branch manually dialog
+- Limit filter results to 5000
+- Added support for OpenBranchMenu shortcut 'Shift  →'
+- Adjust menus pos for ApplicationBar
+- Added support for shortcut for diff for branches
+
+## [v0.90.269.290] - 2023-07-26
 - Improve combobox with mouseclick support
 - Improve branch name parsing
 - Improve unicode char set dialog

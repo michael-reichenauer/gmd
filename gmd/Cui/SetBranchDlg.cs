@@ -1,4 +1,6 @@
 using gmd.Cui.Common;
+using Terminal.Gui;
+using Color = gmd.Cui.Common.Color;
 
 namespace gmd.Cui;
 
@@ -10,19 +12,42 @@ interface ISetBranchDlg
 
 class SetBranchDlg : ISetBranchDlg
 {
+    IReadOnlyList<string> items = new List<string>();
+    IReadOnlyList<Text> itemTexts = new List<Text>();
+
+
     public R<string> Show(string niceName, IReadOnlyList<string> possibleBranches)
     {
-        var dlg = new UIDialog("Set Branch Name", 50, 15, null, o => o.Y = 0);
+        var x = 1;
+        var y = 3;
+        var w = 45;
+        var h = 10;
 
-        dlg.AddLabel(1, 0, "Branch Name:");
-        var name = dlg.AddComboTextField(1, 1, 46, 10, () => possibleBranches, niceName);
+        items = possibleBranches;
+        itemTexts = items.Select(item => item.Length > w - 1
+            ? Common.Text.Dark("…").White(item.Substring(item.Length - w - 1)).ToText()
+            : Common.Text.White(item.Max(w, true)).ToText()).ToList();
 
-        dlg.Validate(() => name.Text != "", "Empty branch name");
+        var dlg = new UIDialog("Set Branch Manually", 50, 20, null, o => o.Y = 0);
 
-        if (!dlg.ShowOkCancel(name)) return R.Error();
+        dlg.AddLabel(1, 1, "Select Branch:");
+        var listView = dlg.AddContentView(x, y, w, h, itemTexts);
+        listView.IsShowCursor = false;
+        listView.IsScrollMode = false;
+        listView.IsCursorMargin = false;
+        listView.IsHighlightCurrentIndex = true;
+        dlg.AddBorderView(listView, Color.Dark);
 
-        return name.Text;
+        dlg.AddLabel(1, 14, "Name:");
+        var nameField = dlg.AddInputField(7, 14, 39, items.FirstOrDefault() ?? "");
+        listView.CurrentIndexChange += () => nameField.Text = items[listView.CurrentIndex];
+
+        dlg.Validate(() => nameField.Text != "", "Empty branch name");
+
+        View focusView = items.Any() ? listView : nameField;
+        if (!dlg.ShowOkCancel(focusView)) return R.Error();
+
+        Log.Info("Selected name: " + nameField.Text);
+        return nameField.Text;
     }
 }
-
-

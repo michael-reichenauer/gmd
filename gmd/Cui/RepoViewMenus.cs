@@ -15,6 +15,7 @@ interface IRepoViewMenus
     void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
     void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
+    void ShowDiffBranchToMenu(int x, int y, string branchName);
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -79,6 +80,11 @@ class RepoViewMenus : IRepoViewMenus
         Menu.Show("Open Branch", x, y + 2, GetShowBranchItems());
     }
 
+    public void ShowDiffBranchToMenu(int x, int y, string branchName)
+    {
+        Menu.Show($"Diff Branch to {branchName}", x, y + 2, GetBranchDiffItems(branchName));
+    }
+
     IEnumerable<MenuItem> GetRepoMenuItems()
     {
         var isStatusOK = repo.Status.IsOk;
@@ -120,7 +126,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Switch to Commit", "", () => cmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
             .Separator()
-            .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+            .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", GetRepoMenuItems());
@@ -145,11 +151,11 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
-            .SubMenu("Diff Branch to", "", GetBranchDiffItems(name))
+            .SubMenu("Diff Branch to", "D", GetBranchDiffItems(name))
             .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
             .Items(GetMoveBranchItems(name))
             .Separator()
-            .SubMenu("Show/Open Branch", "", GetShowBranchItems())
+            .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
             .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
