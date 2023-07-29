@@ -24,7 +24,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
         contentView.IsScrollMode = true;
         contentView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
 
-        dlg.AddDlgClose();
+        dlg.AddDlgClose(true);
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
         dlg.Show(contentView);
     }
