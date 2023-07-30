@@ -385,6 +385,9 @@ class RepoView : IRepoView
             case ApplicationBarItem.Help:
                 Cmd.ShowHelp();
                 break;
+            case ApplicationBarItem.Close:
+                UI.Shutdown();
+                break;
         }
     }
 

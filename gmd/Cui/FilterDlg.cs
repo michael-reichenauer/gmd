@@ -27,6 +27,7 @@ class FilterDlg : IFilterDlg
     ContentView resultsView = null!;
     R<Server.Commit> selectedCommit = R.Error("No commit selected");
     Text repoInfo = Text.Empty;
+    int closeX = 0;
 
 
     internal FilterDlg(IServer server, IBranchColorService branchColorService)
@@ -48,10 +49,13 @@ class FilterDlg : IFilterDlg
         dlg.RegisterMouseHandler(OnMouseEvent);
         Log.Info($"FilterDlg.Show: {Application.Driver.Cols}");
 
+        var filterX = Application.Driver.Cols - 33;
         dlg.AddLabel(0, 0, Text.BrightMagenta("Gmd"));
+        closeX = filterX + 31;
+        var closeButton = dlg.AddLabel(closeX, 0, Text.BrightMagenta("X"));
 
         dlg.AddLabel(Application.Driver.Cols - 41, 0, Text.BrightMagenta("Search:"));
-        filterField = dlg.AddInputField(Application.Driver.Cols - 33, 0, 29);
+        filterField = dlg.AddInputField(filterX, 0, 29);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
         statusLabel = dlg.AddLabel(6, 0);
@@ -121,7 +125,12 @@ class FilterDlg : IFilterDlg
     // Support scrolling with mouse wheel (see ContentView.cs for details)
     bool OnMouseEvent(MouseEvent ev)
     {
-        // Log.Info($"OnMouseEvent:  {ev}");
+        // Log.Info($"OnMouseEvent:  {ev}, {closeX}");
+        if (ev.Flags.HasFlag(MouseFlags.Button1Clicked) && ev.X == closeX + 1 && ev.Y == 1)
+        {
+            dlg.Close();
+            return true;
+        }
 
 
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
@@ -134,15 +143,6 @@ class FilterDlg : IFilterDlg
             resultsView.Scroll(-1);
             return true;
         }
-        // else if (ev.Flags.HasFlag(MouseFlags.Button1Clicked))
-        // {
-        //     resultsView.SetIndex(ev.Y + resultsView.FirstIndex);
-        //     var commit = currentRepo.Commits[resultsView.CurrentIndex];
-        //     if (commit.BranchName != "<none>")
-        //         this.selectedCommit = commit;
-        //     dlg.Close();
-        //     return true;
-        // }
 
         if (mouses.TryGetValue(ev.Flags, out var callback))
         {
