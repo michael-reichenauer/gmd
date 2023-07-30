@@ -117,7 +117,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
             .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
-            .SubMenu("Undo", "", GetCommitUndoItems(), () => c.IsUncommitted)
+            .SubMenu("Undo", "", GetCommitUndoItems())
             .Item("Stash Changes", "", () => cmds.Stash(), () => c.Id == Repo.UncommittedId)
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
             .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
@@ -538,7 +538,7 @@ class RepoViewMenus : IRepoViewMenus
 
         return Menu.Items
             .SubMenu("Undo/Restore an Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
-            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
+            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => repo.Status.IsOk)
             .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
