@@ -104,6 +104,10 @@ public static class Result
 }
 
 
+// R and R<T> are a result types that can be used to return either a value or an error.
+// The R and R<t> are used together with the Try methods in the Result class.
+// The R and R<T> types are used to avoid using exceptions for flow control.
+// Se the Result class for more information.
 public class R
 {
     protected static readonly Exception NoError = new Exception("No error");

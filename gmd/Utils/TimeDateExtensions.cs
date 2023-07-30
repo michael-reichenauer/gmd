@@ -1,5 +1,6 @@
 namespace System;
 
+// Some useful DateTime extensions that are missing in .NET
 public static class TimeDateExtensions
 {
     public static string Iso(this DateTime source)
