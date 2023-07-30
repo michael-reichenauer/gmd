@@ -244,11 +244,11 @@ class UIDialog
             setViewFocused.SetFocus();
         }
 
-        Application.Driver.GetCursorVisibility(out var cursorVisible);
-        if (setViewFocused is TextView || setViewFocused is TextField)
-        {
-            Application.Driver.SetCursorVisibility(CursorVisibility.Default);
-        }
+        // Application.Driver.GetCursorVisibility(out var cursorVisible);
+        // if (setViewFocused is TextView || setViewFocused is TextField)
+        // {
+        //     Application.Driver.SetCursorVisibility(CursorVisibility.Default);
+        // }
 
         if (onMouse != null) Application.GrabMouse(dlg);
 
@@ -258,7 +258,7 @@ class UIDialog
         }
         UI.RunDialog(dlg);
         if (onMouse != null) Application.UngrabMouse();
-        Application.Driver.SetCursorVisibility(cursorVisible);
+        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
         done.TrySetResult(true);
         return IsOK;
     }
