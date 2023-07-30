@@ -160,14 +160,14 @@ class DiffView : IDiffView
 
     void ScrollToCommit(string commitId)
     {
-        var lineIndex = diffRows.Rows.FindIndexOf(r => r.CommitId == commitId);
+        var lineIndex = diffRows.Rows.FindIndexBy(r => r.CommitId == commitId);
         contentView.ScrollToShowIndex(lineIndex - 1);
     }
 
     void ScrollToFile(string path)
     {
         // Find the row indexes where the file diff starts
-        var lineIndex = diffRows.Rows.FindIndexOf(r => r.FilePath == path);
+        var lineIndex = diffRows.Rows.FindIndexBy(r => r.FilePath == path);
         contentView.ScrollToShowIndex(lineIndex - 1);
     }
 
