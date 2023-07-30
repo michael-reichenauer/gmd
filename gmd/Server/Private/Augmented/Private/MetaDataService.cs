@@ -1,3 +1,4 @@
+using System.Text.Json;
 using gmd.Common;
 using gmd.Git;
 
@@ -87,7 +88,7 @@ class MetaDataService : IMetaDataService
         };
 
         //Log.Info($"Metadata:\n{json}");
-        if (!Try(out var data, out e, Json.Deserialize<MetaData>(json))) return e;
+        if (!Try(out var data, out e, () => JsonSerializer.Deserialize<MetaData>(json))) return e;
         //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
         return data;
     }
@@ -97,7 +98,9 @@ class MetaDataService : IMetaDataService
         try
         {
             isUpdating = true;
-            string json = Json.SerializePretty(metaData);
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string json = JsonSerializer.Serialize(metaData, options);
+
             if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
             // Log.Info($"Wrote:\n{json}");
             return R.Ok;
