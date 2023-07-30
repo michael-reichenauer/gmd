@@ -17,7 +17,8 @@ enum ApplicationBarItem
     BranchName,
     Space,
     Search,
-    Help
+    Help,
+    Close,
 }
 
 
@@ -71,6 +72,7 @@ class ApplicationBar : View, IApplicationBar
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
         items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
+        items[(int)ApplicationBarItem.Close] = Common.Text.BrightMagenta("X");
 
         UpdateView();
 
@@ -97,8 +99,9 @@ class ApplicationBar : View, IApplicationBar
         int s = 0;
         for (int i = 0; i < items.Count; i++)
         {
+            var p = x + 1;
             var e = s + items[i].Length;
-            if (e > s && x >= s && x <= e)  // Skipping empty texts and check if the click is within the text bounds
+            if (e > s && p >= s && p <= e)  // Skipping empty texts and check if the click is within the text bounds
             {
                 ItemClicked?.Invoke(x, y, (ApplicationBarItem)i);
                 break;
