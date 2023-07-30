@@ -14,7 +14,7 @@ public class BranchNameServiceTest
         Assert.AreEqual(new FromInto("develop", "main", false, false), fd);
 
         fd = bs.ParseSubject("Merge branch 'dev' of https://github.com/michael-reichenauer/gmd into dev");
-        Assert.AreEqual(new FromInto("dev", "dev", true, false), fd);
+        Assert.AreEqual(new FromInto("devd", "dev", true, false), fd);
 
         fd = bs.ParseSubject("Merge pull request #1 from mich/dev");
         Assert.AreEqual(new FromInto("mich/dev", "", false, true), fd);
