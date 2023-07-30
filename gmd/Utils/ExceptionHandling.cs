@@ -1,15 +1,11 @@
-using System;
 using System.Diagnostics;
-using System.Threading.Tasks;
-using System.Windows;
 
 
 
 namespace gmd.Utils;
 
-/// <summary>
-/// Handles unhandled exceptions top ensure they are logged and program is restarted or shut down
-/// </summary>
+
+// Handles unhandled exceptions top ensure they are logged and program is restarted or shut down
 internal static class ExceptionHandling
 {
     private static readonly TimeSpan MinTimeBeforeAutoRestart = TimeSpan.FromSeconds(10);

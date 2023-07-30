@@ -2,57 +2,16 @@ using System.Reflection;
 
 namespace gmd.Utils;
 
+
+// Some file utility functions missing in .NET
 static class Files
 {
-    public static R WriteAllText(string path, string text)
-    {
-        try
-        {
-            File.WriteAllText(path, text);
-            return R.Ok;
-        }
-        catch (Exception e)
-        {
-            return R.Error(e);
-        }
-    }
-
-    public static R<string> ReadAllText(string path)
-    {
-        try
-        {
-            return File.ReadAllText(path);
-        }
-        catch (Exception e)
-        {
-            return R.Error(e);
-        }
-    }
-
-
-    public static R Delete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-            return R.Ok;
-        }
-        catch (Exception e)
-        {
-            return R.Error(e);
-        }
-    }
-
-    public static bool Exists(string path) => File.Exists(path);
-    public static bool DirExists(string path) => Directory.Exists(path);
-
-
-    public static bool IsLarger(string path, int maxSixe)
+    public static bool IsLarger(string path, int maxSize)
     {
         try
         {
             FileInfo fi = new FileInfo(path);
-            return fi.Length > maxSixe;
+            return fi.Length > maxSize;
         }
         catch (Exception e)
         {
@@ -95,7 +54,10 @@ static class Files
     }
 
 
-    private static R<bool> IsBinary(string path)
+    // Returns true if the file seems to be a binary file.
+    // The file is considered binary if it contains at least one consecutive
+    // sequence of 1 or more NUL characters within the first 8000 characters.
+    static R<bool> IsBinary(string path)
     {
         try
         {
