@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 
 
 namespace gmd.Utils;
+
+// Measure time and log it.
 public class Timing : IDisposable
 {
     readonly Stopwatch stopwatch;

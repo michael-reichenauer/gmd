@@ -203,7 +203,7 @@ class Updater : IUpdater
         {
             // Move downloaded file next to this process file (replace must be on same volume)
             var newPath = GetTempPath();
-            if (!Files.Exists(downloadedPath))
+            if (!File.Exists(downloadedPath))
             {
                 Log.Info($"No new file to install {downloadedPath}");
                 return R.Ok; // No new file to install, some other thread already installed it
@@ -243,7 +243,7 @@ class Updater : IUpdater
                 }
 
                 var targetPath = GetDownloadFilePath(version);
-                if (Files.Exists(targetPath))
+                if (File.Exists(targetPath))
                 {
                     Log.Info($"Already downloaded {targetPath}");
                     return targetPath;
@@ -308,7 +308,7 @@ class Updater : IUpdater
                 if (path.StartsWith(tmpPathPrefix))
                 {
                     Log.Info($"Deleting {path}");
-                    if (!Try(out var e, Files.Delete(path))) Log.Info($"Failed to delete {e}");
+                    if (!Try(out var e, () => File.Delete(path))) Log.Info($"Failed to delete {e}");
                 }
             }
         }

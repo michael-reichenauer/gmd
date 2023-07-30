@@ -44,7 +44,7 @@ static class LinuxClipboard
     public static R TrySetText(string text)
     {
         var tempFileName = Path.GetTempFileName();
-        File.WriteAllText(tempFileName, text);
+        if (!Try(out var e, () => File.WriteAllText(tempFileName, text))) return e;
         return InnerSetText(tempFileName);
     }
 
@@ -63,7 +63,10 @@ static class LinuxClipboard
         }
         finally
         {
-            if (File.Exists(tempFileName)) File.Delete(tempFileName);
+            if (File.Exists(tempFileName))
+            {
+                if (!Try(out var e, () => File.Delete(tempFileName))) Log.Warn($"{e}");
+            }
         }
     }
 
@@ -74,7 +77,7 @@ static class LinuxClipboard
         {
             if (!Try(out var e, InnerGetText(tempFileName))) return e;
 
-            if (!Try(out string? text, out e, File.ReadAllText(tempFileName))) return e;
+            if (!Try(out string? text, out e, () => File.ReadAllText(tempFileName))) return e;
 
             return text;
         }

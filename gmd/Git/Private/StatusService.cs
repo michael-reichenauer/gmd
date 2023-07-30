@@ -109,19 +109,19 @@ class StatusService : IStatusService
         string mergeHeadPath = Path.Join(wd, ".git", "MERGE_HEAD");
         string mergeMsgPath = Path.Join(wd, ".git", "MERGE_MSG");
 
-        if (!Files.Exists(mergeMsgPath))
+        if (!File.Exists(mergeMsgPath))
         {
             return ("", "", false);
         }
 
         // Read the merge message
-        if (!Try(out var mergeMessage, out var e, Files.ReadAllText(mergeMsgPath))) return ("", "", false);
+        if (!Try(out var mergeMessage, out var e, () => File.ReadAllText(mergeMsgPath))) return ("", "", false);
 
         var lines = mergeMessage.Split('\n');
         mergeMessage = lines[0].Trim();
 
         // Read the merge head id (from commit)
-        if (Try(out var mergeHeadId, out e, Files.ReadAllText(mergeHeadPath)))
+        if (Try(out var mergeHeadId, out e, () => File.ReadAllText(mergeHeadPath)))
         {
             mergeHeadId = mergeHeadId.Trim();
         }

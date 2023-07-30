@@ -32,7 +32,7 @@ class KeyValueService : IKeyValueService
         try
         {
             // Store the temp file with key value in the git database (returns an object id)
-            if (!Try(out var e, Files.WriteAllText(path, value))) return e;
+            if (!Try(out var e, () => File.WriteAllText(path, value))) return e;
             if (!Try(out var objectId, out e, await cmd.RunAsync(
                 "git", $"hash-object -w \"{path}\"", wd, true, true))) return e;
             objectId = objectId.Trim();
@@ -42,7 +42,7 @@ class KeyValueService : IKeyValueService
         }
         finally
         {
-            if (!Try(out var e, Files.Delete(path))) Log.Warn($"{e}");
+            if (!Try(out var e, () => File.Delete(path))) Log.Warn($"{e}");
         }
 
         return R.Ok;

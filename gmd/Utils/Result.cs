@@ -5,8 +5,19 @@ using System.Reflection;
 
 namespace gmd.Utils;
 
+// Result contains a few Try methods that return either a value or an error for functions
+// that return a R or R<T> type. This makes it possible to avoid using exceptions for flow control.
+// There are two Try methods that converts functions that can throw exceptions to functions that
+// return a R or R<T> type instead.
+// It is very convenient to declare a 'global using static gmd.Utils.Result;' in the global Usings.cs file.
+// Use like e.g.:
+// if (!Try(() => File.ReadAllText(path));
 public static class Result
 {
+    // Returns true if the function returns a value, false if it returns an error.
+    // The value and the error are returned in the out parameter values.
+    // Use like e.g.:
+    // if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
     public static bool Try<T>(
         [NotNullWhen(true)] out T? value,
         [NotNullWhen(false)] out ErrorResult? e,
@@ -16,6 +27,8 @@ public static class Result
     }
 
 
+    // Returns true if the action/function succeeds, false if it returns an error.
+    // if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
     public static bool Try(
     [NotNullWhen(false)] out ErrorResult? e,
      R result)
@@ -24,6 +37,12 @@ public static class Result
     }
 
 
+
+    // Returns true if the function returns a value, false if it returns an error.
+    // Use when the error value should be ignored.
+    // The value is returned in the out parameter values.
+    // Use like e.g.:
+    // if (!Try(out var output, await cmd.RunAsync("git", args, wd))) return e;
     public static bool Try<T>(
        [NotNullWhen(true)] out T? value,
        R<T> result)
@@ -32,12 +51,18 @@ public static class Result
     }
 
 
+    // Returns true if the action/function succeeds, false if it returns an error.
+    // Use when the error value should be ignored.
+    // if (!Try(await git.SetValueAsync(metaDataKey, json, path))) return e;
     public static bool Try(R result)
     {
         return R.Try(result);
     }
 
 
+    // Returns true if the function returns a value, false if it throws an exception.
+    // This functions converts a function that can throw an exception to a function that returns a R<T> type instead.
+    // if (!Try(out string? text, out e, () => File.ReadAllText(tempFileName))) return e;
     public static bool Try<T>(
         [NotNullWhen(true)] out T? value,
         [NotNullWhen(false)] out ErrorResult? e,
@@ -57,7 +82,9 @@ public static class Result
         }
     }
 
-
+    // Returns true if the action succeeds, false if it throws an exception.
+    // This functions converts an action that can throw an exception to a action that returns a R type instead.
+    // if (!Try(out var e, () => File.Move(sourcePath, targetPath))) return e;
     public static bool Try(
         [NotNullWhen(false)] out ErrorResult? e,
          Action action)
@@ -77,6 +104,10 @@ public static class Result
 }
 
 
+// R and R<T> are a result types that can be used to return either a value or an error.
+// The R and R<t> are used together with the Try methods in the Result class.
+// The R and R<T> types are used to avoid using exceptions for flow control.
+// Se the Result class for more information.
 public class R
 {
     protected static readonly Exception NoError = new Exception("No error");

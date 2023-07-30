@@ -127,10 +127,13 @@ class ProgramCommands : IProgramCommands
             Console.WriteLine($"Generating change log ...");
             if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
             {
-                Log.Error($"Failed to get change log, {e}");
+                Console.WriteLine($"Failed to get change log, {e}");
             }
 
-            File.WriteAllText("CHANGELOG.md", $"# Change Log for Gmd\n--------------------\n{log}");
+            if (!Try(out e, () => File.WriteAllText("CHANGELOG.md", $"# Change Log for Gmd\n--------------------\n{log}")))
+            {
+                Console.WriteLine($"Failed to write change log, {e}");
+            }
             Console.WriteLine($"Generated change log");
         })
         .Wait();

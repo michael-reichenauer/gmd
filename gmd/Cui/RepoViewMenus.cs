@@ -385,7 +385,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
         states.Get().RecentFolders
-            .Where(Files.DirExists)
+            .Where(Directory.Exists)
             .Take(10)
             .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.RepoPath));
 

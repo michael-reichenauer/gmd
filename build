@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 DOTNET="net7.0"
 
 ISBUILDLINUX="$1" 
@@ -28,7 +29,14 @@ if test -f "gmd_osx"; then
     exit -1;
 fi
 echo ""
+echo Run tests ...
+dotnet test gmdTest/gmdTest.csproj -v quiet --nologo -l:"console;verbosity=normal"
+if [ $? -ne 0 ]; then
+  echo "Error: Tests failed"
+  exit 1
+fi
 
+echo ""
 echo "Building linux ..."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux
