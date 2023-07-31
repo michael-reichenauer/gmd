@@ -25,7 +25,7 @@ record Color
         Color.BrightYellow , Color.White, Color.Black};
 
 
-    public Color(Color fg, Color bg) : this(fg.Foreground, bg.Background) { }
+    public Color(Color fg, Color bg) : this(fg.Foreground, bg.Foreground) { }
 
     public Color(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
     {
