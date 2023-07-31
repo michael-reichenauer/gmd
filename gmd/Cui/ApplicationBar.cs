@@ -103,7 +103,7 @@ class ApplicationBar : View, IApplicationBar
             var e = s + items[i].Length;
             if (e > s && p >= s && p <= e)  // Skipping empty texts and check if the click is within the text bounds
             {
-                ItemClicked?.Invoke(x, y, (ApplicationBarItem)i);
+                UI.Post(() => ItemClicked?.Invoke(x, y, (ApplicationBarItem)i));
                 break;
             }
             s = e;
