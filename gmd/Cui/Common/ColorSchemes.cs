@@ -5,7 +5,6 @@ namespace gmd.Cui.Common;
 
 static class ColorSchemes
 {
-    // Test
     internal static ColorScheme Dialog => new ColorScheme()
     {
         Normal = Color.BrightMagenta,
