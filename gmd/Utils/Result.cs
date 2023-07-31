@@ -91,6 +91,7 @@ public static class Result
     {
         try
         {
+            action();
             e = null;
             return true;
 
