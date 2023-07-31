@@ -632,7 +632,7 @@ class RepoViewMenus : IRepoViewMenus
         name = isBranchIn ? "╮" + name : name;
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;
-        name = isShown ? "∘" + name : " " + name;
+        name = isShown ? "o" + name : " " + name;
         name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
 
         return name;
