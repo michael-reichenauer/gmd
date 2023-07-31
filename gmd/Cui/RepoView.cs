@@ -682,6 +682,7 @@ class RepoView : IRepoView
     void OnRightClicked(int x, int y)
     {
         int index = y + commitsView.FirstIndex;
+        commitsView.SetCurrentIndex(index);
 
         if (x > repo.Graph.Width)
         {   // Right-clicked on commit, show commit menu
