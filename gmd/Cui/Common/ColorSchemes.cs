@@ -80,9 +80,9 @@ static class ColorSchemes
     internal static ColorScheme Button => new ColorScheme()
     {
         Normal = Color.White,
-        Focus = Color.BrightCyan,
+        Focus = new Color(Color.White, Color.Dark),
         HotNormal = Color.BrightCyan,
-        HotFocus = new Color(Color.BrightCyan, Color.Dark),
+        HotFocus = new Color(Color.White, Color.Dark),
         Disabled = Color.Dark,
     };
 
