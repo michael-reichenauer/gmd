@@ -49,16 +49,16 @@ class FilterDlg : IFilterDlg
         dlg.RegisterMouseHandler(OnMouseEvent);
         Log.Info($"FilterDlg.Show: {Application.Driver.Cols}");
 
-        var filterX = Application.Driver.Cols - 33;
+        var filterX = Application.Driver.Cols - 32;
         dlg.AddLabel(0, 0, Text.BrightMagenta("Gmd"));
         closeX = filterX + 31;
-        var closeButton = dlg.AddLabel(closeX, 0, Text.BrightMagenta("X"));
+        var closeButton = dlg.AddLabel(closeX, 0, Text.White("X"));
 
-        dlg.AddLabel(Application.Driver.Cols - 41, 0, Text.BrightMagenta("Search:"));
+        dlg.AddLabel(Application.Driver.Cols - 40, 0, Text.BrightMagenta("Search:"));
         filterField = dlg.AddInputField(filterX, 0, 29);
         filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
 
-        statusLabel = dlg.AddLabel(6, 0);
+        statusLabel = dlg.AddLabel(5, 0);
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());

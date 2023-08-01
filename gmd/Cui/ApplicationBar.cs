@@ -72,7 +72,7 @@ class ApplicationBar : View, IApplicationBar
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
         items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
-        items[(int)ApplicationBarItem.Close] = Common.Text.BrightMagenta("X");
+        items[(int)ApplicationBarItem.Close] = Common.Text.White("X");
 
         UpdateView();
 
