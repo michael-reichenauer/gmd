@@ -135,6 +135,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetBranchMenuItems(string name)
     {
+        var c = repo.RowCommit;
         var b = repo.Branch(name);
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Status.IsOk;
@@ -159,7 +160,8 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
-            .SubMenu("Branch Structure", "", GetBranchStructureItems())
+            .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
+            .Item(repo.RowCommit.IsBranchSetByUser, "Unset Commit Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser)
             .SubMenu("Repo Menu", "", GetRepoMenuItems());
     }
 
@@ -173,19 +175,6 @@ class RepoViewMenus : IRepoViewMenus
            .Separator();
     }
 
-
-    IEnumerable<MenuItem> GetBranchStructureItems()
-    {
-        var ambiguousBranches = repo.GetAllBranches()
-            .Where(b => b.AmbiguousTipId != "")
-            .OrderBy(b => b.NiceNameUnique)
-            .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.ShowBranch(b.Name, true)));
-
-        return Menu.Items
-            .SubMenu("Show Ambiguous Branches", "", ambiguousBranches)
-            .Item("Set Branch Manually ...", "", () => cmds.SetBranchManuallyAsync())
-            .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
-    }
 
     IEnumerable<MenuItem> GetCreateBranchItems() => Menu.Items
         .Item("Create Branch ...", "B", () => cmds.CreateBranch())

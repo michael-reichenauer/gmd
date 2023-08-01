@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 interface ISetBranchDlg
 {
-    R<string> Show(string niceName, IReadOnlyList<string> possibleBranches);
+    R<string> Show(string commitSid, IReadOnlyList<string> possibleBranches);
 }
 
 
@@ -16,7 +16,7 @@ class SetBranchDlg : ISetBranchDlg
     IReadOnlyList<Text> itemTexts = new List<Text>();
 
 
-    public R<string> Show(string niceName, IReadOnlyList<string> possibleBranches)
+    public R<string> Show(string commitSid, IReadOnlyList<string> possibleBranches)
     {
         var x = 1;
         var y = 3;
@@ -28,7 +28,7 @@ class SetBranchDlg : ISetBranchDlg
             ? Common.Text.Dark("…").White(item.Substring(item.Length - w - 1)).ToText()
             : Common.Text.White(item.Max(w, true)).ToText()).ToList();
 
-        var dlg = new UIDialog("Set Branch Manually", 50, 20, null, o => o.Y = 0);
+        var dlg = new UIDialog($"Set Commit {commitSid} Branch Manually", 50, 20, null, o => o.Y = 0);
 
         dlg.AddLabel(1, 1, "Select Branch:");
         var listView = dlg.AddContentView(x, y, w, h, itemTexts);

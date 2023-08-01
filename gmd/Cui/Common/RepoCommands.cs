@@ -1038,7 +1038,7 @@ class RepoCommands : IRepoCommands
 
         var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
 
-        if (!Try(out var name, setBranchDlg.Show(branch.NiceName, possibleBranches))) return R.Ok;
+        if (!Try(out var name, setBranchDlg.Show(commit.Sid, possibleBranches))) return R.Ok;
 
         if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
         {
