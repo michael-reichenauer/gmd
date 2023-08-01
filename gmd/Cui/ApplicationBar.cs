@@ -162,7 +162,7 @@ class ApplicationBar : View, IApplicationBar
     {
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         var count = items.Sum(t => t.Length);
-        var space = new string(' ', Math.Max(0, bounds.Width - count));
+        var space = new string(' ', Math.Max(0, bounds.Width - count - 1));
         return Common.Text.White(space);
     }
 
