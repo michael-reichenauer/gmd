@@ -586,7 +586,7 @@ class RepoViewMenus : IRepoViewMenus
         bool isNoShowIcon = false)
     {
         canExecute = canExecute ?? (b => true);
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), "",
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), b.IsCurrent || b.IsLocalCurrent ? "Y" : "",
             () => action(b), () => canExecute(b)));
     }
 
