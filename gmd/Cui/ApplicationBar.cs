@@ -67,7 +67,7 @@ class ApplicationBar : View, IApplicationBar
         // Initialize some text values 
         Enumerable.Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Count())
             .ForEach(i => items.Add(Common.Text.Empty));
-        items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta("Gmd ");
+        items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta(" Gmd ");
         items[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
