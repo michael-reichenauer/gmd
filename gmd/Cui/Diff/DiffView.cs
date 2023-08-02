@@ -50,7 +50,7 @@ class DiffView : IDiffView
         this.isCommitTriggered = false;
         this.diffRows = diffService.ToDiffRows(diffs);
 
-        Toplevel diffView = new Toplevel() { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
+        Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView = new ContentView(OnGetContent)
         {
             X = 0,
@@ -59,7 +59,7 @@ class DiffView : IDiffView
             Height = Dim.Fill(),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsCursorMargin = true,
+            IsCursorMargin = false,
             IsCustomShowSelection = true,
         };
 
@@ -290,6 +290,7 @@ class DiffView : IDiffView
     // Returns the content for the view
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
+        contentWidth = contentWidth + 1;
         int columnWidth = (contentWidth - 2) / 2;
         int viewWidth = columnWidth * 2 + 1;
 

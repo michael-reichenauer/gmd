@@ -74,6 +74,7 @@ class RepoWriter : IRepoWriter
 
     Columns ColumnWidths(IRepo repo, int width)
     {
+        width = width + 1;
         int graphWidth = Math.Max(0, Math.Min(repo.Graph.Width, width - 20));
 
         // Normal columns when content width is wide enough
