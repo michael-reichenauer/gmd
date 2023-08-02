@@ -317,15 +317,7 @@ class RepoCommands : IRepoCommands
 
     public void UndoUncommittedFiles(IReadOnlyList<string> paths) => Do(async () =>
     {
-        foreach (var path in paths)
-        {
-            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
-            {
-                Refresh();
-                return R.Error($"Failed to undo {path}", e);
-            }
-        }
-
+        await UndoUncommittedFilesAsync(paths);
         Refresh();
         return R.Ok;
     });
