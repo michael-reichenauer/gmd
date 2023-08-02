@@ -4,16 +4,17 @@ namespace gmd.Cui;
 
 interface IGraphWriter
 {
-    Text ToText(GraphRow row, int maxWidth, string highlightPrimaryBranchName, bool isHoverIndex);
+    Text ToText(Graph graph, int index, int maxWidth, string highlightPrimaryBranchName, bool isHoverIndex);
 }
 
 class GraphWriter : IGraphWriter
 {
-    public Text ToText(GraphRow row, int maxWidth, string highlightBranchName, bool isHoverIndex)
+    public Text ToText(Graph graph, int index, int maxWidth, string highlightBranchName, bool isHoverIndex)
     {
         var text = new TextBuilder();
-        int width = Math.Min(row.Width, maxWidth / 2);
-        for (int i = 0; i < width; i++)
+        var row = graph.GetRow(index);
+        int rowLength = Math.Min(graph.RowLength, maxWidth / 2);
+        for (int i = 0; i < rowLength; i++)
         {
             // Colors
             var column = row[i];
@@ -33,8 +34,13 @@ class GraphWriter : IGraphWriter
                 connectColor = Color.White;
             }
 
-            text.Color(connectColor, ConnectRune(column.ConnectSign));
+            // First column does not have a left connect rune, so skip it
+            if (i > 0) text.Color(connectColor, ConnectRune(column.ConnectSign));
 
+            if (graph.HasMore && i == rowLength - 1)
+            {   // Last column is the More, which only has connection (no branch rune)
+                continue;
+            }
             // Draw the branch rune
             if (column.BranchSign == Sign.Pass &&
                 passColor != Color.Black &&

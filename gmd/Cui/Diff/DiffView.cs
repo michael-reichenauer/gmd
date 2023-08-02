@@ -50,7 +50,7 @@ class DiffView : IDiffView
         this.isCommitTriggered = false;
         this.diffRows = diffService.ToDiffRows(diffs);
 
-        Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
+        Toplevel diffView = new Toplevel() { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
         contentView = new ContentView(OnGetContent)
         {
             X = 0,
