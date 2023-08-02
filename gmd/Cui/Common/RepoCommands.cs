@@ -213,7 +213,7 @@ class RepoCommands : IRepoCommands
             return R.Ok;
         }
 
-        if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
+        if (!await CheckBinaryOrLargeAddedFilesAsync()) return R.Ok;
 
         if (!commitDlg.Show(repo, isAmend, commits, out var message)) return R.Ok;
 
@@ -329,6 +329,24 @@ class RepoCommands : IRepoCommands
         Refresh();
         return R.Ok;
     });
+
+
+    public async Task UndoUncommittedFilesAsync(IReadOnlyList<string> paths)
+    {
+        var failedPath = new List<string>();
+        foreach (var path in paths)
+        {
+            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+            {
+                failedPath.Add(path);
+            }
+        }
+        if (failedPath.Any())
+        {
+            UI.ErrorMessage($"Failed to undo {failedPath.Count} files:\n{string.Join("\n", failedPath)}");
+        }
+    }
+
 
     public void UndoAllUncommittedChanged() => Do(async () =>
     {
@@ -950,7 +968,7 @@ class RepoCommands : IRepoCommands
         });
     }
 
-    bool CheckBinaryOrLargeAddedFiles()
+    async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {
         var addFiles = serverRepo.Status.AddedFiles.ToList();
         var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles)
@@ -968,9 +986,9 @@ class RepoCommands : IRepoCommands
 
             if (rsp == 1)
             {
+                await UndoUncommittedFilesAsync(binaryFiles);
                 UI.Post(() =>
                 {
-                    UndoUncommittedFiles(binaryFiles);
                     RefreshAndCommit();
                 });
                 return false;

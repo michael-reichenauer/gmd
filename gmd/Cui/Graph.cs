@@ -6,19 +6,28 @@ namespace gmd.Cui;
 class Graph
 {
     GraphRow[] rows;
+    int rowColumnsLength;
+    bool hasMoreConnectColumn = false;
+
     readonly IReadOnlyList<GraphBranch> branches;
 
-    public int Width { get; private set; }
+    public bool HasMore => hasMoreConnectColumn;
+    public int RowLength => hasMoreConnectColumn ? rowColumnsLength : rowColumnsLength - 1;
+    public int Width => hasMoreConnectColumn ? RowLength * 2 - 1 : RowLength * 2;
 
-    public Graph(int columnCount, int height, IReadOnlyList<GraphBranch> branches)
+    public Graph(int maxBranchX, int height, IReadOnlyList<GraphBranch> branches)
     {
-        Width = columnCount * 2;
+        this.branches = branches;
+
+        // Add +1 for a possible column for a 'more' connect rune to/from branch not shown on right side
+        this.rowColumnsLength = maxBranchX + 1 + 1;
+
         rows = new GraphRow[height];
+
         for (int y = 0; y < height; y++)
         {
-            rows[y] = new GraphRow(columnCount);
+            rows[y] = new GraphRow(rowColumnsLength);
         }
-        this.branches = branches;
     }
 
     public GraphRow GetRow(int index) => rows[index];
@@ -97,6 +106,16 @@ class Graph
     public void SetGraphConnect(int x, int y, Sign sign, Color color) =>
         rows[y].SetConnect(x, sign, color);
 
+
+    public void SetMoreGraphConnect(int x, int y, Sign sign, Color color)
+    {   // An extra connect rune from/to branch that is not shown in the graph
+        rows[y].SetConnect(x, sign, color);
+
+        if (x == rowColumnsLength - 1)
+        {   // The last column do contain a 'more' connect rune to/from branch not shown
+            this.hasMoreConnectColumn = true;
+        }
+    }
 
 
     public void SetGraphBranch(int x, int y, Sign sign, Color color, GraphBranch branch) =>

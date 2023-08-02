@@ -2,6 +2,8 @@ using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
+enum InputMarkers { None, Left, Right, Both }
+
 class UIDialog
 {
     readonly List<View> views = new List<View>();
@@ -74,15 +76,34 @@ class UIDialog
         return textField;
     }
 
-    internal UITextField AddInputField(int x, int y, int w, string text = "")
+
+    internal UITextField AddInputField(int x, int y, int w, string text = "", InputMarkers markers = InputMarkers.Right)
     {
         var textField = new UITextField(x, y, w, text) { ColorScheme = ColorSchemes.TextField };
         views.Add(textField);
 
-        var endMarc = new Label(x + w, y, "]") { ColorScheme = ColorSchemes.Indicator };
-        views.Add(endMarc);
+        if (markers == InputMarkers.Left || markers == InputMarkers.Both)
+        {
+            var startMark = new Label(x - 1, y, "[") { ColorScheme = ColorSchemes.Indicator };
+            views.Add(startMark);
+        }
+        if (markers == InputMarkers.Right || markers == InputMarkers.Both)
+        {
+            var endMarc = new Label(x + w, y, "]") { ColorScheme = ColorSchemes.Indicator };
+            views.Add(endMarc);
+        }
 
         return textField;
+    }
+
+    internal UITextView AddMultiLineInputView(int x, int y, int w, int h, string text)
+    {
+        var textView = new UITextView()
+        { X = x, Y = y, Width = w, Height = h, Text = text, ColorScheme = ColorSchemes.TextField };
+        views.Add(textView);
+
+        AddBorderView(textView, Color.Dark);
+        return textView;
     }
 
     internal UIComboTextField AddComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
@@ -103,6 +124,8 @@ class UIDialog
         views.Add(endMark);
 
         return textField;
+
+
     }
 
     internal UITextView AddTextView(int x, int y, int w, int h, string text)

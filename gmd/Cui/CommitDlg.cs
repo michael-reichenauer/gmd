@@ -32,9 +32,9 @@ class CommitDlg : ICommitDlg
         var dlg = new UIDialog(title, 74, 18, (key) => OnKey(repo, key));
 
         dlg.AddLabel(1, 0, $"{title} {filesCount} changes on '{branchName}':");
-        var subject = dlg.AddTextField(1, 2, 50, subjectPart);
+        var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both);
 
-        message = dlg.AddTextView(1, 4, 70, 10, messagePart);
+        message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart);
         dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
 
         dlg.ShowOkCancel(subject);

@@ -50,11 +50,11 @@ class GraphCreater : IGraphCreater
         SetBranchesColor(repo, branches);
         SetBranchesXLocation(branches);
 
-        // The width is the max branch X +2 room for 'more' branch in/out signs
-        int width = branches.Any() ? branches.Max(b => b.X) + 2 : 2;
+        // The width is the max branch X room for 'more' branch in/out signs
+        int maxBranchX = branches.Any() ? branches.Max(b => b.X) : 0;
 
         Sorter.Sort(branches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
-        Graph graph = new Graph(width, repo.Commits.Count, branches);
+        Graph graph = new Graph(maxBranchX, repo.Commits.Count, branches);
         SetGraph(graph, repo, branches);
         return graph;
     }
@@ -227,7 +227,7 @@ class GraphCreater : IGraphCreater
         // Drawing a more marker  ╮
         int x = commitBranch.X;
         int y = commit.Index;
-        graph.SetGraphConnect(x + 1, y, Sign.MergeFromRight, MoreColor);  //   ╮     
+        graph.SetMoreGraphConnect(x + 1, y, Sign.MergeFromRight, MoreColor);  //   ╮     
     }
 
     void DrawMoreBranchOut(Graph graph, Server.Commit commit, GraphBranch commitBranch)
@@ -235,7 +235,7 @@ class GraphCreater : IGraphCreater
         // Drawing a more marker  ╯
         int x = commitBranch.X;
         int y = commit.Index;
-        graph.SetGraphConnect(x + 1, y, Sign.BranchToRight, MoreColor);  //   ╯    
+        graph.SetMoreGraphConnect(x + 1, y, Sign.BranchToRight, MoreColor);  //   ╯    
     }
 
     private void DrawMergeFromParentBranch(Graph graph, Server.Repo repo,

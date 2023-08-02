@@ -59,7 +59,7 @@ class DiffView : IDiffView
             Height = Dim.Fill(),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsCursorMargin = true,
+            IsCursorMargin = false,
             IsCustomShowSelection = true,
         };
 
@@ -290,6 +290,7 @@ class DiffView : IDiffView
     // Returns the content for the view
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
+        contentWidth = contentWidth + 1;
         int columnWidth = (contentWidth - 2) / 2;
         int viewWidth = columnWidth * 2 + 1;
 

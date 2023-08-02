@@ -48,8 +48,8 @@ class FilterDlg : IFilterDlg
         dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
         dlg.RegisterMouseHandler(OnMouseEvent);
 
-        dlg.AddLabel(0, 0, Text.BrightMagenta("Gmd"));
-        var searchLabelX = Application.Driver.Cols - 41;
+        dlg.AddLabel(0, 0, Text.BrightMagenta(" Gmd"));
+        var searchLabelX = Application.Driver.Cols - 42;
         dlg.AddLabel(searchLabelX, 0, Text.BrightMagenta("Search:"));
         filterField = dlg.AddInputField(searchLabelX + 8, 0, 29);
 
