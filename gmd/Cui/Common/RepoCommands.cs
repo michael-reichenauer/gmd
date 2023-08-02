@@ -1035,7 +1035,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to delete tag {name}", e);
         }
 
-        Refresh();
+        RefreshAndFetch();
         return R.Ok;
     });
 
