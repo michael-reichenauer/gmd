@@ -1,9 +1,25 @@
 # Change Log for Gmd
 --------------------
 
-100 releases:
+101 releases:
 
-## [Current] - 2023-07-29
+## [Current] - 2023-08-03
+- Added short cut 'Y' to show current branch menu item
+- Try fix refresh after remove tag
+- Improve handling of binary files when committing.
+- Adjust progress
+- Adjust commit dialog
+- Adjust Application and Filter bars
+- Set current row when rightclick
+- Adjust branch structure
+- Fixed push local-only branch
+- Fixed issue with focus on buttons and checkboxes
+- Try fix progess when clicking on ApplicationBar
+- Adjust the symbol of shown branches to 'o'
+- Fixed isue with creating branch
+- Added close button to ApplicationBar and filterBar
+
+## [v0.90.272.349] - 2023-07-29
 - Impoved set branch manually dialog
 - Limit filter results to 5000
 - Added support for OpenBranchMenu shortcut 'Shift  →'

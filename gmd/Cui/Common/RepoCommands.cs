@@ -175,7 +175,7 @@ class RepoCommands : IRepoCommands
     public void ShowBrowseDialog() => Do(async () =>
    {
        // Parent folders to recent work folders, usually other repos there as well
-       var recentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
+       var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
 
        var browser = new FolderBrowseDlg();
        if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
@@ -213,7 +213,7 @@ class RepoCommands : IRepoCommands
             return R.Ok;
         }
 
-        if (!CheckBinaryOrLargeAddedFiles()) return R.Ok;
+        if (!await CheckBinaryOrLargeAddedFilesAsync()) return R.Ok;
 
         if (!commitDlg.Show(repo, isAmend, commits, out var message)) return R.Ok;
 
@@ -230,7 +230,7 @@ class RepoCommands : IRepoCommands
     public void Clone() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders.Where(Files.DirExists).ToList();
+        var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
 
         if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return R.Ok;
         (var uri, var path) = r;
@@ -317,18 +317,28 @@ class RepoCommands : IRepoCommands
 
     public void UndoUncommittedFiles(IReadOnlyList<string> paths) => Do(async () =>
     {
+        await UndoUncommittedFilesAsync(paths);
+        Refresh();
+        return R.Ok;
+    });
+
+
+    public async Task UndoUncommittedFilesAsync(IReadOnlyList<string> paths)
+    {
+        var failedPath = new List<string>();
         foreach (var path in paths)
         {
             if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
             {
-                Refresh();
-                return R.Error($"Failed to undo {path}", e);
+                failedPath.Add(path);
             }
         }
+        if (failedPath.Any())
+        {
+            UI.ErrorMessage($"Failed to undo {failedPath.Count} files:\n{string.Join("\n", failedPath)}");
+        }
+    }
 
-        Refresh();
-        return R.Ok;
-    });
 
     public void UndoAllUncommittedChanged() => Do(async () =>
     {
@@ -950,7 +960,7 @@ class RepoCommands : IRepoCommands
         });
     }
 
-    bool CheckBinaryOrLargeAddedFiles()
+    async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {
         var addFiles = serverRepo.Status.AddedFiles.ToList();
         var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles)
@@ -968,9 +978,9 @@ class RepoCommands : IRepoCommands
 
             if (rsp == 1)
             {
+                await UndoUncommittedFilesAsync(binaryFiles);
                 UI.Post(() =>
                 {
-                    UndoUncommittedFiles(binaryFiles);
                     RefreshAndCommit();
                 });
                 return false;
@@ -1025,7 +1035,7 @@ class RepoCommands : IRepoCommands
             return R.Error($"Failed to delete tag {name}", e);
         }
 
-        Refresh();
+        RefreshAndFetch();
         return R.Ok;
     });
 
@@ -1038,7 +1048,7 @@ class RepoCommands : IRepoCommands
 
         var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
 
-        if (!Try(out var name, setBranchDlg.Show(branch.NiceName, possibleBranches))) return R.Ok;
+        if (!Try(out var name, setBranchDlg.Show(commit.Sid, possibleBranches))) return R.Ok;
 
         if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
         {

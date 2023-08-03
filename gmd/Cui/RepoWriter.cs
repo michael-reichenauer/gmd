@@ -44,6 +44,7 @@ class RepoWriter : IRepoWriter
         var highlightIndex = hooverIndex == -1 ? currentIndex : hooverIndex;
 
         Columns cw = ColumnWidths(repo, width);
+        var graphColumns = repo.Graph.RowLength;
 
         // Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
@@ -52,8 +53,8 @@ class RepoWriter : IRepoWriter
 
             // Build row
             var graphText = new TextBuilder();
-            var graphRow = repo.Graph.GetRow(i);
-            WriteGraph(graphText, graphRow, cw.GraphWidth, hooverBranchName, i == hooverIndex);
+            WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
+            graphText.Black(" "); // One space between graph and markers
             WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached);
             WriteAheadBehindMarker(graphText, c);
 
@@ -73,6 +74,7 @@ class RepoWriter : IRepoWriter
 
     Columns ColumnWidths(IRepo repo, int width)
     {
+        width = width + 1;
         int graphWidth = Math.Max(0, Math.Min(repo.Graph.Width, width - 20));
 
         // Normal columns when content width is wide enough
@@ -109,10 +111,10 @@ class RepoWriter : IRepoWriter
     }
 
 
-    void WriteGraph(TextBuilder text, GraphRow graphRow, int maxGraphWidth,
+    void WriteGraph(TextBuilder text, Graph graph, int index, int maxGraphWidth,
         string highlightBranchName, bool isHoverIndex)
     {
-        text.Add(graphWriter.ToText(graphRow, maxGraphWidth, highlightBranchName, isHoverIndex));
+        text.Add(graphWriter.ToText(graph, index, maxGraphWidth, highlightBranchName, isHoverIndex));
     }
 
 
@@ -120,21 +122,21 @@ class RepoWriter : IRepoWriter
     {
         if (c.IsDetached && c.IsCurrent && !isUncommitted || c.Id == Repo.UncommittedId && isBranchDetached)
         {   // Detached head, so the is shown at the current commit
-            text.White(" *");
+            text.White("*");
             return;
         }
         if (c.Id == Repo.UncommittedId)
         {   // There are uncommitted changes, so the current marker is at the uncommitted commit
-            text.Yellow(" ©");
+            text.Yellow("©");
             return;
         }
         if (c.IsCurrent && !isUncommitted)
         {   // No uncommitted changes, so the is shown at the current commit
-            text.White(" ●");
+            text.White("●");
             return;
         }
 
-        text.Black("  ");
+        text.Black(" ");
     }
 
 

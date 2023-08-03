@@ -17,7 +17,8 @@ enum ApplicationBarItem
     BranchName,
     Space,
     Search,
-    Help
+    Help,
+    Close,
 }
 
 
@@ -66,11 +67,12 @@ class ApplicationBar : View, IApplicationBar
         // Initialize some text values 
         Enumerable.Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Count())
             .ForEach(i => items.Add(Common.Text.Empty));
-        items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta("Gmd ");
+        items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta(" Gmd ");
         items[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
         items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
+        items[(int)ApplicationBarItem.Close] = Common.Text.White("X");
 
         UpdateView();
 
@@ -97,10 +99,11 @@ class ApplicationBar : View, IApplicationBar
         int s = 0;
         for (int i = 0; i < items.Count; i++)
         {
+            var p = x + 1;
             var e = s + items[i].Length;
-            if (e > s && x >= s && x <= e)  // Skipping empty texts and check if the click is within the text bounds
+            if (e > s && p >= s && p <= e)  // Skipping empty texts and check if the click is within the text bounds
             {
-                ItemClicked?.Invoke(x, y, (ApplicationBarItem)i);
+                UI.Post(() => ItemClicked?.Invoke(x, y, (ApplicationBarItem)i));
                 break;
             }
             s = e;
@@ -159,7 +162,7 @@ class ApplicationBar : View, IApplicationBar
     {
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         var count = items.Sum(t => t.Length);
-        var space = new string(' ', Math.Max(0, bounds.Width - count));
+        var space = new string(' ', Math.Max(0, bounds.Width - count - 1));
         return Common.Text.White(space);
     }
 
@@ -186,7 +189,7 @@ class ApplicationBar : View, IApplicationBar
         else
         {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
             var cb = repo.AugmentedRepo.Branches.Values.First(b => b.IsCurrent);
-            var color = branchColorService.GetBranchNameColor(cb.PrimaryBaseName);
+            var color = branchColorService.GetColorByBranchName(repo, cb.PrimaryBaseName);
             items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, cb.NiceNameUnique);
             currentBranchName = cb.NiceNameUnique;
         }

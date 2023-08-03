@@ -117,7 +117,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
             .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
-            .SubMenu("Undo", "", GetCommitUndoItems(), () => c.IsUncommitted)
+            .SubMenu("Undo", "", GetCommitUndoItems())
             .Item("Stash Changes", "", () => cmds.Stash(), () => c.Id == Repo.UncommittedId)
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
             .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
@@ -135,6 +135,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetBranchMenuItems(string name)
     {
+        var c = repo.RowCommit;
         var b = repo.Branch(name);
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Status.IsOk;
@@ -148,7 +149,7 @@ class RepoViewMenus : IRepoViewMenus
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
             .Item("Hide Branch", "H", () => cmds.HideBranch(name))
             .Item("Pull/Update", "U", () => cmds.PullBranch(name), () => b.HasRemoteOnly && isStatusOK)
-            .Item("Push", "P", () => cmds.PushBranch(name), () => b.HasLocalOnly && isStatusOK)
+            .Item("Push", "P", () => cmds.PushBranch(name), () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK)
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
             .SubMenu("Diff Branch to", "D", GetBranchDiffItems(name))
@@ -159,7 +160,8 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
-            .SubMenu("Branch Structure", "", GetBranchStructureItems())
+            .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
+            .Item(repo.RowCommit.IsBranchSetByUser, "Unset Commit Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser)
             .SubMenu("Repo Menu", "", GetRepoMenuItems());
     }
 
@@ -173,19 +175,6 @@ class RepoViewMenus : IRepoViewMenus
            .Separator();
     }
 
-
-    IEnumerable<MenuItem> GetBranchStructureItems()
-    {
-        var ambiguousBranches = repo.GetAllBranches()
-            .Where(b => b.AmbiguousTipId != "")
-            .OrderBy(b => b.NiceNameUnique)
-            .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.ShowBranch(b.Name, true)));
-
-        return Menu.Items
-            .SubMenu("Show Ambiguous Branches", "", ambiguousBranches)
-            .Item("Set Branch Manually ...", "", () => cmds.SetBranchManuallyAsync())
-            .Item("Undo Set Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser);
-    }
 
     IEnumerable<MenuItem> GetCreateBranchItems() => Menu.Items
         .Item("Create Branch ...", "B", () => cmds.CreateBranch())
@@ -385,7 +374,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
         states.Get().RecentFolders
-            .Where(Files.DirExists)
+            .Where(Directory.Exists)
             .Take(10)
             .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.RepoPath));
 
@@ -538,7 +527,7 @@ class RepoViewMenus : IRepoViewMenus
 
         return Menu.Items
             .SubMenu("Undo/Restore an Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
-            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => cmds.CanUndoCommit())
+            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => repo.Status.IsOk)
             .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
@@ -597,7 +586,7 @@ class RepoViewMenus : IRepoViewMenus
         bool isNoShowIcon = false)
     {
         canExecute = canExecute ?? (b => true);
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), "",
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), b.IsCurrent || b.IsLocalCurrent ? "Y" : "",
             () => action(b), () => canExecute(b)));
     }
 
@@ -632,7 +621,7 @@ class RepoViewMenus : IRepoViewMenus
         name = isBranchIn ? "╮" + name : name;
         name = isBranchOut ? "╯" + name : name;
         name = isBranchIn || isBranchOut ? name : " " + name;
-        name = isShown ? "∘" + name : " " + name;
+        name = isShown ? "o" + name : " " + name;
         name = branch.IsCurrent || branch.IsLocalCurrent ? "●" + name : " " + name;
 
         return name;

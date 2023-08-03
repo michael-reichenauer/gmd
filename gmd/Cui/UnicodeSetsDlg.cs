@@ -24,7 +24,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
         contentView.IsScrollMode = true;
         contentView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
 
-        dlg.AddDlgClose();
+        dlg.AddDlgClose(true);
         contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
         dlg.Show(contentView);
     }
@@ -42,6 +42,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
     {
         var sets = new List<Set>(){
             new Set("Basic Latin", 0x0020, 0x007E),
+            new Set("Latin-1 Supplement", 0x0080, 0x00FF),
             new Set("Box Drawing", 0x2500, 0x257F),
             new Set("Block Elements", 0x2580, 0x259F),
             new Set("Geometric Shapes", 0x25A0, 0x25FF),
@@ -61,7 +62,6 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
             new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
             new Set("Alchemical Symbols", 0x1F700, 0x1F77F),
 
-            new Set("Latin-1 Supplement", 0x00A0, 0x00FF),
             new Set("Latin Extended-A", 0x0100, 0x017F),
             new Set("Latin Extended-B", 0x0180, 0x024F),
             new Set("Latin Extended Additional", 0x1E00, 0x1EFF),

@@ -28,8 +28,8 @@ class HelpDlg : IHelpDlg
         contentView.IsShowCursor = false;
         contentView.IsScrollMode = true;
         contentView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
-        
-        dlg.AddDlgClose();
+
+        dlg.AddDlgClose(true);
         dlg.Show(contentView);
     }
 

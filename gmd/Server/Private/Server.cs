@@ -174,6 +174,16 @@ class Server : IServer
                 branchesSeen.Add(branch.NiceName);
             }
 
+            commit.BranchTips.ForEach(t =>
+            {
+                branch = repo.AugmentedRepo.Branches[t];
+                if (!branchesSeen.Contains(branch.NiceName))
+                {
+                    branches.Enqueue(branch.NiceName);
+                    branchesSeen.Add(branch.NiceName);
+                }
+            });
+
             foreach (var id in commit.AllChildIds)
             {
                 var child = repo.AugmentedRepo.CommitById[id];

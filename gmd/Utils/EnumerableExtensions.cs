@@ -1,7 +1,9 @@
 namespace System.Linq;
 
+// Some useful IEnumerable extensions that are missing in .NET
 public static class EnumerableExtensions
 {
+    // Calls acton for each item in the enumeration
     public static void ForEach<T>(this IEnumerable<T> enumeration, Action<T> action)
     {
         foreach (T item in enumeration)
@@ -10,6 +12,7 @@ public static class EnumerableExtensions
         }
     }
 
+    // Calls acton for each item in the enumeration (includes index)
     public static void ForEach<T>(this IEnumerable<T> enumeration, Action<T, int> action)
     {
         int i = 0;
@@ -19,31 +22,36 @@ public static class EnumerableExtensions
         }
     }
 
-    public static string AsString<T1, T2>(this IDictionary<T1, T2> dictionary) =>
-        dictionary == null ? "{}" :
-            "{" + string.Join(",", dictionary.Select(p => $"{p.Key}={p.Value}")) + "}";
 
-    public static string AsString<T1>(this IEnumerable<T1> source) =>
-        source == null ? "{}" :
-         "{" + string.Join(",", source.Select(p => $"{p}")) + "}";
-
-
-    public static IReadOnlyList<TSource> AsReadOnlyList<TSource>(this IReadOnlyList<TSource> source)
-    {
-        return source;
-    }
-
+    // Returns a concatenated string of all items in the string enumeration
+    // Same result as calling string.Join(separator, source)
     public static string Join(this IEnumerable<string> source, string separator)
     {
         return string.Join(separator, source);
     }
 
+    // Returns a concatenated string of all items in the enumeration after applying transform
+    // Same result as calling string.Join(separator, source.Select(transform)
+    public static string JoinBy<TSource>(this IEnumerable<TSource> source, Func<TSource, string> transform, string separator)
+    {
+        return string.Join(separator, source.Select(transform));
+    }
+
+    // Returns a concatenated string of all items in the string enumeration 
+    // Same result as calling string.Join(separator, source)
     public static string Join(this IEnumerable<string> source, char separator)
     {
         return string.Join(separator, source);
     }
 
+    // Returns a concatenated string of all items in the string enumeration after applying transform
+    // Same result as calling string.Join(separator, source)
+    public static string Join<TSource>(this IEnumerable<TSource> source, Func<TSource, string> transform, char separator)
+    {
+        return string.Join(separator, source.Select(transform));
+    }
 
+    // Tries to add the item to the list if it does not already exist
     public static void TryAdd<TSource>(this List<TSource> source, TSource item)
     {
         if (source.Contains(item))
@@ -53,6 +61,7 @@ public static class EnumerableExtensions
         source.Add(item);
     }
 
+    // Tries to add all the items to the list if they do not already exist
     public static void TryAddAll<TSource>(this List<TSource> source, IEnumerable<TSource> items)
     {
         foreach (var item in items)
@@ -65,6 +74,7 @@ public static class EnumerableExtensions
         }
     }
 
+    // Tries to add the item to the list if it does not already exist
     public static void TryAddBy<TSource>(this List<TSource> source, Func<TSource, bool> predicate, TSource item)
     {
         if (null != source.FirstOrDefault(predicate))
@@ -74,12 +84,14 @@ public static class EnumerableExtensions
         source.Add(item);
     }
 
+    // Returns true if the enumeration contains the item
     public static bool ContainsBy<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
     {
         return null != source.FirstOrDefault(predicate);
     }
 
-    public static int FindIndexOf<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+    // Returns the index of the first item that matches the predicate
+    public static int FindIndexBy<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
     {
         var index = 0;
         foreach (var item in source)
@@ -93,7 +105,8 @@ public static class EnumerableExtensions
         return -1;
     }
 
-    public static int FindLastIndexOf<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+    // Returns the index of the last item that matches the predicate
+    public static int FindLastIndexBy<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
     {
         var index = 0;
         var reverseSource = source.Reverse();
@@ -109,15 +122,16 @@ public static class EnumerableExtensions
     }
 
 
-
     // Returns elements from a sequence by concatenating the params parameters
-    public static IEnumerable<TSource> Add<TSource>(this IEnumerable<TSource> source,
-       params TSource[] items) => source.Concat(items);
+    public static IEnumerable<TSource> Add<TSource>(this IEnumerable<TSource> source, params TSource[] items)
+    {
+        return source.Concat(items);
+    }
 
 
     // Returns distinct elements from a sequence by using a specified 
     // predicate to compare values of two elements.
-    public static IEnumerable<TSource> Distinct<TSource>(this IEnumerable<TSource> source,
+    public static IEnumerable<TSource> DistinctBy<TSource>(this IEnumerable<TSource> source,
         Func<TSource, TSource, bool> comparer)
     {
         if (source == null)
@@ -134,38 +148,8 @@ public static class EnumerableExtensions
         return source.Distinct(new DistinctComparer<TSource>(comparer));
     }
 
-    // public static void Sort<T>(this IList<T> list, IComparer<T> comparer)
-    // {
-    //     CustomSort(list, comparer);
-    // }
 
-    // private static void CustomSort<T>(IList<T> list, IComparer<T> comparer)
-    // {
-    //     for (int i = 0; i < list.Count; i++)
-    //     {
-    //         bool swapped = false;
-    //         T item = list[i];
-
-    //         for (int j = i + 1; j < list.Count; j++)
-    //         {
-    //             if (comparer.Compare(item, list[j]) > 0)
-    //             {
-    //                 T tmp = list[j];
-    //                 list.RemoveAt(j);
-    //                 list.Insert(i, tmp);
-    //                 swapped = true;
-    //             }
-    //         }
-
-    //         if (swapped)
-    //         {
-    //             i = i - 1;
-    //         }
-    //     }
-    // }
-
-
-    private class DistinctComparer<TSource> : IEqualityComparer<TSource>
+    class DistinctComparer<TSource> : IEqualityComparer<TSource>
     {
         private readonly Func<TSource, TSource, bool> comparer;
 
@@ -182,13 +166,4 @@ public static class EnumerableExtensions
         // to do the comparison
         public int GetHashCode(TSource obj) => 0;
     }
-}
-
-
-public class EnumerableEx
-{
-    /// <summary>
-    ///  Returns elements from a sequence of the params parameters
-    /// </summary>
-    public static IEnumerable<T> From<T>(params T[] items) => items;
 }

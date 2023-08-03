@@ -3,11 +3,11 @@ namespace System.Threading.Tasks;
 
 public static class TaskExtensions
 {
-    /// <summary>
-    /// Provides a workaround for async functions that have no built-in cancellation support.
-    /// This functions should only be used as a last resort. It does not cancel the original, call
-    /// it only provides cancellation support for the caller.
-    /// </summary>
+
+    // Provides a workaround for async functions that have no built-in cancellation support.
+    // This functions should only be used as a last resort. It does not cancel the original, call
+    // it only provides cancellation support for the caller.
+
     public static async Task<T> WithCancellation<T>(this Task<T> task, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource<bool>();
@@ -23,11 +23,9 @@ public static class TaskExtensions
     }
 
 
-    /// <summary>
-    /// Provides a workaround for async functions that have no built-in cancellation support.
-    /// This functions should only be used as a last resort. It does not cancel the original, call
-    /// it only provides cancellation support for the caller.
-    /// </summary>
+    // Provides a workaround for async functions that have no built-in cancellation support.
+    // This functions should only be used as a last resort. It does not cancel the original, call
+    // it only provides cancellation support for the caller.
     public static async Task WithCancellation(this Task task, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource<bool>();
@@ -42,7 +40,8 @@ public static class TaskExtensions
         await task;
     }
 
-
+    // RunInBackground ignores the return value of the task and logs any exceptions.
+    // Useful for tasks that should just be started and results are ignored.
     public static void RunInBackground(this Task task)
     {
         task.ContinueWith(

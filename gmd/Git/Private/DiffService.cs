@@ -403,7 +403,7 @@ class DiffService : IDiffService
         {
             string filePath = Path.Join(dirPath, name);
 
-            if (!Try(out var file, out var e, Files.ReadAllText(filePath)))
+            if (!Try(out var file, out var e, () => File.ReadAllText(filePath)))
             {
                 file = $"<Error reading File {e.ToString()}";
             }

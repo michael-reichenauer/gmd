@@ -1,6 +1,7 @@
 namespace gmd.Utils;
 
-internal static class Sorter
+// For some reason, the standard Sort does not work as expected, So this is a custom implementation.
+static class Sorter
 {
     public static void Sort<T>(IList<T> list, Func<T, T, int> comparer)
     {
