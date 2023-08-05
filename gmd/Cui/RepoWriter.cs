@@ -71,7 +71,7 @@ class RepoWriter : IRepoWriter
 
     Columns ColumnWidths(IRepo repo, int width)
     {
-        width = width + 1;
+        width++;
         int graphWidth = Math.Max(0, Math.Min(repo.Graph.Width, width - 20));
 
         // Normal columns when content width is wide enough
@@ -114,8 +114,7 @@ class RepoWriter : IRepoWriter
         text.Add(graphWriter.ToText(graph, index, maxGraphWidth, highlightBranchName, isHoverIndex));
     }
 
-
-    void WriteCurrentMarker(TextBuilder text, Commit c, bool isUncommitted, bool isBranchDetached)
+    static void WriteCurrentMarker(TextBuilder text, Commit c, bool isUncommitted, bool isBranchDetached)
     {
         if (c.IsDetached && c.IsCurrent && !isUncommitted || c.Id == Repo.UncommittedId && isBranchDetached)
         {   // Detached head, so the is shown at the current commit
@@ -136,8 +135,7 @@ class RepoWriter : IRepoWriter
         text.Black(" ");
     }
 
-
-    void WriteAheadBehindMarker(TextBuilder text, Commit c)
+    static void WriteAheadBehindMarker(TextBuilder text, Commit c)
     {
         if (c.IsAhead)
         {
@@ -153,7 +151,7 @@ class RepoWriter : IRepoWriter
         text.Black(" ");
     }
 
-    void WriteSubjectColumn(TextBuilder text, Columns cw, Commit c, Branch currentRowBranch,
+    static void WriteSubjectColumn(TextBuilder text, Columns cw, Commit c, Branch currentRowBranch,
         IReadOnlyDictionary<string, TextBuilder> branchTips)
     {
         Text subjectText = GetSubjectText(c, currentRowBranch);
@@ -196,7 +194,7 @@ class RepoWriter : IRepoWriter
         WriteSubText(text, tagsText, tagsWidth);
     }
 
-    void WriteSubText(TextBuilder text, Text subText, int maxWidth)
+    static void WriteSubText(TextBuilder text, Text subText, int maxWidth)
     {
         if (maxWidth == 0)
         {
@@ -212,7 +210,7 @@ class RepoWriter : IRepoWriter
         text.Add(subText.Subtext(0, maxWidth - 1, true)).Dark("┅");
     }
 
-    Text GetSubjectText(Commit c, Branch currentRowBranch)
+    static Text GetSubjectText(Commit c, Branch currentRowBranch)
     {
         var text = new TextBuilder();
 
@@ -227,14 +225,13 @@ class RepoWriter : IRepoWriter
         return text;
     }
 
-    Text GetTagsText(Commit c) => c.Tags.Any()
+    static Text GetTagsText(Commit c) => c.Tags.Any()
         ? Text.Green($"[{string.Join("][", c.Tags.Select(t => t.Name))}]") : Text.Empty;
 
-    Text GetTipsText(Commit c, IReadOnlyDictionary<string, TextBuilder> branchTips) =>
+    static Text GetTipsText(Commit c, IReadOnlyDictionary<string, TextBuilder> branchTips) =>
         branchTips.ContainsKey(c.Id) ? Text.Add(branchTips[c.Id]) : Text.Empty;
 
-
-    void WriteSid(TextBuilder text, Columns cw, Commit c)
+    static void WriteSid(TextBuilder text, Columns cw, Commit c)
     {
         if (c.IsUncommitted)
         {
@@ -244,26 +241,26 @@ class RepoWriter : IRepoWriter
         text.Cyan(Txt(" " + c.Sid, cw.Sid));
     }
 
-    void WriteAuthor(TextBuilder text, Columns cw, Commit c)
+    static void WriteAuthor(TextBuilder text, Columns cw, Commit c)
     {
         var txt = Txt(" " + c.Author, cw.Author);
         text.Dark(txt);
     }
 
-    void WriteTime(TextBuilder text, Columns cw, Commit c)
+    static void WriteTime(TextBuilder text, Columns cw, Commit c)
     {
         var txt = Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time);
         text.Dark(txt);
     }
 
-    string Txt(string text, int width)
+    static string Txt(string text, int width)
     {
         if (text.Length <= width)
         {
             return text + new string(' ', width - text.Length);
         }
 
-        return text.Substring(0, width);
+        return text[..width];
     }
 
 

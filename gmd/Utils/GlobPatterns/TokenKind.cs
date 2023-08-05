@@ -11,7 +11,7 @@
         CharacterSetInvert = 1,      // !
 
         LiteralSetStart = 5,       // {
-        LiteralSetSeperator = 6,   // ,
+        LiteralSetSeparator = 6,   // ,
         LiteralSetEnd = 7,         // }
 
         PathSeparator = 8,          // / \

@@ -48,7 +48,7 @@ namespace gmd.Utils.GlobPatterns
         {
             this._currentKind = this.ScanToken();
 
-            var spelling = _source.Substring(_startIndex, _sourceIndex - _startIndex);
+            var spelling = _source[_startIndex.._sourceIndex];
 
             _startIndex = _sourceIndex;
 
@@ -112,7 +112,7 @@ namespace gmd.Utils.GlobPatterns
 
                 case ',':
                     this.TakeIt();
-                    return TokenKind.LiteralSetSeperator;
+                    return TokenKind.LiteralSetSeparator;
 
                 case '}':
                     this.TakeIt();

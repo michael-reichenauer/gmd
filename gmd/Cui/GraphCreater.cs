@@ -78,12 +78,12 @@ class GraphCreater : IGraphCreater
     }
 
 
-    void SetBranchesColor(Server.Repo repo, IReadOnlyList<GraphBranch> branches)
+    void SetBranchesColor(Repo repo, IReadOnlyList<GraphBranch> branches)
     {
         branches.ForEach(b => b.Color = branchColorService.GetColor(repo, b.B));
     }
 
-    void SetGraph(Graph graph, Server.Repo repo, IReadOnlyList<GraphBranch> branches)
+    static void SetGraph(Graph graph, Repo repo, IReadOnlyList<GraphBranch> branches)
     {
         foreach (var b in branches)
         {
@@ -100,11 +100,11 @@ class GraphCreater : IGraphCreater
 
                 if (c.BranchName != b.B.Name && c.Id == b.B.TipId)
                 {   // this tip commit is a tip                     ─┺  (multiple tips on commit)
-                    DrawOtherBranchTip(graph, repo, b, c);
+                    DrawOtherBranchTip(graph, b, c);
                     continue;
                 }
 
-                DrawBranch(graph, repo, b, c, isAmbiguous); // Drawing either ┏  ┣ ┃ ┗
+                DrawBranch(graph, b, c, isAmbiguous); // Drawing either ┏  ┣ ┃ ┗
 
                 if (c.BranchName != b.B.Name)
                 {   // Not current branch
@@ -134,7 +134,7 @@ class GraphCreater : IGraphCreater
 
 
     // DrawOtherBranchTip draws  ─┺ in when multiple tips on same commit
-    void DrawOtherBranchTip(Graph graph, Server.Repo repo, GraphBranch b, Server.Commit c)
+    static void DrawOtherBranchTip(Graph graph, GraphBranch b, Commit c)
     {
         var commitBranch = graph.BranchByName(c.BranchName);
         Color color = b.Color;
@@ -151,8 +151,7 @@ class GraphCreater : IGraphCreater
         graph.SetGraphBranch(x2, y2, Sign.Bottom | Sign.Pass, color, b); //       ┺
     }
 
-
-    void DrawBranch(Graph graph, Server.Repo repo, GraphBranch b, Server.Commit c, bool isAmbiguous)
+    static void DrawBranch(Graph graph, GraphBranch b, Server.Commit c, bool isAmbiguous)
     {
         int x = b.X;
         int y = c.Index;
@@ -193,7 +192,7 @@ class GraphCreater : IGraphCreater
         }
     }
 
-    void DrawMerge(Graph graph, Server.Repo repo, Server.Commit commit, GraphBranch commitBranch)
+    static void DrawMerge(Graph graph, Repo repo, Commit commit, GraphBranch commitBranch)
     {
         if (repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent))
         {
@@ -201,16 +200,16 @@ class GraphCreater : IGraphCreater
             // Commit is a merge commit, has 2 parents
             if (parentBranch.X < commitBranch.X)
             {   // Other branch is on the left side, merged from parent branch ╭
-                DrawMergeFromParentBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
+                DrawMergeFromParentBranch(graph, commit, commitBranch, mergeParent, parentBranch);
             }
             else if (parentBranch.X == commitBranch.X)
             {   // Other branch is on the same column, merged from sibling branch │
-                DrawMergeFromSiblingBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
+                DrawMergeFromSiblingBranch(graph, commit, commitBranch, mergeParent, parentBranch);
             }
             else
             {
                 // Other branch is on the right side, merged from child branch,       ╮
-                DrawMergeFromChildBranch(graph, repo, commit, commitBranch, mergeParent, parentBranch);
+                DrawMergeFromChildBranch(graph, commit, commitBranch, mergeParent, parentBranch);
             }
         }
         else if (repo.Filter == "")
@@ -227,7 +226,7 @@ class GraphCreater : IGraphCreater
         graph.SetMoreGraphConnect(x + 1, y, Sign.MergeFromRight, MoreColor);  //   ╮     
     }
 
-    void DrawMoreBranchOut(Graph graph, Server.Commit commit, GraphBranch commitBranch)
+    static void DrawMoreBranchOut(Graph graph, Commit commit, GraphBranch commitBranch)
     {
         // Drawing a more marker  ╯
         int x = commitBranch.X;
@@ -235,7 +234,7 @@ class GraphCreater : IGraphCreater
         graph.SetMoreGraphConnect(x + 1, y, Sign.BranchToRight, MoreColor);  //   ╯    
     }
 
-    private void DrawMergeFromParentBranch(Graph graph, Server.Repo repo,
+    private static void DrawMergeFromParentBranch(Graph graph,
         Server.Commit commit, GraphBranch commitBranch,
         Server.Commit mergeParent, GraphBranch parentBranch)
     {
@@ -261,10 +260,10 @@ class GraphCreater : IGraphCreater
         graph.DrawHorizontalLine(x2 + 1, x, y2, color);            //            ──
     }
 
-    private void DrawMergeFromSiblingBranch(
-        Graph graph, Server.Repo repo,
-        Server.Commit commit, GraphBranch commitBranch,
-        Server.Commit mergeParent, GraphBranch parentBranch)
+    private static void DrawMergeFromSiblingBranch(
+        Graph graph,
+        Commit commit, GraphBranch commitBranch,
+        Commit mergeParent, GraphBranch parentBranch)
     {
         // Commit is a merge commit, has 2 parents
         int x = commitBranch.X;
@@ -292,10 +291,10 @@ class GraphCreater : IGraphCreater
         }
     }
 
-    private void DrawMergeFromChildBranch(
-        Graph graph, Server.Repo repo,
-        Server.Commit commit, GraphBranch commitBranch,
-        Server.Commit mergeParent, GraphBranch parentBranch)
+    private static void DrawMergeFromChildBranch(
+        Graph graph,
+        Commit commit, GraphBranch commitBranch,
+        Commit mergeParent, GraphBranch parentBranch)
     {
         // Commit is a merge commit, has 2 parents
         int x = commitBranch.X;
@@ -325,7 +324,7 @@ class GraphCreater : IGraphCreater
         }
     }
 
-    void DrawBranchFromParent(Graph graph, Server.Repo repo, Server.Commit c, GraphBranch commitBranch)
+    static void DrawBranchFromParent(Graph graph, Repo repo, Commit c, GraphBranch commitBranch)
     {
         // Commit parent is on other branch (commit is first/bottom commit on this branch)
         // Branched from parent branch
@@ -363,7 +362,7 @@ class GraphCreater : IGraphCreater
 
 
     // Returns a list of branches, with Y location set for tip and bottom commits
-    List<GraphBranch> ToGraphBranches(Server.Repo repo)
+    static List<GraphBranch> ToGraphBranches(Server.Repo repo)
     {
         if (repo.Filter != "") return ToFilteredGraphBranches(repo);
 
@@ -386,7 +385,7 @@ class GraphCreater : IGraphCreater
     // ancestors and related branches might not have any commits and thus skipped.
     // Also, since not all commits are included, the tip and bottom commits might not exists,
     // so first and last existing commits are used instead.
-    List<GraphBranch> ToFilteredGraphBranches(Server.Repo repo)
+    static List<GraphBranch> ToFilteredGraphBranches(Server.Repo repo)
     {
         List<GraphBranch> branches = new List<GraphBranch>();
         Dictionary<string, FirstLast> firstLast = new Dictionary<string, FirstLast>();
@@ -423,9 +422,11 @@ class GraphCreater : IGraphCreater
                 continue;
             }
 
-            var gb = new GraphBranch(repo.Branches[i], i);
-            gb.TipIndex = tb.FirstIndex;
-            gb.BottomIndex = tb.LastIndex;
+            var gb = new GraphBranch(repo.Branches[i], i)
+            {
+                TipIndex = tb.FirstIndex,
+                BottomIndex = tb.LastIndex
+            };
             if (gb.B.ParentBranchName != "")
             {
                 gb.ParentBranch = branches.FirstOrDefault(b => b.B.Name == gb.B.ParentBranchName);
@@ -441,7 +442,7 @@ class GraphCreater : IGraphCreater
     // Sets the X location for each branch, ensuring that branches do not overlap on the same X location
     // So e.g. Children must be to the right of their parent. But  siblings can share same X location,
     // if they do not overlap.
-    void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
+    static void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
     {
         // Iterating in the order of the view repo branches, Skipping main/master branch
         for (int i = 1; i < branches.Count; i++)

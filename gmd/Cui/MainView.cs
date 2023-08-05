@@ -54,9 +54,9 @@ partial class MainView : IMainView
     View CreateView()
     {
         // Adjust some global color schemes
-        Terminal.Gui.Colors.Dialog = ColorSchemes.Dialog;
-        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialog;
-        Terminal.Gui.Colors.Menu = ColorSchemes.Menu;
+        Colors.Dialog = ColorSchemes.Dialog;
+        Colors.Error = ColorSchemes.ErrorDialog;
+        Colors.Menu = ColorSchemes.Menu;
 
         var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), ColorScheme = ColorSchemes.Window };
 

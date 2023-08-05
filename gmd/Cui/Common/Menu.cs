@@ -186,7 +186,7 @@ class Menu
             }
             else
             {   // Adjust original x position
-                viewX = viewX - viewWidth;
+                viewX -= viewWidth;
             }
         }
         viewX = Math.Max(0, viewX);
@@ -314,7 +314,7 @@ class Menu
     }
 
 
-    void OnClick(int x, int y)
+    void OnClick(int _, int y)
     {
         itemsView.SetIndexAtViewY(y);
         if (CurrentItem.IsDisabled)

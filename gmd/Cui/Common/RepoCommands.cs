@@ -246,7 +246,7 @@ class RepoCommands : IRepoCommands
     {
         var totalCount = 0;
         if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
-        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count();
+        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count;
 
         if (totalCount > 20)
         {
@@ -322,7 +322,7 @@ class RepoCommands : IRepoCommands
         var failedPath = new List<string>();
         foreach (var path in paths)
         {
-            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, RepoPath)))
+            if (!Try(out var _, await server.UndoUncommittedFileAsync(path, RepoPath)))
             {
                 failedPath.Add(path);
             }
@@ -516,9 +516,7 @@ class RepoCommands : IRepoCommands
 
         if (isSwitchOrder)
         {
-            var sh = sha1;
-            sha1 = sha2;
-            sha2 = sh;
+            (sha2, sha1) = (sha1, sha2);
             message = $"Diff '{branch.NiceName}' with '{repo.CurrentBranch.NiceName}'";
         }
         else
