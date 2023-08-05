@@ -158,9 +158,9 @@ partial class MainView : IMainView
     {
         var releases = states.Get().Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg = $"A new release is available:\n" +
+        string msg = $"A new release is available.\n" +
+            $"Current Version: {Build.Version()} {Build.Time().Iso()}\n\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"\nCurrent Version: {Build.Version()}\n\n" +
             "Do you want to update?";
 
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });

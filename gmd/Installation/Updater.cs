@@ -135,12 +135,12 @@ class Updater : IUpdater
             {
                 if (Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()) && isAvailable.Item1)
                 {
-                    if (Try(out var update, out e, await UpdateAsync()))
+                    if (Try(out var updatedVersion, out e, await UpdateAsync()))
                     {
                         UI.Post(() =>
                         {
                             UI.InfoMessage("Restart for New Version ",
-                                $"Gmd has been updated to: {update}\n" +
+                                $"Gmd has been updated to: {updatedVersion}\n" +
                                 "and the new version will run at next starts.\n\n" +
                                 "Restart gmd if you want to run the updated version now.");
                         });
