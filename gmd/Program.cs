@@ -13,10 +13,10 @@ class Program
     public const int MajorVersion = 0;
     public const int MinorVersion = 90;
 
-    private static DependencyInjection dependencyInjection = new DependencyInjection();
-    private readonly IMainView mainView;
-    private readonly IGit git;
-    private readonly IState state;
+    static readonly DependencyInjection dependencyInjection = new DependencyInjection();
+    readonly IMainView mainView;
+    readonly IGit git;
+    readonly IState state;
 
 
     static async Task<int> Main(string[] args)
@@ -47,7 +47,7 @@ class Program
         return 0;
     }
 
-    internal Program(IMainView mainView, IGit git, IServer server, IState state)
+    internal Program(IMainView mainView, IGit git, IState state)
     {
         this.mainView = mainView;
         this.git = git;
