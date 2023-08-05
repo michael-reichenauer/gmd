@@ -92,10 +92,7 @@ class GraphCreater : IGraphCreater
             for (int y = b.TipIndex; y <= b.BottomIndex; y++)
             {
                 var c = repo.Commits[y];
-                if (c.Sid == "652206")
-                {
 
-                }
                 if (c.IsAmbiguous && c.BranchName == b.B.Name)
                 {
                     isAmbiguous = true;

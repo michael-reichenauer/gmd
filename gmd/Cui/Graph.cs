@@ -5,14 +5,15 @@ namespace gmd.Cui;
 
 class Graph
 {
-    GraphRow[] rows;
-    int rowColumnsLength;
+    readonly GraphRow[] rows;
+    readonly int rowColumnsLength;
     bool hasMoreConnectColumn = false;
 
     readonly IReadOnlyList<GraphBranch> branches;
 
     public bool HasMore => hasMoreConnectColumn;
     public int RowLength => hasMoreConnectColumn ? rowColumnsLength : rowColumnsLength - 1;
+
     public int Width => hasMoreConnectColumn ? RowLength * 2 - 1 : RowLength * 2;
 
     public Graph(int maxBranchX, int height, IReadOnlyList<GraphBranch> branches)

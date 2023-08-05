@@ -41,10 +41,7 @@ class RepoWriter : IRepoWriter
         var crb = repo.Branch(crc.BranchName);
         var isUncommitted = !repo.Status.IsOk;
         var isBranchDetached = crb.IsDetached;
-        var highlightIndex = hooverIndex == -1 ? currentIndex : hooverIndex;
-
         Columns cw = ColumnWidths(repo, width);
-        var graphColumns = repo.Graph.RowLength;
 
         // Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)

@@ -82,6 +82,7 @@ partial class MainView : IMainView
         // path = "/workspaces/kal kl/gmd-3";
         // path = "/workspaces/gmd-1";  
         // path = "/workspaces/vscode";
+        // path = "/workspaces/Dependinator-1";
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
@@ -136,6 +137,7 @@ partial class MainView : IMainView
             .Items(GetRecentRepoItems())
             .Separator()
             .Item("Browse ...", "", () => ShowBrowseDialog())
+            .Item("Clone ...", "", () => ShowCloneDlg())
             .Item("Help ...", "", () => ShowHelp())
             .Item("About ...", "", () => ShowAbout())
             .Item("Quit", "Esc ", () => Application.RequestStop()));
@@ -227,7 +229,7 @@ partial class MainView : IMainView
         });
     }
 
-    async void Clone()
+    async void ShowCloneDlg()
     {
         // Parent folders to recent work folders, usually other repos there as well
         var recentParentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();

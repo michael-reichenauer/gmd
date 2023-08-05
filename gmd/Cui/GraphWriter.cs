@@ -13,7 +13,7 @@ class GraphWriter : IGraphWriter
     {
         var text = new TextBuilder();
         var row = graph.GetRow(index);
-        int rowLength = Math.Min(graph.RowLength, maxWidth / 2);
+        int rowLength = Math.Min(graph.RowLength, (maxWidth + 1) / 2);  // +1 to ensure /2 get correct column length
         for (int i = 0; i < rowLength; i++)
         {
             // Colors
