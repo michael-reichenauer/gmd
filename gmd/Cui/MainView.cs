@@ -26,7 +26,7 @@ partial class MainView : IMainView
     readonly IUpdater updater;
     readonly Lazy<View> toplevel;
 
-    MainView(
+    public MainView(
         IRepoView repoView,
         IGit git,
         IState states,
@@ -58,8 +58,7 @@ partial class MainView : IMainView
         Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialog;
         Terminal.Gui.Colors.Menu = ColorSchemes.Menu;
 
-        var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
-        mainView.ColorScheme = ColorSchemes.Window;
+        var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), ColorScheme = ColorSchemes.Window };
 
         mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView);
         repoView.View.SetFocus();
@@ -99,7 +98,7 @@ partial class MainView : IMainView
         ShowRepo(rootPath);
     }
 
-    string GetWorkingFolder()
+    static string GetWorkingFolder()
     {
         var path = "";
         var args = Environment.GetCommandLineArgs();
@@ -158,9 +157,11 @@ partial class MainView : IMainView
     {
         var releases = states.Get().Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg = $"A new release is available.\n" +
-            $"Current Version: {Build.Version()} {Build.Time().Iso()}\n\n" +
+        string msg = $"A new release is available.\n\n" +
+            $"Current Version: {Build.Version()}\n" +
+            $"Built:           {Build.Time().Iso()}\n\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
+            $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
             "Do you want to update?";
 
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
@@ -186,8 +187,7 @@ partial class MainView : IMainView
         Application.RequestStop();
     }
 
-
-    void OnCancelMenu()
+    static void OnCancelMenu()
     {
         Log.Info("Cancel menu");
         Application.RequestStop();
@@ -271,7 +271,7 @@ partial class MainView : IMainView
     // A workaround to get notifications once view is ready
     class MainViewWrapper : Toplevel
     {
-        Action ready;
+        readonly Action ready;
         bool hasCalledReady;
 
         public MainViewWrapper(Action ready)

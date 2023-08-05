@@ -88,7 +88,6 @@ class RepoCommands : IRepoCommands
 {
     readonly IServer server;
     readonly IProgress progress;
-    readonly IFilterDlg filterDlg;
     readonly ICommitDlg commitDlg;
     readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
@@ -116,7 +115,6 @@ class RepoCommands : IRepoCommands
         IRepoView repoView,
         IServer server,
         IProgress progress,
-        IFilterDlg filterDlg,
         ICommitDlg commitDlg,
         ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
@@ -137,7 +135,6 @@ class RepoCommands : IRepoCommands
         this.repoView = repoView;
         this.server = server;
         this.progress = progress;
-        this.filterDlg = filterDlg;
         this.commitDlg = commitDlg;
         this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
@@ -912,10 +909,13 @@ class RepoCommands : IRepoCommands
 
         var releases = states.Get().Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg = $"A new release is available:\n" +
+        string msg = $"A new release is available.\n\n" +
+            $"Current Version: {Build.Version()}\n" +
+            $"Built:           {Build.Time().Iso()}\n\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"\nCurrent Version: {Build.Version()}\n\n" +
+            $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
             "Do you want to update?";
+
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
         if (button != 0)
         {
