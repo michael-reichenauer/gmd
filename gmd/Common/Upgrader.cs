@@ -5,7 +5,7 @@ namespace gmd.Common;
 // cSpell:ignore gmdconfig
 class Upgrader
 {
-    internal void UpgradeData()
+    internal static void UpgradeData()
     {
         string oldStatePath = Path.Join(Environment.GetFolderPath(
             SpecialFolder.UserProfile), ".gmdstate.json");

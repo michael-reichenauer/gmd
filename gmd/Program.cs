@@ -25,7 +25,7 @@ class Program
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
         // Upgrade data if needed
-        new Upgrader().UpgradeData();
+        Upgrader.UpgradeData();
 
         // Setup dependency injection by registering all types in this assembly
         dependencyInjection.RegisterAllAssemblyTypes();
