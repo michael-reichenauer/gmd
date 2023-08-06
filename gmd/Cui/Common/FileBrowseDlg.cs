@@ -73,8 +73,7 @@ public class FileBrowseDlg
             .ToList();
     }
 
-
-    void SetCustomColors(TreeView<ITreeNode> treeView)
+    static void SetCustomColors(TreeView<ITreeNode> treeView)
     {
         var scheme = new ColorScheme
         {
@@ -85,7 +84,7 @@ public class FileBrowseDlg
         treeView.ColorGetter = m => scheme;
     }
 
-    private void SetupScrollBar(TreeView<ITreeNode> treeView)
+    private static void SetupScrollBar(TreeView<ITreeNode> treeView)
     {
         // When using scroll bar leave the last row of the control free (for over-rendering with scroll bar)
         treeView.Style.LeaveLastRow = true;

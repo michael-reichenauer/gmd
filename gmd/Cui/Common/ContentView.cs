@@ -21,7 +21,7 @@ class ContentView : View
     const int topBorderHeight = 1;
     const int cursorWidth = 1;
     const int verticalScrollbarWidth = 1;
-    const int contentXMargin = cursorWidth + verticalScrollbarWidth;
+
     readonly bool isMoveUpDownWrap = false;  // Not used yet
     readonly IReadOnlyList<Text>? contentRows;
 
@@ -396,7 +396,7 @@ class ContentView : View
         Move(1);
     }
 
-    void MouseDrag(MouseEvent ev, bool isShift)
+    void MouseDrag(MouseEvent ev, bool _)
     {
         var x = ev.X;
         var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);

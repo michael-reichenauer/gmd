@@ -21,5 +21,6 @@
     "Unresolve",
     "Upgrader",
     "ustring"
-  ]
+  ],
+  "dotnet.defaultSolution": "gmd.sln"
 }

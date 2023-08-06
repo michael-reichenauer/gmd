@@ -9,13 +9,13 @@ interface IRepo
 {
     IRepoCommands Cmd { get; }
 
-    Server.Repo Repo { get; }
+    Repo Repo { get; }
     string RepoPath { get; }
-    Server.Status Status { get; }
-    IReadOnlyList<Server.Branch> Branches { get; }
-    IReadOnlyList<Server.Commit> Commits { get; }
-    Server.Branch Branch(string branchName);
-    Server.Commit Commit(string commitId);
+    Status Status { get; }
+    IReadOnlyList<Branch> Branches { get; }
+    IReadOnlyList<Commit> Commits { get; }
+    Branch Branch(string branchName);
+    Commit Commit(string commitId);
 
     Graph Graph { get; }
 
@@ -23,31 +23,31 @@ interface IRepo
     int CurrentIndex { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
-    Server.Commit RowCommit { get; }
-    Server.Branch RowBranch { get; }
-    Server.Branch? CurrentBranch { get; }
+    Commit RowCommit { get; }
+    Branch RowBranch { get; }
+    Branch? CurrentBranch { get; }
 
-    IReadOnlyList<Server.Branch> GetAllBranches();
-    Server.Commit GetCommit(string id);
-    Server.Branch GetCurrentBranch();
-    Server.Commit GetCurrentCommit();
-    IReadOnlyList<Server.Branch> GetCommitBranches();
+    IReadOnlyList<Branch> GetAllBranches();
+    Commit GetCommit(string id);
+    Branch GetCurrentBranch();
+    Commit GetCurrentCommit();
+    IReadOnlyList<Branch> GetCommitBranches();
     Task<R<IReadOnlyList<string>>> GetFilesAsync();
     IReadOnlyList<string> GetUncommittedFiles();
-    Server.Branch AllBranchByName(string name);
+    Branch AllBranchByName(string name);
 }
 
 class RepoImpl : IRepo
 {
     readonly IRepoView repoView;
-    readonly Server.IServer server;
+    readonly IServer server;
     readonly IRepoCommands repoCommands;
-    readonly Server.Repo serverRepo;
+    readonly Repo serverRepo;
 
     internal RepoImpl(
         IRepoView repoView,
-        Server.Repo serverRepo,
-        Func<IRepo, Server.Repo, IRepoView, IRepoCommands> newRepoCommands,
+        Repo serverRepo,
+        Func<IRepo, Repo, IRepoView, IRepoCommands> newRepoCommands,
         IGraphCreater graphService,
         Server.IServer server)
     {
@@ -60,18 +60,18 @@ class RepoImpl : IRepo
 
     public IRepoCommands Cmd => repoCommands;
 
-    public Server.Repo Repo => serverRepo;
+    public Repo Repo => serverRepo;
     public string RepoPath => serverRepo.Path;
-    public Server.Status Status => serverRepo.Status;
-    public IReadOnlyList<Server.Branch> Branches => serverRepo.Branches;
-    public IReadOnlyList<Server.Commit> Commits => serverRepo.Commits;
-    public Server.Branch Branch(string branchName) => serverRepo.BranchByName[branchName];
-    public Server.Commit Commit(string commitId) => serverRepo.CommitById[commitId];
+    public Status Status => serverRepo.Status;
+    public IReadOnlyList<Branch> Branches => serverRepo.Branches;
+    public IReadOnlyList<Commit> Commits => serverRepo.Commits;
+    public Branch Branch(string branchName) => serverRepo.BranchByName[branchName];
+    public Commit Commit(string commitId) => serverRepo.CommitById[commitId];
 
-    public Server.Commit RowCommit => Commits[CurrentIndex];
-    public Server.Branch RowBranch => Branch(RowCommit.BranchName);
-    public Server.Branch? CurrentBranch => Branches.FirstOrDefault(b => b.IsCurrent);
-    public Server.Branch AllBranchByName(string name) => server.AllBranchByName(Repo, name);
+    public Commit RowCommit => Commits[CurrentIndex];
+    public Branch RowBranch => Branch(RowCommit.BranchName);
+    public Branch? CurrentBranch => Branches.FirstOrDefault(b => b.IsCurrent);
+    public Branch AllBranchByName(string name) => server.AllBranchByName(Repo, name);
 
     public Graph Graph { get; init; }
 
@@ -87,11 +87,11 @@ class RepoImpl : IRepo
         return await server.GetFileAsync(reference, RepoPath);
     }
 
-    public Server.Branch GetCurrentBranch() => GetAllBranches().First(b => b.IsCurrent);
-    public Server.Commit GetCurrentCommit() => GetCommit(GetCurrentBranch().TipId);
+    public Branch GetCurrentBranch() => GetAllBranches().First(b => b.IsCurrent);
+    public Commit GetCurrentCommit() => GetCommit(GetCurrentBranch().TipId);
 
-    public IReadOnlyList<Server.Branch> GetAllBranches() => server.GetAllBranches(Repo);
-    public Server.Commit GetCommit(string commitId)
+    public IReadOnlyList<Branch> GetAllBranches() => server.GetAllBranches(Repo);
+    public Commit GetCommit(string commitId)
     {
         if (Repo.CommitById.TryGetValue(commitId, out var commit))
         {
@@ -101,7 +101,7 @@ class RepoImpl : IRepo
         return server.GetCommit(Repo, commitId); ;
     }
 
-    public IReadOnlyList<Server.Branch> GetCommitBranches() =>
+    public IReadOnlyList<Branch> GetCommitBranches() =>
         server.GetCommitBranches(Repo, RowCommit.Id);
 
     public IReadOnlyList<string> GetUncommittedFiles() =>

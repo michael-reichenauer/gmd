@@ -37,11 +37,10 @@ class ApplicationBar : View, IApplicationBar
     readonly IBranchColorService branchColorService;
     readonly IState state;
 
-    UILabel label;
-    string currentBranchName = "";
+    readonly UILabel label;
+    readonly List<Text> items = new List<Text>();
     GraphBranch branch = null!;
     Rect bounds = Rect.Empty;
-    List<Text> items = new List<Text>();
 
     public View View => this;
 
@@ -65,7 +64,7 @@ class ApplicationBar : View, IApplicationBar
         bounds = Frame;
 
         // Initialize some text values 
-        Enumerable.Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Count())
+        Enumerable.Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Length)
             .ForEach(i => items.Add(Common.Text.Empty));
         items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta(" Gmd ");
         items[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
@@ -166,10 +165,10 @@ class ApplicationBar : View, IApplicationBar
         return Common.Text.White(space);
     }
 
-    Text GetRepoPath(Server.Repo repo)
+    static Text GetRepoPath(Server.Repo repo)
     {
         var path = repo.Path.Length <= maxRepoLength ? repo.Path
-            : "┅" + repo.Path.Substring(repo.Path.Length - maxRepoLength);
+            : $"┅{repo.Path[^maxRepoLength..]}";
         return Common.Text.Dark($"{path}, ");
     }
 
@@ -184,14 +183,12 @@ class ApplicationBar : View, IApplicationBar
         {   // Current branch is shown
             var color = branchColorService.GetColor(repo, currentBranch);
             items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, currentBranch.NiceNameUnique);
-            currentBranchName = currentBranch.NiceNameUnique;
         }
         else
         {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
             var cb = repo.AugmentedRepo.Branches.Values.First(b => b.IsCurrent);
             var color = branchColorService.GetColorByBranchName(repo, cb.PrimaryBaseName);
             items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, cb.NiceNameUnique);
-            currentBranchName = cb.NiceNameUnique;
         }
     }
 }

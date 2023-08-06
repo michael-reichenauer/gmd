@@ -5,14 +5,15 @@ namespace gmd.Cui;
 
 class Graph
 {
-    GraphRow[] rows;
-    int rowColumnsLength;
+    readonly GraphRow[] rows;
+    readonly int rowColumnsLength;
     bool hasMoreConnectColumn = false;
 
     readonly IReadOnlyList<GraphBranch> branches;
 
     public bool HasMore => hasMoreConnectColumn;
     public int RowLength => hasMoreConnectColumn ? rowColumnsLength : rowColumnsLength - 1;
+
     public int Width => hasMoreConnectColumn ? RowLength * 2 - 1 : RowLength * 2;
 
     public Graph(int maxBranchX, int height, IReadOnlyList<GraphBranch> branches)
@@ -64,7 +65,7 @@ class Graph
         return branches.Where(b => IsOverlapping(b, branch)).ToList();
     }
 
-    bool IsOverlapping(GraphBranch b1, GraphBranch b2)
+    static bool IsOverlapping(GraphBranch b1, GraphBranch b2)
     {
         int margin = 0;
 
@@ -122,10 +123,10 @@ class Graph
         rows[y].SetBranch(x, sign, color, branch);
 
     void SetGraphBranchPass(int x, int y, Sign sign, Color color) =>
-        rows[y].SetGraphBranchPass(x, y, sign, color);
+        rows[y].SetGraphBranchPass(x, sign, color);
 
     void SetGraphPass(int x, int y, Sign sign, Color color) =>
-        rows[y].SetGraphPass(x, y, sign, color);
+        rows[y].SetGraphPass(x, sign, color);
 }
 
 
@@ -159,12 +160,12 @@ class GraphRow
         columns[x].SetBranch(sign, color, branch);
     }
 
-    internal void SetGraphBranchPass(int x, int y, Sign sign, Color color)
+    internal void SetGraphBranchPass(int x, Sign sign, Color color)
     {
         columns[x].SetGraphBranchPass(sign, color);
     }
 
-    internal void SetGraphPass(int x, int y, Sign sign, Color color)
+    internal void SetGraphPass(int x, Sign sign, Color color)
     {
         columns[x].SetGraphPass(sign, color);
     }
@@ -234,6 +235,8 @@ class GraphBranch
     internal int X { get; set; } = 0;
     internal int TipIndex { get; set; }
     internal int BottomIndex { get; set; }
+    public int HighIndex { get; internal set; }
+    public int LowIndex { get; internal set; }
     internal GraphBranch? ParentBranch { get; set; }
     internal Color Color { get; set; } = Color.Black;
 

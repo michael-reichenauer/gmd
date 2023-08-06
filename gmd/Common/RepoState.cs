@@ -33,5 +33,5 @@ class RepoStateImpl : IRepoState
 
     public void Set(string path, Action<RepoState> set) => store.Set(RepoPath(path), set);
 
-    string RepoPath(string path) => Path.Join(path, ".git", FileName);
+    static string RepoPath(string path) => Path.Join(path, ".git", FileName);
 }

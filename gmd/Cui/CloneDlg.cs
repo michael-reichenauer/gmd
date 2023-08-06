@@ -1,6 +1,4 @@
-using gmd.Common;
 using gmd.Cui.Common;
-using Terminal.Gui;
 
 namespace gmd.Cui;
 
@@ -36,7 +34,7 @@ class CloneDlg : ICloneDlg
         {
             FolderBrowseDlg browseDlg = new FolderBrowseDlg();
             if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "") return;
-            SetBrowsedPath(basePath, uri.Text, path);
+            SetBrowsedPath(uri.Text, path);
         });
 
         dlg.Validate(() => uri.Text != "", "Empty uri is not allowed");
@@ -60,13 +58,13 @@ class CloneDlg : ICloneDlg
 
 
     // Update path after user has browsed target folders
-    void SetBrowsedPath(string basePath, string uri, string path)
+    void SetBrowsedPath(string uri, string path)
     {
         path = path.Trim();
 
         if (!Try(out var name, TryParseRepoName(uri))) return;
 
-        basePath = path + Path.DirectorySeparatorChar;
+        string basePath = path + Path.DirectorySeparatorChar;
 
         UpdatePathField(basePath, name);
     }
@@ -94,14 +92,10 @@ class CloneDlg : ICloneDlg
     // Try to extract git repo name
     static R<string> TryParseRepoName(string uri)
     {
-        var name = "";
-
         var i = uri.LastIndexOf('/');
         if (i == -1) return R.Error();
 
-        name = uri.Substring(i + 1).Trim().TrimSuffix(".git").Replace("%20", "");
-
-        return name;
+        return uri[(i + 1)..].Trim().TrimSuffix(".git").Replace("%20", "");
     }
 }
 

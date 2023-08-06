@@ -48,7 +48,7 @@ namespace gmd.Utils.GlobPatterns
         {
             this._currentKind = this.ScanToken();
 
-            var spelling = _source.Substring(_startIndex, _sourceIndex - _startIndex);
+            var spelling = _source[_startIndex.._sourceIndex];
 
             _startIndex = _sourceIndex;
 
@@ -74,7 +74,7 @@ namespace gmd.Utils.GlobPatterns
                 return TakeIdentifier();
             }
 
-            if (IsNumeric(current) || current == '_' || current == '$' || current == '~' || current == ' ')
+            if (IsNumeric(current) || current == '_' || current == '$' || current == '~' || current == '(' || current == ')' || current == ' ')
             {
                 return TakeIdentifier();
             }
@@ -112,7 +112,7 @@ namespace gmd.Utils.GlobPatterns
 
                 case ',':
                     this.TakeIt();
-                    return TokenKind.LiteralSetSeperator;
+                    return TokenKind.LiteralSetSeparator;
 
                 case '}':
                     this.TakeIt();
@@ -139,7 +139,7 @@ namespace gmd.Utils.GlobPatterns
             return TokenKind.Identifier;
         }
 
-        private static bool IsIdentifierCharacter(char c) => char.IsLetter(c) || IsNumeric(c) || c == '_' || c == '$' || c == '~' || c == ' ';
+        private static bool IsIdentifierCharacter(char c) => char.IsLetter(c) || IsNumeric(c) || c == '_' || c == '$' || c == '~' || c == '(' || c == ')' || c == ' ';
 
         private static bool IsNumeric(char c) => char.IsDigit(c) || c == '.' || c == '-';
     }

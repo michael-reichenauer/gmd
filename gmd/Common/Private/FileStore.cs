@@ -14,7 +14,7 @@ interface IFileStore
 class FileStore : IFileStore
 {
     readonly JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
-    Dictionary<string, object> cache = new Dictionary<string, object>();
+    readonly Dictionary<string, object> cache = new Dictionary<string, object>();
 
     public T Get<T>(string path) => Read<T>(path);
 
@@ -56,12 +56,7 @@ class FileStore : IFileStore
             }
 
             if (!Try(out var json, out var e, () => File.ReadAllText(path))) throw Asserter.FailFast(e.ErrorMessage);
-            var state = JsonSerializer.Deserialize<T>(json);
-            if (state == null)
-            {
-                throw Asserter.FailFast($"Failed to deserialize '{path}'");
-            }
-
+            var state = JsonSerializer.Deserialize<T>(json) ?? throw Asserter.FailFast($"Failed to deserialize '{path}'");
             cache[path] = state;
             return state;
         }

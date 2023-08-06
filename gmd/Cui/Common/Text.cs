@@ -125,13 +125,13 @@ class Text
 
             if (x < startIndex)
             {
-                text = text.Substring(startIndex - x);
-                x += (startIndex - x);
+                text = text[(startIndex - x)..];
+                x += startIndex - x;
             }
 
             if (x + text.Length >= (startIndex + length))
             {
-                text = text.Substring(0, ((startIndex + length) - x));
+                text = text[..(startIndex + length - x)];
             }
 
             if (text == "")
@@ -180,13 +180,13 @@ class Text
 
             if (x < startIndex)
             {
-                text = text.Substring(startIndex - x);
-                x += (startIndex - x);
+                text = text[(startIndex - x)..];
+                x += startIndex - x;
             }
 
             if (x + text.Length >= (startIndex + length))
             {
-                text = text.Substring(0, ((startIndex + length) - x));
+                text = text[..(startIndex + length - x)];
             }
 
             if (text == "")

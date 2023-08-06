@@ -44,7 +44,7 @@ public class FolderBrowseDlg
         return selectedPath;
     }
 
-    private void ItemSelected(ObjectActivatedEventArgs<FileSystemInfo> obj)
+    void ItemSelected(ObjectActivatedEventArgs<FileSystemInfo> obj)
     {
         var item = obj.ActivatedObject;
         if (item is DirectoryInfo dir)
@@ -55,7 +55,7 @@ public class FolderBrowseDlg
         Application.RequestStop();
     }
 
-    void SetCustomColors(TreeView<FileSystemInfo> treeView)
+    static void SetCustomColors(TreeView<FileSystemInfo> treeView)
     {
         var yellow = new ColorScheme
         {
@@ -66,7 +66,7 @@ public class FolderBrowseDlg
         treeView.ColorGetter = m => m is DirectoryInfo ? yellow : null;
     }
 
-    private void SetupScrollBar(TreeView<FileSystemInfo> treeView)
+    static void SetupScrollBar(TreeView<FileSystemInfo> treeView)
     {
         // When using scroll bar leave the last row of the control free (for over-rendering with scroll bar)
         treeView.Style.LeaveLastRow = true;
@@ -103,9 +103,9 @@ public class FolderBrowseDlg
         };
     }
 
-    private void SetupFileTree(
-        TreeView<FileSystemInfo> treeView,
-        IReadOnlyList<string> recentFolders)
+    void SetupFileTree(
+       TreeView<FileSystemInfo> treeView,
+       IReadOnlyList<string> recentFolders)
     {
         treeView.TreeBuilder = new DelegateTreeBuilder<FileSystemInfo>(GetChildren, HasChildren);
         treeView.AspectGetter = GetName;
@@ -121,7 +121,7 @@ public class FolderBrowseDlg
         treeView.AddObjects(roots);
     }
 
-    private DirectoryInfo? GetDirInfo(string path)
+    static DirectoryInfo? GetDirInfo(string path)
     {
         try
         {
@@ -155,7 +155,7 @@ public class FolderBrowseDlg
             try
             {
                 return directoryInfo.EnumerateDirectories()
-                    .Where(f => f is DirectoryInfo)
+                    .Where(f => f is not null)
                     .OrderBy(f => f.Name);
             }
             catch (SystemException)
@@ -200,8 +200,8 @@ public abstract class TreeBuilder<T> : ITreeBuilder<T>
 
 public class DelegateTreeBuilder<T> : TreeBuilder<T>
 {
-    Func<T, IEnumerable<T>> childGetter;
-    Func<T, bool> canExpand;
+    readonly Func<T, IEnumerable<T>> childGetter;
+    readonly Func<T, bool> canExpand;
 
     public DelegateTreeBuilder(Func<T, IEnumerable<T>> childGetter, Func<T, bool> canExpand)
         : base(true)

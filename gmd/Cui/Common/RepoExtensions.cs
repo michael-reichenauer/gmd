@@ -12,7 +12,7 @@ static class RepoExtensions
         var name = branch.NiceNameUnique;
         if (name.Length > maxTipNameLength)
         {   // Branch name to long, shorten it
-            name = "┅" + name.Substring(name.Length - maxTipNameLength);
+            name = $"┅{name[^maxTipNameLength..]}";
         }
         return name;
     }

@@ -5,10 +5,12 @@ using Terminal.Gui;
 
 namespace gmd.Cui.Diff;
 
+enum DiffResult { None, Commit, Refresh }
+
 interface IDiffView
 {
-    bool Show(Server.CommitDiff diff, string commitId, string repoPath);
-    void Show(Server.CommitDiff[] diffs);
+    DiffResult Show(CommitDiff diff, string commitId, string repoPath);
+    void Show(CommitDiff[] diffs);
 }
 
 class DiffView : IDiffView
@@ -19,13 +21,15 @@ class DiffView : IDiffView
     private readonly IProgress progress;
     private readonly IServer server;
     ContentView contentView = null!;
-    Server.CommitDiff[] diffs = null!;
+    CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
     int rowStartX = 0;
     string commitId = "";
     string repoPath = "";
-    bool IsFocusLeft = true;
+    bool isFocusLeft = true;
     bool isCommitTriggered = false;
+    bool isRefreshNeeded;
+
     bool IsSelected => contentView.SelectCount > 0;
 
     public DiffView(IDiffService diffService, IProgress progress, IServer server)
@@ -36,18 +40,19 @@ class DiffView : IDiffView
     }
 
 
-    public bool Show(Server.CommitDiff diff, string commitId, string repoPath) => Show(new[] { diff }, commitId, repoPath);
+    public DiffResult Show(CommitDiff diff, string commitId, string repoPath) => Show(new[] { diff }, commitId, repoPath);
 
-    public void Show(Server.CommitDiff[] diff) => Show(diff, "", "");
+    public void Show(CommitDiff[] diff) => Show(diff, "", "");
 
-    bool Show(Server.CommitDiff[] diffs, string commitId, string repoPath)
+    DiffResult Show(CommitDiff[] diffs, string commitId, string repoPath)
     {
         this.diffs = diffs;
         this.rowStartX = 0;
         this.commitId = commitId;
         this.repoPath = repoPath;
-        this.IsFocusLeft = true;
+        this.isFocusLeft = true;
         this.isCommitTriggered = false;
+        this.isRefreshNeeded = false;
         this.diffRows = diffService.ToDiffRows(diffs);
 
         Toplevel diffView = new Toplevel() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
@@ -68,7 +73,7 @@ class DiffView : IDiffView
 
         contentView.SetNeedsDisplay();
         UI.RunDialog(diffView);
-        return isCommitTriggered;
+        return isCommitTriggered ? DiffResult.Commit : isRefreshNeeded ? DiffResult.Refresh : DiffResult.None;
     }
 
 
@@ -96,8 +101,8 @@ class DiffView : IDiffView
     {
         // Switch focus sides if clicking on other side
         int columnWidth = (contentView.ContentWidth - 2) / 2;
-        if (x > columnWidth && IsFocusLeft) IsFocusLeft = false;
-        if (x < columnWidth && !IsFocusLeft) IsFocusLeft = true;
+        if (x > columnWidth && isFocusLeft) isFocusLeft = false;
+        if (x < columnWidth && !isFocusLeft) isFocusLeft = true;
 
         contentView.SetIndexAtViewY(y);
 
@@ -246,15 +251,16 @@ class DiffView : IDiffView
             diffRows = diffService.ToDiffRows(diff!);
             contentView.SetNeedsDisplay();
         }
+        isRefreshNeeded = true;
     }
 
 
     // Move both sides in view left, or select left side text if text is selected
     void OnMoveLeft()
     {
-        if (!IsFocusLeft)
+        if (!isFocusLeft)
         {   // Text is selected, lets move selection from right to left side
-            IsFocusLeft = true;
+            isFocusLeft = true;
             contentView.SetNeedsDisplay();
             return;
         }
@@ -271,9 +277,9 @@ class DiffView : IDiffView
     // Move both sides in view right, or select right side text if text is selected
     void OnMoveRight()
     {
-        if (IsFocusLeft)
+        if (isFocusLeft)
         {   // Text is selected, lets move selection from left to right side
-            IsFocusLeft = false;
+            isFocusLeft = false;
             contentView.SetNeedsDisplay();
             return;
         }
@@ -290,7 +296,7 @@ class DiffView : IDiffView
     // Returns the content for the view
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
-        contentWidth = contentWidth + 1;
+        contentWidth++;
         int columnWidth = (contentWidth - 2) / 2;
         int viewWidth = columnWidth * 2 + 1;
 
@@ -327,9 +333,9 @@ class DiffView : IDiffView
             row.Right.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         return Text
-            .Add(isSelectedRow && IsFocusLeft ? left.ToSelect() : isCurrentRow && IsFocusLeft ? left.ToHighlight() : left)
+            .Add(isSelectedRow && isFocusLeft ? left.ToSelect() : isCurrentRow && isFocusLeft ? left.ToHighlight() : left)
             .Add(splitLineChar)
-            .Add(isSelectedRow && !IsFocusLeft ? right.ToSelect() : isCurrentRow && !IsFocusLeft ? right.ToHighlight() : right);
+            .Add(isSelectedRow && !isFocusLeft ? right.ToSelect() : isCurrentRow && !isFocusLeft ? right.ToHighlight() : right);
     }
 
 
@@ -343,10 +349,10 @@ class DiffView : IDiffView
         // Convert left or right rows to text, remove empty lines and line numbers
         var text = string.Join("\n", rows
             .Where(r => r.Mode != DiffRowMode.DividerLine)
-            .Select(r => IsFocusLeft || r.Mode != DiffRowMode.SideBySide ? r.Left : r.Right)
+            .Select(r => isFocusLeft || r.Mode != DiffRowMode.SideBySide ? r.Left : r.Right)
             .Where(l => l != DiffService.NoLine)
             .Select(l => l.ToString())
-            .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t.Substring(5) : t)
+            .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t[5..] : t)
         );
 
         if (!Try(out var e, Utils.Clipboard.Set(text)))

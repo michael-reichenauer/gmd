@@ -26,7 +26,7 @@ partial class MainView : IMainView
     readonly IUpdater updater;
     readonly Lazy<View> toplevel;
 
-    MainView(
+    public MainView(
         IRepoView repoView,
         IGit git,
         IState states,
@@ -54,12 +54,11 @@ partial class MainView : IMainView
     View CreateView()
     {
         // Adjust some global color schemes
-        Terminal.Gui.Colors.Dialog = ColorSchemes.Dialog;
-        Terminal.Gui.Colors.Error = ColorSchemes.ErrorDialog;
-        Terminal.Gui.Colors.Menu = ColorSchemes.Menu;
+        Colors.Dialog = ColorSchemes.Dialog;
+        Colors.Error = ColorSchemes.ErrorDialog;
+        Colors.Menu = ColorSchemes.Menu;
 
-        var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
-        mainView.ColorScheme = ColorSchemes.Window;
+        var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), ColorScheme = ColorSchemes.Window };
 
         mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView);
         repoView.View.SetFocus();
@@ -83,6 +82,7 @@ partial class MainView : IMainView
         // path = "/workspaces/kal kl/gmd-3";
         // path = "/workspaces/gmd-1";  
         // path = "/workspaces/vscode";
+        // path = "/workspaces/Dependinator-1";
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)))
         {
@@ -99,7 +99,7 @@ partial class MainView : IMainView
         ShowRepo(rootPath);
     }
 
-    string GetWorkingFolder()
+    static string GetWorkingFolder()
     {
         var path = "";
         var args = Environment.GetCommandLineArgs();
@@ -137,6 +137,7 @@ partial class MainView : IMainView
             .Items(GetRecentRepoItems())
             .Separator()
             .Item("Browse ...", "", () => ShowBrowseDialog())
+            .Item("Clone ...", "", () => ShowCloneDlg())
             .Item("Help ...", "", () => ShowHelp())
             .Item("About ...", "", () => ShowAbout())
             .Item("Quit", "Esc ", () => Application.RequestStop()));
@@ -158,9 +159,11 @@ partial class MainView : IMainView
     {
         var releases = states.Get().Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg = $"A new release is available:\n" +
+        string msg = $"A new release is available.\n\n" +
+            $"Current Version: {Build.Version()}\n" +
+            $"Built:           {Build.Time().Iso()}\n\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"\nCurrent Version: {Build.Version()}\n\n" +
+            $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
             "Do you want to update?";
 
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
@@ -186,8 +189,7 @@ partial class MainView : IMainView
         Application.RequestStop();
     }
 
-
-    void OnCancelMenu()
+    static void OnCancelMenu()
     {
         Log.Info("Cancel menu");
         Application.RequestStop();
@@ -227,7 +229,7 @@ partial class MainView : IMainView
         });
     }
 
-    async void Clone()
+    async void ShowCloneDlg()
     {
         // Parent folders to recent work folders, usually other repos there as well
         var recentParentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
@@ -271,7 +273,7 @@ partial class MainView : IMainView
     // A workaround to get notifications once view is ready
     class MainViewWrapper : Toplevel
     {
-        Action ready;
+        readonly Action ready;
         bool hasCalledReady;
 
         public MainViewWrapper(Action ready)
