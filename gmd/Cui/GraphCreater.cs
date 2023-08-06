@@ -44,7 +44,7 @@ class GraphCreater : IGraphCreater
         this.branchColorService = branchColorService;
     }
 
-    public Graph Create(Server.Repo repo)
+    public Graph Create(Repo repo)
     {
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
@@ -67,14 +67,14 @@ class GraphCreater : IGraphCreater
             return false;
         }
 
-        int top1 = b1.TipIndex;
-        int bottom1 = b1.BottomIndex;
-        int top2 = b2.TipIndex - margin;
-        int bottom2 = b2.BottomIndex + margin;
+        int high1 = b1.HighIndex;
+        int low1 = b1.LowIndex;
+        int high2 = b2.HighIndex - margin;
+        int low2 = b2.LowIndex + margin;
 
-        return (top2 >= top1 && top2 <= bottom1) ||
-            (bottom2 >= top1 && bottom2 <= bottom1) ||
-            (top2 <= top1 && bottom2 >= bottom1);
+        return (high2 >= high1 && high2 <= low1) ||
+            (low2 >= high1 && low2 <= low1) ||
+            (high2 <= high1 && low2 >= low1);
     }
 
 
@@ -362,18 +362,46 @@ class GraphCreater : IGraphCreater
 
 
     // Returns a list of branches, with Y location set for tip and bottom commits
-    static List<GraphBranch> ToGraphBranches(Server.Repo repo)
+    static List<GraphBranch> ToGraphBranches(Repo repo)
     {
         if (repo.Filter != "") return ToFilteredGraphBranches(repo);
 
         List<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
+        Dictionary<string, GraphBranch> branchMap = new Dictionary<string, GraphBranch>();
         foreach (var b in branches)
         {
+            branchMap[b.B.Name] = b;
             b.TipIndex = repo.CommitById[b.B.TipId].Index;
             b.BottomIndex = repo.CommitById[b.B.BottomId].Index;
+            b.HighIndex = b.TipIndex;
+            b.LowIndex = b.BottomIndex;
+
             if (b.B.ParentBranchName != "")
-            {
+            {   // Set parent branch
                 b.ParentBranch = branches.First(bb => bb.B.Name == b.B.ParentBranchName);
+            }
+        }
+
+        foreach (var c in repo.Commits)
+        {
+            // var branchName = c.BranchName;
+            // var branch = branchMap[branchName];
+            if (c.ParentIds.Count > 1)
+            {   // commit is a merge commit, lets check if its merge parent needs to adjust
+                if (repo.CommitById.TryGetValue(c.ParentIds[1], out var cp))
+                {
+                    var branch = branchMap[cp.BranchName];
+                    if (branch.HighIndex > c.Index) branch.HighIndex = c.Index;
+                    if (branch.LowIndex < c.Index) branch.LowIndex = c.Index;
+                }
+            }
+            if (c.ParentIds.Count == 1)
+            {
+                if (repo.CommitById.TryGetValue(c.ParentIds[0], out var cp) && cp.BranchName != c.BranchName)
+                {   // Commit is a bottom id
+                    var branch = branchMap[c.BranchName];
+                    if (branch.LowIndex < cp.Index) branch.LowIndex = cp.Index;
+                }
             }
         }
 

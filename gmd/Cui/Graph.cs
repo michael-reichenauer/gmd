@@ -235,6 +235,8 @@ class GraphBranch
     internal int X { get; set; } = 0;
     internal int TipIndex { get; set; }
     internal int BottomIndex { get; set; }
+    public int HighIndex { get; internal set; }
+    public int LowIndex { get; internal set; }
     internal GraphBranch? ParentBranch { get; set; }
     internal Color Color { get; set; } = Color.Black;
 
