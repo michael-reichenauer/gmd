@@ -118,11 +118,11 @@ class DiffService : IDiffService
         }
         rows.Add(text, fd.PathAfter);
 
-        fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
+        fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(fileDiff, sd, rows));
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
-    static void AddSectionDiff(SectionDiff sectionDiff, DiffRows rows)
+    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows)
     {
         rows.Add(Text.Empty);
         rows.AddLine(Text.Dark("─"));
@@ -165,6 +165,11 @@ class DiffService : IDiffService
                     {
                         rightBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
+                    else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
+                    {   // Whole file removed, use one column
+                        Text removeTxt = Text.Dark($"{leftNr,4}").Red(diffMargin + dl.Line);
+                        rows.Add(removeTxt);
+                    }
                     else
                     {
                         leftBlock.Add(leftNr, dl.Line, Color.Red);
@@ -181,6 +186,11 @@ class DiffService : IDiffService
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
                         rightBlock.Add(rightNr, dl.Line, Color.Yellow);
+                    }
+                    else if (fileDiff.DiffMode == DiffMode.DiffAdded)
+                    {   // Whole file added, use one column
+                        Text addTxt = Text.Dark($"{rightNr,4}").Green(diffMargin + dl.Line);
+                        rows.Add(addTxt);
                     }
                     else
                     {
