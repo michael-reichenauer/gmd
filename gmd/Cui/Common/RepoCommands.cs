@@ -69,7 +69,6 @@ interface IRepoCommands
     bool CanUncommitLastCommit();
 
     void ResolveAmbiguity(Server.Branch branch, string humanName);
-    void UndoSetBranch(string commitId);
     void SetBranchManuallyAsync();
     void MoveBranch(string commonName, string otherCommonName, int delta);
 
@@ -408,17 +407,6 @@ class RepoCommands : IRepoCommands
         if (!Try(out var e, await server.ResolveAmbiguityAsync(serverRepo, branch.Name, branchName)))
         {
             return R.Error($"Failed to resolve ambiguity", e);
-        }
-
-        Refresh();
-        return R.Ok;
-    });
-
-    public void UndoSetBranch(string commitId) => Do(async () =>
-    {
-        if (!Try(out var e, await server.UnresolveAmbiguityAsync(serverRepo, commitId)))
-        {
-            return R.Error($"Failed to unresolve ambiguity", e);
         }
 
         Refresh();
@@ -1040,20 +1028,32 @@ class RepoCommands : IRepoCommands
         var commit = repo.RowCommit;
         if (commit.IsUncommitted) return R.Error($"Not a valid commit");
 
+
         var branch = repo.Branch(commit.BranchName);
 
         var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
 
-        if (!Try(out var name, setBranchDlg.Show(commit.Sid, possibleBranches))) return R.Ok;
+        if (!Try(out var name, setBranchDlg.Show(commit.Sid, commit.IsBranchSetByUser, branch.NiceName, possibleBranches))) return R.Ok;
 
-        if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
+        if (name != "")
         {
-            return R.Error($"Failed to set branch name manually", e);
+            if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name ?? "")))
+            {
+                return R.Error($"Failed to set branch name manually", e);
+            }
+        }
+        else if (commit.IsBranchSetByUser)
+        {   // name is empty, lets unset name (if set)
+            if (!Try(out var ee, await server.UnresolveAmbiguityAsync(serverRepo, commit.Id)))
+            {
+                return R.Error($"Failed to unresolve ambiguity", ee);
+            }
         }
 
         Refresh();
         return R.Ok;
     });
+
 
 
     public void MoveBranch(string commonName, string otherCommonName, int delta) => Do(async () =>

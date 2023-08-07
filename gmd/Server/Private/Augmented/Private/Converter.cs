@@ -1,4 +1,3 @@
-
 using GitStatus = gmd.Git.Status;
 
 namespace gmd.Server.Private.Augmented.Private;
@@ -16,7 +15,7 @@ class Converter : IConverter
         return new Repo(
             workRepo.TimeStamp,
             workRepo.Path,
-            workRepo.Commits.Select((WorkCommit c, int index) => ToCommit(c, index)).ToList(),
+            workRepo.Commits.Select(ToCommit).ToList(),
             workRepo.Branches.Values.ToDictionary(b => b.Name, ToBranch),
             workRepo.Stashes.ToList(),
             workRepo.Status
@@ -31,7 +30,7 @@ class Converter : IConverter
             s.AddedFiles, s.DeletedFiles, s.ConflictsFiles, s.RenamedSourceFiles, s.RenamedTargetFiles);
     }
 
-    Commit ToCommit(WorkCommit c, int gitIndex)
+    static Commit ToCommit(WorkCommit c, int gitIndex)
     {
         return new Commit(
             Id: c.Id,
@@ -90,7 +89,7 @@ class Converter : IConverter
 
             HasAheadCommits: b.HasLocalOnly,
             HasBehindCommits: b.HasRemoteOnly,
-            AmbiguousTipId: b.AmbiguousTipId,
+            AmbiguousTipId: b.AmbiguousTip?.Id ?? "",
             RelatedBranchNames: b.RelatedBranches.Select(bb => bb.Name).ToList(),
             AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
             PullMergeBranchNames: b.PullMergeChildBranches.Select(bb => bb.Name).ToList(),
