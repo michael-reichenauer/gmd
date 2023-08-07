@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 interface ISetBranchDlg
 {
-    R<string> Show(string commitSid, IReadOnlyList<string> possibleBranches);
+    R<string> Show(string commitSid, bool isBranchSetByUser, string niceName, IReadOnlyList<string> possibleBranches);
 }
 
 
@@ -16,21 +16,22 @@ class SetBranchDlg : ISetBranchDlg
     IReadOnlyList<Text> itemTexts = new List<Text>();
 
 
-    public R<string> Show(string commitSid, IReadOnlyList<string> possibleBranches)
+    public R<string> Show(string commitSid, bool isBranchSetByUser, string niceName,
+        IReadOnlyList<string> possibleBranches)
     {
-        var x = 1;
-        var y = 3;
-        var w = 45;
-        var h = 10;
+        if (possibleBranches.Count == 0) return R.Error();
+
+        (var width, var height) = (50, 22);
+        (var x, var y, var w, var h) = (1, 5, width - 5, height - 12);
 
         items = possibleBranches;
         itemTexts = items.Select(item => item.Length > w - 1
-            ? Common.Text.Dark("…").White(item.Substring(item.Length - w - 1)).ToText()
-            : Common.Text.White(item.Max(w, true)).ToText()).ToList();
+            ? Text.Dark("…").White(item[(item.Length - w - 1)..]).ToText()
+            : Text.White(item.Max(w, true)).ToText()).ToList();
 
-        var dlg = new UIDialog($"Set Commit {commitSid} Branch Manually", 50, 20, null, o => o.Y = 0);
+        var dlg = new UIDialog($"Set Commit {commitSid} Branch Manually", width, height, null, o => o.Y = 0);
 
-        dlg.AddLabel(1, 1, "Select Branch:");
+        dlg.AddLabel(1, 3, "Select Branch:");
         var listView = dlg.AddContentView(x, y, w, h, itemTexts);
         listView.IsShowCursor = false;
         listView.IsScrollMode = false;
@@ -38,16 +39,24 @@ class SetBranchDlg : ISetBranchDlg
         listView.IsHighlightCurrentIndex = true;
         dlg.AddBorderView(listView, Color.Dark);
 
-        dlg.AddLabel(1, 14, "Name:");
-        var nameField = dlg.AddInputField(7, 14, 39, items.FirstOrDefault() ?? "");
+        dlg.AddLabel(1, 16, "Name:");
+        var nameField = dlg.AddInputField(7, 16, width - 11, items[0]);
         listView.CurrentIndexChange += () => nameField.Text = items[listView.CurrentIndex];
 
-        dlg.Validate(() => nameField.Text != "", "Empty branch name");
+        // Unset 
+        var color = isBranchSetByUser ? Color.White : Color.Dark;
+        dlg.AddLabel(1, 1, Text.Color(color, "Manually Set: ").Dark(isBranchSetByUser ? niceName : "-"));
+        var isUnsetClicked = false;
+        var unsetBtn = dlg.AddButton(width - 12, 1, "Clear", () =>
+        {
+            isUnsetClicked = true;
+            nameField.Text = "";
+            dlg.Close();
+        });
+        unsetBtn.Enabled = isBranchSetByUser;
 
         View focusView = items.Any() ? listView : nameField;
-        if (!dlg.ShowOkCancel(focusView)) return R.Error();
-
-        Log.Info("Selected name: " + nameField.Text);
+        if (!dlg.ShowOkCancel(focusView) && !isUnsetClicked) return R.Error();
         return nameField.Text;
     }
 }

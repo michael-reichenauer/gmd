@@ -153,7 +153,6 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
-            .Item(repo.RowCommit.IsBranchSetByUser, "Unset Commit Branch", "", () => cmds.UndoSetBranch(repo.RowCommit.Id), () => repo.RowCommit.IsBranchSetByUser)
             .SubMenu("Repo Menu", "", GetRepoMenuItems());
     }
 
