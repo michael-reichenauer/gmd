@@ -120,6 +120,12 @@ class BranchStructureService : IBranchStructureService
             var branch = DetermineCommitBranch(repo, c, gitRepo);
             c.Branch = branch;
 
+            if (!c.IsAmbiguous && branch.IsAmbiguousBranch &&
+                c.GitIndex > repo.CommitsById[branch.AmbiguousTipId].GitIndex)
+            {   // The commit is lower than the branch ambiguous tip, set it to ambiguous as well
+                c.IsAmbiguous = true;
+            }
+
             if (!c.IsAmbiguous)
             {   // Commit has a branch, clear other possible branches
                 c.Branches.Clear();
@@ -144,13 +150,16 @@ class BranchStructureService : IBranchStructureService
     {
         commit.Branches.TryAddAll(commit.FirstChildren.SelectMany(c => c.Branches));
         var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
+        if (commit.Sid == "a6ca33")
+        {
 
-        WorkBranch? branch;
+        }
+
         if (commit.Id == Repo.TruncatedLogCommitID)
         {
             return AddTruncatedBranch(repo);
         }
-        else if (TryIsBranchSetByUser(repo, gitRepo, commit, out branch))
+        else if (TryIsBranchSetByUser(repo, gitRepo, commit, out WorkBranch? branch))
         {   // Commit branch was set/determined by user,
             return branch!;
         }
@@ -256,7 +265,7 @@ class BranchStructureService : IBranchStructureService
     }
 
     // Commit only has one branch, use that
-    bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch)
+    static bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 1)
         {  // Commit only has one branch, use that
@@ -269,7 +278,7 @@ class BranchStructureService : IBranchStructureService
     }
 
     // Commit has only local and its remote branch, prefer remote remote branch
-    bool TryIsLocalRemoteBranch(WorkCommit commit, out WorkBranch? branch)
+    static bool TryIsLocalRemoteBranch(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 2)
         {
@@ -291,7 +300,7 @@ class BranchStructureService : IBranchStructureService
 
 
     // For e.g. pull merges, a commit can have two children with same logical branch
-    bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
+    static bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 2 && commit.FirstChildren.Count == 2 &&
             commit.FirstChildren[0].Branch!.PrimaryName == commit.FirstChildren[1].Branch!.PrimaryName)
@@ -476,8 +485,7 @@ class BranchStructureService : IBranchStructureService
         return TrySetBranch(repo, commit, branch);
     }
 
-
-    bool TrySetBranch(WorkRepo repo, WorkCommit commit, WorkBranch branch)
+    static bool TrySetBranch(WorkRepo repo, WorkCommit commit, WorkBranch branch)
     {
         // Lets use that as a branch name and also let children (commits above)
         // use that branch if they are an ambiguous branch
@@ -575,8 +583,7 @@ class BranchStructureService : IBranchStructureService
         return true;
     }
 
-
-    WorkBranch? TryGetBranchFromName(WorkCommit commit, string name)
+    static WorkBranch? TryGetBranchFromName(WorkCommit commit, string name)
     {
         // Try find a live git branch with the remoteName or local name
         var remoteName = $"origin/{name}";
@@ -598,11 +605,18 @@ class BranchStructureService : IBranchStructureService
             return branch;
         }
 
+        // Pull requests names include repository as prefix, try check if branch ends with name
+        branch = commit.Branches.Find(b => name.EndsWith(b.NiceName));
+        if (branch != null)
+        {
+            return branch;
+        }
+
         return branch;
     }
 
     // Commit has one child commit reuse that child commit branch
-    bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)
+    static bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.FirstChildren.Count == 1)
         {   // Commit has only one child, ensure commit has same possible branches
