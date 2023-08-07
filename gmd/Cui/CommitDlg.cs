@@ -75,6 +75,7 @@ class CommitDlg : ICommitDlg
         }
 
         var text = commits
+            .Reverse()
             .Select(c => Indent(c.Message))
             .Where(m => m.Trim() != "")
             .Select(m => $"- {m}")
