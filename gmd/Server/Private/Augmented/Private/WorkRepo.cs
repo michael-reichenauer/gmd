@@ -124,7 +124,7 @@ internal class WorkBranch
     public bool HasLocalOnly { get; set; }
     public bool HasRemoteOnly { get; set; }
 
-    public string AmbiguousTipId { get; set; } = ""; // Set if this branch has ambiguous last part
+    public WorkCommit? AmbiguousTip { get; set; } // Set if this branch has ambiguous last part
     public bool IsCircularAncestors { get; internal set; }
 
     public List<WorkBranch> RelatedBranches = new List<WorkBranch>();
