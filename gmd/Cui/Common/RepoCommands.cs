@@ -30,9 +30,9 @@ interface IRepoCommands
     void Refresh(string addName = "", string commitId = "");
     void RefreshAndFetch(string addName = "", string commitId = "");
 
-    void ShowUncommittedDiff(bool isFromDiff = false);
+    void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
-    void ShowDiff(string commitId, bool isFromDiff = false);
+    void ShowDiff(string commitId, bool isFromCommit = false);
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
     void DiffBranchesBranch(string branchName1, string branchName2);
 
@@ -69,7 +69,6 @@ interface IRepoCommands
     bool CanUncommitLastCommit();
 
     void ResolveAmbiguity(Server.Branch branch, string humanName);
-    void UndoSetBranch(string commitId);
     void SetBranchManuallyAsync();
     void MoveBranch(string commonName, string otherCommonName, int delta);
 
@@ -88,7 +87,6 @@ class RepoCommands : IRepoCommands
 {
     readonly IServer server;
     readonly IProgress progress;
-    readonly IFilterDlg filterDlg;
     readonly ICommitDlg commitDlg;
     readonly ICloneDlg cloneDlg;
     readonly ICreateBranchDlg createBranchDlg;
@@ -100,15 +98,14 @@ class RepoCommands : IRepoCommands
     readonly IDiffView diffView;
     readonly IState states;
     readonly IUpdater updater;
-    readonly IGit git;
     readonly IRepoState repoState;
     readonly IBranchColorService branchColorService;
     readonly IRepo repo;
     readonly Repo serverRepo;
     readonly IRepoView repoView;
 
-    string repoPath => serverRepo.Path;
-    Server.Status status => serverRepo.Status;
+    string RepoPath => serverRepo.Path;
+    Server.Status Status => serverRepo.Status;
 
     internal RepoCommands(
         IRepo repo,
@@ -116,7 +113,6 @@ class RepoCommands : IRepoCommands
         IRepoView repoView,
         IServer server,
         IProgress progress,
-        IFilterDlg filterDlg,
         ICommitDlg commitDlg,
         ICloneDlg cloneDlg,
         ICreateBranchDlg createBranchDlg,
@@ -128,7 +124,6 @@ class RepoCommands : IRepoCommands
         IDiffView diffView,
         IState states,
         IUpdater updater,
-        IGit git,
         IRepoState repoState,
         IBranchColorService branchColorService)
     {
@@ -137,7 +132,6 @@ class RepoCommands : IRepoCommands
         this.repoView = repoView;
         this.server = server;
         this.progress = progress;
-        this.filterDlg = filterDlg;
         this.commitDlg = commitDlg;
         this.cloneDlg = cloneDlg;
         this.createBranchDlg = createBranchDlg;
@@ -149,7 +143,6 @@ class RepoCommands : IRepoCommands
         this.diffView = diffView;
         this.states = states;
         this.updater = updater;
-        this.git = git;
         this.repoState = repoState;
         this.branchColorService = branchColorService;
     }
@@ -217,7 +210,7 @@ class RepoCommands : IRepoCommands
 
         if (!commitDlg.Show(repo, isAmend, commits, out var message)) return R.Ok;
 
-        if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, repoPath)))
+        if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, RepoPath)))
         {
             return R.Error($"Failed to commit", e);
         }
@@ -235,7 +228,7 @@ class RepoCommands : IRepoCommands
         if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return R.Ok;
         (var uri, var path) = r;
 
-        if (!Try(out e, await server.CloneAsync(uri, path, repoPath)))
+        if (!Try(out e, await server.CloneAsync(uri, path, RepoPath)))
         {
             return R.Error($"Failed to clone", e);
         }
@@ -252,7 +245,7 @@ class RepoCommands : IRepoCommands
     {
         var totalCount = 0;
         if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
-        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count();
+        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count;
 
         if (totalCount > 20)
         {
@@ -306,7 +299,7 @@ class RepoCommands : IRepoCommands
 
     public void UndoUncommittedFile(string path) => Do(async () =>
     {
-        if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+        if (!Try(out var e, await server.UndoUncommittedFileAsync(path, RepoPath)))
         {
             return R.Error($"Failed to undo {path}", e);
         }
@@ -328,7 +321,7 @@ class RepoCommands : IRepoCommands
         var failedPath = new List<string>();
         foreach (var path in paths)
         {
-            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+            if (!Try(out var _, await server.UndoUncommittedFileAsync(path, RepoPath)))
             {
                 failedPath.Add(path);
             }
@@ -342,7 +335,7 @@ class RepoCommands : IRepoCommands
 
     public void UndoAllUncommittedChanged() => Do(async () =>
     {
-        if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(repoPath)))
+        if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(RepoPath)))
         {
             return R.Error($"Failed to undo all changes", e);
         }
@@ -360,7 +353,7 @@ class RepoCommands : IRepoCommands
             return R.Ok;
         }
 
-        if (!Try(out var e, await server.CleanWorkingFolderAsync(repoPath)))
+        if (!Try(out var e, await server.CleanWorkingFolderAsync(RepoPath)))
         {
             return R.Error($"Failed to clean working folder", e);
         }
@@ -375,7 +368,7 @@ class RepoCommands : IRepoCommands
         var commit = repo.Commit(id);
         var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
-        if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repoPath)))
+        if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, RepoPath)))
         {
             return R.Error($"Failed to undo commit", e);
         }
@@ -391,7 +384,7 @@ class RepoCommands : IRepoCommands
     {
         if (!CanUncommitLastCommit()) return R.Ok;
 
-        if (!Try(out var e, await server.UncommitLastCommitAsync(repoPath)))
+        if (!Try(out var e, await server.UncommitLastCommitAsync(RepoPath)))
         {
             return R.Error($"Failed to undo commit", e);
         }
@@ -406,7 +399,7 @@ class RepoCommands : IRepoCommands
 
         var c = serverRepo.Commits[0];
         var b = serverRepo.BranchByName[serverRepo.Commits[0].BranchName];
-        return status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
+        return Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
 
     public void ResolveAmbiguity(Server.Branch branch, string branchName) => Do(async () =>
@@ -420,38 +413,28 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public void UndoSetBranch(string commitId) => Do(async () =>
-    {
-        if (!Try(out var e, await server.UnresolveAmbiguityAsync(serverRepo, commitId)))
-        {
-            return R.Error($"Failed to unresolve ambiguity", e);
-        }
-
-        Refresh();
-        return R.Ok;
-    });
-
-    public void ShowUncommittedDiff(bool isFromDiff = false) => ShowDiff(Server.Repo.UncommittedId, isFromDiff);
+    public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, isFromCommit);
 
     public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
 
-    public void ShowDiff(string commitId, bool isFromDiff = false) => Do(async () =>
+    public void ShowDiff(string commitId, bool isFromCommit = false) => Do(async () =>
     {
-        if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repoPath)))
+        if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, RepoPath)))
         {
             return R.Error($"Failed to get diff", e);
         }
 
         UI.Post(() =>
         {
-            if (diffView.Show(diff, commitId, repoPath))
+            var rsp = diffView.Show(diff, commitId, RepoPath);
+            if (rsp == DiffResult.Commit && !isFromCommit)
             {
-                if (!isFromDiff)
-                {
-                    RefreshAndCommit();
-                }
-
-            };
+                RefreshAndCommit();
+            }
+            else if (rsp == DiffResult.Refresh && !isFromCommit)
+            {
+                Refresh();
+            }
         });
         return R.Ok;
     });
@@ -466,7 +449,7 @@ class RepoCommands : IRepoCommands
         var browser = new FileBrowseDlg();
         if (!Try(out var path, browser.Show(files))) return R.Ok;
 
-        if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, repoPath)))
+        if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, RepoPath)))
         {
             return R.Error($"Failed to show file history", e);
         }
@@ -500,12 +483,12 @@ class RepoCommands : IRepoCommands
 
         message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
-        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha2, sha1, message, repoPath)))
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha2, sha1, message, RepoPath)))
         {
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, sha1, repoPath);
+        diffView.Show(diff, sha1, RepoPath);
         return R.Ok;
     });
 
@@ -521,9 +504,7 @@ class RepoCommands : IRepoCommands
 
         if (isSwitchOrder)
         {
-            var sh = sha1;
-            sha1 = sha2;
-            sha2 = sh;
+            (sha2, sha1) = (sha1, sha2);
             message = $"Diff '{branch.NiceName}' with '{repo.CurrentBranch.NiceName}'";
         }
         else
@@ -531,19 +512,19 @@ class RepoCommands : IRepoCommands
             message = $"Diff '{repo.CurrentBranch.NiceName}' with '{branch.NiceName}'";
         }
 
-        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, repoPath)))
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, RepoPath)))
         {
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, sha1, repoPath);
+        diffView.Show(diff, sha1, RepoPath);
         return R.Ok;
     });
 
 
     public void CherryPick(string id) => Do(async () =>
     {
-        if (!Try(out var e, await server.CherryPickAsync(id, repoPath)))
+        if (!Try(out var e, await server.CherryPickAsync(id, RepoPath)))
         {
             return R.Error($"Failed to cherry pick {id.Sid()}", e);
         }
@@ -569,7 +550,7 @@ class RepoCommands : IRepoCommands
                     $"{remoteBranch.NiceNameUnique}");
         }
 
-        if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, RepoPath)))
         {
             return R.Error($"Failed to push branch:\n{branch.Name}", e);
         }
@@ -583,7 +564,7 @@ class RepoCommands : IRepoCommands
     {
         var branch = serverRepo.Branches.First(b => b.IsCurrent);
 
-        if (!Try(out var e, await server.PushBranchAsync(branch.Name, repoPath)))
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, RepoPath)))
         {
             return R.Error($"Failed to publish branch:\n{branch.Name}", e);
         }
@@ -595,7 +576,7 @@ class RepoCommands : IRepoCommands
 
     public void PushBranch(string name) => Do(async () =>
     {
-        if (!Try(out var e, await server.PushBranchAsync(name, repoPath)))
+        if (!Try(out var e, await server.PushBranchAsync(name, RepoPath)))
         {
             return R.Error($"Failed to push branch:\n{name}", e);
         }
@@ -634,7 +615,7 @@ class RepoCommands : IRepoCommands
         if (remoteBranch == null || !remoteBranch.HasRemoteOnly) return R.Error(
             "No remote changes on current branch to pull");
 
-        if (!Try(out var e, await server.PullCurrentBranchAsync(repoPath)))
+        if (!Try(out var e, await server.PullCurrentBranchAsync(RepoPath)))
         {
             return R.Error($"Failed to pull current branch", e);
         }
@@ -645,7 +626,7 @@ class RepoCommands : IRepoCommands
 
     public void PullBranch(string name) => Do(async () =>
     {
-        if (!Try(out var e, await server.PullBranchAsync(name, repoPath)))
+        if (!Try(out var e, await server.PullBranchAsync(name, RepoPath)))
         {
             return R.Error($"Failed to pull branch {name}", e);
         }
@@ -654,7 +635,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public bool CanPull() => status.IsOk && repo.Branches.Any(b => b.HasRemoteOnly);
+    public bool CanPull() => Status.IsOk && repo.Branches.Any(b => b.HasRemoteOnly);
 
     public bool CanPullCurrentBranch()
     {
@@ -664,7 +645,7 @@ class RepoCommands : IRepoCommands
         if (branch.RemoteName == "") return false;  // No remote branch to pull
 
         var remoteBranch = serverRepo.BranchByName[branch.RemoteName];
-        return status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
+        return Status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
     }
 
     public void PushAllBranches() => Do(async () =>
@@ -677,7 +658,7 @@ class RepoCommands : IRepoCommands
 
         foreach (var b in branches)
         {
-            if (!Try(out var e, await server.PushBranchAsync(b.Name, repoPath)))
+            if (!Try(out var e, await server.PushBranchAsync(b.Name, RepoPath)))
             {
                 Refresh();
                 return R.Error($"Failed to push branch {b.Name}", e);
@@ -698,7 +679,7 @@ class RepoCommands : IRepoCommands
         {
             Log.Info("Pull current");
             // Need to treat current branch separately
-            if (!Try(out var e, await server.PullCurrentBranchAsync(repoPath)))
+            if (!Try(out var e, await server.PullCurrentBranchAsync(RepoPath)))
             {
                 return R.Error($"Failed to pull current branch", e);
             }
@@ -712,7 +693,7 @@ class RepoCommands : IRepoCommands
         Log.Info($"Pull {string.Join(", ", branches)}");
         foreach (var b in branches)
         {
-            if (!Try(out var e, await server.PullBranchAsync(b.Name, repoPath)))
+            if (!Try(out var e, await server.PullBranchAsync(b.Name, RepoPath)))
             {
                 Refresh();
                 return R.Error($"Failed to pull branch {b.Name}", e);
@@ -730,12 +711,12 @@ class RepoCommands : IRepoCommands
         var currentBranchName = repo.GetCurrentBranch().Name;
         if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-        if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, repoPath)))
+        if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, RepoPath)))
         {
             return R.Error($"Failed to create branch {rsp.Name}", e);
         }
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
         {
             return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
         }
@@ -753,12 +734,12 @@ class RepoCommands : IRepoCommands
 
         if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
 
-        if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, repoPath)))
+        if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, RepoPath)))
         {
             return R.Error($"Failed to create branch {rsp.Name}", e);
         }
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
         {
             return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
         }
@@ -778,12 +759,12 @@ class RepoCommands : IRepoCommands
         if (!Try(out var rsp, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
 
         if (!Try(out var e,
-            await server.CreateBranchFromCommitAsync(serverRepo, rsp.Name, commit.Id, rsp.IsCheckout, repoPath)))
+            await server.CreateBranchFromCommitAsync(serverRepo, rsp.Name, commit.Id, rsp.IsCheckout, RepoPath)))
         {
             return R.Error($"Failed to create branch {rsp.Name}", e);
         }
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repoPath)))
+        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
         {
             return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
         }
@@ -796,7 +777,7 @@ class RepoCommands : IRepoCommands
     {
         if (repo.Status.IsOk) return R.Ok;
 
-        if (!Try(out var e, await server.StashAsync(repoPath)))
+        if (!Try(out var e, await server.StashAsync(RepoPath)))
         {
             return R.Error($"Failed to stash changes", e);
         }
@@ -809,7 +790,7 @@ class RepoCommands : IRepoCommands
     {
         if (!repo.Status.IsOk) return R.Ok;
 
-        if (!Try(out var e, await server.StashPopAsync(name, repoPath)))
+        if (!Try(out var e, await server.StashPopAsync(name, RepoPath)))
         {
             return R.Error($"Failed to pop stash {name}", e);
         }
@@ -820,18 +801,18 @@ class RepoCommands : IRepoCommands
 
     public void StashDiff(string name) => Do(async () =>
     {
-        if (!Try(out var diff, out var e, await server.GetStashDiffAsync(name, repoPath)))
+        if (!Try(out var diff, out var e, await server.GetStashDiffAsync(name, RepoPath)))
         {
             return R.Error($"Failed to diff stash {name}", e);
         }
 
-        diffView.Show(diff, name, repoPath);
+        diffView.Show(diff, name, RepoPath);
         return R.Ok;
     });
 
     public void StashDrop(string name) => Do(async () =>
     {
-        if (!Try(out var e, await server.StashDropAsync(name, repoPath)))
+        if (!Try(out var e, await server.StashDropAsync(name, RepoPath)))
         {
             return R.Error($"Failed to drop stash {name}", e);
         }
@@ -880,7 +861,7 @@ class RepoCommands : IRepoCommands
                 return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
             }
 
-            if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repoPath)))
+            if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, RepoPath)))
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
@@ -894,7 +875,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
             }
-            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repoPath)))
+            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, RepoPath)))
             {
                 return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
@@ -912,10 +893,13 @@ class RepoCommands : IRepoCommands
 
         var releases = states.Get().Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg = $"A new release is available:\n" +
+        string msg = $"A new release is available.\n\n" +
+            $"Current Version: {Build.Version()}\n" +
+            $"Built:           {Build.Time().Iso()}\n\n" +
             $"New Version:     {releases.LatestVersion} {typeText}\n" +
-            $"\nCurrent Version: {Build.Version()}\n\n" +
+            $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
             "Do you want to update?";
+
         var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
         if (button != 0)
         {
@@ -966,7 +950,7 @@ class RepoCommands : IRepoCommands
         var addAndModified = addFiles.Concat(serverRepo.Status.ModifiedFiles)
             .Concat(serverRepo.Status.RenamedTargetFiles).ToList();
 
-        var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(repoPath, f))).ToList();
+        var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(RepoPath, f))).ToList();
 
         if (binaryFiles.Any())
         {
@@ -989,7 +973,7 @@ class RepoCommands : IRepoCommands
 
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
-            .Where(f => Files.IsLarger(Path.Join(repoPath, f), 100 * 1000)).ToList();
+            .Where(f => Files.IsLarger(Path.Join(RepoPath, f), 100 * 1000)).ToList();
 
         if (largeFiles.Any())
         {
@@ -1015,7 +999,7 @@ class RepoCommands : IRepoCommands
 
         if (!Try(out var tag, addTagDlg.Show())) return R.Ok;
 
-        if (!Try(out var e, await server.AddTagAsync(tag, commit.Id, isPushable, repoPath)))
+        if (!Try(out var e, await server.AddTagAsync(tag, commit.Id, isPushable, RepoPath)))
         {
             return R.Error($"Failed to add tag {tag}", e);
         }
@@ -1030,7 +1014,7 @@ class RepoCommands : IRepoCommands
         var branch = repo.Branch(commit.BranchName);
         var isPushable = branch.IsRemote || branch.RemoteName != "";
 
-        if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, repoPath)))
+        if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, RepoPath)))
         {
             return R.Error($"Failed to delete tag {name}", e);
         }
@@ -1044,15 +1028,26 @@ class RepoCommands : IRepoCommands
         var commit = repo.RowCommit;
         if (commit.IsUncommitted) return R.Error($"Not a valid commit");
 
+
         var branch = repo.Branch(commit.BranchName);
 
         var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
 
-        if (!Try(out var name, setBranchDlg.Show(commit.Sid, possibleBranches))) return R.Ok;
+        if (!Try(out var name, setBranchDlg.Show(commit.Sid, commit.IsBranchSetByUser, branch.NiceName, possibleBranches))) return R.Ok;
 
-        if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name)))
+        if (name != "")
         {
-            return R.Error($"Failed to set branch name manually", e);
+            if (!Try(out var e, await server.SetBranchManuallyAsync(serverRepo, commit.Id, name ?? "")))
+            {
+                return R.Error($"Failed to set branch name manually", e);
+            }
+        }
+        else if (commit.IsBranchSetByUser)
+        {   // name is empty, lets unset name (if set)
+            if (!Try(out var ee, await server.UnresolveAmbiguityAsync(serverRepo, commit.Id)))
+            {
+                return R.Error($"Failed to unresolve ambiguity", ee);
+            }
         }
 
         Refresh();
@@ -1060,11 +1055,12 @@ class RepoCommands : IRepoCommands
     });
 
 
+
     public void MoveBranch(string commonName, string otherCommonName, int delta) => Do(async () =>
     {
         await Task.Yield();
 
-        repoState.Set(repoPath, s =>
+        repoState.Set(RepoPath, s =>
         {
             // Filter existing branch orders for the two branches
             var branchOrders = s.BranchOrders.Where(b =>
@@ -1088,7 +1084,7 @@ class RepoCommands : IRepoCommands
     public void SwitchToCommit() => Do(async () =>
     {
         var commit = repo.RowCommit;
-        if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, repoPath)))
+        if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, RepoPath)))
         {
             return R.Error($"Failed to switch to commit {commit.Id}", e);
         }

@@ -13,7 +13,7 @@ class GraphWriter : IGraphWriter
     {
         var text = new TextBuilder();
         var row = graph.GetRow(index);
-        int rowLength = Math.Min(graph.RowLength, maxWidth / 2);
+        int rowLength = Math.Min(graph.RowLength, (maxWidth + 1) / 2);  // +1 to ensure /2 get correct column length
         for (int i = 0; i < rowLength; i++)
         {
             // Colors
@@ -58,7 +58,7 @@ class GraphWriter : IGraphWriter
         return text;
     }
 
-    Color GetBranchColor(GraphColumn column, string highlightBranchName, bool isCurrentIndex)
+    static Color GetBranchColor(GraphColumn column, string highlightBranchName, bool isCurrentIndex)
     {
         var isHighlightBranch = highlightBranchName != "" && column.Branch?.B.PrimaryName == highlightBranchName;
 
@@ -75,33 +75,33 @@ class GraphWriter : IGraphWriter
     }
 
 
-    string BranchRune(Sign bm)
+    static string BranchRune(Sign bm)
     {
         // commit of a branch with only one commit (tip==bottom)
         if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom)
-            && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "┺";
+            && bm.HasFlag(Sign.ActiveTip) && HasLeft(bm)) return "┺";
 
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "╼";
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && HasLeft(bm)) return "╼";
         if (bm.HasFlag(Sign.Bottom) && bm.HasFlag(Sign.ActiveTip)) return "┗";
 
         // commit is tip
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && hasLeft(bm)) return "╊";
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && HasLeft(bm)) return "╊";
         if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip)) return "┣";
-        if (bm.HasFlag(Sign.Tip) && hasLeft(bm)) return "┲";
+        if (bm.HasFlag(Sign.Tip) && HasLeft(bm)) return "┲";
         if (bm.HasFlag(Sign.Tip)) return "┏";
 
         // commit is bottom
 
-        if (bm.HasFlag(Sign.Bottom) && hasRight(bm)) return "┗";
-        if (bm.HasFlag(Sign.Bottom) && hasLeft(bm)) return "┺";
+        if (bm.HasFlag(Sign.Bottom) && HasRight(bm)) return "┗";
+        if (bm.HasFlag(Sign.Bottom) && HasLeft(bm)) return "┺";
         if (bm.HasFlag(Sign.Bottom)) return "┗";
 
         // commit is within branch
-        if (bm.HasFlag(Sign.Commit) && hasLeft(bm)) return "╊";
+        if (bm.HasFlag(Sign.Commit) && HasLeft(bm)) return "╊";
         if (bm.HasFlag(Sign.Commit)) return "┣";
 
         // commit is not part of branch
-        if (bm.HasFlag(Sign.BLine) && hasLeft(bm)) return "╂";
+        if (bm.HasFlag(Sign.BLine) && HasLeft(bm)) return "╂";
         if (bm.HasFlag(Sign.BLine)) return "┃";
         if (bm.HasFlag(Sign.Resolve)) return "Φ";
 
@@ -113,8 +113,7 @@ class GraphWriter : IGraphWriter
     }
 
 
-
-    string ConnectRune(Sign bm)
+    static string ConnectRune(Sign bm)
     {
         switch (bm)
         {
@@ -186,15 +185,14 @@ class GraphWriter : IGraphWriter
         }
     }
 
-
-    bool hasLeft(Sign bm)
+    static bool HasLeft(Sign bm)
     {
         return bm.HasFlag(Sign.BranchToLeft) ||
             bm.HasFlag(Sign.MergeFromLeft) ||
             bm.HasFlag(Sign.Pass);
     }
 
-    bool hasRight(Sign bm)
+    static bool HasRight(Sign bm)
     {
         return bm.HasFlag(Sign.MergeFromRight);
     }

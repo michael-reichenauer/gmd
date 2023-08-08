@@ -1,5 +1,5 @@
 using gmd.Common.Private;
-using static System.Environment;
+
 
 namespace gmd.Common;
 
@@ -19,8 +19,8 @@ interface IConfig
 // cSpell:ignore gmdconfig
 class ConfigImpl : IConfig
 {
-    static string FilePath = Path.Join(Environment.GetFolderPath(
-        SpecialFolder.UserProfile), ".gmdconfig");
+    static readonly string FilePath = Path.Join(Environment.GetFolderPath(
+        Environment.SpecialFolder.UserProfile), ".gmdconfig");
     private readonly IFileStore store;
 
     internal ConfigImpl(IFileStore store) => this.store = store;

@@ -47,7 +47,7 @@ enum DiffRowMode
     DividerLine,
 }
 
-record Line(int lineNbr, string text, Color color);
+record Line(int LineNbr, string Text, Color Color);
 
 class Block
 {

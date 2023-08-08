@@ -13,9 +13,9 @@ namespace gmd.Cui.Common;
 // until user changes again.
 interface IBranchColorService
 {
-    Color GetColor(Server.Repo repo, Server.Branch branch);
-    Color GetColorByBranchName(Server.Repo repo, string primaryBaseName);
-    void ChangeColor(Server.Repo repo, Server.Branch branch);
+    Color GetColor(Repo repo, Branch branch);
+    Color GetColorByBranchName(Repo repo, string primaryBaseName);
+    void ChangeColor(Repo repo, Branch branch);
 }
 
 class BranchColorService : IBranchColorService
@@ -86,7 +86,7 @@ class BranchColorService : IBranchColorService
         repoState.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
     }
 
-    Color GetColorByBranchBaseName(string name, int addIndex = 0)
+    static Color GetColorByBranchBaseName(string name, int addIndex = 0)
     {
         var branchColorId = (Hash(name) + addIndex) % BranchColors.Length;
         return GetColorByColorId(branchColorId);
@@ -96,12 +96,9 @@ class BranchColorService : IBranchColorService
     // Create a simple string hash to int
     static int Hash(string plainText)
     {
-        using (SHA256 sha256Hash = SHA256.Create())
-        {
-            // Computing Hash - returns here byte array
-            byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(plainText));
-            return Math.Abs(BitConverter.ToInt32(bytes, 0));
-        }
+        // Computing Hash - returns here byte array
+        byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(plainText));
+        return Math.Abs(BitConverter.ToInt32(bytes, 0));
     }
 
 

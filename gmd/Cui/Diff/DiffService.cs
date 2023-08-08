@@ -56,7 +56,7 @@ class DiffService : IDiffService
         return diff.FileDiffs.Where(fd => fd.IsBinary).Select(fd => fd.PathAfter).ToList();
     }
 
-    void AddCommitDiff(CommitDiff commitDiff, DiffRows rows)
+    static void AddCommitDiff(CommitDiff commitDiff, DiffRows rows)
     {
         AddCommitSummery(commitDiff, rows);
         AddDiffFileNamesSummery(commitDiff, rows);
@@ -65,7 +65,7 @@ class DiffService : IDiffService
     }
 
     // Add a summery of the commit with id, author, date and message
-    void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
+    static void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.Yellow("═"));
         if (commitDiff.Id != "") rows.Add(Text.Dark("Commit:  ").White(commitDiff.Id), "", commitDiff.Id);
@@ -77,7 +77,7 @@ class DiffService : IDiffService
     }
 
     // Add a summery of the files in the commit
-    void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows)
+    static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.Add(Text.White($"{commitDiff.FileDiffs.Count} Files:"));
 
@@ -99,7 +99,7 @@ class DiffService : IDiffService
     }
 
     // Add a diff for the file, which consists of several file section diffs
-    void AddFileDiff(FileDiff fileDiff, DiffRows rows)
+    static void AddFileDiff(FileDiff fileDiff, DiffRows rows)
     {
         rows.Add(Text.Empty);
         rows.AddLine(Text.Blue("━"));
@@ -118,11 +118,11 @@ class DiffService : IDiffService
         }
         rows.Add(text, fd.PathAfter);
 
-        fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(sd, rows));
+        fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(fileDiff, sd, rows));
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
-    void AddSectionDiff(SectionDiff sectionDiff, DiffRows rows)
+    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows)
     {
         rows.Add(Text.Empty);
         rows.AddLine(Text.Dark("─"));
@@ -165,6 +165,11 @@ class DiffService : IDiffService
                     {
                         rightBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
+                    else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
+                    {   // Whole file removed, use one column
+                        Text removeTxt = Text.Dark($"{leftNr,4}").Red(diffMargin + dl.Line);
+                        rows.Add(removeTxt);
+                    }
                     else
                     {
                         leftBlock.Add(leftNr, dl.Line, Color.Red);
@@ -181,6 +186,11 @@ class DiffService : IDiffService
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
                         rightBlock.Add(rightNr, dl.Line, Color.Yellow);
+                    }
+                    else if (fileDiff.DiffMode == DiffMode.DiffAdded)
+                    {   // Whole file added, use one column
+                        Text addTxt = Text.Dark($"{rightNr,4}").Green(diffMargin + dl.Line);
+                        rows.Add(addTxt);
                     }
                     else
                     {
@@ -216,7 +226,7 @@ class DiffService : IDiffService
         rows.AddLine(Text.Dark("─"));
     }
 
-    void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows)
+    static void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows)
     {
         // Add block parts where both block have lines 
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
@@ -232,7 +242,7 @@ class DiffService : IDiffService
             for (int i = rightBlock.Lines.Count; i < leftBlock.Lines.Count; i++)
             {
                 var lL = leftBlock.Lines[i];
-                Text lT = Text.Dark($"{lL.lineNbr,4}").Red(diffMargin).Color(lL.color, lL.text);
+                Text lT = Text.Dark($"{lL.LineNbr,4}").Red(diffMargin).Color(lL.Color, lL.Text);
                 rows.Add(lT, NoLine);
             }
         }
@@ -243,7 +253,7 @@ class DiffService : IDiffService
             for (int i = leftBlock.Lines.Count; i < rightBlock.Lines.Count; i++)
             {
                 var rL = rightBlock.Lines[i];
-                Text rT = Text.Dark($"{rL.lineNbr,4}").Green(diffMargin).Color(rL.color, rL.text);
+                Text rT = Text.Dark($"{rL.LineNbr,4}").Green(diffMargin).Color(rL.Color, rL.Text);
                 rows.Add(NoLine, rT);
             }
         }
@@ -252,15 +262,15 @@ class DiffService : IDiffService
         rightBlock.Lines.Clear();
     }
 
-    (Text, Text) GetDiffSides(Line lL, Line rL)
+    static (Text, Text) GetDiffSides(Line lL, Line rL)
     {
         // Ignore leading spaces in diff
-        var leftString = lL.text.TrimStart();
-        var rightString = rL.text.TrimStart();
+        var leftString = lL.Text.TrimStart();
+        var rightString = rL.Text.TrimStart();
 
         // Add leading spaces back
-        var leftText = Text.Black(new string(' ', lL.text.Length - leftString.Length));
-        var rightText = Text.Black(new string(' ', rL.text.Length - rightString.Length));
+        var leftText = Text.Black(new string(' ', lL.Text.Length - leftString.Length));
+        var rightText = Text.Black(new string(' ', rL.Text.Length - rightString.Length));
 
         // Ignore trailing spaces in diff
         leftString = leftString.TrimEnd();
@@ -271,15 +281,15 @@ class DiffService : IDiffService
 
         if (result.DiffBlocks.Count == 0)
         {   // Same on both sides, just show both sides as same
-            Text lT2 = Text.Dark($"{lL.lineNbr,4} ").Color(lL.color, lL.text);
-            Text rT2 = Text.Dark($"{rL.lineNbr,4} ").Color(rL.color, rL.text);
+            Text lT2 = Text.Dark($"{lL.LineNbr,4} ").Color(lL.Color, lL.Text);
+            Text rT2 = Text.Dark($"{rL.LineNbr,4} ").Color(rL.Color, rL.Text);
             return (lT2, rT2);
         }
 
         if (result.DiffBlocks.Count > maxLineDiffsCount)
         {   // To many differences in the line, show whole line side as diff
-            Text lT2 = Text.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Color(lL.color, lL.text);
-            Text rT2 = Text.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Color(rL.color, rL.text);
+            Text lT2 = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Color(lL.Color, lL.Text);
+            Text rT2 = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Color(rL.Color, rL.Text);
             return (lT2, rT2);
         }
 
@@ -291,7 +301,7 @@ class DiffService : IDiffService
             // Left side
             if (diff.DeleteStartA > leftIndex)
             {   // Add text before the delete
-                leftText.White(leftString.Substring(leftIndex, diff.DeleteStartA - leftIndex));
+                leftText.White(leftString[leftIndex..diff.DeleteStartA]);
             }
             if (diff.DeleteCountA > 0)
             {   // Add text int read that is deleted
@@ -302,7 +312,7 @@ class DiffService : IDiffService
             // Right side
             if (diff.InsertStartB > rightIndex)
             {   // Add text before the insert
-                rightText.White(rightString.Substring(rightIndex, diff.InsertStartB - rightIndex));
+                rightText.White(rightString[rightIndex..diff.InsertStartB]);
             }
             if (diff.InsertCountB > 0)
             {   // Add text int green that is inserted
@@ -313,21 +323,21 @@ class DiffService : IDiffService
 
         if (leftIndex < leftString.Length)
         {   // Add text after the last delete
-            leftText.White(leftString.Substring(leftIndex));
+            leftText.White(leftString[leftIndex..]);
         }
         if (rightIndex < rightString.Length)
         {   // Add text after the last insert
-            rightText.White(rightString.Substring(rightIndex));
+            rightText.White(rightString[rightIndex..]);
         }
 
-        Text lT = Text.Dark($"{lL.lineNbr,4}").Cyan(diffMargin).Add(leftText);
-        Text rT = Text.Dark($"{rL.lineNbr,4}").Cyan(diffMargin).Add(rightText);
+        Text lT = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Add(leftText);
+        Text rT = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Add(rightText);
         return (lT, rT);
     }
 
 
     // Returns the colored text based on the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
-    Text ToColorText(string text, FileDiff fd)
+    static Text ToColorText(string text, FileDiff fd)
     {
         if (fd.IsRenamed && !fd.SectionDiffs.Any())
         {
@@ -338,42 +348,32 @@ class DiffService : IDiffService
             return Text.Dark(text);
         }
 
-        switch (fd.DiffMode)
+        return fd.DiffMode switch
         {
-            case DiffMode.DiffModified:
-                return Text.White(text);
-            case DiffMode.DiffAdded:
-                return Text.Green(text);
-            case DiffMode.DiffRemoved:
-                return Text.Red(text);
-            case DiffMode.DiffConflicts:
-                return Text.BrightYellow(text);
-        }
-
-        throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");
+            DiffMode.DiffModified => (Text)Text.White(text),
+            DiffMode.DiffAdded => (Text)Text.Green(text),
+            DiffMode.DiffRemoved => (Text)Text.Red(text),
+            DiffMode.DiffConflicts => (Text)Text.BrightYellow(text),
+            _ => throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"),
+        };
     }
 
 
     // Returns the text to show for the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
-    string ToDiffModeText(FileDiff fd)
+    static string ToDiffModeText(FileDiff fd)
     {
         if (fd.IsRenamed && !fd.SectionDiffs.Any())
         {
             return "Renamed:";
         }
 
-        switch (fd.DiffMode)
+        return fd.DiffMode switch
         {
-            case DiffMode.DiffConflicts:
-                return "Conflicts:";
-            case DiffMode.DiffModified:
-                return "Modified:";
-            case DiffMode.DiffAdded:
-                return "Added:";
-            case DiffMode.DiffRemoved:
-                return "Removed:";
-        }
-
-        throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}");
+            DiffMode.DiffConflicts => "Conflicts:",
+            DiffMode.DiffModified => "Modified:",
+            DiffMode.DiffAdded => "Added:",
+            DiffMode.DiffRemoved => "Removed:",
+            _ => throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"),
+        };
     }
 }

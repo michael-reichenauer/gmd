@@ -20,7 +20,7 @@ static class Build
     public static bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
     public static bool IsMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
-    internal static Version Version()
+    public static Version Version()
     {
         // The version is always increasing using the base build time for last 2 version numbers
         (int daysSinceBase, int minutesSinceMidnight) = GetTimeSinceBaseTime();
@@ -29,7 +29,23 @@ static class Build
         return new Version(Program.MajorVersion, Program.MinorVersion, daysSinceBase, minutesSinceMidnight);
     }
 
-    internal static DateTime Time()
+
+    public static DateTime GetBuildTime(string versionText)
+    {
+        if (!System.Version.TryParse(versionText, out var version)) return DateTime.MinValue;
+        return GetBuildTime(version);
+    }
+
+    public static DateTime GetBuildTime(Version version)
+    {
+        if (!TryParseDateTime(BaseBuildTimeText, out var baseBuildTime)) return DateTime.MinValue;
+
+        return baseBuildTime.AddDays(version.Build).AddMinutes(version.Revision);
+    }
+
+
+
+    public static DateTime Time()
     {
         if (TryParseDateTime(CiCdBuildTimeText, out var ciCdBuildTime))
         {   // The CI/DI build script injected the build time, lets use that
@@ -45,9 +61,9 @@ static class Build
         return default;
     }
 
-    internal static string Sha() => CiCdBuildShaText.Sid();
+    public static string Sha() => CiCdBuildShaText.Sid();
 
-    internal static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll") || IsDotNet();
+    public static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll") || IsDotNet();
 
     static bool IsDotNet()
     {

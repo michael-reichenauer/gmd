@@ -61,7 +61,7 @@ namespace gmd.Utils.GlobPatterns
             this.Accept(TokenKind.LiteralSetStart);
             items.Add(this.ParseIdentifier());
 
-            while (this._currentToken!.Kind == TokenKind.LiteralSetSeperator)
+            while (this._currentToken!.Kind == TokenKind.LiteralSetSeparator)
             {
                 this.AcceptIt();
                 items.Add(this.ParseIdentifier());

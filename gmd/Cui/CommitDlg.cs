@@ -52,19 +52,19 @@ class CommitDlg : ICommitDlg
         }
         if (key == (Key.A | Key.CtrlMask))
         {
-            AddMergeMessages(repo);
+            AddMergeMessages();
             return true;
         }
 
         return false;
     }
 
-    private void AddMergeMessages(IRepo repo)
+    private void AddMergeMessages()
     {
         if (commits == null || commits.Count == 0) return;
 
         // Indent all lines except the first in a commit message
-        Func<string, string> indent = (msg) => string.Join('\n', msg.Split('\n')
+        static string Indent(string msg) => string.Join('\n', msg.Split('\n')
             .Where((l, i) => !(i == 0 && l.StartsWith("Merge ") && !(i == 1 && l == "")))  // Skip "Merge " subjects and empty line after subject
             .Select((l, i) => i == 0 ? l : $"{l}"));
 
@@ -75,7 +75,8 @@ class CommitDlg : ICommitDlg
         }
 
         var text = commits
-            .Select(c => indent(c.Message))
+            .Reverse()
+            .Select(c => Indent(c.Message))
             .Where(m => m.Trim() != "")
             .Select(m => $"- {m}")
             .Join("\n");
@@ -84,7 +85,7 @@ class CommitDlg : ICommitDlg
         message.SetNeedsDisplay();
     }
 
-    (string, string) ParseMessage(IRepo repo, bool isAmend)
+    static (string, string) ParseMessage(IRepo repo, bool isAmend)
     {
         string msg = repo.Status.MergeMessage;
 
@@ -105,7 +106,7 @@ class CommitDlg : ICommitDlg
         }
 
         string subject = lines[0];
-        string message = "";
+        string message;
         if (lines.Length > 2 && lines[1] == "")
         {
             message = string.Join('\n', lines.Skip(2));
@@ -118,8 +119,7 @@ class CommitDlg : ICommitDlg
         return (subject, message);
     }
 
-
-    string GetMessage(UITextField subject, TextView message)
+    static string GetMessage(UITextField subject, TextView message)
     {
         string subjectText = subject.Text;
         string msgText = message.Text.ToString()?.TrimEnd() ?? "";

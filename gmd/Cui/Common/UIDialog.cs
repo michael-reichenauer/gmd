@@ -254,18 +254,11 @@ class UIDialog
                 Height = Height,
             };
         View = dlg;
-        if (options != null)
-        {
-            options(dlg);
-        }
+        options?.Invoke(dlg);
         dlg.Add(views.ToArray());
 
         onAfterAdd?.Invoke();
-
-        if (setViewFocused != null)
-        {
-            setViewFocused.SetFocus();
-        }
+        setViewFocused?.SetFocus();
 
         // Application.Driver.GetCursorVisibility(out var cursorVisible);
         // if (setViewFocused is TextView || setViewFocused is TextField)
@@ -449,10 +442,8 @@ class UITextField : TextField
 
 class UIComboTextField : TextField
 {
-    private readonly int x;
-    private readonly int y;
     private readonly int w;
-    readonly int h;
+
     readonly Func<IReadOnlyList<string>> getItems;
     readonly Label borderTop;
     readonly List<Label> borderSides;
@@ -466,10 +457,7 @@ class UIComboTextField : TextField
         : base(x, y, w, text)
     {
         ColorScheme = ColorSchemes.TextField;
-        this.x = x;
-        this.y = y;
         this.w = w;
-        this.h = h;
         this.getItems = getItems;
 
         listView = new ContentView(OnGetContent) { X = x, Y = y + 2, Width = w + 2, Height = h - 1, };
@@ -511,7 +499,7 @@ class UIComboTextField : TextField
         isShowList = true;
         items = getItems().ToList();
         itemTexts = items.Select(item => item.Length > w + 1
-            ? Common.Text.Dark("…").White(item.Substring(item.Length - w)).ToText()
+            ? Common.Text.Dark("…").White(item[^w..]).ToText()
             : Common.Text.White(item.Max(w + 1, true)).ToText()).ToList();
 
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());

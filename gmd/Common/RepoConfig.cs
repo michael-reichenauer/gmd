@@ -25,5 +25,5 @@ class RepoConfigImpl : IRepoConfig
 
     public void Set(string path, Action<RepoConfig> set) => store.Set(RepoPath(path), set);
 
-    string RepoPath(string path) => Path.Join(path, ".git", FileName);
+    static string RepoPath(string path) => Path.Join(path, ".git", FileName);
 }

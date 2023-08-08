@@ -1,9 +1,18 @@
 # Change Log for Gmd
 --------------------
 
-101 releases:
+102 releases:
 
-## [Current] - 2023-08-03
+## [Current] - 2023-08-08
+- Try to improve graph branch overlapping handling
+- Fixed graph width error
+- Fixed refresh after diff
+- Adjust update info and added sln file
+- Support unset branch in SetBranchManually dlg
+- Diff of added or removed file use one column
+- Improve branch structure
+
+## [v0.90.277.1021] - 2023-08-03
 - Added short cut 'Y' to show current branch menu item
 - Try fix refresh after remove tag
 - Improve handling of binary files when committing.

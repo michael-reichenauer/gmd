@@ -1,6 +1,5 @@
 using gmd.Common;
 using gmd.Cui.Common;
-using gmd.Git;
 
 namespace gmd.Cui;
 
@@ -11,12 +10,10 @@ interface IAboutDlg
 
 class AboutDlg : IAboutDlg
 {
-    readonly IGit git;
-    private readonly IState states;
+    readonly IState states;
 
-    public AboutDlg(IGit git, IState states)
+    public AboutDlg(IState states)
     {
-        this.git = git;
         this.states = states;
     }
 

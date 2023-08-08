@@ -1,5 +1,4 @@
 using gmd.Common.Private;
-using static System.Environment;
 
 namespace gmd.Common;
 
@@ -61,8 +60,8 @@ interface IState
 
 class StateImpl : IState
 {
-    static string FilePath = Path.Join(Environment.GetFolderPath(
-        SpecialFolder.UserProfile), ".gmdstate");
+    static readonly string FilePath = Path.Join(Environment.GetFolderPath(
+        Environment.SpecialFolder.UserProfile), ".gmdstate");
     private readonly IFileStore store;
 
     internal StateImpl(IFileStore store) => this.store = store;
