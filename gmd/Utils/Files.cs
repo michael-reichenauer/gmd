@@ -23,7 +23,7 @@ static class Files
 
     public static bool IsText(string path)
     {
-        if (!Try(out var isBinary, out var e, IsBinary(path))) return false;
+        if (!Try(out var isBinary, out var _, IsBinary(path))) return false;
         return !isBinary;
     }
 
@@ -41,10 +41,8 @@ static class Files
 
             using (stream)
             {
-                using (StreamReader reader = new StreamReader(stream))
-                {
-                    return reader.ReadToEnd();
-                }
+                using StreamReader reader = new StreamReader(stream);
+                return reader.ReadToEnd();
             }
         }
         catch (Exception e)
@@ -67,24 +65,22 @@ static class Files
 
             int nulCount = 0;
 
-            using (var streamReader = new StreamReader(path))
+            using var streamReader = new StreamReader(path);
+            for (var i = 0; i < charsToCheck; i++)
             {
-                for (var i = 0; i < charsToCheck; i++)
+                if (streamReader.EndOfStream)
+                    return false;
+
+                if ((char)streamReader.Read() == nulChar)
                 {
-                    if (streamReader.EndOfStream)
-                        return false;
+                    nulCount++;
 
-                    if ((char)streamReader.Read() == nulChar)
-                    {
-                        nulCount++;
-
-                        if (nulCount >= requiredConsecutiveNul)
-                            return true;
-                    }
-                    else
-                    {
-                        nulCount = 0;
-                    }
+                    if (nulCount >= requiredConsecutiveNul)
+                        return true;
+                }
+                else
+                {
+                    nulCount = 0;
                 }
             }
 

@@ -154,8 +154,8 @@ public record Stash(
     string Id,
     string Name,
     string Branch,
-    string parentId,
-    string indexId,
+    string ParentId,
+    string IndexId,
     string Message
 );
 
