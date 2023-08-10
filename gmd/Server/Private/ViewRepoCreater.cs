@@ -134,7 +134,7 @@ class ViewRepoCreater : IViewRepoCreater
         var commits = new List<Commit>(){ new Commit( id, id.Sid(),
             msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
             new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
-            new List<string>(), false,false,false,false,false,false,false,false,false,false, More.None)};
+            new List<string>(), false,false,false,false,false,false,false,false,false,false,false, More.None)};
         var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
             id, id, false, false, false, "", "", true, false, true, true, "", "", false, false, "",
             new List<string>(), new List<string>(), new List<string>(), 0, false, false) };
@@ -433,7 +433,7 @@ class ViewRepoCreater : IViewRepoCreater
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
                     IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
-                    IsBranchSetByUser: false);
+                    IsBranchSetByUser: false, HasStash: false);
 
                 return true;
             }

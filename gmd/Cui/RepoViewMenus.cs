@@ -12,6 +12,7 @@ interface IRepoViewMenus
     void ShowBranchMenu(int x, int y, string branchName);
     void ShowCommitBranchesMenu(int x, int y);
     void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0);
+    void ShowStashMenu(int x = Menu.Center, int y = 0);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
     void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
     void ShowDiffBranchToMenu(int x, int y, string branchName);
@@ -70,6 +71,11 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0)
     {
         Menu.Show("Open Branch", x, y + 2, GetShowBranchItems());
+    }
+
+    public void ShowStashMenu(int x = Menu.Center, int y = 0)
+    {
+        Menu.Show("Stash", x, y + 2, GetStashMenuItems());
     }
 
     public void ShowDiffBranchToMenu(int x, int y, string branchName)

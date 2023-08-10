@@ -39,6 +39,7 @@ class Augmenter : IAugmenter
         AddAugBranches(repo, gitRepo);
         AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
+        SetCommitHasStash(repo);
 
         branchStructureService.DetermineCommitBranches(repo, gitRepo);
         SetBranchViewNames(repo);
@@ -156,6 +157,13 @@ class Augmenter : IAugmenter
         });
     }
 
+    static void SetCommitHasStash(WorkRepo repo)
+    {
+        repo.Stashes.ForEach(s =>
+        {
+            repo.CommitsById[s.ParentId].HasStash = true;
+        });
+    }
 
     void SetBranchViewNames(WorkRepo repo)
     {

@@ -379,6 +379,9 @@ class RepoView : IRepoView
             case ApplicationBarItem.BranchName:
                 menuService.ShowOpenBranchesMenu(x - 5, y);
                 break;
+            case ApplicationBarItem.Stash:
+                menuService.ShowStashMenu(x - 5, y);
+                break;
             case ApplicationBarItem.Search:
                 Cmd.Filter();
                 break;

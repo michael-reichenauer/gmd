@@ -61,6 +61,7 @@ class Converter : IConverter
         IsAmbiguous: c.IsAmbiguous,
         IsAmbiguousTip: c.IsAmbiguousTip,
         IsBranchSetByUser: c.IsBranchSetByUser,
+        HasStash: c.HasStash,
 
         More: More.None);
 
@@ -99,9 +100,9 @@ class Converter : IConverter
 
 
     Stash ToStash(Augmented.Stash s) =>
-        new Stash(s.Id, s.Name, s.Branch, s.parentId, s.indexId, s.Message);
+        new Stash(s.Id, s.Name, s.Branch, s.ParentId, s.IndexId, s.Message);
 
-    IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
+    static IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
         tags.Select(t => new Tag(t.Name, t.CommitId)).ToList();
 
     IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
