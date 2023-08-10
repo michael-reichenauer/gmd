@@ -19,6 +19,7 @@ partial class MainView : IMainView
     readonly IGit git;
     readonly IState states;
     readonly ICloneDlg cloneDlg;
+    readonly IInitRepoDlg initRepoDlg;
     readonly IHelpDlg helpDlg;
     readonly IServer server;
     readonly IProgress progress;
@@ -31,6 +32,7 @@ partial class MainView : IMainView
         IGit git,
         IState states,
         ICloneDlg cloneDlg,
+        IInitRepoDlg initRepoDlg,
         IHelpDlg helpDlg,
         IServer server,
         IProgress progress,
@@ -41,6 +43,7 @@ partial class MainView : IMainView
         this.git = git;
         this.states = states;
         this.cloneDlg = cloneDlg;
+        this.initRepoDlg = initRepoDlg;
         this.helpDlg = helpDlg;
         this.server = server;
         this.progress = progress;
@@ -138,6 +141,7 @@ partial class MainView : IMainView
             .Separator()
             .Item("Browse ...", "", () => ShowBrowseDialog())
             .Item("Clone ...", "", () => ShowCloneDlg())
+            .Item("Init ...", "", () => ShowInitRepoDlg())
             .Item("Help ...", "", () => ShowHelp())
             .Item("About ...", "", () => ShowAbout())
             .Item("Quit", "Esc ", () => Application.RequestStop()));
@@ -252,7 +256,27 @@ partial class MainView : IMainView
         ShowRepo(path);
     }
 
+    async void ShowInitRepoDlg()
+    {
+        // Parent folders to recent work folders, usually other repos there as well
+        var recentParentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        if (!Try(out var path, out var e, initRepoDlg.Show(recentParentFolders)))
+        {
+            ShowMainMenu();
+            return;
+        }
 
+        using (progress.Show())
+        {
+            if (!Try(out e, await server.InitRepoAsync(path, "")))
+            {
+                UI.ErrorMessage($"Failed to init:\n{path}:\n{e}");
+                return;
+            }
+        }
+
+        ShowRepo(path);
+    }
 
     void ShowBrowseDialog()
     {
