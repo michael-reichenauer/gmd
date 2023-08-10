@@ -278,19 +278,19 @@ class RepoCommands : IRepoCommands
             }
         }
 
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show, count);
+        Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show, count);
         SetRepo(newRepo, name);
     }
 
     public void ShowBranch(string name, string showCommitId)
     {
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, false);
+        Repo newRepo = server.ShowBranch(serverRepo, name, false);
         SetRepoAttCommit(newRepo, showCommitId);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)
     {
-        Server.Repo newRepo = server.HideBranch(serverRepo, name, hideAllBranches);
+        Repo newRepo = server.HideBranch(serverRepo, name, hideAllBranches);
         SetRepo(newRepo);
     }
 

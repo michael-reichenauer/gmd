@@ -221,10 +221,7 @@ class Server : IServer
         if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, new[] { "main" });
 
         var branch = repo.AugmentedRepo.Branches[name];
-        if (branch.RemoteName != "")
-        {
-            branch = repo.AugmentedRepo.Branches[branch.RemoteName];
-        }
+        branch = repo.AugmentedRepo.Branches[branch.PrimaryName];
 
         var branchNames = repo.Branches
             .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
