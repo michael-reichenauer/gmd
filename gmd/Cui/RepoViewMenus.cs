@@ -88,7 +88,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Search/Filter ...", "F", () => cmds.Filter())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
-            .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
+            .SubMenu("Open/Clone/Init Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
             .Item("Help ...", "?, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())

@@ -21,7 +21,7 @@ class InitRepoDlg : IInitRepoDlg
         var dlg = new UIDialog("Init Repo", width + 4, 8);
 
         dlg.AddLabel(1, 1, "Path:");
-        pathField = dlg.AddInputField(7, 1, width - 18, basePath);
+        pathField = dlg.AddInputField(7, 1, width - 16, basePath, InputMarkers.None);
 
         dlg.AddButton(width - 9, 1, "Browse", () =>
         {
