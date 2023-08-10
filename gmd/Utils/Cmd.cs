@@ -50,8 +50,8 @@ class Cmd : ICmd
         var index = cmd.IndexOf(' ');
         if (index == -1) return new Cmd().Command(cmd, "", workingDirectory);
 
-        var path = cmd.Substring(0, index);
-        var args = cmd.Substring(index + 1);
+        var path = cmd[..index];
+        var args = cmd[(index + 1)..];
         return new Cmd().Command(path, args, workingDirectory);
     }
 
@@ -66,7 +66,7 @@ class Cmd : ICmd
             var outputLines = new List<string>();
             var errorLines = new List<string>();
 
-            using (var process = new Process
+            var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -79,7 +79,9 @@ class Cmd : ICmd
                     StandardOutputEncoding = Encoding.UTF8,
                     StandardErrorEncoding = Encoding.UTF8
                 }
-            })
+            };
+
+            using (process)
             {
                 if (workingDirectory != "")
                 {

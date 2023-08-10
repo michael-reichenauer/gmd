@@ -15,15 +15,11 @@ interface IAugmenter
 
 class Augmenter : IAugmenter
 {
-    readonly IBranchNameService branchNameService;
     private readonly IBranchStructureService branchStructureService;
 
 
-    internal Augmenter(
-        IBranchNameService branchNameService,
-        IBranchStructureService branchStructureService)
+    internal Augmenter(IBranchStructureService branchStructureService)
     {
-        this.branchNameService = branchNameService;
         this.branchStructureService = branchStructureService;
     }
 
@@ -49,8 +45,7 @@ class Augmenter : IAugmenter
         return repo;
     }
 
-
-    void AddAugBranches(WorkRepo repo, GitRepo gitRepo)
+    static void AddAugBranches(WorkRepo repo, GitRepo gitRepo)
     {
         // Convert git branches to initial augmented branches
         gitRepo.Branches.ForEach(b => repo.Branches[b.Name] = new WorkBranch(b));
@@ -89,8 +84,7 @@ class Augmenter : IAugmenter
         }
     }
 
-
-    void AddAugCommits(WorkRepo repo, GitRepo gitRepo)
+    static void AddAugCommits(WorkRepo repo, GitRepo gitRepo)
     {
         IReadOnlyList<GitCommit> gitCommits = gitRepo.Commits;
         // For repositories with a lot of commits, only the latest 'truncateLimit' number of commits
@@ -137,10 +131,9 @@ class Augmenter : IAugmenter
         }
     }
 
-    bool IsStashCommit(WorkRepo repo, GitCommit gc) => repo.StashById.ContainsKey(gc.Id);
+    static bool IsStashCommit(WorkRepo repo, GitCommit gc) => repo.StashById.ContainsKey(gc.Id);
 
-
-    void AddAugTags(WorkRepo repo, GitRepo gitRepo)
+    static void AddAugTags(WorkRepo repo, GitRepo gitRepo)
     {
         gitRepo.Tags.ForEach(t =>
         {
@@ -152,15 +145,14 @@ class Augmenter : IAugmenter
         });
     }
 
-
-    void AddAugStashes(WorkRepo repo, GitRepo gitRepo)
+    static void AddAugStashes(WorkRepo repo, GitRepo gitRepo)
     {
         gitRepo.Stashes.ForEach(s =>
         {
-            var stash = new Stash(s.Id, s.Name, s.Branch, s.parentId, s.indexId, s.Message);
+            var stash = new Stash(s.Id, s.Name, s.Branch, s.ParentId, s.IndexId, s.Message);
             repo.Stashes.Add(stash);
             repo.StashById[s.Id] = stash;
-            repo.StashById[s.indexId] = stash;
+            repo.StashById[s.IndexId] = stash;
         });
     }
 
@@ -212,8 +204,7 @@ class Augmenter : IAugmenter
         });
     }
 
-
-    Status ToStatus(GitRepo repo)
+    static Status ToStatus(GitRepo repo)
     {
         var s = repo.Status;
         return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted, s.Renamed,
@@ -227,7 +218,7 @@ class Augmenter : IAugmenter
         // to a virtual "truncated commit"
         if (commit.ParentIds.Count > 0)
         {   // Check if first parent is missing and need a truncated commit parent
-            if (!repo.CommitsById.TryGetValue(commit.ParentIds[0], out var parent))
+            if (!repo.CommitsById.TryGetValue(commit.ParentIds[0], out var _))
             {
                 isTruncatedNeeded = true;
                 commit.ParentIds[0] = Repo.TruncatedLogCommitID;
@@ -236,7 +227,7 @@ class Augmenter : IAugmenter
 
         if (commit.ParentIds.Count > 1)
         {   // Merge commit, check if second parent is missing and need a truncated commit parent
-            if (!repo.CommitsById.TryGetValue(commit.ParentIds[1], out var parent))
+            if (!repo.CommitsById.TryGetValue(commit.ParentIds[1], out var _))
             {
                 isTruncatedNeeded = true;
                 commit.ParentIds[1] = Repo.TruncatedLogCommitID;
@@ -252,9 +243,11 @@ class Augmenter : IAugmenter
         string msg = "< ... log truncated, more commits exists ... >";
         WorkCommit pc = new WorkCommit(
             id: Repo.TruncatedLogCommitID, subject: msg, message: msg,
-            author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0]);
-        pc.IsTruncatedLogCommit = true;
-        pc.GitIndex = repo.Commits.Count;
+            author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0])
+        {
+            IsTruncatedLogCommit = true,
+            GitIndex = repo.Commits.Count
+        };
         repo.Commits.Add(pc);
         repo.CommitsById[pc.Id] = pc;
     }

@@ -57,10 +57,14 @@ class DiffService : IDiffService
 
         var args = "diff -b --date=iso --first-parent --root --patch --no-color" +
             " --find-renames --unified=6 HEAD";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+        {   // The diff failed, reset the 'git add .' if needed
+            if (needReset) await cmd.RunAsync("git", "reset", wd);
+            return e;
+        }
 
         if (needReset)
-        {   // Reset the git add . previously 
+        {   // Reset the 'git add .' previously 
             if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd))) return err;
         }
 

@@ -58,12 +58,14 @@ interface IServer
     Task<R> UndoCommitAsync(string id, int parent, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
+    Task<R> InitRepoAsync(string path, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R> StashDropAsync(string name, string wd);
     Task<R<string>> GetChangeLogAsync();
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
     Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<R> SwitchToCommitAsync(string commitId, string wd);
+
 }
 
 internal record ChangeEvent(DateTime TimeStamp);

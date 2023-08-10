@@ -2,7 +2,6 @@ using gmd.Cui.Common;
 
 namespace gmd.Cui;
 
-
 interface ICloneDlg
 {
     R<(string, string)> Show(IReadOnlyList<string> recentParentFolders);

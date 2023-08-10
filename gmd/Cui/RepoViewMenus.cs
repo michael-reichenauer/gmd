@@ -270,7 +270,8 @@ class RepoViewMenus : IRepoViewMenus
         .Items(GetRecentRepoItems())
         .Separator()
         .Item("Browse ...", "", () => cmds.ShowBrowseDialog())
-        .Item("Clone ...", "", () => cmds.Clone(), () => true);
+        .Item("Clone ...", "", () => cmds.Clone())
+        .Item("Init ...", "", () => cmds.InitRepo());
 
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
