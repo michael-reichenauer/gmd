@@ -163,15 +163,21 @@ class Menu
         var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space before 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
 
-        var itemText = items.Any() ? items.Max(i => i.Title.Length) : 5;
+        var itemTextWidth = items.Any() ? items.Max(i => i.Title.Length) : 5;
 
         // Calculate view width based on title, shortcut, sub menu marker and scrollbar
-        var viewWidth = itemText + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
-        viewWidth = Math.Max(viewWidth, title.Length + 4);  // (4 for extra space around title)
+        var totalItemsWidth = itemTextWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
+
+        var viewWidth = Math.Max(totalItemsWidth, title.Length + 5);  // (4 for extra space around title)
+        if (viewWidth > totalItemsWidth)
+        {   // Ensure shortcut and menus are to the right
+            itemTextWidth += viewWidth - totalItemsWidth;
+        }
+
         if (viewWidth > screenWidth)
         {   // Too wide view, try to fit on screen (reduce title width)
             viewWidth = screenWidth;
-            itemText = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
+            itemTextWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
         }
 
         // Calculate view x and y position to be centered if Menu.Center or based on original x and y 
@@ -197,7 +203,7 @@ class Menu
         }
         viewY = Math.Max(0, viewY);
 
-        return new Dimensions(viewX, viewY, viewWidth, viewHeight, itemText, shortcutWidth, subMenuMarkerWidth);
+        return new Dimensions(viewX, viewY, viewWidth, viewHeight, itemTextWidth, shortcutWidth, subMenuMarkerWidth);
     }
 
 
