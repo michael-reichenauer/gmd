@@ -32,7 +32,7 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
         {
-            AdjustCurrentBranch(augRepo, filteredBranches, filteredCommits, uncommitted);
+            AdjustCurrentBranch(filteredBranches, filteredCommits, uncommitted);
         }
 
         SetAheadBehind(filteredBranches, filteredCommits);
@@ -93,7 +93,8 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    IReadOnlyDictionary<string, Augmented.Commit> GetFilteredCommits(Augmented.Repo augRepo, string filter, int maxCount)
+    static IReadOnlyDictionary<string, Augmented.Commit> GetFilteredCommits(
+        Augmented.Repo augRepo, string filter, int maxCount)
     {
         var sc = StringComparison.OrdinalIgnoreCase;
 
@@ -134,7 +135,7 @@ class ViewRepoCreater : IViewRepoCreater
         var commits = new List<Commit>(){ new Commit( id, id.Sid(),
             msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
             new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
-            new List<string>(), false,false,false,false,false,false,false,false,false,false, More.None)};
+            new List<string>(), false,false,false,false,false,false,false,false,false,false,false, More.None)};
         var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
             id, id, false, false, false, "", "", true, false, true, true, "", "", false, false, "",
             new List<string>(), new List<string>(), new List<string>(), 0, false, false) };
@@ -142,7 +143,7 @@ class ViewRepoCreater : IViewRepoCreater
         return new Repo(DateTime.UtcNow, augRepo, commits, branches, new List<Stash>(), augRepo.Status, filter);
     }
 
-    void SetAheadBehind(
+    static void SetAheadBehind(
         List<Augmented.Branch> filteredBranches,
         List<Augmented.Commit> filteredCommits)
     {
@@ -161,7 +162,7 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    void SetBehindCommits(
+    static void SetBehindCommits(
         Augmented.Branch remoteBranch,
         List<Augmented.Branch> filteredBranches,
         List<Augmented.Commit> filteredCommits)
@@ -229,7 +230,7 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    void SetAheadCommits(
+    static void SetAheadCommits(
         Augmented.Branch localBranch,
         List<Augmented.Branch> filteredBranches,
         List<Augmented.Commit> filteredCommits)
@@ -271,7 +272,7 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    List<Augmented.Commit> FilterOutViewCommits(
+    static List<Augmented.Commit> FilterOutViewCommits(
         Augmented.Repo repo, IReadOnlyList<Augmented.Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
@@ -364,7 +365,7 @@ class ViewRepoCreater : IViewRepoCreater
 
         var branchOrders = repoState.Get(repo.Path).BranchOrders;
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
-        Sorter.Sort(sorted, (b1, b2) => CompareBranches(repo, b1, b2, branchOrders));
+        Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
 
         // Reinsert the pullMerge branches just after its parent branch
         var toInsert = new Queue<Augmented.Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
@@ -390,8 +391,7 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
-
-    bool TryGetUncommittedCommit(
+    static bool TryGetUncommittedCommit(
       Augmented.Repo repo,
       IReadOnlyList<Augmented.Branch> filteredBranches,
       [MaybeNullWhen(false)] out Augmented.Commit uncommitted)
@@ -433,7 +433,7 @@ class ViewRepoCreater : IViewRepoCreater
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
                     IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
-                    IsBranchSetByUser: false);
+                    IsBranchSetByUser: false, HasStash: false);
 
                 return true;
             }
@@ -443,8 +443,7 @@ class ViewRepoCreater : IViewRepoCreater
         return false;
     }
 
-    private void AdjustCurrentBranch(
-        Augmented.Repo augRepo,
+    static void AdjustCurrentBranch(
         List<Augmented.Branch> filteredBranches,
         List<Augmented.Commit> filteredCommits,
         Augmented.Commit uncommitted)
@@ -477,8 +476,7 @@ class ViewRepoCreater : IViewRepoCreater
         filteredCommits[tipCommitIndex] = newTipCommit;
     }
 
-
-    int CompareBranches(Augmented.Repo repo, Augmented.Branch b1, Augmented.Branch b2,
+    static int CompareBranches(Augmented.Branch b1, Augmented.Branch b2,
         List<BranchOrder> branchOrders)
     {
         if (b1 == b2) return 0;

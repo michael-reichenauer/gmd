@@ -34,6 +34,7 @@ Some signs/characters used in the views:
 | o    | Indicates the branch is shown                                     |
 | ▼    | Indicates the commit has not yet been pulled (blue line)          |
 | ▲    | Indicate the commit has not yet been pushed (green line)          |
+| ß    | Indicate the commit has stash based on it     s                    |
 | ©    | Indicates current uncommitted changes (yellow)                    | 
 | ⇓    | Indicates an updated release is available to download (use menu)  |
 | ┅    | Indicates the name/text has been truncated.                       |

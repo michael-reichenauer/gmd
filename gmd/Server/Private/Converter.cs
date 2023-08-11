@@ -61,6 +61,7 @@ class Converter : IConverter
         IsAmbiguous: c.IsAmbiguous,
         IsAmbiguousTip: c.IsAmbiguousTip,
         IsBranchSetByUser: c.IsBranchSetByUser,
+        HasStash: c.HasStash,
 
         More: More.None);
 
@@ -99,29 +100,29 @@ class Converter : IConverter
 
 
     Stash ToStash(Augmented.Stash s) =>
-        new Stash(s.Id, s.Name, s.Branch, s.parentId, s.indexId, s.Message);
+        new Stash(s.Id, s.Name, s.Branch, s.ParentId, s.IndexId, s.Message);
 
-    IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
+    static IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
         tags.Select(t => new Tag(t.Name, t.CommitId)).ToList();
 
-    IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
+    static IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs
             .Select(d => new FileDiff(d.PathBefore, d.PathAfter, d.IsRenamed, d.IsBinary,
                 ToDiffMode(d.DiffMode), ToSectionDiffs(d.SectionDiffs)))
             .ToList();
 
 
-    private IReadOnlyList<SectionDiff> ToSectionDiffs(IReadOnlyList<Git.SectionDiff> sectionDiffs) =>
+    private static IReadOnlyList<SectionDiff> ToSectionDiffs(IReadOnlyList<Git.SectionDiff> sectionDiffs) =>
         sectionDiffs
             .Select(d => new SectionDiff(d.ChangedIndexes, d.LeftLine, d.LeftCount,
                 d.RightLine, d.RightCount, ToLineDiffs(d.LineDiffs)))
             .ToList();
 
-    private IReadOnlyList<LineDiff> ToLineDiffs(IReadOnlyList<Git.LineDiff> lineDiffs) =>
+    private static IReadOnlyList<LineDiff> ToLineDiffs(IReadOnlyList<Git.LineDiff> lineDiffs) =>
         lineDiffs.Select(d => new LineDiff(ToDiffMode(d.DiffMode), d.Line)).ToList();
 
 
-    private DiffMode ToDiffMode(Git.DiffMode diffMode)
+    private static DiffMode ToDiffMode(Git.DiffMode diffMode)
     {
         switch (diffMode)
         {

@@ -57,10 +57,14 @@ class DiffService : IDiffService
 
         var args = "diff -b --date=iso --first-parent --root --patch --no-color" +
             " --find-renames --unified=6 HEAD";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+        {   // The diff failed, reset the 'git add .' if needed
+            if (needReset) await cmd.RunAsync("git", "reset", wd);
+            return e;
+        }
 
         if (needReset)
-        {   // Reset the git add . previously 
+        {   // Reset the 'git add .' previously 
             if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd))) return err;
         }
 
@@ -99,7 +103,7 @@ class DiffService : IDiffService
     }
 
     // Parse diff output from git diff command
-    CommitDiff ParseDiff(string output, string message = "")
+    static CommitDiff ParseDiff(string output, string message = "")
     {
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
@@ -110,7 +114,7 @@ class DiffService : IDiffService
     }
 
     // Parse diff output for possible multiple commits
-    IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string path, bool isUncommitted)
+    static IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string _, bool __)
     {
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
@@ -130,7 +134,7 @@ class DiffService : IDiffService
         return commitDiffs;
     }
 
-    (CommitDiff?, int, bool) ParseCommitDiff(int i, string[] lines)
+    static (CommitDiff?, int, bool) ParseCommitDiff(int i, string[] lines)
     {
         if (i >= lines.Length || !lines[i].StartsWith("commit "))
         {
@@ -141,7 +145,7 @@ class DiffService : IDiffService
         DateTime time = DateTime.UtcNow;
         string message = "";
 
-        string commitId = lines[i++].Substring("commit ".Length).Trim();
+        string commitId = lines[i++]["commit ".Length..].Trim();
 
         if (i < lines.Length && lines[i].StartsWith("Merge: "))
         {   // Skip Merge line
@@ -149,11 +153,11 @@ class DiffService : IDiffService
         }
         if (i < lines.Length && lines[i].StartsWith("Author: "))
         {
-            author = lines[i++].Substring("Author: ".Length).Trim();
+            author = lines[i++]["Author: ".Length..].Trim();
         }
         if (i < lines.Length && lines[i].StartsWith("Date: "))
         {
-            var dateText = lines[i++].Substring("Date: ".Length).Trim();
+            var dateText = lines[i++]["Date: ".Length..].Trim();
             if (DateTime.TryParse(dateText, out var dt))
             {
                 time = dt;
@@ -179,7 +183,7 @@ class DiffService : IDiffService
         return (commitDiff, i, true);
     }
 
-    (IReadOnlyList<FileDiff>, int) ParseFileDiffs(int i, string[] lines)
+    static (IReadOnlyList<FileDiff>, int) ParseFileDiffs(int i, string[] lines)
     {
         var fileDiffs = new List<FileDiff>();
         while (i < lines.Length)
@@ -204,7 +208,7 @@ class DiffService : IDiffService
         return (fileDiffs, i);
     }
 
-    (FileDiff?, int, bool) ParseFileDiff(int i, string[] lines)
+    static (FileDiff?, int, bool) ParseFileDiff(int i, string[] lines)
     {
         if (i >= lines.Length)
         {
@@ -213,7 +217,7 @@ class DiffService : IDiffService
 
         if (lines[i].StartsWith("diff --cc "))
         {
-            string file = lines[i++].Substring(10);
+            string file = lines[i++][10..];
             (DiffMode df, i) = ParseDiffMode(i, lines);
             (i, bool isBin) = ParsePossibleIndexRows(i, lines);
             (var conflictSectionDiffs, i) = ParseSectionDiffs(i, lines);
@@ -225,10 +229,10 @@ class DiffService : IDiffService
             return (null, i, false);
         }
 
-        string files = lines[i].Substring(11);
+        string files = lines[i][11..];
         var otherIndex = files.IndexOf(" b/");
-        string before = files.Substring(2, otherIndex - 2);
-        string after = files.Substring(otherIndex + 3);
+        string before = files[2..otherIndex];
+        string after = files[(otherIndex + 3)..];
         bool isRenamed = before != after;
         i++;
 
@@ -244,7 +248,7 @@ class DiffService : IDiffService
         return (new FileDiff(before, after, isRenamed, isBinary, diffMode, sectionDiffs), i, true);
     }
 
-    (DiffMode, int) ParseDiffMode(int i, string[] lines)
+    static (DiffMode, int) ParseDiffMode(int i, string[] lines)
     {
         if (lines[i].StartsWith("new file mode"))
         {
@@ -270,7 +274,7 @@ class DiffService : IDiffService
         return (DiffMode.DiffModified, i);
     }
 
-    (int, bool) ParsePossibleIndexRows(int i, string[] lines)
+    static (int, bool) ParsePossibleIndexRows(int i, string[] lines)
     {
         bool isBinary = false;
         if (i >= lines.Length) return (i, isBinary);
@@ -288,7 +292,7 @@ class DiffService : IDiffService
         return (i, isBinary);
     }
 
-    (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
+    static (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
     {
         var sectionDiffs = new List<SectionDiff>();
         while (i < lines.Length)
@@ -304,14 +308,14 @@ class DiffService : IDiffService
         return (sectionDiffs, i);
     }
 
-    (SectionDiff?, int, bool) ParseSectionDiff(int i, string[] lines)
+    static (SectionDiff?, int, bool) ParseSectionDiff(int i, string[] lines)
     {
         if (!lines[i].StartsWith("@@ "))
         {
             return (null, i, false);
         }
 
-        int endIndex = lines[i].Substring(2).IndexOf("@@");
+        int endIndex = lines[i][2..].IndexOf("@@");
         if (endIndex == -1)
         {
             return (null, i, false);
@@ -336,7 +340,7 @@ class DiffService : IDiffService
         return (new SectionDiff(changedIndexes, leftLine, leftCount, rightLine, rightCount, linesDiffs), i, true);
     }
 
-    (IReadOnlyList<LineDiff>, int) ParseLineDiffs(int i, string[] lines)
+    static (IReadOnlyList<LineDiff>, int) ParseLineDiffs(int i, string[] lines)
     {
         var lineDiffs = new List<LineDiff>();
         while (i < lines.Length)
@@ -353,7 +357,7 @@ class DiffService : IDiffService
         return (lineDiffs, i);
     }
 
-    (LineDiff?, int, bool) ParseLineDiff(int i, string[] lines)
+    static (LineDiff?, int, bool) ParseLineDiff(int i, string[] lines)
     {
         // Replace BOM if present
         lines[i] = lines[i].Replace("\uFEFF", "");
@@ -386,8 +390,7 @@ class DiffService : IDiffService
         return (null, i, false);
     }
 
-
-    List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
+    static List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
     {
         // Update diff mode on files, which status has determined are conflicted
         return fileDiffs
@@ -396,7 +399,7 @@ class DiffService : IDiffService
             .ToList();
     }
 
-    IReadOnlyList<FileDiff> GetAddedFilesDiffs(Status status, string dirPath)
+    static IReadOnlyList<FileDiff> GetAddedFilesDiffs(Status status, string dirPath)
     {
         var fileDiffs = new List<FileDiff>();
         foreach (var name in status.AddedFiles)
@@ -405,7 +408,7 @@ class DiffService : IDiffService
 
             if (!Try(out var file, out var e, () => File.ReadAllText(filePath)))
             {
-                file = $"<Error reading File {e.ToString()}";
+                file = $"<Error reading File {e}";
             }
 
             var lines = file.Split('\n');
@@ -419,13 +422,13 @@ class DiffService : IDiffService
         return fileDiffs;
     }
 
-    string AsLine(string line)
+    static string AsLine(string line)
     {
-        return line.Substring(1).Replace("\t", "   ");
+        return line[1..].Replace("\t", "   ");
     }
 
-    string AsConflictLine(string line)
+    static string AsConflictLine(string line)
     {
-        return line.Substring(2).Replace("\t", "   ");
+        return line[2..].Replace("\t", "   ");
     }
 }

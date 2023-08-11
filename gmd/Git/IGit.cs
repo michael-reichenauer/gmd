@@ -23,6 +23,7 @@ interface IGit
     Task<R> PushRefForceAsync(string name, string wd);
     Task<R> PullRefAsync(string name, string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
+    Task<R> InitRepoAsync(string path, string wd);
     Task<R> CheckoutAsync(string name, string wd);
     Task<R> MergeBranchAsync(string name, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
@@ -100,8 +101,8 @@ public record Stash(
     string Id,
     string Name,
     string Branch,
-    string parentId,
-    string indexId,
+    string ParentId,
+    string IndexId,
     string Message
 );
 

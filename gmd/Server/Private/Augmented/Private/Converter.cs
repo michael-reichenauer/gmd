@@ -59,7 +59,8 @@ class Converter : IConverter
             IsTruncatedLogCommit: c.IsTruncatedLogCommit,
             IsAmbiguous: c.IsAmbiguous,
             IsAmbiguousTip: c.IsAmbiguousTip,
-            IsBranchSetByUser: c.IsBranchSetByUser);
+            IsBranchSetByUser: c.IsBranchSetByUser,
+            HasStash: c.HasStash);
     }
 
     Branch ToBranch(WorkBranch b)

@@ -25,6 +25,7 @@ interface IRepoCommands
     void ChangeBranchColor();
     void UpdateRelease();
     void Clone();
+    void InitRepo();
 
     void ShowRepo(string path);
     void Refresh(string addName = "", string commitId = "");
@@ -89,6 +90,7 @@ class RepoCommands : IRepoCommands
     readonly IProgress progress;
     readonly ICommitDlg commitDlg;
     readonly ICloneDlg cloneDlg;
+    readonly IInitRepoDlg initRepoDlg;
     readonly ICreateBranchDlg createBranchDlg;
     readonly IDeleteBranchDlg deleteBranchDlg;
     readonly IAddTagDlg addTagDlg;
@@ -115,6 +117,7 @@ class RepoCommands : IRepoCommands
         IProgress progress,
         ICommitDlg commitDlg,
         ICloneDlg cloneDlg,
+        IInitRepoDlg initRepoDlg,
         ICreateBranchDlg createBranchDlg,
         IDeleteBranchDlg deleteBranchDlg,
         IAddTagDlg addTagDlg,
@@ -134,6 +137,7 @@ class RepoCommands : IRepoCommands
         this.progress = progress;
         this.commitDlg = commitDlg;
         this.cloneDlg = cloneDlg;
+        this.initRepoDlg = initRepoDlg;
         this.createBranchDlg = createBranchDlg;
         this.deleteBranchDlg = deleteBranchDlg;
         this.addTagDlg = addTagDlg;
@@ -240,6 +244,25 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+    public void InitRepo() => Do(async () =>
+    {
+        // Parent folders to recent work folders, usually other repos there as well
+        var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+
+        if (!Try(out var path, out var e, initRepoDlg.Show(recentFolders))) return R.Ok;
+
+        if (!Try(out e, await server.InitRepoAsync(path, RepoPath)))
+        {
+            return R.Error($"Failed to init repo", e);
+        }
+
+        if (!Try(out e, await repoView.ShowRepoAsync(path)))
+        {
+            return R.Error($"Failed to open repo at {path}", e);
+        }
+        return R.Ok;
+    });
+
 
     public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
@@ -255,19 +278,19 @@ class RepoCommands : IRepoCommands
             }
         }
 
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show, count);
+        Repo newRepo = server.ShowBranch(serverRepo, name, includeAmbiguous, show, count);
         SetRepo(newRepo, name);
     }
 
     public void ShowBranch(string name, string showCommitId)
     {
-        Server.Repo newRepo = server.ShowBranch(serverRepo, name, false);
+        Repo newRepo = server.ShowBranch(serverRepo, name, false);
         SetRepoAttCommit(newRepo, showCommitId);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)
     {
-        Server.Repo newRepo = server.HideBranch(serverRepo, name, hideAllBranches);
+        Repo newRepo = server.HideBranch(serverRepo, name, hideAllBranches);
         SetRepo(newRepo);
     }
 

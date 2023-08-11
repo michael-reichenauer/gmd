@@ -51,7 +51,7 @@ class RepoWriter : IRepoWriter
             // Build row
             var graphText = new TextBuilder();
             WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
-            graphText.Black(" "); // One space between graph and markers
+            WriteBlankOrStash(graphText, c);
             WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached);
             WriteAheadBehindMarker(graphText, c);
 
@@ -112,6 +112,17 @@ class RepoWriter : IRepoWriter
         string highlightBranchName, bool isHoverIndex)
     {
         text.Add(graphWriter.ToText(graph, index, maxGraphWidth, highlightBranchName, isHoverIndex));
+    }
+
+    static void WriteBlankOrStash(TextBuilder text, Commit c)
+    {
+        if (c.HasStash)
+        {
+            text.White("ß");
+            return;
+        }
+
+        text.Black(" ");
     }
 
     static void WriteCurrentMarker(TextBuilder text, Commit c, bool isUncommitted, bool isBranchDetached)
