@@ -45,8 +45,7 @@ class Updater : IUpdater
     const string tmpRandomSuffix = "RTXZERT";
     readonly Version MinVersion = new Version("0.0.0.0");
 
-    readonly IState states;
-    private readonly IConfig configs;
+    readonly Config config;
     readonly ICmd cmd;
     readonly Version buildVersion;
 
@@ -56,10 +55,9 @@ class Updater : IUpdater
     static string requestingUri = "";
     static Task<byte[]>? getBytesTask = null;
 
-    internal Updater(IState states, IConfig configs, ICmd cmd)
+    internal Updater(Config config, ICmd cmd)
     {
-        this.states = states;
-        this.configs = configs;
+        this.config = config;
         this.cmd = cmd;
         buildVersion = Build.Version();
     }
@@ -76,8 +74,8 @@ class Updater : IUpdater
             return;
         }
 
-        var releases = states.Get().Releases;
-        var allowPreview = configs.Get().AllowPreview;
+        var releases = config.Releases;
+        var allowPreview = config.AllowPreview;
 
         Log.Info($"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})");
     }
@@ -131,7 +129,7 @@ class Updater : IUpdater
         {
             await CheckUpdateAvailableAsync();
 
-            if (configs.Get().AutoUpdate)
+            if (config.AutoUpdate)
             {
                 if (Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()) && isAvailable.Item1)
                 {
@@ -155,7 +153,7 @@ class Updater : IUpdater
 
     public async Task<R<(bool, Version)>> IsUpdateAvailableAsync()
     {
-        if (!configs.Get().CheckUpdates)
+        if (!config.CheckUpdates)
         {
             Log.Info("Check for updates is disabled");
             return (false, buildVersion);
@@ -178,13 +176,13 @@ class Updater : IUpdater
             Log.Warn($"No remote binaries for {release.Version}");
             return (false, buildVersion);
         }
-        states.Set(s =>
+        config.Set(s =>
         {
             s.Releases.LatestVersion = release.Version;
             s.Releases.IsPreview = release.IsPreview;
         });
 
-        if (!states.Get().Releases.IsUpdateAvailable())
+        if (!config.Releases.IsUpdateAvailable())
         {
             Log.Debug("No new remote release available");
             return (false, buildVersion);
@@ -351,8 +349,8 @@ class Updater : IUpdater
 
     Release SelectRelease()
     {
-        var releases = states.Get().Releases;
-        var allowPreview = configs.Get().AllowPreview;
+        var releases = config.Releases;
+        var allowPreview = config.AllowPreview;
 
         if (allowPreview && releases.PreRelease.Assets.Any() &&
             IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version))
@@ -406,7 +404,7 @@ class Updater : IUpdater
         }
     }
 
-    string GetCachedLatestVersionInfoEtag() => states.Get().Releases.Etag;
+    string GetCachedLatestVersionInfoEtag() => config.Releases.Etag;
 
     void CacheLatestVersionInfo(string eTag, string latestInfoText)
     {
@@ -425,7 +423,7 @@ class Updater : IUpdater
         };
 
         // Cache the latest version info
-        states.Set(s => s.Releases = latestReleases);
+        config.Set(s => s.Releases = latestReleases);
     }
 
     Version TagToVersion(string tag)

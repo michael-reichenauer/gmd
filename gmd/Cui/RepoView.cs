@@ -38,7 +38,7 @@ class RepoView : IRepoView
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     readonly Func<IRepo, IRepoViewMenus> newMenuService;
-    readonly IState states;
+    readonly Config config;
     readonly IUpdater updater;
     readonly IRepoState repoState;
     readonly IProgress progress;
@@ -69,7 +69,7 @@ class RepoView : IRepoView
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
-        IState states,
+        Config config,
         IUpdater updater,
         IRepoState repoState,
         IProgress progress,
@@ -82,7 +82,7 @@ class RepoView : IRepoView
         this.server = server;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
-        this.states = states;
+        this.config = config;
         this.updater = updater;
         this.repoState = repoState;
         this.progress = progress;
@@ -961,14 +961,14 @@ class RepoView : IRepoView
     void RememberRepoPaths(string path)
     {
         // Remember recent repo paths
-        states.Set(s => s.RecentFolders = s.RecentFolders
+        config.Set(s => s.RecentFolders = s.RecentFolders
             .Prepend(path).Distinct().Where(Directory.Exists).Take(MaxRecentFolders).ToList());
 
         // Remember parent folder to paths to be used when browsing
         var parent = Path.GetDirectoryName(path);
         if (parent != null)
         {
-            states.Set(s => s.RecentParentFolders = s.RecentParentFolders
+            config.Set(s => s.RecentParentFolders = s.RecentParentFolders
                .Prepend(parent).Distinct().Where(Directory.Exists).Take(MaxRecentParentFolders).ToList());
         }
     }

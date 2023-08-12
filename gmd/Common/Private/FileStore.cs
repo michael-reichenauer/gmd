@@ -6,7 +6,7 @@ namespace gmd.Common.Private;
 interface IFileStore
 {
     T Get<T>(string path);
-    void Set<T>(string path, Action<T> set);
+    T Set<T>(string path, Action<T> set);
 }
 
 
@@ -18,13 +18,14 @@ class FileStore : IFileStore
 
     public T Get<T>(string path) => Read<T>(path);
 
-    public void Set<T>(string path, Action<T> set) => SetValue(path, set);
+    public T Set<T>(string path, Action<T> set) => SetValue(path, set);
 
-    void SetValue<T>(string path, Action<T> setState)
+    T SetValue<T>(string path, Action<T> setState)
     {
         var state = Read<T>(path);
         setState(state);
         Write(path, state);
+        return state;
     }
 
     void Write<T>(string path, T state)

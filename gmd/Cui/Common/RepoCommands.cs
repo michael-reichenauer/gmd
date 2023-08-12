@@ -98,7 +98,7 @@ class RepoCommands : IRepoCommands
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
-    readonly IState states;
+    readonly Config config;
     readonly IUpdater updater;
     readonly IRepoState repoState;
     readonly IBranchColorService branchColorService;
@@ -125,7 +125,7 @@ class RepoCommands : IRepoCommands
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
-        IState states,
+        Config config,
         IUpdater updater,
         IRepoState repoState,
         IBranchColorService branchColorService)
@@ -145,7 +145,7 @@ class RepoCommands : IRepoCommands
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
         this.diffView = diffView;
-        this.states = states;
+        this.config = config;
         this.updater = updater;
         this.repoState = repoState;
         this.branchColorService = branchColorService;
@@ -172,7 +172,7 @@ class RepoCommands : IRepoCommands
     public void ShowBrowseDialog() => Do(async () =>
    {
        // Parent folders to recent work folders, usually other repos there as well
-       var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+       var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
 
        var browser = new FolderBrowseDlg();
        if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
@@ -227,7 +227,7 @@ class RepoCommands : IRepoCommands
     public void Clone() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
 
         if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return R.Ok;
         (var uri, var path) = r;
@@ -247,7 +247,7 @@ class RepoCommands : IRepoCommands
     public void InitRepo() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
 
         if (!Try(out var path, out var e, initRepoDlg.Show(recentFolders))) return R.Ok;
 
@@ -914,7 +914,7 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
 
-        var releases = states.Get().Releases;
+        var releases = config.Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available.\n\n" +
             $"Current Version: {Build.Version()}\n" +
