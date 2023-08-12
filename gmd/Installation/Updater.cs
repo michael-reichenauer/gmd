@@ -14,6 +14,7 @@ interface IUpdater
     Task StartCheckUpdatesRegularly();
 }
 
+
 public class GitRelease
 {
     public string tag_name { get; set; } = "";
@@ -37,10 +38,6 @@ class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
     const string releasesUri = "https://api.github.com/repos/michael-reichenauer/gmd/releases";
-    const string binNameWindows = "gmd_windows";
-    const string binNameLinux = "gmd_linux";
-    const string binNameMac = "gmd_mac";
-    const string tmpSuffix = ".tmp";
     const string UserAgent = "gmd";
     const string tmpRandomSuffix = "RTXZERT";
     readonly Version MinVersion = new Version("0.0.0.0");
@@ -68,7 +65,7 @@ class Updater : IUpdater
         if (IsDotNet()) return;
 
         CleanTempFiles();
-        if (!Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()))
+        if (!Try(out var _, out var e, await IsUpdateAvailableAsync()))
         {
             Log.Warn($"Failed to check remote version, {e}");
             return;
@@ -232,28 +229,26 @@ class Updater : IUpdater
     {
         try
         {
-            using (HttpClient httpClient = GetHttpClient())
+            using HttpClient httpClient = GetHttpClient();
+            (string downloadUrl, string version) = SelectBinaryPath();
+            if (downloadUrl == "")
             {
-                (string downloadUrl, string version) = SelectBinaryPath();
-                if (downloadUrl == "")
-                {
-                    return R.Error("No binary available");
-                }
+                return R.Error("No binary available");
+            }
 
-                var targetPath = GetDownloadFilePath(version);
-                if (File.Exists(targetPath))
-                {
-                    Log.Info($"Already downloaded {targetPath}");
-                    return targetPath;
-                }
-
-                byte[] remoteFileData = await GetByteArrayAsync(httpClient, downloadUrl);
-
-                File.WriteAllBytes(targetPath, remoteFileData);
-
-                Log.Info($"Downloaded to    {targetPath}");
+            var targetPath = GetDownloadFilePath(version);
+            if (File.Exists(targetPath))
+            {
+                Log.Info($"Already downloaded {targetPath}");
                 return targetPath;
             }
+
+            byte[] remoteFileData = await GetByteArrayAsync(httpClient, downloadUrl);
+
+            File.WriteAllBytes(targetPath, remoteFileData);
+
+            Log.Info($"Downloaded to    {targetPath}");
+            return targetPath;
         }
         catch (Exception e) when (e.IsNotFatal())
         {
@@ -262,7 +257,7 @@ class Updater : IUpdater
         }
     }
 
-    Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
+    static Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
     {
         if (requestingUri == requestUri && getBytesTask != null)
         {   // A request for this uri has already been started, lets reuse task
@@ -277,8 +272,7 @@ class Updater : IUpdater
         return getBytesTask;
     }
 
-
-    string GetDownloadFilePath(string version)
+    static string GetDownloadFilePath(string version)
     {
         var name = $"gmd.{version}.{tmpRandomSuffix}";
         var tmpFolderPath = Path.GetTempPath();
@@ -293,7 +287,7 @@ class Updater : IUpdater
         return $"{thisPath}.tmp_{RandomString(5)}";
     }
 
-    void CleanTempFiles()
+    static void CleanTempFiles()
     {
         if (IsDotNet()) return;
         try
@@ -364,38 +358,36 @@ class Updater : IUpdater
     {
         try
         {
-            using (HttpClient httpClient = GetHttpClient())
+            using HttpClient httpClient = GetHttpClient();
+            // Try get cached information about latest remote version
+            string eTag = GetCachedLatestVersionInfoEtag();
+
+            if (eTag != "")
             {
-                // Try get cached information about latest remote version
-                string eTag = GetCachedLatestVersionInfoEtag();
+                // There is cached information, lets use the ETag when checking to follow
+                // GitHub Rate Limiting method.
+                httpClient.DefaultRequestHeaders.IfNoneMatch.Clear();
+                httpClient.DefaultRequestHeaders.IfNoneMatch.Add(new EntityTagHeaderValue(eTag));
+            }
 
-                if (eTag != "")
-                {
-                    // There is cached information, lets use the ETag when checking to follow
-                    // GitHub Rate Limiting method.
-                    httpClient.DefaultRequestHeaders.IfNoneMatch.Clear();
-                    httpClient.DefaultRequestHeaders.IfNoneMatch.Add(new EntityTagHeaderValue(eTag));
-                }
+            HttpResponseMessage response = await httpClient.GetAsync(releasesUri);
 
-                HttpResponseMessage response = await httpClient.GetAsync(releasesUri);
-
-                if (response.StatusCode == HttpStatusCode.NotModified || response.Content == null)
-                {
-                    Log.Debug("Remote latest version info same as cached info");
-                    return SelectRelease();
-                }
-
-                string latestInfoText = await response.Content.ReadAsStringAsync();
-                Log.Debug("New version info");
-
-                if (response.Headers.ETag != null)
-                {
-                    eTag = response.Headers.ETag.Tag;
-                    CacheLatestVersionInfo(eTag, latestInfoText);
-                }
-
+            if (response.StatusCode == HttpStatusCode.NotModified || response.Content == null)
+            {
+                Log.Debug("Remote latest version info same as cached info");
                 return SelectRelease();
             }
+
+            string latestInfoText = await response.Content.ReadAsStringAsync();
+            Log.Debug("New version info");
+
+            if (response.Headers.ETag != null)
+            {
+                eTag = response.Headers.ETag.Tag;
+                CacheLatestVersionInfo(eTag, latestInfoText);
+            }
+
+            return SelectRelease();
         }
         catch (Exception e) when (e.IsNotFatal())
         {
@@ -435,7 +427,7 @@ class Updater : IUpdater
         return MinVersion;
     }
 
-    Release ToRelease(GitRelease? gr)
+    static Release ToRelease(GitRelease? gr)
     {
         if (gr == null)
         {
@@ -450,7 +442,7 @@ class Updater : IUpdater
         };
     }
 
-    Asset[] ToAssets(GitAsset[] gas) =>
+    static Asset[] ToAssets(GitAsset[] gas) =>
         gas.Select(ga => new Asset() { Name = ga.name, Url = ga.browser_download_url }).ToArray();
 
     private static HttpClient GetHttpClient()
@@ -460,7 +452,7 @@ class Updater : IUpdater
         return httpClient;
     }
 
-    bool IsLeftNewer(string v1Text, string v2Text)
+    static bool IsLeftNewer(string v1Text, string v2Text)
     {
         if (!Version.TryParse(v1Text, out var v1))
         {
@@ -473,7 +465,7 @@ class Updater : IUpdater
         return v1 > v2;
     }
 
-    private Random random = new Random();
+    private readonly Random random = new Random();
 
     private string RandomString(int length)
     {
@@ -489,7 +481,7 @@ class Updater : IUpdater
         return cmd.Command("chmod", $"+x {path}", "");
     }
 
-    private bool IsDotNet()
+    private static bool IsDotNet()
     {
         var thisPath = Environment.ProcessPath ?? "gmd";
         return Path.GetFileNameWithoutExtension(thisPath) == "dotnet";
