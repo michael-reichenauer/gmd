@@ -100,7 +100,7 @@ class RepoCommands : IRepoCommands
     readonly IDiffView diffView;
     readonly Config config;
     readonly IUpdater updater;
-    readonly IRepoState repoState;
+    readonly IRepoConfig repoConfig;
     readonly IBranchColorService branchColorService;
     readonly IRepo repo;
     readonly Repo serverRepo;
@@ -127,7 +127,7 @@ class RepoCommands : IRepoCommands
         IDiffView diffView,
         Config config,
         IUpdater updater,
-        IRepoState repoState,
+        IRepoConfig repoConfig,
         IBranchColorService branchColorService)
     {
         this.repo = repo;
@@ -147,7 +147,7 @@ class RepoCommands : IRepoCommands
         this.diffView = diffView;
         this.config = config;
         this.updater = updater;
-        this.repoState = repoState;
+        this.repoConfig = repoConfig;
         this.branchColorService = branchColorService;
     }
 
@@ -1083,7 +1083,7 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
 
-        repoState.Set(RepoPath, s =>
+        repoConfig.Set(RepoPath, s =>
         {
             // Filter existing branch orders for the two branches
             var branchOrders = s.BranchOrders.Where(b =>

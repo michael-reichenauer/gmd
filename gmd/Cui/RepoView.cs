@@ -40,7 +40,7 @@ class RepoView : IRepoView
     readonly Func<IRepo, IRepoViewMenus> newMenuService;
     readonly Config config;
     readonly IUpdater updater;
-    readonly IRepoState repoState;
+    readonly IRepoConfig repoConfig;
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
@@ -71,7 +71,7 @@ class RepoView : IRepoView
         Func<IRepo, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
-        IRepoState repoState,
+        IRepoConfig repoConfig,
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
@@ -84,7 +84,7 @@ class RepoView : IRepoView
         this.newMenuService = newMenuService;
         this.config = config;
         this.updater = updater;
-        this.repoState = repoState;
+        this.repoConfig = repoConfig;
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
@@ -137,7 +137,7 @@ class RepoView : IRepoView
         if (!Try(out var rootDir, out var e, git.RootPath(path))) return e;
         Log.Info($"Show repo for '{path}' ({rootDir})");
 
-        var branches = repoState.Get(rootDir).Branches;
+        var branches = repoConfig.Get(rootDir).Branches;
         if (!Try(out e, await ShowNewRepoAsync(rootDir, branches))) return e;
         FetchFromRemote();
 
@@ -893,7 +893,7 @@ class RepoView : IRepoView
         if (serverRepo.Filter != "") return;
 
         var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
-        repoState.Set(serverRepo.Path, s => s.Branches = names);
+        repoConfig.Set(serverRepo.Path, s => s.Branches = names);
     }
 
 
