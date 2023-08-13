@@ -6,9 +6,8 @@ namespace gmd.Common;
 
 interface IConfigService
 {
-    ConfigData Get();
-    void Set(Action<ConfigData> setState);
-    void Register(Config config);
+    Config Get();
+    void Set(Action<Config> setState);
 }
 
 
@@ -16,45 +15,40 @@ interface IConfigService
 [SingleInstance]
 class ConfigService : IConfigService
 {
-    // Storing registered config instances as week references to avoid needing unregister of dispose
-    List<WeakReference> registered = new List<WeakReference>();
+    readonly IFileStore store;
+    readonly Config config = new Config(); // The single instance of Config used in DI
 
-    // Get all public properties from Config
+    // Get all public properties from Config, used when copying properties to single instance
     static readonly PropertyInfo[] properties = typeof(Config)
         .GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-
     static readonly string FilePath = Path.Join(Environment.GetFolderPath(
         Environment.SpecialFolder.UserProfile), ".gmdconfig");
-    private readonly IFileStore store;
 
-    internal ConfigService(IFileStore store) => this.store = store;
 
-    public ConfigData Get() => store.Get<ConfigData>(FilePath);
-
-    public void Register(Config config)
+    internal ConfigService(IFileStore store, Config config)
     {
-        Copy(Get(), config);
-        registered.Add(new WeakReference(config));
+        this.store = store;
+        this.config = config;
+
+        // Get Config stored from file and updated the single instance Config
+        Copy(Get(), this.config);
     }
 
-    public void Set(Action<ConfigData> set)
+    public Config Get() => store.Get<Config>(FilePath);
+
+
+    public void Set(Action<Config> set)
     {
-        var sourceConfig = store.Set(FilePath, set);
+        var storedConfig = store.Set(FilePath, set);
 
-        registered.ForEach(wr =>
-        {
-            if (wr.Target is not Config targetConfig) return;
-            Copy(sourceConfig, targetConfig);
-        });
-
-        // Clean reclaimed week references to config values 
-        registered = registered.Where(wr => wr.Target != null).ToList();
+        // Update the single instance Config
+        Copy(storedConfig, config);
     }
 
-    static void Copy(ConfigData source, ConfigData target)
+    // Copy property values to instance to ensure updated values
+    static void Copy(Config source, Config target)
     {
-        // Copy property values to instance to ensure updated values
         properties.ForEach(fi => fi.SetValue(target, fi.GetValue(source)));
     }
 }
