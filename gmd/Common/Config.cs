@@ -1,31 +1,18 @@
-using gmd.Common.Private;
-
-
 namespace gmd.Common;
 
-class Config
+
+// This class is intended to be used in dependency injection as injected config parameter, which
+// will have the latest config data, it gets/sets config values from/to ConfigService
+class Config : ConfigData
 {
-    public bool CheckUpdates { get; set; } = true;
-    public bool AutoUpdate { get; set; } = false;
-    public bool AllowPreview { get; set; } = false;
+    readonly IConfigService configService;
+
+    public Config(IConfigService configService)
+    {
+        this.configService = configService;
+        configService.Register(this);
+    }
+
+    public void Set(Action<ConfigData> set) => configService.Set(set);
 }
 
-interface IConfig
-{
-    Config Get();
-    void Set(Action<Config> setState);
-}
-
-// cSpell:ignore gmdconfig
-class ConfigImpl : IConfig
-{
-    static readonly string FilePath = Path.Join(Environment.GetFolderPath(
-        Environment.SpecialFolder.UserProfile), ".gmdconfig");
-    private readonly IFileStore store;
-
-    internal ConfigImpl(IFileStore store) => this.store = store;
-
-    public Config Get() => store.Get<Config>(FilePath);
-
-    public void Set(Action<Config> set) => store.Set(FilePath, set);
-}

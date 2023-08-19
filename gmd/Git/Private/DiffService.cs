@@ -390,37 +390,37 @@ class DiffService : IDiffService
         return (null, i, false);
     }
 
-    static List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
-    {
-        // Update diff mode on files, which status has determined are conflicted
-        return fileDiffs
-            .Select(fd => status.ConflictsFiles.Contains(fd.PathAfter)
-                            ? fd with { DiffMode = DiffMode.DiffConflicts } : fd)
-            .ToList();
-    }
+    // static List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
+    // {
+    //     // Update diff mode on files, which status has determined are conflicted
+    //     return fileDiffs
+    //         .Select(fd => status.ConflictsFiles.Contains(fd.PathAfter)
+    //                         ? fd with { DiffMode = DiffMode.DiffConflicts } : fd)
+    //         .ToList();
+    // }
 
-    static IReadOnlyList<FileDiff> GetAddedFilesDiffs(Status status, string dirPath)
-    {
-        var fileDiffs = new List<FileDiff>();
-        foreach (var name in status.AddedFiles)
-        {
-            string filePath = Path.Join(dirPath, name);
+    // static IReadOnlyList<FileDiff> GetAddedFilesDiffs(Status status, string dirPath)
+    // {
+    //     var fileDiffs = new List<FileDiff>();
+    //     foreach (var name in status.AddedFiles)
+    //     {
+    //         string filePath = Path.Join(dirPath, name);
 
-            if (!Try(out var file, out var e, () => File.ReadAllText(filePath)))
-            {
-                file = $"<Error reading File {e}";
-            }
+    //         if (!Try(out var file, out var e, () => File.ReadAllText(filePath)))
+    //         {
+    //             file = $"<Error reading File {e}";
+    //         }
 
-            var lines = file.Split('\n');
-            var lineDiffs = lines.Select(l => new LineDiff(DiffMode.DiffAdded, l.TrimEnd().Replace("\t", "   "))).ToList();
+    //         var lines = file.Split('\n');
+    //         var lineDiffs = lines.Select(l => new LineDiff(DiffMode.DiffAdded, l.TrimEnd().Replace("\t", "   "))).ToList();
 
-            var sectionDiffs = new List<SectionDiff>() { new SectionDiff($"-0,0 +1,{lines.Length}", 0, 0, 0, lines.Length, lineDiffs) };
-            var fileDiff = new FileDiff("", name, false, false, DiffMode.DiffAdded, sectionDiffs);
-            fileDiffs.Add(fileDiff);
-        }
+    //         var sectionDiffs = new List<SectionDiff>() { new SectionDiff($"-0,0 +1,{lines.Length}", 0, 0, 0, lines.Length, lineDiffs) };
+    //         var fileDiff = new FileDiff("", name, false, false, DiffMode.DiffAdded, sectionDiffs);
+    //         fileDiffs.Add(fileDiff);
+    //     }
 
-        return fileDiffs;
-    }
+    //     return fileDiffs;
+    // }
 
     static string AsLine(string line)
     {

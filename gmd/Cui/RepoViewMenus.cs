@@ -25,14 +25,14 @@ class RepoViewMenus : IRepoViewMenus
 
     readonly IRepo repo;
     readonly IRepoCommands cmds;
-    readonly IState states;
+    readonly Config config;
     private readonly IConfigDlg configDlg;
 
-    internal RepoViewMenus(IRepo repo, IState states, IConfigDlg configDlg)
+    internal RepoViewMenus(IRepo repo, Config config, IConfigDlg configDlg)
     {
         this.repo = repo;
         this.cmds = repo.Cmd;
-        this.states = states;
+        this.config = config;
         this.configDlg = configDlg;
     }
 
@@ -165,7 +165,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetNewReleaseItems()
     {
-        if (!states.Get().Releases.IsUpdateAvailable()) return Menu.Items;
+        if (!config.Releases.IsUpdateAvailable()) return Menu.Items;
         return Menu.Items
            .Separator("New Release Available !!!")
            .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
@@ -281,7 +281,7 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
-        states.Get().RecentFolders
+        config.RecentFolders
             .Where(Directory.Exists)
             .Take(10)
             .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.RepoPath));

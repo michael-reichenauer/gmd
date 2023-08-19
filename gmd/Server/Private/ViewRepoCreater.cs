@@ -15,12 +15,12 @@ interface IViewRepoCreater
 class ViewRepoCreater : IViewRepoCreater
 {
     readonly IConverter converter;
-    readonly IRepoState repoState;
+    readonly IRepoConfig repoConfig;
 
-    internal ViewRepoCreater(IConverter converter, IRepoState repoState)
+    internal ViewRepoCreater(IConverter converter, IRepoConfig repoConfig)
     {
         this.converter = converter;
-        this.repoState = repoState;
+        this.repoConfig = repoConfig;
     }
 
 
@@ -363,7 +363,7 @@ class ViewRepoCreater : IViewRepoCreater
     {
         var sorted = branches.Where(b => b.IsPrimary).ToList();
 
-        var branchOrders = repoState.Get(repo.Path).BranchOrders;
+        var branchOrders = repoConfig.Get(repo.Path).BranchOrders;
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
         Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
 

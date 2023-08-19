@@ -36,7 +36,7 @@ class ApplicationBar : View, IApplicationBar
 {
     const int maxRepoLength = 30;
     readonly IBranchColorService branchColorService;
-    readonly IState state;
+    readonly Config config;
 
     readonly UILabel label;
     readonly List<Text> items = new List<Text>();
@@ -47,10 +47,10 @@ class ApplicationBar : View, IApplicationBar
 
     public event Action<int, int, ApplicationBarItem>? ItemClicked = null;
 
-    public ApplicationBar(IBranchColorService branchColorService, IState state)
+    public ApplicationBar(IBranchColorService branchColorService, Config config)
     {
         this.branchColorService = branchColorService;
-        this.state = state;
+        this.config = config;
         X = 0;
         Y = 0;
         Height = 2;
@@ -175,7 +175,7 @@ class ApplicationBar : View, IApplicationBar
         return Common.Text.Dark($"{path}, ");
     }
 
-    Text GetUpdateText() => state.Get().Releases.IsUpdateAvailable()
+    Text GetUpdateText() => config.Releases.IsUpdateAvailable()
         ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
 
 

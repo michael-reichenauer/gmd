@@ -10,22 +10,22 @@ interface IAboutDlg
 
 class AboutDlg : IAboutDlg
 {
-    readonly IState states;
+    readonly Config config;
 
-    public AboutDlg(IState states)
+    public AboutDlg(Config config)
     {
-        this.states = states;
+        this.config = config;
     }
 
     public void Show()
     {
-        var releases = states.Get().Releases;
+        var releases = config.Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
         var gmdVersion = Build.Version();
         var gmdBuildTime = Build.Time().IsoZone();
         var gmdSha = Build.Sha();
         var isAvailable = Build.Version() < Version.Parse(releases.LatestVersion);
-        var gitVersion = states.Get().GitVersion;
+        var gitVersion = config.GitVersion;
 
         var msg =
             $"Version: {gmdVersion} ({gmdSha}) \n" +

@@ -38,9 +38,9 @@ class RepoView : IRepoView
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
     readonly Func<IRepo, IRepoViewMenus> newMenuService;
-    readonly IState states;
+    readonly Config config;
     readonly IUpdater updater;
-    readonly IRepoState repoState;
+    readonly IRepoConfig repoConfig;
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
@@ -69,9 +69,9 @@ class RepoView : IRepoView
         Func<View, int, IRepoWriter> newRepoWriter,
         Func<IRepoView, Server.Repo, IRepo> newViewRepo,
         Func<IRepo, IRepoViewMenus> newMenuService,
-        IState states,
+        Config config,
         IUpdater updater,
-        IRepoState repoState,
+        IRepoConfig repoConfig,
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
@@ -82,9 +82,9 @@ class RepoView : IRepoView
         this.server = server;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
-        this.states = states;
+        this.config = config;
         this.updater = updater;
-        this.repoState = repoState;
+        this.repoConfig = repoConfig;
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
@@ -137,7 +137,7 @@ class RepoView : IRepoView
         if (!Try(out var rootDir, out var e, git.RootPath(path))) return e;
         Log.Info($"Show repo for '{path}' ({rootDir})");
 
-        var branches = repoState.Get(rootDir).Branches;
+        var branches = repoConfig.Get(rootDir).Branches;
         if (!Try(out e, await ShowNewRepoAsync(rootDir, branches))) return e;
         FetchFromRemote();
 
@@ -893,7 +893,7 @@ class RepoView : IRepoView
         if (serverRepo.Filter != "") return;
 
         var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
-        repoState.Set(serverRepo.Path, s => s.Branches = names);
+        repoConfig.Set(serverRepo.Path, s => s.Branches = names);
     }
 
 
@@ -961,14 +961,14 @@ class RepoView : IRepoView
     void RememberRepoPaths(string path)
     {
         // Remember recent repo paths
-        states.Set(s => s.RecentFolders = s.RecentFolders
+        config.Set(s => s.RecentFolders = s.RecentFolders
             .Prepend(path).Distinct().Where(Directory.Exists).Take(MaxRecentFolders).ToList());
 
         // Remember parent folder to paths to be used when browsing
         var parent = Path.GetDirectoryName(path);
         if (parent != null)
         {
-            states.Set(s => s.RecentParentFolders = s.RecentParentFolders
+            config.Set(s => s.RecentParentFolders = s.RecentParentFolders
                .Prepend(parent).Distinct().Where(Directory.Exists).Take(MaxRecentParentFolders).ToList());
         }
     }
