@@ -12,6 +12,7 @@ interface IRepoViewMenus
     void ShowBranchMenu(int x, int y, string branchName);
     void ShowCommitBranchesMenu(int x, int y);
     void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0);
+    void ShowStashMenu(int x = Menu.Center, int y = 0);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
     void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
     void ShowDiffBranchToMenu(int x, int y, string branchName);
@@ -72,6 +73,11 @@ class RepoViewMenus : IRepoViewMenus
         Menu.Show("Open Branch", x, y + 2, GetShowBranchItems());
     }
 
+    public void ShowStashMenu(int x = Menu.Center, int y = 0)
+    {
+        Menu.Show("Stash", x, y + 2, GetStashMenuItems());
+    }
+
     public void ShowDiffBranchToMenu(int x, int y, string branchName)
     {
         Menu.Show($"Diff Branch to {branchName}", x, y + 2, GetBranchDiffItems(branchName));
@@ -88,7 +94,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Search/Filter ...", "F", () => cmds.Filter())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
-            .SubMenu("Open/Clone Repo", "O", GetOpenRepoItems())
+            .SubMenu("Open/Clone/Init Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
             .Item("Help ...", "?, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
@@ -270,7 +276,8 @@ class RepoViewMenus : IRepoViewMenus
         .Items(GetRecentRepoItems())
         .Separator()
         .Item("Browse ...", "", () => cmds.ShowBrowseDialog())
-        .Item("Clone ...", "", () => cmds.Clone(), () => true);
+        .Item("Clone ...", "", () => cmds.Clone())
+        .Item("Init ...", "", () => cmds.InitRepo());
 
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>

@@ -80,7 +80,7 @@ class CommitService : ICommitService
         return await cmd.RunAsync("git", "reset HEAD~1", wd);
     }
 
-    bool IsFileUnknown(ErrorResult error, string path)
+    static bool IsFileUnknown(ErrorResult error, string path)
     {
         var msg = $"error: pathspec '{path}' did not match any file(s) known";
         return error.ErrorMessage.StartsWith(msg);

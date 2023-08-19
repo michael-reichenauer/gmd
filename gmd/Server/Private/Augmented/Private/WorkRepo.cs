@@ -66,6 +66,7 @@ class WorkCommit
     public WorkBranch? Branch { get; set; }
 
     public bool IsLikely { get; set; }
+    public bool HasStash { get; set; }
 
     public WorkCommit(GitCommit c)
     {

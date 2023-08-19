@@ -1,7 +1,5 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using gmd.Common;
-using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -14,20 +12,17 @@ class Server : IServer
     readonly IAugmentedService augmentedService;
     readonly IConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
-    readonly IRepoState repoState;
 
     public Server(
         IGit git,
         IAugmentedService augmentedService,
         IConverter converter,
-        IViewRepoCreater viewRepoCreater,
-        IRepoState repoState)
+        IViewRepoCreater viewRepoCreater)
     {
         this.git = git;
         this.augmentedService = augmentedService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
-        this.repoState = repoState;
         augmentedService.RepoChange += e => RepoChange?.Invoke(e);
         augmentedService.StatusChange += e => StatusChange?.Invoke(e);
     }
@@ -226,10 +221,7 @@ class Server : IServer
         if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, new[] { "main" });
 
         var branch = repo.AugmentedRepo.Branches[name];
-        if (branch.RemoteName != "")
-        {
-            branch = repo.AugmentedRepo.Branches[branch.RemoteName];
-        }
+        branch = repo.AugmentedRepo.Branches[branch.PrimaryName];
 
         var branchNames = repo.Branches
             .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
@@ -350,6 +342,11 @@ class Server : IServer
         using (Timing.Start()) return await git.CloneAsync(uri, path, wd);
     }
 
+    public async Task<R> InitRepoAsync(string path, string wd) =>
+     await git.InitRepoAsync(path, wd);
+
+
+
     public Task<R> StashAsync(string wd) => git.StashAsync(wd);
 
     public Task<R> StashPopAsync(string name, string wd) => git.StashPopAsync(name, wd);
@@ -375,7 +372,7 @@ class Server : IServer
         {
             var message = c.Message;
             var parts = c.Message.Split('\n');
-            if (c.ParentIds.Count() > 1 && parts.Length > 2 && parts[1].Trim() == "")
+            if (c.ParentIds.Count > 1 && parts.Length > 2 && parts[1].Trim() == "")
             {
                 message = string.Join('\n', parts.Skip(2));
             }
@@ -387,13 +384,13 @@ class Server : IServer
             // Adjust some message lines
             message = message.Split('\n').Select(l =>
             {
-                if (l.StartsWith("- Fix ")) l = $"- Fixed {l.Substring(6)}";
-                if (l.StartsWith("- Add ")) l = $"- Added {l.Substring(6)}";
-                if (l.StartsWith("- Update ")) l = $"- Updated {l.Substring(9)}";
+                if (l.StartsWith("- Fix ")) l = $"- Fixed {l[6..]}";
+                if (l.StartsWith("- Add ")) l = $"- Added {l[6..]}";
+                if (l.StartsWith("- Update ")) l = $"- Updated {l[9..]}";
                 return l;
             }).Join("\n");
 
-            var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name.Substring(1), out var _));
+            var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name[1..], out var _));
             if (tag != null)
             {   // New version
                 if (text.Trim() != "")

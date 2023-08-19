@@ -13,6 +13,7 @@ enum ApplicationBarItem
     Status,
     Behind,
     Ahead,
+    Stash,
     Divider,
     BranchName,
     Space,
@@ -126,12 +127,14 @@ class ApplicationBar : View, IApplicationBar
     {
         var behindCount = repo.Commits.Where(c => c.IsBehind).Count();
         var aheadCount = repo.Commits.Where(c => c.IsAhead).Count();
+        var stashCount = repo.Stashes.Count;
 
         items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
         SetCurrentBranch(repo);
         items[(int)ApplicationBarItem.Status] = !repo.Status.IsOk ? Common.Text.Dark(", ").Yellow("© ").Dark($"{repo.Status.ChangesCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Behind] = behindCount > 0 ? Common.Text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Ahead] = aheadCount > 0 ? Common.Text.Dark(", ").Green("▲ ").Dark($"{aheadCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Stash] = stashCount > 0 ? Common.Text.Dark(", ").White("ß ").Dark($"{stashCount}") : Common.Text.Empty;
         UpdateView();
     }
 

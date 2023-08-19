@@ -1,6 +1,3 @@
-
-
-
 namespace System;
 
 // Some useful string extensions that are missing in .NET

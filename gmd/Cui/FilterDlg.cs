@@ -49,7 +49,7 @@ class FilterDlg : IFilterDlg
         dlg.RegisterMouseHandler(OnMouseEvent);
 
         dlg.AddLabel(0, 0, Text.BrightMagenta(" Gmd"));
-        var searchLabelX = Application.Driver.Cols - 42;
+        var searchLabelX = Application.Driver.Cols - 41;
         dlg.AddLabel(searchLabelX, 0, Text.BrightMagenta("Search:"));
         filterField = dlg.AddInputField(searchLabelX + 8, 0, 29);
 

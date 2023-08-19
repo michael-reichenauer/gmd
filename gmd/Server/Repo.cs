@@ -93,6 +93,7 @@ public record Commit(
     bool IsAmbiguous,
     bool IsAmbiguousTip,
     bool IsBranchSetByUser,
+    bool HasStash,
     // bool IsInFilter,
 
     // View properties
@@ -153,8 +154,8 @@ public record Stash(
     string Id,
     string Name,
     string Branch,
-    string parentId,
-    string indexId,
+    string ParentId,
+    string IndexId,
     string Message
 );
 

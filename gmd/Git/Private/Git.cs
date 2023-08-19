@@ -10,6 +10,7 @@ internal class Git : IGit
     readonly ICommitService commitService;
     readonly IDiffService diffService;
     readonly IRemoteService remoteService;
+    readonly IRepoService repoService;
     readonly ITagService tagService;
     readonly IKeyValueService keyValueService;
     readonly IStashService stashService;
@@ -22,6 +23,7 @@ internal class Git : IGit
         ICommitService commitService,
         IDiffService diffService,
         IRemoteService remoteService,
+        IRepoService repoService,
         ITagService tagService,
         IKeyValueService keyValueService,
         IStashService stashService,
@@ -33,6 +35,7 @@ internal class Git : IGit
         this.commitService = commitService;
         this.diffService = diffService;
         this.remoteService = remoteService;
+        this.repoService = repoService;
         this.tagService = tagService;
         this.keyValueService = keyValueService;
         this.stashService = stashService;
@@ -67,6 +70,8 @@ internal class Git : IGit
     public Task<R> PullBranchAsync(string name, string wd) => remoteService.PullBranchAsync(name, wd);
     public Task<R> CloneAsync(string uri, string path, string wd) =>
         remoteService.CloneAsync(uri, path, wd);
+    public Task<R> InitRepoAsync(string path, string wd) =>
+        repoService.InitAsync(path, false);
     public Task<R> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
     public Task<R> MergeBranchAsync(string name, string wd) => branchService.MergeBranchAsync(name, wd);
     public Task<R> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);

@@ -1,9 +1,17 @@
 # Change Log for Gmd
 --------------------
 
-102 releases:
+103 releases:
 
-## [Current] - 2023-08-08
+## [Current] - 2023-08-19
+- Adjust filter/search x
+- Added support for git init
+- Improve menu width calculation
+- Fixed issue with hiding pull merge branch
+- Added 'Init repo' to main view menu
+- Added support for stash status in ApplicationBar and commits
+
+## [v0.90.282.1137] - 2023-08-08
 - Try to improve graph branch overlapping handling
 - Fixed graph width error
 - Fixed refresh after diff

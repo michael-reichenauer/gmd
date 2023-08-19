@@ -2,7 +2,6 @@ using gmd.Cui.Common;
 
 namespace gmd.Cui;
 
-
 interface ICloneDlg
 {
     R<(string, string)> Show(IReadOnlyList<string> recentParentFolders);
@@ -10,7 +9,7 @@ interface ICloneDlg
 
 class CloneDlg : ICloneDlg
 {
-    const int width = 55;
+    const int width = 60;
 
     UITextField? path;
 
@@ -21,16 +20,16 @@ class CloneDlg : ICloneDlg
             recentParentFolders[0] + Path.DirectorySeparatorChar :
             "";
 
-        var dlg = new UIDialog("Clone Repo", width + 4, 10);
+        var dlg = new UIDialog("Clone Repo", width + 4, 8);
 
         dlg.AddLabel(1, 0, "Uri:");
-        var uri = dlg.AddTextField(1, 1, width, "");
+        var uri = dlg.AddInputField(6, 0, width - 6, "");
         uri.KeyUp += _ => UpdatePath(basePath, uri.Text);
 
-        dlg.AddLabel(1, 3, "Path:");
-        path = dlg.AddTextField(1, 4, width, basePath);
+        dlg.AddLabel(1, 2, "Path:");
+        path = dlg.AddInputField(7, 2, width - 16, basePath, InputMarkers.None);
 
-        dlg.AddButton(width - 13, 3, "Browse ...", () =>
+        dlg.AddButton(width - 9, 2, "Browse", () =>
         {
             FolderBrowseDlg browseDlg = new FolderBrowseDlg();
             if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "") return;

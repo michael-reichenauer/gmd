@@ -47,7 +47,6 @@ class RepoView : IRepoView
     readonly IApplicationBar applicationBarView;
     readonly IFilterDlg filterDlg;
     readonly IUnicodeSetsDlg charDlg;
-    readonly Func<View, int, IRepoWriter> newRepoWriter;
     readonly ContentView commitsView;
     readonly IRepoWriter repoWriter;
 
@@ -81,7 +80,6 @@ class RepoView : IRepoView
         IUnicodeSetsDlg charDlg) : base()
     {
         this.server = server;
-        this.newRepoWriter = newRepoWriter;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
         this.states = states;
@@ -93,7 +91,7 @@ class RepoView : IRepoView
         this.applicationBarView = applicationBarView;
         this.filterDlg = filterDlg;
         this.charDlg = charDlg;
-        commitsView = new ContentView(onGetContent)
+        commitsView = new ContentView(OnGetContent)
         {
             X = 0,
             Y = 2,
@@ -379,6 +377,9 @@ class RepoView : IRepoView
             case ApplicationBarItem.BranchName:
                 menuService.ShowOpenBranchesMenu(x - 5, y);
                 break;
+            case ApplicationBarItem.Stash:
+                menuService.ShowStashMenu(x - 5, y);
+                break;
             case ApplicationBarItem.Search:
                 Cmd.Filter();
                 break;
@@ -477,7 +478,7 @@ class RepoView : IRepoView
 
         if (hooverRowColumnIndex < 0)
         {   // No hoover branch, or not found, select right most branch
-            SetHooverBranch(branches.Last(), repo.CurrentIndex);
+            SetHooverBranch(branches[branches.Count - 1], repo.CurrentIndex);
             return;
         }
 
@@ -561,10 +562,7 @@ class RepoView : IRepoView
              // Try locate the same branch on the previous row or the next branch on the previous row
             var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
             var branch = branches.FirstOrDefault(b => b.B.PrimaryName == hoverName);
-            if (branch == null)
-            {// Try locate some other branch on this row
-                branch = branches[Math.Max(0, Math.Min(hoverColumnIndex, branches.Count - 1))];
-            }
+            branch ??= branches[Math.Max(0, Math.Min(hoverColumnIndex, branches.Count - 1))];
 
             SetHooverBranch(branch, repo.CurrentIndex);
         }
@@ -586,10 +584,7 @@ class RepoView : IRepoView
             // Try locate the same branch on the previous row or the next branch on the previous row
             var branches = repo.Graph.GetRowBranches(repo.CurrentIndex);
             var branch = branches.FirstOrDefault(b => b.B.PrimaryName == hooverName);
-            if (branch == null)
-            {// Try locate some other branch on this row
-                branch = branches[Math.Max(0, Math.Min(hooverColumnIndex, branches.Count - 1))];
-            }
+            branch ??= branches[Math.Max(0, Math.Min(hooverColumnIndex, branches.Count - 1))];
 
             SetHooverBranch(branch, repo.CurrentIndex);
         }
@@ -606,7 +601,7 @@ class RepoView : IRepoView
             {
                 text = lines
                     .Where(l => l.Trim() != "")
-                    .Select(l => l.Substring(repo.Graph.Width + 3))
+                    .Select(l => l[(repo.Graph.Width + 3)..])
                     .Join("\n");
             }
             Utils.Clipboard.Set(text);
@@ -706,7 +701,7 @@ class RepoView : IRepoView
     }
 
 
-    (IEnumerable<Text> rows, int total) onGetContent(int firstIndex, int count, int currentIndex, int width)
+    (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         if (hooverBranchName != "" && hooverCurrentCommitIndex != currentIndex)
         {
@@ -786,7 +781,7 @@ class RepoView : IRepoView
         var commit = repo.RowCommit;
         var commitBranches = repo.GetCommitBranches();
         var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
-            repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent);
+            repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var _);
 
         if (isMergeTargetOpen && commitBranches.Count == 0)
         {   // Close the merged branch
