@@ -90,7 +90,6 @@ class RepoViewMenus : IRepoViewMenus
         return Menu.Items
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
-            .SubMenu("Stash", "", GetStashMenuItems())
             .Item("Search/Filter ...", "F", () => cmds.Filter())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
@@ -116,7 +115,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
             .SubMenu("Undo", "", GetCommitUndoItems())
-            .Item("Stash Changes", "", () => cmds.Stash(), () => c.Id == Repo.UncommittedId)
+            .SubMenu("Stash", "", GetStashMenuItems())
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
             .Item("Create Branch from Commit ...", "", () => cmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
             .Item($"Merge From Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
