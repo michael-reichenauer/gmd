@@ -5,7 +5,8 @@ Gmd is a versatile, cross-platform console UI Git client designed to enhance the
 - **Branch Visibility Control**: Toggle which branches are displayed or hidden. Its a similar benefit as 'dynamic and reversible' squash merges, without the need to rewrite history to preserving a clean commit log.
 - **Side-by-Side Diff**: View a side-by-side diff of all changes in a commit, or between two branches.
 - **Simply Git Commands**: Execute most used Git commands with out needing to remember the syntax.
-
+</br>
+</br>
 
 ![Gmd Animation](gmd/doc/Animation.gif)
 *Screenshot of Gmd in action.*
