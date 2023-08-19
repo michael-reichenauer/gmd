@@ -1,10 +1,156 @@
 # Change Log for Gmd
 --------------------
 
-## [Current] - 2023-06-19
+104 releases:
+
+## [Current] - 2023-08-19
+- Updated Readme
+- Updated Help documentation
+
+## [v0.90.293.440] - 2023-08-19
+- Adjust filter/search x
+- Added support for git init
+- Improve menu width calculation
+- Fixed issue with hiding pull merge branch
+- Added 'Init repo' to main view menu
+- Added support for stash status in ApplicationBar and commits
+
+## [v0.90.282.1137] - 2023-08-08
+- Try to improve graph branch overlapping handling
+- Fixed graph width error
+- Fixed refresh after diff
+- Adjust update info and added sln file
+- Support unset branch in SetBranchManually dlg
+- Diff of added or removed file use one column
+- Improve branch structure
+
+## [v0.90.277.1021] - 2023-08-03
+- Added short cut 'Y' to show current branch menu item
+- Try fix refresh after remove tag
+- Improve handling of binary files when committing.
+- Adjust progress
+- Adjust commit dialog
+- Adjust Application and Filter bars
+- Set current row when rightclick
+- Adjust branch structure
+- Fixed push local-only branch
+- Fixed issue with focus on buttons and checkboxes
+- Try fix progess when clicking on ApplicationBar
+- Adjust the symbol of shown branches to 'o'
+- Fixed isue with creating branch
+- Added close button to ApplicationBar and filterBar
+
+## [v0.90.272.349] - 2023-07-29
+- Impoved set branch manually dialog
+- Limit filter results to 5000
+- Added support for OpenBranchMenu shortcut 'Shift  →'
+- Adjust menus pos for ApplicationBar
+- Added support for shortcut for diff for branches
+
+## [v0.90.269.290] - 2023-07-26
+- Improve combobox with mouseclick support
+- Improve branch name parsing
+- Improve unicode char set dialog
+
+## [v0.90.268.282] - 2023-07-25
+- Support middle mouse botton click to merge from branch
+- Fixed click on branch issue
+
+## [v0.90.267.1006] - 2023-07-24
+- Improve ApplicationBar
+- Updated help file
+- Support double click on branch to switch to branch
+
+## [v0.90.267.349] - 2023-07-24
+- Added support for updating from mainn view menu
+- Added support for ApplicationBar with repo and commit info
+- Adjust dialog button focus color
+- Fixed issue with not closing main view on closing menu
+- Support move left/right to branches and up/down to commits
+- Support both branch and commit menus
+- Support hoover/highlight branch and commit
+- Support open/close child branch by clicking on branch commits
+- Support close branch clicking on tip or bottom commit
+- Added shortcut 'y" to go to current branch
+- Scroll page on space
+- Version 0.90
+- Improved FileMonitor functionality
+- Added support for clicking in graph to open/close branches
+- Highlight menu item when hover with mouse
+- Fixed menu mouse support
+- Enable show sid in log view
+- Adjust change log generation
+- Added support for Copy and mouse select
+- Fixed mouse support on linux
+- Improve menu and clean hide and switch menu items
+- Fixed hide and switch menu items
+
+## [v0.80.257.540] - 2023-07-14
+- Improve select commit after search
+
+## [v0.80.257.500] - 2023-07-14
+- Added branch count to filter
+- Adjust how add merge commits messages are formated
+- Added graph to filter/search view results
+- Added mouse scroll support to filter/search
+- Adjust how OS detection is handled
+- Improved serach/filter functionality
+- Support showing all recent, all active or all branches
+- Show branch when switching
+- Show ambiguous branches in branch structure menu
+- Support search/filter of ambiguous tips using '*'
+- In repo view highlight whole row
+- Added support for set branch with dialog
+- Added support for combo text fields
+- Adjust menues
+- Added support to scroll to commit in file history
+- In open repo, disable current path in recent paths
+- When delete branch, shown branches are listed first
+- Fixed issue when showing complex branch with many pullmerges
+- Adjust how shown branch names are handled
+
+## [v0.80.243.218] - 2023-06-30
+- Adjust commit to offer undo of binary files
+- Added releases count to change log file
+
+## [v0.80.242.208] - 2023-06-29
+- Added support for undo all unccmmitted binary files
+- Adjust binary commit warning for commit also for modified files
+- Try to eliminate duplicates in show branches
+- Adjust create branch dialog to use publish instead of push
+
+## [v0.80.241.218] - 2023-06-28
+- Move switch to commit into switch to submenu
+- Disable metadata fetch if sync is disabled
+- Fixed diff parsing of merge commit
+- Adjust undo menu in diff
+
+## [v0.80.239.954] - 2023-06-26
+- Fixed updater
+- Added support for open repo menu
+- Added support for commit from within diff
+- Mark long diff lines with a '...' char
+- Added support for undo/restore all binary files in diff
+- Added support in diff for main menu with scroll to and undo
+- Refresh diff after undo
+- Added support for undo/restore files in diff
+- Adjust push branch and enhanse push/fetch logging
+- Added support for refresh diff of uncommitted changes
+- Refactor diff copy
+- Fixed issue with ' ' in file paths when diff and status/undo
+- Try to fix path with space in clone
+- Added install file exists check
+- Adjust check mark signs
+- Pause file monitor during git commit
+- Trying different folder montitor event handling
+
+## [v0.80.233.211] - 2023-06-20
+- Adjusted check mark chars
+
+## [v0.80.232.224] - 2023-06-19
 - Fixed issue with showing branches
 - Added support for including summery of commits in merge
-- Fix config issue with not always showing 'allow preview' option
+- Fixed config issue with not always showing 'allow preview' option
 - Added support for copy commits and diff rows
 
 ## [v0.80.225.1107] - 2023-06-12
@@ -44,7 +190,7 @@
 
 ## [v0.50.202.436] - 2023-05-20
 - Highlight current whole row in log
-- Add support for diff within a line
+- Added support for diff within a line
 - Refactored dialogs
 
 ## [v0.50.194.217] - 2023-05-12
@@ -109,10 +255,10 @@ Merge branch 'dev' into main
 - Added support for Config  dialog
 
 ## [v0.50.85.545] - 2023-01-23
-- Fix issue with repos with no tags
+- Fixed issue with repos with no tags
 
 ## [v0.50.85.375] - 2023-01-23
-- Update README.md
+- Updated README.md
 
 ## [v0.50.85.373] - 2023-01-23
 - Create README.md
@@ -122,7 +268,7 @@ Merge branch 'dev' into main
 - Added support for option: meta data sync
 - Added support for option: enable preivew updates
 - Fixed issue when events needed mouse click to procede
-- Add support for checking for updates every hour
+- Added support for checking for updates every hour
 
 ## [v0.50.75.387] - 2023-01-13
 - Adjust error msg when conflicts
@@ -131,7 +277,7 @@ Merge branch 'dev' into main
 - Adjust conflict marker color
 
 ## [v0.50.72.793] - 2023-01-10
-- Fix commit diff
+- Fixed commit diff
 
 ## [v0.50.72.553] - 2023-01-10
 - Added support for Cherry pick
@@ -171,7 +317,7 @@ Merge branch 'dev' into main
 - Imporve mouse support
 
 ## [v0.50.47.350] - 2022-12-16
-- Update Readme file
+- Updated Readme file
 
 ## [v0.50.47.300] - 2022-12-16
 - Version 0.50
@@ -180,7 +326,7 @@ Merge branch 'dev' into main
 - Updated readme file
 
 ## [v0.40.46.866] - 2022-12-15
-- Update readme file
+- Updated readme file
 
 ## [v0.40.46.859] - 2022-12-15
 - Updated help file
@@ -190,7 +336,7 @@ Merge branch 'dev' into main
 - Added support for Help dialog
 
 ## [v0.40.46.437] - 2022-12-15
-- Add support for help
+- Added support for help
 
 ## [v0.40.45.732] - 2022-12-14
 - Text change
@@ -199,8 +345,8 @@ Merge branch 'dev' into main
 - Faster updrade installs in most cases
 
 ## [v0.40.45.500] - 2022-12-14
-- Add windows installer, which downloads latest windows binary
-- Fix issue with parsing some branch structures
+- Added windows installer, which downloads latest windows binary
+- Fixed issue with parsing some branch structures
 
 ## [v0.40.44.320] - 2022-12-13
 - Added support for merge from commit
@@ -214,7 +360,7 @@ Merge branch 'dev' into main
 - Added support for switchin/checkout a deleted branch
 
 ## [v0.30.42.901] - 2022-12-11
-- Add support for showing merge for uncommitted commit line when merging
+- Added support for showing merge for uncommitted commit line when merging
 - Select latest commit when merging branch with both local and remote
 
 ## [v0.30.42.813] - 2022-12-11
@@ -235,10 +381,10 @@ Merge branch 'dev' into main
 - Clean recent folder list when folders deleted
 
 ## [v0.30.36.925] - 2022-12-05
-- Add support for clone
+- Added support for clone
 
 ## [v0.30.36.591] - 2022-12-05
-- Fix issue with change events in .gitxxx files
+- Fixed issue with change events in .gitxxx files
 - Adjust container post create commands
 
 ## [v0.30.32.894] - 2022-12-01
@@ -257,19 +403,19 @@ Fix some issues after update to .net 7Update to .NET 7
 - Updated readme
 
 ## [v0.30.29.759] - 2022-11-28
-- Fix image url
+- Fixed image url
 
 ## [v0.30.29.755] - 2022-11-28
 Update readme file
 
 ## [v0.30.29.632] - 2022-11-28
-- Add about dlg to main view menu
+- Added about dlg to main view menu
 
 ## [v0.30.29.594] - 2022-11-28
-- Fix setup path
+- Fixed setup path
 
 ## [v0.30.29.577] - 2022-11-28
-- Fix publish setup path
+- Fixed publish setup path
 
 ## [v0.30.29.573] - 2022-11-28
 - Added support for windows setup file
@@ -308,7 +454,7 @@ A lot of improvments
 - Minor adjustments
 
 ## [v0.22.1031] - 2022-11-21
-- Fix build base version to utc
+- Fixed build base version to utc
 
 ## [v0.22.1023] - 2022-11-21
 Fixed show branches menu
