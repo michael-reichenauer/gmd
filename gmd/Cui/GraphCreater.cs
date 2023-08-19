@@ -59,7 +59,7 @@ class GraphCreater : IGraphCreater
         return graph;
     }
 
-    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2, int margin = 1)
+    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2)
     {
         if (b2.B.Name == b1.B.Name ||       // Same branch
             b2.X != b1.X)                   // Not on the same column
@@ -69,8 +69,8 @@ class GraphCreater : IGraphCreater
 
         int high1 = b1.HighIndex;
         int low1 = b1.LowIndex;
-        int high2 = b2.HighIndex - margin;
-        int low2 = b2.LowIndex + margin;
+        int high2 = b2.HighIndex;
+        int low2 = b2.LowIndex;
 
         return (high2 >= high1 && high2 <= low1) ||
             (low2 >= high1 && low2 <= low1) ||
