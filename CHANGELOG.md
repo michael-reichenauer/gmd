@@ -1,9 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-103 releases:
+104 releases:
 
 ## [Current] - 2023-08-19
+- Updated Readme
+- Updated Help documentation
+
+## [v0.90.293.440] - 2023-08-19
 - Adjust filter/search x
 - Added support for git init
 - Improve menu width calculation
