@@ -31,7 +31,7 @@ Some signs/characters used in the views:
 | -----| ------------------------------------------------------------------|
 | ●    | The current commit and current branch                             | 
 | ©    | Indicates current uncommitted changes (yellow)                    |  
-| *    | The commit is detached (use checked out a commit, not a branch    |
+| *    | The commit is detached (user checked out a commit, not a branch)  |
 | ^    | Short for 'origin' in branch names, e.g. '^/main' = 'origin/main' |
 | ~    | Branch is deleted (no longer active)                              |
 | o    | Branch is shown (in menus)                                        |
