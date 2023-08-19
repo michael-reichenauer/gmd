@@ -353,42 +353,18 @@ class RepoView : IRepoView
     {
         switch (item)
         {
-            case ApplicationBarItem.Update:
-                Cmd.UpdateRelease();
-                break;
-            case ApplicationBarItem.Gmd:
-                menuService.ShowRepoMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.Repo:
-                menuService.ShowOpenRepoMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.CurrentBranch:
-                Cmd.ShowBranch(repo.GetCurrentBranch().Name, false);
-                break;
-            case ApplicationBarItem.Status:
-                Cmd.CommitFromMenu(false);
-                break;
-            case ApplicationBarItem.Behind:
-                Cmd.PullAllBranches();
-                break;
-            case ApplicationBarItem.Ahead:
-                Cmd.PushAllBranches();
-                break;
-            case ApplicationBarItem.BranchName:
-                menuService.ShowOpenBranchesMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.Stash:
-                menuService.ShowStashMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.Search:
-                Cmd.Filter();
-                break;
-            case ApplicationBarItem.Help:
-                Cmd.ShowHelp();
-                break;
-            case ApplicationBarItem.Close:
-                UI.Shutdown();
-                break;
+            case ApplicationBarItem.Update: Cmd.UpdateRelease(); break;
+            case ApplicationBarItem.Gmd: menuService.ShowRepoMenu(x - 5, y); break;
+            case ApplicationBarItem.Repo: menuService.ShowOpenRepoMenu(x - 5, y); break;
+            case ApplicationBarItem.CurrentBranch: Cmd.ShowBranch(repo.GetCurrentBranch().Name, false); break;
+            case ApplicationBarItem.Status: Cmd.CommitFromMenu(false); break;
+            case ApplicationBarItem.Behind: Cmd.PullAllBranches(); break;
+            case ApplicationBarItem.Ahead: Cmd.PushAllBranches(); break;
+            case ApplicationBarItem.BranchName: menuService.ShowOpenBranchesMenu(x - 5, y); break;
+            case ApplicationBarItem.Stash: menuService.ShowStashMenu(x - 5, y); break;
+            case ApplicationBarItem.Search: Cmd.Filter(); break;
+            case ApplicationBarItem.Help: Cmd.ShowHelp(); break;
+            case ApplicationBarItem.Close: UI.Shutdown(); break;
         }
     }
 
