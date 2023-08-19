@@ -1,69 +1,88 @@
-# gmd
+# Gmd
 
-Gmd is a cross-platform console UI Git client, which makes it easier to use Git, especially when using a branch model similar to e.g. GitFlow. Gmd makes it easy to toggle which branches to show and hide and simplifies using the most common git commands. It is like having dynamic squash, but without having to rewrite history to get clean history.
+Gmd is a versatile, cross-platform console UI Git client designed to enhance the Git user experience, particularly when visualizing the branching structure. Key features of Gmd include:
 
-<img src="gmd/doc/Animation.gif" width="860">
+- **Branch Visibility Control**: Toggle which branches are displayed or hidden. Its a similar benefit as 'dynamic and reversible' squash merges, without the need to rewrite history to preserving a clean commit log.
+- **Side-by-Side Diff**: View a side-by-side diff of all changes in a commit, or between two branches.
+- **Simply Git Commands**: Execute most used Git commands with out needing to remember the syntax.
+
+
+![Gmd Animation](gmd/doc/Animation.gif)
+*Screenshot of Gmd in action.*
+
 
 ## Background
 
-Usually, Git clients visualize the repository as an overwhelming number of branches, which makes the commits history difficult to understand. As a workaround, many developers simplify git history by squashing or rebasing.
+Many Git clients tend to clutter the interface with a plethora of branches, complicating the commit log. In response, developers often simplify this log by opting for squashing or rebasing. 
 
-Some clients try to reduce the branching complexity by hiding commits. The gmd approach is to make it possible to toggle which branches to show and which branches to hide. Thus a user can focus on tracking branches that really matter to them. For a developer, it might be to track just the main branch and the current working branch and for a team leader, it might be tracking main and a few selected features branches.
+While some clients attempt to minimize branching complexity by concealing commits, Gmd stands out by giving users the option to interactively select which branches they see. This aids developers in focusing solely on branches of relevance for them. For instance, a developer may only want to monitor the main and the current working branch, whereas a team leader may track the main and several specific branches to ensure that the team is on track and coordinated.
 
-Gmd provides a user experience, where the visualization of branches and commits history is understandable and usable without the need for rebasing or squashing. Gmd also simplifies the usage of the most common commands by providing context menus and simplified dialogs. Gmd console window supports key-based navigation.
+Gmd presents an intuitive user interface where both the branch and commit history are easily discernible without the necessity for rebasing or squashing. Common commands are streamlined with context menus and user-friendly dialogs. Additionally, Gmd's console window facilitates both key-based navigation as well as mouse support.
 
-## Help File
-The gmd [help file](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md) is available at:\
-[https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md)
+## Documentation and Help File
 
-## Install
-Download either `gmd_linux`, `gmd_windows` or `gmd_osx` from [releases](https://github.com/michael-reichenauer/gmd/releases). For Windows it is easiest to just download the installer and run it. If you have gmd in a user folder, you do not need `sudo` to update. Gmd can automatically check for new versions and in the menu notify and offer option to upgrade.\
-*Note:* The files are not signed.
+Access the Gmd [help file here](https://github.com/michael-reichenauer/gmd/blob/main/gmd/doc/help.md).
 
-#### Linux
-If you to be able to use gmd from any folder, you might consider download the binary to some
-folder, e.g. `~/gmd/` and then add to the PATH like in:\
-`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux" && chmod +x ~/gmd/gmd`\
-`> echo 'export PATH=$PATH:~/gmd' >>~/.profile`  
-`> . ~/.profile`
+## Installation
+As an alternative to building from source (see below), Gmd is also available as pre-built binaries. 
+Download the appropriate version for your platform (`gmd_linux`, `gmd_windows`, or `gmd_osx`) from the [releases page](https://github.com/michael-reichenauer/gmd/releases).  Windows users can conveniently download and run the installer. Admin rights or `sudo` is not required. If Gmd resides in a user data folder, `sudo` isn't necessary for updates either. The tool has an built-in update checker, notifying users of newer available versions and Gmd can then be updated with a single click from within the tool or by using the command line option like:
 
-Or you can just run the this:\
-`> curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash`
+    ```bash
+    > gmd --update
+    ```
 
+### Linux and OSX/Mac:
+
+To utilize Gmd from any directory, download the binary to a folder, such as e.g. `~/gmd/`, set executable flag and modify the environment PATH accordingly:
+
+```bash
+> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux"
+> chmod +x ~/gmd/gmd
+> echo 'export PATH=$PATH:~/gmd' >>~/.profile
+> . ~/.profile`
+```
+
+Alternatively, simply execute:
+```bash
+> curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
+```
+
+### Windows:
+Either download the setup file from the releases page or use:
+
+```bash
+> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe
+> gmdSetup
+```
+
+
+## Development 
+### Devcontainers or GitHub CodeSpaces
+Gmd is primed for use with Devcontainers or GitHub CodeSpaces in conjunction with VS Code. With CodeSpaces, build and run operations can be executed within the browser, eliminating installation requirements. Alternatively, Docker combined with VS Code is suitable for devcontainers.
+
+### Running form source using dotnet
+```bash
+> dotnet run --project gmd/gmd.csproj
+```
+
+### Building
+
+#### Linux:
+```bash
+> dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+```
 #### Windows:
-Download setup file from [releases](https://github.com/michael-reichenauer/gmd/releases)  
-or:\
-`> curl -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe`\
-`> gmdSetup`  
+```bash
+> dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+```
+#### OSX/Mac:
+```bash
+> dotnet publish gmd/gmd.csproj -c Release -r osx-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+```
 
-#### OSX/Mac
-If you to be able to use gmd from any folder, you might consider download the binary to some
-folder, e.g. `~/gmd/` and then add to the PATH like in:\
-`> curl -sS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_osx" && chmod +x ~/gmd/gmd`\
-`> echo 'export PATH=$PATH:~/gmd' >>~/.profile`\
-`> . ~/.profile`  
+#### Test and Build All Platforms:
+Use the provided build script to test and build for all platforms:
 
-## Use Devcontainer or GitHub CodeSpaces
-Gmd is prepared for using Devcontainers and GigHub CodeSpaces with VS Code. With CodeSpaces you can
-build and run within the browser, no need to install anything. Or use Docker and VS Code for devcontainers.
-
-### Run Sources with dotnet
-`> dotnet run --project gmd/gmd.csproj`
-
-### Build
-Use build script:  
-`> ./build`  
-or:    
- `> Build.bat`
-
-or use dotnet:  
-
-#### Linux:  
-`dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true`  
-
-#### Windows:  
-`> dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true`  
-
-#### OSX/Mac:  
-`dotnet publish gmd/gmd.csproj -c Release -r osx-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true`
-
+```bash
+> ./build      # (or '> Build.bat' on Windows)
+```
