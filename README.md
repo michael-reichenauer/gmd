@@ -6,7 +6,6 @@ Gmd is a versatile, cross-platform console UI Git client designed to enhance the
 - **Side-by-Side Diff**: View a side-by-side diff of all changes in a commit, or between two branches.
 - **Simply Git Commands**: Execute most used Git commands with out needing to remember the syntax.
 </br>
-</br>
 
 ![Gmd Animation](gmd/doc/Animation.gif)
 *Screenshot of Gmd in action.*
@@ -28,9 +27,9 @@ Access the Gmd [help file here](https://github.com/michael-reichenauer/gmd/blob/
 As an alternative to building from source (see below), Gmd is also available as pre-built binaries. 
 Download the appropriate version for your platform (`gmd_linux`, `gmd_windows`, or `gmd_osx`) from the [releases page](https://github.com/michael-reichenauer/gmd/releases).  Windows users can conveniently download and run the installer. Admin rights or `sudo` is not required. If Gmd resides in a user data folder, `sudo` isn't necessary for updates either. The tool has an built-in update checker, notifying users of newer available versions and Gmd can then be updated with a single click from within the tool or by using the command line option like:
 
-    ```bash
-    > gmd --update
-    ```
+```bash
+> gmd --update
+```
 
 ### Linux and OSX/Mac:
 
