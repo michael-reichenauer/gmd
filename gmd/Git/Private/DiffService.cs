@@ -24,12 +24,8 @@ class DiffService : IDiffService
         var args = "show -b --date=iso --first-parent --root --patch --no-color" +
             $" --find-renames --unified=6 {commitId}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
-
         var commitDiffs = ParseCommitDiffs(output, "", false);
-        if (commitDiffs.Count == 0)
-        {
-            return R.Error("Failed to parse diff");
-        }
+        if (commitDiffs.Count == 0) return R.Error("Failed to parse diff");
 
         return commitDiffs[0];
     }
