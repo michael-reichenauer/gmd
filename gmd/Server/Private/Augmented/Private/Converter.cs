@@ -40,6 +40,8 @@ class Converter : IConverter
             Author: c.Author,
             AuthorTime: c.AuthorTime,
             ParentIds: c.ParentIds,
+            IsView: false,
+            ViewIndex: -1,
             GitIndex: gitIndex,
 
             BranchName: c.Branch!.Name,
@@ -60,7 +62,8 @@ class Converter : IConverter
             IsAmbiguous: c.IsAmbiguous,
             IsAmbiguousTip: c.IsAmbiguousTip,
             IsBranchSetByUser: c.IsBranchSetByUser,
-            HasStash: c.HasStash);
+            HasStash: c.HasStash,
+            More: More.None);
     }
 
     Branch ToBranch(WorkBranch b)

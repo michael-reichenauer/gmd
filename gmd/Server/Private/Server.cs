@@ -120,7 +120,7 @@ class Server : IServer
     {
         if (commitId == Repo.UncommittedId) return new List<Branch>();
 
-        bool FilterOnShown(Augmented.Commit cc) => isAll || !repo.BranchByName.TryGetValue(cc.BranchName, out var _);
+        bool FilterOnShown(Commit cc) => isAll || !repo.BranchByName.TryGetValue(cc.BranchName, out var _);
         // Getting all branches that are not the same as the commit branch
         // Also exclude branches that are shown if isNotShown is true
         var commit = repo.AugmentedRepo.CommitById[commitId];
@@ -129,7 +129,7 @@ class Server : IServer
             commit.AllChildIds.Concat(commit.ParentIds)                    // All children and parents commit ids         
             .Select(id => repo.AugmentedRepo.CommitById[id])               // As commits
             .Where(cc => cc.BranchPrimaryName != commit.BranchPrimaryName) // Skip same branch
-            .Concat(commit.Id == branch.TipId ? new[] { commit } : new Augmented.Commit[0])                                       // Add commit branch if tip
+            .Concat(commit.Id == branch.TipId ? new[] { commit } : new Commit[0])                                       // Add commit branch if tip
             .Where(FilterOnShown)                                          // Exclude shown branches (or not)
             .Select(cc => cc.BranchPrimaryName)
             .Distinct()
@@ -147,8 +147,8 @@ class Server : IServer
 
         var branches = new Queue<string>();
         var branchesSeen = new HashSet<string>();
-        var commitQueue = new Queue<Augmented.Commit>();
-        var commitSeen = new HashSet<Augmented.Commit>();
+        var commitQueue = new Queue<Commit>();
+        var commitSeen = new HashSet<Commit>();
 
         commitQueue.Enqueue(specifiedCommit);
         commitSeen.Add(specifiedCommit);

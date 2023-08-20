@@ -39,39 +39,39 @@ record Repo
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()}";
 }
 
-public record Commit(
-    string Id,
-    string Sid,
-    string Subject,
-    string Message,
-    string Author,
-    DateTime AuthorTime,
-    int GitIndex,
+// public record Commit(
+//     string Id,
+//     string Sid,
+//     string Subject,
+//     string Message,
+//     string Author,
+//     DateTime AuthorTime,
+//     int GitIndex,
 
-    string BranchName,
-    string BranchPrimaryName,
-    string BranchNiceUniqueName,
-    IReadOnlyList<string> ParentIds,
-    IReadOnlyList<string> AllChildIds,
-    IReadOnlyList<string> FirstChildIds,
-    IReadOnlyList<string> MergeChildIds,
-    IReadOnlyList<Tag> Tags,
-    IReadOnlyList<string> BranchTips,
+//     string BranchName,
+//     string BranchPrimaryName,
+//     string BranchNiceUniqueName,
+//     IReadOnlyList<string> ParentIds,
+//     IReadOnlyList<string> AllChildIds,
+//     IReadOnlyList<string> FirstChildIds,
+//     IReadOnlyList<string> MergeChildIds,
+//     IReadOnlyList<Tag> Tags,
+//     IReadOnlyList<string> BranchTips,
 
-    bool IsCurrent,
-    bool IsDetached,
-    bool IsUncommitted,
-    bool IsConflicted,
-    bool IsAhead,
-    bool IsBehind,
-    bool IsTruncatedLogCommit,
-    bool IsAmbiguous,
-    bool IsAmbiguousTip,
-    bool IsBranchSetByUser,
-    bool HasStash)
-{
-    public override string ToString() => $"{Sid} {Subject} ({BranchName})";
-}
+//     bool IsCurrent,
+//     bool IsDetached,
+//     bool IsUncommitted,
+//     bool IsConflicted,
+//     bool IsAhead,
+//     bool IsBehind,
+//     bool IsTruncatedLogCommit,
+//     bool IsAmbiguous,
+//     bool IsAmbiguousTip,
+//     bool IsBranchSetByUser,
+//     bool HasStash)
+// {
+//     public override string ToString() => $"{Sid} {Subject} ({BranchName})";
+// }
 
 public record Branch(
     string Name,

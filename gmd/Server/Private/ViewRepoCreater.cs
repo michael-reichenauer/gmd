@@ -54,7 +54,7 @@ class ViewRepoCreater : IViewRepoCreater
     {
         using (Timing.Start($"Filtered repo on '{filter}'"))
         {
-            IReadOnlyDictionary<string, Augmented.Commit> filteredCommits = null!;
+            IReadOnlyDictionary<string, Commit> filteredCommits = null!;
 
             if (filter == "$")
             {   // Get all commits, where branch was set manually by user
@@ -93,7 +93,7 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    static IReadOnlyDictionary<string, Augmented.Commit> GetFilteredCommits(
+    static IReadOnlyDictionary<string, Commit> GetFilteredCommits(
         Augmented.Repo augRepo, string filter, int maxCount)
     {
         var sc = StringComparison.OrdinalIgnoreCase;
@@ -145,7 +145,7 @@ class ViewRepoCreater : IViewRepoCreater
 
     static void SetAheadBehind(
         List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits)
+        List<Commit> filteredCommits)
     {
         foreach (var b in filteredBranches.ToList())  // ToList() since SetBehind/SetAhead modifies branches
         {
@@ -165,7 +165,7 @@ class ViewRepoCreater : IViewRepoCreater
     static void SetBehindCommits(
         Augmented.Branch remoteBranch,
         List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits)
+        List<Commit> filteredCommits)
     {
         int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.Name);
         int localBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.LocalName);
@@ -233,7 +233,7 @@ class ViewRepoCreater : IViewRepoCreater
     static void SetAheadCommits(
         Augmented.Branch localBranch,
         List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits)
+        List<Commit> filteredCommits)
     {
         int localBranchIndex = filteredBranches.FindIndex(b => b.Name == localBranch.Name);
         int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == localBranch.RemoteName);
@@ -272,7 +272,7 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    static List<Augmented.Commit> FilterOutViewCommits(
+    static List<Commit> FilterOutViewCommits(
         Augmented.Repo repo, IReadOnlyList<Augmented.Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
@@ -394,7 +394,7 @@ class ViewRepoCreater : IViewRepoCreater
     static bool TryGetUncommittedCommit(
       Augmented.Repo repo,
       IReadOnlyList<Augmented.Branch> filteredBranches,
-      [MaybeNullWhen(false)] out Augmented.Commit uncommitted)
+      [MaybeNullWhen(false)] out Commit uncommitted)
     {
         if (!repo.Status.IsOk)
         {
@@ -424,16 +424,16 @@ class ViewRepoCreater : IViewRepoCreater
                 }
 
                 // Create a new virtual uncommitted commit
-                uncommitted = new Augmented.Commit(
+                uncommitted = new Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
+                    IsView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
                     ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
                     Tags: new List<Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
                     IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
-                    IsBranchSetByUser: false, HasStash: false);
+                    IsBranchSetByUser: false, HasStash: false, More.None);
 
                 return true;
             }
@@ -445,8 +445,8 @@ class ViewRepoCreater : IViewRepoCreater
 
     static void AdjustCurrentBranch(
         List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits,
-        Augmented.Commit uncommitted)
+        List<Commit> filteredCommits,
+        Commit uncommitted)
     {
         // Prepend the commits with the uncommitted commit
         filteredCommits.Insert(0, uncommitted);

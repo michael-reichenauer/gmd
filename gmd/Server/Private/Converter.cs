@@ -2,18 +2,18 @@ namespace gmd.Server.Private;
 
 interface IConverter
 {
-    IReadOnlyList<Commit> ToCommits(IEnumerable<Augmented.Commit> commits);
+    IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits);
     IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches);
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
     Branch ToBranch(Augmented.Branch branch);
-    Commit ToCommit(Augmented.Commit commit, int index = -1);
+    Commit ToCommit(Commit commit, int index = -1);
 }
 
 
 class Converter : IConverter
 {
-    public IReadOnlyList<Commit> ToCommits(IEnumerable<Augmented.Commit> commits) =>
+    public IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits) =>
        commits.Select(ToCommit).ToList();
 
     public IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches) =>
@@ -28,7 +28,7 @@ class Converter : IConverter
         return new CommitDiff(d.Id, d.Author, d.Time, d.Message, ToFileDiffs(d.FileDiffs));
     }
 
-    public Commit ToCommit(Augmented.Commit c, int index = -1) => new Commit(
+    public Commit ToCommit(Commit c, int index = -1) => new Commit(
         Id: c.Id,
         Sid: c.Sid,
         Subject: c.Subject,
