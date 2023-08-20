@@ -141,7 +141,7 @@ class GraphCreater : IGraphCreater
 
         int x1 = commitBranch.X;
         int x2 = b.X;
-        int y2 = c.Index;
+        int y2 = c.ViewIndex;
 
         // this tip commit is not part of the branch (multiple branch tips on the same commit)
         graph.DrawHorizontalLine(x1 + 1, x2 + 1, y2, color);  //   ─
@@ -154,7 +154,7 @@ class GraphCreater : IGraphCreater
     static void DrawBranch(Graph graph, GraphBranch b, Server.Commit c, bool isAmbiguous)
     {
         int x = b.X;
-        int y = c.Index;
+        int y = c.ViewIndex;
         Color color = c.IsAmbiguous ? Color.White : b.Color;
 
         if (c.BranchName != b.B.Name && c.Id != b.B.TipId)
@@ -222,7 +222,7 @@ class GraphCreater : IGraphCreater
     {
         // Drawing a more marker  ╮
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         graph.SetMoreGraphConnect(x + 1, y, Sign.MergeFromRight, MoreColor);  //   ╮     
     }
 
@@ -230,7 +230,7 @@ class GraphCreater : IGraphCreater
     {
         // Drawing a more marker  ╯
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         graph.SetMoreGraphConnect(x + 1, y, Sign.BranchToRight, MoreColor);  //   ╯    
     }
 
@@ -239,9 +239,9 @@ class GraphCreater : IGraphCreater
         Server.Commit mergeParent, GraphBranch parentBranch)
     {
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         int x2 = parentBranch.X;
-        int y2 = mergeParent.Index;
+        int y2 = mergeParent.ViewIndex;
 
         // Other branch is on the left side, merged from parent parent branch ╭
         Color color = commitBranch.Color;
@@ -267,9 +267,9 @@ class GraphCreater : IGraphCreater
     {
         // Commit is a merge commit, has 2 parents
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         int x2 = parentBranch.X;
-        int y2 = mergeParent.Index;
+        int y2 = mergeParent.ViewIndex;
 
         // Other branch is on same column merged from sibling branch,  │
         Color color = parentBranch.Color;
@@ -298,9 +298,9 @@ class GraphCreater : IGraphCreater
     {
         // Commit is a merge commit, has 2 parents
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         int x2 = parentBranch.X;
-        int y2 = mergeParent.Index;
+        int y2 = mergeParent.ViewIndex;
 
         // Other branch is on the right side, merged from child branch,  ╮
         Color color = parentBranch.Color;
@@ -329,12 +329,12 @@ class GraphCreater : IGraphCreater
         // Commit parent is on other branch (commit is first/bottom commit on this branch)
         // Branched from parent branch
         int x = commitBranch.X;
-        int y = c.Index;
+        int y = c.ViewIndex;
         if (!repo.CommitById.TryGetValue(c.ParentIds[0], out var parent)) return;  // parent filtered out, skip 
 
         var parentBranch = graph.BranchByName(parent.BranchName);
         int x2 = parentBranch.X;
-        int y2 = parent.Index;
+        int y2 = parent.ViewIndex;
         Color color = commitBranch.Color;
 
         if (c.IsAmbiguous)
@@ -371,8 +371,8 @@ class GraphCreater : IGraphCreater
         foreach (var b in branches)
         {
             branchMap[b.B.Name] = b;
-            b.TipIndex = repo.CommitById[b.B.TipId].Index;
-            b.BottomIndex = repo.CommitById[b.B.BottomId].Index;
+            b.TipIndex = repo.CommitById[b.B.TipId].ViewIndex;
+            b.BottomIndex = repo.CommitById[b.B.BottomId].ViewIndex;
             b.HighIndex = b.TipIndex;
             b.LowIndex = b.BottomIndex;
 
@@ -391,8 +391,8 @@ class GraphCreater : IGraphCreater
                 if (repo.CommitById.TryGetValue(c.ParentIds[1], out var cp))
                 {
                     var branch = branchMap[cp.BranchName];
-                    if (branch.HighIndex > c.Index) branch.HighIndex = c.Index;
-                    if (branch.LowIndex < c.Index) branch.LowIndex = c.Index;
+                    if (branch.HighIndex > c.ViewIndex) branch.HighIndex = c.ViewIndex;
+                    if (branch.LowIndex < c.ViewIndex) branch.LowIndex = c.ViewIndex;
                 }
             }
             if (c.ParentIds.Count == 1)
@@ -400,7 +400,7 @@ class GraphCreater : IGraphCreater
                 if (repo.CommitById.TryGetValue(c.ParentIds[0], out var cp) && cp.BranchName != c.BranchName)
                 {   // Commit is a bottom id
                     var branch = branchMap[c.BranchName];
-                    if (branch.LowIndex < cp.Index) branch.LowIndex = cp.Index;
+                    if (branch.LowIndex < cp.ViewIndex) branch.LowIndex = cp.ViewIndex;
                 }
             }
         }

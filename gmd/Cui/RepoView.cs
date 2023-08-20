@@ -897,8 +897,8 @@ class RepoView : IRepoView
             if (branch != null)
             {
                 var tip = repo.Commit(branch.TipId);
-                commitsView.ScrollToShowIndex(tip.Index);
-                commitsView.SetCurrentIndex(tip.Index);
+                commitsView.ScrollToShowIndex(tip.ViewIndex);
+                commitsView.SetCurrentIndex(tip.ViewIndex);
             }
         }
     }
@@ -909,8 +909,8 @@ class RepoView : IRepoView
         var commit = repo.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
-            commitsView.ScrollToShowIndex(commit.Index);
-            commitsView.SetCurrentIndex(commit.Index);
+            commitsView.ScrollToShowIndex(commit.ViewIndex);
+            commitsView.SetCurrentIndex(commit.ViewIndex);
         }
     }
 

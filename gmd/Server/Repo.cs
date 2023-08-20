@@ -6,11 +6,10 @@ using AugmentedRepo = gmd.Server.Private.Augmented.Repo;
 
 record Repo
 {
-    internal static readonly string TruncatedLogCommitID =
-        gmd.Server.Private.Augmented.Repo.TruncatedLogCommitID;
-    internal static readonly string UncommittedId =
-        gmd.Server.Private.Augmented.Repo.UncommittedId;
-    internal static readonly string UncommittedSid = UncommittedId.Sid();
+    public static readonly string TruncatedLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
+    public static readonly string UncommittedId = "0000000000000000000000000000000000000000";
+    public static readonly string EmptyRepoCommit = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    public static readonly string UncommittedSid = UncommittedId.Sid();
 
     private readonly Private.Augmented.Repo repo;
 
@@ -71,7 +70,7 @@ public record Commit(
     DateTime AuthorTime,
 
     // Augmented properties
-    int Index,
+    int ViewIndex,
     int GitIndex,
     string BranchName,
     string BranchPrimaryName,
