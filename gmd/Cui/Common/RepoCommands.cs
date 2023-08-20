@@ -268,7 +268,7 @@ class RepoCommands : IRepoCommands
     {
         var totalCount = 0;
         if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.BranchByName.Values.Count(b => b.IsGitBranch);
-        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count;
+        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.ViewBranches.Count;
 
         if (totalCount > 20)
         {
@@ -418,10 +418,10 @@ class RepoCommands : IRepoCommands
 
     public bool CanUncommitLastCommit()
     {
-        if (!serverRepo.Commits.Any()) return false;
+        if (!serverRepo.ViewCommits.Any()) return false;
 
-        var c = serverRepo.Commits[0];
-        var b = serverRepo.BranchByName[serverRepo.Commits[0].BranchName];
+        var c = serverRepo.ViewCommits[0];
+        var b = serverRepo.BranchByName[serverRepo.ViewCommits[0].BranchName];
         return Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
 
@@ -559,7 +559,7 @@ class RepoCommands : IRepoCommands
 
     public void PushCurrentBranch() => Do(async () =>
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pushing");
         if (branch == null) return R.Error("No current branch to push");
@@ -585,7 +585,7 @@ class RepoCommands : IRepoCommands
 
     public void PublishCurrentBranch() => Do(async () =>
     {
-        var branch = serverRepo.Branches.First(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.First(b => b.IsCurrent);
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, RepoPath)))
         {
@@ -614,7 +614,7 @@ class RepoCommands : IRepoCommands
 
     public bool CanPushCurrentBranch()
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
         if (branch == null) return false;
 
         if (branch.RemoteName != "")
@@ -629,7 +629,7 @@ class RepoCommands : IRepoCommands
 
     public void PullCurrentBranch() => Do(async () =>
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
         if (branch == null) return R.Error("No current branch to pull");
         if (branch.RemoteName == "") return R.Error("No current remote branch to pull");
@@ -662,7 +662,7 @@ class RepoCommands : IRepoCommands
 
     public bool CanPullCurrentBranch()
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
         if (branch == null) return false;
 
         if (branch.RemoteName == "") return false;  // No remote branch to pull

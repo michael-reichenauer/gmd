@@ -54,7 +54,7 @@ class GraphCreater : IGraphCreater
         int maxBranchX = branches.Any() ? branches.Max(b => b.X) : 0;
 
         Sorter.Sort(branches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
-        Graph graph = new Graph(maxBranchX, repo.Commits.Count, branches);
+        Graph graph = new Graph(maxBranchX, repo.ViewCommits.Count, branches);
         SetGraph(graph, repo, branches);
         return graph;
     }
@@ -91,7 +91,7 @@ class GraphCreater : IGraphCreater
 
             for (int y = b.TipIndex; y <= b.BottomIndex; y++)
             {
-                var c = repo.Commits[y];
+                var c = repo.ViewCommits[y];
 
                 if (c.IsAmbiguous && c.BranchName == b.B.Name)
                 {
@@ -366,7 +366,7 @@ class GraphCreater : IGraphCreater
     {
         if (repo.Filter != "") return ToFilteredGraphBranches(repo);
 
-        List<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
+        List<GraphBranch> branches = repo.ViewBranches.Select((b, i) => new GraphBranch(b, i)).ToList();
         Dictionary<string, GraphBranch> branchMap = new Dictionary<string, GraphBranch>();
         foreach (var b in branches)
         {
@@ -382,7 +382,7 @@ class GraphCreater : IGraphCreater
             }
         }
 
-        foreach (var c in repo.Commits)
+        foreach (var c in repo.ViewCommits)
         {
             // var branchName = c.BranchName;
             // var branch = branchMap[branchName];
@@ -420,9 +420,9 @@ class GraphCreater : IGraphCreater
 
         // Find first and last commits for each branch are located by iterating commits
         // and updating the first and last index for each branch for each commit
-        for (int i = 0; i < repo.Commits.Count; i++)
+        for (int i = 0; i < repo.ViewCommits.Count; i++)
         {
-            var c = repo.Commits[i];
+            var c = repo.ViewCommits[i];
 
             // Update first and last index for all branch tips on the commit (except the current branch)
             // And the branch for the current commit
@@ -441,16 +441,16 @@ class GraphCreater : IGraphCreater
 
         // Create a GraphBranch for each branch, using the first and last index in previous step
         // Skipping branches, which did not have own commits, e.g. ancestors or related branches
-        for (var i = 0; i < repo.Branches.Count; i++)
+        for (var i = 0; i < repo.ViewBranches.Count; i++)
         {
-            var b = repo.Branches[i];
+            var b = repo.ViewBranches[i];
 
             if (!firstLast.TryGetValue(b.Name, out var tb))
             {   // Skipping branches which do not have own commits, e.g. parent or related branches
                 continue;
             }
 
-            var gb = new GraphBranch(repo.Branches[i], i)
+            var gb = new GraphBranch(repo.ViewBranches[i], i)
             {
                 TipIndex = tb.FirstIndex,
                 BottomIndex = tb.LastIndex

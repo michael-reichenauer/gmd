@@ -14,8 +14,8 @@ record Repo
     public Repo(
         string path,
         DateTime timeStamp,
-        IReadOnlyList<Commit> commits,
-        IReadOnlyList<Branch> branches,
+        IReadOnlyList<Commit> viewCommits,
+        IReadOnlyList<Branch> viewBranches,
         IReadOnlyList<Stash> stashes,
         Status status,
         string filter,
@@ -24,23 +24,23 @@ record Repo
         Path = path;
         TimeStamp = timeStamp;
         this.augRepo = augRepo;
-        Commits = commits;
-        CommitById = commits.ToDictionary(c => c.Id, c => c);
-        Branches = branches;
+        ViewCommits = viewCommits;
+        ViewBranches = viewBranches;
+        CommitById = viewCommits.ToDictionary(c => c.Id, c => c);
         Stashes = stashes;
         Status = status;
         Filter = filter;
-        BranchByName = branches.ToDictionary(b => b.Name, b => b);
+        BranchByName = viewBranches.ToDictionary(b => b.Name, b => b);
     }
 
     public string Path { get; }
     public DateTime TimeStamp { get; }
     public DateTime RepoTimeStamp => augRepo?.TimeStamp ?? DateTime.MinValue;
-    public IReadOnlyList<Commit> Commits { get; }
+    public IReadOnlyList<Commit> ViewCommits { get; }
+    public IReadOnlyList<Branch> ViewBranches { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
-    public IReadOnlyList<Branch> Branches { get; }
-    public IReadOnlyList<Stash> Stashes { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+    public IReadOnlyList<Stash> Stashes { get; }
     public Status Status { get; init; }
     public string Filter { get; }
 
@@ -57,7 +57,7 @@ record Repo
 
     internal Repo AugmentedRepo => augRepo!;
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
+    public override string ToString() => $"B:{ViewBranches.Count}, C:{ViewCommits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
 }
 
 

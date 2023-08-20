@@ -59,7 +59,7 @@ class ViewRepoCreater : IViewRepoCreater
 
             if (filter == "$")
             {   // Get all commits, where branch was set manually by user
-                filteredCommits = augRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToDictionary(c => c.Id, c => c);
+                filteredCommits = augRepo.ViewCommits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToDictionary(c => c.Id, c => c);
             }
             else if (filter == "*")
             {   // Get all commits, with ambiguous tip
@@ -86,11 +86,11 @@ class ViewRepoCreater : IViewRepoCreater
             var r = GetViewRepoAsync(augRepo, branchNames);
 
             // Return repo with filtered commits and their branches
-            var adjustedCommits = r.Commits
+            var adjustedCommits = r.ViewCommits
                 .Where(c => filteredCommits.ContainsKey(c.Id))
                 .Select((c, i) => c with { ViewIndex = i })
                 .ToList();
-            return new Repo(r.AugmentedRepo.Path, r.TimeStamp, adjustedCommits, r.Branches, r.Stashes, r.Status, filter, r.AugmentedRepo);
+            return new Repo(r.AugmentedRepo.Path, r.TimeStamp, adjustedCommits, r.ViewBranches, r.Stashes, r.Status, filter, r.AugmentedRepo);
         }
     }
 
@@ -113,7 +113,7 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
 
         // Find all branches matching all AND parts.
-        return augRepo.Commits
+        return augRepo.ViewCommits
             .Where(c => andParts.All(p =>
                 c.Id.Contains(p, sc) ||
                 c.Subject.Contains(p, sc) ||
@@ -276,7 +276,7 @@ class ViewRepoCreater : IViewRepoCreater
     static List<Commit> FilterOutViewCommits(Repo repo, IReadOnlyList<Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
-        return repo.Commits
+        return repo.ViewCommits
             .Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
             .ToList();
     }

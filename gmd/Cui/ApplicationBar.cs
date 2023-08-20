@@ -125,8 +125,8 @@ class ApplicationBar : View, IApplicationBar
 
     public void SetRepo(Server.Repo repo)
     {
-        var behindCount = repo.Commits.Where(c => c.IsBehind).Count();
-        var aheadCount = repo.Commits.Where(c => c.IsAhead).Count();
+        var behindCount = repo.ViewCommits.Where(c => c.IsBehind).Count();
+        var aheadCount = repo.ViewCommits.Where(c => c.IsAhead).Count();
         var stashCount = repo.Stashes.Count;
 
         items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
@@ -181,7 +181,7 @@ class ApplicationBar : View, IApplicationBar
 
     void SetCurrentBranch(Server.Repo repo)
     {
-        var currentBranch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var currentBranch = repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
         if (currentBranch != null)
         {   // Current branch is shown
             var color = branchColorService.GetColor(repo, currentBranch);

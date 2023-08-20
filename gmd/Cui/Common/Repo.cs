@@ -66,8 +66,8 @@ class RepoImpl : IRepo
     public Repo Repo => serverRepo;
     public string RepoPath => serverRepo.Path;
     public Status Status => serverRepo.Status;
-    public IReadOnlyList<Branch> Branches => serverRepo.Branches;
-    public IReadOnlyList<Commit> Commits => serverRepo.Commits;
+    public IReadOnlyList<Branch> Branches => serverRepo.ViewBranches;
+    public IReadOnlyList<Commit> Commits => serverRepo.ViewCommits;
     public Branch Branch(string branchName) => serverRepo.BranchByName[branchName];
     public Commit Commit(string commitId) => serverRepo.CommitById[commitId];
 

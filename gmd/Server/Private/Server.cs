@@ -41,7 +41,7 @@ class Server : IServer
 
     public async Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo)
     {
-        var branches = repo.Branches.Select(b => b.Name).ToArray();
+        var branches = repo.ViewBranches.Select(b => b.Name).ToArray();
 
         if (!Try(out var augmentedRepo, out var e,
             await augmentedService.UpdateRepoStatusAsync(repo.AugmentedRepo)))
@@ -72,10 +72,10 @@ class Server : IServer
     {
         var t = Timing.Start();
         filter = filter.Trim();
-        if (filter == "") return repo.Commits.Take(maxCount).ToList();
+        if (filter == "") return repo.ViewCommits.Take(maxCount).ToList();
 
         if (filter == "$") return converter.ToCommits(
-            repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
+            repo.AugmentedRepo.ViewCommits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
 
         if (filter == "*") return converter.ToCommits(
             repo.AugmentedRepo.BranchByName.Values.Where(b => b.AmbiguousTipId != "")
@@ -100,7 +100,7 @@ class Server : IServer
             .ToList();
 
         // Find all commits matching all AND parts.
-        var commits = repo.AugmentedRepo.Commits
+        var commits = repo.AugmentedRepo.ViewCommits
             .Where(c => andParts.All(p =>
                 c.Id.Contains(p, sc) ||
                 c.Subject.Contains(p, sc) ||
@@ -198,7 +198,7 @@ class Server : IServer
 
     public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
-        var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
+        var branchNames = repo.ViewBranches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
         {
             var branch = repo.AugmentedRepo.BranchByName[branchName];
@@ -218,7 +218,7 @@ class Server : IServer
         var branch = repo.AugmentedRepo.BranchByName[name];
         branch = repo.AugmentedRepo.BranchByName[branch.PrimaryName];
 
-        var branchNames = repo.Branches
+        var branchNames = repo.ViewBranches
             .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
             .Select(b => b.Name)
             .ToArray();
@@ -363,7 +363,7 @@ class Server : IServer
         var totalText = new StringBuilder();
         var text = "";
         var count = 0;
-        foreach (Commit c in repo.Commits)
+        foreach (Commit c in repo.ViewCommits)
         {
             var message = c.Message;
             var parts = c.Message.Split('\n');
