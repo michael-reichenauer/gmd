@@ -3,11 +3,6 @@ namespace gmd.Server.Private.Augmented;
 
 record Repo
 {
-    internal static readonly string TruncatedLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
-    internal static readonly string UncommittedId = "0000000000000000000000000000000000000000";
-    internal static readonly string EmptyRepoCommit = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-
-
     public Repo(
         DateTime timeStamp,
         string path,

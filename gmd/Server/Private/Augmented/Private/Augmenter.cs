@@ -229,7 +229,7 @@ class Augmenter : IAugmenter
             if (!repo.CommitsById.TryGetValue(commit.ParentIds[0], out var _))
             {
                 isTruncatedNeeded = true;
-                commit.ParentIds[0] = Repo.TruncatedLogCommitID;
+                commit.ParentIds[0] = gmd.Server.Repo.TruncatedLogCommitID;
             }
         }
 
@@ -238,7 +238,7 @@ class Augmenter : IAugmenter
             if (!repo.CommitsById.TryGetValue(commit.ParentIds[1], out var _))
             {
                 isTruncatedNeeded = true;
-                commit.ParentIds[1] = Repo.TruncatedLogCommitID;
+                commit.ParentIds[1] = gmd.Server.Repo.TruncatedLogCommitID;
             }
         }
 
@@ -250,7 +250,7 @@ class Augmenter : IAugmenter
         // Add a virtual truncated commit, which some commits will have as a parent
         string msg = "< ... log truncated, more commits exists ... >";
         WorkCommit pc = new WorkCommit(
-            id: Repo.TruncatedLogCommitID, subject: msg, message: msg,
+            id: gmd.Server.Repo.TruncatedLogCommitID, subject: msg, message: msg,
             author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0])
         {
             IsTruncatedLogCommit = true,
