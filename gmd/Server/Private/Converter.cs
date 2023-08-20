@@ -4,7 +4,6 @@ interface IConverter
 {
     IReadOnlyList<Commit> ToCommits(IEnumerable<Augmented.Commit> commits);
     IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches);
-    IReadOnlyList<Stash> ToStashes(IEnumerable<Augmented.Stash> stashes);
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
     Branch ToBranch(Augmented.Branch branch);
@@ -19,9 +18,6 @@ class Converter : IConverter
 
     public IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches) =>
            branches.Select(ToBranch).ToList();
-
-    public IReadOnlyList<Stash> ToStashes(IEnumerable<Augmented.Stash> stashes) =>
-        stashes.Select(ToStash).ToList();
 
     public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
         gitCommitDiffs.Select(ToCommitDiff).ToArray();
@@ -98,9 +94,6 @@ class Converter : IConverter
         IsIn: false,
         IsOut: false);
 
-
-    Stash ToStash(Augmented.Stash s) =>
-        new Stash(s.Id, s.Name, s.Branch, s.ParentId, s.IndexId, s.Message);
 
     static IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
         tags.Select(t => new Tag(t.Name, t.CommitId)).ToList();

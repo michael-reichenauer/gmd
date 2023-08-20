@@ -110,11 +110,11 @@ public record Branch(
 
 public record Tag(string Name, string CommitId);
 
-public record Stash(
-    string Id,
-    string Name,
-    string Branch,
-    string ParentId,
-    string IndexId,
-    string Message
-);
+// public record Stash(
+//     string Id,
+//     string Name,
+//     string Branch,
+//     string ParentId,
+//     string IndexId,
+//     string Message
+// );

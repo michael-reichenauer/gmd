@@ -42,7 +42,7 @@ class ViewRepoCreater : IViewRepoCreater
             augRepo,
             converter.ToCommits(filteredCommits),
             converter.ToBranches(filteredBranches),
-            converter.ToStashes(augRepo.Stashes),
+            augRepo.Stashes,
             augRepo.Status,
             "");
 
