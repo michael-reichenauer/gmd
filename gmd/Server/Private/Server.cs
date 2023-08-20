@@ -60,10 +60,10 @@ class Server : IServer
 
 
     public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
-        converter.ToBranches(repo.AugmentedRepo.Branches.Values);
+        converter.ToBranches(repo.AugmentedRepo.BranchByName.Values);
 
     public Branch AllBranchByName(Repo repo, string name) =>
-        converter.ToBranch(repo.AugmentedRepo.Branches[name]);
+        converter.ToBranch(repo.AugmentedRepo.BranchByName[name]);
 
     public Commit GetCommit(Repo repo, string commitId) =>
         converter.ToCommit(repo.AugmentedRepo.CommitById[commitId]);
@@ -78,7 +78,7 @@ class Server : IServer
             repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
 
         if (filter == "*") return converter.ToCommits(
-            repo.AugmentedRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
+            repo.AugmentedRepo.BranchByName.Values.Where(b => b.AmbiguousTipId != "")
                 .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
                 .Where(c => c.IsAmbiguousTip)
                 .Take(maxCount)
@@ -124,7 +124,7 @@ class Server : IServer
         // Getting all branches that are not the same as the commit branch
         // Also exclude branches that are shown if isNotShown is true
         var commit = repo.AugmentedRepo.CommitById[commitId];
-        var branch = repo.AugmentedRepo.Branches[commit.BranchName];
+        var branch = repo.AugmentedRepo.BranchByName[commit.BranchName];
         var x =
             commit.AllChildIds.Concat(commit.ParentIds)                    // All children and parents commit ids         
             .Select(id => repo.AugmentedRepo.CommitById[id])               // As commits
@@ -133,7 +133,7 @@ class Server : IServer
             .Where(FilterOnShown)                                          // Exclude shown branches (or not)
             .Select(cc => cc.BranchPrimaryName)
             .Distinct()
-            .Select(n => repo.AugmentedRepo.Branches[n])
+            .Select(n => repo.AugmentedRepo.BranchByName[n])
             .Select(converter.ToBranch)
             .ToList();
         return x;
@@ -156,7 +156,7 @@ class Server : IServer
         while (commitQueue.Any() && branches.Count < maxCount)
         {
             var commit = commitQueue.Dequeue();
-            var branch = repo.AugmentedRepo.Branches[commit.BranchName];
+            var branch = repo.AugmentedRepo.BranchByName[commit.BranchName];
 
             if (!branchesSeen.Contains(branch.NiceName))
             {
@@ -166,7 +166,7 @@ class Server : IServer
 
             commit.BranchTips.ForEach(t =>
             {
-                branch = repo.AugmentedRepo.Branches[t];
+                branch = repo.AugmentedRepo.BranchByName[t];
                 if (!branchesSeen.Contains(branch.NiceName))
                 {
                     branches.Enqueue(branch.NiceName);
@@ -201,7 +201,7 @@ class Server : IServer
         var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
         {
-            var branch = repo.AugmentedRepo.Branches[branchName];
+            var branch = repo.AugmentedRepo.BranchByName[branchName];
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
@@ -215,8 +215,8 @@ class Server : IServer
 
         if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, new[] { "main" });
 
-        var branch = repo.AugmentedRepo.Branches[name];
-        branch = repo.AugmentedRepo.Branches[branch.PrimaryName];
+        var branch = repo.AugmentedRepo.BranchByName[name];
+        branch = repo.AugmentedRepo.BranchByName[branch.PrimaryName];
 
         var branchNames = repo.Branches
             .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))

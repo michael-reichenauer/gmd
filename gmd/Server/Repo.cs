@@ -1,8 +1,6 @@
 
 namespace gmd.Server;
 
-using AugmentedRepo = gmd.Server.Private.Augmented.Repo;
-
 
 record Repo
 {
@@ -11,19 +9,21 @@ record Repo
     public static readonly string EmptyRepoCommit = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     public static readonly string UncommittedSid = UncommittedId.Sid();
 
-    private readonly Private.Augmented.Repo repo;
+    private readonly Repo augRepo;
 
     public Repo(
+        string path,
         DateTime timeStamp,
-        AugmentedRepo augRepo,
         IReadOnlyList<Commit> commits,
         IReadOnlyList<Branch> branches,
         IReadOnlyList<Stash> stashes,
         Status status,
-        string filter)
+        string filter,
+        Repo augRepo)
     {
+        Path = path;
         TimeStamp = timeStamp;
-        this.repo = augRepo;
+        this.augRepo = augRepo;
         Commits = commits;
         CommitById = commits.ToDictionary(c => c.Id, c => c);
         Branches = branches;
@@ -33,9 +33,9 @@ record Repo
         BranchByName = branches.ToDictionary(b => b.Name, b => b);
     }
 
+    public string Path { get; }
     public DateTime TimeStamp { get; }
-    public DateTime RepoTimeStamp => repo.TimeStamp;
-    public string Path => AugmentedRepo.Path;
+    public DateTime RepoTimeStamp => augRepo?.TimeStamp ?? DateTime.MinValue;
     public IReadOnlyList<Commit> Commits { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyList<Branch> Branches { get; }
@@ -45,18 +45,19 @@ record Repo
     public string Filter { get; }
 
     public static Repo Empty => new Repo(
+        "",
         DateTime.UtcNow,
-        AugmentedRepo.Empty,
         new List<Commit>(),
         new List<Branch>(),
         new List<Stash>(),
         new Status(0, 0, 0, 0, 0, false, "", "", new string[0], new string[0], new string[0], new string[0], new string[0], new string[0]),
-        "");
+        "",
+        null!);
 
 
-    internal Private.Augmented.Repo AugmentedRepo => repo;
+    internal Repo AugmentedRepo => augRepo!;
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{repo.TimeStamp.IsoMs()})";
+    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
 }
 
 

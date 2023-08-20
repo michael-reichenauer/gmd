@@ -13,12 +13,14 @@ class Converter : IConverter
     public Repo ToRepo(WorkRepo workRepo)
     {
         return new Repo(
-            workRepo.TimeStamp,
             workRepo.Path,
+            workRepo.TimeStamp,
             workRepo.Commits.Select(ToCommit).ToList(),
-            workRepo.Branches.Values.ToDictionary(b => b.Name, ToBranch),
+            workRepo.Branches.Values.Select(ToBranch).ToList(),
             workRepo.Stashes.ToList(),
-            workRepo.Status
+            workRepo.Status,
+            "",
+            Repo.Empty
         );
     }
 

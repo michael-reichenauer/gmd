@@ -267,7 +267,7 @@ class RepoCommands : IRepoCommands
     public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var totalCount = 0;
-        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
+        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.BranchByName.Values.Count(b => b.IsGitBranch);
         if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count;
 
         if (totalCount > 20)
