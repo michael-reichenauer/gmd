@@ -107,6 +107,3 @@ public record Branch(
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
-
-//public record Tag(string Name, string CommitId);
-

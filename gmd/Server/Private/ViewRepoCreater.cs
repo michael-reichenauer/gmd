@@ -133,7 +133,7 @@ class ViewRepoCreater : IViewRepoCreater
         var msg = $"<... No commits matching filter ...>";
         var branchName = "<none>";
         var commits = new List<Commit>(){ new Commit( id, id.Sid(),
-            msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
+            msg, msg, "", DateTime.UtcNow, true, 0, 0, branchName, branchName, branchName,
             new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
             new List<string>(), false,false,false,false,false,false,false,false,false,false,false, More.None)};
         var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,

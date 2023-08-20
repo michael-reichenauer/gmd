@@ -36,6 +36,7 @@ class Converter : IConverter
         Author: c.Author,
         AuthorTime: c.AuthorTime,
 
+        IsView: true,
         ViewIndex: index != -1 ? index : c.GitIndex,
         GitIndex: c.GitIndex,
         BranchName: c.BranchName,
