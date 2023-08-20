@@ -31,7 +31,8 @@ interface IRepo
     Commit GetCommit(string id);
     Branch GetCurrentBranch();
     Commit GetCurrentCommit();
-    IReadOnlyList<Branch> GetCommitBranches();
+    bool IsBranchShown(string branchName);
+    IReadOnlyList<Branch> GetCommitBranches(bool isAll);
     Task<R<IReadOnlyList<string>>> GetFilesAsync();
     IReadOnlyList<string> GetUncommittedFiles();
     Branch AllBranchByName(string name);
@@ -57,6 +58,8 @@ class RepoImpl : IRepo
         this.server = server;
         this.Graph = graphService.Create(serverRepo);
     }
+
+    public bool IsBranchShown(string branchName) => serverRepo.BranchByName.ContainsKey(branchName);
 
     public IRepoCommands Cmd => repoCommands;
 
@@ -101,8 +104,8 @@ class RepoImpl : IRepo
         return server.GetCommit(Repo, commitId); ;
     }
 
-    public IReadOnlyList<Branch> GetCommitBranches() =>
-        server.GetCommitBranches(Repo, RowCommit.Id);
+    public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
+        server.GetCommitBranches(Repo, RowCommit.Id, isAll);
 
     public IReadOnlyList<string> GetUncommittedFiles() =>
         Status.ModifiedFiles

@@ -116,32 +116,27 @@ class Server : IServer
     }
 
 
-    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isNotShown = true)
+    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = true)
     {
-        if (commitId == Repo.UncommittedId)
-        {
-            return new List<Branch>();
-        }
+        if (commitId == Repo.UncommittedId) return new List<Branch>();
 
-        var c = repo.AugmentedRepo.CommitById[commitId];
-        var ids = c.AllChildIds.Concat(c.ParentIds);
-        var branches = ids.Select(id =>
-        {
-            var cc = repo.AugmentedRepo.CommitById[id];
-
-            // Get not shown branches of either child or parent commits.
-            if (!repo.BranchByName.TryGetValue(cc.BranchName, out var branch))
-            {
-                return repo.AugmentedRepo.Branches[cc.BranchName];
-            }
-
-            return null;
-        })
-        .Where(b => b != null)
-        .DistinctBy(b => b!.PrimaryName)
-        .Cast<Augmented.Branch>();
-
-        return converter.ToBranches(branches.ToList());
+        bool FilterOnShown(Augmented.Commit cc) => isAll || !repo.BranchByName.TryGetValue(cc.BranchName, out var _);
+        // Getting all branches that are not the same as the commit branch
+        // Also exclude branches that are shown if isNotShown is true
+        var commit = repo.AugmentedRepo.CommitById[commitId];
+        var branch = repo.AugmentedRepo.Branches[commit.BranchName];
+        var x =
+            commit.AllChildIds.Concat(commit.ParentIds)                    // All children and parents commit ids         
+            .Select(id => repo.AugmentedRepo.CommitById[id])               // As commits
+            .Where(cc => cc.BranchPrimaryName != commit.BranchPrimaryName) // Skip same branch
+            .Concat(commit.Id == branch.TipId ? new[] { commit } : new Augmented.Commit[0])                                       // Add commit branch if tip
+            .Where(FilterOnShown)                                          // Exclude shown branches (or not)
+            .Select(cc => cc.BranchPrimaryName)
+            .Distinct()
+            .Select(n => repo.AugmentedRepo.Branches[n])
+            .Select(converter.ToBranch)
+            .ToList();
+        return x;
     }
 
     public IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount)

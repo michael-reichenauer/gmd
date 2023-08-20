@@ -755,27 +755,43 @@ class RepoView : IRepoView
     void TryShowHideCommitBranch(int x, int y)
     {
         var commit = repo.RowCommit;
-        var commitBranches = repo.GetCommitBranches();
-        var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
-            repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var _);
+        var commitBranches = repo.GetCommitBranches(true);
 
-        if (isMergeTargetOpen && commitBranches.Count == 0)
-        {   // Close the merged branch
-            Cmd.HideBranch(repo.Commit(commit.ParentIds[1]).BranchName);
+        if (commitBranches.Count == 0) return;
+
+        if (commitBranches.Count == 1)
+        {   // Only one possible branch, toggle shown
+            if (repo.IsBranchShown(commitBranches[0].Name)) Cmd.HideBranch(commitBranches[0].Name);
+            else Cmd.HideBranch(commitBranches[0].Name);
+            return;
         }
-        else if (commitBranches.Count == 1)
-        {   // Just one possible branch, open it
-            Cmd.ShowBranch(commitBranches[0].Name, commit.Id);
-        }
-        else if (commitBranches.Count > 1)
-        {   // Multiple possible branches, show menu to select which to open
-            menuService.ShowCommitBranchesMenu(x, y);
-        }
-        else if (commit.Id == repo.Branch(commit.BranchPrimaryName).TipId
-            || commit.Id == repo.Branch(commit.BranchPrimaryName).BottomId)
-        {
-            Cmd.HideBranch(commit.BranchPrimaryName);
-        }
+
+        menuService.ShowCommitBranchesMenu(x, y);
+
+
+
+
+
+        // var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
+        //     repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var _);
+
+        // if (isMergeTargetOpen && commitBranches.Count == 0)
+        // {   // Close the merged branch
+        //     Cmd.HideBranch(repo.Commit(commit.ParentIds[1]).BranchName);
+        // }
+        // else if (commitBranches.Count == 1)
+        // {   // Just one possible branch, open it
+        //     Cmd.ShowBranch(commitBranches[0].Name, commit.Id);
+        // }
+        // else if (commitBranches.Count > 1)
+        // {   // Multiple possible branches, show menu to select which to open
+        //     menuService.ShowCommitBranchesMenu(x, y);
+        // }
+        // else if (commit.Id == repo.Branch(commit.BranchPrimaryName).TipId
+        //     || commit.Id == repo.Branch(commit.BranchPrimaryName).BottomId)
+        // {
+        //     Cmd.HideBranch(commit.BranchPrimaryName);
+        // }
     }
 
 

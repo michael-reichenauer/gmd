@@ -55,7 +55,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowCommitBranchesMenu(int x, int y)
     {
-        Menu.Show("Show/Open Branch", x, y + 2, GetCommitBranchItems());
+        Menu.Show("Show/Hide Branch", x, y + 2, GetCommitBranchItems());
     }
 
     public void ShowMergeFromMenu(int x = Menu.Center, int y = 0)
@@ -288,7 +288,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitInOutItems()
     {
         // Get current branch, commit branch in/out and all shown branches
-        var branches = repo.GetCommitBranches().Concat(repo.Branches);
+        var branches = repo.GetCommitBranches(false).Concat(repo.Branches);
 
         var currentBranch = repo.GetCurrentBranch();
         if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
@@ -303,9 +303,25 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitBranchItems()
     {
         // Get commit branch in/out
-        var branches = repo.GetCommitBranches();
+        var rowBranch = repo.RowBranch;
+        var branches = repo.GetCommitBranches(true);
+        var hiddenBranches = branches.Where(b => !repo.IsBranchShown(b.Name)).ToList();
+        var shownBranches = branches.Where(b =>
+            repo.IsBranchShown(b.Name) && !rowBranch.AncestorNames.Contains(b.Name))
+            .ToList();
 
-        return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
+        // Row branch is hidable if it is the tip of the row commit or if it is descendant of a shown branch
+        bool isRowBranchHidable =
+           branches.Any(b => repo.IsBranchShown(b.Name) && rowBranch.AncestorNames.Contains(b.Name));
+
+        // Return hidden branches that can be shown, followed by shown branches that can be hidden
+        return Menu.Items
+            .Separator(hiddenBranches.Any(), "Show")
+            .Items(ToBranchesItems(hiddenBranches, b => cmds.ShowBranch(b.Name, false), null, true))
+
+            .Separator(shownBranches.Any() || isRowBranchHidable, "Hide")
+            .Items(ToBranchesItems(shownBranches, b => cmds.HideBranch(b.Name, false)))
+            .Items(isRowBranchHidable, ToBranchesItems(new[] { rowBranch }, b => cmds.HideBranch(b.Name, false)));
     }
 
     MenuItem GetSwitchToBranchItem(string branchName)
