@@ -138,13 +138,13 @@ class ViewRepoCreater : IViewRepoCreater
             new List<string>(), false,false,false,false,false,false,false,false,false,false,false, More.None)};
         var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
             id, id, false, false, false, "", "", true, false, true, true, "", "", false, false, "",
-            new List<string>(), new List<string>(), new List<string>(), 0, false, false) };
+            new List<string>(), new List<string>(), new List<string>(),new List<string>(),false, 0, false, false) };
 
         return new Repo(DateTime.UtcNow, augRepo, commits, branches, new List<Stash>(), augRepo.Status, filter);
     }
 
     static void SetAheadBehind(
-        List<Augmented.Branch> filteredBranches,
+        List<Branch> filteredBranches,
         List<Commit> filteredCommits)
     {
         foreach (var b in filteredBranches.ToList())  // ToList() since SetBehind/SetAhead modifies branches
@@ -163,8 +163,8 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
     static void SetBehindCommits(
-        Augmented.Branch remoteBranch,
-        List<Augmented.Branch> filteredBranches,
+        Branch remoteBranch,
+        List<Branch> filteredBranches,
         List<Commit> filteredCommits)
     {
         int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.Name);
@@ -225,14 +225,14 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (hasBehindCommits)
         {
-            filteredBranches[remoteBranchIndex] = remoteBranch with { HasBehindCommits = true };
-            filteredBranches[localBranchIndex] = localBranch with { HasBehindCommits = true };
+            filteredBranches[remoteBranchIndex] = remoteBranch with { HasRemoteOnly = true };
+            filteredBranches[localBranchIndex] = localBranch with { HasRemoteOnly = true };
         }
     }
 
     static void SetAheadCommits(
-        Augmented.Branch localBranch,
-        List<Augmented.Branch> filteredBranches,
+        Branch localBranch,
+        List<Branch> filteredBranches,
         List<Commit> filteredCommits)
     {
         int localBranchIndex = filteredBranches.FindIndex(b => b.Name == localBranch.Name);
@@ -267,13 +267,13 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (hasAheadCommits)
         {
-            filteredBranches[localBranchIndex] = localBranch with { HasAheadCommits = true };
-            filteredBranches[remoteBranchIndex] = remoteBranch with { HasAheadCommits = true };
+            filteredBranches[localBranchIndex] = localBranch with { HasLocalOnly = true };
+            filteredBranches[remoteBranchIndex] = remoteBranch with { HasLocalOnly = true };
         }
     }
 
     static List<Commit> FilterOutViewCommits(
-        Augmented.Repo repo, IReadOnlyList<Augmented.Branch> filteredBranches)
+        Augmented.Repo repo, IReadOnlyList<Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
         return repo.Commits
@@ -281,10 +281,10 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
     }
 
-    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo,
+    List<Branch> FilterOutViewBranches(Augmented.Repo repo,
     IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
-        var branches = new Dictionary<string, Augmented.Branch>();
+        var branches = new Dictionary<string, Branch>();
 
         switch (show)
         {
@@ -347,7 +347,7 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
-    void AddBranchAndAncestorsAndRelatives(Augmented.Repo repo, Augmented.Branch? branch, IDictionary<string, Augmented.Branch> branches)
+    void AddBranchAndAncestorsAndRelatives(Augmented.Repo repo, Branch? branch, IDictionary<string, Branch> branches)
     {
         if (branch == null || branches.ContainsKey(branch.Name)) return;
         if (branch.IsCircularAncestors) return;
@@ -359,7 +359,7 @@ class ViewRepoCreater : IViewRepoCreater
         primary.RelatedBranchNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.Branches[n], branches));
     }
 
-    List<Augmented.Branch> SortBranches(Augmented.Repo repo, IEnumerable<Augmented.Branch> branches)
+    List<Branch> SortBranches(Augmented.Repo repo, IEnumerable<Branch> branches)
     {
         var sorted = branches.Where(b => b.IsPrimary).ToList();
 
@@ -368,7 +368,7 @@ class ViewRepoCreater : IViewRepoCreater
         Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
 
         // Reinsert the pullMerge branches just after its parent branch
-        var toInsert = new Queue<Augmented.Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
+        var toInsert = new Queue<Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
         while (toInsert.Any())
         {
             var b = toInsert.Dequeue();
@@ -393,7 +393,7 @@ class ViewRepoCreater : IViewRepoCreater
 
     static bool TryGetUncommittedCommit(
       Augmented.Repo repo,
-      IReadOnlyList<Augmented.Branch> filteredBranches,
+      IReadOnlyList<Branch> filteredBranches,
       [MaybeNullWhen(false)] out Commit uncommitted)
     {
         if (!repo.Status.IsOk)
@@ -444,7 +444,7 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
     static void AdjustCurrentBranch(
-        List<Augmented.Branch> filteredBranches,
+        List<Branch> filteredBranches,
         List<Commit> filteredCommits,
         Commit uncommitted)
     {
@@ -476,7 +476,7 @@ class ViewRepoCreater : IViewRepoCreater
         filteredCommits[tipCommitIndex] = newTipCommit;
     }
 
-    static int CompareBranches(Augmented.Branch b1, Augmented.Branch b2,
+    static int CompareBranches(Branch b1, Branch b2,
         List<BranchOrder> branchOrders)
     {
         if (b1 == b2) return 0;

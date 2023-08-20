@@ -3,10 +3,10 @@ namespace gmd.Server.Private;
 interface IConverter
 {
     IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits);
-    IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches);
+    IReadOnlyList<Branch> ToBranches(IEnumerable<Branch> branches);
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
-    Branch ToBranch(Augmented.Branch branch);
+    Branch ToBranch(Branch branch);
     Commit ToCommit(Commit commit, int index = -1);
 }
 
@@ -16,7 +16,7 @@ class Converter : IConverter
     public IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits) =>
        commits.Select(ToCommit).ToList();
 
-    public IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches) =>
+    public IReadOnlyList<Branch> ToBranches(IEnumerable<Branch> branches) =>
            branches.Select(ToBranch).ToList();
 
     public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
@@ -62,7 +62,7 @@ class Converter : IConverter
 
         More: More.None);
 
-    public Branch ToBranch(Augmented.Branch b) => new Branch(
+    public Branch ToBranch(Branch b) => new Branch(
         Name: b.Name,
         PrimaryName: b.PrimaryName,
         PrimaryBaseName: b.PrimaryBaseName,
@@ -83,13 +83,15 @@ class Converter : IConverter
         IsPrimary: b.IsPrimary,
         IsMainBranch: b.IsMainBranch,
 
-        HasLocalOnly: b.HasAheadCommits,
-        HasRemoteOnly: b.HasBehindCommits,
+        HasLocalOnly: b.HasLocalOnly,
+        HasRemoteOnly: b.HasRemoteOnly,
 
         AmbiguousTipId: b.AmbiguousTipId,
         AmbiguousBranchNames: b.AmbiguousBranchNames,
         PullMergeBranchNames: b.PullMergeBranchNames,
         AncestorNames: b.AncestorNames,
+        RelatedBranchNames: b.RelatedBranchNames,
+        IsCircularAncestors: b.IsCircularAncestors,
 
         X: 0,
         IsIn: false,

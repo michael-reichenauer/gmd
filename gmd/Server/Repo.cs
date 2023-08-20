@@ -138,6 +138,8 @@ public record Branch(
     IReadOnlyList<string> AmbiguousBranchNames,
     IReadOnlyList<string> PullMergeBranchNames,
     IReadOnlyList<string> AncestorNames,
+    IReadOnlyList<string> RelatedBranchNames,
+    bool IsCircularAncestors,
 
     // View properties
     int X,
