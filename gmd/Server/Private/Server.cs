@@ -116,7 +116,7 @@ class Server : IServer
     }
 
 
-    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId)
+    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isNotShown = true)
     {
         if (commitId == Repo.UncommittedId)
         {
