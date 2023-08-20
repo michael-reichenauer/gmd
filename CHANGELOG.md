@@ -1,9 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-104 releases:
+105 releases:
 
 ## [Current] - 2023-08-19
+- Adjust Readme
+
+## [v0.90.293.878] - 2023-08-19
 - Updated Readme
 - Updated Help documentation
 
