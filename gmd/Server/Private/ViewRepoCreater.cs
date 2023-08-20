@@ -429,7 +429,7 @@ class ViewRepoCreater : IViewRepoCreater
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
                     GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
                     ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
-                    Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
+                    Tags: new List<Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
                     IsAhead: false, IsBehind: false,
                     IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,

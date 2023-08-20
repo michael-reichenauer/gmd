@@ -45,7 +45,7 @@ class Converter : IConverter
         AllChildIds: c.AllChildIds,
         FirstChildIds: c.FirstChildIds,
         MergeChildIds: c.MergeChildIds,
-        Tags: ToTags(c.Tags),
+        Tags: c.Tags,
         BranchTips: c.BranchTips,
         IsCurrent: c.IsCurrent,
         IsDetached: c.IsDetached,
@@ -94,9 +94,6 @@ class Converter : IConverter
         IsIn: false,
         IsOut: false);
 
-
-    static IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
-        tags.Select(t => new Tag(t.Name, t.CommitId)).ToList();
 
     static IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs
