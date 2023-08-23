@@ -3,11 +3,9 @@ namespace gmd.Server.Private;
 interface IConverter
 {
     IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits);
-    IReadOnlyList<Branch> ToBranches(IEnumerable<Branch> branches);
+
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
-    Branch ToBranch(Branch branch);
-    Commit ToCommit(Commit commit, int index = -1);
 }
 
 
@@ -16,8 +14,6 @@ class Converter : IConverter
     public IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits) =>
        commits.Select(ToCommit).ToList();
 
-    public IReadOnlyList<Branch> ToBranches(IEnumerable<Branch> branches) =>
-           branches.Select(ToBranch).ToList();
 
     public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
         gitCommitDiffs.Select(ToCommitDiff).ToArray();
@@ -28,75 +24,11 @@ class Converter : IConverter
         return new CommitDiff(d.Id, d.Author, d.Time, d.Message, ToFileDiffs(d.FileDiffs));
     }
 
-    public Commit ToCommit(Commit c, int index = -1) => new Commit(
-        Id: c.Id,
-        Sid: c.Sid,
-        Subject: c.Subject,
-        Message: c.Message,
-        Author: c.Author,
-        AuthorTime: c.AuthorTime,
-
-        IsView: true,
-        ViewIndex: index != -1 ? index : c.GitIndex,
-        GitIndex: c.GitIndex,
-        BranchName: c.BranchName,
-        BranchPrimaryName: c.BranchPrimaryName,
-        BranchNiceUniqueName: c.BranchNiceUniqueName,
-        ParentIds: c.ParentIds,
-        AllChildIds: c.AllChildIds,
-        FirstChildIds: c.FirstChildIds,
-        MergeChildIds: c.MergeChildIds,
-        Tags: c.Tags,
-        BranchTips: c.BranchTips,
-        IsCurrent: c.IsCurrent,
-        IsDetached: c.IsDetached,
-        IsUncommitted: c.IsUncommitted,
-        IsConflicted: c.IsConflicted,
-        IsAhead: c.IsAhead,
-        IsBehind: c.IsBehind,
-        IsTruncatedLogCommit: c.IsTruncatedLogCommit,
-        IsAmbiguous: c.IsAmbiguous,
-        IsAmbiguousTip: c.IsAmbiguousTip,
-        IsBranchSetByUser: c.IsBranchSetByUser,
-        HasStash: c.HasStash,
-
-        More: More.None);
-
-    public Branch ToBranch(Branch b) => new Branch(
-        Name: b.Name,
-        PrimaryName: b.PrimaryName,
-        PrimaryBaseName: b.PrimaryBaseName,
-        NiceName: b.NiceName,
-        NiceNameUnique: b.NiceNameUnique,
-        TipId: b.TipId,
-        BottomId: b.BottomId,
-        IsCurrent: b.IsCurrent,
-        IsLocalCurrent: b.IsLocalCurrent,
-        IsRemote: b.IsRemote,
-        RemoteName: b.RemoteName,
-        LocalName: b.LocalName,
-
-        ParentBranchName: b.ParentBranchName,
-        PullMergeParentBranchName: b.PullMergeParentBranchName,
-        IsGitBranch: b.IsGitBranch,
-        IsDetached: b.IsDetached,
-        IsPrimary: b.IsPrimary,
-        IsMainBranch: b.IsMainBranch,
-
-        HasLocalOnly: b.HasLocalOnly,
-        HasRemoteOnly: b.HasRemoteOnly,
-
-        AmbiguousTipId: b.AmbiguousTipId,
-        AmbiguousBranchNames: b.AmbiguousBranchNames,
-        PullMergeBranchNames: b.PullMergeBranchNames,
-        AncestorNames: b.AncestorNames,
-        RelatedBranchNames: b.RelatedBranchNames,
-        IsCircularAncestors: b.IsCircularAncestors,
-
-        X: 0,
-        IsIn: false,
-        IsOut: false);
-
+    Commit ToCommit(Commit c, int index = -1) => c with
+    {
+        IsView = true,
+        ViewIndex = index != -1 ? index : c.GitIndex
+    };
 
     static IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs

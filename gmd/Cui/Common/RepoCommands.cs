@@ -267,8 +267,8 @@ class RepoCommands : IRepoCommands
     public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var totalCount = 0;
-        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.BranchByName.Values.Count(b => b.IsGitBranch);
-        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.ViewBranches.Count;
+        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AllBranches.Count(b => b.IsGitBranch);
+        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.ViewBranches.Count;
 
         if (totalCount > 20)
         {
@@ -388,7 +388,7 @@ class RepoCommands : IRepoCommands
     public void UndoCommit(string id) => Do(async () =>
     {
         if (!CanUndoCommit()) return R.Ok;
-        var commit = repo.Commit(id);
+        var commit = repo.CommitById(id);
         var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
         if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, RepoPath)))
@@ -497,8 +497,8 @@ class RepoCommands : IRepoCommands
     {
         if (repo.CurrentBranch == null) return R.Ok;
         string message = "";
-        var branch1 = repo.Branch(branchName1);
-        var branch2 = repo.Branch(branchName2);
+        var branch1 = repo.BranchByName(branchName1);
+        var branch2 = repo.BranchByName(branchName2);
 
         var sha1 = branch1.TipId;
         var sha2 = branch2.TipId;
@@ -520,7 +520,7 @@ class RepoCommands : IRepoCommands
     {
         if (repo.CurrentBranch == null) return R.Ok;
         string message = "";
-        var branch = repo.Branch(branchName);
+        var branch = repo.BranchByName(branchName);
         var sha1 = branch.TipId;
         var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
         if (sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
@@ -752,7 +752,7 @@ class RepoCommands : IRepoCommands
     public void CreateBranchFromBranch(string name) => Do(async () =>
     {
         //var currentBranchName = repo.GetCurrentBranch().Name;
-        var branch = repo.Branch(name);
+        var branch = repo.BranchByName(name);
         if (branch.LocalName != "") name = branch.LocalName;
 
         if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
@@ -878,7 +878,7 @@ class RepoCommands : IRepoCommands
 
         if (rsp.IsRemote && remoteBranch != null)
         {
-            var tip = repo.Commit(remoteBranch.TipId);
+            var tip = repo.CommitById(remoteBranch.TipId);
             if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == remoteBranch.Name)
             {
                 return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
@@ -893,7 +893,7 @@ class RepoCommands : IRepoCommands
 
         if (rsp.IsLocal && localBranch != null)
         {
-            var tip = repo.Commit(localBranch.TipId);
+            var tip = repo.CommitById(localBranch.TipId);
             if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == localBranch.Name)
             {
                 return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
@@ -941,7 +941,7 @@ class RepoCommands : IRepoCommands
 
     public void ChangeBranchColor()
     {
-        var b = repo.Branch(repo.RowCommit.BranchName);
+        var b = repo.BranchByName(repo.RowCommit.BranchName);
         if (b.IsMainBranch) return;
 
         branchColorService.ChangeColor(repo.Repo, b);
@@ -1015,7 +1015,7 @@ class RepoCommands : IRepoCommands
     public void AddTag() => Do(async () =>
     {
         var commit = repo.RowCommit;
-        var branch = repo.Branch(commit.BranchName);
+        var branch = repo.BranchByName(commit.BranchName);
         var isPushable = branch.IsRemote || branch.RemoteName != "";
 
         if (commit.IsUncommitted) return R.Ok;
@@ -1034,7 +1034,7 @@ class RepoCommands : IRepoCommands
     public void DeleteTag(string name) => Do(async () =>
     {
         var commit = repo.RowCommit;
-        var branch = repo.Branch(commit.BranchName);
+        var branch = repo.BranchByName(commit.BranchName);
         var isPushable = branch.IsRemote || branch.RemoteName != "";
 
         if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, RepoPath)))
@@ -1052,7 +1052,7 @@ class RepoCommands : IRepoCommands
         if (commit.IsUncommitted) return R.Error($"Not a valid commit");
 
 
-        var branch = repo.Branch(commit.BranchName);
+        var branch = repo.BranchByName(commit.BranchName);
 
         var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
 

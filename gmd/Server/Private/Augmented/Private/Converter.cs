@@ -12,15 +12,20 @@ class Converter : IConverter
 {
     public Repo ToRepo(WorkRepo workRepo)
     {
+        var commits = workRepo.Commits.Select(ToCommit).ToList();
+        var branches = workRepo.Branches.Values.Select(ToBranch).ToList();
+
         return new Repo(
             workRepo.Path,
             workRepo.TimeStamp,
-            workRepo.Commits.Select(ToCommit).ToList(),
-            workRepo.Branches.Values.Select(ToBranch).ToList(),
+            workRepo.TimeStamp,
+            commits,
+            branches,
+            commits.ToDictionary(c => c.Id, c => c),
+            branches.ToDictionary(b => b.Name, b => b),
             workRepo.Stashes.ToList(),
             workRepo.Status,
-            "",
-            Repo.Empty
+            ""
         );
     }
 
@@ -87,6 +92,7 @@ class Converter : IConverter
             ParentBranchName: b.ParentBranch?.Name ?? "",
             PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
 
+            IsInView: false,
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
             IsPrimary: b.IsPrimary,

@@ -131,7 +131,7 @@ class AugmentedService : IAugmentedService
     {
         Log.Info($"Create branch {newBranchName} ...");
         Commit? currentCommit = null;
-        var currentBranch = repo.BranchByName.Values.FirstOrDefault(b => b.IsCurrent);
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
         if (currentBranch != null)
         {
             currentCommit = repo.CommitById[currentBranch.TipId];

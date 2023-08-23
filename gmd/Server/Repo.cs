@@ -9,35 +9,39 @@ record Repo
     public static readonly string EmptyRepoCommit = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     public static readonly string UncommittedSid = UncommittedId.Sid();
 
-    private readonly Repo augRepo;
+
 
     public Repo(
         string path,
         DateTime timeStamp,
+        DateTime repoTimeStamp,
         IReadOnlyList<Commit> viewCommits,
         IReadOnlyList<Branch> viewBranches,
+        IReadOnlyDictionary<string, Commit> commitById,
+        IReadOnlyDictionary<string, Branch> branchByName,
         IReadOnlyList<Stash> stashes,
         Status status,
-        string filter,
-        Repo augRepo)
+        string filter)
     {
         Path = path;
         TimeStamp = timeStamp;
-        this.augRepo = augRepo;
+        RepoTimeStamp = repoTimeStamp;
         ViewCommits = viewCommits;
         ViewBranches = viewBranches;
         CommitById = viewCommits.ToDictionary(c => c.Id, c => c);
+        BranchByName = viewBranches.ToDictionary(b => b.Name, b => b);
+        AllBranches = branchByName.Values.ToList();
         Stashes = stashes;
         Status = status;
         Filter = filter;
-        BranchByName = viewBranches.ToDictionary(b => b.Name, b => b);
     }
 
     public string Path { get; }
     public DateTime TimeStamp { get; }
-    public DateTime RepoTimeStamp => augRepo?.TimeStamp ?? DateTime.MinValue;
+    public DateTime RepoTimeStamp { get; }
     public IReadOnlyList<Commit> ViewCommits { get; }
     public IReadOnlyList<Branch> ViewBranches { get; }
+    public IReadOnlyList<Branch> AllBranches { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
     public IReadOnlyList<Stash> Stashes { get; }
@@ -47,15 +51,15 @@ record Repo
     public static Repo Empty => new Repo(
         "",
         DateTime.UtcNow,
+        DateTime.UtcNow,
         new List<Commit>(),
         new List<Branch>(),
+        new Dictionary<string, Commit>(),
+        new Dictionary<string, Branch>(),
         new List<Stash>(),
         new Status(0, 0, 0, 0, 0, false, "", "", new string[0], new string[0], new string[0], new string[0], new string[0], new string[0]),
-        "",
-        null!);
+        "");
 
-
-    internal Repo AugmentedRepo => augRepo!;
 
     public override string ToString() => $"B:{ViewBranches.Count}, C:{ViewCommits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
 }
@@ -125,6 +129,7 @@ public record Branch(
     string LocalName,
 
     // Augmented properties
+    bool IsInView,
     bool IsGitBranch,
     bool IsDetached,
     bool IsPrimary,     // True if this is the primary branch (remote if local/remote pair or the local if only local) 
