@@ -27,37 +27,17 @@ class ViewRepoCreater : IViewRepoCreater
     public Repo GetViewRepoAsync(Repo repo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var t = Timing.Start();
-        var filteredBranches = FilterOutViewBranches(repo, showBranches, show, count);
-        var filteredCommits = FilterOutViewCommits(repo, filteredBranches);
+        var viewBranches = FilterOutViewBranches(repo, showBranches, show, count);
+        var viewCommits = FilterOutViewCommits(repo, viewBranches);
 
-        if (TryGetUncommittedCommit(repo, filteredBranches, out var uncommitted))
+        if (TryGetUncommittedCommit(repo, viewBranches, out var uncommitted))
         {
-            AdjustCurrentBranch(filteredBranches, filteredCommits, uncommitted);
+            AdjustCurrentBranch(viewBranches, viewCommits, uncommitted);
         }
 
-        SetAheadBehind(filteredBranches, filteredCommits);
+        SetAheadBehind(viewBranches, viewCommits);
 
-        // Add view index to commits and set IsView on view commits and branches
-        filteredCommits = filteredCommits.Select((c, i) => c with { IsView = true, ViewIndex = i }).ToList();
-        filteredBranches = filteredBranches.Select((b, i) => b with { IsInView = true }).ToList();
-
-        // Need to update the commit and branch dictionaries with the filtered commits and branches (since they might have changed)
-        var commitsById = repo.CommitById.ToDictionary(c => c.Key, c => c.Value);    // Copy
-        var branchByName = repo.BranchByName.ToDictionary(b => b.Key, b => b.Value); // Copy
-        filteredCommits.ForEach(c => commitsById[c.Id] = c);
-        filteredBranches.ForEach(b => branchByName[b.Name] = b);
-
-        var viewRepo = new Repo(
-            repo.Path,
-            DateTime.UtcNow,
-            repo.TimeStamp,
-            filteredCommits,
-            filteredBranches,
-            commitsById,
-            branchByName,
-            repo.Stashes,
-            repo.Status,
-            "");
+        var viewRepo = converter.ToViewRepo(DateTime.UtcNow, viewCommits, viewBranches, "", repo);
 
         Log.Info($"ViewRepo {t} {viewRepo}");
         return viewRepo;
@@ -67,12 +47,12 @@ class ViewRepoCreater : IViewRepoCreater
     {
         using (Timing.Start($"Filtered repo on '{filter}'"))
         {
-            IReadOnlyDictionary<string, Commit> filteredCommits = null!;
+            IReadOnlyList<Commit> filteredCommits;
 
             if (filter == "$")
             {   // Get all commits, where branch was set manually by user
                 filteredCommits = repo.CommitById.Values
-                    .Where(c => c.IsBranchSetByUser).Take(maxCount).ToDictionary(c => c.Id, c => c);
+                    .Where(c => c.IsBranchSetByUser).Take(maxCount).ToList();
             }
             else if (filter == "*")
             {   // Get all commits, with ambiguous tip
@@ -80,38 +60,36 @@ class ViewRepoCreater : IViewRepoCreater
                     .Select(b => repo.CommitById[b.AmbiguousTipId])
                     .Where(c => c.IsAmbiguousTip)
                     .Take(maxCount)
-                    .ToDictionary(c => c.Id, c => c);
+                    .ToList();
             }
             else
             {   // Get all commits matching filter
                 filteredCommits = GetFilteredCommits(repo, filter, maxCount);
             }
 
+            if (!filteredCommits.Any()) EmptyFilteredRepo(repo, filter);
+
+
             // Get all branch names for the filtered commits
-            var branchNames = filteredCommits.Values.Select(c => c.BranchName).Distinct().ToList();
-            if (!branchNames.Any())
-            {   // No commits matching filter, return empty repo
-                Log.Info($"No commits matching filter'");
-                return EmptyFilteredRepo(repo, filter);
-            }
+            var filteredBranchNames = filteredCommits.Select(c => c.BranchName).Distinct().ToList();
 
-            // First create view repo with all branches and their commits
-            var r = GetViewRepoAsync(repo, branchNames);
+            // First create view repo with all filtered branches and all those branches commits
+            // i.e. more commits than the filtered commits, since a branch can contains more commits than the filtered commits
+            var filteredRepo = GetViewRepoAsync(repo, filteredBranchNames);
 
-            // Return repo with filtered commits and their branches
-            var viewCommits = r.ViewCommits
-                .Where(c => filteredCommits.ContainsKey(c.Id))
-                .Select((c, i) => c with { ViewIndex = i, IsView = true })
+            // From the repo with all filtered branches and to many commits, extract only those
+            // commits that match the filtered commits
+            var filteredCommitsById = filteredCommits.ToDictionary(c => c.Id, c => c);
+            var viewCommits = filteredRepo.ViewCommits
+                .Where(c => filteredCommitsById.ContainsKey(c.Id))
                 .ToList();
+            var viewBranches = filteredRepo.ViewBranches;
 
-            var commitsById = repo.CommitById.ToDictionary(c => c.Key, c => c.Value);
-            viewCommits.ForEach(c => commitsById[c.Id] = c);
-
-            return new Repo(r.Path, r.TimeStamp, r.RepoTimeStamp, viewCommits, r.ViewBranches, commitsById, r.BranchByName, r.Stashes, r.Status, filter);
+            return converter.ToViewRepo(filteredRepo.TimeStamp, viewCommits, viewBranches, filter, repo);
         }
     }
 
-    static IReadOnlyDictionary<string, Commit> GetFilteredCommits(
+    static IReadOnlyList<Commit> GetFilteredCommits(
         Repo repo, string filter, int maxCount)
     {
         var sc = StringComparison.OrdinalIgnoreCase;
@@ -141,7 +119,7 @@ class ViewRepoCreater : IViewRepoCreater
                 c.BranchName.Contains(p, sc) ||
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount)
-            .ToDictionary(c => c.Id, c => c);
+            .ToList();
     }
 
 
@@ -433,7 +411,7 @@ class ViewRepoCreater : IViewRepoCreater
                 uncommitted = new Commit(
                     Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
                     Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    IsView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
+                    IsInView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
                     ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
                     Tags: new List<Tag>(), BranchTips: new List<string>(),
                     IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,

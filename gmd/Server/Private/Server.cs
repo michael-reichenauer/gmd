@@ -61,10 +61,10 @@ class Server : IServer
         filter = filter.Trim();
         if (filter == "") return repo.ViewCommits.Take(maxCount).ToList();
 
-        if (filter == "$") return converter.ToCommits(
+        if (filter == "$") return converter.ToViewCommits(
             repo.CommitById.Values.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
 
-        if (filter == "*") return converter.ToCommits(
+        if (filter == "*") return converter.ToViewCommits(
             repo.AllBranches.Where(b => b.AmbiguousTipId != "")
                 .Select(b => repo.CommitById[b.AmbiguousTipId])
                 .Where(c => c.IsAmbiguousTip)
@@ -97,7 +97,7 @@ class Server : IServer
                 c.BranchNiceUniqueName.Contains(p, sc) ||
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount);
-        var result = converter.ToCommits(commits.ToList());
+        var result = converter.ToViewCommits(commits.ToList());
         Log.Info($"Filtered on '{filter}' => {result.Count} results {t}");
         return result;
     }
@@ -107,7 +107,7 @@ class Server : IServer
     {
         if (commitId == Repo.UncommittedId) return new List<Branch>();
 
-        bool FilterOnShown(Commit cc) => isAll || !cc.IsView;
+        bool FilterOnShown(Commit cc) => isAll || !cc.IsInView;
         // Getting all branches that are not the same as the commit branch
         // Also exclude branches that are shown if isNotShown is true
         var commit = repo.CommitById[commitId];
@@ -279,7 +279,7 @@ class Server : IServer
     public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName)
     {
         if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo, branchName))) return e;
-        return converter.ToCommits(commits).ToList();
+        return converter.ToViewCommits(commits).ToList();
     }
 
     public Task<R> CherryPickAsync(string sha, string wd) =>

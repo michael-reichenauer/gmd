@@ -47,7 +47,7 @@ class Converter : IConverter
             Author: c.Author,
             AuthorTime: c.AuthorTime,
             ParentIds: c.ParentIds,
-            IsView: false,
+            IsInView: false,
             ViewIndex: -1,
             GitIndex: gitIndex,
 

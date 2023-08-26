@@ -2,17 +2,20 @@ namespace gmd.Server.Private;
 
 interface IConverter
 {
-    IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits);
+    IReadOnlyList<Commit> ToViewCommits(IEnumerable<Commit> commits);
 
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
+    Repo ToViewRepo(DateTime timeStamp,
+        IReadOnlyList<Commit> viewCommits, IReadOnlyList<Branch> viewBranches,
+        string filter, Repo repo);
 }
 
 
 class Converter : IConverter
 {
-    public IReadOnlyList<Commit> ToCommits(IEnumerable<Commit> commits) =>
-       commits.Select(ToCommit).ToList();
+    public IReadOnlyList<Commit> ToViewCommits(IEnumerable<Commit> commits) =>
+       commits.Select((c, i) => c with { IsInView = true, ViewIndex = i }).ToList();
 
 
     public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
@@ -24,11 +27,6 @@ class Converter : IConverter
         return new CommitDiff(d.Id, d.Author, d.Time, d.Message, ToFileDiffs(d.FileDiffs));
     }
 
-    Commit ToCommit(Commit c, int index = -1) => c with
-    {
-        IsView = true,
-        ViewIndex = index != -1 ? index : c.GitIndex
-    };
 
     static IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs
@@ -71,5 +69,37 @@ class Converter : IConverter
 
         Asserter.FailFast($"Unknown diff mode: {diffMode}");
         return DiffMode.DiffModified;
+    }
+
+    public Repo ToViewRepo(
+        DateTime timeStamp,
+        IReadOnlyList<Commit> viewCommits,
+        IReadOnlyList<Branch> viewBranches,
+        string filter,
+        Repo repo)
+    {
+        // Copy and ensure commits and repo are by default not in view
+        var commitsById = repo.CommitById.ToDictionary(c => c.Key, c => c.Value with { IsInView = false, ViewIndex = -1 });    // Copy
+        var branchByName = repo.BranchByName.ToDictionary(b => b.Key, b => b.Value with { IsInView = false, }); // Copy
+
+        // Set IsInView and ViewIndex for commits and branches in view and update commitsById and branchByName
+        viewCommits = viewCommits.Select((c, i) => c with { IsInView = true, ViewIndex = i }).ToList();
+        viewCommits.ForEach(c => commitsById[c.Id] = c);
+
+        viewBranches = viewBranches.Select((b, i) => b with { IsInView = true }).ToList();
+        viewBranches.ForEach(b => branchByName[b.Name] = b);
+
+        return new Repo(
+              repo.Path,
+              timeStamp,
+              repo.TimeStamp,
+              viewCommits,
+              viewBranches,
+              commitsById,
+              branchByName,
+              repo.Stashes,
+              repo.Status,
+              filter);
+
     }
 }

@@ -75,7 +75,7 @@ public record Commit(
     DateTime AuthorTime,
 
     // Augmented properties
-    bool IsView,
+    bool IsInView,
     int ViewIndex,
     int GitIndex,
     string BranchName,
