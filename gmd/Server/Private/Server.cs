@@ -55,54 +55,6 @@ class Server : IServer
     }
 
 
-    public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount)
-    {
-        var t = Timing.Start();
-        filter = filter.Trim();
-        if (filter == "") return repo.ViewCommits.Take(maxCount).ToList();
-
-        if (filter == "$") return converter.ToViewCommits(
-            repo.CommitById.Values.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
-
-        if (filter == "*") return converter.ToViewCommits(
-            repo.AllBranches.Where(b => b.AmbiguousTipId != "")
-                .Select(b => repo.CommitById[b.AmbiguousTipId])
-                .Where(c => c.IsAmbiguousTip)
-                .Take(maxCount)
-                .ToList());
-
-        var sc = StringComparison.OrdinalIgnoreCase;
-
-        // I need extract all text enclosed by double quotes.
-        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
-        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
-
-        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below. 
-        var modifiedFilter = filter;
-        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
-
-        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
-        var andParts = modifiedFilter.Split(' ').Where(p => p != "")
-            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces again 
-            .ToList();
-
-        // Find all commits matching all AND parts.
-        var commits = repo.CommitById.Values
-            .Where(c => andParts.All(p =>
-                c.Id.Contains(p, sc) ||
-                c.Subject.Contains(p, sc) ||
-                c.BranchName.Contains(p, sc) ||
-                c.Author.Contains(p, sc) ||
-                c.AuthorTime.IsoDate().Contains(p, sc) ||
-                c.BranchNiceUniqueName.Contains(p, sc) ||
-                c.Tags.Any(t => t.Name.Contains(p, sc))))
-            .Take(maxCount);
-        var result = converter.ToViewCommits(commits.ToList());
-        Log.Info($"Filtered on '{filter}' => {result.Count} results {t}");
-        return result;
-    }
-
-
     public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = true)
     {
         if (commitId == Repo.UncommittedId) return new List<Branch>();

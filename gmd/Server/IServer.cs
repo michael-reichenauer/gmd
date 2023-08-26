@@ -17,7 +17,6 @@ interface IServer
     Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
     Task<R<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount);
 
-    IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount);
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = false);
     IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount);
 
