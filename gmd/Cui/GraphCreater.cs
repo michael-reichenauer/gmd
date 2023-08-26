@@ -121,8 +121,7 @@ class GraphCreater : IGraphCreater
                     DrawMoreBranchOut(graph, c, b); // Drawing  ╯
                 }
 
-                // !!!!! Should not need to use TryGetValue here !!!!!!!!!!!!
-                if (c.ParentIds.Count > 0 && repo.CommitById.TryGetValue(c.ParentIds[0], out var fpc) && fpc.BranchName != c.BranchName)
+                if (c.ParentIds.Count > 0 && repo.CommitById[c.ParentIds[0]].BranchName != c.BranchName)
                 {   // Commit parent is on other branch (i.e. commit is first/bottom commit on this branch)
                     // Draw branched from parent branch  ╯ or ╰
                     DrawBranchFromParent(graph, repo, c, b);
@@ -194,7 +193,8 @@ class GraphCreater : IGraphCreater
 
     static void DrawMerge(Graph graph, Repo repo, Commit commit, GraphBranch commitBranch)
     {
-        if (repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent))
+        var mergeParent = repo.CommitById[commit.ParentIds[1]];
+        if (mergeParent.IsInView)
         {
             var parentBranch = graph.BranchByName(mergeParent.BranchName);
             // Commit is a merge commit, has 2 parents
@@ -330,7 +330,8 @@ class GraphCreater : IGraphCreater
         // Branched from parent branch
         int x = commitBranch.X;
         int y = c.ViewIndex;
-        if (!repo.CommitById.TryGetValue(c.ParentIds[0], out var parent)) return;  // parent filtered out, skip 
+        var parent = repo.CommitById[c.ParentIds[0]];
+        if (!parent.IsInView) return;  // parent filtered out, skip 
 
         var parentBranch = graph.BranchByName(parent.BranchName);
         int x2 = parentBranch.X;
@@ -388,7 +389,8 @@ class GraphCreater : IGraphCreater
             // var branch = branchMap[branchName];
             if (c.ParentIds.Count > 1)
             {   // commit is a merge commit, lets check if its merge parent needs to adjust
-                if (repo.CommitById.TryGetValue(c.ParentIds[1], out var cp))
+                var cp = repo.CommitById[c.ParentIds[1]];
+                if (cp.IsInView)
                 {
                     var branch = branchMap[cp.BranchName];
                     if (branch.HighIndex > c.ViewIndex) branch.HighIndex = c.ViewIndex;
@@ -397,7 +399,8 @@ class GraphCreater : IGraphCreater
             }
             if (c.ParentIds.Count == 1)
             {
-                if (repo.CommitById.TryGetValue(c.ParentIds[0], out var cp) && cp.BranchName != c.BranchName)
+                var cp = repo.CommitById[c.ParentIds[0]];
+                if (cp.IsInView && cp.BranchName != c.BranchName)
                 {   // Commit is a bottom id
                     var branch = branchMap[c.BranchName];
                     if (branch.LowIndex < cp.ViewIndex) branch.LowIndex = cp.ViewIndex;

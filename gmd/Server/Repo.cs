@@ -9,8 +9,6 @@ record Repo
     public static readonly string EmptyRepoCommit = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     public static readonly string UncommittedSid = UncommittedId.Sid();
 
-
-
     public Repo(
         string path,
         DateTime timeStamp,
@@ -28,8 +26,9 @@ record Repo
         RepoTimeStamp = repoTimeStamp;
         ViewCommits = viewCommits;
         ViewBranches = viewBranches;
-        CommitById = viewCommits.ToDictionary(c => c.Id, c => c);
-        BranchByName = viewBranches.ToDictionary(b => b.Name, b => b);
+        CommitById = commitById;
+        AllCommits = commitById.Values.ToList();
+        BranchByName = branchByName;
         AllBranches = branchByName.Values.ToList();
         Stashes = stashes;
         Status = status;
@@ -41,6 +40,7 @@ record Repo
     public DateTime RepoTimeStamp { get; }
     public IReadOnlyList<Commit> ViewCommits { get; }
     public IReadOnlyList<Branch> ViewBranches { get; }
+    public IReadOnlyList<Commit> AllCommits { get; }
     public IReadOnlyList<Branch> AllBranches { get; }
     public IReadOnlyDictionary<string, Commit> CommitById { get; }
     public IReadOnlyDictionary<string, Branch> BranchByName { get; }
@@ -48,20 +48,19 @@ record Repo
     public Status Status { get; init; }
     public string Filter { get; }
 
-    public static Repo Empty => new Repo(
+    public static Repo Empty { get; } = new Repo(
         "",
-        DateTime.UtcNow,
-        DateTime.UtcNow,
+        DateTime.MinValue,
+        DateTime.MinValue,
         new List<Commit>(),
         new List<Branch>(),
         new Dictionary<string, Commit>(),
         new Dictionary<string, Branch>(),
         new List<Stash>(),
-        new Status(0, 0, 0, 0, 0, false, "", "", new string[0], new string[0], new string[0], new string[0], new string[0], new string[0]),
+        Status.Empty,
         "");
 
-
-    public override string ToString() => $"B:{ViewBranches.Count}, C:{ViewCommits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
+    public override string ToString() => $"B:{ViewBranches.Count}/{AllBranches.Count}, C:{ViewCommits.Count}/{AllCommits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
 }
 
 
@@ -185,6 +184,8 @@ public record Status(
 {
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
     internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
+
+    public static Status Empty { get; } = new Status(0, 0, 0, 0, 0, false, "", "", new string[0], new string[0], new string[0], new string[0], new string[0], new string[0]);
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }

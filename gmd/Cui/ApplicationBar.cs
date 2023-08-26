@@ -181,7 +181,7 @@ class ApplicationBar : View, IApplicationBar
 
     void SetCurrentBranch(Server.Repo repo)
     {
-        var currentBranch = repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
         if (currentBranch != null)
         {   // Current branch is shown
             var color = branchColorService.GetColor(repo, currentBranch);

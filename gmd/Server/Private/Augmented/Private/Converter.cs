@@ -12,17 +12,19 @@ class Converter : IConverter
 {
     public Repo ToRepo(WorkRepo workRepo)
     {
-        var commits = workRepo.Commits.Select(ToCommit).ToList();
-        var branches = workRepo.Branches.Values.Select(ToBranch).ToList();
+        var commitById = workRepo.Commits.Select(ToCommit).ToDictionary(c => c.Id, c => c);
+        var branchByName = workRepo.Branches.Values.Select(ToBranch).ToDictionary(b => b.Name, b => b);
+        var viewCommits = new List<Commit>();
+        var viewBranches = new List<Branch>();
 
         return new Repo(
             workRepo.Path,
             workRepo.TimeStamp,
             workRepo.TimeStamp,
-            commits,
-            branches,
-            commits.ToDictionary(c => c.Id, c => c),
-            branches.ToDictionary(b => b.Name, b => b),
+            viewCommits,
+            viewBranches,
+            commitById,
+            branchByName,
             workRepo.Stashes.ToList(),
             workRepo.Status,
             ""

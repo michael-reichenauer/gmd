@@ -123,22 +123,33 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
 
-    static Repo EmptyFilteredRepo(Repo repo, string filter)
+    Repo EmptyFilteredRepo(Repo repo, string filter)
     {
+        // A repo with just 1 virtual commit and 1 branch
         var id = Repo.TruncatedLogCommitID;
         var msg = $"<... No commits matching filter ...>";
         var branchName = "<none>";
-        var commits = new List<Commit>(){ new Commit( id, id.Sid(),
+
+        var commit = new Commit(id, id.Sid(),
             msg, msg, "", DateTime.UtcNow, true, 0, 0, branchName, branchName, branchName,
             new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
-            new List<string>(), false,false,false,false,false,false,false,false,false,false,false, More.None)};
-        var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
+            new List<string>(), false, false, false, false, false, false, false, false, false, false, false, More.None);
+        var branch = new Branch(branchName, branchName, id, branchName, branchName,
             id, id, false, false, false, "", "", true, false, false, true, true, "", "", false, false, "",
-            new List<string>(), new List<string>(), new List<string>(),new List<string>(),false, 0, false, false) };
+            new List<string>(), new List<string>(), new List<string>(), new List<string>(), false, 0, false, false);
 
-        return new Repo(repo.Path, DateTime.UtcNow, repo.TimeStamp,
-            commits, branches, commits.ToDictionary(c => c.Id, c => c), branches.ToDictionary(b => b.Name, b => b),
-            new List<Stash>(), repo.Status, filter);
+        // Create a virtual augmented repo with just the 1 commit and 1 branch
+        var commitById = new Dictionary<string, Commit>() { { commit.Id, commit } };
+        var branchByName = new Dictionary<string, Branch>() { { branch.Name, branch } };
+        var viewCommits = new List<Commit>();
+        var viewBranches = new List<Branch>();
+        var augRepo = new Repo(repo.Path, DateTime.UtcNow, repo.TimeStamp,
+             viewCommits, viewBranches, commitById, branchByName, new List<Stash>(), Status.Empty, filter);
+
+        // Convert to a view repo
+        viewCommits = new List<Commit>() { commit };
+        viewBranches = new List<Branch>() { branch };
+        return converter.ToViewRepo(DateTime.UtcNow, viewCommits, viewBranches, filter, augRepo);
     }
 
     static void SetAheadBehind(
@@ -273,7 +284,7 @@ class ViewRepoCreater : IViewRepoCreater
     static List<Commit> FilterOutViewCommits(Repo repo, IReadOnlyList<Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
-        return repo.ViewCommits
+        return repo.AllCommits
             .Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
             .ToList();
     }
@@ -287,7 +298,7 @@ class ViewRepoCreater : IViewRepoCreater
         {
             case ShowBranches.Specified:
                 showBranches
-                    .Select(name => repo.ViewBranches
+                    .Select(name => repo.AllBranches
                         .FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
                     .Where(b => b != null)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
@@ -297,7 +308,7 @@ class ViewRepoCreater : IViewRepoCreater
                     .OrderBy(b => repo.CommitById[b.TipId].GitIndex)
                     .Where(b => b.IsPrimary && !showBranches.Contains(b.Name))
                     .Take(count)
-                    .Concat(showBranches.Select(n => repo.BranchByName.TryGetValue(n, out var bbb) ? bbb : null).Where(b => b != null))
+                    .Concat(showBranches.Select(n => repo.BranchByName.TryGetValue(n, out var bbb) && bbb.IsInView ? bbb : null).Where(b => b != null))
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
                 break;
             case ShowBranches.AllActive:
@@ -401,7 +412,8 @@ class ViewRepoCreater : IViewRepoCreater
                 }
                 if (repo.Status.MergeHeadId != "")
                 {   // Add the source merge id as a merge parent to the uncommitted commit
-                    if (repo.CommitById.TryGetValue(repo.Status.MergeHeadId, out var mergeHead))
+                    var mergeHead = repo.CommitById[repo.Status.MergeHeadId];
+                    if (mergeHead.IsInView)
                     {
                         parentIds.Add(repo.Status.MergeHeadId);
                     }
