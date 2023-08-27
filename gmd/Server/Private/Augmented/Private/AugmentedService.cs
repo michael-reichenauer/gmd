@@ -189,8 +189,7 @@ class AugmentedService : IAugmentedService
 
     public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name)
     {
-        var commit = repo.CommitById[name];
-        if (commit.IsInView)
+        if (repo.CommitById.TryGetValue(name, out var commit))
         {   // Merging from a commit
             if (!Try(out var e2, await git.MergeBranchAsync(commit.Id, repo.Path))) return e2;
             if (!Try(out var commits2, out e2, await git.GetMergeLogAsync(commit.Id, repo.Path))) return e2;
