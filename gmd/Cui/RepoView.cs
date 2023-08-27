@@ -690,7 +690,8 @@ class RepoView : IRepoView
             hooverRowIndex = currentIndex;
         }
 
-        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverRowIndex, width), repo.Commits.Count);
+        var page = repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverRowIndex, width);
+        return (page, repo.Commits.Count);
     }
 
 
