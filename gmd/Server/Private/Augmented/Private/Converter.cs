@@ -12,8 +12,8 @@ class Converter : IConverter
 {
     public Repo ToRepo(WorkRepo workRepo)
     {
-        var commitById = workRepo.Commits.Select(ToCommit).ToDictionary(c => c.Id, c => c);
-        var branchByName = workRepo.Branches.Values.Select(ToBranch).ToDictionary(b => b.Name, b => b);
+        var allCommits = workRepo.Commits.Select(ToCommit).ToList();
+        var allBranches = workRepo.Branches.Values.Select(ToBranch).ToList();
         var viewCommits = new List<Commit>();
         var viewBranches = new List<Branch>();
 
@@ -23,8 +23,8 @@ class Converter : IConverter
             workRepo.TimeStamp,
             viewCommits,
             viewBranches,
-            commitById,
-            branchByName,
+            allCommits,
+            allBranches,
             workRepo.Stashes.ToList(),
             workRepo.Status,
             ""
@@ -63,7 +63,7 @@ class Converter : IConverter
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,
             IsDetached: c.IsDetached,
-            IsUncommitted: false,
+            IsUncommitted: c.IsUncommitted,
             IsConflicted: false,
             IsAhead: false,
             IsBehind: false,

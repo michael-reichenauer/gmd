@@ -754,7 +754,6 @@ class RepoView : IRepoView
 
     void TryShowHideCommitBranch(int x, int y)
     {
-        var commit = repo.RowCommit;
         var commitBranches = repo.GetCommitBranches(true);
 
         if (commitBranches.Count == 0) return;
@@ -762,7 +761,7 @@ class RepoView : IRepoView
         if (commitBranches.Count == 1)
         {   // Only one possible branch, toggle shown
             if (commitBranches[0].IsInView) Cmd.HideBranch(commitBranches[0].Name);
-            else Cmd.HideBranch(commitBranches[0].Name);
+            else Cmd.ShowBranch(commitBranches[0].Name, false);
             return;
         }
 

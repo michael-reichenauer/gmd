@@ -351,7 +351,7 @@ class AugmentedService : IAugmentedService
 
     R<GitRepo> EmptyGitRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
     {
-        var id = gmd.Server.Repo.EmptyRepoCommit;
+        var id = Repo.EmptyRepoCommit;
         var msg = "<... empty repo ...>";
         var branchName = "main";
         var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),

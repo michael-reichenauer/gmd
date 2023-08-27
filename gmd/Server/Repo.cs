@@ -15,8 +15,8 @@ record Repo
         DateTime repoTimeStamp,
         IReadOnlyList<Commit> viewCommits,
         IReadOnlyList<Branch> viewBranches,
-        IReadOnlyDictionary<string, Commit> commitById,
-        IReadOnlyDictionary<string, Branch> branchByName,
+        IReadOnlyList<Commit> allCommits,
+        IReadOnlyList<Branch> allBranches,
         IReadOnlyList<Stash> stashes,
         Status status,
         string filter)
@@ -26,10 +26,10 @@ record Repo
         RepoTimeStamp = repoTimeStamp;
         ViewCommits = viewCommits;
         ViewBranches = viewBranches;
-        CommitById = commitById;
-        AllCommits = commitById.Values.ToList();
-        BranchByName = branchByName;
-        AllBranches = branchByName.Values.ToList();
+        CommitById = allCommits.ToDictionary(c => c.Id, c => c);
+        AllCommits = allCommits;
+        BranchByName = allBranches.ToDictionary(b => b.Name, b => b);
+        AllBranches = allBranches;
         Stashes = stashes;
         Status = status;
         Filter = filter;
@@ -54,8 +54,8 @@ record Repo
         DateTime.MinValue,
         new List<Commit>(),
         new List<Branch>(),
-        new Dictionary<string, Commit>(),
-        new Dictionary<string, Branch>(),
+        new List<Commit>(),
+        new List<Branch>(),
         new List<Stash>(),
         Status.Empty,
         "");

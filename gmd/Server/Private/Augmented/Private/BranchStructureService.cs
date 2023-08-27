@@ -148,12 +148,8 @@ class BranchStructureService : IBranchStructureService
     {
         commit.Branches.TryAddAll(commit.FirstChildren.SelectMany(c => c.Branches));
         var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
-        if (commit.Sid == "a6ca33")
-        {
 
-        }
-
-        if (commit.Id == gmd.Server.Repo.TruncatedLogCommitID)
+        if (commit.Id == Repo.TruncatedLogCommitID)
         {
             return AddTruncatedBranch(repo);
         }

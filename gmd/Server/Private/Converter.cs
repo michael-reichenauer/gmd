@@ -79,15 +79,32 @@ class Converter : IConverter
         Repo repo)
     {
         // Copy and ensure commits and repo are by default not in view
-        var commitsById = repo.CommitById.ToDictionary(c => c.Key, c => c.Value with { IsInView = false, ViewIndex = -1 });    // Copy
-        var branchByName = repo.BranchByName.ToDictionary(b => b.Key, b => b.Value with { IsInView = false, }); // Copy
+        var allCommits = repo.AllCommits.Select(c => c with { IsInView = false, ViewIndex = -1 }).ToList();
+        var allBranches = repo.AllBranches.Select(b => b with { IsInView = false }).ToList();
+
+        // Need to ensure that a possible uncommitted viewCommit is added if not already present
+        // or removed if no longer uncommitted is viewed
+        if (repo.Status.IsOk && allCommits.Count > 0 && allCommits[0].IsUncommitted)
+        {   // The first commit is uncommitted, so remove it, since status is now ok
+            allCommits.RemoveAt(0);
+        }
+        else if (viewCommits.Count > 0 && viewCommits[0].IsUncommitted && allCommits.Count > 0 && !allCommits[0].IsUncommitted)
+        {   // The first commit is not uncommitted, so add/copy from viewCommits, since status is not ok
+            allCommits.Insert(0, viewCommits[0]);
+        }
+
+        // Crate index lookup for commits and branches
+        var commitIndexById = new Dictionary<string, int>();
+        var branchIndexByName = new Dictionary<string, int>();
+        allCommits.ForEach((c, i) => commitIndexById[c.Id] = i);
+        allBranches.ForEach((b, i) => branchIndexByName[b.Name] = i);
 
         // Set IsInView and ViewIndex for commits and branches in view and update commitsById and branchByName
         viewCommits = viewCommits.Select((c, i) => c with { IsInView = true, ViewIndex = i }).ToList();
-        viewCommits.ForEach(c => commitsById[c.Id] = c);
+        viewCommits.ForEach(c => allCommits[commitIndexById[c.Id]] = c);
 
         viewBranches = viewBranches.Select((b, i) => b with { IsInView = true }).ToList();
-        viewBranches.ForEach(b => branchByName[b.Name] = b);
+        viewBranches.ForEach(b => allBranches[branchIndexByName[b.Name]] = b);
 
         return new Repo(
               repo.Path,
@@ -95,11 +112,10 @@ class Converter : IConverter
               repo.TimeStamp,
               viewCommits,
               viewBranches,
-              commitsById,
-              branchByName,
+              allCommits,
+              allBranches,
               repo.Stashes,
               repo.Status,
               filter);
-
     }
 }

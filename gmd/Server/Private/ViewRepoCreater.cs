@@ -139,12 +139,13 @@ class ViewRepoCreater : IViewRepoCreater
             new List<string>(), new List<string>(), new List<string>(), new List<string>(), false, 0, false, false);
 
         // Create a virtual augmented repo with just the 1 commit and 1 branch
-        var commitById = new Dictionary<string, Commit>() { { commit.Id, commit } };
-        var branchByName = new Dictionary<string, Branch>() { { branch.Name, branch } };
+        var allCommits = new List<Commit>() { commit };
+        var allBranches = new List<Branch>() { branch };
         var viewCommits = new List<Commit>();
         var viewBranches = new List<Branch>();
+
         var augRepo = new Repo(repo.Path, DateTime.UtcNow, repo.TimeStamp,
-             viewCommits, viewBranches, commitById, branchByName, new List<Stash>(), Status.Empty, filter);
+             viewCommits, viewBranches, allCommits, allBranches, new List<Stash>(), Status.Empty, filter);
 
         // Convert to a view repo
         viewCommits = new List<Commit>() { commit };
@@ -445,7 +446,15 @@ class ViewRepoCreater : IViewRepoCreater
         Commit uncommitted)
     {
         // Prepend the commits with the uncommitted commit
-        filteredCommits.Insert(0, uncommitted);
+        if (filteredCommits.Count > 0 && filteredCommits[0].Id == uncommitted.Id)
+        {   // Old uncommitted commit already in list, replace
+            filteredCommits[0] = uncommitted;
+        }
+        else
+        {   // Prepend the new uncommitted commit
+            filteredCommits.Insert(0, uncommitted);
+        }
+
 
         // We need to adjust the current branch and the tip of that branch to include the
         // uncommitted commit
