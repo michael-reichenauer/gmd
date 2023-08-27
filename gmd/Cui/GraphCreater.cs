@@ -48,7 +48,7 @@ class GraphCreater : IGraphCreater
     {
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
-        SetBranchesXLocation(branches);
+        SetBranchesXLocation(branches, repo.Filter != "");
 
         // The width is the max branch X room for 'more' branch in/out signs
         int maxBranchX = branches.Any() ? branches.Max(b => b.X) : 0;
@@ -59,7 +59,7 @@ class GraphCreater : IGraphCreater
         return graph;
     }
 
-    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2)
+    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2, int margin)
     {
         if (b2.B.Name == b1.B.Name ||       // Same branch
             b2.X != b1.X)                   // Not on the same column
@@ -69,8 +69,8 @@ class GraphCreater : IGraphCreater
 
         int high1 = b1.HighIndex;
         int low1 = b1.LowIndex;
-        int high2 = b2.HighIndex;
-        int low2 = b2.LowIndex;
+        int high2 = b2.HighIndex - margin;
+        int low2 = b2.LowIndex + margin;
 
         return (high2 >= high1 && high2 <= low1) ||
             (low2 >= high1 && low2 <= low1) ||
@@ -397,6 +397,7 @@ class GraphCreater : IGraphCreater
                     if (branch.LowIndex < c.ViewIndex) branch.LowIndex = c.ViewIndex;
                 }
             }
+
             if (c.ParentIds.Count == 1)
             {
                 var cp = repo.CommitById[c.ParentIds[0]];
@@ -416,7 +417,7 @@ class GraphCreater : IGraphCreater
     // ancestors and related branches might not have any commits and thus skipped.
     // Also, since not all commits are included, the tip and bottom commits might not exists,
     // so first and last existing commits are used instead.
-    static List<GraphBranch> ToFilteredGraphBranches(Server.Repo repo)
+    static List<GraphBranch> ToFilteredGraphBranches(Repo repo)
     {
         List<GraphBranch> branches = new List<GraphBranch>();
         Dictionary<string, FirstLast> firstLast = new Dictionary<string, FirstLast>();
@@ -456,7 +457,9 @@ class GraphCreater : IGraphCreater
             var gb = new GraphBranch(repo.ViewBranches[i], i)
             {
                 TipIndex = tb.FirstIndex,
-                BottomIndex = tb.LastIndex
+                HighIndex = tb.FirstIndex,
+                BottomIndex = tb.LastIndex,
+                LowIndex = tb.LastIndex,
             };
             if (gb.B.ParentBranchName != "")
             {
@@ -473,7 +476,7 @@ class GraphCreater : IGraphCreater
     // Sets the X location for each branch, ensuring that branches do not overlap on the same X location
     // So e.g. Children must be to the right of their parent. But  siblings can share same X location,
     // if they do not overlap.
-    static void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
+    static void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches, bool isFilterRepo)
     {
         // Iterating in the order of the view repo branches, Skipping main/master branch
         for (int i = 1; i < branches.Count; i++)
@@ -505,11 +508,12 @@ class GraphCreater : IGraphCreater
                 }
             }
 
-            // Ensure that siblings do not overlap (with a little margin)
+            // Ensure that siblings do not overlap (with a little margin if filter repo)
+            var margin = isFilterRepo ? 1 : 0;
             while (true)
             {
-                if (null == branches.FirstOrDefault(v => IsOverlapping(v, b)) &&
-                    null == branches.FirstOrDefault(v => IsOverlapping(b, v)))
+                if (null == branches.FirstOrDefault(v => IsOverlapping(v, b, margin)) &&
+                    null == branches.FirstOrDefault(v => IsOverlapping(b, v, margin)))
                 {   // Found a free spot for the branch
                     break;
                 }
