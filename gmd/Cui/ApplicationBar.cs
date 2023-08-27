@@ -125,8 +125,8 @@ class ApplicationBar : View, IApplicationBar
 
     public void SetRepo(Server.Repo repo)
     {
-        var behindCount = repo.Commits.Where(c => c.IsBehind).Count();
-        var aheadCount = repo.Commits.Where(c => c.IsAhead).Count();
+        var behindCount = repo.ViewCommits.Where(c => c.IsBehind).Count();
+        var aheadCount = repo.ViewCommits.Where(c => c.IsAhead).Count();
         var stashCount = repo.Stashes.Count;
 
         items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
@@ -181,7 +181,7 @@ class ApplicationBar : View, IApplicationBar
 
     void SetCurrentBranch(Server.Repo repo)
     {
-        var currentBranch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
         if (currentBranch != null)
         {   // Current branch is shown
             var color = branchColorService.GetColor(repo, currentBranch);
@@ -189,8 +189,8 @@ class ApplicationBar : View, IApplicationBar
         }
         else
         {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
-            var cb = repo.AugmentedRepo.Branches.Values.First(b => b.IsCurrent);
-            var color = branchColorService.GetColorByBranchName(repo, cb.PrimaryBaseName);
+            var cb = repo.AllBranches.First(b => b.IsCurrent);
+            var color = branchColorService.GetColor(repo, cb);
             items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, cb.NiceNameUnique);
         }
     }

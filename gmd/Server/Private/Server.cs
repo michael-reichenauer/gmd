@@ -41,13 +41,9 @@ class Server : IServer
 
     public async Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo)
     {
-        var branches = repo.Branches.Select(b => b.Name).ToArray();
+        var branches = repo.ViewBranches.Select(b => b.Name).ToArray();
 
-        if (!Try(out var augmentedRepo, out var e,
-            await augmentedService.UpdateRepoStatusAsync(repo.AugmentedRepo)))
-        {
-            return e;
-        }
+        if (!Try(out var augmentedRepo, out var e, await augmentedService.UpdateRepoStatusAsync(repo))) return e;
 
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
@@ -55,105 +51,42 @@ class Server : IServer
     public async Task<R<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount)
     {
         await Task.CompletedTask;
-        return viewRepoCreater.GetFilteredViewRepoAsync(repo.AugmentedRepo, filter, maxCount);
+        return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount);
     }
 
 
-    public IReadOnlyList<Branch> GetAllBranches(Repo repo) =>
-        converter.ToBranches(repo.AugmentedRepo.Branches.Values);
-
-    public Branch AllBranchByName(Repo repo, string name) =>
-        converter.ToBranch(repo.AugmentedRepo.Branches[name]);
-
-    public Commit GetCommit(Repo repo, string commitId) =>
-        converter.ToCommit(repo.AugmentedRepo.CommitById[commitId]);
-
-    public IReadOnlyList<Commit> GetFilterCommits(Repo repo, string filter, int maxCount)
+    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = true)
     {
-        var t = Timing.Start();
-        filter = filter.Trim();
-        if (filter == "") return repo.Commits.Take(maxCount).ToList();
+        if (commitId == Repo.UncommittedId) return new List<Branch>();
 
-        if (filter == "$") return converter.ToCommits(
-            repo.AugmentedRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList());
+        bool FilterOnShown(Commit cc) => isAll || !cc.IsInView;
+        // Getting all branches that are not the same as the commit branch
+        // Also exclude branches that are shown if isNotShown is true
+        var commit = repo.CommitById[commitId];
+        var branch = repo.BranchByName[commit.BranchName];
 
-        if (filter == "*") return converter.ToCommits(
-            repo.AugmentedRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
-                .Select(b => repo.AugmentedRepo.CommitById[b.AmbiguousTipId])
-                .Where(c => c.IsAmbiguousTip)
-                .Take(maxCount)
-                .ToList());
-
-        var sc = StringComparison.OrdinalIgnoreCase;
-
-        // I need extract all text enclosed by double quotes.
-        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
-        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
-
-        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below. 
-        var modifiedFilter = filter;
-        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
-
-        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
-        var andParts = modifiedFilter.Split(' ').Where(p => p != "")
-            .Select(p => p.Replace("\n", " "))      // Replace newlines back to spaces again 
+        return
+            commit.AllChildIds.Concat(commit.ParentIds)                    // All children and parents commit ids         
+            .Select(id => repo.CommitById[id])               // As commits
+            .Where(cc => cc.BranchPrimaryName != commit.BranchPrimaryName) // Skip same branch
+            .Concat(commit.Id == branch.TipId ? new[] { commit } : new Commit[0])                                       // Add commit branch if tip
+            .Where(FilterOnShown)                                          // Exclude shown branches (or not)
+            .Select(cc => cc.BranchPrimaryName)
+            .Distinct()
+            .Select(n => repo.BranchByName[n])
             .ToList();
-
-        // Find all commits matching all AND parts.
-        var commits = repo.AugmentedRepo.Commits
-            .Where(c => andParts.All(p =>
-                c.Id.Contains(p, sc) ||
-                c.Subject.Contains(p, sc) ||
-                c.BranchName.Contains(p, sc) ||
-                c.Author.Contains(p, sc) ||
-                c.AuthorTime.IsoDate().Contains(p, sc) ||
-                c.BranchNiceUniqueName.Contains(p, sc) ||
-                c.Tags.Any(t => t.Name.Contains(p, sc))))
-            .Take(maxCount);
-        var result = converter.ToCommits(commits.ToList());
-        Log.Info($"Filtered on '{filter}' => {result.Count} results {t}");
-        return result;
-    }
-
-
-    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId)
-    {
-        if (commitId == Repo.UncommittedId)
-        {
-            return new List<Branch>();
-        }
-
-        var c = repo.AugmentedRepo.CommitById[commitId];
-        var ids = c.AllChildIds.Concat(c.ParentIds);
-        var branches = ids.Select(id =>
-        {
-            var cc = repo.AugmentedRepo.CommitById[id];
-
-            // Get not shown branches of either child or parent commits.
-            if (!repo.BranchByName.TryGetValue(cc.BranchName, out var branch))
-            {
-                return repo.AugmentedRepo.Branches[cc.BranchName];
-            }
-
-            return null;
-        })
-        .Where(b => b != null)
-        .DistinctBy(b => b!.PrimaryName)
-        .Cast<Augmented.Branch>();
-
-        return converter.ToBranches(branches.ToList());
     }
 
     public IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount)
     {
         if (commitId == Repo.UncommittedId) return new List<string>();
 
-        var specifiedCommit = repo.AugmentedRepo.CommitById[commitId];
+        var specifiedCommit = repo.CommitById[commitId];
 
         var branches = new Queue<string>();
         var branchesSeen = new HashSet<string>();
-        var commitQueue = new Queue<Augmented.Commit>();
-        var commitSeen = new HashSet<Augmented.Commit>();
+        var commitQueue = new Queue<Commit>();
+        var commitSeen = new HashSet<Commit>();
 
         commitQueue.Enqueue(specifiedCommit);
         commitSeen.Add(specifiedCommit);
@@ -161,7 +94,7 @@ class Server : IServer
         while (commitQueue.Any() && branches.Count < maxCount)
         {
             var commit = commitQueue.Dequeue();
-            var branch = repo.AugmentedRepo.Branches[commit.BranchName];
+            var branch = repo.BranchByName[commit.BranchName];
 
             if (!branchesSeen.Contains(branch.NiceName))
             {
@@ -171,7 +104,7 @@ class Server : IServer
 
             commit.BranchTips.ForEach(t =>
             {
-                branch = repo.AugmentedRepo.Branches[t];
+                branch = repo.BranchByName[t];
                 if (!branchesSeen.Contains(branch.NiceName))
                 {
                     branches.Enqueue(branch.NiceName);
@@ -181,7 +114,7 @@ class Server : IServer
 
             foreach (var id in commit.AllChildIds)
             {
-                var child = repo.AugmentedRepo.CommitById[id];
+                var child = repo.CommitById[id];
 
                 if (child.ParentIds[0] != commit.Id ||  // Skip merge children (not have commit as first parent)
                     child.IsBranchSetByUser)            // Skip children where branch is  set by user
@@ -203,14 +136,14 @@ class Server : IServer
 
     public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
-        var branchNames = repo.Branches.Select(b => b.Name).Append(branchName);
+        var branchNames = repo.ViewBranches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
         {
-            var branch = repo.AugmentedRepo.Branches[branchName];
+            var branch = repo.BranchByName[branchName];
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames.ToArray(), show, count);
+        return viewRepoCreater.GetViewRepoAsync(repo, branchNames.ToArray(), show, count);
     }
 
 
@@ -218,17 +151,17 @@ class Server : IServer
     {
         Log.Info($"Hide {name}, HideAllBranches: {hideAllBranches}");
 
-        if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, new[] { "main" });
+        if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo, new[] { "main" });
 
-        var branch = repo.AugmentedRepo.Branches[name];
-        branch = repo.AugmentedRepo.Branches[branch.PrimaryName];
+        var branch = repo.BranchByName[name];
+        branch = repo.BranchByName[branch.PrimaryName];
 
-        var branchNames = repo.Branches
+        var branchNames = repo.ViewBranches
             .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
             .Select(b => b.Name)
             .ToArray();
 
-        return viewRepoCreater.GetViewRepoAsync(repo.AugmentedRepo, branchNames);
+        return viewRepoCreater.GetViewRepoAsync(repo, branchNames);
     }
 
     public Task<R> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
@@ -264,14 +197,14 @@ class Server : IServer
 
 
     public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
-      augmentedService.CreateBranchAsync(repo.AugmentedRepo, newBranchName, isCheckout, wd);
+      augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout, wd);
 
     public Task<R> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout, string wd) =>
-        augmentedService.CreateBranchFromBranchAsync(repo.AugmentedRepo, newBranchName, sourceBranch, isCheckout, wd);
+        augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout, wd);
 
 
     public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
-        augmentedService.CreateBranchFromCommitAsync(repo.AugmentedRepo, newBranchName, sha, isCheckout, wd);
+        augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
 
     public async Task<R> PushBranchAsync(string name, string wd)
     {
@@ -293,12 +226,12 @@ class Server : IServer
         git.PullBranchAsync(name, wd);
 
     public Task<R> SwitchToAsync(Repo repo, string branchName) =>
-        augmentedService.SwitchToAsync(repo.AugmentedRepo, branchName);
+        augmentedService.SwitchToAsync(repo, branchName);
 
     public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName)
     {
-        if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo.AugmentedRepo, branchName))) return e;
-        return converter.ToCommits(commits).ToList();
+        if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo, branchName))) return e;
+        return converter.ToViewCommits(commits).ToList();
     }
 
     public Task<R> CherryPickAsync(string sha, string wd) =>
@@ -326,13 +259,13 @@ class Server : IServer
         git.UncommitLastCommitAsync(wd);
 
     public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
-        augmentedService.ResolveAmbiguityAsync(repo.AugmentedRepo, branchName, setHumanName);
+        augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 
     public Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName) =>
-        augmentedService.SetBranchManuallyAsync(repo.AugmentedRepo, commitId, setHumanName);
+        augmentedService.SetBranchManuallyAsync(repo, commitId, setHumanName);
 
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
-        augmentedService.UnresolveAmbiguityAsync(repo.AugmentedRepo, commitId);
+        augmentedService.UnresolveAmbiguityAsync(repo, commitId);
 
     public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         git.GetFileAsync(reference, wd);
@@ -368,7 +301,7 @@ class Server : IServer
         var totalText = new StringBuilder();
         var text = "";
         var count = 0;
-        foreach (Commit c in repo.Commits)
+        foreach (Commit c in repo.ViewCommits)
         {
             var message = c.Message;
             var parts = c.Message.Split('\n');

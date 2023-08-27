@@ -48,18 +48,18 @@ class GraphCreater : IGraphCreater
     {
         var branches = ToGraphBranches(repo);
         SetBranchesColor(repo, branches);
-        SetBranchesXLocation(branches);
+        SetBranchesXLocation(branches, repo.Filter != "");
 
         // The width is the max branch X room for 'more' branch in/out signs
         int maxBranchX = branches.Any() ? branches.Max(b => b.X) : 0;
 
         Sorter.Sort(branches, (b1, b2) => b1.X < b2.X ? -1 : b1.X > b2.X ? 1 : 0);
-        Graph graph = new Graph(maxBranchX, repo.Commits.Count, branches);
+        Graph graph = new Graph(maxBranchX, repo.ViewCommits.Count, branches);
         SetGraph(graph, repo, branches);
         return graph;
     }
 
-    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2)
+    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2, int margin)
     {
         if (b2.B.Name == b1.B.Name ||       // Same branch
             b2.X != b1.X)                   // Not on the same column
@@ -69,8 +69,8 @@ class GraphCreater : IGraphCreater
 
         int high1 = b1.HighIndex;
         int low1 = b1.LowIndex;
-        int high2 = b2.HighIndex;
-        int low2 = b2.LowIndex;
+        int high2 = b2.HighIndex - margin;
+        int low2 = b2.LowIndex + margin;
 
         return (high2 >= high1 && high2 <= low1) ||
             (low2 >= high1 && low2 <= low1) ||
@@ -91,7 +91,7 @@ class GraphCreater : IGraphCreater
 
             for (int y = b.TipIndex; y <= b.BottomIndex; y++)
             {
-                var c = repo.Commits[y];
+                var c = repo.ViewCommits[y];
 
                 if (c.IsAmbiguous && c.BranchName == b.B.Name)
                 {
@@ -121,8 +121,7 @@ class GraphCreater : IGraphCreater
                     DrawMoreBranchOut(graph, c, b); // Drawing  ╯
                 }
 
-                // !!!!! Should not need to use TryGetValue here !!!!!!!!!!!!
-                if (c.ParentIds.Count > 0 && repo.CommitById.TryGetValue(c.ParentIds[0], out var fpc) && fpc.BranchName != c.BranchName)
+                if (c.ParentIds.Count > 0 && repo.CommitById[c.ParentIds[0]].BranchName != c.BranchName)
                 {   // Commit parent is on other branch (i.e. commit is first/bottom commit on this branch)
                     // Draw branched from parent branch  ╯ or ╰
                     DrawBranchFromParent(graph, repo, c, b);
@@ -141,7 +140,7 @@ class GraphCreater : IGraphCreater
 
         int x1 = commitBranch.X;
         int x2 = b.X;
-        int y2 = c.Index;
+        int y2 = c.ViewIndex;
 
         // this tip commit is not part of the branch (multiple branch tips on the same commit)
         graph.DrawHorizontalLine(x1 + 1, x2 + 1, y2, color);  //   ─
@@ -154,7 +153,7 @@ class GraphCreater : IGraphCreater
     static void DrawBranch(Graph graph, GraphBranch b, Server.Commit c, bool isAmbiguous)
     {
         int x = b.X;
-        int y = c.Index;
+        int y = c.ViewIndex;
         Color color = c.IsAmbiguous ? Color.White : b.Color;
 
         if (c.BranchName != b.B.Name && c.Id != b.B.TipId)
@@ -194,7 +193,8 @@ class GraphCreater : IGraphCreater
 
     static void DrawMerge(Graph graph, Repo repo, Commit commit, GraphBranch commitBranch)
     {
-        if (repo.CommitById.TryGetValue(commit.ParentIds[1], out var mergeParent))
+        var mergeParent = repo.CommitById[commit.ParentIds[1]];
+        if (mergeParent.IsInView)
         {
             var parentBranch = graph.BranchByName(mergeParent.BranchName);
             // Commit is a merge commit, has 2 parents
@@ -222,7 +222,7 @@ class GraphCreater : IGraphCreater
     {
         // Drawing a more marker  ╮
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         graph.SetMoreGraphConnect(x + 1, y, Sign.MergeFromRight, MoreColor);  //   ╮     
     }
 
@@ -230,7 +230,7 @@ class GraphCreater : IGraphCreater
     {
         // Drawing a more marker  ╯
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         graph.SetMoreGraphConnect(x + 1, y, Sign.BranchToRight, MoreColor);  //   ╯    
     }
 
@@ -239,9 +239,9 @@ class GraphCreater : IGraphCreater
         Server.Commit mergeParent, GraphBranch parentBranch)
     {
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         int x2 = parentBranch.X;
-        int y2 = mergeParent.Index;
+        int y2 = mergeParent.ViewIndex;
 
         // Other branch is on the left side, merged from parent parent branch ╭
         Color color = commitBranch.Color;
@@ -267,9 +267,9 @@ class GraphCreater : IGraphCreater
     {
         // Commit is a merge commit, has 2 parents
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         int x2 = parentBranch.X;
-        int y2 = mergeParent.Index;
+        int y2 = mergeParent.ViewIndex;
 
         // Other branch is on same column merged from sibling branch,  │
         Color color = parentBranch.Color;
@@ -298,9 +298,9 @@ class GraphCreater : IGraphCreater
     {
         // Commit is a merge commit, has 2 parents
         int x = commitBranch.X;
-        int y = commit.Index;
+        int y = commit.ViewIndex;
         int x2 = parentBranch.X;
-        int y2 = mergeParent.Index;
+        int y2 = mergeParent.ViewIndex;
 
         // Other branch is on the right side, merged from child branch,  ╮
         Color color = parentBranch.Color;
@@ -329,12 +329,13 @@ class GraphCreater : IGraphCreater
         // Commit parent is on other branch (commit is first/bottom commit on this branch)
         // Branched from parent branch
         int x = commitBranch.X;
-        int y = c.Index;
-        if (!repo.CommitById.TryGetValue(c.ParentIds[0], out var parent)) return;  // parent filtered out, skip 
+        int y = c.ViewIndex;
+        var parent = repo.CommitById[c.ParentIds[0]];
+        if (!parent.IsInView) return;  // parent filtered out, skip 
 
         var parentBranch = graph.BranchByName(parent.BranchName);
         int x2 = parentBranch.X;
-        int y2 = parent.Index;
+        int y2 = parent.ViewIndex;
         Color color = commitBranch.Color;
 
         if (c.IsAmbiguous)
@@ -366,13 +367,13 @@ class GraphCreater : IGraphCreater
     {
         if (repo.Filter != "") return ToFilteredGraphBranches(repo);
 
-        List<GraphBranch> branches = repo.Branches.Select((b, i) => new GraphBranch(b, i)).ToList();
+        List<GraphBranch> branches = repo.ViewBranches.Select((b, i) => new GraphBranch(b, i)).ToList();
         Dictionary<string, GraphBranch> branchMap = new Dictionary<string, GraphBranch>();
         foreach (var b in branches)
         {
             branchMap[b.B.Name] = b;
-            b.TipIndex = repo.CommitById[b.B.TipId].Index;
-            b.BottomIndex = repo.CommitById[b.B.BottomId].Index;
+            b.TipIndex = repo.CommitById[b.B.TipId].ViewIndex;
+            b.BottomIndex = repo.CommitById[b.B.BottomId].ViewIndex;
             b.HighIndex = b.TipIndex;
             b.LowIndex = b.BottomIndex;
 
@@ -382,25 +383,28 @@ class GraphCreater : IGraphCreater
             }
         }
 
-        foreach (var c in repo.Commits)
+        foreach (var c in repo.ViewCommits)
         {
             // var branchName = c.BranchName;
             // var branch = branchMap[branchName];
             if (c.ParentIds.Count > 1)
             {   // commit is a merge commit, lets check if its merge parent needs to adjust
-                if (repo.CommitById.TryGetValue(c.ParentIds[1], out var cp))
+                var cp = repo.CommitById[c.ParentIds[1]];
+                if (cp.IsInView)
                 {
                     var branch = branchMap[cp.BranchName];
-                    if (branch.HighIndex > c.Index) branch.HighIndex = c.Index;
-                    if (branch.LowIndex < c.Index) branch.LowIndex = c.Index;
+                    if (branch.HighIndex > c.ViewIndex) branch.HighIndex = c.ViewIndex;
+                    if (branch.LowIndex < c.ViewIndex) branch.LowIndex = c.ViewIndex;
                 }
             }
+
             if (c.ParentIds.Count == 1)
             {
-                if (repo.CommitById.TryGetValue(c.ParentIds[0], out var cp) && cp.BranchName != c.BranchName)
+                var cp = repo.CommitById[c.ParentIds[0]];
+                if (cp.IsInView && cp.BranchName != c.BranchName)
                 {   // Commit is a bottom id
                     var branch = branchMap[c.BranchName];
-                    if (branch.LowIndex < cp.Index) branch.LowIndex = cp.Index;
+                    if (branch.LowIndex < cp.ViewIndex) branch.LowIndex = cp.ViewIndex;
                 }
             }
         }
@@ -413,16 +417,16 @@ class GraphCreater : IGraphCreater
     // ancestors and related branches might not have any commits and thus skipped.
     // Also, since not all commits are included, the tip and bottom commits might not exists,
     // so first and last existing commits are used instead.
-    static List<GraphBranch> ToFilteredGraphBranches(Server.Repo repo)
+    static List<GraphBranch> ToFilteredGraphBranches(Repo repo)
     {
         List<GraphBranch> branches = new List<GraphBranch>();
         Dictionary<string, FirstLast> firstLast = new Dictionary<string, FirstLast>();
 
         // Find first and last commits for each branch are located by iterating commits
         // and updating the first and last index for each branch for each commit
-        for (int i = 0; i < repo.Commits.Count; i++)
+        for (int i = 0; i < repo.ViewCommits.Count; i++)
         {
-            var c = repo.Commits[i];
+            var c = repo.ViewCommits[i];
 
             // Update first and last index for all branch tips on the commit (except the current branch)
             // And the branch for the current commit
@@ -441,19 +445,21 @@ class GraphCreater : IGraphCreater
 
         // Create a GraphBranch for each branch, using the first and last index in previous step
         // Skipping branches, which did not have own commits, e.g. ancestors or related branches
-        for (var i = 0; i < repo.Branches.Count; i++)
+        for (var i = 0; i < repo.ViewBranches.Count; i++)
         {
-            var b = repo.Branches[i];
+            var b = repo.ViewBranches[i];
 
             if (!firstLast.TryGetValue(b.Name, out var tb))
             {   // Skipping branches which do not have own commits, e.g. parent or related branches
                 continue;
             }
 
-            var gb = new GraphBranch(repo.Branches[i], i)
+            var gb = new GraphBranch(repo.ViewBranches[i], i)
             {
                 TipIndex = tb.FirstIndex,
-                BottomIndex = tb.LastIndex
+                HighIndex = tb.FirstIndex,
+                BottomIndex = tb.LastIndex,
+                LowIndex = tb.LastIndex,
             };
             if (gb.B.ParentBranchName != "")
             {
@@ -470,7 +476,7 @@ class GraphCreater : IGraphCreater
     // Sets the X location for each branch, ensuring that branches do not overlap on the same X location
     // So e.g. Children must be to the right of their parent. But  siblings can share same X location,
     // if they do not overlap.
-    static void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches)
+    static void SetBranchesXLocation(IReadOnlyList<GraphBranch> branches, bool isFilterRepo)
     {
         // Iterating in the order of the view repo branches, Skipping main/master branch
         for (int i = 1; i < branches.Count; i++)
@@ -502,11 +508,12 @@ class GraphCreater : IGraphCreater
                 }
             }
 
-            // Ensure that siblings do not overlap (with a little margin)
+            // Ensure that siblings do not overlap (with a little margin if filter repo)
+            var margin = isFilterRepo ? 1 : 0;
             while (true)
             {
-                if (null == branches.FirstOrDefault(v => IsOverlapping(v, b)) &&
-                    null == branches.FirstOrDefault(v => IsOverlapping(b, v)))
+                if (null == branches.FirstOrDefault(v => IsOverlapping(v, b, margin)) &&
+                    null == branches.FirstOrDefault(v => IsOverlapping(b, v, margin)))
                 {   // Found a free spot for the branch
                     break;
                 }

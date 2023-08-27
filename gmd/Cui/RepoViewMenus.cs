@@ -49,13 +49,13 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowBranchMenu(int x, int y, string branchName)
     {
-        var b = repo.Branch(branchName);
+        var b = repo.BranchByName(branchName);
         Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y + 2, GetBranchMenuItems(branchName));
     }
 
     public void ShowCommitBranchesMenu(int x, int y)
     {
-        Menu.Show("Show/Open Branch", x, y + 2, GetCommitBranchItems());
+        Menu.Show("Show/Hide Branch", x, y + 2, GetCommitBranchItems());
     }
 
     public void ShowMergeFromMenu(int x = Menu.Center, int y = 0)
@@ -102,7 +102,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
     {
-        var c = repo.Commit(commitId);
+        var c = repo.CommitById(commitId);
         var cc = repo.GetCurrentCommit();
         var rb = repo.RowBranch;
         var cb = repo.CurrentBranch;
@@ -133,7 +133,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetBranchMenuItems(string name)
     {
         var c = repo.RowCommit;
-        var b = repo.Branch(name);
+        var b = repo.BranchByName(name);
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
@@ -150,7 +150,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
             .SubMenu("Diff Branch to", "D", GetBranchDiffItems(name))
-            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.Branch(repo.RowCommit.BranchName).IsMainBranch)
+            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.BranchByName(repo.RowCommit.BranchName).IsMainBranch)
             .Items(GetMoveBranchItems(name))
             .Separator()
             .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
@@ -188,7 +188,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         // Get possible local, remote, pull merge branches of the row branch
         var relatedBranches = repo.Branches.Where(b => b.PrimaryName == branchPrimaryName);
-        var branch = repo.Branch(branchPrimaryName);
+        var branch = repo.BranchByName(branchPrimaryName);
 
         // Get all branches that overlap with any of the related branches
         var overlappingBranches = relatedBranches
@@ -209,7 +209,7 @@ class RepoViewMenus : IRepoViewMenus
             if (b.B.PrimaryName == branchPrimaryName) break;
             leftBranch = b.B;
         }
-        leftBranch = leftBranch != null ? repo.Branch(leftBranch.PrimaryName) : null;
+        leftBranch = leftBranch != null ? repo.BranchByName(leftBranch.PrimaryName) : null;
         var leftPrimaryName = leftBranch != null && !IsAncestor(leftBranch, branch) ? leftBranch.PrimaryName : "";
 
         // Find possible branch on right side to move to after (skip if ancestor)
@@ -220,7 +220,7 @@ class RepoViewMenus : IRepoViewMenus
             if (b.B.PrimaryName == branchPrimaryName) break;
             rightBranch = b.B;
         }
-        rightBranch = rightBranch != null ? repo.Branch(rightBranch.PrimaryName) : null;
+        rightBranch = rightBranch != null ? repo.BranchByName(rightBranch.PrimaryName) : null;
         var rightPrimaryName = rightBranch != null && !IsAncestor(branch, rightBranch) ? rightBranch.PrimaryName : "";
 
         var items = Menu.Items;
@@ -288,7 +288,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitInOutItems()
     {
         // Get current branch, commit branch in/out and all shown branches
-        var branches = repo.GetCommitBranches().Concat(repo.Branches);
+        var branches = repo.GetCommitBranches(false).Concat(repo.Branches);
 
         var currentBranch = repo.GetCurrentBranch();
         if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
@@ -303,15 +303,29 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitBranchItems()
     {
         // Get commit branch in/out
-        var branches = repo.GetCommitBranches();
+        var rowBranch = repo.RowBranch;
+        var branches = repo.GetCommitBranches(true);
+        var hiddenBranches = branches.Where(b => !b.IsInView).ToList();
+        var shownBranches = branches.Where(b => b.IsInView && !rowBranch.AncestorNames.Contains(b.Name)).ToList();
 
-        return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
+        // Row branch is hidable if it is the tip of the row commit or if it is descendant of a shown branch
+        bool isRowBranchHidable =
+           branches.Any(b => b.IsInView && rowBranch.AncestorNames.Contains(b.Name));
+
+        // Return hidden branches that can be shown, followed by shown branches that can be hidden
+        return Menu.Items
+            .Separator(hiddenBranches.Any(), "Show")
+            .Items(ToBranchesItems(hiddenBranches, b => cmds.ShowBranch(b.Name, false), null, true))
+
+            .Separator(shownBranches.Any() || isRowBranchHidable, "Hide")
+            .Items(ToBranchesItems(shownBranches, b => cmds.HideBranch(b.Name, false)))
+            .Items(isRowBranchHidable, ToBranchesItems(new[] { rowBranch }, b => cmds.HideBranch(b.Name, false)));
     }
 
     MenuItem GetSwitchToBranchItem(string branchName)
     {
         var currentName = repo.CurrentBranch?.PrimaryName ?? "";
-        var branch = repo.Branch(branchName);
+        var branch = repo.BranchByName(branchName);
         if (branch.LocalName != "") branchName = branch.LocalName;
         return Menu.Item("Switch to Branch", "S", () => cmds.SwitchTo(branchName), () => branch.PrimaryName != currentName);
     }
@@ -321,7 +335,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         if (!repo.Status.IsOk) return Menu.Items;
 
-        var primaryName = repo.Branch(branchName).PrimaryName;
+        var primaryName = repo.BranchByName(branchName).PrimaryName;
         var branches = repo.Branches
              .Where(b => b.IsPrimary && b.PrimaryName != primaryName)
              .DistinctBy(b => b.NiceNameUnique)
@@ -346,7 +360,7 @@ class RepoViewMenus : IRepoViewMenus
 
         var recentBranches = liveAndDeletedBranches
             .Where(b => b.IsPrimary)
-            .OrderBy(b => repo.Repo.AugmentedRepo.CommitById[b.TipId].GitIndex)
+            .OrderBy(b => repo.Repo.CommitById[b.TipId].GitIndex)
             .Take(RecentCount);
 
         var ambiguousBranches = allBranches
@@ -449,25 +463,21 @@ class RepoViewMenus : IRepoViewMenus
         var cic = repo.RowCommit;
         bool isBranchIn = false;
         bool isBranchOut = false;
-        if (canBeOutside && !repo.Repo.BranchByName.TryGetValue(branch.Name, out var _))
+        if (canBeOutside && !branch.IsInView)
         {   // The branch is currently not shown
-            if (repo.Repo.AugmentedRepo.Branches.TryGetValue(branch.Name, out var b))
-            {
-                // The branch is not shown, but does exist
-                if (cic.ParentIds.Count > 1 &&
-                    repo.Repo.AugmentedRepo.CommitById[cic.ParentIds[1]].BranchName == b.Name)
-                {   // Is a branch merge in '╮' branch                     
-                    isBranchIn = true;
-                }
-                else if (cic.AllChildIds.ContainsBy(id =>
-                     repo.Repo.AugmentedRepo.CommitById[id].BranchName == b.Name))
-                {   // Is branch out '╯' branch
-                    isBranchOut = true;
-                }
+            if (cic.ParentIds.Count > 1 &&
+                repo.Repo.CommitById[cic.ParentIds[1]].BranchName == branch.Name)
+            {   // Is a branch merge in '╮' branch                     
+                isBranchIn = true;
+            }
+            else if (cic.AllChildIds.ContainsBy(id =>
+                 repo.Repo.CommitById[id].BranchName == branch.Name))
+            {   // Is branch out '╯' branch
+                isBranchOut = true;
             }
         }
 
-        var isShown = !isNoShowIcon && repo.Repo.BranchByName.TryGetValue(branch.Name, out var _);
+        var isShown = !isNoShowIcon && branch.IsInView;
         string name = branch.NiceNameUnique;
 
         name = branch.IsGitBranch ? " " + branch.NiceNameUnique : "~" + name;
