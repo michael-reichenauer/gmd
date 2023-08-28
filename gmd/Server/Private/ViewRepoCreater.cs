@@ -7,9 +7,9 @@ namespace gmd.Server.Private;
 
 interface IViewRepoCreater
 {
-    Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1);
+    Repo GetViewRepoAsync(Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1);
 
-    Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount);
+    Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -24,77 +24,73 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
 
-    public Repo GetViewRepoAsync(Augmented.Repo augRepo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
+    public Repo GetViewRepoAsync(Repo repo, IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var t = Timing.Start();
-        var filteredBranches = FilterOutViewBranches(augRepo, showBranches, show, count);
-        var filteredCommits = FilterOutViewCommits(augRepo, filteredBranches);
+        var viewBranches = FilterOutViewBranches(repo, showBranches, show, count);
+        var viewCommits = FilterOutViewCommits(repo, viewBranches);
 
-        if (TryGetUncommittedCommit(augRepo, filteredBranches, out var uncommitted))
+        if (TryGetUncommittedCommit(repo, viewBranches, out var uncommitted))
         {
-            AdjustCurrentBranch(filteredBranches, filteredCommits, uncommitted);
+            AdjustCurrentBranch(viewBranches, viewCommits, uncommitted);
         }
 
-        SetAheadBehind(filteredBranches, filteredCommits);
+        SetAheadBehind(viewBranches, viewCommits);
 
-        var repo = new Repo(
-            DateTime.UtcNow,
-            augRepo,
-            converter.ToCommits(filteredCommits),
-            converter.ToBranches(filteredBranches),
-            converter.ToStashes(augRepo.Stashes),
-            augRepo.Status,
-            "");
+        var viewRepo = converter.ToViewRepo(DateTime.UtcNow, viewCommits, viewBranches, "", repo);
 
-        Log.Info($"ViewRepo {t} {repo}");
-        return repo;
+        Log.Info($"ViewRepo {t} {viewRepo}");
+        return viewRepo;
     }
 
-    public Repo GetFilteredViewRepoAsync(Augmented.Repo augRepo, string filter, int maxCount)
+    public Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount)
     {
         using (Timing.Start($"Filtered repo on '{filter}'"))
         {
-            IReadOnlyDictionary<string, Augmented.Commit> filteredCommits = null!;
+            IReadOnlyList<Commit> filteredCommits;
 
             if (filter == "$")
             {   // Get all commits, where branch was set manually by user
-                filteredCommits = augRepo.Commits.Where(c => c.IsBranchSetByUser).Take(maxCount).ToDictionary(c => c.Id, c => c);
+                filteredCommits = repo.CommitById.Values
+                    .Where(c => c.IsBranchSetByUser).Take(maxCount).ToList();
             }
             else if (filter == "*")
             {   // Get all commits, with ambiguous tip
-                filteredCommits = augRepo.Branches.Values.Where(b => b.AmbiguousTipId != "")
-                    .Select(b => augRepo.CommitById[b.AmbiguousTipId])
+                filteredCommits = repo.AllBranches.Where(b => b.AmbiguousTipId != "")
+                    .Select(b => repo.CommitById[b.AmbiguousTipId])
                     .Where(c => c.IsAmbiguousTip)
                     .Take(maxCount)
-                    .ToDictionary(c => c.Id, c => c);
+                    .ToList();
             }
             else
             {   // Get all commits matching filter
-                filteredCommits = GetFilteredCommits(augRepo, filter, maxCount);
+                filteredCommits = GetFilteredCommits(repo, filter, maxCount);
             }
+
+            if (!filteredCommits.Any()) EmptyFilteredRepo(repo, filter);
+
 
             // Get all branch names for the filtered commits
-            var branchNames = filteredCommits.Values.Select(c => c.BranchName).Distinct().ToList();
-            if (!branchNames.Any())
-            {   // No commits matching filter, return empty repo
-                Log.Info($"No commits matching filter'");
-                return EmptyFilteredRepo(augRepo, filter);
-            }
+            var filteredBranchNames = filteredCommits.Select(c => c.BranchName).Distinct().ToList();
 
-            // First create view repo with all branches and their commits
-            var r = GetViewRepoAsync(augRepo, branchNames);
+            // First create view repo with all filtered branches and all those branches commits
+            // i.e. more commits than the filtered commits, since a branch can contains more commits than the filtered commits
+            var filteredRepo = GetViewRepoAsync(repo, filteredBranchNames);
 
-            // Return repo with filtered commits and their branches
-            var adjustedCommits = r.Commits
-                .Where(c => filteredCommits.ContainsKey(c.Id))
-                .Select((c, i) => c with { Index = i })
+            // From the repo with all filtered branches and to many commits, extract only those
+            // commits that match the filtered commits
+            var filteredCommitsById = filteredCommits.ToDictionary(c => c.Id, c => c);
+            var viewCommits = filteredRepo.ViewCommits
+                .Where(c => filteredCommitsById.ContainsKey(c.Id))
                 .ToList();
-            return new Repo(r.TimeStamp, r.AugmentedRepo, adjustedCommits, r.Branches, r.Stashes, r.Status, filter);
+            var viewBranches = filteredRepo.ViewBranches;
+
+            return converter.ToViewRepo(filteredRepo.TimeStamp, viewCommits, viewBranches, filter, repo);
         }
     }
 
-    static IReadOnlyDictionary<string, Augmented.Commit> GetFilteredCommits(
-        Augmented.Repo augRepo, string filter, int maxCount)
+    static IReadOnlyList<Commit> GetFilteredCommits(
+        Repo repo, string filter, int maxCount)
     {
         var sc = StringComparison.OrdinalIgnoreCase;
 
@@ -112,7 +108,7 @@ class ViewRepoCreater : IViewRepoCreater
             .ToList();
 
         // Find all branches matching all AND parts.
-        return augRepo.Commits
+        return repo.CommitById.Values
             .Where(c => andParts.All(p =>
                 c.Id.Contains(p, sc) ||
                 c.Subject.Contains(p, sc) ||
@@ -123,29 +119,43 @@ class ViewRepoCreater : IViewRepoCreater
                 c.BranchName.Contains(p, sc) ||
                 c.Tags.Any(t => t.Name.Contains(p, sc))))
             .Take(maxCount)
-            .ToDictionary(c => c.Id, c => c);
+            .ToList();
     }
 
 
-    static Repo EmptyFilteredRepo(Augmented.Repo augRepo, string filter)
+    Repo EmptyFilteredRepo(Repo repo, string filter)
     {
+        // A repo with just 1 virtual commit and 1 branch
         var id = Repo.TruncatedLogCommitID;
         var msg = $"<... No commits matching filter ...>";
         var branchName = "<none>";
-        var commits = new List<Commit>(){ new Commit( id, id.Sid(),
-            msg, msg, "", DateTime.UtcNow, 0, 0, branchName, branchName, branchName,
-            new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
-            new List<string>(), false,false,false,false,false,false,false,false,false,false,false, More.None)};
-        var branches = new List<Branch>() { new Branch(branchName, branchName, id, branchName, branchName,
-            id, id, false, false, false, "", "", true, false, true, true, "", "", false, false, "",
-            new List<string>(), new List<string>(), new List<string>(), 0, false, false) };
 
-        return new Repo(DateTime.UtcNow, augRepo, commits, branches, new List<Stash>(), augRepo.Status, filter);
+        var commit = new Commit(id, id.Sid(),
+            msg, msg, "", DateTime.UtcNow, true, 0, 0, branchName, branchName, branchName,
+            new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<Tag>(),
+            new List<string>(), false, false, false, false, false, false, false, false, false, false, false, More.None);
+        var branch = new Branch(branchName, branchName, id, branchName, branchName,
+            id, id, false, false, false, "", "", true, false, false, true, true, "", "", false, false, "",
+            new List<string>(), new List<string>(), new List<string>(), new List<string>(), false, 0, false, false);
+
+        // Create a virtual augmented repo with just the 1 commit and 1 branch
+        var allCommits = new List<Commit>() { commit };
+        var allBranches = new List<Branch>() { branch };
+        var viewCommits = new List<Commit>();
+        var viewBranches = new List<Branch>();
+
+        var augRepo = new Repo(repo.Path, DateTime.UtcNow, repo.TimeStamp,
+             viewCommits, viewBranches, allCommits, allBranches, new List<Stash>(), Status.Empty, filter);
+
+        // Convert to a view repo
+        viewCommits = new List<Commit>() { commit };
+        viewBranches = new List<Branch>() { branch };
+        return converter.ToViewRepo(DateTime.UtcNow, viewCommits, viewBranches, filter, augRepo);
     }
 
     static void SetAheadBehind(
-        List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits)
+        List<Branch> filteredBranches,
+        List<Commit> filteredCommits)
     {
         foreach (var b in filteredBranches.ToList())  // ToList() since SetBehind/SetAhead modifies branches
         {
@@ -163,17 +173,16 @@ class ViewRepoCreater : IViewRepoCreater
     }
 
     static void SetBehindCommits(
-        Augmented.Branch remoteBranch,
-        List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits)
+        Branch remoteBranch,
+        List<Branch> filteredBranches,
+        List<Commit> filteredCommits)
     {
         int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.Name);
         int localBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.LocalName);
 
         var localBranch = filteredBranches[localBranchIndex];
         if (localBranch.TipId == remoteBranch.TipId)
-        {
-            // Local branch tip on same commit as remote branch tip (i.e. synced)
+        {   // Local branch tip on same commit as remote branch tip (i.e. synced)
             return;
         }
 
@@ -225,15 +234,15 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (hasBehindCommits)
         {
-            filteredBranches[remoteBranchIndex] = remoteBranch with { HasBehindCommits = true };
-            filteredBranches[localBranchIndex] = localBranch with { HasBehindCommits = true };
+            filteredBranches[remoteBranchIndex] = remoteBranch with { HasRemoteOnly = true };
+            filteredBranches[localBranchIndex] = localBranch with { HasRemoteOnly = true };
         }
     }
 
     static void SetAheadCommits(
-        Augmented.Branch localBranch,
-        List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits)
+        Branch localBranch,
+        List<Branch> filteredBranches,
+        List<Commit> filteredCommits)
     {
         int localBranchIndex = filteredBranches.FindIndex(b => b.Name == localBranch.Name);
         int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == localBranch.RemoteName);
@@ -267,50 +276,49 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (hasAheadCommits)
         {
-            filteredBranches[localBranchIndex] = localBranch with { HasAheadCommits = true };
-            filteredBranches[remoteBranchIndex] = remoteBranch with { HasAheadCommits = true };
+            filteredBranches[localBranchIndex] = localBranch with { HasLocalOnly = true };
+            filteredBranches[remoteBranchIndex] = remoteBranch with { HasLocalOnly = true };
         }
     }
 
-    static List<Augmented.Commit> FilterOutViewCommits(
-        Augmented.Repo repo, IReadOnlyList<Augmented.Branch> filteredBranches)
+    static List<Commit> FilterOutViewCommits(Repo repo, IReadOnlyList<Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
-        return repo.Commits
+        return repo.AllCommits
             .Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
             .ToList();
     }
 
-    List<Augmented.Branch> FilterOutViewBranches(Augmented.Repo repo,
+    List<Branch> FilterOutViewBranches(Repo repo,
     IReadOnlyList<string> showBranches, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
-        var branches = new Dictionary<string, Augmented.Branch>();
+        var branches = new Dictionary<string, Branch>();
 
         switch (show)
         {
             case ShowBranches.Specified:
                 showBranches
-                    .Select(name => repo.Branches.Values
+                    .Select(name => repo.AllBranches
                         .FirstOrDefault(b => b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name))
                     .Where(b => b != null)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
                 break;
             case ShowBranches.AllRecent:
-                repo.Branches.Values.Where(b => !b.IsCircularAncestors)
+                repo.AllBranches.Where(b => !b.IsCircularAncestors)
                     .OrderBy(b => repo.CommitById[b.TipId].GitIndex)
                     .Where(b => b.IsPrimary && !showBranches.Contains(b.Name))
                     .Take(count)
-                    .Concat(showBranches.Select(n => repo.Branches.TryGetValue(n, out var bbb) ? bbb : null).Where(b => b != null))
+                    .Concat(showBranches.Select(n => repo.BranchByName.TryGetValue(n, out var bbb) && bbb.IsInView ? bbb : null).Where(b => b != null))
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
                 break;
             case ShowBranches.AllActive:
-                repo.Branches.Values
+                repo.AllBranches
                     .Where(b => !b.IsCircularAncestors && b.IsGitBranch && b.IsPrimary)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
 
                 break;
             case ShowBranches.AllActiveAndDeleted:
-                repo.Branches.Values
+                repo.AllBranches
                      .Where(b => !b.IsCircularAncestors && b.IsPrimary)
                      .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b, branches));
                 break;
@@ -319,47 +327,35 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (showBranches.Count == 0)
         {   // No branches where specified, assume current branch
-            var current = repo.Branches.Values.FirstOrDefault(b => b.IsCurrent);
+            var current = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
             AddBranchAndAncestorsAndRelatives(repo, current, branches);
         }
 
         // Ensure that main branch is always included 
-        var main = repo.Branches.Values.First(b => b.IsMainBranch);
+        var main = repo.AllBranches.First(b => b.IsMainBranch);
         AddBranchAndAncestorsAndRelatives(repo, main, branches);
 
         // If current branch is detached, include it as well (commit is checked out directly)
-        var detached = repo.Branches.Values.FirstOrDefault(b => b.IsDetached);
+        var detached = repo.AllBranches.FirstOrDefault(b => b.IsDetached);
         if (detached != null) AddBranchAndAncestorsAndRelatives(repo, detached, branches);
 
-        // Is this still needed?????
-        // Ensure all branch tip branches are included (in case of tip on parent with no own commits)
-        // foreach (var b in branches.Values.ToList())
-        // {
-        //     var tipBranch = repo.Branches[repo.CommitById[b.TipId].BranchName];
-        //     AddBranchAndAncestorsAndRelatives(repo, tipBranch, branches);
-        // }
-
         var sorted = SortBranches(repo, branches.Values);
-
-        // Log.Info($"Filtered {sorted.Count} branches:\n  {sorted.Select(b => b.Name).Join("\n  ")}");
-        // var mainBranches = sorted.Where(b => b.IsPrimary || b.RemoteName != "").ToList();
-        // Log.Debug($"Filtered {mainBranches.Count} main branches:\n  {mainBranches.Select(b => b.Name).Join("\n  ")}");
         return sorted;
     }
 
-    void AddBranchAndAncestorsAndRelatives(Augmented.Repo repo, Augmented.Branch? branch, IDictionary<string, Augmented.Branch> branches)
+    void AddBranchAndAncestorsAndRelatives(Repo repo, Branch? branch, IDictionary<string, Branch> branches)
     {
         if (branch == null || branches.ContainsKey(branch.Name)) return;
         if (branch.IsCircularAncestors) return;
 
         branches[branch.Name] = branch;
-        branch.AncestorNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.Branches[n], branches));
+        branch.AncestorNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.BranchByName[n], branches));
 
-        var primary = repo.Branches[branch.PrimaryName];
-        primary.RelatedBranchNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.Branches[n], branches));
+        var primary = repo.BranchByName[branch.PrimaryName];
+        primary.RelatedBranchNames.ForEach(n => AddBranchAndAncestorsAndRelatives(repo, repo.BranchByName[n], branches));
     }
 
-    List<Augmented.Branch> SortBranches(Augmented.Repo repo, IEnumerable<Augmented.Branch> branches)
+    List<Branch> SortBranches(Repo repo, IEnumerable<Branch> branches)
     {
         var sorted = branches.Where(b => b.IsPrimary).ToList();
 
@@ -368,7 +364,7 @@ class ViewRepoCreater : IViewRepoCreater
         Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
 
         // Reinsert the pullMerge branches just after its parent branch
-        var toInsert = new Queue<Augmented.Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
+        var toInsert = new Queue<Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
         while (toInsert.Any())
         {
             var b = toInsert.Dequeue();
@@ -391,65 +387,70 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
-    static bool TryGetUncommittedCommit(
-      Augmented.Repo repo,
-      IReadOnlyList<Augmented.Branch> filteredBranches,
-      [MaybeNullWhen(false)] out Augmented.Commit uncommitted)
+    static bool TryGetUncommittedCommit(Repo repo,
+      IReadOnlyList<Branch> filteredBranches,
+      [MaybeNullWhen(false)] out Commit uncommitted)
     {
-        if (!repo.Status.IsOk)
-        {
-            var currentBranch = filteredBranches.FirstOrDefault(b => b.IsCurrent);
-            if (currentBranch != null)
-            {
-                var current = repo.CommitById[currentBranch.TipId];
+        uncommitted = null;
+        if (repo.Status.IsOk) return false;
 
-                var parentIds = new List<string>() { current.Id };
+        var currentBranch = filteredBranches.FirstOrDefault(b => b.IsCurrent);
+        if (currentBranch == null) return false;
 
-                int changesCount = repo.Status.ChangesCount;
-                string subject = $"{changesCount} uncommitted changes";
-                if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
-                {
-                    subject = $"{repo.Status.MergeMessage}, {subject}";
-                }
-                if (repo.Status.Conflicted > 0)
-                {
-                    subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
-                }
-                if (repo.Status.MergeHeadId != "")
-                {   // Add the source merge id as a merge parent to the uncommitted commit
-                    if (repo.CommitById.TryGetValue(repo.Status.MergeHeadId, out var mergeHead))
-                    {
-                        parentIds.Add(repo.Status.MergeHeadId);
-                    }
-                }
-
-                // Create a new virtual uncommitted commit
-                uncommitted = new Augmented.Commit(
-                    Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
-                    Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
-                    ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
-                    Tags: new List<Augmented.Tag>(), BranchTips: new List<string>(),
-                    IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
-                    IsAhead: false, IsBehind: false,
-                    IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
-                    IsBranchSetByUser: false, HasStash: false);
-
-                return true;
-            }
+        var current = repo.CommitById[currentBranch.TipId];
+        if (current.IsUncommitted)
+        {   // First commit is uncommitted, so use its parent as local tip
+            current = repo.CommitById[current.ParentIds[0]];
         }
 
-        uncommitted = null;
-        return false;
+        var parentIds = new List<string>() { current.Id };
+
+        if (repo.Status.MergeHeadId != "")
+        {   // Merge in progress, add the source merge id as a merge parent to the uncommitted commit
+            var mergeHead = repo.CommitById[repo.Status.MergeHeadId];
+            parentIds.Add(repo.Status.MergeHeadId);
+        }
+
+        string subject = $"{repo.Status.ChangesCount} uncommitted changes";
+        if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
+        {   // Merge in progress
+            subject = $"{repo.Status.MergeMessage}, {subject}";
+        }
+        if (repo.Status.Conflicted > 0)
+        {   // Conflicts exists
+            subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
+        }
+
+        // Create a new virtual uncommitted commit
+        uncommitted = new Commit(
+            Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
+            Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
+            IsInView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
+            ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
+            Tags: new List<Tag>(), BranchTips: new List<string>(),
+            IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
+            IsAhead: false, IsBehind: false,
+            IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
+            IsBranchSetByUser: false, HasStash: false, More.None);
+
+        return true;
     }
 
     static void AdjustCurrentBranch(
-        List<Augmented.Branch> filteredBranches,
-        List<Augmented.Commit> filteredCommits,
-        Augmented.Commit uncommitted)
+        List<Branch> filteredBranches,
+        List<Commit> filteredCommits,
+        Commit uncommitted)
     {
         // Prepend the commits with the uncommitted commit
-        filteredCommits.Insert(0, uncommitted);
+        if (filteredCommits.Count > 0 && filteredCommits[0].Id == uncommitted.Id)
+        {   // Old uncommitted commit already in list, replace
+            filteredCommits[0] = uncommitted;
+        }
+        else
+        {   // Prepend the new uncommitted commit
+            filteredCommits.Insert(0, uncommitted);
+        }
+
 
         // We need to adjust the current branch and the tip of that branch to include the
         // uncommitted commit
@@ -476,7 +477,7 @@ class ViewRepoCreater : IViewRepoCreater
         filteredCommits[tipCommitIndex] = newTipCommit;
     }
 
-    static int CompareBranches(Augmented.Branch b1, Augmented.Branch b2,
+    static int CompareBranches(Branch b1, Branch b2,
         List<BranchOrder> branchOrders)
     {
         if (b1 == b2) return 0;

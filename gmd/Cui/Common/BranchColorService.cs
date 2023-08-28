@@ -31,7 +31,7 @@ class BranchColorService : IBranchColorService
     }
 
 
-    public Color GetColor(Server.Repo repo, Server.Branch branch)
+    public Color GetColor(Repo repo, Branch branch)
     {
         if (branch.IsDetached) return Color.White;
         if (branch.IsMainBranch) return Color.Magenta;
@@ -66,7 +66,7 @@ class BranchColorService : IBranchColorService
     }
 
 
-    public Color GetColorByBranchName(Server.Repo repo, string primaryBaseName)
+    public Color GetColorByBranchName(Repo repo, string primaryBaseName)
     {
         if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(primaryBaseName, out var colorId))
         {   // Branch has a color set by user, use it

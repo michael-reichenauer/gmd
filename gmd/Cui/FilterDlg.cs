@@ -79,7 +79,7 @@ class FilterDlg : IFilterDlg
     {
         if (key == Key.Enter)
         {   // User selected commit from list
-            var commit = currentRepo.Commits[resultsView.CurrentIndex];
+            var commit = currentRepo.ViewCommits[resultsView.CurrentIndex];
             if (commit.BranchName != "<none>")
                 this.selectedCommit = commit;
             dlg.Close();
@@ -179,13 +179,13 @@ class FilterDlg : IFilterDlg
     void ShowCommitInfo()
     {
         var index = resultsView.CurrentIndex;
-        if (currentRepo.Commits.Count == 0 || index >= currentRepo.Commits.Count)
+        if (currentRepo.ViewCommits.Count == 0 || index >= currentRepo.ViewCommits.Count)
         {
             statusLabel.Text = repoInfo;
             return;
         };
 
-        var commit = currentRepo.Commits[index];
+        var commit = currentRepo.ViewCommits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];
         var color = branchColorService.GetColor(currentRepo, branch);
         statusLabel.Text = Text.Add(repoInfo).Cyan($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
@@ -194,8 +194,8 @@ class FilterDlg : IFilterDlg
 
     Text GetRepoInfo()
     {
-        var commitCount = currentRepo.Commits.Count(c => c.BranchName != "<none>");
-        var branchCount = currentRepo.Commits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
+        var commitCount = currentRepo.ViewCommits.Count(c => c.BranchName != "<none>");
+        var branchCount = currentRepo.ViewCommits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
         return Text.Dark($"{commitCount} commits, {branchCount} branches,");
     }
 }

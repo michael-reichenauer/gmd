@@ -3,7 +3,6 @@ using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Common;
-using gmd.Server;
 
 namespace gmd;
 

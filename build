@@ -37,6 +37,19 @@ if [ $? -ne 0 ]; then
 fi
 
 echo ""
+echo "Checking for updates ..."
+dotnet list package --outdated
+
+echo ""
+echo "Checking for deprecated ..."
+dotnet list package --deprecated --include-transitive
+
+echo ""
+echo "Checking for vulnerabilities ..."
+dotnet list package --vulnerable --include-transitive 2>&1 | tee build.log
+grep -q -i "critical\|high\|moderate" build.log; [ $? -eq 0 ] && echo "Security Vulnerabilities found on the log output" && exit 1
+
+echo ""
 echo "Building linux ..."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux

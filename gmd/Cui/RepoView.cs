@@ -303,13 +303,13 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.D5, () => Cmd.SetBranchManuallyAsync());
 
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
-        commitsView.RegisterKeyHandler(Key.s, () => OnKeyS());
-        commitsView.RegisterKeyHandler(Key.e, () => OnKeyE());
-        commitsView.RegisterKeyHandler(Key.h, () => Cmd.HideBranch(repo.RowBranch.Name));
+        commitsView.RegisterKeyHandler(Key.s, OnKeyS);
+        commitsView.RegisterKeyHandler(Key.e, OnKeyE);
+        commitsView.RegisterKeyHandler(Key.h, OnKeyH);
 
-        commitsView.RegisterKeyHandler(Key.Enter, () => OnKeyEnter());
-        commitsView.RegisterKeyHandler(Key.Tab, () => ToggleDetailsFocus());
-        commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor());
+        commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
+        commitsView.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
+        commitsView.RegisterKeyHandler(Key.g, Cmd.ChangeBranchColor);
 
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClicked(x + 1, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button2Clicked, (x, y) => OnClickedMiddle(x + 1, y));
@@ -343,6 +343,12 @@ class RepoView : IRepoView
         Cmd.ShowCurrentRowDiff();
     }
 
+    void OnKeyH()
+    {
+        var name = hooverBranchName != "" ? hooverBranchName : repo.RowBranch.Name;
+        Cmd.HideBranch(name);
+    }
+
     void OnKeyF()
     {
         ClearHoover();
@@ -353,42 +359,18 @@ class RepoView : IRepoView
     {
         switch (item)
         {
-            case ApplicationBarItem.Update:
-                Cmd.UpdateRelease();
-                break;
-            case ApplicationBarItem.Gmd:
-                menuService.ShowRepoMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.Repo:
-                menuService.ShowOpenRepoMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.CurrentBranch:
-                Cmd.ShowBranch(repo.GetCurrentBranch().Name, false);
-                break;
-            case ApplicationBarItem.Status:
-                Cmd.CommitFromMenu(false);
-                break;
-            case ApplicationBarItem.Behind:
-                Cmd.PullAllBranches();
-                break;
-            case ApplicationBarItem.Ahead:
-                Cmd.PushAllBranches();
-                break;
-            case ApplicationBarItem.BranchName:
-                menuService.ShowOpenBranchesMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.Stash:
-                menuService.ShowStashMenu(x - 5, y);
-                break;
-            case ApplicationBarItem.Search:
-                Cmd.Filter();
-                break;
-            case ApplicationBarItem.Help:
-                Cmd.ShowHelp();
-                break;
-            case ApplicationBarItem.Close:
-                UI.Shutdown();
-                break;
+            case ApplicationBarItem.Update: Cmd.UpdateRelease(); break;
+            case ApplicationBarItem.Gmd: menuService.ShowRepoMenu(x - 5, y); break;
+            case ApplicationBarItem.Repo: menuService.ShowOpenRepoMenu(x - 5, y); break;
+            case ApplicationBarItem.CurrentBranch: Cmd.ShowBranch(repo.GetCurrentBranch().Name, false); break;
+            case ApplicationBarItem.Status: Cmd.CommitFromMenu(false); break;
+            case ApplicationBarItem.Behind: Cmd.PullAllBranches(); break;
+            case ApplicationBarItem.Ahead: Cmd.PushAllBranches(); break;
+            case ApplicationBarItem.BranchName: menuService.ShowOpenBranchesMenu(x - 5, y); break;
+            case ApplicationBarItem.Stash: menuService.ShowStashMenu(x - 5, y); break;
+            case ApplicationBarItem.Search: Cmd.Filter(); break;
+            case ApplicationBarItem.Help: Cmd.ShowHelp(); break;
+            case ApplicationBarItem.Close: UI.Shutdown(); break;
         }
     }
 
@@ -396,8 +378,8 @@ class RepoView : IRepoView
     {
         if (hooverBranchName != "")
         {
-            var branch = repo.Branch(hooverBranchName);
-            if (branch.LocalName != "") branch = repo.Branch(branch.LocalName);
+            var branch = repo.BranchByName(hooverBranchName);
+            if (branch.LocalName != "") branch = repo.BranchByName(branch.LocalName);
             if (!branch.IsCurrent && repo.Status.IsOk)
             {   // Some other branch merging to current
                 Cmd.MergeBranch(hooverBranchName);
@@ -420,7 +402,7 @@ class RepoView : IRepoView
         {
             var branchName = hooverBranchName;
             var currentName = repo.CurrentBranch?.PrimaryName ?? "";
-            var branch = repo.Branch(branchName);
+            var branch = repo.BranchByName(branchName);
             if (branch.LocalName != "") branchName = branch.LocalName;
 
             if (branch.PrimaryName != currentName)
@@ -662,7 +644,7 @@ class RepoView : IRepoView
         if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
             var hb = branch.B;
-            if (hb.LocalName != "") hb = repo.Branch(hb.LocalName);
+            if (hb.LocalName != "") hb = repo.BranchByName(hb.LocalName);
             if (!hb.IsCurrent && repo.Status.IsOk)
             {   // Some other branch merging to current
                 Cmd.MergeBranch(hb.Name);
@@ -714,7 +696,8 @@ class RepoView : IRepoView
             hooverRowIndex = currentIndex;
         }
 
-        return (repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverRowIndex, width), repo.Commits.Count);
+        var page = repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchName, hooverRowIndex, width);
+        return (page, repo.Commits.Count);
     }
 
 
@@ -778,28 +761,18 @@ class RepoView : IRepoView
 
     void TryShowHideCommitBranch(int x, int y)
     {
-        var commit = repo.RowCommit;
-        var commitBranches = repo.GetCommitBranches();
-        var isMergeTargetOpen = commit.ParentIds.Count > 1 &&
-            repo.Repo.CommitById.TryGetValue(commit.ParentIds[1], out var _);
+        var commitBranches = repo.GetCommitBranches(true);
 
-        if (isMergeTargetOpen && commitBranches.Count == 0)
-        {   // Close the merged branch
-            Cmd.HideBranch(repo.Commit(commit.ParentIds[1]).BranchName);
+        if (commitBranches.Count == 0) return;
+
+        if (commitBranches.Count == 1)
+        {   // Only one possible branch, toggle shown
+            if (commitBranches[0].IsInView) Cmd.HideBranch(commitBranches[0].Name);
+            else Cmd.ShowBranch(commitBranches[0].Name, false);
+            return;
         }
-        else if (commitBranches.Count == 1)
-        {   // Just one possible branch, open it
-            Cmd.ShowBranch(commitBranches[0].Name, commit.Id);
-        }
-        else if (commitBranches.Count > 1)
-        {   // Multiple possible branches, show menu to select which to open
-            menuService.ShowCommitBranchesMenu(x, y);
-        }
-        else if (commit.Id == repo.Branch(commit.BranchPrimaryName).TipId
-            || commit.Id == repo.Branch(commit.BranchPrimaryName).BottomId)
-        {
-            Cmd.HideBranch(commit.BranchPrimaryName);
-        }
+
+        menuService.ShowCommitBranchesMenu(x, y);
     }
 
 
@@ -904,9 +877,9 @@ class RepoView : IRepoView
             var branch = repo.Branches.FirstOrDefault(b => b.Name == branchName);
             if (branch != null)
             {
-                var tip = repo.Commit(branch.TipId);
-                commitsView.ScrollToShowIndex(tip.Index);
-                commitsView.SetCurrentIndex(tip.Index);
+                var tip = repo.CommitById(branch.TipId);
+                commitsView.ScrollToShowIndex(tip.ViewIndex);
+                commitsView.SetCurrentIndex(tip.ViewIndex);
             }
         }
     }
@@ -917,8 +890,8 @@ class RepoView : IRepoView
         var commit = repo.Commits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
-            commitsView.ScrollToShowIndex(commit.Index);
-            commitsView.SetCurrentIndex(commit.Index);
+            commitsView.ScrollToShowIndex(commit.ViewIndex);
+            commitsView.SetCurrentIndex(commit.ViewIndex);
         }
     }
 

@@ -2,26 +2,21 @@ namespace gmd.Server.Private;
 
 interface IConverter
 {
-    IReadOnlyList<Commit> ToCommits(IEnumerable<Augmented.Commit> commits);
-    IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches);
-    IReadOnlyList<Stash> ToStashes(IEnumerable<Augmented.Stash> stashes);
+    IReadOnlyList<Commit> ToViewCommits(IEnumerable<Commit> commits);
+
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
-    Branch ToBranch(Augmented.Branch branch);
-    Commit ToCommit(Augmented.Commit commit, int index = -1);
+    Repo ToViewRepo(DateTime timeStamp,
+        IReadOnlyList<Commit> viewCommits, IReadOnlyList<Branch> viewBranches,
+        string filter, Repo repo);
 }
 
 
 class Converter : IConverter
 {
-    public IReadOnlyList<Commit> ToCommits(IEnumerable<Augmented.Commit> commits) =>
-       commits.Select(ToCommit).ToList();
+    public IReadOnlyList<Commit> ToViewCommits(IEnumerable<Commit> commits) =>
+       commits.Select((c, i) => c with { IsInView = true, ViewIndex = i }).ToList();
 
-    public IReadOnlyList<Branch> ToBranches(IEnumerable<Augmented.Branch> branches) =>
-           branches.Select(ToBranch).ToList();
-
-    public IReadOnlyList<Stash> ToStashes(IEnumerable<Augmented.Stash> stashes) =>
-        stashes.Select(ToStash).ToList();
 
     public CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs) =>
         gitCommitDiffs.Select(ToCommitDiff).ToArray();
@@ -32,78 +27,6 @@ class Converter : IConverter
         return new CommitDiff(d.Id, d.Author, d.Time, d.Message, ToFileDiffs(d.FileDiffs));
     }
 
-    public Commit ToCommit(Augmented.Commit c, int index = -1) => new Commit(
-        Id: c.Id,
-        Sid: c.Sid,
-        Subject: c.Subject,
-        Message: c.Message,
-        Author: c.Author,
-        AuthorTime: c.AuthorTime,
-
-        Index: index != -1 ? index : c.GitIndex,
-        GitIndex: c.GitIndex,
-        BranchName: c.BranchName,
-        BranchPrimaryName: c.BranchPrimaryName,
-        BranchNiceUniqueName: c.BranchNiceUniqueName,
-        ParentIds: c.ParentIds,
-        AllChildIds: c.AllChildIds,
-        FirstChildIds: c.FirstChildIds,
-        MergeChildIds: c.MergeChildIds,
-        Tags: ToTags(c.Tags),
-        BranchTips: c.BranchTips,
-        IsCurrent: c.IsCurrent,
-        IsDetached: c.IsDetached,
-        IsUncommitted: c.IsUncommitted,
-        IsConflicted: c.IsConflicted,
-        IsAhead: c.IsAhead,
-        IsBehind: c.IsBehind,
-        IsTruncatedLogCommit: c.IsTruncatedLogCommit,
-        IsAmbiguous: c.IsAmbiguous,
-        IsAmbiguousTip: c.IsAmbiguousTip,
-        IsBranchSetByUser: c.IsBranchSetByUser,
-        HasStash: c.HasStash,
-
-        More: More.None);
-
-    public Branch ToBranch(Augmented.Branch b) => new Branch(
-        Name: b.Name,
-        PrimaryName: b.PrimaryName,
-        PrimaryBaseName: b.PrimaryBaseName,
-        NiceName: b.NiceName,
-        NiceNameUnique: b.NiceNameUnique,
-        TipId: b.TipId,
-        BottomId: b.BottomId,
-        IsCurrent: b.IsCurrent,
-        IsLocalCurrent: b.IsLocalCurrent,
-        IsRemote: b.IsRemote,
-        RemoteName: b.RemoteName,
-        LocalName: b.LocalName,
-
-        ParentBranchName: b.ParentBranchName,
-        PullMergeParentBranchName: b.PullMergeParentBranchName,
-        IsGitBranch: b.IsGitBranch,
-        IsDetached: b.IsDetached,
-        IsPrimary: b.IsPrimary,
-        IsMainBranch: b.IsMainBranch,
-
-        HasLocalOnly: b.HasAheadCommits,
-        HasRemoteOnly: b.HasBehindCommits,
-
-        AmbiguousTipId: b.AmbiguousTipId,
-        AmbiguousBranchNames: b.AmbiguousBranchNames,
-        PullMergeBranchNames: b.PullMergeBranchNames,
-        AncestorNames: b.AncestorNames,
-
-        X: 0,
-        IsIn: false,
-        IsOut: false);
-
-
-    Stash ToStash(Augmented.Stash s) =>
-        new Stash(s.Id, s.Name, s.Branch, s.ParentId, s.IndexId, s.Message);
-
-    static IReadOnlyList<Tag> ToTags(IReadOnlyList<Augmented.Tag> tags) =>
-        tags.Select(t => new Tag(t.Name, t.CommitId)).ToList();
 
     static IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs
@@ -146,5 +69,53 @@ class Converter : IConverter
 
         Asserter.FailFast($"Unknown diff mode: {diffMode}");
         return DiffMode.DiffModified;
+    }
+
+    public Repo ToViewRepo(
+        DateTime timeStamp,
+        IReadOnlyList<Commit> viewCommits,
+        IReadOnlyList<Branch> viewBranches,
+        string filter,
+        Repo repo)
+    {
+        // Copy and ensure commits and repo are by default not in view
+        var allCommits = repo.AllCommits.Select(c => c with { IsInView = false, ViewIndex = -1 }).ToList();
+        var allBranches = repo.AllBranches.Select(b => b with { IsInView = false }).ToList();
+
+        // Need to ensure that a possible uncommitted viewCommit is added if not already present
+        // or removed if no longer uncommitted is viewed
+        if (repo.Status.IsOk && allCommits.Count > 0 && allCommits[0].IsUncommitted)
+        {   // The first commit is uncommitted, so remove it, since status is now ok
+            allCommits.RemoveAt(0);
+        }
+        else if (viewCommits.Count > 0 && viewCommits[0].IsUncommitted && allCommits.Count > 0 && !allCommits[0].IsUncommitted)
+        {   // The first commit is not uncommitted, so add/copy from viewCommits, since status is not ok
+            allCommits.Insert(0, viewCommits[0]);
+        }
+
+        // Crate index lookup for commits and branches
+        var commitIndexById = new Dictionary<string, int>();
+        var branchIndexByName = new Dictionary<string, int>();
+        allCommits.ForEach((c, i) => commitIndexById[c.Id] = i);
+        allBranches.ForEach((b, i) => branchIndexByName[b.Name] = i);
+
+        // Set IsInView and ViewIndex for commits and branches in view and update commitsById and branchByName
+        viewCommits = viewCommits.Select((c, i) => c with { IsInView = true, ViewIndex = i }).ToList();
+        viewCommits.ForEach(c => allCommits[commitIndexById[c.Id]] = c);
+
+        viewBranches = viewBranches.Select((b, i) => b with { IsInView = true }).ToList();
+        viewBranches.ForEach(b => allBranches[branchIndexByName[b.Name]] = b);
+
+        return new Repo(
+              repo.Path,
+              timeStamp,
+              repo.TimeStamp,
+              viewCommits,
+              viewBranches,
+              allCommits,
+              allBranches,
+              repo.Stashes,
+              repo.Status,
+              filter);
     }
 }
