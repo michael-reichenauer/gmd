@@ -305,11 +305,11 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, OnKeyS);
         commitsView.RegisterKeyHandler(Key.e, OnKeyE);
-        commitsView.RegisterKeyHandler(Key.h, OnKeyH);
+        commitsView.RegisterKeyHandler(Key.h, () => Cmd.HideBranch(GetBranchName()));
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
         commitsView.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
-        commitsView.RegisterKeyHandler(Key.g, Cmd.ChangeBranchColor);
+        commitsView.RegisterKeyHandler(Key.g, () => Cmd.ChangeBranchColor(GetBranchName()));
 
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClicked(x + 1, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button2Clicked, (x, y) => OnClickedMiddle(x + 1, y));
@@ -343,11 +343,8 @@ class RepoView : IRepoView
         Cmd.ShowCurrentRowDiff();
     }
 
-    void OnKeyH()
-    {
-        var name = hooverBranchName != "" ? hooverBranchName : repo.RowBranch.Name;
-        Cmd.HideBranch(name);
-    }
+    string GetBranchName() => hooverBranchName != "" ? hooverBranchName : repo.RowBranch.Name;
+
 
     void OnKeyF()
     {
