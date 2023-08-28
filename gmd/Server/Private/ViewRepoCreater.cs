@@ -182,8 +182,7 @@ class ViewRepoCreater : IViewRepoCreater
 
         var localBranch = filteredBranches[localBranchIndex];
         if (localBranch.TipId == remoteBranch.TipId)
-        {
-            // Local branch tip on same commit as remote branch tip (i.e. synced)
+        {   // Local branch tip on same commit as remote branch tip (i.e. synced)
             return;
         }
 
@@ -398,6 +397,10 @@ class ViewRepoCreater : IViewRepoCreater
             if (currentBranch != null)
             {
                 var current = repo.CommitById[currentBranch.TipId];
+                if (currentBranch.TipId == Repo.UncommittedId)
+                {   // First commit is uncommitted, so use its parent
+                    current = repo.CommitById[current.ParentIds[0]];
+                }
 
                 var parentIds = new List<string>() { current.Id };
 
