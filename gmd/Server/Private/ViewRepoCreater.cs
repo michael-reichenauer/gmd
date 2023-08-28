@@ -391,53 +391,49 @@ class ViewRepoCreater : IViewRepoCreater
       IReadOnlyList<Branch> filteredBranches,
       [MaybeNullWhen(false)] out Commit uncommitted)
     {
-        if (!repo.Status.IsOk)
-        {
-            var currentBranch = filteredBranches.FirstOrDefault(b => b.IsCurrent);
-            if (currentBranch != null)
-            {
-                var current = repo.CommitById[currentBranch.TipId];
-                if (currentBranch.TipId == Repo.UncommittedId)
-                {   // First commit is uncommitted, so use its parent
-                    current = repo.CommitById[current.ParentIds[0]];
-                }
+        uncommitted = null;
+        if (repo.Status.IsOk) return false;
 
-                var parentIds = new List<string>() { current.Id };
+        var currentBranch = filteredBranches.FirstOrDefault(b => b.IsCurrent);
+        if (currentBranch == null) return false;
 
-                int changesCount = repo.Status.ChangesCount;
-                string subject = $"{changesCount} uncommitted changes";
-                if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
-                {
-                    subject = $"{repo.Status.MergeMessage}, {subject}";
-                }
-                if (repo.Status.Conflicted > 0)
-                {
-                    subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
-                }
-                if (repo.Status.MergeHeadId != "")
-                {   // Add the source merge id as a merge parent to the uncommitted commit
-                    var mergeHead = repo.CommitById[repo.Status.MergeHeadId];
-                    parentIds.Add(repo.Status.MergeHeadId);
-                }
-
-                // Create a new virtual uncommitted commit
-                uncommitted = new Commit(
-                    Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
-                    Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-                    IsInView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
-                    ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
-                    Tags: new List<Tag>(), BranchTips: new List<string>(),
-                    IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
-                    IsAhead: false, IsBehind: false,
-                    IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
-                    IsBranchSetByUser: false, HasStash: false, More.None);
-
-                return true;
-            }
+        var current = repo.CommitById[currentBranch.TipId];
+        if (current.IsUncommitted)
+        {   // First commit is uncommitted, so use its parent as local tip
+            current = repo.CommitById[current.ParentIds[0]];
         }
 
-        uncommitted = null;
-        return false;
+        var parentIds = new List<string>() { current.Id };
+
+        if (repo.Status.MergeHeadId != "")
+        {   // Merge in progress, add the source merge id as a merge parent to the uncommitted commit
+            var mergeHead = repo.CommitById[repo.Status.MergeHeadId];
+            parentIds.Add(repo.Status.MergeHeadId);
+        }
+
+        string subject = $"{repo.Status.ChangesCount} uncommitted changes";
+        if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
+        {   // Merge in progress
+            subject = $"{repo.Status.MergeMessage}, {subject}";
+        }
+        if (repo.Status.Conflicted > 0)
+        {   // Conflicts exists
+            subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
+        }
+
+        // Create a new virtual uncommitted commit
+        uncommitted = new Commit(
+            Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
+            Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
+            IsInView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
+            ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
+            Tags: new List<Tag>(), BranchTips: new List<string>(),
+            IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
+            IsAhead: false, IsBehind: false,
+            IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
+            IsBranchSetByUser: false, HasStash: false, More.None);
+
+        return true;
     }
 
     static void AdjustCurrentBranch(
