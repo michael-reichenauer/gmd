@@ -87,7 +87,7 @@ partial class MainView : IMainView
         // path = "/workspaces/vscode";
         // path = "/workspaces/Dependinator-1";
 
-        if (!Try(out var rootPath, out var e, git.RootPath(path)))
+        if (!Try(out var rootPath, out var e, git.RootPath(path)) || IsShowMainMenu)
         {
             if (path != "")
             {
@@ -101,6 +101,8 @@ partial class MainView : IMainView
 
         ShowRepo(rootPath);
     }
+
+    bool IsShowMainMenu => Environment.GetCommandLineArgs().Contains("-m");
 
     static string GetWorkingFolder()
     {
@@ -212,11 +214,17 @@ partial class MainView : IMainView
         ShowMainMenu();
     }
 
-    IEnumerable<MenuItem> GetRecentRepoItems() =>
-        config.RecentFolders
-            .Where(Directory.Exists)
-            .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
-            .Take(8);
+    IEnumerable<MenuItem> GetRecentRepoItems()
+    {
+        Log.Info("Get recent repo items");
+        Log.Info($"Recent folders: {config.RecentFolders.Count}");
+        Log.Info($"config:\n{config.RecentFolders.ToJson()}");
+
+        return config.RecentFolders
+              .Where(Directory.Exists)
+              .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
+              .Take(8);
+    }
 
 
     void ShowRepo(string path)
