@@ -14,9 +14,8 @@ enum ApplicationBarItem
     Behind,
     Ahead,
     Stash,
-    Divider,
-    BranchName,
     Space,
+    BranchName,
     Search,
     Help,
     Close,
@@ -68,7 +67,6 @@ class ApplicationBar : View, IApplicationBar
         Enumerable.Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Length)
             .ForEach(i => items.Add(Common.Text.Empty));
         items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta(" Gmd ");
-        items[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
         items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
@@ -145,7 +143,7 @@ class ApplicationBar : View, IApplicationBar
         this.branch = branch;
 
         items[(int)ApplicationBarItem.BranchName] = branch != null
-            ? Common.Text.Color(branch.Color, $"({branch.B.NiceNameUnique})")
+            ? Common.Text.Color(branch.Color, $"({branch.B.NiceNameUnique}) ")
             : Common.Text.Empty;
 
         UpdateView();

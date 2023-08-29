@@ -22,7 +22,7 @@ interface IRepoCommands
     void ShowFileHistory();
     void Filter();
     void ShowBrowseDialog();
-    void ChangeBranchColor();
+    void ChangeBranchColor(string brandName);
     void UpdateRelease();
     void Clone();
     void InitRepo();
@@ -939,9 +939,9 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void ChangeBranchColor()
+    public void ChangeBranchColor(string brandName)
     {
-        var b = repo.BranchByName(repo.RowCommit.BranchName);
+        var b = repo.BranchByName(brandName);
         if (b.IsMainBranch) return;
 
         branchColorService.ChangeColor(repo.Repo, b);

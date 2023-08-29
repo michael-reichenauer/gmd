@@ -130,10 +130,10 @@ class RepoViewMenus : IRepoViewMenus
     }
 
 
-    IEnumerable<MenuItem> GetBranchMenuItems(string name)
+    IEnumerable<MenuItem> GetBranchMenuItems(string branchName)
     {
         var c = repo.RowCommit;
-        var b = repo.BranchByName(name);
+        var b = repo.BranchByName(branchName);
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
@@ -141,17 +141,17 @@ class RepoViewMenus : IRepoViewMenus
 
         return Menu.Items
             .Items(GetNewReleaseItems())
-            .Item(GetSwitchToBranchItem(name))
+            .Item(GetSwitchToBranchItem(branchName))
             .Item(!isCurrent, $"Merge to {mergeToName}", "E", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
-            .Item("Hide Branch", "H", () => cmds.HideBranch(name))
-            .Item("Pull/Update", "U", () => cmds.PullBranch(name), () => b.HasRemoteOnly && isStatusOK)
-            .Item("Push", "P", () => cmds.PushBranch(name), () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK)
+            .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
+            .Item("Pull/Update", "U", () => cmds.PullBranch(branchName), () => b.HasRemoteOnly && isStatusOK)
+            .Item("Push", "P", () => cmds.PushBranch(branchName), () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK)
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
-            .SubMenu("Diff Branch to", "D", GetBranchDiffItems(name))
-            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(), () => !repo.BranchByName(repo.RowCommit.BranchName).IsMainBranch)
-            .Items(GetMoveBranchItems(name))
+            .SubMenu("Diff Branch to", "D", GetBranchDiffItems(branchName))
+            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(branchName), () => !repo.BranchByName(branchName).IsMainBranch)
+            .Items(GetMoveBranchItems(branchName))
             .Separator()
             .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
             .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
