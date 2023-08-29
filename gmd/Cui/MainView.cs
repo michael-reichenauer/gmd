@@ -86,6 +86,7 @@ partial class MainView : IMainView
         // path = "/workspaces/gmd-1";  
         // path = "/workspaces/vscode";
         // path = "/workspaces/Dependinator-1";
+        // path = "/workspaces/empty";
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)) || IsShowMainMenu)
         {

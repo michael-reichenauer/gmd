@@ -442,6 +442,8 @@ class RepoCommands : IRepoCommands
 
     public void ShowDiff(string commitId, bool isFromCommit = false) => Do(async () =>
     {
+        if (commitId == Repo.EmptyRepoCommit) return R.Ok;
+
         if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, RepoPath)))
         {
             return R.Error($"Failed to get diff", e);
