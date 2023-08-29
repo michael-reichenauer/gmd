@@ -73,6 +73,7 @@ partial class MainView : IMainView
     void OnReady()
     {
         Threading.SetUp();
+        config.Init();
 
         string path = GetWorkingFolder();
         // Environment.CurrentDirectory = "/workspaces";
