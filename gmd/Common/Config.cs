@@ -28,6 +28,8 @@ class Config
     public Config(Lazy<IConfigService> configService) => this.configService = configService;
 
     public void Set(Action<Config> set) => configService?.Value.Set(set);
+
+    internal void Init() => configService?.Value.Get();
 }
 
 

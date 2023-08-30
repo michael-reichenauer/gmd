@@ -55,8 +55,19 @@ class DiffService : IDiffService
             " --find-renames --unified=6 HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {   // The diff failed, reset the 'git add .' if needed
-            if (needReset) await cmd.RunAsync("git", "reset", wd);
-            return e;
+            if (e.ErrorMessage.Contains("ambiguous argument 'HEAD': unknown revision"))
+            {
+                if (!Try(out output, out e, await cmd.RunAsync("git", "diff --staged", wd)))
+                {
+                    if (needReset) await cmd.RunAsync("git", "reset", wd);
+                    return e;
+                }
+            }
+            else
+            {
+                if (needReset) await cmd.RunAsync("git", "reset", wd);
+                return e;
+            }
         }
 
         if (needReset)
