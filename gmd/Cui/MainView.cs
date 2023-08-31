@@ -216,17 +216,11 @@ partial class MainView : IMainView
         ShowMainMenu();
     }
 
-    IEnumerable<MenuItem> GetRecentRepoItems()
-    {
-        Log.Info("Get recent repo items");
-        Log.Info($"Recent folders: {config.RecentFolders.Count}");
-        Log.Info($"config:\n{config.RecentFolders.ToJson()}");
-
-        return config.RecentFolders
-              .Where(Directory.Exists)
-              .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
-              .Take(8);
-    }
+    IEnumerable<MenuItem> GetRecentRepoItems() =>
+        config.RecentFolders
+            .Where(Directory.Exists)
+            .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
+            .Take(8);
 
 
     void ShowRepo(string path)
