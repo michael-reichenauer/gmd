@@ -733,70 +733,111 @@ class RepoCommands : IRepoCommands
 
     public void CreateBranch() => Do(async () =>
     {
-        var currentBranchName = repo.GetCurrentBranch().Name;
-        if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
-
-        if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, RepoPath)))
+        var branchName = "";
+        try
         {
-            return R.Error($"Failed to create branch {rsp.Name}", e);
-        }
+            var currentBranchName = repo.GetCurrentBranch().Name;
+            if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, RepoPath)))
+            {
+                return R.Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, RepoPath)))
+            {
+                // The push error could be that repo has no remote origin, (local only)
+                if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                {   // The push error is that repo has no remote origin, (local repo only)
+                    // I.e. no remote repo to push to, lets just ignore the push error
+                    return R.Ok;
+                }
+
+                return R.Error($"Failed to push branch {branchName} to remote server", e);
+            }
+
+            return R.Ok;
+        }
+        finally
         {
-            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            Refresh(branchName);
         }
-
-        Refresh(rsp.Name);
-        return R.Ok;
     });
 
 
     public void CreateBranchFromBranch(string name) => Do(async () =>
     {
-        //var currentBranchName = repo.GetCurrentBranch().Name;
-        var branch = repo.BranchByName(name);
-        if (branch.LocalName != "") name = branch.LocalName;
-
-        if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
-
-        if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, RepoPath)))
+        var branchName = "";
+        try
         {
-            return R.Error($"Failed to create branch {rsp.Name}", e);
-        }
+            //var currentBranchName = repo.GetCurrentBranch().Name;
+            var branch = repo.BranchByName(name);
+            if (branch.LocalName != "") name = branch.LocalName;
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
+
+            if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, RepoPath)))
+            {
+                return R.Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, RepoPath)))
+            {   // The push error could be that repo has no remote origin, (local only)
+                if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                {   // The push error is that repo has no remote origin, (local repo only)
+                    // I.e. no remote repo to push to, lets just ignore the push error
+                    return R.Ok;
+                }
+
+                return R.Error($"Failed to push branch {branchName} to remote server", e);
+            }
+
+            return R.Ok;
+        }
+        finally
         {
-            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            Refresh(branchName);
         }
-
-        Refresh(rsp.Name);
-        return R.Ok;
     });
-
-
 
 
     public void CreateBranchFromCommit() => Do(async () =>
     {
-        var commit = repo.RowCommit;
-        var branchName = commit.BranchName;
-
-        if (!Try(out var rsp, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
-
-        if (!Try(out var e,
-            await server.CreateBranchFromCommitAsync(serverRepo, rsp.Name, commit.Id, rsp.IsCheckout, RepoPath)))
+        var branchName = "";
+        try
         {
-            return R.Error($"Failed to create branch {rsp.Name}", e);
-        }
+            var commit = repo.RowCommit;
+            var commitBranchName = commit.BranchName;
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            if (!Try(out var rsp, createBranchDlg.Show(commitBranchName, commit.Sid))) return R.Ok;
+
+            if (!Try(out var e,
+                await server.CreateBranchFromCommitAsync(serverRepo, rsp.Name, commit.Id, rsp.IsCheckout, RepoPath)))
+            {
+                return R.Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            {   // The push error could be that repo has no remote origin, (local only)
+                if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                {   // The push error is that repo has no remote origin, (local repo only)
+                    // I.e. no remote repo to push to, lets just ignore the push error
+                    return R.Ok;
+                }
+                return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            }
+
+            return R.Ok;
+        }
+        finally
         {
-            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            Refresh(branchName);
         }
-
-        Refresh(rsp.Name);
-        return R.Ok;
     });
+
 
     public void Stash() => Do(async () =>
     {
