@@ -12,12 +12,10 @@ interface IRepo
     Graph Graph { get; }
 
     int CurrentIndex { get; }
-    int ContentWidth { get; }
     Commit RowCommit { get; }
     Branch RowBranch { get; }
 
     IReadOnlyList<Branch> GetCommitBranches(bool isAll);
-    Task<R<IReadOnlyList<string>>> GetFilesAsync();
 }
 
 class RepoImpl : IRepo
@@ -54,14 +52,7 @@ class RepoImpl : IRepo
 
 
     public int CurrentIndex => Math.Min(repoView.CurrentIndex, serverRepo.ViewCommits.Count - 1);
-    public int ContentWidth => repoView.ContentWidth;
 
-    public async Task<R<IReadOnlyList<string>>> GetFilesAsync()
-    {
-        var commit = RowCommit;
-        var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
-        return await server.GetFileAsync(reference, Repo.Path);
-    }
 
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
         server.GetCommitBranches(Repo, RowCommit.Id, isAll);

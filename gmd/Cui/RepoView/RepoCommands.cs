@@ -458,7 +458,7 @@ class RepoCommands : IRepoCommands
 
     public void ShowFileHistory() => Do(async () =>
     {
-        if (!Try(out var files, out var e, await repo.GetFilesAsync()))
+        if (!Try(out var files, out var e, await GetFilesAsync()))
         {
             return R.Error($"Failed to get files", e);
         }
@@ -1168,4 +1168,11 @@ class RepoCommands : IRepoCommands
 
         return R.Ok;
     });
+
+    private async Task<R<IReadOnlyList<string>>> GetFilesAsync()
+    {
+        var commit = repo.RowCommit;
+        var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
+        return await server.GetFileAsync(reference, repo.Repo.Path);
+    }
 }
