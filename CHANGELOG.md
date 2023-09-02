@@ -1,9 +1,20 @@
 # Change Log for Gmd
 --------------------
 
-105 releases:
+106 releases:
 
-## [Current] - 2023-08-19
+## [Current] - 2023-09-02
+- Combined State and Config files
+- Adjusted margin between sibling branches in graph
+- Moved stash submenu from repo menu to commit menu
+- Fixed issue with hiding wrong branch when using 'h'
+- Adjust Application bar
+- Fixed issue with change color of branch
+- Fixed diff of empty repo uncommited diff
+- Fixed Diff branches
+- Support create branch in local repo (no longedr error msg)
+
+## [v0.90.293.882] - 2023-08-19
 - Adjust Readme
 
 ## [v0.90.293.878] - 2023-08-19
