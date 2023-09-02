@@ -694,7 +694,7 @@ class RepoView : IRepoView
         }
 
         var page = repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchPrimaryName, hooverRowIndex, width);
-        return (page, repo.Commits.Count);
+        return (page, repo.Repo.ViewCommits.Count);
     }
 
 
@@ -887,7 +887,7 @@ class RepoView : IRepoView
 
     void ScrollToCommit(string commitId)
     {
-        var commit = repo.Commits.FirstOrDefault(c => c.Id == commitId);
+        var commit = repo.Repo.ViewCommits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
         {
             commitsView.ScrollToShowIndex(commit.ViewIndex);

@@ -31,8 +31,8 @@ class RepoWriter : IRepoWriter
     public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex,
         string hooverBranchName, int hooverIndex, int width)
     {
-        if (!repo.Commits.Any() || count == 0) return new List<Text>();
-        count = Math.Min(count, repo.Commits.Count - firstRow);
+        if (!repo.Repo.ViewCommits.Any() || count == 0) return new List<Text>();
+        count = Math.Min(count, repo.Repo.ViewCommits.Count - firstRow);
 
         List<Text> rows = new List<Text>();
         var branchTips = GetBranchTips(repo);
@@ -46,7 +46,7 @@ class RepoWriter : IRepoWriter
         // Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
-            var c = repo.Commits[i];
+            var c = repo.Repo.ViewCommits[i];
 
             // Build row
             var graphText = new TextBuilder();

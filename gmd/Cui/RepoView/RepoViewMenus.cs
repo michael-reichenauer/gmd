@@ -43,7 +43,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowCommitMenu(int x, int y, int index)
     {
-        var c = repo.Commits[index];
+        var c = repo.Repo.ViewCommits[index];
         Menu.Show($"Commit: {Sid(c.Id)}", x, y + 2, GetCommitMenuItems(c.Id));
     }
 

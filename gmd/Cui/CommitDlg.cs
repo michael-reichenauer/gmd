@@ -25,7 +25,7 @@ class CommitDlg : ICommitDlg
 
         (string subjectPart, string messagePart) = ParseMessage(repo, isAmend);
 
-        var commit = repo.Commits[0];
+        var commit = repo.Repo.ViewCommits[0];
         int filesCount = repo.Repo.Status.ChangesCount;
         string branchName = commit.BranchName;
         var title = isAmend ? "Amend" : "Commit";
