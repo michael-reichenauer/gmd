@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
 using Terminal.Gui;
+using gmd.Cui.RepoView;
 
 namespace gmd.Cui;
 

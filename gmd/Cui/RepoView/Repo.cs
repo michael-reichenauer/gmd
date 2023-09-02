@@ -1,9 +1,8 @@
-using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
 
-namespace gmd.Cui.Common;
+namespace gmd.Cui.RepoView;
 
 
 interface IRepo

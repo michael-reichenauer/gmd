@@ -1,12 +1,12 @@
 using gmd.Common;
+using gmd.Cui.Common;
 using gmd.Cui.Diff;
-using gmd.Cui.RepoView;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
 
 
-namespace gmd.Cui.Common;
+namespace gmd.Cui.RepoView;
 
 interface IRepoCommands
 {

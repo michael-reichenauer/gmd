@@ -1,7 +1,6 @@
-
 using gmd.Server;
 
-namespace gmd.Cui.Common;
+namespace gmd.Cui.RepoView;
 
 static class RepoExtensions
 {
