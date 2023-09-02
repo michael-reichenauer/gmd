@@ -2,7 +2,7 @@ using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Server;
 
-namespace gmd.Cui;
+namespace gmd.Cui.RepoView;
 
 
 interface IRepoViewMenus

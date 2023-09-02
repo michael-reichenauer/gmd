@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Cui.RepoView;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;

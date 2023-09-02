@@ -5,7 +5,7 @@ using gmd.Installation;
 using Terminal.Gui;
 
 
-namespace gmd.Cui;
+namespace gmd.Cui.RepoView;
 
 interface IRepoView
 {
