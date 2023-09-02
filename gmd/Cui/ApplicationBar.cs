@@ -186,10 +186,8 @@ class ApplicationBar : View, IApplicationBar
             items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("●").Color(color, currentBranch.NiceNameUnique);
         }
         else
-        {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
-            var cb = repo.AllBranches.First(b => b.IsCurrent);
-            var color = branchColorService.GetColor(repo, cb);
-            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("●").Color(color, cb.NiceNameUnique);
+        {   // No Current branch
+            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.Empty;
         }
     }
 }
