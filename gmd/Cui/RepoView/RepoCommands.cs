@@ -604,7 +604,7 @@ class RepoCommands : IRepoCommands
 
 
     public bool CanPush() => serverRepo.Status.IsOk &&
-         repo.Branches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
+         repo.Repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 
     public bool CanPushCurrentBranch()
     {
@@ -652,7 +652,7 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
-    public bool CanPull() => Status.IsOk && repo.Branches.Any(b => b.HasRemoteOnly);
+    public bool CanPull() => Status.IsOk && repo.Repo.ViewBranches.Any(b => b.HasRemoteOnly);
 
     public bool CanPullCurrentBranch()
     {
@@ -670,7 +670,7 @@ class RepoCommands : IRepoCommands
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
         if (!CanPush()) return R.Error("No local changes to push");
 
-        var branches = repo.Branches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
+        var branches = repo.Repo.ViewBranches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
             .DistinctBy(b => b.PrimaryName);
 
         foreach (var b in branches)
@@ -703,7 +703,7 @@ class RepoCommands : IRepoCommands
             currentRemoteName = repo.CurrentBranch?.RemoteName ?? "";
         }
 
-        var branches = repo.Branches
+        var branches = repo.Repo.ViewBranches
             .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
             .DistinctBy(b => b.PrimaryName);
 

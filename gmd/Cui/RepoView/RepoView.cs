@@ -798,7 +798,7 @@ class RepoView : IRepoView
 
             var t = Timing.Start();
 
-            var branchNames = repo!.Branches.Select(b => b.Name).ToList();
+            var branchNames = repo!.Repo.ViewBranches.Select(b => b.Name).ToList();
             if (addBranchName != "")
             {
                 branchNames.Add(addBranchName);
@@ -865,7 +865,7 @@ class RepoView : IRepoView
         // Remember shown branch for next restart of program
         if (serverRepo.Filter != "") return;
 
-        var names = repo.Branches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
+        var names = repo.Repo.ViewBranches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoConfig.Set(serverRepo.Path, s => s.Branches = names);
     }
 
@@ -874,7 +874,7 @@ class RepoView : IRepoView
     {
         if (branchName != "")
         {
-            var branch = repo.Branches.FirstOrDefault(b => b.Name == branchName);
+            var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.Name == branchName);
             if (branch != null)
             {
                 var tip = repo.Repo.CommitById[branch.TipId];

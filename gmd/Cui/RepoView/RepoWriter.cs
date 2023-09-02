@@ -279,7 +279,7 @@ class RepoWriter : IRepoWriter
     {
         var branchTips = new Dictionary<string, TextBuilder>();
 
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.Repo.ViewBranches)
         {
             if (!branchTips.TryGetValue(b.TipId, out var tipText))
             {   //  Commit has no tip yet, crating tip text
@@ -306,7 +306,7 @@ class RepoWriter : IRepoWriter
                 {
                     if (b.LocalName != "")
                     {
-                        var local = repo.Branches.First(bb => bb.Name == b.LocalName);
+                        var local = repo.Repo.ViewBranches.First(bb => bb.Name == b.LocalName);
                         if (local.TipId == b.TipId)
                         {
                             // Both local and remote tips on same commit, combine them
@@ -333,7 +333,7 @@ class RepoWriter : IRepoWriter
                 {
                     if (b.RemoteName != "")
                     {
-                        var remote = repo.Branches.First(bb => bb.Name == b.RemoteName);
+                        var remote = repo.Repo.ViewBranches.First(bb => bb.Name == b.RemoteName);
                         if (remote.TipId == b.TipId)
                         {   // Both local and remote tips on same commit, handled by the remote branch
                             continue;

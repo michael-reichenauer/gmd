@@ -187,7 +187,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetMoveBranchItems(string branchPrimaryName)
     {
         // Get possible local, remote, pull merge branches of the row branch
-        var relatedBranches = repo.Branches.Where(b => b.PrimaryName == branchPrimaryName);
+        var relatedBranches = repo.Repo.ViewBranches.Where(b => b.PrimaryName == branchPrimaryName);
         var branch = repo.Repo.BranchByName[branchPrimaryName];
 
         // Get all branches that overlap with any of the related branches
@@ -246,7 +246,7 @@ class RepoViewMenus : IRepoViewMenus
         var currentName = repo.CurrentBranch?.PrimaryName ?? "";
 
         // Get all branches except current
-        var branches = repo.Branches
+        var branches = repo.Repo.ViewBranches
              .Where(b => b.IsPrimary && b.PrimaryName != currentName)
              .DistinctBy(b => b.TipId)
              .OrderBy(b => b.PrimaryName);
@@ -288,14 +288,14 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitInOutItems()
     {
         // Get current branch, commit branch in/out and all shown branches
-        var branches = repo.GetCommitBranches(false).Concat(repo.Branches);
+        var branches = repo.GetCommitBranches(false).Concat(repo.Repo.ViewBranches);
 
         var currentBranch = repo.GetCurrentBranch();
         if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
         {
             branches = branches.Prepend(currentBranch);
         }
-        branches = branches.Where(b => !repo.Branches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
+        branches = branches.Where(b => !repo.Repo.ViewBranches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
 
         return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
     }
@@ -336,7 +336,7 @@ class RepoViewMenus : IRepoViewMenus
         if (!repo.Repo.Status.IsOk) return Menu.Items;
 
         var primaryName = repo.Repo.BranchByName[branchName].PrimaryName;
-        var branches = repo.Branches
+        var branches = repo.Repo.ViewBranches
              .Where(b => b.IsPrimary && b.PrimaryName != primaryName)
              .DistinctBy(b => b.NiceNameUnique)
              .OrderBy(b => b.NiceNameUnique);
