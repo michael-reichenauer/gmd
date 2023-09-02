@@ -129,10 +129,10 @@ class ApplicationBar : View, IApplicationBar
 
         items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
         SetCurrentBranch(repo);
-        items[(int)ApplicationBarItem.Status] = !repo.Status.IsOk ? Common.Text.Dark(", ").Yellow("© ").Dark($"{repo.Status.ChangesCount}") : Common.Text.Empty;
-        items[(int)ApplicationBarItem.Behind] = behindCount > 0 ? Common.Text.Dark(", ").BrightBlue("▼ ").Dark($"{behindCount}") : Common.Text.Empty;
-        items[(int)ApplicationBarItem.Ahead] = aheadCount > 0 ? Common.Text.Dark(", ").Green("▲ ").Dark($"{aheadCount}") : Common.Text.Empty;
-        items[(int)ApplicationBarItem.Stash] = stashCount > 0 ? Common.Text.Dark(", ").White("ß ").Dark($"{stashCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Status] = !repo.Status.IsOk ? Common.Text.Dark(", ").Yellow("©").Dark($"{repo.Status.ChangesCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Behind] = behindCount > 0 ? Common.Text.Dark(", ").BrightBlue("▼").Dark($"{behindCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Ahead] = aheadCount > 0 ? Common.Text.Dark(", ").Green("▲").Dark($"{aheadCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Stash] = stashCount > 0 ? Common.Text.Dark(", ").White("ß").Dark($"{stashCount}") : Common.Text.Empty;
         UpdateView();
     }
 
@@ -183,13 +183,13 @@ class ApplicationBar : View, IApplicationBar
         if (currentBranch != null)
         {   // Current branch is shown
             var color = branchColorService.GetColor(repo, currentBranch);
-            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, currentBranch.NiceNameUnique);
+            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("●").Color(color, currentBranch.NiceNameUnique);
         }
         else
         {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
             var cb = repo.AllBranches.First(b => b.IsCurrent);
             var color = branchColorService.GetColor(repo, cb);
-            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, cb.NiceNameUnique);
+            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("●").Color(color, cb.NiceNameUnique);
         }
     }
 }
