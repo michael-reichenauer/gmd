@@ -17,7 +17,7 @@ class CommitDlg : ICommitDlg
     public bool Show(IRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
     {
         this.commits = commits;
-        if (!isAmend && repo.Status.IsOk)
+        if (!isAmend && repo.Repo.Status.IsOk)
         {
             commitMessage = "";
             return false;
@@ -26,7 +26,7 @@ class CommitDlg : ICommitDlg
         (string subjectPart, string messagePart) = ParseMessage(repo, isAmend);
 
         var commit = repo.Commits[0];
-        int filesCount = repo.Status.ChangesCount;
+        int filesCount = repo.Repo.Status.ChangesCount;
         string branchName = commit.BranchName;
         var title = isAmend ? "Amend" : "Commit";
 
@@ -88,7 +88,7 @@ class CommitDlg : ICommitDlg
 
     static (string, string) ParseMessage(IRepo repo, bool isAmend)
     {
-        string msg = repo.Status.MergeMessage;
+        string msg = repo.Repo.Status.MergeMessage;
 
         if (isAmend)
         {

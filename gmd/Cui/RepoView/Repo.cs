@@ -1,6 +1,4 @@
 using gmd.Server;
-using Terminal.Gui;
-
 
 namespace gmd.Cui.RepoView;
 
@@ -10,8 +8,6 @@ interface IRepo
     IRepoCommands Cmd { get; }
 
     Repo Repo { get; }
-    string RepoPath { get; }
-    Status Status { get; }
     IReadOnlyList<Branch> Branches { get; }
     IReadOnlyList<Commit> Commits { get; }
     Branch BranchByName(string branchName);
@@ -22,7 +18,6 @@ interface IRepo
     int TotalRows { get; }
     int CurrentIndex { get; }
     int ContentWidth { get; }
-    Point CurrentPoint { get; }
     Commit RowCommit { get; }
     Branch RowBranch { get; }
     Branch? CurrentBranch { get; }
@@ -32,7 +27,6 @@ interface IRepo
     Commit GetCurrentCommit();
     IReadOnlyList<Branch> GetCommitBranches(bool isAll);
     Task<R<IReadOnlyList<string>>> GetFilesAsync();
-    IReadOnlyList<string> GetUncommittedFiles();
 }
 
 class RepoImpl : IRepo
@@ -60,8 +54,6 @@ class RepoImpl : IRepo
     public IRepoCommands Cmd => repoCommands;
 
     public Repo Repo => serverRepo;
-    public string RepoPath => serverRepo.Path;
-    public Status Status => serverRepo.Status;
     public IReadOnlyList<Branch> Branches => serverRepo.ViewBranches;
     public IReadOnlyList<Commit> Commits => serverRepo.ViewCommits;
     public Branch BranchByName(string branchName) => serverRepo.BranchByName[branchName];
@@ -76,13 +68,12 @@ class RepoImpl : IRepo
     public int TotalRows => Commits.Count;
     public int CurrentIndex => Math.Min(repoView.CurrentIndex, TotalRows - 1);
     public int ContentWidth => repoView.ContentWidth;
-    public Point CurrentPoint => repoView.CurrentPoint;
 
     public async Task<R<IReadOnlyList<string>>> GetFilesAsync()
     {
         var commit = RowCommit;
         var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
-        return await server.GetFileAsync(reference, RepoPath);
+        return await server.GetFileAsync(reference, Repo.Path);
     }
 
     public Branch GetCurrentBranch() => GetAllBranches().First(b => b.IsCurrent);
@@ -101,14 +92,5 @@ class RepoImpl : IRepo
 
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
         server.GetCommitBranches(Repo, RowCommit.Id, isAll);
-
-    public IReadOnlyList<string> GetUncommittedFiles() =>
-        Status.ModifiedFiles
-        .Concat(Status.AddedFiles)
-        .Concat(Status.DeletedFiles)
-        .Concat(Status.ConflictsFiles)
-        .Concat(Status.RenamedTargetFiles)
-        .OrderBy(f => f)
-        .ToList();
 }
 

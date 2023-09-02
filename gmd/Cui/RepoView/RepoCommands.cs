@@ -199,7 +199,7 @@ class RepoCommands : IRepoCommands
 
     public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
     {
-        if (!isAmend && repo.Status.IsOk) return R.Ok;
+        if (!isAmend && repo.Repo.Status.IsOk) return R.Ok;
         if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
 
         if (repo.CurrentBranch?.IsDetached == true)
@@ -833,7 +833,7 @@ class RepoCommands : IRepoCommands
 
     public void Stash() => Do(async () =>
     {
-        if (repo.Status.IsOk) return R.Ok;
+        if (repo.Repo.Status.IsOk) return R.Ok;
 
         if (!Try(out var e, await server.StashAsync(RepoPath)))
         {
@@ -846,7 +846,7 @@ class RepoCommands : IRepoCommands
 
     public void StashPop(string name) => Do(async () =>
     {
-        if (!repo.Status.IsOk) return R.Ok;
+        if (!repo.Repo.Status.IsOk) return R.Ok;
 
         if (!Try(out var e, await server.StashPopAsync(name, RepoPath)))
         {

@@ -85,7 +85,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetRepoMenuItems()
     {
-        var isStatusOK = repo.Status.IsOk;
+        var isStatusOK = repo.Repo.Status.IsOk;
 
         return Menu.Items
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
@@ -94,7 +94,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
             .SubMenu("Open/Clone/Init Repo", "O", GetOpenRepoItems())
-            .Item("Config ...", "", () => configDlg.Show(repo.RepoPath))
+            .Item("Config ...", "", () => configDlg.Show(repo.Repo.Path))
             .Item("Help ...", "?, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Q, Esc", () => UI.Shutdown());
@@ -106,7 +106,7 @@ class RepoViewMenus : IRepoViewMenus
         var cc = repo.GetCurrentCommit();
         var rb = repo.RowBranch;
         var cb = repo.CurrentBranch;
-        var isStatusOK = repo.Status.IsOk;
+        var isStatusOK = repo.Repo.Status.IsOk;
         var sid = Sid(c.Id);
 
         return Menu.Items
@@ -135,7 +135,7 @@ class RepoViewMenus : IRepoViewMenus
         var c = repo.RowCommit;
         var b = repo.BranchByName(branchName);
         var cb = repo.CurrentBranch;
-        var isStatusOK = repo.Status.IsOk;
+        var isStatusOK = repo.Repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
         var mergeToName = cb?.ShortNiceUniqueName() ?? "";
 
@@ -241,7 +241,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetMergeFromItems()
     {
-        if (!repo.Status.IsOk) return Menu.Items;
+        if (!repo.Repo.Status.IsOk) return Menu.Items;
 
         var currentName = repo.CurrentBranch?.PrimaryName ?? "";
 
@@ -255,8 +255,8 @@ class RepoViewMenus : IRepoViewMenus
     }
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items
-        .Item("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk)
-        .SubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Status.IsOk)
+        .Item("Stash Changes", "", () => cmds.Stash(), () => !repo.Repo.Status.IsOk)
+        .SubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Repo.Status.IsOk)
         .SubMenu("Stash Diff", "", GetStashDiffItems())
         .SubMenu("Stash Drop", "", GetStashDropItems());
 
@@ -283,7 +283,7 @@ class RepoViewMenus : IRepoViewMenus
         config.RecentFolders
             .Where(Directory.Exists)
             .Take(10)
-            .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.RepoPath));
+            .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.Repo.Path));
 
     IEnumerable<MenuItem> GetCommitInOutItems()
     {
@@ -333,7 +333,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetBranchDiffItems(string branchName)
     {
-        if (!repo.Status.IsOk) return Menu.Items;
+        if (!repo.Repo.Status.IsOk) return Menu.Items;
 
         var primaryName = repo.BranchByName(branchName).PrimaryName;
         var branches = repo.Branches
@@ -386,15 +386,15 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitUndoItems()
     {
         string id = repo.RowCommit.Id;
-        var binaryPaths = repo.Status.AddedFiles
-            .Concat(repo.Status.ModifiedFiles)
-            .Concat(repo.Status.RenamedTargetFiles)
-            .Where(f => !Files.IsText(Path.Join(repo.RepoPath, f)))
+        var binaryPaths = repo.Repo.Status.AddedFiles
+            .Concat(repo.Repo.Status.ModifiedFiles)
+            .Concat(repo.Repo.Status.RenamedTargetFiles)
+            .Where(f => !Files.IsText(Path.Join(repo.Repo.Path, f)))
             .ToList();
 
         return Menu.Items
             .SubMenu("Undo/Restore an Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
-            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => repo.Status.IsOk)
+            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => repo.Repo.Status.IsOk)
             .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
@@ -404,7 +404,7 @@ class RepoViewMenus : IRepoViewMenus
 
 
     IEnumerable<MenuItem> GetUncommittedFileItems() =>
-        repo.GetUncommittedFiles().Select(f => Menu.Item(f, "", () => cmds.UndoUncommittedFile(f)));
+        repo.Repo.GetUncommittedFiles().Select(f => Menu.Item(f, "", () => cmds.UndoUncommittedFile(f)));
 
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(

@@ -377,13 +377,13 @@ class RepoView : IRepoView
         {
             var branch = repo.BranchByName(hooverBranchPrimaryName);
             if (branch.LocalName != "") branch = repo.BranchByName(branch.LocalName);
-            if (!branch.IsCurrent && repo.Status.IsOk)
+            if (!branch.IsCurrent && repo.Repo.Status.IsOk)
             {   // Some other branch merging to current
                 Cmd.MergeBranch(hooverBranchPrimaryName);
                 return;
             }
 
-            if (branch.IsCurrent && repo.Status.IsOk)
+            if (branch.IsCurrent && repo.Repo.Status.IsOk)
             {   // Current branch showing menu of branches to merge from
                 var hb = repo.Graph.BranchByName(branch.Name);
                 menuService.ShowMergeFromMenu(hb.X * 2 + 3, repo.CurrentIndex + 1);
@@ -642,7 +642,7 @@ class RepoView : IRepoView
         {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
             var hb = branch.B;
             if (hb.LocalName != "") hb = repo.BranchByName(hb.LocalName);
-            if (!hb.IsCurrent && repo.Status.IsOk)
+            if (!hb.IsCurrent && repo.Repo.Status.IsOk)
             {   // Some other branch merging to current
                 Cmd.MergeBranch(hb.Name);
                 return;
@@ -804,7 +804,7 @@ class RepoView : IRepoView
                 branchNames.Add(addBranchName);
             }
 
-            if (!Try(out var viewRepo, out var e, await GetRepoAsync(repo.RepoPath, branchNames)))
+            if (!Try(out var viewRepo, out var e, await GetRepoAsync(repo.Repo.Path, branchNames)))
             {
                 UI.ErrorMessage($"Failed to refresh:\n{e}");
                 return;
@@ -824,13 +824,13 @@ class RepoView : IRepoView
             Log.Info($"Showed {t} {viewRepo}");
             if (isAwaitFetch)
             {
-                await server.FetchAsync(repo.RepoPath);
+                await server.FetchAsync(repo.Repo.Path);
             }
         }
 
         if (!isAwaitFetch)
         {
-            server.FetchAsync(repo.RepoPath).RunInBackground();
+            server.FetchAsync(repo.Repo.Path).RunInBackground();
         }
     }
 
@@ -926,7 +926,7 @@ class RepoView : IRepoView
 
     bool FetchFromRemote()
     {
-        server.FetchAsync(repo.RepoPath).RunInBackground();
+        server.FetchAsync(repo.Repo.Path).RunInBackground();
         return true;
     }
 

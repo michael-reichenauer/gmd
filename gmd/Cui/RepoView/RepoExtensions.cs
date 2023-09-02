@@ -15,4 +15,13 @@ static class RepoExtensions
         }
         return name;
     }
+
+    public static IReadOnlyList<string> GetUncommittedFiles(this Repo repo) =>
+        repo.Status.ModifiedFiles
+        .Concat(repo.Status.AddedFiles)
+        .Concat(repo.Status.DeletedFiles)
+        .Concat(repo.Status.ConflictsFiles)
+        .Concat(repo.Status.RenamedTargetFiles)
+        .OrderBy(f => f)
+        .ToList();
 }
