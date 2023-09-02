@@ -33,7 +33,6 @@ class RepoView : IRepoView
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
     static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
     static readonly int MaxRecentFolders = 10;
-    static readonly int MaxRecentParentFolders = 5;
 
     readonly Server.IServer server;
     readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
@@ -937,14 +936,6 @@ class RepoView : IRepoView
         // Remember recent repo paths
         config.Set(s => s.RecentFolders = s.RecentFolders
             .Prepend(path).Distinct().Where(Directory.Exists).Take(MaxRecentFolders).ToList());
-
-        // Remember parent folder to paths to be used when browsing
-        var parent = Path.GetDirectoryName(path);
-        if (parent != null)
-        {
-            config.Set(s => s.RecentParentFolders = s.RecentParentFolders
-               .Prepend(parent).Distinct().Where(Directory.Exists).Take(MaxRecentParentFolders).ToList());
-        }
     }
 
 
