@@ -302,7 +302,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
         commitsView.RegisterKeyHandler(Key.D5, () => Cmd.SetBranchManuallyAsync());
 
-        commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.GetCurrentBranch().Name, false));
+        commitsView.RegisterKeyHandler(Key.y, () => Cmd.ShowBranch(repo.Repo.CurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, OnKeyS);
         commitsView.RegisterKeyHandler(Key.e, OnKeyE);
         commitsView.RegisterKeyHandler(Key.h, () => Cmd.HideBranch(GetBranchName()));
@@ -359,7 +359,7 @@ class RepoView : IRepoView
             case ApplicationBarItem.Update: Cmd.UpdateRelease(); break;
             case ApplicationBarItem.Gmd: menuService.ShowRepoMenu(x - 5, y); break;
             case ApplicationBarItem.Repo: menuService.ShowOpenRepoMenu(x - 5, y); break;
-            case ApplicationBarItem.CurrentBranch: Cmd.ShowBranch(repo.GetCurrentBranch().Name, false); break;
+            case ApplicationBarItem.CurrentBranch: Cmd.ShowBranch(repo.Repo.CurrentBranch().Name, false); break;
             case ApplicationBarItem.Status: Cmd.CommitFromMenu(false); break;
             case ApplicationBarItem.Behind: Cmd.PullAllBranches(); break;
             case ApplicationBarItem.Ahead: Cmd.PushAllBranches(); break;
@@ -398,7 +398,7 @@ class RepoView : IRepoView
         if (hooverBranchPrimaryName != "")
         {
             var branchName = hooverBranchPrimaryName;
-            var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+            var currentName = repo.Repo.CurrentBranch().PrimaryName;
             var branch = repo.Repo.BranchByName[branchName];
             if (branch.LocalName != "") branchName = branch.LocalName;
 
@@ -600,7 +600,7 @@ class RepoView : IRepoView
 
         if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
-            var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+            var currentName = repo.Repo.CurrentBranch().PrimaryName;
 
             var branchName = branch.B.Name;
             if (branch.B.LocalName != "") branchName = branch.B.LocalName;

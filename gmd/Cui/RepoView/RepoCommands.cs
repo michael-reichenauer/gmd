@@ -200,9 +200,9 @@ class RepoCommands : IRepoCommands
     public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
     {
         if (!isAmend && repo.Repo.Status.IsOk) return R.Ok;
-        if (isAmend && !repo.GetCurrentCommit().IsAhead) return R.Ok;
+        if (isAmend && !repo.Repo.CurrentCommit().IsAhead) return R.Ok;
 
-        if (repo.CurrentBranch?.IsDetached == true)
+        if (repo.Repo.CurrentBranch().IsDetached == true)
         {
             UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
             return R.Ok;
@@ -489,7 +489,6 @@ class RepoCommands : IRepoCommands
 
     public void DiffBranchesBranch(string branchName1, string branchName2) => Do(async () =>
     {
-        if (repo.CurrentBranch == null) return R.Ok;
         string message = "";
         var branch1 = repo.Repo.BranchByName[branchName1];
         var branch2 = repo.Repo.BranchByName[branchName2];
@@ -512,21 +511,20 @@ class RepoCommands : IRepoCommands
 
     public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) => Do(async () =>
     {
-        if (repo.CurrentBranch == null) return R.Ok;
         string message = "";
         var branch = repo.Repo.BranchByName[branchName];
         var sha1 = branch.TipId;
-        var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
+        var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.Repo.CurrentBranch().TipId;
         if (sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
 
         if (isSwitchOrder)
         {
             (sha2, sha1) = (sha1, sha2);
-            message = $"Diff '{branch.NiceName}' with '{repo.CurrentBranch.NiceName}'";
+            message = $"Diff '{branch.NiceName}' with '{repo.Repo.CurrentBranch().NiceName}'";
         }
         else
         {
-            message = $"Diff '{repo.CurrentBranch.NiceName}' with '{branch.NiceName}'";
+            message = $"Diff '{repo.Repo.CurrentBranch().NiceName}' with '{branch.NiceName}'";
         }
 
         if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, RepoPath)))
@@ -700,7 +698,7 @@ class RepoCommands : IRepoCommands
             {
                 return R.Error($"Failed to pull current branch", e);
             }
-            currentRemoteName = repo.CurrentBranch?.RemoteName ?? "";
+            currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
         }
 
         var branches = repo.Repo.ViewBranches
@@ -728,7 +726,7 @@ class RepoCommands : IRepoCommands
         var branchName = "";
         try
         {
-            var currentBranchName = repo.GetCurrentBranch().Name;
+            var currentBranchName = repo.Repo.CurrentBranch().Name;
             if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
             if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, RepoPath)))
@@ -881,7 +879,7 @@ class RepoCommands : IRepoCommands
 
     public void DeleteBranch(string name) => Do(async () =>
     {
-        var allBranches = repo.GetAllBranches();
+        var allBranches = repo.Repo.AllBranches;
         var branch = allBranches.First(b => b.Name == name);
 
         Server.Branch? localBranch = null;

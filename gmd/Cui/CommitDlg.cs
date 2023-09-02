@@ -92,7 +92,7 @@ class CommitDlg : ICommitDlg
 
         if (isAmend)
         {
-            var c = repo.GetCurrentCommit();
+            var c = repo.Repo.CurrentCommit();
             msg = c.Message;
         }
 

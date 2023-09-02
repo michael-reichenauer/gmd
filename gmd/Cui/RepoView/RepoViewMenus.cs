@@ -103,9 +103,9 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
     {
         var c = repo.Repo.CommitById[commitId];
-        var cc = repo.GetCurrentCommit();
+        var cc = repo.Repo.CurrentCommit();
         var rb = repo.RowBranch;
-        var cb = repo.CurrentBranch;
+        var cb = repo.Repo.CurrentBranch();
         var isStatusOK = repo.Repo.Status.IsOk;
         var sid = Sid(c.Id);
 
@@ -121,7 +121,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item($"Merge From Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
             .Item($"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
             .Item("Switch to Commit", "", () => cmds.SwitchToCommit(),
-                    () => isStatusOK && repo.RowCommit.Id != repo.GetCurrentCommit().Id)
+                    () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id)
             .Separator()
             .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
@@ -134,7 +134,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         var c = repo.RowCommit;
         var b = repo.Repo.BranchByName[branchName];
-        var cb = repo.CurrentBranch;
+        var cb = repo.Repo.CurrentBranch();
         var isStatusOK = repo.Repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
         var mergeToName = cb?.ShortNiceUniqueName() ?? "";
@@ -243,7 +243,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         if (!repo.Repo.Status.IsOk) return Menu.Items;
 
-        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+        var currentName = repo.Repo.CurrentBranch().PrimaryName;
 
         // Get all branches except current
         var branches = repo.Repo.ViewBranches
@@ -290,7 +290,7 @@ class RepoViewMenus : IRepoViewMenus
         // Get current branch, commit branch in/out and all shown branches
         var branches = repo.GetCommitBranches(false).Concat(repo.Repo.ViewBranches);
 
-        var currentBranch = repo.GetCurrentBranch();
+        var currentBranch = repo.Repo.CurrentBranch();
         if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
         {
             branches = branches.Prepend(currentBranch);
@@ -324,7 +324,7 @@ class RepoViewMenus : IRepoViewMenus
 
     MenuItem GetSwitchToBranchItem(string branchName)
     {
-        var currentName = repo.CurrentBranch?.PrimaryName ?? "";
+        var currentName = repo.Repo.CurrentBranch().PrimaryName;
         var branch = repo.Repo.BranchByName[branchName];
         if (branch.LocalName != "") branchName = branch.LocalName;
         return Menu.Item("Switch to Branch", "S", () => cmds.SwitchTo(branchName), () => branch.PrimaryName != currentName);
@@ -347,7 +347,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetShowBranchItems()
     {
-        var allBranches = repo.GetAllBranches();
+        var allBranches = repo.Repo.AllBranches;
 
         var liveBranches = allBranches
             .Where(b => b.IsGitBranch && b.IsPrimary)
