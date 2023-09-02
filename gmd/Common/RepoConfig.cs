@@ -5,7 +5,22 @@ namespace gmd.Common;
 class RepoConfig
 {
     public bool SyncMetaData { get; set; } = false;
+
+    public List<string> Branches { get; set; } = new List<string>();
+    public Dictionary<string, int> BranchColors { get; set; } = new Dictionary<string, int>();
+    public List<BranchOrder> BranchOrders { get; set; } = new List<BranchOrder>();
 }
+
+
+public class BranchOrder
+{
+    public string Branch { get; set; } = "";
+    public string Other { get; set; } = "";
+    public int Order { get; set; } = 0;
+}
+
+
+
 
 interface IRepoConfig
 {

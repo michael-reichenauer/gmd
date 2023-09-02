@@ -3,7 +3,6 @@ using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Common;
-using gmd.Server;
 
 namespace gmd;
 
@@ -16,8 +15,7 @@ class Program
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;
     readonly IGit git;
-    readonly IState state;
-
+    readonly Config config;
 
     static async Task<int> Main(string[] args)
     {
@@ -47,11 +45,11 @@ class Program
         return 0;
     }
 
-    internal Program(IMainView mainView, IGit git, IState state)
+    internal Program(IMainView mainView, IGit git, Config config)
     {
         this.mainView = mainView;
         this.git = git;
-        this.state = state;
+        this.config = config;
     }
 
     void Run()
@@ -99,7 +97,7 @@ class Program
         }
         Log.Info($"Git:     {gitVersion}");
 
-        state.Set(s => s.GitVersion = gitVersion ?? "");
+        config.Set(s => s.GitVersion = gitVersion ?? "");
     }
 }
 

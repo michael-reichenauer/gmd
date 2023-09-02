@@ -24,12 +24,8 @@ class DiffService : IDiffService
         var args = "show -b --date=iso --first-parent --root --patch --no-color" +
             $" --find-renames --unified=6 {commitId}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
-
         var commitDiffs = ParseCommitDiffs(output, "", false);
-        if (commitDiffs.Count == 0)
-        {
-            return R.Error("Failed to parse diff");
-        }
+        if (commitDiffs.Count == 0) return R.Error("Failed to parse diff");
 
         return commitDiffs[0];
     }
@@ -59,8 +55,19 @@ class DiffService : IDiffService
             " --find-renames --unified=6 HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {   // The diff failed, reset the 'git add .' if needed
-            if (needReset) await cmd.RunAsync("git", "reset", wd);
-            return e;
+            if (e.ErrorMessage.Contains("ambiguous argument 'HEAD': unknown revision"))
+            {
+                if (!Try(out output, out e, await cmd.RunAsync("git", "diff --staged", wd)))
+                {
+                    if (needReset) await cmd.RunAsync("git", "reset", wd);
+                    return e;
+                }
+            }
+            else
+            {
+                if (needReset) await cmd.RunAsync("git", "reset", wd);
+                return e;
+            }
         }
 
         if (needReset)
@@ -390,37 +397,37 @@ class DiffService : IDiffService
         return (null, i, false);
     }
 
-    static List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
-    {
-        // Update diff mode on files, which status has determined are conflicted
-        return fileDiffs
-            .Select(fd => status.ConflictsFiles.Contains(fd.PathAfter)
-                            ? fd with { DiffMode = DiffMode.DiffConflicts } : fd)
-            .ToList();
-    }
+    // static List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
+    // {
+    //     // Update diff mode on files, which status has determined are conflicted
+    //     return fileDiffs
+    //         .Select(fd => status.ConflictsFiles.Contains(fd.PathAfter)
+    //                         ? fd with { DiffMode = DiffMode.DiffConflicts } : fd)
+    //         .ToList();
+    // }
 
-    static IReadOnlyList<FileDiff> GetAddedFilesDiffs(Status status, string dirPath)
-    {
-        var fileDiffs = new List<FileDiff>();
-        foreach (var name in status.AddedFiles)
-        {
-            string filePath = Path.Join(dirPath, name);
+    // static IReadOnlyList<FileDiff> GetAddedFilesDiffs(Status status, string dirPath)
+    // {
+    //     var fileDiffs = new List<FileDiff>();
+    //     foreach (var name in status.AddedFiles)
+    //     {
+    //         string filePath = Path.Join(dirPath, name);
 
-            if (!Try(out var file, out var e, () => File.ReadAllText(filePath)))
-            {
-                file = $"<Error reading File {e}";
-            }
+    //         if (!Try(out var file, out var e, () => File.ReadAllText(filePath)))
+    //         {
+    //             file = $"<Error reading File {e}";
+    //         }
 
-            var lines = file.Split('\n');
-            var lineDiffs = lines.Select(l => new LineDiff(DiffMode.DiffAdded, l.TrimEnd().Replace("\t", "   "))).ToList();
+    //         var lines = file.Split('\n');
+    //         var lineDiffs = lines.Select(l => new LineDiff(DiffMode.DiffAdded, l.TrimEnd().Replace("\t", "   "))).ToList();
 
-            var sectionDiffs = new List<SectionDiff>() { new SectionDiff($"-0,0 +1,{lines.Length}", 0, 0, 0, lines.Length, lineDiffs) };
-            var fileDiff = new FileDiff("", name, false, false, DiffMode.DiffAdded, sectionDiffs);
-            fileDiffs.Add(fileDiff);
-        }
+    //         var sectionDiffs = new List<SectionDiff>() { new SectionDiff($"-0,0 +1,{lines.Length}", 0, 0, 0, lines.Length, lineDiffs) };
+    //         var fileDiff = new FileDiff("", name, false, false, DiffMode.DiffAdded, sectionDiffs);
+    //         fileDiffs.Add(fileDiff);
+    //     }
 
-        return fileDiffs;
-    }
+    //     return fileDiffs;
+    // }
 
     static string AsLine(string line)
     {

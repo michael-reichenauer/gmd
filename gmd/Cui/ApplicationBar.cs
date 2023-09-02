@@ -14,9 +14,8 @@ enum ApplicationBarItem
     Behind,
     Ahead,
     Stash,
-    Divider,
-    BranchName,
     Space,
+    BranchName,
     Search,
     Help,
     Close,
@@ -36,7 +35,7 @@ class ApplicationBar : View, IApplicationBar
 {
     const int maxRepoLength = 30;
     readonly IBranchColorService branchColorService;
-    readonly IState state;
+    readonly Config config;
 
     readonly UILabel label;
     readonly List<Text> items = new List<Text>();
@@ -47,10 +46,10 @@ class ApplicationBar : View, IApplicationBar
 
     public event Action<int, int, ApplicationBarItem>? ItemClicked = null;
 
-    public ApplicationBar(IBranchColorService branchColorService, IState state)
+    public ApplicationBar(IBranchColorService branchColorService, Config config)
     {
         this.branchColorService = branchColorService;
-        this.state = state;
+        this.config = config;
         X = 0;
         Y = 0;
         Height = 2;
@@ -68,7 +67,6 @@ class ApplicationBar : View, IApplicationBar
         Enumerable.Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Length)
             .ForEach(i => items.Add(Common.Text.Empty));
         items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta(" Gmd ");
-        items[(int)ApplicationBarItem.Divider] = Common.Text.BrightMagenta(" | ");
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
         items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
@@ -125,8 +123,8 @@ class ApplicationBar : View, IApplicationBar
 
     public void SetRepo(Server.Repo repo)
     {
-        var behindCount = repo.Commits.Where(c => c.IsBehind).Count();
-        var aheadCount = repo.Commits.Where(c => c.IsAhead).Count();
+        var behindCount = repo.ViewCommits.Where(c => c.IsBehind).Count();
+        var aheadCount = repo.ViewCommits.Where(c => c.IsAhead).Count();
         var stashCount = repo.Stashes.Count;
 
         items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
@@ -145,7 +143,7 @@ class ApplicationBar : View, IApplicationBar
         this.branch = branch;
 
         items[(int)ApplicationBarItem.BranchName] = branch != null
-            ? Common.Text.Color(branch.Color, $"({branch.B.NiceNameUnique})")
+            ? Common.Text.Color(branch.Color, $"({branch.B.NiceNameUnique}) ")
             : Common.Text.Empty;
 
         UpdateView();
@@ -175,13 +173,13 @@ class ApplicationBar : View, IApplicationBar
         return Common.Text.Dark($"{path}, ");
     }
 
-    Text GetUpdateText() => state.Get().Releases.IsUpdateAvailable()
+    Text GetUpdateText() => config.Releases.IsUpdateAvailable()
         ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
 
 
     void SetCurrentBranch(Server.Repo repo)
     {
-        var currentBranch = repo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
         if (currentBranch != null)
         {   // Current branch is shown
             var color = branchColorService.GetColor(repo, currentBranch);
@@ -189,8 +187,8 @@ class ApplicationBar : View, IApplicationBar
         }
         else
         {   // Current branch not shown, lets show the current branch name anyway (color might be wrong)
-            var cb = repo.AugmentedRepo.Branches.Values.First(b => b.IsCurrent);
-            var color = branchColorService.GetColorByBranchName(repo, cb.PrimaryBaseName);
+            var cb = repo.AllBranches.First(b => b.IsCurrent);
+            var color = branchColorService.GetColor(repo, cb);
             items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.White("● ").Color(color, cb.NiceNameUnique);
         }
     }

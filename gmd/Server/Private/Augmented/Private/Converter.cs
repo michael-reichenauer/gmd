@@ -12,13 +12,22 @@ class Converter : IConverter
 {
     public Repo ToRepo(WorkRepo workRepo)
     {
+        var allCommits = workRepo.Commits.Select(ToCommit).ToList();
+        var allBranches = workRepo.Branches.Values.Select(ToBranch).ToList();
+        var viewCommits = new List<Commit>();
+        var viewBranches = new List<Branch>();
+
         return new Repo(
-            workRepo.TimeStamp,
             workRepo.Path,
-            workRepo.Commits.Select(ToCommit).ToList(),
-            workRepo.Branches.Values.ToDictionary(b => b.Name, ToBranch),
+            workRepo.TimeStamp,
+            workRepo.TimeStamp,
+            viewCommits,
+            viewBranches,
+            allCommits,
+            allBranches,
             workRepo.Stashes.ToList(),
-            workRepo.Status
+            workRepo.Status,
+            ""
         );
     }
 
@@ -40,6 +49,8 @@ class Converter : IConverter
             Author: c.Author,
             AuthorTime: c.AuthorTime,
             ParentIds: c.ParentIds,
+            IsInView: false,
+            ViewIndex: -1,
             GitIndex: gitIndex,
 
             BranchName: c.Branch!.Name,
@@ -52,7 +63,7 @@ class Converter : IConverter
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,
             IsDetached: c.IsDetached,
-            IsUncommitted: false,
+            IsUncommitted: c.IsUncommitted,
             IsConflicted: false,
             IsAhead: false,
             IsBehind: false,
@@ -60,7 +71,8 @@ class Converter : IConverter
             IsAmbiguous: c.IsAmbiguous,
             IsAmbiguousTip: c.IsAmbiguousTip,
             IsBranchSetByUser: c.IsBranchSetByUser,
-            HasStash: c.HasStash);
+            HasStash: c.HasStash,
+            More: More.None);
     }
 
     Branch ToBranch(WorkBranch b)
@@ -82,19 +94,23 @@ class Converter : IConverter
             ParentBranchName: b.ParentBranch?.Name ?? "",
             PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
 
+            IsInView: false,
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
             IsPrimary: b.IsPrimary,
             IsMainBranch: b.IsMainBranch,
             IsCircularAncestors: b.IsCircularAncestors,
 
-            HasAheadCommits: b.HasLocalOnly,
-            HasBehindCommits: b.HasRemoteOnly,
+            HasLocalOnly: b.HasLocalOnly,
+            HasRemoteOnly: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTip?.Id ?? "",
             RelatedBranchNames: b.RelatedBranches.Select(bb => bb.Name).ToList(),
             AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
             PullMergeBranchNames: b.PullMergeChildBranches.Select(bb => bb.Name).ToList(),
-            AncestorNames: b.Ancestors.Select(bb => bb.Name).ToList());
+            AncestorNames: b.Ancestors.Select(bb => bb.Name).ToList(),
+            X: 0,
+            IsIn: false,
+            IsOut: false);
     }
 }
 

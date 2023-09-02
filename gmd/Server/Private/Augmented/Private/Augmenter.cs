@@ -1,6 +1,3 @@
-using GitCommit = gmd.Git.Commit;
-using GitBranch = gmd.Git.Branch;
-
 namespace gmd.Server.Private.Augmented.Private;
 
 // Augmenter augments repos of git repo information, The augmentations 
@@ -87,7 +84,7 @@ class Augmenter : IAugmenter
 
     static void AddAugCommits(WorkRepo repo, GitRepo gitRepo)
     {
-        IReadOnlyList<GitCommit> gitCommits = gitRepo.Commits;
+        IReadOnlyList<Git.Commit> gitCommits = gitRepo.Commits;
         // For repositories with a lot of commits, only the latest 'truncateLimit' number of commits
 
         // are used, i.w. truncated commits, which should have parents, but they are unknown
@@ -98,7 +95,7 @@ class Augmenter : IAugmenter
         // Iterate git commits in reverse, to ensure parents are added before children
         for (var i = gitCommits.Count - 1; i >= 0; i--)
         {
-            GitCommit gc = gitCommits[i];
+            Git.Commit gc = gitCommits[i];
             if (IsStashCommit(repo, gc)) continue;   // not shown in log view
 
             WorkCommit commit = new WorkCommit(gc);
@@ -114,7 +111,7 @@ class Augmenter : IAugmenter
         }
 
         // Set current commit if there is a current branch with an existing tip
-        GitBranch? currentBranch = gitRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        Git.Branch? currentBranch = gitRepo.Branches.FirstOrDefault(b => b.IsCurrent);
         if (currentBranch != null)
         {
             if (repo.CommitsById.TryGetValue(currentBranch.TipID, out var currentCommit))
@@ -124,6 +121,7 @@ class Augmenter : IAugmenter
             }
         }
 
+        // Since we added git commits from first to last, we need to reverse the list to get last on top
         repo.Commits.Reverse();
 
         if (isTruncatedNeeded)
@@ -132,7 +130,8 @@ class Augmenter : IAugmenter
         }
     }
 
-    static bool IsStashCommit(WorkRepo repo, GitCommit gc) => repo.StashById.ContainsKey(gc.Id);
+
+    static bool IsStashCommit(WorkRepo repo, Git.Commit gc) => repo.StashById.ContainsKey(gc.Id);
 
     static void AddAugTags(WorkRepo repo, GitRepo gitRepo)
     {
@@ -229,7 +228,7 @@ class Augmenter : IAugmenter
             if (!repo.CommitsById.TryGetValue(commit.ParentIds[0], out var _))
             {
                 isTruncatedNeeded = true;
-                commit.ParentIds[0] = Repo.TruncatedLogCommitID;
+                commit.ParentIds[0] = gmd.Server.Repo.TruncatedLogCommitID;
             }
         }
 
@@ -238,7 +237,7 @@ class Augmenter : IAugmenter
             if (!repo.CommitsById.TryGetValue(commit.ParentIds[1], out var _))
             {
                 isTruncatedNeeded = true;
-                commit.ParentIds[1] = Repo.TruncatedLogCommitID;
+                commit.ParentIds[1] = gmd.Server.Repo.TruncatedLogCommitID;
             }
         }
 

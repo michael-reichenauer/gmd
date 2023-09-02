@@ -22,21 +22,21 @@ class BranchColorService : IBranchColorService
 {
     static readonly Color[] BranchColors = { Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow };
 
-    readonly IRepoState repoState;
+    readonly IRepoConfig repoConfig;
 
 
-    internal BranchColorService(IRepoState repoState)
+    internal BranchColorService(IRepoConfig repoConfig)
     {
-        this.repoState = repoState;
+        this.repoConfig = repoConfig;
     }
 
 
-    public Color GetColor(Server.Repo repo, Server.Branch branch)
+    public Color GetColor(Repo repo, Branch branch)
     {
         if (branch.IsDetached) return Color.White;
         if (branch.IsMainBranch) return Color.Magenta;
 
-        if (repoState.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryBaseName, out var colorId))
+        if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryBaseName, out var colorId))
         {   // Branch has a color set by user, use it
             return GetColorByColorId(colorId);
         }
@@ -66,9 +66,9 @@ class BranchColorService : IBranchColorService
     }
 
 
-    public Color GetColorByBranchName(Server.Repo repo, string primaryBaseName)
+    public Color GetColorByBranchName(Repo repo, string primaryBaseName)
     {
-        if (repoState.Get(repo.Path).BranchColors.TryGetValue(primaryBaseName, out var colorId))
+        if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(primaryBaseName, out var colorId))
         {   // Branch has a color set by user, use it
             return GetColorByColorId(colorId);
         }
@@ -83,7 +83,7 @@ class BranchColorService : IBranchColorService
         var colorId = GetColorId(color);
         var newColorId = (colorId + 1) % BranchColors.Length;
 
-        repoState.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
+        repoConfig.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
     }
 
     static Color GetColorByBranchBaseName(string name, int addIndex = 0)

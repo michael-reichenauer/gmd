@@ -17,7 +17,7 @@ partial class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IGit git;
-    readonly IState states;
+    readonly Config config;
     readonly ICloneDlg cloneDlg;
     readonly IInitRepoDlg initRepoDlg;
     readonly IHelpDlg helpDlg;
@@ -30,7 +30,7 @@ partial class MainView : IMainView
     public MainView(
         IRepoView repoView,
         IGit git,
-        IState states,
+        Config config,
         ICloneDlg cloneDlg,
         IInitRepoDlg initRepoDlg,
         IHelpDlg helpDlg,
@@ -41,7 +41,7 @@ partial class MainView : IMainView
     {
         this.repoView = repoView;
         this.git = git;
-        this.states = states;
+        this.config = config;
         this.cloneDlg = cloneDlg;
         this.initRepoDlg = initRepoDlg;
         this.helpDlg = helpDlg;
@@ -73,6 +73,7 @@ partial class MainView : IMainView
     void OnReady()
     {
         Threading.SetUp();
+        config.Init();
 
         string path = GetWorkingFolder();
         // Environment.CurrentDirectory = "/workspaces";
@@ -86,8 +87,9 @@ partial class MainView : IMainView
         // path = "/workspaces/gmd-1";  
         // path = "/workspaces/vscode";
         // path = "/workspaces/Dependinator-1";
+        // path = "/workspaces/empty";
 
-        if (!Try(out var rootPath, out var e, git.RootPath(path)))
+        if (!Try(out var rootPath, out var e, git.RootPath(path)) || IsShowMainMenu)
         {
             if (path != "")
             {
@@ -101,6 +103,8 @@ partial class MainView : IMainView
 
         ShowRepo(rootPath);
     }
+
+    bool IsShowMainMenu => Environment.GetCommandLineArgs().Contains("-m");
 
     static string GetWorkingFolder()
     {
@@ -120,13 +124,13 @@ partial class MainView : IMainView
         Log.Info("Show main menu");
         Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu());
 
-        if (!states.Get().Releases.IsUpdateAvailable())
+        if (!config.Releases.IsUpdateAvailable())
         {   // Check for update ...
             updater.CheckUpdateAvailableAsync().ContinueWith(t =>
             {
                 UI.Post(async () =>
                 {
-                    if (!states.Get().Releases.IsUpdateAvailable()) return;  // No update available
+                    if (!config.Releases.IsUpdateAvailable()) return;  // No update available
 
                     // Update is available, show menu again, which now will show the update available menu item
                     await menu.CloseAsync();
@@ -150,7 +154,7 @@ partial class MainView : IMainView
 
     IEnumerable<MenuItem> GetNewReleaseItems()
     {
-        if (!states.Get().Releases.IsUpdateAvailable()) return Menu.Items;
+        if (!config.Releases.IsUpdateAvailable()) return Menu.Items;
 
         return Menu.Items
            .Separator("New Release Available !!!")
@@ -161,7 +165,7 @@ partial class MainView : IMainView
 
     public async Task UpdateRelease()
     {
-        var releases = states.Get().Releases;
+        var releases = config.Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available.\n\n" +
             $"Current Version: {Build.Version()}\n" +
@@ -213,7 +217,7 @@ partial class MainView : IMainView
     }
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
-        states.Get().RecentFolders
+        config.RecentFolders
             .Where(Directory.Exists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
             .Take(8);
@@ -236,7 +240,7 @@ partial class MainView : IMainView
     async void ShowCloneDlg()
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentParentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        var recentParentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
         if (!Try(out var r, out var e, cloneDlg.Show(recentParentFolders)))
         {
             ShowMainMenu();
@@ -259,7 +263,7 @@ partial class MainView : IMainView
     async void ShowInitRepoDlg()
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentParentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        var recentParentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
         if (!Try(out var path, out var e, initRepoDlg.Show(recentParentFolders)))
         {
             ShowMainMenu();
@@ -281,7 +285,7 @@ partial class MainView : IMainView
     void ShowBrowseDialog()
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
 
         var browser = new FolderBrowseDlg();
         if (!Try(out var path, browser.Show(recentFolders)))

@@ -22,7 +22,7 @@ interface IRepoCommands
     void ShowFileHistory();
     void Filter();
     void ShowBrowseDialog();
-    void ChangeBranchColor();
+    void ChangeBranchColor(string brandName);
     void UpdateRelease();
     void Clone();
     void InitRepo();
@@ -98,9 +98,9 @@ class RepoCommands : IRepoCommands
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
     readonly IDiffView diffView;
-    readonly IState states;
+    readonly Config config;
     readonly IUpdater updater;
-    readonly IRepoState repoState;
+    readonly IRepoConfig repoConfig;
     readonly IBranchColorService branchColorService;
     readonly IRepo repo;
     readonly Repo serverRepo;
@@ -125,9 +125,9 @@ class RepoCommands : IRepoCommands
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         IDiffView diffView,
-        IState states,
+        Config config,
         IUpdater updater,
-        IRepoState repoState,
+        IRepoConfig repoConfig,
         IBranchColorService branchColorService)
     {
         this.repo = repo;
@@ -145,9 +145,9 @@ class RepoCommands : IRepoCommands
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
         this.diffView = diffView;
-        this.states = states;
+        this.config = config;
         this.updater = updater;
-        this.repoState = repoState;
+        this.repoConfig = repoConfig;
         this.branchColorService = branchColorService;
     }
 
@@ -172,7 +172,7 @@ class RepoCommands : IRepoCommands
     public void ShowBrowseDialog() => Do(async () =>
    {
        // Parent folders to recent work folders, usually other repos there as well
-       var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+       var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
 
        var browser = new FolderBrowseDlg();
        if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
@@ -227,7 +227,7 @@ class RepoCommands : IRepoCommands
     public void Clone() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
 
         if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return R.Ok;
         (var uri, var path) = r;
@@ -247,7 +247,7 @@ class RepoCommands : IRepoCommands
     public void InitRepo() => Do(async () =>
     {
         // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = states.Get().RecentParentFolders.Where(Directory.Exists).ToList();
+        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
 
         if (!Try(out var path, out var e, initRepoDlg.Show(recentFolders))) return R.Ok;
 
@@ -267,8 +267,8 @@ class RepoCommands : IRepoCommands
     public void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
     {
         var totalCount = 0;
-        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AugmentedRepo.Branches.Values.Count(b => b.IsGitBranch);
-        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AugmentedRepo.Branches.Count;
+        if (show == ShowBranches.AllActive) totalCount = repo.Repo.AllBranches.Count(b => b.IsGitBranch);
+        if (show == ShowBranches.AllActiveAndDeleted) totalCount = repo.Repo.AllBranches.Count;
 
         if (totalCount > 20)
         {
@@ -388,7 +388,7 @@ class RepoCommands : IRepoCommands
     public void UndoCommit(string id) => Do(async () =>
     {
         if (!CanUndoCommit()) return R.Ok;
-        var commit = repo.Commit(id);
+        var commit = repo.CommitById(id);
         var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
         if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, RepoPath)))
@@ -418,10 +418,10 @@ class RepoCommands : IRepoCommands
 
     public bool CanUncommitLastCommit()
     {
-        if (!serverRepo.Commits.Any()) return false;
+        if (!serverRepo.ViewCommits.Any()) return false;
 
-        var c = serverRepo.Commits[0];
-        var b = serverRepo.BranchByName[serverRepo.Commits[0].BranchName];
+        var c = serverRepo.ViewCommits[0];
+        var b = serverRepo.BranchByName[serverRepo.ViewCommits[0].BranchName];
         return Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
     }
 
@@ -442,6 +442,8 @@ class RepoCommands : IRepoCommands
 
     public void ShowDiff(string commitId, bool isFromCommit = false) => Do(async () =>
     {
+        if (commitId == Repo.EmptyRepoCommit) return R.Ok;
+
         if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, RepoPath)))
         {
             return R.Error($"Failed to get diff", e);
@@ -497,8 +499,8 @@ class RepoCommands : IRepoCommands
     {
         if (repo.CurrentBranch == null) return R.Ok;
         string message = "";
-        var branch1 = repo.Branch(branchName1);
-        var branch2 = repo.Branch(branchName2);
+        var branch1 = repo.BranchByName(branchName1);
+        var branch2 = repo.BranchByName(branchName2);
 
         var sha1 = branch1.TipId;
         var sha2 = branch2.TipId;
@@ -520,7 +522,7 @@ class RepoCommands : IRepoCommands
     {
         if (repo.CurrentBranch == null) return R.Ok;
         string message = "";
-        var branch = repo.Branch(branchName);
+        var branch = repo.BranchByName(branchName);
         var sha1 = branch.TipId;
         var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.CurrentBranch.TipId;
         if (sha2 == Repo.UncommittedId) return R.Error("Cannot diff while uncommitted changes");
@@ -559,7 +561,7 @@ class RepoCommands : IRepoCommands
 
     public void PushCurrentBranch() => Do(async () =>
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pushing");
         if (branch == null) return R.Error("No current branch to push");
@@ -585,7 +587,7 @@ class RepoCommands : IRepoCommands
 
     public void PublishCurrentBranch() => Do(async () =>
     {
-        var branch = serverRepo.Branches.First(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.First(b => b.IsCurrent);
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, RepoPath)))
         {
@@ -614,7 +616,7 @@ class RepoCommands : IRepoCommands
 
     public bool CanPushCurrentBranch()
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
         if (branch == null) return false;
 
         if (branch.RemoteName != "")
@@ -629,7 +631,7 @@ class RepoCommands : IRepoCommands
 
     public void PullCurrentBranch() => Do(async () =>
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
         if (!serverRepo.Status.IsOk) return R.Error("Commit changes before pulling");
         if (branch == null) return R.Error("No current branch to pull");
         if (branch.RemoteName == "") return R.Error("No current remote branch to pull");
@@ -662,7 +664,7 @@ class RepoCommands : IRepoCommands
 
     public bool CanPullCurrentBranch()
     {
-        var branch = serverRepo.Branches.FirstOrDefault(b => b.IsCurrent);
+        var branch = serverRepo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
         if (branch == null) return false;
 
         if (branch.RemoteName == "") return false;  // No remote branch to pull
@@ -731,70 +733,111 @@ class RepoCommands : IRepoCommands
 
     public void CreateBranch() => Do(async () =>
     {
-        var currentBranchName = repo.GetCurrentBranch().Name;
-        if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
-
-        if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, RepoPath)))
+        var branchName = "";
+        try
         {
-            return R.Error($"Failed to create branch {rsp.Name}", e);
-        }
+            var currentBranchName = repo.GetCurrentBranch().Name;
+            if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            if (!Try(out var e, await server.CreateBranchAsync(serverRepo, rsp.Name, rsp.IsCheckout, RepoPath)))
+            {
+                return R.Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, RepoPath)))
+            {
+                // The push error could be that repo has no remote origin, (local only)
+                if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                {   // The push error is that repo has no remote origin, (local repo only)
+                    // I.e. no remote repo to push to, lets just ignore the push error
+                    return R.Ok;
+                }
+
+                return R.Error($"Failed to push branch {branchName} to remote server", e);
+            }
+
+            return R.Ok;
+        }
+        finally
         {
-            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            Refresh(branchName);
         }
-
-        Refresh(rsp.Name);
-        return R.Ok;
     });
 
 
     public void CreateBranchFromBranch(string name) => Do(async () =>
     {
-        //var currentBranchName = repo.GetCurrentBranch().Name;
-        var branch = repo.Branch(name);
-        if (branch.LocalName != "") name = branch.LocalName;
-
-        if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
-
-        if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, RepoPath)))
+        var branchName = "";
+        try
         {
-            return R.Error($"Failed to create branch {rsp.Name}", e);
-        }
+            //var currentBranchName = repo.GetCurrentBranch().Name;
+            var branch = repo.BranchByName(name);
+            if (branch.LocalName != "") name = branch.LocalName;
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
+
+            if (!Try(out var e, await server.CreateBranchFromBranchAsync(serverRepo, rsp.Name, name, rsp.IsCheckout, RepoPath)))
+            {
+                return R.Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, RepoPath)))
+            {   // The push error could be that repo has no remote origin, (local only)
+                if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                {   // The push error is that repo has no remote origin, (local repo only)
+                    // I.e. no remote repo to push to, lets just ignore the push error
+                    return R.Ok;
+                }
+
+                return R.Error($"Failed to push branch {branchName} to remote server", e);
+            }
+
+            return R.Ok;
+        }
+        finally
         {
-            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            Refresh(branchName);
         }
-
-        Refresh(rsp.Name);
-        return R.Ok;
     });
-
-
 
 
     public void CreateBranchFromCommit() => Do(async () =>
     {
-        var commit = repo.RowCommit;
-        var branchName = commit.BranchName;
-
-        if (!Try(out var rsp, createBranchDlg.Show(branchName, commit.Sid))) return R.Ok;
-
-        if (!Try(out var e,
-            await server.CreateBranchFromCommitAsync(serverRepo, rsp.Name, commit.Id, rsp.IsCheckout, RepoPath)))
+        var branchName = "";
+        try
         {
-            return R.Error($"Failed to create branch {rsp.Name}", e);
-        }
+            var commit = repo.RowCommit;
+            var commitBranchName = commit.BranchName;
 
-        if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            if (!Try(out var rsp, createBranchDlg.Show(commitBranchName, commit.Sid))) return R.Ok;
+
+            if (!Try(out var e,
+                await server.CreateBranchFromCommitAsync(serverRepo, rsp.Name, commit.Id, rsp.IsCheckout, RepoPath)))
+            {
+                return R.Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            {   // The push error could be that repo has no remote origin, (local only)
+                if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                {   // The push error is that repo has no remote origin, (local repo only)
+                    // I.e. no remote repo to push to, lets just ignore the push error
+                    return R.Ok;
+                }
+                return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            }
+
+            return R.Ok;
+        }
+        finally
         {
-            return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+            Refresh(branchName);
         }
-
-        Refresh(rsp.Name);
-        return R.Ok;
     });
+
 
     public void Stash() => Do(async () =>
     {
@@ -878,7 +921,7 @@ class RepoCommands : IRepoCommands
 
         if (rsp.IsRemote && remoteBranch != null)
         {
-            var tip = repo.Commit(remoteBranch.TipId);
+            var tip = repo.CommitById(remoteBranch.TipId);
             if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == remoteBranch.Name)
             {
                 return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
@@ -893,7 +936,7 @@ class RepoCommands : IRepoCommands
 
         if (rsp.IsLocal && localBranch != null)
         {
-            var tip = repo.Commit(localBranch.TipId);
+            var tip = repo.CommitById(localBranch.TipId);
             if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == localBranch.Name)
             {
                 return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
@@ -914,7 +957,7 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
 
-        var releases = states.Get().Releases;
+        var releases = config.Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available.\n\n" +
             $"Current Version: {Build.Version()}\n" +
@@ -939,9 +982,9 @@ class RepoCommands : IRepoCommands
     });
 
 
-    public void ChangeBranchColor()
+    public void ChangeBranchColor(string brandName)
     {
-        var b = repo.Branch(repo.RowCommit.BranchName);
+        var b = repo.BranchByName(brandName);
         if (b.IsMainBranch) return;
 
         branchColorService.ChangeColor(repo.Repo, b);
@@ -1015,7 +1058,7 @@ class RepoCommands : IRepoCommands
     public void AddTag() => Do(async () =>
     {
         var commit = repo.RowCommit;
-        var branch = repo.Branch(commit.BranchName);
+        var branch = repo.BranchByName(commit.BranchName);
         var isPushable = branch.IsRemote || branch.RemoteName != "";
 
         if (commit.IsUncommitted) return R.Ok;
@@ -1034,7 +1077,7 @@ class RepoCommands : IRepoCommands
     public void DeleteTag(string name) => Do(async () =>
     {
         var commit = repo.RowCommit;
-        var branch = repo.Branch(commit.BranchName);
+        var branch = repo.BranchByName(commit.BranchName);
         var isPushable = branch.IsRemote || branch.RemoteName != "";
 
         if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, RepoPath)))
@@ -1052,7 +1095,7 @@ class RepoCommands : IRepoCommands
         if (commit.IsUncommitted) return R.Error($"Not a valid commit");
 
 
-        var branch = repo.Branch(commit.BranchName);
+        var branch = repo.BranchByName(commit.BranchName);
 
         var possibleBranches = server.GetPossibleBranchNames(serverRepo, commit.Id, 20);
 
@@ -1083,7 +1126,7 @@ class RepoCommands : IRepoCommands
     {
         await Task.Yield();
 
-        repoState.Set(RepoPath, s =>
+        repoConfig.Set(RepoPath, s =>
         {
             // Filter existing branch orders for the two branches
             var branchOrders = s.BranchOrders.Where(b =>

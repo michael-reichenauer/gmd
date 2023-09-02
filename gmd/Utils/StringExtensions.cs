@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace System;
 
 // Some useful string extensions that are missing in .NET
@@ -50,6 +52,18 @@ public static class StringExtensions
         }
 
         return source.Substring(0, SidLength);
+    }
+
+    public static string ToJson(this object? source)
+    {
+        if (source == null) return "";
+
+        if (!Try(out var json, out var e, () => JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })))
+        {
+            return $"<Error: {e}>";
+        }
+
+        return json;
     }
 }
 

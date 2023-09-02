@@ -116,7 +116,7 @@ class CommitDetailsView : ICommitDetailsView
             var tagText = "[" + string.Join("][", commit.Tags.Select(t => t.Name)) + "]";
             newRows.Add(Text.Dark("Tags:       ").Green(tagText));
         }
-        var tips = repo.Branches.Where(b => b.TipId == commit.Id);
+        var tips = repo.ViewBranches.Where(b => b.TipId == commit.Id);
         if (tips.Any())
         {
             var tipText = new TextBuilder();

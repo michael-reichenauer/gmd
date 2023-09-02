@@ -11,11 +11,11 @@ interface IConfigDlg
 
 class ConfigDlg : IConfigDlg
 {
-    readonly IConfig config;
+    readonly Config config;
     readonly IRepoConfig repoConfig;
     private readonly IUpdater updater;
 
-    internal ConfigDlg(IConfig config, IRepoConfig repoConfig, IUpdater updater)
+    internal ConfigDlg(Config config, IRepoConfig repoConfig, IUpdater updater)
     {
         this.config = config;
         this.repoConfig = repoConfig;
@@ -29,7 +29,6 @@ class ConfigDlg : IConfigDlg
         int height = 18;
 
         var repoConf = repoConfig.Get(repoPath);
-        var conf = config.Get();
         var dlg = new UIDialog("Config", width, height);
 
         // Repo specific config
@@ -40,9 +39,9 @@ class ConfigDlg : IConfigDlg
         dlg.AddLine(1, 3, width - 2);
 
         dlg.AddLabel(1, 4, $"General:");
-        var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", conf.CheckUpdates);
-        var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", conf.AutoUpdate);
-        var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", conf.AllowPreview);
+        var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", config.CheckUpdates);
+        var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", config.AutoUpdate);
+        var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", config.AllowPreview);
         var isAddGmdToPath = dlg.AddCheckBox(1, 8, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
         isAddGmdToPath.Visible = !Build.IsDevInstance() && Build.IsWindows;
 

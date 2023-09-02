@@ -61,6 +61,7 @@ class ProgramCommands : IProgramCommands
           --changelog         Show change log
           --updatechangelog   Update change log file CHANGELOG.md
           -d <path>           Show repo for working folder specified by <path>
+          -m                  Show main menu even if in working folder
           --help|-h|-?        Show command line help.
 
         """;

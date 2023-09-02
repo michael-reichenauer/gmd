@@ -50,6 +50,7 @@ class WorkCommit
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
     public bool IsBranchSetByUser { get; set; }
+    public bool IsUncommitted { get; set; }
 
     public List<string> ParentIds { get; }
     public WorkCommit? FirstParent { get; set; }
@@ -88,7 +89,7 @@ class WorkCommit
         Message = message;
         Author = author;
         AuthorTime = authorTime;
-        ParentIds = new List<string>(parentIds.AsEnumerable<string>());
+        ParentIds = new List<string>(parentIds.AsEnumerable());
     }
 
     public override string ToString() => $"#{GitIndex} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";

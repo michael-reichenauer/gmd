@@ -148,10 +148,6 @@ class BranchStructureService : IBranchStructureService
     {
         commit.Branches.TryAddAll(commit.FirstChildren.SelectMany(c => c.Branches));
         var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
-        if (commit.Sid == "a6ca33")
-        {
-
-        }
 
         if (commit.Id == Repo.TruncatedLogCommitID)
         {
@@ -743,7 +739,7 @@ class BranchStructureService : IBranchStructureService
             name: branchName,
             primaryName: branchName,
             niceName: branchName,
-            tipID: Repo.TruncatedLogCommitID);
+            tipID: gmd.Server.Repo.TruncatedLogCommitID);
 
         repo.Branches[branch.Name] = branch;
         repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
@@ -903,7 +899,7 @@ class BranchStructureService : IBranchStructureService
 
         if (truncatedBranch != null)
         {   // Remove the truncated branch and redirect all its children to the root branch
-            var truncatedCommit = repo.CommitsById[Repo.TruncatedLogCommitID];
+            var truncatedCommit = repo.CommitsById[gmd.Server.Repo.TruncatedLogCommitID];
             truncatedCommit.Branch = rootBranch;
             rootBranch.ParentBranch = null;
             rootBranch.BottomID = truncatedCommit.Id;
