@@ -375,8 +375,8 @@ class RepoView : IRepoView
     {
         if (hooverBranchPrimaryName != "")
         {
-            var branch = repo.BranchByName(hooverBranchPrimaryName);
-            if (branch.LocalName != "") branch = repo.BranchByName(branch.LocalName);
+            var branch = repo.Repo.BranchByName[hooverBranchPrimaryName];
+            if (branch.LocalName != "") branch = repo.Repo.BranchByName[branch.LocalName];
             if (!branch.IsCurrent && repo.Repo.Status.IsOk)
             {   // Some other branch merging to current
                 Cmd.MergeBranch(hooverBranchPrimaryName);
@@ -399,7 +399,7 @@ class RepoView : IRepoView
         {
             var branchName = hooverBranchPrimaryName;
             var currentName = repo.CurrentBranch?.PrimaryName ?? "";
-            var branch = repo.BranchByName(branchName);
+            var branch = repo.Repo.BranchByName[branchName];
             if (branch.LocalName != "") branchName = branch.LocalName;
 
             if (branch.PrimaryName != currentName)
@@ -641,7 +641,7 @@ class RepoView : IRepoView
         if (repo.Graph.TryGetBranchByPos(x, index, out var branch))
         {   // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
             var hb = branch.B;
-            if (hb.LocalName != "") hb = repo.BranchByName(hb.LocalName);
+            if (hb.LocalName != "") hb = repo.Repo.BranchByName[hb.LocalName];
             if (!hb.IsCurrent && repo.Repo.Status.IsOk)
             {   // Some other branch merging to current
                 Cmd.MergeBranch(hb.Name);
@@ -877,7 +877,7 @@ class RepoView : IRepoView
             var branch = repo.Branches.FirstOrDefault(b => b.Name == branchName);
             if (branch != null)
             {
-                var tip = repo.CommitById(branch.TipId);
+                var tip = repo.Repo.CommitById[branch.TipId];
                 commitsView.ScrollToShowIndex(tip.ViewIndex);
                 commitsView.SetCurrentIndex(tip.ViewIndex);
             }

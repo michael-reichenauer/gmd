@@ -38,7 +38,7 @@ class RepoWriter : IRepoWriter
         var branchTips = GetBranchTips(repo);
 
         var crc = repo.RowCommit;
-        var crb = repo.BranchByName(crc.BranchName);
+        var crb = repo.Repo.BranchByName[crc.BranchName];
         var isUncommitted = !repo.Repo.Status.IsOk;
         var isBranchDetached = crb.IsDetached;
         Columns cw = ColumnWidths(repo, width);

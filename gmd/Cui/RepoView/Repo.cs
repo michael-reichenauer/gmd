@@ -10,8 +10,7 @@ interface IRepo
     Repo Repo { get; }
     IReadOnlyList<Branch> Branches { get; }
     IReadOnlyList<Commit> Commits { get; }
-    Branch BranchByName(string branchName);
-    Commit CommitById(string commitId);
+
 
     Graph Graph { get; }
 
@@ -56,11 +55,9 @@ class RepoImpl : IRepo
     public Repo Repo => serverRepo;
     public IReadOnlyList<Branch> Branches => serverRepo.ViewBranches;
     public IReadOnlyList<Commit> Commits => serverRepo.ViewCommits;
-    public Branch BranchByName(string branchName) => serverRepo.BranchByName[branchName];
-    public Commit CommitById(string commitId) => serverRepo.CommitById[commitId];
 
     public Commit RowCommit => Commits[CurrentIndex];
-    public Branch RowBranch => BranchByName(RowCommit.BranchName);
+    public Branch RowBranch => serverRepo.BranchByName[RowCommit.BranchName];
     public Branch? CurrentBranch => Branches.FirstOrDefault(b => b.IsCurrent);
 
     public Graph Graph { get; init; }

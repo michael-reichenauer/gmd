@@ -49,7 +49,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowBranchMenu(int x, int y, string branchName)
     {
-        var b = repo.BranchByName(branchName);
+        var b = repo.Repo.BranchByName[branchName];
         Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y + 2, GetBranchMenuItems(branchName));
     }
 
@@ -102,7 +102,7 @@ class RepoViewMenus : IRepoViewMenus
 
     IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
     {
-        var c = repo.CommitById(commitId);
+        var c = repo.Repo.CommitById[commitId];
         var cc = repo.GetCurrentCommit();
         var rb = repo.RowBranch;
         var cb = repo.CurrentBranch;
@@ -133,7 +133,7 @@ class RepoViewMenus : IRepoViewMenus
     IEnumerable<MenuItem> GetBranchMenuItems(string branchName)
     {
         var c = repo.RowCommit;
-        var b = repo.BranchByName(branchName);
+        var b = repo.Repo.BranchByName[branchName];
         var cb = repo.CurrentBranch;
         var isStatusOK = repo.Repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
@@ -150,7 +150,7 @@ class RepoViewMenus : IRepoViewMenus
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item("Delete Branch ...", "", () => cmds.DeleteBranch(b.Name), () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent)
             .SubMenu("Diff Branch to", "D", GetBranchDiffItems(branchName))
-            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(branchName), () => !repo.BranchByName(branchName).IsMainBranch)
+            .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(branchName), () => !repo.Repo.BranchByName[branchName].IsMainBranch)
             .Items(GetMoveBranchItems(branchName))
             .Separator()
             .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
@@ -188,7 +188,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         // Get possible local, remote, pull merge branches of the row branch
         var relatedBranches = repo.Branches.Where(b => b.PrimaryName == branchPrimaryName);
-        var branch = repo.BranchByName(branchPrimaryName);
+        var branch = repo.Repo.BranchByName[branchPrimaryName];
 
         // Get all branches that overlap with any of the related branches
         var overlappingBranches = relatedBranches
@@ -209,7 +209,7 @@ class RepoViewMenus : IRepoViewMenus
             if (b.B.PrimaryName == branchPrimaryName) break;
             leftBranch = b.B;
         }
-        leftBranch = leftBranch != null ? repo.BranchByName(leftBranch.PrimaryName) : null;
+        leftBranch = leftBranch != null ? repo.Repo.BranchByName[leftBranch.PrimaryName] : null;
         var leftPrimaryName = leftBranch != null && !IsAncestor(leftBranch, branch) ? leftBranch.PrimaryName : "";
 
         // Find possible branch on right side to move to after (skip if ancestor)
@@ -220,7 +220,7 @@ class RepoViewMenus : IRepoViewMenus
             if (b.B.PrimaryName == branchPrimaryName) break;
             rightBranch = b.B;
         }
-        rightBranch = rightBranch != null ? repo.BranchByName(rightBranch.PrimaryName) : null;
+        rightBranch = rightBranch != null ? repo.Repo.BranchByName[rightBranch.PrimaryName] : null;
         var rightPrimaryName = rightBranch != null && !IsAncestor(branch, rightBranch) ? rightBranch.PrimaryName : "";
 
         var items = Menu.Items;
@@ -325,7 +325,7 @@ class RepoViewMenus : IRepoViewMenus
     MenuItem GetSwitchToBranchItem(string branchName)
     {
         var currentName = repo.CurrentBranch?.PrimaryName ?? "";
-        var branch = repo.BranchByName(branchName);
+        var branch = repo.Repo.BranchByName[branchName];
         if (branch.LocalName != "") branchName = branch.LocalName;
         return Menu.Item("Switch to Branch", "S", () => cmds.SwitchTo(branchName), () => branch.PrimaryName != currentName);
     }
@@ -335,7 +335,7 @@ class RepoViewMenus : IRepoViewMenus
     {
         if (!repo.Repo.Status.IsOk) return Menu.Items;
 
-        var primaryName = repo.BranchByName(branchName).PrimaryName;
+        var primaryName = repo.Repo.BranchByName[branchName].PrimaryName;
         var branches = repo.Branches
              .Where(b => b.IsPrimary && b.PrimaryName != primaryName)
              .DistinctBy(b => b.NiceNameUnique)
