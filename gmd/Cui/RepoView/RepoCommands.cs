@@ -112,7 +112,7 @@ class RepoCommands : IRepoCommands
 
     internal RepoCommands(
         IRepo repo,
-        Server.Repo serverRepo,
+        Repo serverRepo,
         IRepoView repoView,
         IServer server,
         IProgress progress,

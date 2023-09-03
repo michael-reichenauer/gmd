@@ -30,7 +30,7 @@ class RepoImpl : IRepo
         Repo serverRepo,
         Func<IRepo, Repo, IRepoView, IRepoCommands> newRepoCommands,
         IGraphCreater graphService,
-        Server.IServer server)
+        IServer server)
     {
         this.repoView = repoView;
         this.serverRepo = serverRepo;
