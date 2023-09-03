@@ -126,7 +126,7 @@ class ViewRepoCreater : IViewRepoCreater
     Repo EmptyFilteredRepo(Repo repo, string filter)
     {
         // A repo with just 1 virtual commit and 1 branch
-        var id = Repo.TruncatedLogCommitID;
+        var id = Repo.TruncatedLogCommitId;
         var msg = $"<... No commits matching filter ...>";
         var branchName = "<none>";
 

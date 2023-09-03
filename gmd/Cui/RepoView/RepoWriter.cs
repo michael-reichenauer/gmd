@@ -225,11 +225,12 @@ class RepoWriter : IRepoWriter
     {
         var text = new TextBuilder();
 
-        if (c.IsConflicted) { text.BrightRed(c.Subject); }
+        if (c.Id == Repo.EmptyRepoCommitId) { text.Dark(c.Subject); }
+        else if (c.IsConflicted) { text.BrightRed(c.Subject); }
         else if (c.IsUncommitted) { text.BrightYellow(c.Subject); }
         else if (c.IsAhead) { text.BrightGreen(c.Subject); }
         else if (c.IsBehind) { text.BrightBlue(c.Subject); }
-        else if (c.Id == Repo.TruncatedLogCommitID) { text.Dark(c.Subject); }
+        else if (c.Id == Repo.TruncatedLogCommitId) { text.Dark(c.Subject); }
         else if (c.BranchPrimaryName == currentRowBranch.PrimaryName) { text.White(c.Subject); }
         else { text.Dark(c.Subject); }
 
