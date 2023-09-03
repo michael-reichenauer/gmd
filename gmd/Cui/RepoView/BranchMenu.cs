@@ -7,7 +7,7 @@ namespace gmd.Cui.RepoView;
 interface IBranchMenu
 {
     void Show(int x, int y, string branchName);
-    void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0);
+    void ShowOpenBranchMenu(int x = Menu.Center, int y = 0);
     void ShowDiffBranchToMenu(int x, int y, string branchName);
     void ShowCommitBranchesMenu(int x, int y);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
@@ -38,7 +38,7 @@ class BranchMenu : IBranchMenu
         Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y + 2, GetBranchMenuItems(branchName));
     }
 
-    public void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0)
+    public void ShowOpenBranchMenu(int x = Menu.Center, int y = 0)
     {
         Menu.Show("Open Branch", x, y + 2, GetShowBranchItems());
     }

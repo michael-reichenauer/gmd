@@ -330,7 +330,7 @@ class RepoView : IRepoView
     {
         var x = hooverBranchPrimaryName == "" ? repo.Graph.Width + 2 : hooverColumnIndex;
         var y = hooverRowIndex == -1 ? repo.CurrentIndex : hooverRowIndex;
-        menuService.ShowOpenBranchesMenu(x + 2, y + 1);
+        menuService.ShowOpenBranchMenu(x + 2, y + 1);
     }
 
     void OnKeyD()
@@ -364,7 +364,7 @@ class RepoView : IRepoView
             case ApplicationBarItem.Status: Cmd.CommitFromMenu(false); break;
             case ApplicationBarItem.Behind: Cmd.PullAllBranches(); break;
             case ApplicationBarItem.Ahead: Cmd.PushAllBranches(); break;
-            case ApplicationBarItem.BranchName: menuService.ShowOpenBranchesMenu(x - 5, y); break;
+            case ApplicationBarItem.BranchName: menuService.ShowOpenBranchMenu(x - 5, y); break;
             case ApplicationBarItem.Stash: menuService.ShowStashMenu(x - 5, y); break;
             case ApplicationBarItem.Search: Cmd.Filter(); break;
             case ApplicationBarItem.Help: Cmd.ShowHelp(); break;
