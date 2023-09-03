@@ -89,12 +89,12 @@ partial class MainView : IMainView
         // path = "/workspaces/vscode";
         // path = "/workspaces/Dependinator-1";
         // path = "/workspaces/empty";
+        // path = "/workspaces/empty2";
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)) || IsShowMainMenu)
         {
             if (path != "")
-            {
-                // User specified an invalid folder on command line
+            {   // User specified an invalid folder on command line
                 UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
             }
 

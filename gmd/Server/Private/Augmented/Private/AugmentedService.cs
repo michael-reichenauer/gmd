@@ -350,14 +350,18 @@ class AugmentedService : IAugmentedService
 
     R<GitRepo> EmptyGitRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)
     {
+        Timing t = Timing.Start();
         var id = Repo.EmptyRepoCommit;
         var msg = "<... empty repo ...>";
         var branchName = "main";
-        var commits = new List<Git.Commit>(){ new Git.Commit( id, id.Sid(),
-            new string[0], msg, msg, "", DateTime.UtcNow, DateTime.Now)};
-        var branches = new List<Git.Branch>() { new Git.Branch(branchName, id, true, false, "", false, 0, 0) };
+        var commit = new Git.Commit(id, id.Sid(), new string[0], msg, msg, "", DateTime.UtcNow, DateTime.UtcNow);
+        var branch = new Git.Branch(branchName, id, true, false, "", false, 0, 0);
+        var commits = new List<Git.Commit>() { commit };
+        var branches = new List<Git.Branch>() { branch };
         var stashes = new List<Git.Stash>();
 
-        return new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes, false);
+        var gitRepo = new GitRepo(DateTime.UtcNow, path, commits, branches, tags, status, metaData, stashes, false);
+        Log.Info($"GitRepo {t} {gitRepo}");
+        return gitRepo;
     }
 }
