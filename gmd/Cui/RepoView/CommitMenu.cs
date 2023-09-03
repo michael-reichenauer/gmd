@@ -12,23 +12,23 @@ interface ICommitMenu
 
 class CommitMenu : ICommitMenu
 {
-    readonly IRepoViewMenus repoViewMenus;
+    readonly IRepoMenu repoMenu;
     readonly IBranchMenu branchMenu;
     readonly IRepo repo;
     readonly IRepoCommands cmds;
 
-    public CommitMenu(IRepoViewMenus repoViewMenus, IBranchMenu branchMenu, IRepo repo, IRepoCommands cmd)
+    public CommitMenu(IRepoMenu repoMenu, IBranchMenu branchMenu, IRepo repo)
     {
-        this.repoViewMenus = repoViewMenus;
+        this.repoMenu = repoMenu;
         this.branchMenu = branchMenu;
         this.repo = repo;
-        this.cmds = cmd;
+        this.cmds = repo.Cmd;
     }
 
     public void Show(int x, int y, int index)
     {
         var c = repo.Repo.ViewCommits[index];
-        Menu.Show($"Commit: {RepoViewMenus.Sid(c.Id)}", x, y + 2, GetCommitMenuItems(c.Id));
+        Menu.Show($"Commit: {Sid(c.Id)}", x, y + 2, GetCommitMenuItems(c.Id));
     }
 
     public void ShowStashMenu(int x = Menu.Center, int y = 0)
@@ -43,10 +43,10 @@ class CommitMenu : ICommitMenu
         var rb = repo.RowBranch;
         var cb = repo.Repo.CurrentBranch();
         var isStatusOK = repo.Repo.Status.IsOk;
-        var sid = RepoViewMenus.Sid(c.Id);
+        var sid = Sid(c.Id);
 
         return Menu.Items
-            .Items(repoViewMenus.GetNewReleaseItems())
+            .Items(repoMenu.GetNewReleaseItems())
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
             .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
@@ -62,7 +62,7 @@ class CommitMenu : ICommitMenu
             .SubMenu("Show/Open Branch", "Shift →", branchMenu.GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
-            .SubMenu("Repo Menu", "", repoViewMenus.GetRepoMenuItems());
+            .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
 
 
@@ -114,4 +114,6 @@ class CommitMenu : ICommitMenu
 
     IEnumerable<MenuItem> GetUncommittedFileItems() =>
         repo.Repo.GetUncommittedFiles().Select(f => Menu.Item(f, "", () => cmds.UndoUncommittedFile(f)));
+
+    public static string Sid(string id) => id == Repo.UncommittedId ? "uncommitted" : id.Sid();
 }

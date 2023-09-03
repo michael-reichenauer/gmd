@@ -21,15 +21,15 @@ class BranchMenu : IBranchMenu
     const int RecentCount = 15;
     const int MaxItemCount = 20;
 
-    readonly RepoViewMenus repoViewMenus;
+    readonly IRepoMenu repoMenu;
     readonly IRepo repo;
     readonly IRepoCommands cmds;
 
-    public BranchMenu(RepoViewMenus repoViewMenus, IRepo repo, IRepoCommands cmd)
+    public BranchMenu(IRepoMenu repoMenu, IRepo repo)
     {
-        this.repoViewMenus = repoViewMenus;
+        this.repoMenu = repoMenu;
         this.repo = repo;
-        this.cmds = cmd;
+        this.cmds = repo.Cmd;
     }
 
     public void Show(int x, int y, string branchName)
@@ -69,7 +69,7 @@ class BranchMenu : IBranchMenu
         var mergeToName = cb?.ShortNiceUniqueName() ?? "";
 
         return Menu.Items
-            .Items(repoViewMenus.GetNewReleaseItems())
+            .Items(repoMenu.GetNewReleaseItems())
             .Item(GetSwitchToBranchItem(branchName))
             .Item(!isCurrent, $"Merge to {mergeToName}", "E", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
@@ -87,7 +87,7 @@ class BranchMenu : IBranchMenu
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
-            .SubMenu("Repo Menu", "", repoViewMenus.GetRepoMenuItems());
+            .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
 
     MenuItem GetSwitchToBranchItem(string branchName)
