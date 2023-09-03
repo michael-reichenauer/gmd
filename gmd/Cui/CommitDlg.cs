@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 interface ICommitDlg
 {
-    bool Show(IRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string message);
+    bool Show(IViewRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string message);
 }
 
 class CommitDlg : ICommitDlg
@@ -14,7 +14,7 @@ class CommitDlg : ICommitDlg
     IReadOnlyList<Server.Commit>? commits;
     UITextView message = null!;
 
-    public bool Show(IRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
+    public bool Show(IViewRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
     {
         this.commits = commits;
         if (!isAmend && repo.Repo.Status.IsOk)
@@ -44,11 +44,11 @@ class CommitDlg : ICommitDlg
         return dlg.IsOK;
     }
 
-    private bool OnKey(IRepo repo, Key key)
+    private bool OnKey(IViewRepo repo, Key key)
     {
         if (key == (Key.D | Key.CtrlMask) || key == (Key.Space | Key.CtrlMask))
         {
-            repo.Cmd.ShowUncommittedDiff(true);
+            repo.Cmds.ShowUncommittedDiff(true);
             return true;
         }
         if (key == (Key.A | Key.CtrlMask))
@@ -86,7 +86,7 @@ class CommitDlg : ICommitDlg
         message.SetNeedsDisplay();
     }
 
-    static (string, string) ParseMessage(IRepo repo, bool isAmend)
+    static (string, string) ParseMessage(IViewRepo repo, bool isAmend)
     {
         string msg = repo.Repo.Status.MergeMessage;
 

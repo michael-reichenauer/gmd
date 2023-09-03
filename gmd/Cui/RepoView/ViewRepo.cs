@@ -2,10 +2,9 @@ using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
-
-interface IRepo
+interface IViewRepo
 {
-    IRepoCommands Cmd { get; }
+    IRepoCommands Cmds { get; }
 
     Repo Repo { get; }
 
@@ -18,17 +17,17 @@ interface IRepo
     IReadOnlyList<Branch> GetCommitBranches(bool isAll);
 }
 
-class RepoImpl : IRepo
+class ViewRepo : IViewRepo
 {
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IRepoCommands repoCommands;
     readonly Repo serverRepo;
 
-    internal RepoImpl(
+    internal ViewRepo(
         IRepoView repoView,
         Repo serverRepo,
-        Func<IRepo, Repo, IRepoView, IRepoCommands> newRepoCommands,
+        Func<IViewRepo, Repo, IRepoView, IRepoCommands> newRepoCommands,
         IGraphCreater graphService,
         IServer server)
     {
@@ -40,7 +39,7 @@ class RepoImpl : IRepo
     }
 
 
-    public IRepoCommands Cmd => repoCommands;
+    public IRepoCommands Cmds => repoCommands;
 
     public Repo Repo => serverRepo;
 
@@ -50,9 +49,7 @@ class RepoImpl : IRepo
 
     public Graph Graph { get; init; }
 
-
     public int CurrentIndex => Math.Min(repoView.CurrentIndex, serverRepo.ViewCommits.Count - 1);
-
 
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
         server.GetCommitBranches(Repo, RowCommit.Id, isAll);

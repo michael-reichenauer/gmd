@@ -2,6 +2,7 @@ using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
+using gmd.Server;
 using Terminal.Gui;
 
 
@@ -34,9 +35,9 @@ class RepoView : IRepoView
     static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
     static readonly int MaxRecentFolders = 10;
 
-    readonly Server.IServer server;
-    readonly Func<IRepoView, Server.Repo, IRepo> newViewRepo;
-    readonly Func<IRepo, IRepoViewMenus> newMenuService;
+    readonly IServer server;
+    readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
+    readonly Func<IViewRepo, IRepoViewMenus> newMenuService;
     readonly Config config;
     readonly IUpdater updater;
     readonly IRepoConfig repoConfig;
@@ -50,8 +51,8 @@ class RepoView : IRepoView
     readonly IRepoWriter repoWriter;
 
     // State data
-    IRepo repo; // Is set once the repo has been retrieved the first time in ShowRepo().
-    IRepoCommands Cmd => repo.Cmd;
+    IViewRepo repo; // Is set once the repo has been retrieved the first time in ShowRepo().
+    IRepoCommands Cmd => repo.Cmds;
     IRepoViewMenus menuService = null!;
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
@@ -65,10 +66,10 @@ class RepoView : IRepoView
     int hooverCurrentCommitIndex = -1;
 
     internal RepoView(
-        Server.IServer server,
+        IServer server,
         Func<View, int, IRepoWriter> newRepoWriter,
-        Func<IRepoView, Server.Repo, IRepo> newViewRepo,
-        Func<IRepo, IRepoViewMenus> newMenuService,
+        Func<IRepoView, Repo, IViewRepo> newViewRepo,
+        Func<IViewRepo, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
         IRepoConfig repoConfig,

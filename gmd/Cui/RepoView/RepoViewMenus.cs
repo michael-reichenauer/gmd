@@ -1,6 +1,5 @@
 using gmd.Common;
 using gmd.Cui.Common;
-using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
@@ -25,9 +24,9 @@ class RepoViewMenus : IRepoViewMenus
     readonly ICommitMenu commitMenu;
     readonly IBranchMenu branchMenu;
 
-    internal RepoViewMenus(IRepo repo, Config config, IConfigDlg configDlg)
+    internal RepoViewMenus(IViewRepo repo, Config config, IConfigDlg configDlg)
     {
-        repoMenu = new RepoMenu(repo, repo.Cmd, config, configDlg);
+        repoMenu = new RepoMenu(repo, repo.Cmds, config, configDlg);
         branchMenu = new BranchMenu(repoMenu, repo);
         commitMenu = new CommitMenu(repoMenu, branchMenu, repo);
     }
@@ -40,18 +39,14 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowCommitBranchesMenu(int x, int y) => branchMenu.ShowCommitBranchesMenu(x, y);
 
-
     public void ShowMergeFromMenu(int x = Menu.Center, int y = 0) => branchMenu.ShowMergeFromMenu(x, y);
 
     public void ShowOpenRepoMenu(int x = Menu.Center, int y = 0) => repoMenu.Show(x, y);
-
 
     public void ShowOpenBranchesMenu(int x = Menu.Center, int y = 0) => branchMenu.ShowOpenBranchesMenu(x, y);
 
     public void ShowStashMenu(int x = Menu.Center, int y = 0) => commitMenu.ShowStashMenu(x, y);
 
-
     public void ShowDiffBranchToMenu(int x, int y, string branchName) =>
         branchMenu.ShowDiffBranchToMenu(x, y, branchName);
-
 }

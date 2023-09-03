@@ -22,14 +22,14 @@ class BranchMenu : IBranchMenu
     const int MaxItemCount = 20;
 
     readonly IRepoMenu repoMenu;
-    readonly IRepo repo;
+    readonly IViewRepo repo;
     readonly IRepoCommands cmds;
 
-    public BranchMenu(IRepoMenu repoMenu, IRepo repo)
+    public BranchMenu(IRepoMenu repoMenu, IViewRepo repo)
     {
         this.repoMenu = repoMenu;
         this.repo = repo;
-        this.cmds = repo.Cmd;
+        this.cmds = repo.Cmds;
     }
 
     public void Show(int x, int y, string branchName)

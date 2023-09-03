@@ -5,7 +5,7 @@ namespace gmd.Cui.RepoView;
 
 interface IRepoWriter
 {
-    IEnumerable<Text> ToPage(IRepo repo, int firstRow, int rowCount, int currentIndex,
+    IEnumerable<Text> ToPage(IViewRepo repo, int firstRow, int rowCount, int currentIndex,
         string hooverBranchName, int hooverIndex, int width);
     bool IShowSid { get; set; }
 }
@@ -28,7 +28,7 @@ class RepoWriter : IRepoWriter
     public bool IShowSid { get; set; } = true;
 
 
-    public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex,
+    public IEnumerable<Text> ToPage(IViewRepo repo, int firstRow, int count, int currentIndex,
         string hooverBranchName, int hooverIndex, int width)
     {
         if (!repo.Repo.ViewCommits.Any() || count == 0) return new List<Text>();
@@ -69,7 +69,7 @@ class RepoWriter : IRepoWriter
         return rows;
     }
 
-    Columns ColumnWidths(IRepo repo, int width)
+    Columns ColumnWidths(IViewRepo repo, int width)
     {
         width++;
         int graphWidth = Math.Max(0, Math.Min(repo.Graph.Width, width - 20));
@@ -276,7 +276,7 @@ class RepoWriter : IRepoWriter
     }
 
 
-    IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IRepo repo)
+    IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IViewRepo repo)
     {
         var branchTips = new Dictionary<string, TextBuilder>();
 

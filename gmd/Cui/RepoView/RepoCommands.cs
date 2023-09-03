@@ -103,7 +103,7 @@ class RepoCommands : IRepoCommands
     readonly IUpdater updater;
     readonly IRepoConfig repoConfig;
     readonly IBranchColorService branchColorService;
-    readonly IRepo repo;
+    readonly IViewRepo repo;
     readonly Repo serverRepo;
     readonly IRepoView repoView;
 
@@ -111,7 +111,7 @@ class RepoCommands : IRepoCommands
     Server.Status Status => serverRepo.Status;
 
     internal RepoCommands(
-        IRepo repo,
+        IViewRepo repo,
         Repo serverRepo,
         IRepoView repoView,
         IServer server,

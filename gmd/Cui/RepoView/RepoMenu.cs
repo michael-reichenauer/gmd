@@ -15,12 +15,12 @@ interface IRepoMenu
 
 class RepoMenu : IRepoMenu
 {
-    readonly IRepo repo;
+    readonly IViewRepo repo;
     readonly IRepoCommands cmds;
     readonly Config config;
     readonly IConfigDlg configDlg;
 
-    public RepoMenu(IRepo repo, IRepoCommands cmd, Config config, IConfigDlg configDlg)
+    public RepoMenu(IViewRepo repo, IRepoCommands cmd, Config config, IConfigDlg configDlg)
     {
         this.repo = repo;
         this.cmds = cmd;

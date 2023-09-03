@@ -14,15 +14,15 @@ class CommitMenu : ICommitMenu
 {
     readonly IRepoMenu repoMenu;
     readonly IBranchMenu branchMenu;
-    readonly IRepo repo;
+    readonly IViewRepo repo;
     readonly IRepoCommands cmds;
 
-    public CommitMenu(IRepoMenu repoMenu, IBranchMenu branchMenu, IRepo repo)
+    public CommitMenu(IRepoMenu repoMenu, IBranchMenu branchMenu, IViewRepo repo)
     {
         this.repoMenu = repoMenu;
         this.branchMenu = branchMenu;
         this.repo = repo;
-        this.cmds = repo.Cmd;
+        this.cmds = repo.Cmds;
     }
 
     public void Show(int x, int y, int index)
