@@ -13,12 +13,14 @@ interface ICommitMenu
 class CommitMenu : ICommitMenu
 {
     readonly IRepoViewMenus repoViewMenus;
+    readonly IBranchMenu branchMenu;
     readonly IRepo repo;
     readonly IRepoCommands cmds;
 
-    public CommitMenu(IRepoViewMenus repoViewMenus, IRepo repo, IRepoCommands cmd)
+    public CommitMenu(IRepoViewMenus repoViewMenus, IBranchMenu branchMenu, IRepo repo, IRepoCommands cmd)
     {
         this.repoViewMenus = repoViewMenus;
+        this.branchMenu = branchMenu;
         this.repo = repo;
         this.cmds = cmd;
     }
@@ -57,7 +59,7 @@ class CommitMenu : ICommitMenu
             .Item("Switch to Commit", "", () => cmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id)
             .Separator()
-            .SubMenu("Show/Open Branch", "Shift →", repoViewMenus.GetShowBranchItems())
+            .SubMenu("Show/Open Branch", "Shift →", branchMenu.GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", repoViewMenus.GetRepoMenuItems());
