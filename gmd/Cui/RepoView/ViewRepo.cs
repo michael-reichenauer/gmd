@@ -9,6 +9,8 @@ interface IViewRepo
     IBranchCommands BranchCmds { get; }
 
     Repo Repo { get; }
+    string Path { get; }
+    Status Status { get; }
 
     Graph Graph { get; }
 
@@ -47,6 +49,8 @@ class ViewRepo : IViewRepo
         this.Graph = graphService.Create(serverRepo);
     }
 
+    public string Path => serverRepo.Path;
+    public Status Status => serverRepo.Status;
 
     public IRepoCommands Cmds => repoCommands;
     public ICommitCommands CommitCmds => commitCommands;

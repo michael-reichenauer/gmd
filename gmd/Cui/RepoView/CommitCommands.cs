@@ -14,6 +14,8 @@ interface ICommitCommands
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
     void ShowDiff(string commitId, bool isFromCommit = false);
+    void ShowFileHistory();
+
     void Stash();
     void StashPop(string name);
     void StashDiff(string name);
@@ -253,7 +255,7 @@ class CommitCommands : ICommitCommands
         var failedPath = new List<string>();
         foreach (var path in paths)
         {
-            if (!Try(out var _, await server.UndoUncommittedFileAsync(path, repo.Repo.Path)))
+            if (!Try(out var _, await server.UndoUncommittedFileAsync(path, RepoPath)))
             {
                 failedPath.Add(path);
             }
@@ -275,7 +277,7 @@ class CommitCommands : ICommitCommands
 
         if (!Try(out var tag, addTagDlg.Show())) return R.Ok;
 
-        if (!Try(out var e, await server.AddTagAsync(tag, commit.Id, isPushable, repo.Repo.Path)))
+        if (!Try(out var e, await server.AddTagAsync(tag, commit.Id, isPushable, RepoPath)))
         {
             return R.Error($"Failed to add tag {tag}", e);
         }
@@ -290,7 +292,7 @@ class CommitCommands : ICommitCommands
         var branch = repo.Repo.BranchByName[commit.BranchName];
         var isPushable = branch.IsRemote || branch.RemoteName != "";
 
-        if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, repo.Repo.Path)))
+        if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, RepoPath)))
         {
             return R.Error($"Failed to delete tag {name}", e);
         }
@@ -298,6 +300,30 @@ class CommitCommands : ICommitCommands
         RefreshAndFetch();
         return R.Ok;
     });
+
+
+    public void ShowFileHistory() => Do(async () =>
+    {
+        var commit = repo.RowCommit;
+        var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
+
+        if (!Try(out var files, out var e, await server.GetFileAsync(reference, RepoPath)))
+        {
+            return R.Error($"Failed to get files", e);
+        }
+
+        var browser = new FileBrowseDlg();
+        if (!Try(out var path, browser.Show(files))) return R.Ok;
+
+        if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, RepoPath)))
+        {
+            return R.Error($"Failed to show file history", e);
+        }
+
+        diffView.Show(diffs);
+        return R.Ok;
+    });
+
 
     void Do(Func<Task<R>> action)
     {
@@ -319,7 +345,7 @@ class CommitCommands : ICommitCommands
         var addAndModified = addFiles.Concat(repo.Repo.Status.ModifiedFiles)
             .Concat(repo.Repo.Status.RenamedTargetFiles).ToList();
 
-        var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(repo.Repo.Path, f))).ToList();
+        var binaryFiles = addAndModified.Where(f => !Files.IsText(Path.Join(RepoPath, f))).ToList();
 
         if (binaryFiles.Any())
         {

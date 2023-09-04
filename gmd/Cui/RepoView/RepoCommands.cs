@@ -1,21 +1,16 @@
 using gmd.Common;
 using gmd.Cui.Common;
-using gmd.Cui.Diff;
 using gmd.Installation;
 using gmd.Server;
 
-
 namespace gmd.Cui.RepoView;
-
-
 
 
 interface IRepoCommands
 {
     void ShowAbout();
     void ShowHelp();
-    void ShowFileHistory();
-    void Filter();
+    void SearchFilterRepo();
     void ShowBrowseDialog();
     void UpdateRelease();
     void Clone();
@@ -33,78 +28,49 @@ interface IRepoCommands
     void CopyCommitMessage();
 }
 
+
 class RepoCommands : IRepoCommands
 {
+    readonly IViewRepo repo;
+
+    readonly IRepoView repoView;
     readonly IServer server;
     readonly IProgress progress;
-    readonly ICommitDlg commitDlg;
     readonly ICloneDlg cloneDlg;
     readonly IInitRepoDlg initRepoDlg;
-    readonly ICreateBranchDlg createBranchDlg;
-    readonly IDeleteBranchDlg deleteBranchDlg;
-    readonly IAddTagDlg addTagDlg;
-    readonly ISetBranchDlg setBranchDlg;
     readonly IAboutDlg aboutDlg;
     readonly IHelpDlg helpDlg;
-    readonly IDiffView diffView;
     readonly Config config;
     readonly IUpdater updater;
-    readonly IRepoConfig repoConfig;
-    readonly IBranchColorService branchColorService;
-    readonly IViewRepo repo;
-    readonly Repo serverRepo;
-    readonly IRepoView repoView;
-
-    string RepoPath => serverRepo.Path;
-    Server.Status Status => serverRepo.Status;
 
     internal RepoCommands(
         IViewRepo repo,
         IRepoView repoView,
         IServer server,
         IProgress progress,
-        ICommitDlg commitDlg,
         ICloneDlg cloneDlg,
         IInitRepoDlg initRepoDlg,
-        ICreateBranchDlg createBranchDlg,
-        IDeleteBranchDlg deleteBranchDlg,
-        IAddTagDlg addTagDlg,
-        ISetBranchDlg setBranchDlg,
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
-        IDiffView diffView,
         Config config,
-        IUpdater updater,
-        IRepoConfig repoConfig,
-        IBranchColorService branchColorService)
+        IUpdater updater)
     {
         this.repo = repo;
-        this.serverRepo = repo.Repo;
         this.repoView = repoView;
         this.server = server;
         this.progress = progress;
-        this.commitDlg = commitDlg;
         this.cloneDlg = cloneDlg;
         this.initRepoDlg = initRepoDlg;
-        this.createBranchDlg = createBranchDlg;
-        this.deleteBranchDlg = deleteBranchDlg;
-        this.addTagDlg = addTagDlg;
-        this.setBranchDlg = setBranchDlg;
         this.aboutDlg = aboutDlg;
         this.helpDlg = helpDlg;
-        this.diffView = diffView;
         this.config = config;
         this.updater = updater;
-        this.repoConfig = repoConfig;
-        this.branchColorService = branchColorService;
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
     public void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null) =>
         repoView.RefreshAndCommit(addName, commitId, commits);
-
     public void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
-
 
 
     public void ShowRepo(string path) => Do(async () =>
@@ -130,6 +96,7 @@ class RepoCommands : IRepoCommands
    });
 
     public void ShowAbout() => aboutDlg.Show();
+
     public void ShowHelp() => helpDlg.Show();
 
 
@@ -138,7 +105,7 @@ class RepoCommands : IRepoCommands
         if (!Try(out var r, out var e, cloneDlg.Show(config.ResentParentFolders()))) return R.Ok;
         (var uri, var path) = r;
 
-        if (!Try(out e, await server.CloneAsync(uri, path, RepoPath)))
+        if (!Try(out e, await server.CloneAsync(uri, path, repo.Path)))
         {
             return R.Error($"Failed to clone", e);
         }
@@ -150,11 +117,12 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 
+
     public void InitRepo() => Do(async () =>
     {
         if (!Try(out var path, out var e, initRepoDlg.Show(config.ResentParentFolders()))) return R.Ok;
 
-        if (!Try(out e, await server.InitRepoAsync(path, RepoPath)))
+        if (!Try(out e, await server.InitRepoAsync(path, repo.Path)))
         {
             return R.Error($"Failed to init repo", e);
         }
@@ -167,8 +135,7 @@ class RepoCommands : IRepoCommands
     });
 
 
-
-    public void Filter() => Do(async () =>
+    public void SearchFilterRepo() => Do(async () =>
      {
          await Task.CompletedTask;
          repoView.ShowFilter();
@@ -176,12 +143,9 @@ class RepoCommands : IRepoCommands
      });
 
 
-    public bool CanUndoUncommitted() => !serverRepo.Status.IsOk;
-
-
     public void UndoAllUncommittedChanged() => Do(async () =>
     {
-        if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(RepoPath)))
+        if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(repo.Path)))
         {
             return R.Error($"Failed to undo all changes", e);
         }
@@ -189,6 +153,7 @@ class RepoCommands : IRepoCommands
         Refresh();
         return R.Ok;
     });
+
 
     public void CleanWorkingFolder() => Do(async () =>
     {
@@ -199,32 +164,12 @@ class RepoCommands : IRepoCommands
             return R.Ok;
         }
 
-        if (!Try(out var e, await server.CleanWorkingFolderAsync(RepoPath)))
+        if (!Try(out var e, await server.CleanWorkingFolderAsync(repo.Path)))
         {
             return R.Error($"Failed to clean working folder", e);
         }
 
         Refresh();
-        return R.Ok;
-    });
-
-
-    public void ShowFileHistory() => Do(async () =>
-    {
-        if (!Try(out var files, out var e, await GetFilesAsync()))
-        {
-            return R.Error($"Failed to get files", e);
-        }
-
-        var browser = new FileBrowseDlg();
-        if (!Try(out var path, browser.Show(files))) return R.Ok;
-
-        if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, RepoPath)))
-        {
-            return R.Error($"Failed to show file history", e);
-        }
-
-        diffView.Show(diffs);
         return R.Ok;
     });
 
@@ -292,12 +237,4 @@ class RepoCommands : IRepoCommands
 
         return R.Ok;
     });
-
-
-    async Task<R<IReadOnlyList<string>>> GetFilesAsync()
-    {
-        var commit = repo.RowCommit;
-        var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
-        return await server.GetFileAsync(reference, repo.Repo.Path);
-    }
 }

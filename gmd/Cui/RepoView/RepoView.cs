@@ -351,7 +351,7 @@ class RepoView : IRepoView
     void OnKeyF()
     {
         ClearHoover();
-        Cmd.Filter();
+        Cmd.SearchFilterRepo();
     }
 
     void OnApplicationClick(int x, int y, ApplicationBarItem item)
@@ -367,7 +367,7 @@ class RepoView : IRepoView
             case ApplicationBarItem.Ahead: repo.BranchCmds.PushAllBranches(); break;
             case ApplicationBarItem.BranchName: menuService.ShowOpenBranchMenu(x - 5, y); break;
             case ApplicationBarItem.Stash: menuService.ShowStashMenu(x - 5, y); break;
-            case ApplicationBarItem.Search: Cmd.Filter(); break;
+            case ApplicationBarItem.Search: Cmd.SearchFilterRepo(); break;
             case ApplicationBarItem.Help: Cmd.ShowHelp(); break;
             case ApplicationBarItem.Close: UI.Shutdown(); break;
         }

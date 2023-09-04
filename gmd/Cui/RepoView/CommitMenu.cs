@@ -61,7 +61,7 @@ class CommitMenu : ICommitMenu
             .Separator()
             .SubMenu("Show/Open Branch", "Shift →", branchMenu.GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
-            .Item("File History ...", "", () => repo.Cmds.ShowFileHistory())
+            .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
 
@@ -72,7 +72,7 @@ class CommitMenu : ICommitMenu
         var binaryPaths = repo.Repo.Status.AddedFiles
             .Concat(repo.Repo.Status.ModifiedFiles)
             .Concat(repo.Repo.Status.RenamedTargetFiles)
-            .Where(f => !Files.IsText(Path.Join(repo.Repo.Path, f)))
+            .Where(f => !Files.IsText(Path.Join(repo.Path, f)))
             .ToList();
 
         return Menu.Items
@@ -86,8 +86,8 @@ class CommitMenu : ICommitMenu
     }
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items
-        .Item("Stash Changes", "", () => cmds.Stash(), () => !repo.Repo.Status.IsOk)
-        .SubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Repo.Status.IsOk)
+        .Item("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk)
+        .SubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Status.IsOk)
         .SubMenu("Stash Diff", "", GetStashDiffItems())
         .SubMenu("Stash Drop", "", GetStashDropItems());
 
