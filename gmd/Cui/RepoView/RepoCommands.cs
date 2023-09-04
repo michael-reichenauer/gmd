@@ -11,7 +11,7 @@ interface IRepoCommands
     void ShowAbout();
     void ShowHelp();
     void SearchFilterRepo();
-    void ShowBrowseDialog();
+    void ShowBrowseRepoDialog();
     void UpdateRelease();
     void Clone();
     void InitRepo();
@@ -83,7 +83,7 @@ class RepoCommands : IRepoCommands
      });
 
 
-    public void ShowBrowseDialog() => Do(async () =>
+    public void ShowBrowseRepoDialog() => Do(async () =>
    {
        var browser = new FolderBrowseDlg();
        if (!Try(out var path, browser.Show(config.ResentParentFolders()))) return R.Ok;

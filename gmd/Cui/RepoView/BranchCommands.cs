@@ -3,8 +3,8 @@ using gmd.Cui.Common;
 using gmd.Cui.Diff;
 using gmd.Server;
 
-
 namespace gmd.Cui.RepoView;
+
 
 interface IBranchCommands
 {
@@ -80,7 +80,6 @@ class BranchCommands : IBranchCommands
         this.repoConfig = repoConfig;
     }
 
-    string RepoPath => repo.Repo.Path;
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 
     public void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null) =>
@@ -155,12 +154,12 @@ class BranchCommands : IBranchCommands
 
         message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
-        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha2, sha1, message, repo.Repo.Path)))
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha2, sha1, message, repo.Path)))
         {
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, sha1, repo.Repo.Path);
+        diffView.Show(diff, sha1, repo.Path);
         return R.Ok;
     });
 
@@ -183,19 +182,19 @@ class BranchCommands : IBranchCommands
             message = $"Diff '{repo.Repo.CurrentBranch().NiceName}' with '{branch.NiceName}'";
         }
 
-        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, RepoPath)))
+        if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, repo.Path)))
         {
             return R.Error($"Failed to get diff", e);
         }
 
-        diffView.Show(diff, sha1, repo.Repo.Path);
+        diffView.Show(diff, sha1, repo.Path);
         return R.Ok;
     });
 
 
     public void CherryPick(string id) => Do(async () =>
     {
-        if (!Try(out var e, await server.CherryPickAsync(id, RepoPath)))
+        if (!Try(out var e, await server.CherryPickAsync(id, repo.Path)))
         {
             return R.Error($"Failed to cherry pick {id.Sid()}", e);
         }
@@ -221,7 +220,7 @@ class BranchCommands : IBranchCommands
                     $"{remoteBranch.NiceNameUnique}");
         }
 
-        if (!Try(out var e, await server.PushBranchAsync(branch.Name, RepoPath)))
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
         {
             return R.Error($"Failed to push branch:\n{branch.Name}", e);
         }
@@ -235,7 +234,7 @@ class BranchCommands : IBranchCommands
     {
         var branch = repo.Repo.ViewBranches.First(b => b.IsCurrent);
 
-        if (!Try(out var e, await server.PushBranchAsync(branch.Name, RepoPath)))
+        if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
         {
             return R.Error($"Failed to publish branch:\n{branch.Name}", e);
         }
@@ -247,7 +246,7 @@ class BranchCommands : IBranchCommands
 
     public void PushBranch(string name) => Do(async () =>
     {
-        if (!Try(out var e, await server.PushBranchAsync(name, RepoPath)))
+        if (!Try(out var e, await server.PushBranchAsync(name, repo.Path)))
         {
             return R.Error($"Failed to push branch:\n{name}", e);
         }
@@ -286,7 +285,7 @@ class BranchCommands : IBranchCommands
         if (remoteBranch == null || !remoteBranch.HasRemoteOnly) return R.Error(
             "No remote changes on current branch to pull");
 
-        if (!Try(out var e, await server.PullCurrentBranchAsync(RepoPath)))
+        if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
         {
             return R.Error($"Failed to pull current branch", e);
         }
@@ -297,7 +296,7 @@ class BranchCommands : IBranchCommands
 
     public void PullBranch(string name) => Do(async () =>
     {
-        if (!Try(out var e, await server.PullBranchAsync(name, RepoPath)))
+        if (!Try(out var e, await server.PullBranchAsync(name, repo.Path)))
         {
             return R.Error($"Failed to pull branch {name}", e);
         }
@@ -329,7 +328,7 @@ class BranchCommands : IBranchCommands
 
         foreach (var b in branches)
         {
-            if (!Try(out var e, await server.PushBranchAsync(b.Name, RepoPath)))
+            if (!Try(out var e, await server.PushBranchAsync(b.Name, repo.Path)))
             {
                 Refresh();
                 return R.Error($"Failed to push branch {b.Name}", e);
@@ -350,7 +349,7 @@ class BranchCommands : IBranchCommands
         {
             Log.Info("Pull current");
             // Need to treat current branch separately
-            if (!Try(out var e, await server.PullCurrentBranchAsync(RepoPath)))
+            if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
             {
                 return R.Error($"Failed to pull current branch", e);
             }
@@ -364,7 +363,7 @@ class BranchCommands : IBranchCommands
         Log.Info($"Pull {string.Join(", ", branches)}");
         foreach (var b in branches)
         {
-            if (!Try(out var e, await server.PullBranchAsync(b.Name, RepoPath)))
+            if (!Try(out var e, await server.PullBranchAsync(b.Name, repo.Path)))
             {
                 Refresh();
                 return R.Error($"Failed to pull branch {b.Name}", e);
@@ -385,13 +384,13 @@ class BranchCommands : IBranchCommands
             var currentBranchName = repo.Repo.CurrentBranch().Name;
             if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, ""))) return R.Ok;
 
-            if (!Try(out var e, await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout, RepoPath)))
+            if (!Try(out var e, await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout, repo.Path)))
             {
                 return R.Error($"Failed to create branch {rsp.Name}", e);
             }
             branchName = rsp.Name;
 
-            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, RepoPath)))
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, repo.Path)))
             {
                 // The push error could be that repo has no remote origin, (local only)
                 if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
@@ -423,13 +422,13 @@ class BranchCommands : IBranchCommands
 
             if (!Try(out var rsp, createBranchDlg.Show(name, ""))) return R.Ok;
 
-            if (!Try(out var e, await server.CreateBranchFromBranchAsync(repo.Repo, rsp.Name, name, rsp.IsCheckout, RepoPath)))
+            if (!Try(out var e, await server.CreateBranchFromBranchAsync(repo.Repo, rsp.Name, name, rsp.IsCheckout, repo.Path)))
             {
                 return R.Error($"Failed to create branch {rsp.Name}", e);
             }
             branchName = rsp.Name;
 
-            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, RepoPath)))
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, repo.Path)))
             {   // The push error could be that repo has no remote origin, (local only)
                 if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
                 {   // The push error is that repo has no remote origin, (local repo only)
@@ -460,13 +459,13 @@ class BranchCommands : IBranchCommands
             if (!Try(out var rsp, createBranchDlg.Show(commitBranchName, commit.Sid))) return R.Ok;
 
             if (!Try(out var e,
-                await server.CreateBranchFromCommitAsync(repo.Repo, rsp.Name, commit.Id, rsp.IsCheckout, RepoPath)))
+                await server.CreateBranchFromCommitAsync(repo.Repo, rsp.Name, commit.Id, rsp.IsCheckout, repo.Path)))
             {
                 return R.Error($"Failed to create branch {rsp.Name}", e);
             }
             branchName = rsp.Name;
 
-            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, RepoPath)))
+            if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repo.Path)))
             {   // The push error could be that repo has no remote origin, (local only)
                 if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
                 {   // The push error is that repo has no remote origin, (local repo only)
@@ -525,7 +524,7 @@ class BranchCommands : IBranchCommands
                 return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
             }
 
-            if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, RepoPath)))
+            if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repo.Path)))
             {
                 return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
             }
@@ -539,7 +538,7 @@ class BranchCommands : IBranchCommands
             {
                 return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
             }
-            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, RepoPath)))
+            if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repo.Path)))
             {
                 return R.Error($"Failed to delete local branch {localBranch.Name}", e);
             }
@@ -596,7 +595,7 @@ class BranchCommands : IBranchCommands
     {
         await Task.Yield();
 
-        repoConfig.Set(RepoPath, s =>
+        repoConfig.Set(repo.Path, s =>
         {
             // Filter existing branch orders for the two branches
             var branchOrders = s.BranchOrders.Where(b =>
@@ -620,7 +619,7 @@ class BranchCommands : IBranchCommands
     public void SwitchToCommit() => Do(async () =>
     {
         var commit = repo.RowCommit;
-        if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, RepoPath)))
+        if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, repo.Path)))
         {
             return R.Error($"Failed to switch to commit {commit.Id}", e);
         }

@@ -64,7 +64,7 @@ class RepoMenu : IRepoMenu
     IEnumerable<MenuItem> GetOpenRepoItems() => Menu.Items
         .Items(GetRecentRepoItems())
         .Separator()
-        .Item("Browse ...", "", () => cmds.ShowBrowseDialog())
+        .Item("Browse ...", "", () => cmds.ShowBrowseRepoDialog())
         .Item("Clone ...", "", () => cmds.Clone())
         .Item("Init ...", "", () => cmds.InitRepo());
 
