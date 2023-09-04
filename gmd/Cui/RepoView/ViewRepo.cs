@@ -5,6 +5,8 @@ namespace gmd.Cui.RepoView;
 interface IViewRepo
 {
     IRepoCommands Cmds { get; }
+    ICommitCommands CommitCmds { get; }
+    IBranchCommands BranchCmds { get; }
 
     Repo Repo { get; }
 
@@ -22,32 +24,41 @@ class ViewRepo : IViewRepo
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IRepoCommands repoCommands;
+    readonly ICommitCommands commitCommands;
+    readonly IBranchCommands branchCommands;
     readonly Repo serverRepo;
 
     internal ViewRepo(
         IRepoView repoView,
         Repo serverRepo,
-        Func<IViewRepo, Repo, IRepoView, IRepoCommands> newRepoCommands,
+        Func<IViewRepo, IRepoView, IRepoCommands> newRepoCommands,
+        Func<IViewRepo, IRepoView, ICommitCommands> newCommitCommands,
+        Func<IViewRepo, IRepoView, IBranchCommands> newBranchCommands,
         IGraphCreater graphService,
         IServer server)
     {
         this.repoView = repoView;
         this.serverRepo = serverRepo;
-        this.repoCommands = newRepoCommands(this, serverRepo, repoView);
+        this.repoCommands = newRepoCommands(this, repoView);
+        this.commitCommands = newCommitCommands(this, repoView);
+        this.branchCommands = newBranchCommands(this, repoView);
         this.server = server;
+
         this.Graph = graphService.Create(serverRepo);
     }
 
 
     public IRepoCommands Cmds => repoCommands;
+    public ICommitCommands CommitCmds => commitCommands;
+    public IBranchCommands BranchCmds => branchCommands;
 
     public Repo Repo => serverRepo;
+    public Graph Graph { get; init; }
 
     public Commit RowCommit => serverRepo.ViewCommits[CurrentIndex];
     public Branch RowBranch => serverRepo.BranchByName[RowCommit.BranchName];
 
 
-    public Graph Graph { get; init; }
 
     public int CurrentIndex => Math.Min(repoView.CurrentIndex, serverRepo.ViewCommits.Count - 1);
 

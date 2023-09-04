@@ -23,13 +23,13 @@ class BranchMenu : IBranchMenu
 
     readonly IRepoMenu repoMenu;
     readonly IViewRepo repo;
-    readonly IRepoCommands cmds;
+    readonly IBranchCommands cmds;
 
     public BranchMenu(IRepoMenu repoMenu, IViewRepo repo)
     {
         this.repoMenu = repoMenu;
         this.repo = repo;
-        this.cmds = repo.Cmds;
+        this.cmds = repo.BranchCmds;
     }
 
     public void Show(int x, int y, string branchName)
