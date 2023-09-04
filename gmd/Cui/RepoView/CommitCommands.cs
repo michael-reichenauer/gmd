@@ -34,16 +34,15 @@ interface ICommitCommands
 }
 
 
-
 class CommitCommands : ICommitCommands
 {
-    private readonly IProgress progress;
-    private readonly IViewRepo repo;
-    private readonly IServer server;
-    private readonly ICommitDlg commitDlg;
-    private readonly IDiffView diffView;
-    private readonly IAddTagDlg addTagDlg;
-    private readonly IRepoView repoView;
+    readonly IProgress progress;
+    readonly IViewRepo repo;
+    readonly IServer server;
+    readonly ICommitDlg commitDlg;
+    readonly IDiffView diffView;
+    readonly IAddTagDlg addTagDlg;
+    readonly IRepoView repoView;
 
     public CommitCommands(
         IProgress progress,

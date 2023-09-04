@@ -45,16 +45,16 @@ interface IBranchCommands
 
 class BranchCommands : IBranchCommands
 {
-    private readonly IViewRepo repo;
-    private readonly IProgress progress;
-    private readonly IRepoView repoView;
-    private readonly IServer server;
-    private readonly IDiffView diffView;
-    private readonly ICreateBranchDlg createBranchDlg;
-    private readonly IDeleteBranchDlg deleteBranchDlg;
-    private readonly IBranchColorService branchColorService;
-    private readonly ISetBranchDlg setBranchDlg;
-    private readonly IRepoConfig repoConfig;
+    readonly IViewRepo repo;
+    readonly IProgress progress;
+    readonly IRepoView repoView;
+    readonly IServer server;
+    readonly IDiffView diffView;
+    readonly ICreateBranchDlg createBranchDlg;
+    readonly IDeleteBranchDlg deleteBranchDlg;
+    readonly IBranchColorService branchColorService;
+    readonly ISetBranchDlg setBranchDlg;
+    readonly IRepoConfig repoConfig;
 
     public BranchCommands(
         IViewRepo repo,
