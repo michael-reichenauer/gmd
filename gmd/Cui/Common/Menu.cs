@@ -42,11 +42,11 @@ class Menu
 
     // Creating menu helpers
     public static ICollection<MenuItem> Items => new List<MenuItem>();
-    public static MenuItem Item(string title, string shortcut, Action action, Func<bool>? canExecute = null) =>
-        new MenuItem(title, shortcut, action, canExecute);
+    public static MenuItem Item(string text, string shortcut, Action action, Func<bool>? canExecute = null) =>
+        new MenuItem(text, shortcut, action, canExecute);
     public static MenuItem Separator(string text = "") => new MenuSeparator(text);
-    public static MenuItem SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
-        new SubMenu(title, shortcut, children, canExecute);
+    public static MenuItem SubMenu(string text, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null) =>
+        new SubMenu(text, shortcut, children, canExecute);
 
 
     public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)

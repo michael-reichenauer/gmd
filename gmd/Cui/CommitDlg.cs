@@ -1,11 +1,12 @@
 using gmd.Cui.Common;
 using Terminal.Gui;
+using gmd.Cui.RepoView;
 
 namespace gmd.Cui;
 
 interface ICommitDlg
 {
-    bool Show(IRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string message);
+    bool Show(IViewRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string message);
 }
 
 class CommitDlg : ICommitDlg
@@ -13,10 +14,10 @@ class CommitDlg : ICommitDlg
     IReadOnlyList<Server.Commit>? commits;
     UITextView message = null!;
 
-    public bool Show(IRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
+    public bool Show(IViewRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
     {
         this.commits = commits;
-        if (!isAmend && repo.Status.IsOk)
+        if (!isAmend && repo.Repo.Status.IsOk)
         {
             commitMessage = "";
             return false;
@@ -24,8 +25,8 @@ class CommitDlg : ICommitDlg
 
         (string subjectPart, string messagePart) = ParseMessage(repo, isAmend);
 
-        var commit = repo.Commits[0];
-        int filesCount = repo.Status.ChangesCount;
+        var commit = repo.Repo.ViewCommits[0];
+        int filesCount = repo.Repo.Status.ChangesCount;
         string branchName = commit.BranchName;
         var title = isAmend ? "Amend" : "Commit";
 
@@ -43,11 +44,11 @@ class CommitDlg : ICommitDlg
         return dlg.IsOK;
     }
 
-    private bool OnKey(IRepo repo, Key key)
+    private bool OnKey(IViewRepo repo, Key key)
     {
         if (key == (Key.D | Key.CtrlMask) || key == (Key.Space | Key.CtrlMask))
         {
-            repo.Cmd.ShowUncommittedDiff(true);
+            repo.CommitCmds.ShowUncommittedDiff(true);
             return true;
         }
         if (key == (Key.A | Key.CtrlMask))
@@ -85,13 +86,13 @@ class CommitDlg : ICommitDlg
         message.SetNeedsDisplay();
     }
 
-    static (string, string) ParseMessage(IRepo repo, bool isAmend)
+    static (string, string) ParseMessage(IViewRepo repo, bool isAmend)
     {
-        string msg = repo.Status.MergeMessage;
+        string msg = repo.Repo.Status.MergeMessage;
 
         if (isAmend)
         {
-            var c = repo.GetCurrentCommit();
+            var c = repo.Repo.CurrentCommit();
             msg = c.Message;
         }
 
