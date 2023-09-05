@@ -167,11 +167,12 @@ partial class MainView : IMainView
     public async Task UpdateRelease()
     {
         var releases = config.Releases;
+        var latest = Version.Parse(releases.LatestVersion);
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available.\n\n" +
-            $"Current Version: {Build.Version()}\n" +
+            $"Current Version: {Build.Version().Txt()}\n" +
             $"Built:           {Build.Time().Iso()}\n\n" +
-            $"New Version:     {releases.LatestVersion} {typeText}\n" +
+            $"New Version:     {latest.Txt()} {typeText}\n" +
             $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
             "Do you want to update?";
 

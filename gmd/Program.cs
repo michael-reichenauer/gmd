@@ -10,7 +10,7 @@ class Program
 {
     // Current major.minor version
     public const int MajorVersion = 0;
-    public const int MinorVersion = 90;
+    public const int MinorVersion = 91;
 
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;

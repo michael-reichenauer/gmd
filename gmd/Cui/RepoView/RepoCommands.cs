@@ -179,11 +179,12 @@ class RepoCommands : IRepoCommands
         await Task.Yield();
 
         var releases = config.Releases;
+        var latest = Version.Parse(releases.LatestVersion);
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available.\n\n" +
-            $"Current Version: {Build.Version()}\n" +
+            $"Running Version: {Build.Version().Txt()}\n" +
             $"Built:           {Build.Time().Iso()}\n\n" +
-            $"New Version:     {releases.LatestVersion} {typeText}\n" +
+            $"New Version:     {latest.Txt()} {typeText}\n" +
             $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
             "Do you want to update?";
 
@@ -196,9 +197,8 @@ class RepoCommands : IRepoCommands
         Log.Info($"Updating release ...");
         if (!Try(out var _, out var e, await updater.UpdateAsync())) return e;
 
-        UI.InfoMessage("Restart Required", "A program restart is required,\nplease start gmd again.");
+        UI.InfoMessage("Restart Required", "A program restart is required after update,\nplease start gmd again.");
         UI.Shutdown();
-
         return R.Ok;
     });
 
