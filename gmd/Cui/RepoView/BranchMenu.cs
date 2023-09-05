@@ -12,6 +12,7 @@ interface IBranchMenu
     void ShowCommitBranchesMenu(int x, int y);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
 
+    IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false);
     IEnumerable<MenuItem> GetShowBranchItems();
 }
 
@@ -59,7 +60,7 @@ class BranchMenu : IBranchMenu
     }
 
 
-    IEnumerable<MenuItem> GetBranchMenuItems(string branchName)
+    public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
     {
         var c = repo.RowCommit;
         var b = repo.Repo.BranchByName[branchName];
@@ -82,12 +83,12 @@ class BranchMenu : IBranchMenu
             .Item("Change Branch Color", "G", () => cmds.ChangeBranchColor(branchName), () => !repo.Repo.BranchByName[branchName].IsMainBranch)
             .Items(GetMoveBranchItems(branchName))
             .Separator()
-            .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
+            .SubMenu(!isLimited, "Show/Open Branch", "Shift →", GetShowBranchItems())
             .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
-            .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
+            .SubMenu(!isLimited, "Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
 
     MenuItem GetSwitchToBranchItem(string branchName)

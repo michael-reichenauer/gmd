@@ -19,8 +19,8 @@ interface IRepoView
 
     Task<R> ShowInitialRepoAsync(string path);
     Task<R> ShowRepoAsync(string path);
-    void UpdateRepoTo(Server.Repo repo, string branchName = "");
-    void UpdateRepoToAtCommit(Server.Repo repo, string commitId);
+    void UpdateRepoTo(Repo repo, string branchName = "");
+    void UpdateRepoToAtCommit(Repo repo, string commitId);
     void Refresh(string addName = "", string commitId = "");
     void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null);
     void RefreshAndFetch(string addName = "", string commitId = "");

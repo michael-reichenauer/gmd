@@ -59,11 +59,17 @@ class CommitMenu : ICommitMenu
             .Item("Switch to Commit", "", () => repo.BranchCmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id)
             .Separator()
+            .SubMenu("Branches Menus", "", GetBranchesMenusItems())
             .SubMenu("Show/Open Branch", "Shift →", branchMenu.GetShowBranchItems())
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
+
+    IEnumerable<MenuItem> GetBranchesMenusItems() =>
+        repo.Repo.ViewBranches
+        .DistinctBy(b => b.PrimaryName)
+        .Select(b => Menu.SubMenu(b.NiceNameUnique, "", branchMenu.GetBranchMenuItems(b.PrimaryName, true)));
 
 
     IEnumerable<MenuItem> GetCommitUndoItems()
