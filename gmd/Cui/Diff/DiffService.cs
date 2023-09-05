@@ -18,7 +18,7 @@ class DiffService : IDiffService
 {
     const int maxLineDiffsCount = 4;
     const string diffMargin = "┃"; // │ ┃ ;
-    public static readonly Text NoLine = Text.Dark(new string('░', 100));
+    public static readonly Text NoLine = Text.Dark(new string('░', 300));
 
     public DiffRows ToDiffRows(CommitDiff commitDiff)
     {

@@ -1,11 +1,11 @@
 using gmd.Cui.Common;
 using gmd.Server;
 
-namespace gmd.Cui;
+namespace gmd.Cui.RepoView;
 
 interface IRepoWriter
 {
-    IEnumerable<Text> ToPage(IRepo repo, int firstRow, int rowCount, int currentIndex,
+    IEnumerable<Text> ToPage(IViewRepo repo, int firstRow, int rowCount, int currentIndex,
         string hooverBranchName, int hooverIndex, int width);
     bool IShowSid { get; set; }
 }
@@ -28,25 +28,25 @@ class RepoWriter : IRepoWriter
     public bool IShowSid { get; set; } = true;
 
 
-    public IEnumerable<Text> ToPage(IRepo repo, int firstRow, int count, int currentIndex,
+    public IEnumerable<Text> ToPage(IViewRepo repo, int firstRow, int count, int currentIndex,
         string hooverBranchName, int hooverIndex, int width)
     {
-        if (!repo.Commits.Any() || count == 0) return new List<Text>();
-        count = Math.Min(count, repo.Commits.Count - firstRow);
+        if (!repo.Repo.ViewCommits.Any() || count == 0) return new List<Text>();
+        count = Math.Min(count, repo.Repo.ViewCommits.Count - firstRow);
 
         List<Text> rows = new List<Text>();
         var branchTips = GetBranchTips(repo);
 
         var crc = repo.RowCommit;
-        var crb = repo.BranchByName(crc.BranchName);
-        var isUncommitted = !repo.Status.IsOk;
+        var crb = repo.Repo.BranchByName[crc.BranchName];
+        var isUncommitted = !repo.Repo.Status.IsOk;
         var isBranchDetached = crb.IsDetached;
         Columns cw = ColumnWidths(repo, width);
 
         // Branch? prevBranch = null;
         for (int i = firstRow; i < firstRow + count; i++)
         {
-            var c = repo.Commits[i];
+            var c = repo.Repo.ViewCommits[i];
 
             // Build row
             var graphText = new TextBuilder();
@@ -69,7 +69,7 @@ class RepoWriter : IRepoWriter
         return rows;
     }
 
-    Columns ColumnWidths(IRepo repo, int width)
+    Columns ColumnWidths(IViewRepo repo, int width)
     {
         width++;
         int graphWidth = Math.Max(0, Math.Min(repo.Graph.Width, width - 20));
@@ -132,12 +132,7 @@ class RepoWriter : IRepoWriter
             text.White("*");
             return;
         }
-        if (c.Id == Repo.UncommittedId)
-        {   // There are uncommitted changes, so the current marker is at the uncommitted commit
-            text.Yellow("©");
-            return;
-        }
-        if (c.IsCurrent && !isUncommitted)
+        if (c.IsCurrent)
         {   // No uncommitted changes, so the is shown at the current commit
             text.White("●");
             return;
@@ -148,18 +143,10 @@ class RepoWriter : IRepoWriter
 
     static void WriteAheadBehindMarker(TextBuilder text, Commit c)
     {
-        if (c.IsAhead)
-        {
-            text.BrightGreen("▲");
-            return;
-        }
-        if (c.IsBehind)
-        {
-            text.BrightBlue("▼");
-            return;
-        }
-
-        text.Black(" ");
+        if (c.IsAhead) text.BrightGreen("▲");
+        else if (c.IsBehind) text.BrightBlue("▼");
+        else if (c.IsUncommitted) text.Yellow("©");
+        else text.Black(" ");
     }
 
     static void WriteSubjectColumn(TextBuilder text, Columns cw, Commit c, Branch currentRowBranch,
@@ -225,11 +212,12 @@ class RepoWriter : IRepoWriter
     {
         var text = new TextBuilder();
 
-        if (c.IsConflicted) { text.BrightRed(c.Subject); }
+        if (c.Id == Repo.EmptyRepoCommitId) { text.Dark(c.Subject); }
+        else if (c.IsConflicted) { text.BrightRed(c.Subject); }
         else if (c.IsUncommitted) { text.BrightYellow(c.Subject); }
         else if (c.IsAhead) { text.BrightGreen(c.Subject); }
         else if (c.IsBehind) { text.BrightBlue(c.Subject); }
-        else if (c.Id == Repo.TruncatedLogCommitID) { text.Dark(c.Subject); }
+        else if (c.Id == Repo.TruncatedLogCommitId) { text.Dark(c.Subject); }
         else if (c.BranchPrimaryName == currentRowBranch.PrimaryName) { text.White(c.Subject); }
         else { text.Dark(c.Subject); }
 
@@ -275,11 +263,11 @@ class RepoWriter : IRepoWriter
     }
 
 
-    IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IRepo repo)
+    IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IViewRepo repo)
     {
         var branchTips = new Dictionary<string, TextBuilder>();
 
-        foreach (var b in repo.Branches)
+        foreach (var b in repo.Repo.ViewBranches)
         {
             if (!branchTips.TryGetValue(b.TipId, out var tipText))
             {   //  Commit has no tip yet, crating tip text
@@ -306,7 +294,7 @@ class RepoWriter : IRepoWriter
                 {
                     if (b.LocalName != "")
                     {
-                        var local = repo.Branches.First(bb => bb.Name == b.LocalName);
+                        var local = repo.Repo.ViewBranches.First(bb => bb.Name == b.LocalName);
                         if (local.TipId == b.TipId)
                         {
                             // Both local and remote tips on same commit, combine them
@@ -333,7 +321,7 @@ class RepoWriter : IRepoWriter
                 {
                     if (b.RemoteName != "")
                     {
-                        var remote = repo.Branches.First(bb => bb.Name == b.RemoteName);
+                        var remote = repo.Repo.ViewBranches.First(bb => bb.Name == b.RemoteName);
                         if (remote.TipId == b.TipId)
                         {   // Both local and remote tips on same commit, handled by the remote branch
                             continue;
