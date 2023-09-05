@@ -325,12 +325,20 @@ class DiffView : IDiffView
 
         // The left and right text is shown side by side with a gray vertical line char in between
         var left = (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffService.NoLine) ?
-            row.Left.Subtext(rowStartX, columnWidth, true) :
-            row.Left.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
+            row.Left != DiffService.NoLine && rowStartX > 0 ?
+                Text.Dark("…").Add(row.Left.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText() :
+                row.Left.Subtext(rowStartX, columnWidth, true) :
+            row.Left != DiffService.NoLine && rowStartX > 0 ?
+                Text.Dark("…").Add(row.Left.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…"))) :
+                row.Left.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         var right = (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffService.NoLine) ?
-            row.Right.Subtext(rowStartX, columnWidth, true) :
-            row.Right.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
+            row.Right != DiffService.NoLine && rowStartX > 0 ?
+                Text.Dark("…").Add(row.Right.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText() :
+                row.Right.Subtext(rowStartX, columnWidth, true) :
+            row.Right != DiffService.NoLine && rowStartX > 0 ?
+                Text.Dark("…").Add(row.Right.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…"))) :
+                row.Right.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         return Text
             .Add(isSelectedRow && isFocusLeft ? left.ToSelect() : isCurrentRow && isFocusLeft ? left.ToHighlight() : left)
