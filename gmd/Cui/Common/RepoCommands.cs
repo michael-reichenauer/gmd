@@ -171,11 +171,8 @@ class RepoCommands : IRepoCommands
 
     public void ShowBrowseDialog() => Do(async () =>
    {
-       // Parent folders to recent work folders, usually other repos there as well
-       var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
-
        var browser = new FolderBrowseDlg();
-       if (!Try(out var path, browser.Show(recentFolders))) return R.Ok;
+       if (!Try(out var path, browser.Show(config.ResentParentFolders()))) return R.Ok;
 
        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
        {
@@ -226,10 +223,7 @@ class RepoCommands : IRepoCommands
 
     public void Clone() => Do(async () =>
     {
-        // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
-
-        if (!Try(out var r, out var e, cloneDlg.Show(recentFolders))) return R.Ok;
+        if (!Try(out var r, out var e, cloneDlg.Show(config.ResentParentFolders()))) return R.Ok;
         (var uri, var path) = r;
 
         if (!Try(out e, await server.CloneAsync(uri, path, RepoPath)))
@@ -246,10 +240,7 @@ class RepoCommands : IRepoCommands
 
     public void InitRepo() => Do(async () =>
     {
-        // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
-
-        if (!Try(out var path, out var e, initRepoDlg.Show(recentFolders))) return R.Ok;
+        if (!Try(out var path, out var e, initRepoDlg.Show(config.ResentParentFolders()))) return R.Ok;
 
         if (!Try(out e, await server.InitRepoAsync(path, RepoPath)))
         {
@@ -1179,4 +1170,3 @@ class RepoCommands : IRepoCommands
         return R.Ok;
     });
 }
-

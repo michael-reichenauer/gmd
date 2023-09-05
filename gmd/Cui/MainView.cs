@@ -239,9 +239,7 @@ partial class MainView : IMainView
 
     async void ShowCloneDlg()
     {
-        // Parent folders to recent work folders, usually other repos there as well
-        var recentParentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
-        if (!Try(out var r, out var e, cloneDlg.Show(recentParentFolders)))
+        if (!Try(out var r, out var e, cloneDlg.Show(config.ResentParentFolders())))
         {
             ShowMainMenu();
             return;
@@ -262,9 +260,7 @@ partial class MainView : IMainView
 
     async void ShowInitRepoDlg()
     {
-        // Parent folders to recent work folders, usually other repos there as well
-        var recentParentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
-        if (!Try(out var path, out var e, initRepoDlg.Show(recentParentFolders)))
+        if (!Try(out var path, out var e, initRepoDlg.Show(config.ResentParentFolders())))
         {
             ShowMainMenu();
             return;
@@ -284,11 +280,8 @@ partial class MainView : IMainView
 
     void ShowBrowseDialog()
     {
-        // Parent folders to recent work folders, usually other repos there as well
-        var recentFolders = config.RecentParentFolders.Where(Directory.Exists).ToList();
-
         var browser = new FolderBrowseDlg();
-        if (!Try(out var path, browser.Show(recentFolders)))
+        if (!Try(out var path, browser.Show(config.ResentParentFolders())))
         {
             ShowMainMenu();
             return;

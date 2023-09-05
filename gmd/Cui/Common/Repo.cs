@@ -86,7 +86,15 @@ class RepoImpl : IRepo
     }
 
     public Branch GetCurrentBranch() => GetAllBranches().First(b => b.IsCurrent);
-    public Commit GetCurrentCommit() => serverRepo.CommitById[GetCurrentBranch().TipId];
+    public Commit GetCurrentCommit()
+    {
+        var c = serverRepo.CommitById[GetCurrentBranch().TipId];
+        if (c.IsUncommitted && c.ParentIds.Count > 0)
+        {
+            c = serverRepo.CommitById[c.ParentIds[0]];
+        }
+        return c;
+    }
 
     public IReadOnlyList<Branch> GetAllBranches() => serverRepo.AllBranches.ToList();
 

@@ -4,7 +4,7 @@ namespace gmd.Common;
 [SingleInstance]
 class Config
 {
-    private readonly Lazy<IConfigService>? configService;
+    readonly Lazy<IConfigService>? configService;
 
     // User config values
     public bool CheckUpdates { get; set; } = true;
@@ -13,16 +13,13 @@ class Config
 
     // Values managed by app
     public List<string> RecentFolders { get; set; } = new List<string>();
-    public List<string> RecentParentFolders { get; set; } = new List<string>();
     public Releases Releases { get; set; } = new Releases();
     public string GitVersion { get; set; } = "";
 
 
     // Constructor used when deserializing Config, the values are copied to the single instance
     // by the IConfigService
-    public Config()
-    {
-    }
+    public Config() { }
 
     // Constructor used by Dependency Injection for this single instance 
     public Config(Lazy<IConfigService> configService) => this.configService = configService;
@@ -71,4 +68,17 @@ public class Releases
         }
         return v1 > v2;
     }
+}
+
+// Some Config utility functions, these are not part of the Config class because Config 
+// is dto serializable, and should be kept as simple as possible
+internal static class ConfigExtensions
+{
+    // ResentParentFolders returns the most recent working folders parents
+    internal static IReadOnlyList<string> ResentParentFolders(this Config config) =>
+        config.RecentFolders
+        .Select(f => Path.GetDirectoryName(f)!)
+        .Distinct()
+        .Where(f => f != null && Directory.Exists(f))
+        .ToList();
 }

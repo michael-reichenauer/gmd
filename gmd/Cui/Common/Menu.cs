@@ -163,7 +163,7 @@ class Menu
         var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0;  // Include space before 
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
 
-        var itemTextWidth = items.Any() ? items.Max(i => i.Title.Length) : 5;
+        var itemTextWidth = items.Any() ? items.Max(i => i.Text.Length) : 5;
 
         // Calculate view width based on title, shortcut, sub menu marker and scrollbar
         var totalItemsWidth = itemTextWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
@@ -218,13 +218,13 @@ class Menu
 
             // Title text might need to be truncated
             var text = new TextBuilder();
-            if (item.Title.Length > dimensions.TitleWidth)
+            if (item.Text.Length > dimensions.TitleWidth)
             {
-                text.Color(titleColor, item.Title.Max(dimensions.TitleWidth - 1, true)).Dark("…");
+                text.Color(titleColor, item.Text.Max(dimensions.TitleWidth - 1, true)).Dark("…");
             }
             else
             {
-                text.Color(titleColor, item.Title.Max(dimensions.TitleWidth, true));
+                text.Color(titleColor, item.Text.Max(dimensions.TitleWidth, true));
             }
 
             // Shortcut
@@ -251,21 +251,21 @@ class Menu
 
     string ToSeparatorText(MenuSeparator item)
     {
-        string title = item.Title;
+        string text = item.Text;
         var width = dimensions.Width - 2;
         var scrollbarWidth = items.Count + 2 > dimensions.Height ? 0 : 1;
-        if (title == "")
+        if (text == "")
         {   // Just a line ----
-            title = new string('─', dimensions.Width - 2 + scrollbarWidth);
+            text = new string('─', dimensions.Width - 2 + scrollbarWidth);
         }
         else
         {   // A line with text, e.g. '-- text ------
-            title = title.Max(width - 5);
-            string suffix = new string('─', Math.Max(0, width - title.Length - 5 + scrollbarWidth));
-            title = $"╴{title} {suffix}──";
+            text = text.Max(width - 5);
+            string suffix = new string('─', Math.Max(0, width - text.Length - 5 + scrollbarWidth));
+            text = $"╴{text} {suffix}──";
         }
 
-        return title;
+        return text;
     }
 
 
@@ -401,7 +401,8 @@ class Menu
             var x = dimensions.X + dimensions.Width;
             var y = dimensions.Y + (itemsView.CurrentIndex - itemsView.FirstIndex);
 
-            childSubMenu = new Menu(x, y, sm.Title, this, dimensions.X, null);
+            var title = sm.Text.Trim();
+            childSubMenu = new Menu(x, y, title, this, dimensions.X, null);
             childSubMenuIndex = itemsView.CurrentIndex;
             isFocus = false;
             childSubMenu.Show(sm.Children);
@@ -435,7 +436,7 @@ class Menu
 
 
 // A normal menu item and base class for SubMenu and MenuSeparator
-record MenuItem(string Title, string Shortcut, Action Action, Func<bool>? CanExecute = null)
+record MenuItem(string Text, string Shortcut, Action Action, Func<bool>? CanExecute = null)
 {
     public bool IsDisabled { get; init; }
 }
@@ -444,8 +445,8 @@ record MenuItem(string Title, string Shortcut, Action Action, Func<bool>? CanExe
 // To create a sub menu
 record SubMenu : MenuItem
 {
-    public SubMenu(string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
-        : base(title, shortcut, () => { }, canExecute)
+    public SubMenu(string text, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+        : base(text, shortcut, () => { }, canExecute)
     {
         Children = children;
     }
@@ -457,8 +458,8 @@ record SubMenu : MenuItem
 // To create a menu separator line or header line
 record MenuSeparator : MenuItem
 {
-    public MenuSeparator(string title = "")
-        : base(title, "", () => { }, () => false)
+    public MenuSeparator(string text = "")
+        : base(text, "", () => { }, () => false)
     { }
 }
 
@@ -467,9 +468,9 @@ record MenuSeparator : MenuItem
 // Extension methods to make it easier to build menus
 static class MenuExtensions
 {
-    public static ICollection<MenuItem> SubMenu(this ICollection<MenuItem> items, string title, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
+    public static ICollection<MenuItem> SubMenu(this ICollection<MenuItem> items, string text, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
     {
-        items.Add(new SubMenu(title, shortcut, children, canExecute));
+        items.Add(new SubMenu(text, shortcut, children, canExecute));
         return items;
     }
 
@@ -479,9 +480,9 @@ static class MenuExtensions
         return items;
     }
 
-    public static ICollection<MenuItem> Item(this ICollection<MenuItem> items, string title, string shortcut, Action action, Func<bool>? canExecute = null)
+    public static ICollection<MenuItem> Item(this ICollection<MenuItem> items, string text, string shortcut, Action action, Func<bool>? canExecute = null)
     {
-        items.Add(new MenuItem(title, shortcut, action, canExecute));
+        items.Add(new MenuItem(text, shortcut, action, canExecute));
         return items;
     }
 

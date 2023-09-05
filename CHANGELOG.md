@@ -1,10 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-106 releases:
+107 releases:
 
-## [Current] - 2023-09-02
-- Combined State and Config files
+## [Current] - 2023-09-05
+- Fixed amend
+- Improve menues
+
+## [v0.90.307.299] - 2023-09-02
+- Updated change log- Combined State and Config files
 - Adjusted margin between sibling branches in graph
 - Moved stash submenu from repo menu to commit menu
 - Fixed issue with hiding wrong branch when using 'h'
