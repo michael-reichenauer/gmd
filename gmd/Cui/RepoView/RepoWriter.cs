@@ -132,12 +132,7 @@ class RepoWriter : IRepoWriter
             text.White("*");
             return;
         }
-        if (c.Id == Repo.UncommittedId)
-        {   // There are uncommitted changes, so the current marker is at the uncommitted commit
-            text.Yellow("©");
-            return;
-        }
-        if (c.IsCurrent && !isUncommitted)
+        if (c.IsCurrent)
         {   // No uncommitted changes, so the is shown at the current commit
             text.White("●");
             return;
@@ -148,18 +143,10 @@ class RepoWriter : IRepoWriter
 
     static void WriteAheadBehindMarker(TextBuilder text, Commit c)
     {
-        if (c.IsAhead)
-        {
-            text.BrightGreen("▲");
-            return;
-        }
-        if (c.IsBehind)
-        {
-            text.BrightBlue("▼");
-            return;
-        }
-
-        text.Black(" ");
+        if (c.IsAhead) text.BrightGreen("▲");
+        else if (c.IsBehind) text.BrightBlue("▼");
+        else if (c.IsUncommitted) text.Yellow("©");
+        else text.Black(" ");
     }
 
     static void WriteSubjectColumn(TextBuilder text, Columns cw, Commit c, Branch currentRowBranch,
