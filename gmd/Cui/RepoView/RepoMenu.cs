@@ -7,6 +7,7 @@ namespace gmd.Cui.RepoView;
 interface IRepoMenu
 {
     void Show(int x, int y);
+    void ShowOpenRepo(int x, int y);
 
     IEnumerable<MenuItem> GetNewReleaseItems();
     IEnumerable<MenuItem> GetRepoMenuItems();
@@ -31,6 +32,11 @@ class RepoMenu : IRepoMenu
     public void Show(int x, int y)
     {
         Menu.Show($"Repo Menu", x, y + 2, GetRepoMenuItems());
+    }
+
+    public void ShowOpenRepo(int x, int y)
+    {
+        Menu.Show($"Open/Clone/Init Repo", x, y + 2, GetOpenRepoItems());
     }
 
     public IEnumerable<MenuItem> GetRepoMenuItems()
@@ -72,6 +78,6 @@ class RepoMenu : IRepoMenu
     IEnumerable<MenuItem> GetRecentRepoItems() =>
         config.RecentFolders
             .Where(Directory.Exists)
-            .Take(10)
+            .Take(15)
             .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.Repo.Path));
 }

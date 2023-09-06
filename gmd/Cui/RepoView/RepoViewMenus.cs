@@ -41,7 +41,7 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowMergeFromMenu(int x = Menu.Center, int y = 0) => branchMenu.ShowMergeFromMenu(x, y);
 
-    public void ShowOpenRepoMenu(int x = Menu.Center, int y = 0) => repoMenu.Show(x, y);
+    public void ShowOpenRepoMenu(int x = Menu.Center, int y = 0) => repoMenu.ShowOpenRepo(x, y);
 
     public void ShowOpenBranchMenu(int x = Menu.Center, int y = 0) => branchMenu.ShowOpenBranchMenu(x, y);
 

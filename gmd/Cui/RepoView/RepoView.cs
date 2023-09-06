@@ -33,7 +33,7 @@ class RepoView : IRepoView
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
     static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
-    static readonly int MaxRecentFolders = 10;
+    static readonly int MaxRecentFolders = 15;
 
     readonly IServer server;
     readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
