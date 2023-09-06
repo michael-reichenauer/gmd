@@ -65,5 +65,11 @@ public static class StringExtensions
 
         return json;
     }
+
+    public static string Txt(this Version? source)
+    {
+        if (source == null) return "";
+        return $"{source.Major}.{source.Minor} ({source.Build}.{source.Revision})";
+    }
 }
 

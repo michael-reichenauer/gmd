@@ -10,7 +10,7 @@ class Program
 {
     // Current major.minor version
     public const int MajorVersion = 0;
-    public const int MinorVersion = 90;
+    public const int MinorVersion = 91;
 
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;
@@ -58,10 +58,10 @@ class Program
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
-        UI.HideCursor();                       // Hide cursor to avoid flickering
-        Application.Driver.Checked = '◙'; // '■'; // ▣';      // Checked box characters 
-        Application.Driver.UnChecked = '□'; // '□'; //▢';
-        Application.Driver.Stipple = ' ';  // The scrollbar background character
+        UI.HideCursor();                     // Hide cursor to avoid flickering
+        Application.Driver.Checked = '◙';    // '■'; // ▣';      // Checked box characters 
+        Application.Driver.UnChecked = '□';  // '□'; //▢';
+        Application.Driver.Stipple = ' ';    // The scrollbar background character
 
         Application.Top.Add(mainView.View);
 

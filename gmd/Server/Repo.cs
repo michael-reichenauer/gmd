@@ -4,9 +4,9 @@ namespace gmd.Server;
 
 record Repo
 {
-    public static readonly string TruncatedLogCommitID = "ffffffffffffffffffffffffffffffffffffffff";
+    public static readonly string TruncatedLogCommitId = "ffffffffffffffffffffffffffffffffffffffff";
     public static readonly string UncommittedId = "0000000000000000000000000000000000000000";
-    public static readonly string EmptyRepoCommit = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    public static readonly string EmptyRepoCommitId = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     public static readonly string UncommittedSid = UncommittedId.Sid();
 
     public Repo(

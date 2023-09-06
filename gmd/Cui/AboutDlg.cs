@@ -24,13 +24,15 @@ class AboutDlg : IAboutDlg
         var gmdVersion = Build.Version();
         var gmdBuildTime = Build.Time().IsoZone();
         var gmdSha = Build.Sha();
-        var isAvailable = Build.Version() < Version.Parse(releases.LatestVersion);
+        var latest = Version.Parse(releases.LatestVersion);
+        var isAvailable = Build.Version() < latest;
         var gitVersion = config.GitVersion;
 
         var msg =
-            $"Version: {gmdVersion} ({gmdSha}) \n" +
+            $"Version: {gmdVersion.Txt()} ({gmdSha}) \n" +
             $"Built:   {gmdBuildTime}\n" +
-            (isAvailable ? $"Updates: {releases.LatestVersion} {typeText} is available\n" :
+            (isAvailable ?
+                $"Updates: {latest.Txt} {typeText} is available\n" :
                 "Updates: Is latest version\n") +
             $"Git:     {gitVersion} ";
 

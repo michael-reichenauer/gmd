@@ -1,9 +1,19 @@
 # Change Log for Gmd
 --------------------
 
-107 releases:
+108 releases:
 
-## [Current] - 2023-09-05
+## [Current] - 2023-09-06
+- Adjust application bar
+- Show empty repo commit in dark gray
+- Adjust current and uncommites symbol shown
+- Added ... on left side of diff if scrolled to right
+- Added branches menues to commit menu
+- Adjust version text
+- Fixed OpenRepo menu and 'O' command
+- Adjust recent repos count
+
+## [v0.90.310.1122] - 2023-09-05
 - Fixed amend
 - Improve menues
 

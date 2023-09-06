@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Cui.RepoView;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
@@ -88,12 +89,12 @@ partial class MainView : IMainView
         // path = "/workspaces/vscode";
         // path = "/workspaces/Dependinator-1";
         // path = "/workspaces/empty";
+        // path = "/workspaces/empty2";
 
         if (!Try(out var rootPath, out var e, git.RootPath(path)) || IsShowMainMenu)
         {
             if (path != "")
-            {
-                // User specified an invalid folder on command line
+            {   // User specified an invalid folder on command line
                 UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
             }
 
@@ -166,11 +167,12 @@ partial class MainView : IMainView
     public async Task UpdateRelease()
     {
         var releases = config.Releases;
+        var latest = Version.Parse(releases.LatestVersion);
         var typeText = releases.IsPreview ? "(preview)" : "";
         string msg = $"A new release is available.\n\n" +
-            $"Current Version: {Build.Version()}\n" +
+            $"Current Version: {Build.Version().Txt()}\n" +
             $"Built:           {Build.Time().Iso()}\n\n" +
-            $"New Version:     {releases.LatestVersion} {typeText}\n" +
+            $"New Version:     {latest.Txt()} {typeText}\n" +
             $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
             "Do you want to update?";
 
