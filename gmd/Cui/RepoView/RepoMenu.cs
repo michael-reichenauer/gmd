@@ -78,6 +78,6 @@ class RepoMenu : IRepoMenu
     IEnumerable<MenuItem> GetRecentRepoItems() =>
         config.RecentFolders
             .Where(Directory.Exists)
-            .Take(10)
+            .Take(15)
             .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.Repo.Path));
 }
