@@ -59,8 +59,9 @@ class CommitMenu : ICommitMenu
             .Item("Switch to Commit", "", () => repo.BranchCmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id)
             .Separator()
-            .SubMenu("Branches Menus", "", GetBranchesMenusItems())
+            // .SubMenu("Branches Menus", "", GetBranchesMenusItems())
             .SubMenu("Show/Open Branch", "Shift →", branchMenu.GetShowBranchItems())
+            .Item("Hide All Branches", "", () => repo.BranchCmds.HideBranch("", true))
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
