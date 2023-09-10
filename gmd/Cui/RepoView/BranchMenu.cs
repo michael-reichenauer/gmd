@@ -84,7 +84,6 @@ class BranchMenu : IBranchMenu
             .Items(GetMoveBranchItems(branchName))
             .Separator()
             .SubMenu(!isLimited, "Show/Open Branch", "Shift →", GetShowBranchItems())
-            .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
             .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
