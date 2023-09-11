@@ -582,7 +582,7 @@ class RepoView : IRepoView
             {
                 text = lines
                     .Where(l => l.Trim() != "")
-                    .Select(l => l[(repo.Graph.Width + 3)..])
+                    .Select(l => l[(repo.Graph.Width + 2)..])
                     .Join("\n");
             }
             Utils.Clipboard.Set(text);
