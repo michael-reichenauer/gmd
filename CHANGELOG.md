@@ -1,9 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-110 releases:
+111 releases:
 
 ## [Current] - 2023-09-12
+- Show white space diff
+
+## [v0.91.317.211] - 2023-09-12
 - Disable Branches menu in commitmenu, add Hide all branches
 
 ## [v0.91.314.262] - 2023-09-09
