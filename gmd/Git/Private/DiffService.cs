@@ -51,7 +51,7 @@ class DiffService : IDiffService
             needReset = true;
         }
 
-        var args = "diff -b --date=iso --first-parent --root --patch --no-color" +
+        var args = "diff --date=iso --first-parent --root --patch --no-color" +
             " --find-renames --unified=6 HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         {   // The diff failed, reset the 'git add .' if needed
