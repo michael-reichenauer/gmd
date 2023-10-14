@@ -289,7 +289,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.c, () => CommitCmds.Commit(false));
         commitsView.RegisterKeyHandler(Key.a, () => CommitCmds.Commit(true));
         commitsView.RegisterKeyHandler(Key.t, () => CommitCmds.AddTag());
-        commitsView.RegisterKeyHandler(Key.b, () => repo.BranchCmds.CreateBranch());
+        commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
         commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
         commitsView.RegisterKeyHandler(Key.p, () => repo.BranchCmds.PushCurrentBranch());
@@ -324,6 +324,17 @@ class RepoView : IRepoView
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => CommitCmds.ShowCurrentRowDiff());
 
         applicationBarView.ItemClicked += OnApplicationClick;
+    }
+
+    void CreateBranch()
+    {
+        if (hooverBranchPrimaryName != "")
+        {
+            repo.BranchCmds.CreateBranchFromBranch(hooverBranchPrimaryName);
+            return;
+        }
+
+        repo.BranchCmds.CreateBranchFromCommit();
     }
 
     void OnKeyShiftCursorRight()
