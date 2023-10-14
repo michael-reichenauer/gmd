@@ -222,7 +222,7 @@ partial class MainView : IMainView
         config.RecentFolders
             .Where(Directory.Exists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
-            .Take(8);
+            .Take(Config.MaxRecentFolders);
 
 
     void ShowRepo(string path)
