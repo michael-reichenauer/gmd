@@ -20,6 +20,9 @@ record Color
     public static readonly Color BrightMagenta = Make(Terminal.Gui.Color.BrightMagenta);
     public static readonly Color BrightYellow = Make(Terminal.Gui.Color.BrightYellow);
 
+    public static readonly Color RedBg = Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Red);
+    public static readonly Color GreenBg = Make(Terminal.Gui.Color.Black, Terminal.Gui.Color.BrightGreen);
+
     public Color(Color fg, Color bg) : this(fg.Foreground, bg.Foreground) { }
 
     public Color(Terminal.Gui.Color fg, Terminal.Gui.Color bg)

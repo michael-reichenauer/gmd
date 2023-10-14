@@ -167,12 +167,12 @@ class DiffService : IDiffService
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
                     {   // Whole file removed, use one column
-                        Text removeTxt = Text.Dark($"{leftNr,4}").Red(diffMargin + dl.Line);
+                        Text removeTxt = Text.Dark($"{leftNr,4}").Red(diffMargin).RedBg(dl.Line);
                         rows.Add(removeTxt);
                     }
                     else
                     {
-                        leftBlock.Add(leftNr, dl.Line, Color.Red);
+                        leftBlock.Add(leftNr, dl.Line, Color.RedBg);
                     }
 
                     leftNr++;
@@ -189,12 +189,12 @@ class DiffService : IDiffService
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffAdded)
                     {   // Whole file added, use one column
-                        Text addTxt = Text.Dark($"{rightNr,4}").Green(diffMargin + dl.Line);
+                        Text addTxt = Text.Dark($"{rightNr,4}").Green(diffMargin).GreenBg(dl.Line);
                         rows.Add(addTxt);
                     }
                     else
                     {
-                        rightBlock.Add(rightNr, dl.Line, Color.Green);
+                        rightBlock.Add(rightNr, dl.Line, Color.GreenBg);
                     }
 
                     rightNr++;
@@ -305,7 +305,7 @@ class DiffService : IDiffService
             }
             if (diff.DeleteCountA > 0)
             {   // Add text int read that is deleted
-                leftText.Red(leftString.Substring(diff.DeleteStartA, diff.DeleteCountA));
+                leftText.RedBg(leftString.Substring(diff.DeleteStartA, diff.DeleteCountA));
             }
             leftIndex = diff.DeleteStartA + diff.DeleteCountA;
 
@@ -316,7 +316,7 @@ class DiffService : IDiffService
             }
             if (diff.InsertCountB > 0)
             {   // Add text int green that is inserted
-                rightText.Green(rightString.Substring(diff.InsertStartB, diff.InsertCountB));
+                rightText.GreenBg(rightString.Substring(diff.InsertStartB, diff.InsertCountB));
             }
             rightIndex = diff.InsertStartB + diff.InsertCountB;
         }
