@@ -71,5 +71,13 @@ public static class StringExtensions
         if (source == null) return "";
         return $"{source.Major}.{source.Minor} ({source.Build}.{source.Revision})";
     }
+
+    public static string FileSize(this long source)
+    {
+        if (source < 1024) return $"{source} B";
+        if (source < 1024 * 1024) return $"{source / 1024:0.##} KB";
+        if (source < 1024 * 1024 * 1024) return $"{source / 1024 / 1024:0.##} MB";
+        return $"{source / 1024 / 1024 / 1024:0.##} GB";
+    }
 }
 

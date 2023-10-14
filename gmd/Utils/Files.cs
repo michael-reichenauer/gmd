@@ -20,6 +20,20 @@ static class Files
         }
     }
 
+    public static long FileSize(string path)
+    {
+        try
+        {
+            FileInfo fi = new FileInfo(path);
+            return fi.Length;
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"Failed to read {e}");
+            return 0;
+        }
+    }
+
 
     public static bool IsText(string path)
     {
