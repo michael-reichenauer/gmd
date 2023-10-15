@@ -371,8 +371,8 @@ class CommitCommands : ICommitCommands
 
         if (largeFiles.Any())
         {
-            var msg = $"There are {largeFiles.Count} modified large files:\n"
-            + $" ({largeFiles.Count}):  \n  {string.Join("\n  ", largeFiles)}" +
+            var msg = $"There are {largeFiles.Count} added large files:\n"
+            + $"  {string.Join("\n  ", largeFiles)}" +
             "\n\nDo you want to continue?";
             if (0 != UI.InfoMessage("Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
             {
