@@ -56,7 +56,7 @@ class CommitMenu : ICommitMenu
             .Item("Create Branch from Commit ...", "", () => repo.BranchCmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
             .Item($"Merge From Commit to {cb?.ShortNiceUniqueName()}", "", () => repo.BranchCmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
             .Item($"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}", "", () => repo.BranchCmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
-            .Item("Switch to Commit", "", () => repo.BranchCmds.SwitchToCommit(),
+            .Item("Switch/Checkout to Commit", "", () => repo.BranchCmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id)
             .Separator()
             // .SubMenu("Branches Menus", "", GetBranchesMenusItems())

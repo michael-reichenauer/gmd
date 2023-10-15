@@ -253,6 +253,9 @@ class TextBuilder
     public TextBuilder Black(string text) => Add(Common.Color.Black, text);
     public TextBuilder Color(Common.Color color, string text) => Add(color, text);
 
+    public TextBuilder GreenBg(string text) => Add(Common.Color.GreenBg, text);
+    public TextBuilder RedBg(string text) => Add(Common.Color.RedBg, text);
+
     public TextBuilder Add(Text text)
     {
         text.Fragments.ForEach(f => Add(f.Color, f.Text));

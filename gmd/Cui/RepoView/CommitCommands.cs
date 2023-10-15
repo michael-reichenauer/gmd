@@ -366,12 +366,13 @@ class CommitCommands : ICommitCommands
 
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
-            .Where(f => Files.IsLarger(Path.Join(repo.Path, f), 100 * 1000)).ToList();
+            .Where(f => Files.IsLarger(Path.Join(repo.Path, f), 100 * 1000))
+            .Select(f => $"{f} ({Files.FileSize(f).FileSize()})").ToList();
 
         if (largeFiles.Any())
         {
-            var msg = $"There are {largeFiles.Count} modified large files:\n"
-            + $" ({largeFiles.Count}):  \n{string.Join("\n  ", largeFiles)}" +
+            var msg = $"There are {largeFiles.Count} added large files:\n"
+            + $"  {string.Join("\n  ", largeFiles)}" +
             "\n\nDo you want to continue?";
             if (0 != UI.InfoMessage("Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
             {

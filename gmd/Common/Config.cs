@@ -4,6 +4,7 @@ namespace gmd.Common;
 [SingleInstance]
 class Config
 {
+    public const int MaxRecentFolders = 15;
     readonly Lazy<IConfigService>? configService;
 
     // User config values

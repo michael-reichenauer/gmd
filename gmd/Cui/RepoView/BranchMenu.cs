@@ -95,7 +95,7 @@ class BranchMenu : IBranchMenu
         var currentName = repo.Repo.CurrentBranch().PrimaryName;
         var branch = repo.Repo.BranchByName[branchName];
         if (branch.LocalName != "") branchName = branch.LocalName;
-        return Menu.Item("Switch to Branch", "S", () => cmds.SwitchTo(branchName), () => branch.PrimaryName != currentName);
+        return Menu.Item("Switch/Checkout to Branch", "S", () => cmds.SwitchTo(branchName), () => branch.PrimaryName != currentName);
     }
 
 

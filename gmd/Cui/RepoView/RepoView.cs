@@ -33,7 +33,6 @@ class RepoView : IRepoView
     static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
     static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
-    static readonly int MaxRecentFolders = 15;
 
     readonly IServer server;
     readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
@@ -290,7 +289,7 @@ class RepoView : IRepoView
         commitsView.RegisterKeyHandler(Key.c, () => CommitCmds.Commit(false));
         commitsView.RegisterKeyHandler(Key.a, () => CommitCmds.Commit(true));
         commitsView.RegisterKeyHandler(Key.t, () => CommitCmds.AddTag());
-        commitsView.RegisterKeyHandler(Key.b, () => repo.BranchCmds.CreateBranch());
+        commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
         commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
         commitsView.RegisterKeyHandler(Key.p, () => repo.BranchCmds.PushCurrentBranch());
@@ -325,6 +324,17 @@ class RepoView : IRepoView
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => CommitCmds.ShowCurrentRowDiff());
 
         applicationBarView.ItemClicked += OnApplicationClick;
+    }
+
+    void CreateBranch()
+    {
+        if (hooverBranchPrimaryName != "")
+        {
+            repo.BranchCmds.CreateBranchFromBranch(hooverBranchPrimaryName);
+            return;
+        }
+
+        repo.BranchCmds.CreateBranchFromCommit();
     }
 
     void OnKeyShiftCursorRight()
@@ -470,21 +480,25 @@ class RepoView : IRepoView
         }
 
         // Reached left side on this row
-        // Try to find some branch further down this page that is to the left side
-        var pageBranches = repo.Graph.GetPageBranches(commitsView.FirstIndex, commitsView.FirstIndex + commitsView.ContentHeight);
-        var hooverPageColumnIndex = pageBranches.FindIndexBy(b => b.B.PrimaryName == hooverBranchPrimaryName);
-
-        if (hooverPageColumnIndex == 0) return; // Reached left side on this page as well
-
-        // Hoover branch found on this page, move to the left on this page (further down)
-        var branch = pageBranches[hooverPageColumnIndex - 1];
-        var newHoverIndex = repo.CurrentIndex;
-        if (newHoverIndex < branch.TipIndex) newHoverIndex = branch.TipIndex;
-        if (newHoverIndex > branch.BottomIndex) newHoverIndex = branch.BottomIndex;
-
-        commitsView.SetCurrentIndex(newHoverIndex);
-        SetHooverBranch(branch, newHoverIndex);
         return;
+
+        // Disabled moving left (up/down) on page since it was confusing
+        // // Reached left side on this row
+        // // Try to find some branch further down this page that is to the left side
+        // var pageBranches = repo.Graph.GetPageBranches(commitsView.FirstIndex, commitsView.FirstIndex + commitsView.ContentHeight);
+        // var hooverPageColumnIndex = pageBranches.FindIndexBy(b => b.B.PrimaryName == hooverBranchPrimaryName);
+
+        // if (hooverPageColumnIndex == 0) return; // Reached left side on this page as well
+
+        // // Hoover branch found on this page, move to the left on this page (further down)
+        // var branch = pageBranches[hooverPageColumnIndex - 1];
+        // var newHoverIndex = repo.CurrentIndex;
+        // if (newHoverIndex < branch.TipIndex) newHoverIndex = branch.TipIndex;
+        // if (newHoverIndex > branch.BottomIndex) newHoverIndex = branch.BottomIndex;
+
+        // commitsView.SetCurrentIndex(newHoverIndex);
+        // SetHooverBranch(branch, newHoverIndex);
+        // return;
     }
 
     private void OnCursorRight()
@@ -506,24 +520,29 @@ class RepoView : IRepoView
             return;
         }
 
-        // Reached right side, try find branch further upp this page that is to the right side
-        var pageBranches = repo.Graph.GetPageBranches(commitsView.FirstIndex, commitsView.FirstIndex + commitsView.ContentHeight);
-        var hooverPageColumnIndex = pageBranches.FindLastIndexBy(b => b.B.PrimaryName == hooverBranchPrimaryName);
-        if (hooverPageColumnIndex == pageBranches.Count - 1)
-        {   // Reached right side on this page as well
-            ClearHoover();
-            return;
-        }
-
-        // Hoover branch found on this page, move to the right on this page (further upp)
-        var branch = pageBranches[hooverPageColumnIndex + 1];
-        var newHoverIndex = repo.CurrentIndex;
-        if (newHoverIndex < branch.TipIndex) newHoverIndex = branch.TipIndex;
-        if (newHoverIndex > branch.BottomIndex) newHoverIndex = branch.BottomIndex;
-
-        commitsView.SetCurrentIndex(newHoverIndex);
-        SetHooverBranch(branch, newHoverIndex);
+        // Reached right side,
+        ClearHoover();
         return;
+
+        // Disabled moving right (up/down) on page for now, since it was confusing
+        // // Reached right side, try find branch further upp this page that is to the right side
+        // var pageBranches = repo.Graph.GetPageBranches(commitsView.FirstIndex, commitsView.FirstIndex + commitsView.ContentHeight);
+        // var hooverPageColumnIndex = pageBranches.FindLastIndexBy(b => b.B.PrimaryName == hooverBranchPrimaryName);
+        // if (hooverPageColumnIndex == pageBranches.Count - 1)
+        // {   // Reached right side on this page as well
+        //     ClearHoover();
+        //     return;
+        // }
+
+        // // Hoover branch found on this page, move to the right on this page (further upp)
+        // var branch = pageBranches[hooverPageColumnIndex + 1];
+        // var newHoverIndex = repo.CurrentIndex;
+        // if (newHoverIndex < branch.TipIndex) newHoverIndex = branch.TipIndex;
+        // if (newHoverIndex > branch.BottomIndex) newHoverIndex = branch.BottomIndex;
+
+        // commitsView.SetCurrentIndex(newHoverIndex);
+        // SetHooverBranch(branch, newHoverIndex);
+        // return;
     }
 
 
@@ -937,7 +956,7 @@ class RepoView : IRepoView
     {
         // Remember recent repo paths
         config.Set(s => s.RecentFolders = s.RecentFolders
-            .Prepend(path).Distinct().Where(Directory.Exists).Take(MaxRecentFolders).ToList());
+            .Prepend(path).Distinct().Where(Directory.Exists).Take(Config.MaxRecentFolders).ToList());
     }
 
 

@@ -1,9 +1,16 @@
 # Change Log for Gmd
 --------------------
 
-111 releases:
+112 releases:
 
-## [Current] - 2023-09-12
+## [Current] - 2023-10-15
+- Increase recent folder count in startup view
+- Adjust warning texts of commmiting large files
+- Rename 'switch' to 'switch/checkout'
+- Skip moving up/down to branch when moving left/right
+- Using green/red background in diff view
+
+## [v0.91.317.1113] - 2023-09-12
 - Show white space diff
 
 ## [v0.91.317.211] - 2023-09-12
