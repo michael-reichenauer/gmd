@@ -234,6 +234,11 @@ class Server : IServer
         return converter.ToViewCommits(commits).ToList();
     }
 
+    public Task<R> RebaseBranchAsync(Repo repo, string branchName)
+    {
+        return augmentedService.RebaseBranchAsync(repo, branchName);
+    }
+
     public Task<R> CherryPickAsync(string sha, string wd) =>
         git.CherryPickAsync(sha, wd);
 

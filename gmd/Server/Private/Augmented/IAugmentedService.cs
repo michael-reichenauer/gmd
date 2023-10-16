@@ -29,6 +29,7 @@ interface IAugmentedService
     Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
     Task<R> PushMetaDataAsync(string wd);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
+    Task<R> RebaseBranchAsync(Repo repo, string name);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
     Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
