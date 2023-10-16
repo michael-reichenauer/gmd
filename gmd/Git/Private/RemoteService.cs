@@ -42,7 +42,8 @@ class RemoteService : IRemoteService
 
     public async Task<R> PullCurrentBranchAsync(string wd)
     {
-        var args = $"pull --ff --no-rebase";
+        var args = $"pull";
+        // var args = $"pull --ff --no-rebase";
         return await cmd.RunAsync("git", args, wd);
     }
 
