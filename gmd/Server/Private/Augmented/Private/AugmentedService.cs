@@ -224,6 +224,41 @@ class AugmentedService : IAugmentedService
         return ToMergeCommits(repo, commits).ToList();
     }
 
+    public async Task<R> RebaseBranchAsync(Repo repo, string name)
+    {
+        if (repo.CommitById.TryGetValue(name, out var commit))
+        {   // Merging from a commit
+            if (!Try(out var e2, await git.RebaseBranchAsync(commit.Id, repo.Path))) return e2;
+            return R.Ok;
+        }
+
+        var branch = repo.BranchByName[name];
+        var tip = repo.CommitById[branch.TipId];
+        var rebaseName = branch.Name;
+
+        if (branch.LocalName != "")
+        {   // Branch is a remote branch with an existing local branch, which might have a younger tip
+            var localBranch = repo.BranchByName[branch.LocalName];
+            var localTip = repo.CommitById[localBranch.TipId];
+            if (localTip.AuthorTime >= tip.AuthorTime)
+            {   // The local branch is younger or same, use that.
+                rebaseName = localBranch.Name;
+            }
+        }
+        else if (branch.RemoteName != "")
+        {   // Branch is a local branch with an existing remote branch, which might have a younger tip
+            var remoteBranch = repo.BranchByName[branch.RemoteName];
+            var remoteTip = repo.CommitById[remoteBranch.TipId];
+            if (remoteTip.AuthorTime >= tip.AuthorTime)
+            {   // The remote branch is younger or same, use that.
+                rebaseName = remoteBranch.Name;
+            }
+        }
+
+        if (!Try(out var e, await git.RebaseBranchAsync(rebaseName, repo.Path))) return e;
+        return R.Ok;
+    }
+
     public async Task<R> SwitchToAsync(Repo repo, string branchName)
     {
         var branch = repo.BranchByName[branchName];

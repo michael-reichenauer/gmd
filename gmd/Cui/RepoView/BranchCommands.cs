@@ -23,6 +23,7 @@ interface IBranchCommands
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
     void MergeBranch(string name);
+    void RebaseBranch(string name);
     void CherryPick(string id);
 
     void PushCurrentBranch();
@@ -136,8 +137,15 @@ class BranchCommands : IBranchCommands
         if (!Try(out var commits, out var e, await server.MergeBranchAsync(repo.Repo, branchName)))
             return R.Error($"Failed to merge branch {branchName}", e);
 
-
         RefreshAndCommit("", "", commits);
+        return R.Ok;
+    });
+
+
+    public void RebaseBranch(string branchName) => Do(async () =>
+    {
+        if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, branchName)))
+            return R.Error($"Failed to rebase branch {branchName}", e);
         return R.Ok;
     });
 

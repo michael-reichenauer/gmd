@@ -74,6 +74,7 @@ class BranchMenu : IBranchMenu
             .Item(GetSwitchToBranchItem(branchName))
             .Item(!isCurrent, $"Merge to {mergeToName}", "E", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
+            .Item(!isCurrent, $"Rebase to {mergeToName}", "", () => cmds.RebaseBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
             .Item("Pull/Update", "U", () => cmds.PullBranch(branchName), () => b.HasRemoteOnly && isStatusOK)
             .Item("Push", "P", () => cmds.PushBranch(branchName), () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK)
