@@ -40,7 +40,7 @@ interface IServer
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
     //Task<R<string>> GetFileTextAsync(string path, string wd);
 
-    Task<R> PushBranchAsync(string name, string wd);
+    Task<R> PushBranchAsync(string name, string wd, bool isForce = false);
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(Repo repo, string branchName);

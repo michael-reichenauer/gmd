@@ -74,7 +74,7 @@ class BranchMenu : IBranchMenu
             .Item(GetSwitchToBranchItem(branchName))
             .Item(!isCurrent, $"Merge to {mergeToName}", "E", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
-            .Item(!isCurrent, $"Rebase to {mergeToName}", "", () => cmds.RebaseBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
+            .SubMenu(isCurrent, "Rebase from", "", GetRebaseFromItems())
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
             .Item("Pull/Update", "U", () => cmds.PullBranch(branchName), () => b.HasRemoteOnly && isStatusOK)
             .Item("Push", "P", () => cmds.PushBranch(branchName), () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK)
@@ -113,6 +113,21 @@ class BranchMenu : IBranchMenu
              .OrderBy(b => b.PrimaryName);
 
         return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
+    }
+
+    IEnumerable<MenuItem> GetRebaseFromItems()
+    {
+        if (!repo.Repo.Status.IsOk) return Menu.Items;
+
+        var currentName = repo.Repo.CurrentBranch().PrimaryName;
+
+        // Get all branches except current
+        var branches = repo.Repo.ViewBranches
+             .Where(b => b.IsPrimary && b.PrimaryName != currentName)
+             .DistinctBy(b => b.TipId)
+             .OrderBy(b => b.PrimaryName);
+
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.RebaseBranch(b.Name)));
     }
 
 

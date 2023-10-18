@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -206,12 +205,12 @@ class Server : IServer
     public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
         augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
 
-    public async Task<R> PushBranchAsync(string name, string wd)
+    public async Task<R> PushBranchAsync(string name, string wd, bool isForce = false)
     {
         using (Timing.Start($"Pushed {name}"))
         {
             var metadataTask = augmentedService.PushMetaDataAsync(wd);
-            var pushTask = git.PushBranchAsync(name, wd);
+            var pushTask = git.PushBranchAsync(name, wd, isForce);
 
             await Task.WhenAll(metadataTask, pushTask);
             return pushTask.Result;
