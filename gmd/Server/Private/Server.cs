@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -218,6 +217,8 @@ class Server : IServer
         }
     }
 
+    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) =>
+        git.PushCurrentBranchAsync(isForce, wd);
 
     public Task<R> PullCurrentBranchAsync(string wd) =>
         git.PullCurrentBranchAsync(wd);

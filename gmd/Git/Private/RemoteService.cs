@@ -5,6 +5,7 @@ interface IRemoteService
 {
     Task<R> FetchAsync(string wd);
     Task<R> PushBranchAsync(string name, string wd);
+    Task<R> PushCurrentBranchAsync(bool isForce, string wd);
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
@@ -39,6 +40,14 @@ class RemoteService : IRemoteService
         var args = $"push --porcelain origin --set-upstream {refs}";
         return await cmd.RunAsync("git", args, wd);
     }
+
+    public async Task<R> PushCurrentBranchAsync(bool isForce, string wd)
+    {
+        var force = isForce ? " --force" : "";
+        var args = $"push{force}";
+        return await cmd.RunAsync("git", args, wd);
+    }
+
 
     public async Task<R> PullCurrentBranchAsync(string wd)
     {
