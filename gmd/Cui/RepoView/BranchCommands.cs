@@ -152,7 +152,7 @@ class BranchCommands : IBranchCommands
         if (cb.RemoteName != "")
         {   // Current branch is a local branch with a remote branch
             // Need to push force the local branch after rebase
-            if (!Try(out e, await server.PushBranchAsync(cb.LocalName, repo.Path)))
+            if (!Try(out e, await server.PushCurrentBranchAsync(true, repo.Path)))
             {
                 return R.Error($"Failed to push rebased branch {cb.RemoteName}", e);
             }

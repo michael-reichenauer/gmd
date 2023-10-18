@@ -4,7 +4,8 @@ namespace gmd.Git.Private;
 interface IRemoteService
 {
     Task<R> FetchAsync(string wd);
-    Task<R> PushBranchAsync(string name, string wd, bool isForce = false);
+    Task<R> PushBranchAsync(string name, string wd);
+    Task<R> PushCurrentBranchAsync(bool isForce, string wd);
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
@@ -32,14 +33,21 @@ class RemoteService : IRemoteService
         return await cmd.RunAsync("git", args, wd, true);
     }
 
-    public async Task<R> PushBranchAsync(string name, string wd, bool isForce = false)
+    public async Task<R> PushBranchAsync(string name, string wd)
     {
-        var force = isForce ? " --force" : "";
         name = TrimRemotePrefix(name);
         string refs = $"refs/heads/{name}:refs/heads/{name}";
-        var args = $"push --porcelain origin --set-upstream {refs}{force}";
+        var args = $"push --porcelain origin --set-upstream {refs}";
         return await cmd.RunAsync("git", args, wd);
     }
+
+    public async Task<R> PushCurrentBranchAsync(bool isForce, string wd)
+    {
+        var force = isForce ? " --force" : "";
+        var args = $"push{force}";
+        return await cmd.RunAsync("git", args, wd);
+    }
+
 
     public async Task<R> PullCurrentBranchAsync(string wd)
     {

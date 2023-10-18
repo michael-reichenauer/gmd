@@ -63,7 +63,8 @@ internal class Git : IGit
         diffService.GetRefsDiffAsync(sha1, sha2, message, wd);
     public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
-    public Task<R> PushBranchAsync(string name, string wd, bool isForce = false) => remoteService.PushBranchAsync(name, wd, isForce);
+    public Task<R> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);
+    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) => remoteService.PushCurrentBranchAsync(isForce, wd);
     public Task<R> PushRefForceAsync(string name, string wd) => remoteService.PushRefForceAsync(name, wd);
     public Task<R> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
     public Task<R> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);

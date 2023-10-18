@@ -205,18 +205,20 @@ class Server : IServer
     public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
         augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
 
-    public async Task<R> PushBranchAsync(string name, string wd, bool isForce = false)
+    public async Task<R> PushBranchAsync(string name, string wd)
     {
         using (Timing.Start($"Pushed {name}"))
         {
             var metadataTask = augmentedService.PushMetaDataAsync(wd);
-            var pushTask = git.PushBranchAsync(name, wd, isForce);
+            var pushTask = git.PushBranchAsync(name, wd);
 
             await Task.WhenAll(metadataTask, pushTask);
             return pushTask.Result;
         }
     }
 
+    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) =>
+        git.PushCurrentBranchAsync(isForce, wd);
 
     public Task<R> PullCurrentBranchAsync(string wd) =>
         git.PullCurrentBranchAsync(wd);
