@@ -158,6 +158,7 @@ class BranchCommands : IBranchCommands
             }
         }
 
+        Refresh();
         return R.Ok;
     });
 
