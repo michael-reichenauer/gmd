@@ -53,7 +53,7 @@ class CommitMenu : ICommitMenu
             .SubMenu("Undo", "", GetCommitUndoItems())
             .SubMenu("Stash", "", GetStashMenuItems())
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
-            .Item("Create Branch from Commit ...", "", () => repo.BranchCmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
+            .Item("Create Branch from Commit ...", "B", () => repo.BranchCmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
             .Item($"Merge From Commit to {cb?.ShortNiceUniqueName()}", "", () => repo.BranchCmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
             .Item($"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}", "", () => repo.BranchCmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
             .Item("Switch/Checkout to Commit", "", () => repo.BranchCmds.SwitchToCommit(),
