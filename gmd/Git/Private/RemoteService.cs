@@ -43,7 +43,7 @@ class RemoteService : IRemoteService
 
     public async Task<R> PushCurrentBranchAsync(bool isForce, string wd)
     {
-        var force = isForce ? " --force" : "";
+        var force = isForce ? " --force-with-lease" : "";
         var args = $"push{force}";
         return await cmd.RunAsync("git", args, wd);
     }
