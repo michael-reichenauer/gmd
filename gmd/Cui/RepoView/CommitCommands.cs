@@ -26,13 +26,13 @@ interface ICommitCommands
     void UncommitUntilCommit(string id);
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
+    void SquashCommits(string id1, string id2);
 
     void AddTag();
     void DeleteTag(string name);
     bool CanUncommitLastCommit();
     bool CanUndoUncommitted();
     void ToggleDetails();
-    //void SquashHeadTo(string id);
 }
 
 
@@ -88,7 +88,7 @@ class CommitCommands : ICommitCommands
         });
     }
 
-    public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
+    public void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null) => Do(async () =>
     {
         if (!isAmend && repo.Repo.Status.IsOk) return R.Ok;
         if (isAmend && !repo.Repo.CurrentCommit().IsAhead) return R.Ok;
@@ -233,6 +233,26 @@ class CommitCommands : ICommitCommands
         }
 
         Refresh();
+        return R.Ok;
+    });
+
+    public void SquashCommits(string id1, string id2) => Do(async () =>
+    {
+        var commit2 = repo.Repo.CommitById[id2];
+        var parentId = repo.Repo.CommitById[commit2.ParentIds[0]].Id;
+        if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        if (!commitDlg.Show(repo, false, null, out var message)) return R.Ok;
+
+        if (!Try(out e, await server.CommitAllChangesAsync(message, false, repo.Path)))
+        {
+            return R.Error($"Failed to commit squash", e);
+        }
+
+        RefreshAndFetch();
         return R.Ok;
     });
 
