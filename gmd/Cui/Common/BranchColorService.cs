@@ -7,14 +7,13 @@ namespace gmd.Cui.Common;
 
 
 // Manages brach colors, each branch has a color that is used in the UI.
-// By default, the color is based on the branch primary base name (hashed id), but also if the color.
+// By default, the color is based on the branch primary name (hashed id), but also if the color.
 // is the same as the parent branch, it is changed to a different color.
 // The user can manually change the color of a branch, and the color is stored in the state
 // until user changes again.
 interface IBranchColorService
 {
     Color GetColor(Repo repo, Branch branch);
-    Color GetColorByBranchName(Repo repo, string primaryBaseName);
     void ChangeColor(Repo repo, Branch branch);
 }
 
@@ -36,14 +35,14 @@ class BranchColorService : IBranchColorService
         if (branch.IsDetached) return Color.White;
         if (branch.IsMainBranch) return Color.Magenta;
 
-        if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryBaseName, out var colorId))
+        if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryName, out var colorId))
         {   // Branch has a color set by user, use it
             return GetColorByColorId(colorId);
         }
 
         if (branch.ParentBranchName == "")
-        {   // branch has no parent, get color based on branch base name
-            return GetColorByBranchBaseName(branch.PrimaryBaseName);
+        {   // branch has no parent, get color based on branch name
+            return GetColorByName(branch.PrimaryName);
         }
 
         // Branch has a parent, lets check the color of parent to determine branch color
@@ -55,27 +54,15 @@ class BranchColorService : IBranchColorService
         }
 
         // Parent is a different branch lets use a colors that is different
-        Color color = GetColorByBranchBaseName(branch.PrimaryBaseName);
+        Color color = GetColorByName(branch.PrimaryName);
         Color parentColor = GetColor(repo, parentBranch);
         if (color == parentColor)
         {   // branch got same color as parent, lets change branch color one step
-            color = GetColorByBranchBaseName(branch.PrimaryBaseName, 1);
+            color = GetColorByName(branch.PrimaryName, 1);
         }
 
         return color;
     }
-
-
-    public Color GetColorByBranchName(Repo repo, string primaryBaseName)
-    {
-        if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(primaryBaseName, out var colorId))
-        {   // Branch has a color set by user, use it
-            return GetColorByColorId(colorId);
-        }
-
-        return GetColorByBranchBaseName(primaryBaseName);
-    }
-
 
     public void ChangeColor(Repo repo, Branch branch)
     {
@@ -83,10 +70,10 @@ class BranchColorService : IBranchColorService
         var colorId = GetColorId(color);
         var newColorId = (colorId + 1) % BranchColors.Length;
 
-        repoConfig.Set(repo.Path, s => s.BranchColors[branch.PrimaryBaseName] = newColorId);
+        repoConfig.Set(repo.Path, s => s.BranchColors[branch.PrimaryName] = newColorId);
     }
 
-    static Color GetColorByBranchBaseName(string name, int addIndex = 0)
+    static Color GetColorByName(string name, int addIndex = 0)
     {
         var branchColorId = (Hash(name) + addIndex) % BranchColors.Length;
         return GetColorByColorId(branchColorId);
