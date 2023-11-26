@@ -8,7 +8,7 @@ namespace gmd.Cui.RepoView;
 
 interface ICommitCommands
 {
-    void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);
+    void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void ShowUncommittedDiff(bool isFromCommit = false);
@@ -23,6 +23,7 @@ interface ICommitCommands
 
     void UndoCommit(string id);
     void UncommitLastCommit();
+    void UncommitUntilCommit(string id);
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
 
@@ -31,6 +32,7 @@ interface ICommitCommands
     bool CanUncommitLastCommit();
     bool CanUndoUncommitted();
     void ToggleDetails();
+    //void SquashHeadTo(string id);
 }
 
 
@@ -220,6 +222,20 @@ class CommitCommands : ICommitCommands
         return R.Ok;
     });
 
+
+    public void UncommitUntilCommit(string id) => Do(async () =>
+    {
+        var commit = repo.Repo.CommitById[id];
+        var parentId = repo.Repo.CommitById[commit.ParentIds[0]].Id;
+        if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
     public bool CanUncommitLastCommit()
     {
         if (!repo.Repo.ViewCommits.Any()) return false;
@@ -321,6 +337,18 @@ class CommitCommands : ICommitCommands
         diffView.Show(diffs);
         return R.Ok;
     });
+
+
+    // public void SquashHeadTo(string id) => Do(async () =>
+    // {
+    //     // if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, branchName)))
+    //     //     return R.Error($"Failed to rebase branch {branchName}", e);
+
+
+    //     RefreshAndFetch();
+    //     return R.Ok;
+    // });
+
 
 
     void Do(Func<Task<R>> action)

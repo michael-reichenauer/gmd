@@ -226,8 +226,26 @@ class BranchCommands : IBranchCommands
         {   // Cannot push local branch if remote needs to be pulled first
             var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
             if (remoteBranch != null && remoteBranch.HasRemoteOnly)
-                return R.Error("Pull current remote branch first before pushing:\n" +
-                    $"{remoteBranch.NiceNameUnique}");
+            {
+                if (0 != UI.ErrorMessage("Push Warning",
+                $"""
+                Branch '{branch.Name}' 
+                has remote commits not yet pulled.
+                Pull current remote branch first before pushing,
+                or do you want to force push?
+                NOTE: be careful!
+                """,
+                1, "Force Push", "Cancel"))
+                {
+                    RefreshAndFetch();
+                    return R.Ok;
+                }
+            }
+
+            if (!Try(out var ee, await server.PushCurrentBranchAsync(true, repo.Path)))
+            {
+                return R.Error($"Failed to push branch:\n{branch.Name}", ee);
+            }
         }
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))

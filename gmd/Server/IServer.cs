@@ -55,6 +55,7 @@ interface IServer
     Task<R> CleanWorkingFolderAsync(string wd);
     Task<R> UndoCommitAsync(string id, int parent, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
+    Task<R> UncommitUntilCommitAsync(string id, string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R> InitRepoAsync(string path, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);

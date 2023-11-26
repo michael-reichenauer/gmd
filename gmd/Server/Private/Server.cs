@@ -264,6 +264,9 @@ class Server : IServer
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
 
+    public Task<R> UncommitUntilCommitAsync(string id, string wd) =>
+        git.UncommitUntilCommitAsync(id, wd);
+
     public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 

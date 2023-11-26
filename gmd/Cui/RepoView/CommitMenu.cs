@@ -51,6 +51,7 @@ class CommitMenu : ICommitMenu
             .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
             .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
             .SubMenu("Undo", "", GetCommitUndoItems())
+            // .SubMenu("Rebase", "", GetRebaseMenuItems())
             .SubMenu("Stash", "", GetStashMenuItems())
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
             .Item("Create Branch from Commit ...", "B", () => repo.BranchCmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
@@ -86,11 +87,20 @@ class CommitMenu : ICommitMenu
             .SubMenu("Undo/Restore an Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
             .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => repo.Repo.Status.IsOk)
             .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
+            .Item($"Uncommit until {id.Sid()}", "", () => cmds.UncommitUntilCommit(id),
+                () => repo.Repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent))
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
             .Item("Undo/Restore all Uncommitted Changes", "",
                 () => repo.Cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted());
     }
+
+    // IEnumerable<MenuItem> GetRebaseMenuItems()
+    // {
+    //     string id = repo.RowCommit.Id;
+    //     return Menu.Items
+    //         .Item($"Squash HEAD until {id.Sid()}", "", () => cmds.SquashHeadTo(id), () => repo.Status.IsOk && repo.RowBranch.IsLocalCurrent);
+    // }
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items
         .Item("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk)
