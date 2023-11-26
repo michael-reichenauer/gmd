@@ -13,7 +13,7 @@ interface ICommitCommands
 
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
-    void ShowDiff(string commitId, bool isFromCommit = false);
+    void ShowDiff(string commitId, string commitId2, bool isFromCommit = false);
     void ShowFileHistory();
 
     void Stash();
@@ -114,17 +114,54 @@ class CommitCommands : ICommitCommands
 
 
 
-    public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, isFromCommit);
+    public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, "", isFromCommit);
 
-    public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
+    public void ShowCurrentRowDiff()
+    {
+        var id1 = repo.RowCommit.Id;
+        var id2 = "";
+        var selection = repo.RepoView.Selection;
+        var (i1, i2) = (selection.I1, selection.I2);
+        if (i2 - i1 > 0)
+        {   // User has selected multiple commits
+            id1 = repo.Repo.ViewCommits[i1].Id;
+            id2 = repo.Repo.ViewCommits[i2].ParentIds[0];
+            if (id1 == Repo.UncommittedId || id2 == Repo.UncommittedId)
+            {
+                UI.ErrorMessage("Selection start and end commit cannot be uncommitted row.");
+                return;
+            }
+            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id2].BranchPrimaryName)
+            {
+                UI.ErrorMessage("Selection start and end commit not on same branch");
+                return;
+            }
+        }
 
-    public void ShowDiff(string commitId, bool isFromCommit = false) => Do(async () =>
+        ShowDiff(id1, id2);
+    }
+
+    public void ShowDiff(string commitId, string commitId2, bool isFromCommit = false) => Do(async () =>
     {
         if (commitId == Repo.EmptyRepoCommitId) return R.Ok;
 
-        if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repo.Path)))
+        CommitDiff? diff;
+        if (commitId2 == "")
         {
-            return R.Error($"Failed to get diff", e);
+            if (!Try(out diff, out var e, await server.GetCommitDiffAsync(commitId, repo.Path)))
+            {
+                return R.Error($"Failed to get diff", e);
+            }
+        }
+        else
+        {
+            repo.RepoView.ClearSelection();
+            var parentId = repo.Repo.CommitById[commitId2].ParentIds[0];
+            var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
+            if (!Try(out diff, out var e, await server.GetPreviewMergeDiffAsync(commitId, parentId, msg, repo.Path)))
+            {
+                return R.Error($"Failed to get diff", e);
+            }
         }
 
         UI.Post(() =>

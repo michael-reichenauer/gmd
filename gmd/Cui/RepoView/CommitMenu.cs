@@ -49,7 +49,7 @@ class CommitMenu : ICommitMenu
             .Items(repoMenu.GetNewReleaseItems())
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
             .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
-            .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
+            .Item($"Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff())
             .SubMenu("Undo", "", GetCommitUndoItems())
             .SubMenu("Rebase", "", GetRebaseMenuItems())
             .SubMenu("Stash", "", GetStashMenuItems())

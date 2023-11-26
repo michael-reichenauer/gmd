@@ -16,6 +16,7 @@ interface IRepoView
     int CurrentIndex { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
+    Selection Selection { get; }
 
     Task<R> ShowInitialRepoAsync(string path);
     Task<R> ShowRepoAsync(string path);
@@ -26,6 +27,7 @@ interface IRepoView
     void RefreshAndFetch(string addName = "", string commitId = "");
     void ToggleDetails();
     void ShowFilter();
+    void ClearSelection();
 }
 
 class RepoView : IRepoView
@@ -122,6 +124,11 @@ class RepoView : IRepoView
 
     public int CurrentIndex => commitsView.CurrentIndex;
     public Point CurrentPoint => commitsView.CurrentPoint;
+
+    public Selection Selection => commitsView.Selection;
+
+    public void ClearSelection() => commitsView.ClearSelection();
+
 
     public async Task<R> ShowInitialRepoAsync(string path)
     {
