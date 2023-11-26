@@ -192,19 +192,19 @@ class CommitCommands : ICommitCommands
     });
 
     public void UndoCommit(string id) => Do(async () =>
-       {
-           if (!CanUndoCommit()) return R.Ok;
-           var commit = repo.Repo.CommitById[id];
-           var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
+    {
+        if (!CanUndoCommit()) return R.Ok;
+        var commit = repo.Repo.CommitById[id];
+        var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
-           if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repo.Path)))
-           {
-               return R.Error($"Failed to undo commit", e);
-           }
+        if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
 
-           Refresh();
-           return R.Ok;
-       });
+        Refresh();
+        return R.Ok;
+    });
 
     public bool CanUndoCommit() => repo.Repo.Status.IsOk;
 
@@ -245,14 +245,8 @@ class CommitCommands : ICommitCommands
             return R.Error($"Failed to undo commit", e);
         }
 
-        if (!commitDlg.Show(repo, false, null, out var message)) return R.Ok;
+        RefreshAndCommit();
 
-        if (!Try(out e, await server.CommitAllChangesAsync(message, false, repo.Path)))
-        {
-            return R.Error($"Failed to commit squash", e);
-        }
-
-        RefreshAndFetch();
         return R.Ok;
     });
 
