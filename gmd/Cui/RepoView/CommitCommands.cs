@@ -125,13 +125,13 @@ class CommitCommands : ICommitCommands
         if (i2 - i1 > 0)
         {   // User has selected multiple commits
             id1 = repo.Repo.ViewCommits[i1].Id;
-            id2 = repo.Repo.ViewCommits[i2].ParentIds[0];
+            id2 = repo.Repo.ViewCommits[i2].Id;
             if (id1 == Repo.UncommittedId || id2 == Repo.UncommittedId)
             {
                 UI.ErrorMessage("Selection start and end commit cannot be uncommitted row.");
                 return;
             }
-            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id2].BranchPrimaryName)
+            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id1].BranchPrimaryName)
             {
                 UI.ErrorMessage("Selection start and end commit not on same branch");
                 return;
@@ -158,7 +158,7 @@ class CommitCommands : ICommitCommands
             repo.RepoView.ClearSelection();
             var parentId = repo.Repo.CommitById[commitId2].ParentIds[0];
             var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
-            if (!Try(out diff, out var e, await server.GetPreviewMergeDiffAsync(commitId, parentId, msg, repo.Path)))
+            if (!Try(out diff, out var e, await server.GetPreviewMergeDiffAsync(parentId, commitId, msg, repo.Path)))
             {
                 return R.Error($"Failed to get diff", e);
             }
