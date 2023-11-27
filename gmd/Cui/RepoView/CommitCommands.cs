@@ -8,12 +8,12 @@ namespace gmd.Cui.RepoView;
 
 interface ICommitCommands
 {
-    void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);
+    void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
-    void ShowDiff(string commitId, bool isFromCommit = false);
+    void ShowDiff(string commitId, string commitId2, bool isFromCommit = false);
     void ShowFileHistory();
 
     void Stash();
@@ -23,8 +23,10 @@ interface ICommitCommands
 
     void UndoCommit(string id);
     void UncommitLastCommit();
+    void UncommitUntilCommit(string id);
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
+    void SquashCommits(string id1, string id2);
 
     void AddTag();
     void DeleteTag(string name);
@@ -86,7 +88,7 @@ class CommitCommands : ICommitCommands
         });
     }
 
-    public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
+    public void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null) => Do(async () =>
     {
         if (!isAmend && repo.Repo.Status.IsOk) return R.Ok;
         if (isAmend && !repo.Repo.CurrentCommit().IsAhead) return R.Ok;
@@ -112,17 +114,54 @@ class CommitCommands : ICommitCommands
 
 
 
-    public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, isFromCommit);
+    public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, "", isFromCommit);
 
-    public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
+    public void ShowCurrentRowDiff()
+    {
+        var id1 = repo.RowCommit.Id;
+        var id2 = "";
+        var selection = repo.RepoView.Selection;
+        var (i1, i2) = (selection.I1, selection.I2);
+        if (i2 - i1 > 0)
+        {   // User has selected multiple commits
+            id1 = repo.Repo.ViewCommits[i1].Id;
+            id2 = repo.Repo.ViewCommits[i2].ParentIds[0];
+            if (id1 == Repo.UncommittedId || id2 == Repo.UncommittedId)
+            {
+                UI.ErrorMessage("Selection start and end commit cannot be uncommitted row.");
+                return;
+            }
+            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id2].BranchPrimaryName)
+            {
+                UI.ErrorMessage("Selection start and end commit not on same branch");
+                return;
+            }
+        }
 
-    public void ShowDiff(string commitId, bool isFromCommit = false) => Do(async () =>
+        ShowDiff(id1, id2);
+    }
+
+    public void ShowDiff(string commitId, string commitId2, bool isFromCommit = false) => Do(async () =>
     {
         if (commitId == Repo.EmptyRepoCommitId) return R.Ok;
 
-        if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repo.Path)))
+        CommitDiff? diff;
+        if (commitId2 == "")
         {
-            return R.Error($"Failed to get diff", e);
+            if (!Try(out diff, out var e, await server.GetCommitDiffAsync(commitId, repo.Path)))
+            {
+                return R.Error($"Failed to get diff", e);
+            }
+        }
+        else
+        {
+            repo.RepoView.ClearSelection();
+            var parentId = repo.Repo.CommitById[commitId2].ParentIds[0];
+            var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
+            if (!Try(out diff, out var e, await server.GetPreviewMergeDiffAsync(commitId, parentId, msg, repo.Path)))
+            {
+                return R.Error($"Failed to get diff", e);
+            }
         }
 
         UI.Post(() =>
@@ -190,19 +229,19 @@ class CommitCommands : ICommitCommands
     });
 
     public void UndoCommit(string id) => Do(async () =>
-       {
-           if (!CanUndoCommit()) return R.Ok;
-           var commit = repo.Repo.CommitById[id];
-           var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
+    {
+        if (!CanUndoCommit()) return R.Ok;
+        var commit = repo.Repo.CommitById[id];
+        var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
-           if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repo.Path)))
-           {
-               return R.Error($"Failed to undo commit", e);
-           }
+        if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
 
-           Refresh();
-           return R.Ok;
-       });
+        Refresh();
+        return R.Ok;
+    });
 
     public bool CanUndoCommit() => repo.Repo.Status.IsOk;
 
@@ -217,6 +256,34 @@ class CommitCommands : ICommitCommands
         }
 
         Refresh();
+        return R.Ok;
+    });
+
+
+    public void UncommitUntilCommit(string id) => Do(async () =>
+    {
+        var commit = repo.Repo.CommitById[id];
+        var parentId = repo.Repo.CommitById[commit.ParentIds[0]].Id;
+        if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void SquashCommits(string id1, string id2) => Do(async () =>
+    {
+        var commit2 = repo.Repo.CommitById[id2];
+        var parentId = repo.Repo.CommitById[commit2.ParentIds[0]].Id;
+        if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        RefreshAndCommit();
+
         return R.Ok;
     });
 
@@ -321,6 +388,18 @@ class CommitCommands : ICommitCommands
         diffView.Show(diffs);
         return R.Ok;
     });
+
+
+    // public void SquashHeadTo(string id) => Do(async () =>
+    // {
+    //     // if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, branchName)))
+    //     //     return R.Error($"Failed to rebase branch {branchName}", e);
+
+
+    //     RefreshAndFetch();
+    //     return R.Ok;
+    // });
+
 
 
     void Do(Func<Task<R>> action)

@@ -9,6 +9,7 @@ interface IViewRepo
     IBranchCommands BranchCmds { get; }
 
     Repo Repo { get; }
+    IRepoView RepoView { get; }
     string Path { get; }
     Status Status { get; }
 
@@ -52,6 +53,7 @@ class ViewRepo : IViewRepo
     public string Path => serverRepo.Path;
     public Status Status => serverRepo.Status;
 
+    public IRepoView RepoView => repoView;
     public IRepoCommands Cmds => repoCommands;
     public ICommitCommands CommitCmds => commitCommands;
     public IBranchCommands BranchCmds => branchCommands;

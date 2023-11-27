@@ -160,7 +160,10 @@ class Augmenter : IAugmenter
     {
         repo.Stashes.ForEach(s =>
         {
-            repo.CommitsById[s.ParentId].HasStash = true;
+            if (repo.CommitsById.TryGetValue(s.ParentId, out var commit))
+            {
+                commit.HasStash = true;
+            }
         });
     }
 

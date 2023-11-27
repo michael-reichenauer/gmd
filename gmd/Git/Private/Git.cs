@@ -93,6 +93,7 @@ internal class Git : IGit
     public Task<R> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
     public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) => commitService.UndoCommitAsync(id, parentIndex, wd);
     public Task<R> UncommitLastCommitAsync(string wd) => commitService.UncommitLastCommitAsync(wd);
+    public Task<R> UncommitUntilCommitAsync(string id, string wd) => commitService.UncommitUntilCommitAsync(id, wd);
     public Task<R<string>> GetValueAsync(string key, string wd) =>
        keyValueService.GetValueAsync(key, wd);
     public Task<R> SetValueAsync(string key, string value, string wd) =>

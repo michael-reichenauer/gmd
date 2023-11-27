@@ -8,6 +8,7 @@ interface ICommitService
     Task<R> CleanWorkingFolderAsync(string wd);
     Task<R> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
+    Task<R> UncommitUntilCommitAsync(string id, string wd);
 }
 
 // cSpell:ignore pathspec
@@ -78,6 +79,11 @@ class CommitService : ICommitService
     public async Task<R> UncommitLastCommitAsync(string wd)
     {
         return await cmd.RunAsync("git", "reset HEAD~1", wd);
+    }
+
+    public async Task<R> UncommitUntilCommitAsync(string id, string wd)
+    {
+        return await cmd.RunAsync("git", $"reset --soft {id}", wd);
     }
 
     static bool IsFileUnknown(ErrorResult error, string path)
