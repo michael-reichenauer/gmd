@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 interface IStashService
 {
-    Task<R> StashAsync(string wd);
+    Task<R> StashAsync(string message, string wd);
     Task<R> PopAsync(string name, string wd);
     Task<R> DropAsync(string name, string wd);
     Task<R<IReadOnlyList<Stash>>> ListAsync(string wd);
@@ -22,9 +22,10 @@ class StashService : IStashService
         this.diffService = diffService;
     }
 
-    public async Task<R> StashAsync(string wd)
+    public async Task<R> StashAsync(string message, string wd)
     {
-        return await cmd.RunAsync("git", "stash -u", wd);
+        var msg = message != "" ? $"save \"{message}\" " : "";
+        return await cmd.RunAsync("git", $"stash {msg}-u", wd);
     }
 
     public async Task<R> PopAsync(string name, string wd)

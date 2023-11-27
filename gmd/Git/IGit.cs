@@ -44,7 +44,7 @@ interface IGit
     Task<R> SetValueAsync(string key, string value, string wd);
     Task<R> PushValueAsync(string key, string wd);
     Task<R> PullValueAsync(string key, string wd);
-    Task<R> StashAsync(string wd);
+    Task<R> StashAsync(string message, string wd);
     Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
     Task<R> StashPopAsync(string name, string wd);
     Task<R> StashDropAsync(string name, string wd);

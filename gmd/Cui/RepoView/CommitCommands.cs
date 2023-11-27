@@ -44,6 +44,7 @@ class CommitCommands : ICommitCommands
     readonly ICommitDlg commitDlg;
     readonly IDiffView diffView;
     readonly IAddTagDlg addTagDlg;
+    readonly IAddStashDlg addStashDlg;
     readonly IRepoView repoView;
 
     public CommitCommands(
@@ -53,6 +54,7 @@ class CommitCommands : ICommitCommands
         ICommitDlg commitDlg,
         IDiffView diffView,
         IAddTagDlg addTagDlg,
+        IAddStashDlg addStashDlg,
         IRepoView repoView)
     {
         this.progress = progress;
@@ -61,6 +63,7 @@ class CommitCommands : ICommitCommands
         this.commitDlg = commitDlg;
         this.diffView = diffView;
         this.addTagDlg = addTagDlg;
+        this.addStashDlg = addStashDlg;
         this.repoView = repoView;
     }
 
@@ -184,7 +187,9 @@ class CommitCommands : ICommitCommands
     {
         if (repo.Repo.Status.IsOk) return R.Ok;
 
-        if (!Try(out var e, await server.StashAsync(repo.Path)))
+        if (!Try(out var msg, out var e, addStashDlg.Show())) return R.Ok;
+
+        if (!Try(out e, await server.StashAsync(msg, repo.Path)))
         {
             return R.Error($"Failed to stash changes", e);
         }

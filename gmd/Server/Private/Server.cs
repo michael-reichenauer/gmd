@@ -289,7 +289,7 @@ class Server : IServer
 
 
 
-    public Task<R> StashAsync(string wd) => git.StashAsync(wd);
+    public Task<R> StashAsync(string message, string wd) => git.StashAsync(message, wd);
 
     public Task<R> StashPopAsync(string name, string wd) => git.StashPopAsync(name, wd);
 
