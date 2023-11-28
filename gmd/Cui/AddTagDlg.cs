@@ -23,5 +23,3 @@ class AddTagDlg : IAddTagDlg
         return name.Text;
     }
 }
-
-
