@@ -192,7 +192,7 @@ class CommitCommands : ICommitCommands
         {   // User selected range of commits
             var id1 = repo.Repo.ViewCommits[i1].Id;
             var id2 = repo.Repo.ViewCommits[i2].Id;
-            sha = $"{id2}^..{id1}";
+            sha = $"{id2}~..{id1}";
         }
 
         if (!Try(out var e, await server.CherryPickAsync(sha, repo.Path)))
