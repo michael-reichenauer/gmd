@@ -27,7 +27,7 @@ interface ICommitCommands
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void SquashCommits(string id1, string id2);
-    void CherryPick(string id);
+    void CherryPick();
 
     void AddTag();
     void DeleteTag(string name);
@@ -183,11 +183,21 @@ class CommitCommands : ICommitCommands
     });
 
 
-    public void CherryPick(string id) => Do(async () =>
+    public void CherryPick() => Do(async () =>
     {
-        if (!Try(out var e, await server.CherryPickAsync(id, repo.Path)))
+        var sha = repo.RowCommit.Id;
+        var selection = repo.RepoView.Selection;
+        var (i1, i2) = (selection.I1, selection.I2);
+        if (i2 - i1 > 0)
+        {   // User selected range of commits
+            var id1 = repo.Repo.ViewCommits[i1].Id;
+            var id2 = repo.Repo.ViewCommits[i2].Id;
+            sha = $"{id2}^..{id1}";
+        }
+
+        if (!Try(out var e, await server.CherryPickAsync(sha, repo.Path)))
         {
-            return R.Error($"Failed to cherry pick {id.Sid()}", e);
+            return R.Error($"Failed to cherry pick", e);
         }
 
         RefreshAndCommit();
