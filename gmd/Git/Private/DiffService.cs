@@ -7,6 +7,7 @@ interface IDiffService
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd);
+    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
 }
 
 // cSpell:ignore uFEFF
@@ -99,6 +100,15 @@ class DiffService : IDiffService
         }
 
         return commitDiffs.ToArray();
+    }
+
+
+    public async Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd)
+    {
+        var args = $"diff --find-renames --unified=6 --full-index {sha1}^ {sha2}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+
+        return ParseDiff(output, message);
     }
 
     public async Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd)

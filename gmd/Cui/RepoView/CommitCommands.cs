@@ -159,9 +159,8 @@ class CommitCommands : ICommitCommands
         else
         {
             repo.RepoView.ClearSelection();
-            var parentId = repo.Repo.CommitById[commitId2].ParentIds[0];
             var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
-            if (!Try(out diff, out var e, await server.GetPreviewMergeDiffAsync(parentId, commitId, msg, repo.Path)))
+            if (!Try(out diff, out var e, await server.GetDiffRangeAsync(commitId2, commitId, msg, repo.Path)))
             {
                 return R.Error($"Failed to get diff", e);
             }
