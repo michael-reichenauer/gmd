@@ -27,6 +27,7 @@ interface ICommitCommands
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void SquashCommits(string id1, string id2);
+    void CherryPick(string id);
 
     void AddTag();
     void DeleteTag(string name);
@@ -178,6 +179,18 @@ class CommitCommands : ICommitCommands
                 Refresh();
             }
         });
+        return R.Ok;
+    });
+
+
+    public void CherryPick(string id) => Do(async () =>
+    {
+        if (!Try(out var e, await server.CherryPickAsync(id, repo.Path)))
+        {
+            return R.Error($"Failed to cherry pick {id.Sid()}", e);
+        }
+
+        RefreshAndCommit();
         return R.Ok;
     });
 
