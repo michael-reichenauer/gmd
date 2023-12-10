@@ -27,6 +27,7 @@ interface ICommitCommands
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void SquashCommits(string id1, string id2);
+    void CherryPick();
 
     void AddTag();
     void DeleteTag(string name);
@@ -159,9 +160,8 @@ class CommitCommands : ICommitCommands
         else
         {
             repo.RepoView.ClearSelection();
-            var parentId = repo.Repo.CommitById[commitId2].ParentIds[0];
             var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
-            if (!Try(out diff, out var e, await server.GetPreviewMergeDiffAsync(parentId, commitId, msg, repo.Path)))
+            if (!Try(out diff, out var e, await server.GetDiffRangeAsync(commitId2, commitId, msg, repo.Path)))
             {
                 return R.Error($"Failed to get diff", e);
             }
@@ -179,6 +179,28 @@ class CommitCommands : ICommitCommands
                 Refresh();
             }
         });
+        return R.Ok;
+    });
+
+
+    public void CherryPick() => Do(async () =>
+    {
+        var sha = repo.RowCommit.Id;
+        var selection = repo.RepoView.Selection;
+        var (i1, i2) = (selection.I1, selection.I2);
+        if (i2 - i1 > 0)
+        {   // User selected range of commits
+            var id1 = repo.Repo.ViewCommits[i1].Id;
+            var id2 = repo.Repo.ViewCommits[i2].Id;
+            sha = $"{id2}~..{id1}";
+        }
+
+        if (!Try(out var e, await server.CherryPickAsync(sha, repo.Path)))
+        {
+            return R.Error($"Failed to cherry pick", e);
+        }
+
+        RefreshAndCommit();
         return R.Ok;
     });
 
