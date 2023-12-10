@@ -24,7 +24,6 @@ interface IBranchCommands
     void DeleteBranch(string name);
     void MergeBranch(string name);
     void RebaseBranch(string name);
-    void CherryPick(string id);
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -198,18 +197,6 @@ class BranchCommands : IBranchCommands
         }
 
         diffView.Show(diff, sha1, repo.Path);
-        return R.Ok;
-    });
-
-
-    public void CherryPick(string id) => Do(async () =>
-    {
-        if (!Try(out var e, await server.CherryPickAsync(id, repo.Path)))
-        {
-            return R.Error($"Failed to cherry pick {id.Sid()}", e);
-        }
-
-        RefreshAndCommit();
         return R.Ok;
     });
 

@@ -187,6 +187,12 @@ class Server : IServer
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
+    public async Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd)
+    {
+        if (!Try(out var gitCommitDiff, out var e, await git.GetDiffRangeAsync(sha1, sha2, message, wd))) return e;
+
+        return converter.ToCommitDiff(gitCommitDiff);
+    }
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
     {
