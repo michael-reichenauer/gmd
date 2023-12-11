@@ -11,6 +11,7 @@ interface IBranchService
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> MergeBranchAsync(string name, string wd);
     Task<R> RebaseBranchAsync(string name, string wd);
+    Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
 }
 
@@ -83,6 +84,17 @@ class BranchService : IBranchService
     {
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
+        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        {
+            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+        }
+        return rsp;
+    }
+
+    public async Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd)
+    {
+        //  name = RemoteService.TrimRemotePrefix(name);
+        var rsp = await cmd.RunAsync("git", $"rebase {newBase} {oldBase}", wd);
         if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
         {
             return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
