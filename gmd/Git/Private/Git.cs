@@ -78,7 +78,8 @@ internal class Git : IGit
     public Task<R> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
     public Task<R> MergeBranchAsync(string name, string wd) => branchService.MergeBranchAsync(name, wd);
     public Task<R> RebaseBranchAsync(string name, string wd) => branchService.RebaseBranchAsync(name, wd);
-    public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) => branchService.RebaseOntoAsync(newBase, oldBase, wd);
+    public Task<R> RebaseOntoAsync(string newBase, string oldBase, string until, string wd) =>
+        branchService.RebaseOntoAsync(newBase, oldBase, until, wd);
     public Task<R> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
         branchService.CreateBranchAsync(name, isCheckout, wd);
