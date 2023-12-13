@@ -94,7 +94,7 @@ class BranchService : IBranchService
     public async Task<R> RebaseOntoAsync(string newBase, string oldBase, string until, string wd)
     {
         //  name = RemoteService.TrimRemotePrefix(name);
-        var rsp = await cmd.RunAsync("git", $"rebase {newBase} {oldBase} {until}", wd);
+        var rsp = await cmd.RunAsync("git", $"rebase --onto {newBase} {oldBase} {until}", wd);
         if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
         {
             return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
