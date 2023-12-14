@@ -199,6 +199,7 @@ class CommitCommands : ICommitCommands
                 commits.Add(current);
                 current = repo.Repo.CommitById[current.ParentIds[0]];
             }
+            commits.Add(current);
 
             foreach (var commit in commits)
             {
