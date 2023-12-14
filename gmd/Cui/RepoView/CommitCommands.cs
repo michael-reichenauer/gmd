@@ -200,6 +200,7 @@ class CommitCommands : ICommitCommands
                 current = repo.Repo.CommitById[current.ParentIds[0]];
             }
             commits.Add(current);
+            commits.Reverse();
 
             foreach (var commit in commits)
             {
