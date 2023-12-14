@@ -190,14 +190,36 @@ class CommitCommands : ICommitCommands
         var (i1, i2) = (selection.I1, selection.I2);
         if (i2 - i1 > 0)
         {   // User selected range of commits
-            var id1 = repo.Repo.ViewCommits[i1].Id;
-            var id2 = repo.Repo.ViewCommits[i2].Id;
-            sha = $"{id2}~..{id1}";
-        }
+            var c1 = repo.Repo.ViewCommits[i1];
+            var c2 = repo.Repo.ViewCommits[i2];
+            var commits = new List<Commit>();
+            var current = c1;
+            while (current != c2)
+            {
+                commits.Add(current);
+                current = repo.Repo.CommitById[current.ParentIds[0]];
+            }
+            commits.Add(current);
+            commits.Reverse();
 
-        if (!Try(out var e, await server.CherryPickAsync(sha, repo.Path)))
-        {
-            return R.Error($"Failed to cherry pick", e);
+            foreach (var commit in commits)
+            {
+                if (!Try(out var e, await server.CherryPickAsync(commit.Id, repo.Path)))
+                {
+                    return R.Error($"Failed to cherry pick", e);
+                }
+                if (!Try(out e, await server.CommitAllChangesAsync(commit.Message, false, repo.Path)))
+                {
+                    return R.Error($"Failed to commit", e);
+                }
+            }
+        }
+        else
+        {   // User selected one commit
+            if (!Try(out var e, await server.CherryPickAsync(sha, repo.Path)))
+            {
+                return R.Error($"Failed to cherry pick", e);
+            }
         }
 
         RefreshAndCommit();
