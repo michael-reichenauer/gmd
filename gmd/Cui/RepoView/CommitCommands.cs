@@ -190,14 +190,27 @@ class CommitCommands : ICommitCommands
         var (i1, i2) = (selection.I1, selection.I2);
         if (i2 - i1 > 0)
         {   // User selected range of commits
-            var id1 = repo.Repo.ViewCommits[i1].Id;
-            var id2 = repo.Repo.ViewCommits[i2].Id;
-
-            if (!Try(out var e, await server.RebaseOntoAsync("HEAD", $"{id2}~", id1, repo.Path)))
+            var c1 = repo.Repo.ViewCommits[i1];
+            var c2 = repo.Repo.ViewCommits[i2];
+            var commits = new List<Commit>();
+            var current = c1;
+            while (current != c2)
             {
-                return R.Error($"Failed to copy commits", e);
+                commits.Add(current);
+                current = repo.Repo.CommitById[current.ParentIds[0]];
             }
-            // sha = $"{id2}~..{id1}";
+
+            foreach (var commit in commits)
+            {
+                if (!Try(out var e, await server.CherryPickAsync(commit.Id, repo.Path)))
+                {
+                    return R.Error($"Failed to cherry pick", e);
+                }
+                if (!Try(out e, await server.CommitAllChangesAsync(commit.Message, false, repo.Path)))
+                {
+                    return R.Error($"Failed to commit", e);
+                }
+            }
         }
         else
         {   // User selected one commit
