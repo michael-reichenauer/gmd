@@ -29,7 +29,7 @@ interface IGit
     Task<R> CheckoutAsync(string name, string wd);
     Task<R> MergeBranchAsync(string name, string wd);
     Task<R> RebaseBranchAsync(string name, string wd);
-    Task<R> RebaseOntoAsync(string newBase, string oldBase, string until, string wd);
+    Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);

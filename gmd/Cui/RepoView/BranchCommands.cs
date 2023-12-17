@@ -23,7 +23,7 @@ interface IBranchCommands
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void RebaseBranch(string name);
+    void RebaseBranchOnto(string onto);
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -141,10 +141,10 @@ class BranchCommands : IBranchCommands
     });
 
 
-    public void RebaseBranch(string branchName) => Do(async () =>
+    public void RebaseBranchOnto(string onto) => Do(async () =>
     {
-        if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, branchName)))
-            return R.Error($"Failed to rebase branch {branchName}", e);
+        if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, onto)))
+            return R.Error($"Failed to rebase branch {onto}", e);
 
         Refresh();
         return R.Ok;

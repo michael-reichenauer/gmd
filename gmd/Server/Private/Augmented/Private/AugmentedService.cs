@@ -1,3 +1,4 @@
+using gmd.Cui.RepoView;
 using gmd.Git;
 using GitStatus = gmd.Git.Status;
 
@@ -228,38 +229,36 @@ class AugmentedService : IAugmentedService
     {
         using (fileMonitor.Pause())
         {
-            if (repo.CommitById.TryGetValue(name, out var commit))
-            {   // Merging from a commit
-                if (!Try(out var e2, await git.RebaseBranchAsync(commit.Id, repo.Path))) return e2;
-                return R.Ok;
-            }
+            var cb = repo.CurrentBranch();
+            var primaryCurrent = repo.BranchByName[cb.PrimaryName];
+            var oldBase = primaryCurrent.BottomId;
 
-            var branch = repo.BranchByName[name];
-            var tip = repo.CommitById[branch.TipId];
-            var rebaseName = branch.Name;
+            var ontoBranch = repo.BranchByName[name];
+            var ontoTip = repo.CommitById[ontoBranch.TipId];
 
-            if (branch.LocalName != "")
+            var newBase = ontoBranch.Name;
+
+            if (ontoBranch.LocalName != "")
             {   // Branch is a remote branch with an existing local branch, which might have a younger tip
-                var localBranch = repo.BranchByName[branch.LocalName];
+                var localBranch = repo.BranchByName[ontoBranch.LocalName];
                 var localTip = repo.CommitById[localBranch.TipId];
-                if (localTip.AuthorTime >= tip.AuthorTime)
+                if (localTip.AuthorTime >= ontoTip.AuthorTime)
                 {   // The local branch is younger or same, use that.
-                    rebaseName = localBranch.Name;
+                    newBase = localBranch.Name;
                 }
             }
-            else if (branch.RemoteName != "")
+            else if (ontoBranch.RemoteName != "")
             {   // Branch is a local branch with an existing remote branch, which might have a younger tip
-                var remoteBranch = repo.BranchByName[branch.RemoteName];
+                var remoteBranch = repo.BranchByName[ontoBranch.RemoteName];
                 var remoteTip = repo.CommitById[remoteBranch.TipId];
-                if (remoteTip.AuthorTime >= tip.AuthorTime)
+                if (remoteTip.AuthorTime >= ontoTip.AuthorTime)
                 {   // The remote branch is younger or same, use that.
-                    rebaseName = remoteBranch.Name;
+                    newBase = remoteBranch.Name;
                 }
             }
 
-            if (!Try(out var e, await git.RebaseBranchAsync(rebaseName, repo.Path))) return e;
+            if (!Try(out var e, await git.RebaseOntoAsync($"{oldBase}~", newBase, repo.Path))) return e;
 
-            var cb = repo.AllBranches.First(b => b.IsCurrent);
             if (cb.RemoteName != "")
             {   // Current Branch is local branch with a remote branch, push it with force
                 if (!Try(out e, await git.PushCurrentBranchAsync(true, repo.Path))) return e;

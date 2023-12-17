@@ -244,8 +244,8 @@ class Server : IServer
     public Task<R> RebaseBranchAsync(Repo repo, string branchName) =>
          augmentedService.RebaseBranchAsync(repo, branchName);
 
-    public Task<R> RebaseOntoAsync(string newBase, string oldBase, string until, string wd) =>
-        git.RebaseOntoAsync(newBase, oldBase, until, wd);
+    public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
+        git.RebaseOntoAsync(newBase, oldBase, wd);
 
     public Task<R> CherryPickAsync(string sha, string wd) =>
         git.CherryPickAsync(sha, wd);
