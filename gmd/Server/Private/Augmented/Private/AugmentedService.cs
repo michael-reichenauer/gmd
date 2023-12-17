@@ -257,7 +257,7 @@ class AugmentedService : IAugmentedService
                 }
             }
 
-            if (!Try(out var e, await git.RebaseOntoAsync($"{oldBase}~", newBase, repo.Path))) return e;
+            if (!Try(out var e, await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path))) return e;
 
             if (cb.RemoteName != "")
             {   // Current Branch is local branch with a remote branch, push it with force
