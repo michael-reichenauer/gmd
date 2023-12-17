@@ -74,7 +74,7 @@ class BranchMenu : IBranchMenu
             .Item(GetSwitchToBranchItem(branchName))
             .Item(!isCurrent, $"Merge to {mergeToName}", "E", () => cmds.MergeBranch(b.Name), () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK)
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
-            .SubMenu(isCurrent, "Rebase and push on", "", GetRebaseFromItems())
+            .SubMenu("Rebase and push on", "", GetRebaseFromItems(b))
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
             .Item("Pull/Update", "U", () => cmds.PullBranch(branchName), () => b.HasRemoteOnly && isStatusOK)
             .Item("Push", "P", () => cmds.PushBranch(branchName), () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK)
@@ -115,19 +115,23 @@ class BranchMenu : IBranchMenu
         return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
     }
 
-    IEnumerable<MenuItem> GetRebaseFromItems()
+    IEnumerable<MenuItem> GetRebaseFromItems(Branch selectedBranch)
     {
-        if (!repo.Repo.Status.IsOk) return Menu.Items;
+        var sb = selectedBranch;
+        var isCurrent = sb.IsCurrent || sb.IsLocalCurrent;
+        if (!repo.Repo.Status.IsOk || !isCurrent) return Menu.Items;
 
-        var currentName = repo.Repo.CurrentBranch().PrimaryName;
+        var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);
+        var parentBranch = repo.Repo.ViewBranches.First(b => b.Name == primaryBranch.ParentBranchName);
 
-        // Get all branches except current
+        // Get all branches except current and main (with parent branch first)
         var branches = repo.Repo.ViewBranches
-             .Where(b => b.IsPrimary && b.PrimaryName != currentName)
+             .Where(b => b.IsPrimary && b.PrimaryName != sb.PrimaryName && b.PrimaryName != parentBranch.PrimaryName && !b.IsMainBranch)
              .DistinctBy(b => b.TipId)
-             .OrderBy(b => b.PrimaryName);
+             .OrderBy(b => b.PrimaryName)
+             .Prepend(parentBranch);
 
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.RebaseBranch(b.Name)));
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.RebaseBranchOnto(b.Name)));
     }
 
 
