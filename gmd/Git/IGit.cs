@@ -16,8 +16,10 @@ interface IGit
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
+    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
     Task<R> FetchAsync(string wd);
     Task<R> PushBranchAsync(string name, string wd);
+    Task<R> PushCurrentBranchAsync(bool isForce, string wd);
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> PushRefForceAsync(string name, string wd);
@@ -26,6 +28,8 @@ interface IGit
     Task<R> InitRepoAsync(string path, string wd);
     Task<R> CheckoutAsync(string name, string wd);
     Task<R> MergeBranchAsync(string name, string wd);
+    Task<R> RebaseBranchAsync(string name, string wd);
+    Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
@@ -37,11 +41,12 @@ interface IGit
     Task<R> CleanWorkingFolderAsync(string wd);
     Task<R> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
+    Task<R> UncommitUntilCommitAsync(string id, string wd);
     Task<R<string>> GetValueAsync(string key, string wd);
     Task<R> SetValueAsync(string key, string value, string wd);
     Task<R> PushValueAsync(string key, string wd);
     Task<R> PullValueAsync(string key, string wd);
-    Task<R> StashAsync(string wd);
+    Task<R> StashAsync(string message, string wd);
     Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
     Task<R> StashPopAsync(string name, string wd);
     Task<R> StashDropAsync(string name, string wd);

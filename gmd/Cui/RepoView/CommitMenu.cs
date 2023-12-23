@@ -49,13 +49,14 @@ class CommitMenu : ICommitMenu
             .Items(repoMenu.GetNewReleaseItems())
             .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
             .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
-            .Item("Commit Diff ...", "D", () => cmds.ShowDiff(c.Id))
+            .Item($"Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff())
             .SubMenu("Undo", "", GetCommitUndoItems())
+            .SubMenu("Rebase", "", GetRebaseMenuItems())
             .SubMenu("Stash", "", GetStashMenuItems())
             .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
-            .Item("Create Branch from Commit ...", "", () => repo.BranchCmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
+            .Item("Create Branch from Commit ...", "B", () => repo.BranchCmds.CreateBranchFromCommit(), () => !c.IsUncommitted)
             .Item($"Merge From Commit to {cb?.ShortNiceUniqueName()}", "", () => repo.BranchCmds.MergeBranch(c.Id), () => isStatusOK && rb != cb)
-            .Item($"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}", "", () => repo.BranchCmds.CherryPick(c.Id), () => isStatusOK && rb != cb)
+            .Item($"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}", "", () => cmds.CherryPick(), () => isStatusOK && rb != cb)
             .Item("Switch/Checkout to Commit", "", () => repo.BranchCmds.SwitchToCommit(),
                     () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id)
             .Separator()
@@ -86,10 +87,21 @@ class CommitMenu : ICommitMenu
             .SubMenu("Undo/Restore an Uncommitted File", "", GetUncommittedFileItems(), () => cmds.CanUndoUncommitted())
             .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => repo.Repo.Status.IsOk)
             .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
+            .Item($"Uncommit until {id.Sid()}", "", () => cmds.UncommitUntilCommit(id),
+                () => repo.Repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent))
             .Separator()
             .Item("Undo/Restore all Uncommitted Binary Files", "", () => cmds.UndoUncommittedFiles(binaryPaths), () => binaryPaths.Any())
             .Item("Undo/Restore all Uncommitted Changes", "",
                 () => repo.Cmds.UndoAllUncommittedChanged(), () => cmds.CanUndoUncommitted());
+    }
+
+    IEnumerable<MenuItem> GetRebaseMenuItems()
+    {
+        string id1 = "HEAD";
+        string id2 = repo.RowCommit.Id;
+        return Menu.Items
+            .Item($"Squash until {id2.Sid()}", "", () => cmds.SquashCommits(id1, id2),
+            () => repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent));
     }
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items

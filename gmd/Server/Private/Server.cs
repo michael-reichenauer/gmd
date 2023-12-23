@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -188,6 +187,12 @@ class Server : IServer
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
+    public async Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd)
+    {
+        if (!Try(out var gitCommitDiff, out var e, await git.GetDiffRangeAsync(sha1, sha2, message, wd))) return e;
+
+        return converter.ToCommitDiff(gitCommitDiff);
+    }
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
     {
@@ -218,6 +223,8 @@ class Server : IServer
         }
     }
 
+    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) =>
+        git.PushCurrentBranchAsync(isForce, wd);
 
     public Task<R> PullCurrentBranchAsync(string wd) =>
         git.PullCurrentBranchAsync(wd);
@@ -233,6 +240,12 @@ class Server : IServer
         if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo, branchName))) return e;
         return converter.ToViewCommits(commits).ToList();
     }
+
+    public Task<R> RebaseBranchAsync(Repo repo, string branchName) =>
+         augmentedService.RebaseBranchAsync(repo, branchName);
+
+    public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
+        git.RebaseOntoAsync(newBase, oldBase, wd);
 
     public Task<R> CherryPickAsync(string sha, string wd) =>
         git.CherryPickAsync(sha, wd);
@@ -258,6 +271,9 @@ class Server : IServer
     public Task<R> UncommitLastCommitAsync(string wd) =>
         git.UncommitLastCommitAsync(wd);
 
+    public Task<R> UncommitUntilCommitAsync(string id, string wd) =>
+        git.UncommitUntilCommitAsync(id, wd);
+
     public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 
@@ -280,7 +296,7 @@ class Server : IServer
 
 
 
-    public Task<R> StashAsync(string wd) => git.StashAsync(wd);
+    public Task<R> StashAsync(string message, string wd) => git.StashAsync(message, wd);
 
     public Task<R> StashPopAsync(string name, string wd) => git.StashPopAsync(name, wd);
 

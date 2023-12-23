@@ -23,7 +23,7 @@ interface IBranchCommands
     void CreateBranchFromCommit();
     void DeleteBranch(string name);
     void MergeBranch(string name);
-    void CherryPick(string id);
+    void RebaseBranchOnto(string onto);
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -136,8 +136,17 @@ class BranchCommands : IBranchCommands
         if (!Try(out var commits, out var e, await server.MergeBranchAsync(repo.Repo, branchName)))
             return R.Error($"Failed to merge branch {branchName}", e);
 
-
         RefreshAndCommit("", "", commits);
+        return R.Ok;
+    });
+
+
+    public void RebaseBranchOnto(string onto) => Do(async () =>
+    {
+        if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, onto)))
+            return R.Error($"Failed to rebase branch {onto}", e);
+
+        Refresh();
         return R.Ok;
     });
 
@@ -192,18 +201,6 @@ class BranchCommands : IBranchCommands
     });
 
 
-    public void CherryPick(string id) => Do(async () =>
-    {
-        if (!Try(out var e, await server.CherryPickAsync(id, repo.Path)))
-        {
-            return R.Error($"Failed to cherry pick {id.Sid()}", e);
-        }
-
-        RefreshAndCommit();
-        return R.Ok;
-    });
-
-
     public void PushCurrentBranch() => Do(async () =>
     {
         var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
@@ -216,8 +213,26 @@ class BranchCommands : IBranchCommands
         {   // Cannot push local branch if remote needs to be pulled first
             var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
             if (remoteBranch != null && remoteBranch.HasRemoteOnly)
-                return R.Error("Pull current remote branch first before pushing:\n" +
-                    $"{remoteBranch.NiceNameUnique}");
+            {
+                if (0 != UI.ErrorMessage("Push Warning",
+                $"""
+                Branch '{branch.Name}' 
+                has remote commits not yet pulled.
+                Pull current remote branch first before pushing,
+                or do you want to force push?
+                NOTE: be careful!
+                """,
+                1, "Force Push", "Cancel"))
+                {
+                    RefreshAndFetch();
+                    return R.Ok;
+                }
+            }
+
+            if (!Try(out var ee, await server.PushCurrentBranchAsync(true, repo.Path)))
+            {
+                return R.Error($"Failed to push branch:\n{branch.Name}", ee);
+            }
         }
 
         if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))

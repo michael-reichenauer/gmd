@@ -28,7 +28,7 @@ interface IServer
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
     Task<R> CreateBranchFromBranchAsync(Repo serverRepo, string newBranchName, string sourceBranch, bool isCheckout, string repoPath);
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
-    Task<R> StashAsync(string wd);
+    Task<R> StashAsync(string message, string wd);
     Task<R> StashPopAsync(string name, string wd);
 
     // Git commands
@@ -38,13 +38,17 @@ interface IServer
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
+    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
     //Task<R<string>> GetFileTextAsync(string path, string wd);
 
     Task<R> PushBranchAsync(string name, string wd);
+    Task<R> PushCurrentBranchAsync(bool isForce, string wd);
     Task<R> PullCurrentBranchAsync(string wd);
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
+    Task<R> RebaseBranchAsync(Repo repo, string branchName);
+    Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
@@ -53,6 +57,7 @@ interface IServer
     Task<R> CleanWorkingFolderAsync(string wd);
     Task<R> UndoCommitAsync(string id, int parent, string wd);
     Task<R> UncommitLastCommitAsync(string wd);
+    Task<R> UncommitUntilCommitAsync(string id, string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R> InitRepoAsync(string path, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);

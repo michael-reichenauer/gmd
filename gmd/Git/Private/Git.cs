@@ -61,9 +61,12 @@ internal class Git : IGit
         diffService.GetFileDiffAsync(path, wd);
     public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd) =>
         diffService.GetRefsDiffAsync(sha1, sha2, message, wd);
+    public Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd) =>
+        diffService.GetDiffRangeAsync(sha1, sha2, message, wd);
     public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
     public Task<R> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);
+    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) => remoteService.PushCurrentBranchAsync(isForce, wd);
     public Task<R> PushRefForceAsync(string name, string wd) => remoteService.PushRefForceAsync(name, wd);
     public Task<R> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
     public Task<R> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
@@ -74,6 +77,9 @@ internal class Git : IGit
         repoService.InitAsync(path, false);
     public Task<R> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
     public Task<R> MergeBranchAsync(string name, string wd) => branchService.MergeBranchAsync(name, wd);
+    public Task<R> RebaseBranchAsync(string name, string wd) => branchService.RebaseBranchAsync(name, wd);
+    public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
+        branchService.RebaseOntoAsync(newBase, oldBase, wd);
     public Task<R> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
         branchService.CreateBranchAsync(name, isCheckout, wd);
@@ -91,6 +97,7 @@ internal class Git : IGit
     public Task<R> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
     public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) => commitService.UndoCommitAsync(id, parentIndex, wd);
     public Task<R> UncommitLastCommitAsync(string wd) => commitService.UncommitLastCommitAsync(wd);
+    public Task<R> UncommitUntilCommitAsync(string id, string wd) => commitService.UncommitUntilCommitAsync(id, wd);
     public Task<R<string>> GetValueAsync(string key, string wd) =>
        keyValueService.GetValueAsync(key, wd);
     public Task<R> SetValueAsync(string key, string value, string wd) =>
@@ -99,7 +106,7 @@ internal class Git : IGit
         keyValueService.PushValueAsync(key, wd);
     public Task<R> PullValueAsync(string key, string wd) =>
         keyValueService.PullValueAsync(key, wd);
-    public Task<R> StashAsync(string wd) => stashService.StashAsync(wd);
+    public Task<R> StashAsync(string message, string wd) => stashService.StashAsync(message, wd);
     public Task<R> StashPopAsync(string name, string wd) => stashService.PopAsync(name, wd);
     public Task<R> StashDropAsync(string name, string wd) => stashService.DropAsync(name, wd);
     public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);

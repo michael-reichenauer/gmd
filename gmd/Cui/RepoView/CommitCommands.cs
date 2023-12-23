@@ -8,12 +8,12 @@ namespace gmd.Cui.RepoView;
 
 interface ICommitCommands
 {
-    void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null);
+    void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
-    void ShowDiff(string commitId, bool isFromCommit = false);
+    void ShowDiff(string commitId, string commitId2, bool isFromCommit = false);
     void ShowFileHistory();
 
     void Stash();
@@ -23,8 +23,11 @@ interface ICommitCommands
 
     void UndoCommit(string id);
     void UncommitLastCommit();
+    void UncommitUntilCommit(string id);
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
+    void SquashCommits(string id1, string id2);
+    void CherryPick();
 
     void AddTag();
     void DeleteTag(string name);
@@ -42,6 +45,7 @@ class CommitCommands : ICommitCommands
     readonly ICommitDlg commitDlg;
     readonly IDiffView diffView;
     readonly IAddTagDlg addTagDlg;
+    readonly IAddStashDlg addStashDlg;
     readonly IRepoView repoView;
 
     public CommitCommands(
@@ -51,6 +55,7 @@ class CommitCommands : ICommitCommands
         ICommitDlg commitDlg,
         IDiffView diffView,
         IAddTagDlg addTagDlg,
+        IAddStashDlg addStashDlg,
         IRepoView repoView)
     {
         this.progress = progress;
@@ -59,6 +64,7 @@ class CommitCommands : ICommitCommands
         this.commitDlg = commitDlg;
         this.diffView = diffView;
         this.addTagDlg = addTagDlg;
+        this.addStashDlg = addStashDlg;
         this.repoView = repoView;
     }
 
@@ -86,7 +92,7 @@ class CommitCommands : ICommitCommands
         });
     }
 
-    public void Commit(bool isAmend, IReadOnlyList<Server.Commit>? commits = null) => Do(async () =>
+    public void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null) => Do(async () =>
     {
         if (!isAmend && repo.Repo.Status.IsOk) return R.Ok;
         if (isAmend && !repo.Repo.CurrentCommit().IsAhead) return R.Ok;
@@ -112,17 +118,53 @@ class CommitCommands : ICommitCommands
 
 
 
-    public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, isFromCommit);
+    public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, "", isFromCommit);
 
-    public void ShowCurrentRowDiff() => ShowDiff(repo.RowCommit.Id);
+    public void ShowCurrentRowDiff()
+    {
+        var id1 = repo.RowCommit.Id;
+        var id2 = "";
+        var selection = repo.RepoView.Selection;
+        var (i1, i2) = (selection.I1, selection.I2);
+        if (i2 - i1 > 0)
+        {   // User has selected multiple commits
+            id1 = repo.Repo.ViewCommits[i1].Id;
+            id2 = repo.Repo.ViewCommits[i2].Id;
+            if (id1 == Repo.UncommittedId || id2 == Repo.UncommittedId)
+            {
+                UI.ErrorMessage("Selection start and end commit cannot be uncommitted row.");
+                return;
+            }
+            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id1].BranchPrimaryName)
+            {
+                UI.ErrorMessage("Selection start and end commit not on same branch");
+                return;
+            }
+        }
 
-    public void ShowDiff(string commitId, bool isFromCommit = false) => Do(async () =>
+        ShowDiff(id1, id2);
+    }
+
+    public void ShowDiff(string commitId, string commitId2, bool isFromCommit = false) => Do(async () =>
     {
         if (commitId == Repo.EmptyRepoCommitId) return R.Ok;
 
-        if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repo.Path)))
+        CommitDiff? diff;
+        if (commitId2 == "")
         {
-            return R.Error($"Failed to get diff", e);
+            if (!Try(out diff, out var e, await server.GetCommitDiffAsync(commitId, repo.Path)))
+            {
+                return R.Error($"Failed to get diff", e);
+            }
+        }
+        else
+        {
+            repo.RepoView.ClearSelection();
+            var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
+            if (!Try(out diff, out var e, await server.GetDiffRangeAsync(commitId2, commitId, msg, repo.Path)))
+            {
+                return R.Error($"Failed to get diff", e);
+            }
         }
 
         UI.Post(() =>
@@ -141,11 +183,57 @@ class CommitCommands : ICommitCommands
     });
 
 
+    public void CherryPick() => Do(async () =>
+    {
+        var sha = repo.RowCommit.Id;
+        var selection = repo.RepoView.Selection;
+        var (i1, i2) = (selection.I1, selection.I2);
+        if (i2 - i1 > 0)
+        {   // User selected range of commits
+            var c1 = repo.Repo.ViewCommits[i1];
+            var c2 = repo.Repo.ViewCommits[i2];
+            var commits = new List<Commit>();
+            var current = c1;
+            while (current != c2)
+            {
+                commits.Add(current);
+                current = repo.Repo.CommitById[current.ParentIds[0]];
+            }
+            commits.Add(current);
+            commits.Reverse();
+
+            foreach (var commit in commits)
+            {
+                if (!Try(out var e, await server.CherryPickAsync(commit.Id, repo.Path)))
+                {
+                    return R.Error($"Failed to cherry pick", e);
+                }
+                if (!Try(out e, await server.CommitAllChangesAsync(commit.Message, false, repo.Path)))
+                {
+                    return R.Error($"Failed to commit", e);
+                }
+            }
+        }
+        else
+        {   // User selected one commit
+            if (!Try(out var e, await server.CherryPickAsync(sha, repo.Path)))
+            {
+                return R.Error($"Failed to cherry pick", e);
+            }
+        }
+
+        RefreshAndCommit();
+        return R.Ok;
+    });
+
+
     public void Stash() => Do(async () =>
     {
         if (repo.Repo.Status.IsOk) return R.Ok;
 
-        if (!Try(out var e, await server.StashAsync(repo.Path)))
+        if (!Try(out var msg, out var e, addStashDlg.Show(repo.Repo.CurrentCommit().Subject))) return R.Ok;
+
+        if (!Try(out e, await server.StashAsync(msg, repo.Path)))
         {
             return R.Error($"Failed to stash changes", e);
         }
@@ -190,19 +278,19 @@ class CommitCommands : ICommitCommands
     });
 
     public void UndoCommit(string id) => Do(async () =>
-       {
-           if (!CanUndoCommit()) return R.Ok;
-           var commit = repo.Repo.CommitById[id];
-           var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
+    {
+        if (!CanUndoCommit()) return R.Ok;
+        var commit = repo.Repo.CommitById[id];
+        var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
-           if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repo.Path)))
-           {
-               return R.Error($"Failed to undo commit", e);
-           }
+        if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
 
-           Refresh();
-           return R.Ok;
-       });
+        Refresh();
+        return R.Ok;
+    });
 
     public bool CanUndoCommit() => repo.Repo.Status.IsOk;
 
@@ -217,6 +305,34 @@ class CommitCommands : ICommitCommands
         }
 
         Refresh();
+        return R.Ok;
+    });
+
+
+    public void UncommitUntilCommit(string id) => Do(async () =>
+    {
+        var commit = repo.Repo.CommitById[id];
+        var parentId = repo.Repo.CommitById[commit.ParentIds[0]].Id;
+        if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        Refresh();
+        return R.Ok;
+    });
+
+    public void SquashCommits(string id1, string id2) => Do(async () =>
+    {
+        var commit2 = repo.Repo.CommitById[id2];
+        var parentId = repo.Repo.CommitById[commit2.ParentIds[0]].Id;
+        if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        RefreshAndCommit();
+
         return R.Ok;
     });
 
@@ -321,6 +437,18 @@ class CommitCommands : ICommitCommands
         diffView.Show(diffs);
         return R.Ok;
     });
+
+
+    // public void SquashHeadTo(string id) => Do(async () =>
+    // {
+    //     // if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, branchName)))
+    //     //     return R.Error($"Failed to rebase branch {branchName}", e);
+
+
+    //     RefreshAndFetch();
+    //     return R.Ok;
+    // });
+
 
 
     void Do(Func<Task<R>> action)

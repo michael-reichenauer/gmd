@@ -1,3 +1,4 @@
+using gmd.Cui.RepoView;
 using gmd.Git;
 using GitStatus = gmd.Git.Status;
 
@@ -222,6 +223,49 @@ class AugmentedService : IAugmentedService
         if (!Try(out var e, await git.MergeBranchAsync(mergeName, repo.Path))) return e;
         if (!Try(out var commits, out e, await git.GetMergeLogAsync(mergeName, repo.Path))) return e;
         return ToMergeCommits(repo, commits).ToList();
+    }
+
+    public async Task<R> RebaseBranchAsync(Repo repo, string name)
+    {
+        using (fileMonitor.Pause())
+        {
+            var cb = repo.CurrentBranch();
+            var primaryCurrent = repo.BranchByName[cb.PrimaryName];
+            var oldBase = primaryCurrent.BottomId;
+
+            var ontoBranch = repo.BranchByName[name];
+            var ontoTip = repo.CommitById[ontoBranch.TipId];
+
+            var newBase = ontoBranch.Name;
+
+            if (ontoBranch.LocalName != "")
+            {   // Branch is a remote branch with an existing local branch, which might have a younger tip
+                var localBranch = repo.BranchByName[ontoBranch.LocalName];
+                var localTip = repo.CommitById[localBranch.TipId];
+                if (localTip.AuthorTime >= ontoTip.AuthorTime)
+                {   // The local branch is younger or same, use that.
+                    newBase = localBranch.Name;
+                }
+            }
+            else if (ontoBranch.RemoteName != "")
+            {   // Branch is a local branch with an existing remote branch, which might have a younger tip
+                var remoteBranch = repo.BranchByName[ontoBranch.RemoteName];
+                var remoteTip = repo.CommitById[remoteBranch.TipId];
+                if (remoteTip.AuthorTime >= ontoTip.AuthorTime)
+                {   // The remote branch is younger or same, use that.
+                    newBase = remoteBranch.Name;
+                }
+            }
+
+            if (!Try(out var e, await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path))) return e;
+
+            if (cb.RemoteName != "")
+            {   // Current Branch is local branch with a remote branch, push it with force
+                if (!Try(out e, await git.PushCurrentBranchAsync(true, repo.Path))) return e;
+            }
+
+            return R.Ok;
+        }
     }
 
     public async Task<R> SwitchToAsync(Repo repo, string branchName)

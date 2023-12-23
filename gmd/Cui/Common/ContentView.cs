@@ -268,6 +268,7 @@ class ContentView : View
     {
         if (!isSelected) return;
         isSelected = false;
+        selection = new Selection(0, 0, 0, 0);
         SetNeedsDisplay();
     }
 

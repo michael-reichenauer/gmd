@@ -363,6 +363,13 @@ class ViewRepoCreater : IViewRepoCreater
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
         Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
 
+        // Reinsert the local branches just after its remote branch
+        branches.Where(b => b.RemoteName != "").ForEach(b =>
+        {
+            var index = sorted.FindIndex(bb => bb.Name == b.RemoteName);
+            sorted.Insert(index + 1, b);
+        });
+
         // Reinsert the pullMerge branches just after its parent branch
         var toInsert = new Queue<Branch>(branches.Where(b => b.PullMergeParentBranchName != ""));
         while (toInsert.Any())
@@ -376,13 +383,6 @@ class ViewRepoCreater : IViewRepoCreater
             }
             sorted.Insert(index + 1, b);
         }
-
-        // Reinsert the local branches just after its remote branch
-        branches.Where(b => b.RemoteName != "").ForEach(b =>
-        {
-            var index = sorted.FindIndex(bb => bb.Name == b.RemoteName);
-            sorted.Insert(index + 1, b);
-        });
 
         return sorted;
     }
