@@ -313,8 +313,20 @@ class BranchMenu : IBranchMenu
         bool isNoShowIcon = false)
     {
         canExecute ??= (b => true);
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), b.IsCurrent || b.IsLocalCurrent ? "Y" : "",
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), ToBranchOwnerInitials(b),
             () => action(b), () => canExecute(b)));
+    }
+
+    string ToBranchOwnerInitials(Branch b)
+    {
+        var tip = repo.Repo.CommitById[b.TipId];
+        var author = tip.Author;
+        var parts = author.Split(' ');
+        var initials = "";
+        if (parts.Length == 1) initials = parts[0][..1];
+        if (parts.Length > 1) initials = $"{parts[0][..1]} {parts[1][..1]}";
+
+        return $"'{initials}'";
     }
 
 
