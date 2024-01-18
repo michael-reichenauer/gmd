@@ -124,9 +124,9 @@ class BranchMenu : IBranchMenu
         var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);
         var parentBranch = repo.Repo.ViewBranches.First(b => b.Name == primaryBranch.ParentBranchName);
 
-        // Get all branches except current and main (with parent branch first)
+        // Get all branches except current (with parent branch first)
         var branches = repo.Repo.ViewBranches
-             .Where(b => b.IsPrimary && b.PrimaryName != sb.PrimaryName && b.PrimaryName != parentBranch.PrimaryName && !b.IsMainBranch)
+             .Where(b => b.IsPrimary && b.PrimaryName != sb.PrimaryName && b.PrimaryName != parentBranch.PrimaryName)
              .DistinctBy(b => b.TipId)
              .OrderBy(b => b.PrimaryName)
              .Prepend(parentBranch);
