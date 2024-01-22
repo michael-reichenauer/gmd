@@ -124,9 +124,9 @@ class BranchMenu : IBranchMenu
         var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);
         var parentBranch = repo.Repo.ViewBranches.First(b => b.Name == primaryBranch.ParentBranchName);
 
-        // Get all branches except current and main (with parent branch first)
+        // Get all branches except current (with parent branch first)
         var branches = repo.Repo.ViewBranches
-             .Where(b => b.IsPrimary && b.PrimaryName != sb.PrimaryName && b.PrimaryName != parentBranch.PrimaryName && !b.IsMainBranch)
+             .Where(b => b.IsPrimary && b.PrimaryName != sb.PrimaryName && b.PrimaryName != parentBranch.PrimaryName)
              .DistinctBy(b => b.TipId)
              .OrderBy(b => b.PrimaryName)
              .Prepend(parentBranch);
@@ -313,8 +313,20 @@ class BranchMenu : IBranchMenu
         bool isNoShowIcon = false)
     {
         canExecute ??= (b => true);
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), b.IsCurrent || b.IsLocalCurrent ? "Y" : "",
+        return branches.Select(b => Menu.Item(ToBranchMenuName(b, canBeOutside, isNoShowIcon), ToBranchOwnerInitials(b),
             () => action(b), () => canExecute(b)));
+    }
+
+    string ToBranchOwnerInitials(Branch b)
+    {
+        var tip = repo.Repo.CommitById[b.TipId];
+        var author = tip.Author;
+        var parts = author.Split(' ');
+        var initials = "";
+        if (parts.Length == 1) initials = parts[0][..1];
+        if (parts.Length > 1) initials = $"{parts[0][..1]} {parts[1][..1]}";
+
+        return $"'{initials}'";
     }
 
 
