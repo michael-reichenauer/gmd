@@ -1,9 +1,35 @@
 # Change Log for Gmd
 --------------------
 
-112 releases:
+115 releases:
 
-## [Current] - 2023-10-15
+## [Current] - 2024-01-26
+- Fixed show menu crash on main branch
+
+## [v0.91.449.265] - 2024-01-22
+- Allow rebase current branch to master
+- Added tip author initals to branch menu items
+
+## [v0.91.419.545] - 2023-12-23
+- Alow git pull with rebase
+- Only allow rebase if current is local only
+- Fixed issue with fresing ui when after rb on remote branch
+- Allow rebaset to current even if remote
+- Push force after rebase if local branch has remote
+- Adjust how push after rebase is handled by status updates
+- Adjust push --forece to push --force-with-lease
+- Added support for uncommmit until current row
+- Added support for squash until current row
+- Use branche primary name for determine color
+- Added support diff range
+- Handle stashed values if commit no longer exists
+- Added support for named stash
+- Adjust stash dialog with curren subject
+- Added support range cherry pick
+- Added support for cherrypick a range of commits
+- Support rebasing current branch to any branch
+
+## [v0.91.350.838] - 2023-10-15
 - Increase recent folder count in startup view
 - Adjust warning texts of commmiting large files
 - Rename 'switch' to 'switch/checkout'
