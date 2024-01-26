@@ -122,7 +122,8 @@ class BranchMenu : IBranchMenu
         if (!repo.Repo.Status.IsOk || !isCurrent) return Menu.Items;
 
         var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);
-        var parentBranch = repo.Repo.ViewBranches.First(b => b.Name == primaryBranch.ParentBranchName);
+        var parentBranch = repo.Repo.ViewBranches.FirstOrDefault(b => b.Name == primaryBranch.ParentBranchName);
+        if (parentBranch == null) return Menu.Items;
 
         // Get all branches except current (with parent branch first)
         var branches = repo.Repo.ViewBranches
