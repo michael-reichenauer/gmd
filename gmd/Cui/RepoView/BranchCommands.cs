@@ -143,6 +143,17 @@ class BranchCommands : IBranchCommands
 
     public void RebaseBranchOnto(string onto) => Do(async () =>
     {
+        var cb = repo.Repo.CurrentBranch();
+        if (cb.RemoteName != "")
+        {
+            var rcb = repo.Repo.BranchByName[cb.RemoteName];
+
+            if (cb.TipId == rcb.TipId && rcb.BottomId == rcb.TipId)
+            {
+
+            }
+        }
+
         if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, onto)))
             return R.Error($"Failed to rebase branch {onto}", e);
 
