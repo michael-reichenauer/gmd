@@ -230,8 +230,9 @@ class CommitCommands : ICommitCommands
     public void Stash() => Do(async () =>
     {
         if (repo.Repo.Status.IsOk) return R.Ok;
-
-        if (!Try(out var msg, out var e, addStashDlg.Show(repo.Repo.CurrentCommit().Subject))) return R.Ok;
+        var commitMsg = repo.Repo.CurrentCommit().Subject;
+        if (!Try(out var msg, out var e, addStashDlg.Show())) return R.Ok;
+        msg = msg == "" ? commitMsg : msg;
 
         if (!Try(out e, await server.StashAsync(msg, repo.Path)))
         {
