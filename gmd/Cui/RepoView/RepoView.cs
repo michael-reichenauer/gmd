@@ -105,6 +105,7 @@ class RepoView : IRepoView
             IsCursorMargin = false,
             IsScrollMode = false,
             IsHighlightCurrentIndex = false,
+            IsCustomShowSelection = true,
         };
         commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
 
@@ -721,7 +722,7 @@ class RepoView : IRepoView
             hooverRowIndex = currentIndex;
         }
 
-        var page = repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchPrimaryName, hooverRowIndex, width);
+        var page = repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchPrimaryName, hooverRowIndex, width, Selection);
         return (page, repo.Repo.ViewCommits.Count);
     }
 

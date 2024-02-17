@@ -290,6 +290,7 @@ class TextBuilder
     }
 
     public TextBuilder Highlight() => Highlight(Common.Color.Dark);
+    public Text Select() => Highlight(Common.Color.White);
 
     public TextBuilder Highlight(Common.Color newBg)
     {
