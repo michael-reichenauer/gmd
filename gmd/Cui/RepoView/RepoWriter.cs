@@ -6,7 +6,7 @@ namespace gmd.Cui.RepoView;
 interface IRepoWriter
 {
     IEnumerable<Text> ToPage(IViewRepo repo, int firstRow, int rowCount, int currentIndex,
-        string hooverBranchName, int hooverIndex, int width);
+        string hooverBranchName, int hooverIndex, int width, Selection selection);
     bool IShowSid { get; set; }
 }
 
@@ -29,15 +29,16 @@ class RepoWriter : IRepoWriter
 
 
     public IEnumerable<Text> ToPage(IViewRepo repo, int firstRow, int count, int currentIndex,
-        string hooverBranchName, int hooverIndex, int width)
+        string hooverBranchName, int hooverIndex, int width, Selection selection)
     {
         if (!repo.Repo.ViewCommits.Any() || count == 0) return new List<Text>();
+        if (!selection.IsEmpty) currentIndex = selection.InitialIndex;
         count = Math.Min(count, repo.Repo.ViewCommits.Count - firstRow);
 
         List<Text> rows = new List<Text>();
         var branchTips = GetBranchTips(repo);
 
-        var crc = repo.RowCommit;
+        var crc = repo.Repo.ViewCommits[currentIndex];
         var crb = repo.Repo.BranchByName[crc.BranchName];
         var isUncommitted = !repo.Repo.Status.IsOk;
         var isBranchDetached = crb.IsDetached;
@@ -48,11 +49,13 @@ class RepoWriter : IRepoWriter
         {
             var c = repo.Repo.ViewCommits[i];
 
+            var isSelected = !selection.IsEmpty && i >= selection.I1 && i <= selection.I2;
+
             // Build row
             var graphText = new TextBuilder();
             WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
             WriteBlankOrStash(graphText, c);
-            WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached);
+            WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached, isSelected);
             WriteAheadBehindMarker(graphText, c);
 
             var text = new TextBuilder();
@@ -62,6 +65,7 @@ class RepoWriter : IRepoWriter
             WriteTime(text, cw, c);
             // if (i == hooverIndex && hooverBranchName == "") text.Highlight(); // hoover commit
             if (i == currentIndex && hooverBranchName == "") text.Highlight();      // current commit
+            if (isSelected && c.BranchPrimaryName == crb.PrimaryName) text.Select();  // Selected commit
 
             rows.Add(graphText.Add(text));
         }
@@ -125,8 +129,13 @@ class RepoWriter : IRepoWriter
         text.Black(" ");
     }
 
-    static void WriteCurrentMarker(TextBuilder text, Commit c, bool isUncommitted, bool isBranchDetached)
+    static void WriteCurrentMarker(TextBuilder text, Commit c, bool isUncommitted, bool isBranchDetached, bool isSelected)
     {
+        if (isSelected)
+        {
+            text.White("|");
+            return;
+        }
         if (c.IsDetached && c.IsCurrent && !isUncommitted || c.Id == Repo.UncommittedId && isBranchDetached)
         {   // Detached head, so the is shown at the current commit
             text.White("*");
