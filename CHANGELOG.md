@@ -1,9 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-115 releases:
+116 releases:
 
-## [Current] - 2024-01-26
+## [Current] - 2024-04-12
+- Adjust stash to start with empty message
+- Adjust selecting commits to highlight on same branch
+- Fixed copy of selected commits within branch
+
+## [v0.91.453.278] - 2024-01-26
 - Fixed show menu crash on main branch
 
 ## [v0.91.449.265] - 2024-01-22

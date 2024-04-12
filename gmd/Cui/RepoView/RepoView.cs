@@ -105,6 +105,7 @@ class RepoView : IRepoView
             IsCursorMargin = false,
             IsScrollMode = false,
             IsHighlightCurrentIndex = false,
+            IsCustomShowSelection = true,
         };
         commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
 
@@ -600,19 +601,27 @@ class RepoView : IRepoView
 
     void Copy()
     {
-        var text = commitsView.CopySelectedText();
-        if (text != "")
-        {
-            var lines = text.Split('\n');
-            if (lines.Length > 1)
-            {
-                text = lines
-                       .Where(l => l.Trim() != "")
-                    .Select(l => l[(repo.Graph.Width + 2)..])
-                    .Join("\n");
-            }
-            Utils.Clipboard.Set(text);
+        if (Selection.IsEmpty) return;
+
+        var (i1, i2) = (Selection.I1, Selection.I2);
+        if (i1 == i2)
+        {   // Select within the same commit
+            Utils.Clipboard.Set(commitsView.CopySelectedText());
+            return;
         }
+
+        // Select commit sids and subjects from the same branch
+        var branch = repo.Repo.ViewCommits[i1].BranchPrimaryName;
+        var text = repo.Repo.ViewCommits
+            .Skip(i1)
+            .Take(i2 - i1 + 1)
+            .Where(c => c.BranchPrimaryName == branch)
+            .Select(c => $"{c.Sid} {c.Subject}")
+            .Join("\n");
+
+        Utils.Clipboard.Set(text);
+        ClearSelection();
+        commitsView.SetNeedsDisplay();
     }
 
     void OnDoubleClicked(int x, int y)
@@ -721,7 +730,7 @@ class RepoView : IRepoView
             hooverRowIndex = currentIndex;
         }
 
-        var page = repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchPrimaryName, hooverRowIndex, width);
+        var page = repoWriter.ToPage(repo, firstIndex, count, currentIndex, hooverBranchPrimaryName, hooverRowIndex, width, Selection);
         return (page, repo.Repo.ViewCommits.Count);
     }
 

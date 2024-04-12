@@ -9,7 +9,10 @@ internal delegate void OnKeyCallback();
 internal delegate bool OnKeyCallbackReturn();
 internal delegate void OnMouseCallback(int x, int y);
 internal delegate bool OnMouseCallbackReturn(int x, int y);
-record class Selection(int X1, int I1, int X2, int I2);
+record class Selection(int X1, int I1, int X2, int I2, int InitialIndex)
+{
+    public bool IsEmpty => X1 == X2 && I1 == I2;
+}
 
 
 class ContentView : View
@@ -28,7 +31,7 @@ class ContentView : View
     int currentIndex = 0;
     bool isSelected = false;
 
-    Selection selection = new Selection(0, 0, 0, 0);
+    Selection selection = new Selection(0, 0, 0, 0, 0);
     Point lastMousePoint = new Point(0, 0);
 
 
@@ -268,7 +271,7 @@ class ContentView : View
     {
         if (!isSelected) return;
         isSelected = false;
-        selection = new Selection(0, 0, 0, 0);
+        selection = new Selection(0, 0, 0, 0, 0);
         SetNeedsDisplay();
     }
 
@@ -345,7 +348,7 @@ class ContentView : View
         if (!isSelected)
         {   // Start selection of current row
             isSelected = true;
-            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
+            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex, currentIndex);
             SetNeedsDisplay();
             return;
         }
@@ -375,7 +378,7 @@ class ContentView : View
         if (!isSelected)
         {   // Start selection of current row
             isSelected = true;
-            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex);
+            selection = new Selection(0, currentIndex, int.MaxValue, currentIndex, currentIndex);
             SetNeedsDisplay();
             return;
         }
@@ -405,7 +408,7 @@ class ContentView : View
         if (!isSelected)
         {   // Start mouse dragging
             isSelected = true;
-            selection = new Selection(x, i, x, i);
+            selection = new Selection(x, i, x, i, i);
             lastMousePoint = new Point(x, i);
         }
 
@@ -434,7 +437,7 @@ class ContentView : View
             if (i > i2) i2 = i; else i1 = i;
         }
 
-        selection = new Selection(x1, i1, x2, i2);
+        selection = new Selection(x1, i1, x2, i2, selection.InitialIndex);
         lastMousePoint = new Point(x, i);
         // Log.Info($"Mouse Drag: {mouseDrag}");
 
