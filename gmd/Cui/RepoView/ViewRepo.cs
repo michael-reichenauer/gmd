@@ -19,6 +19,7 @@ interface IViewRepo
     Commit RowCommit { get; }
     Branch RowBranch { get; }
 
+    string CurrentAuthor { get; }
     IReadOnlyList<Branch> GetCommitBranches(bool isAll);
 }
 
@@ -65,10 +66,11 @@ class ViewRepo : IViewRepo
     public Branch RowBranch => serverRepo.BranchByName[RowCommit.BranchName];
 
 
-
     public int CurrentIndex => Math.Min(repoView.CurrentIndex, serverRepo.ViewCommits.Count - 1);
 
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
         server.GetCommitBranches(Repo, RowCommit.Id, isAll);
+
+    public string CurrentAuthor => server.CurrentAuthor;
 }
 
