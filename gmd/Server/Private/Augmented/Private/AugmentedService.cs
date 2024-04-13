@@ -422,7 +422,13 @@ class AugmentedService : IAugmentedService
             var commitsById = commits.ToDictionary(c => c.Id);
 
             var branches = repo.AllBranches
-                .Select(b => b.TipId == Repo.UncommittedId ? b with { TipId = parent?.Id ?? "" } : b)
+                .Select(b =>
+                {
+                    if (b.TipId != Repo.UncommittedId) return b;
+                    if (b.TipId == Repo.UncommittedId && b.BottomId == Repo.UncommittedId)
+                        return b with { TipId = parent?.Id ?? "", BottomId = parent?.Id ?? "" };
+                    return b with { TipId = parent?.Id ?? "" };
+                })
                 .ToList();
             var branchByName = branches.ToDictionary(b => b.Name);
 
