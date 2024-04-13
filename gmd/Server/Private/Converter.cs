@@ -82,17 +82,6 @@ class Converter : IConverter
         var allCommits = repo.AllCommits.Select(c => c with { IsInView = false, ViewIndex = -1 }).ToList();
         var allBranches = repo.AllBranches.Select(b => b with { IsInView = false }).ToList();
 
-        // Need to ensure that a possible uncommitted viewCommit is added if not already present
-        // or removed if no longer uncommitted is viewed
-        if (repo.Status.IsOk && allCommits.Count > 0 && allCommits[0].IsUncommitted)
-        {   // The first commit is uncommitted, so remove it, since status is now ok
-            allCommits.RemoveAt(0);
-        }
-        else if (viewCommits.Count > 0 && viewCommits[0].IsUncommitted && allCommits.Count > 0 && !allCommits[0].IsUncommitted)
-        {   // The first commit is not uncommitted, so add/copy from viewCommits, since status is not ok
-            allCommits.Insert(0, viewCommits[0]);
-        }
-
         // Crate index lookup for commits and branches
         var commitIndexById = new Dictionary<string, int>();
         var branchIndexByName = new Dictionary<string, int>();

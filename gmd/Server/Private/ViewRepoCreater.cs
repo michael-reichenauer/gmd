@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using gmd.Common;
 
@@ -29,11 +28,6 @@ class ViewRepoCreater : IViewRepoCreater
         var t = Timing.Start();
         var viewBranches = FilterOutViewBranches(repo, showBranches, show, count);
         var viewCommits = FilterOutViewCommits(repo, viewBranches);
-
-        if (TryGetUncommittedCommit(repo, viewBranches, out var uncommitted))
-        {
-            AdjustCurrentBranch(viewBranches, viewCommits, uncommitted);
-        }
 
         SetAheadBehind(viewBranches, viewCommits);
 
@@ -385,96 +379,6 @@ class ViewRepoCreater : IViewRepoCreater
         }
 
         return sorted;
-    }
-
-    static bool TryGetUncommittedCommit(Repo repo,
-      IReadOnlyList<Branch> filteredBranches,
-      [MaybeNullWhen(false)] out Commit uncommitted)
-    {
-        uncommitted = null;
-        if (repo.Status.IsOk) return false;
-
-        var currentBranch = filteredBranches.FirstOrDefault(b => b.IsCurrent);
-        if (currentBranch == null) return false;
-
-        var current = repo.CommitById[currentBranch.TipId];
-        if (current.IsUncommitted)
-        {   // First commit is uncommitted, so use its parent as local tip
-            current = repo.CommitById[current.ParentIds[0]];
-        }
-
-        var parentIds = new List<string>() { current.Id };
-
-        if (repo.Status.MergeHeadId != "")
-        {   // Merge in progress, add the source merge id as a merge parent to the uncommitted commit
-            var mergeHead = repo.CommitById[repo.Status.MergeHeadId];
-            parentIds.Add(repo.Status.MergeHeadId);
-        }
-
-        string subject = $"{repo.Status.ChangesCount} uncommitted changes";
-        if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
-        {   // Merge in progress
-            subject = $"{repo.Status.MergeMessage}, {subject}";
-        }
-        if (repo.Status.Conflicted > 0)
-        {   // Conflicts exists
-            subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
-        }
-
-        // Create a new virtual uncommitted commit
-        uncommitted = new Commit(
-            Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
-            Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
-            IsInView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
-            ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
-            Tags: new List<Tag>(), BranchTips: new List<string>(),
-            IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
-            IsAhead: false, IsBehind: false,
-            IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
-            IsBranchSetByUser: false, HasStash: false, More.None);
-
-        return true;
-    }
-
-    static void AdjustCurrentBranch(
-        List<Branch> filteredBranches,
-        List<Commit> filteredCommits,
-        Commit uncommitted)
-    {
-        // Prepend the commits with the uncommitted commit
-        if (filteredCommits.Count > 0 && filteredCommits[0].Id == uncommitted.Id)
-        {   // Old uncommitted commit already in list, replace
-            filteredCommits[0] = uncommitted;
-        }
-        else
-        {   // Prepend the new uncommitted commit
-            filteredCommits.Insert(0, uncommitted);
-        }
-
-
-        // We need to adjust the current branch and the tip of that branch to include the
-        // uncommitted commit
-        var currentBranchIndex = filteredBranches.FindIndex(b => b.Name == uncommitted.BranchName);
-        var currentBranch = filteredBranches[currentBranchIndex];
-        var tipCommitIndex = filteredCommits.FindIndex(c => c.Id == currentBranch.TipId);
-        var tipCommit = filteredCommits[tipCommitIndex];
-
-        // Adjust the current branch tip id and if the branch is empty, the bottom id
-        var tipId = uncommitted.Id;
-        var bottomId = currentBranch.BottomId;
-        if (tipCommit.BranchName != currentBranch.Name)
-        {
-            // Current branch does not yet have any commits, so bottom id will be the uncommitted commit
-            bottomId = uncommitted.Id;
-        }
-
-        var newCurrentBranch = currentBranch with { TipId = tipId, BottomId = bottomId };
-        filteredBranches[currentBranchIndex] = newCurrentBranch;
-
-        // Adjust the current tip commit to have the uncommitted commit as child
-        var childIds = tipCommit.AllChildIds.Append(uncommitted.Id).ToList();
-        var newTipCommit = tipCommit with { AllChildIds = childIds };
-        filteredCommits[tipCommitIndex] = newTipCommit;
     }
 
     static int CompareBranches(Branch b1, Branch b2,
