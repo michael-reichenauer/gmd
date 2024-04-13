@@ -426,13 +426,7 @@ class AugmentedService : IAugmentedService
                 .ToList();
             var branchByName = branches.ToDictionary(b => b.Name);
 
-            return repo with
-            {
-                AllCommits = commits,
-                CommitById = commitsById,
-                AllBranches = branches,
-                BranchByName = branchByName
-            };
+            return repo with { AllCommits = commits, CommitById = commitsById, AllBranches = branches, BranchByName = branchByName };
         }
 
         var newUncommitted = GetUncommittedCommit(repo);
@@ -440,19 +434,12 @@ class AugmentedService : IAugmentedService
         // Status is not ok, need to add or update commit
         if (repo.CommitById.TryGetValue(Repo.UncommittedId, out var uncommitted2))
         {   // Uncommitted commit exists, need to update it
-            if (uncommitted2 == newUncommitted) return repo; // No need to change
-
             var commits = repo.AllCommits
-                .Where(c => c.Id != Repo.UncommittedId)
-                .Select(c => c.Id == newUncommitted.Id ? newUncommitted : c)
+                .Select(c => c.Id == Repo.UncommittedId ? newUncommitted : c)
                 .ToList();
             var commitsById = commits.ToDictionary(c => c.Id);
 
-            return repo with
-            {
-                AllCommits = commits,
-                CommitById = commitsById,
-            };
+            return repo with { AllCommits = commits, CommitById = commitsById, };
         }
 
         // Uncommitted commit does not exist, need to add it
@@ -460,17 +447,16 @@ class AugmentedService : IAugmentedService
         var commitsById2 = commits2.ToDictionary(c => c.Id);
 
         var branches2 = repo.AllBranches
-            .Select(b => b.TipId == newUncommitted.ParentIds[0] ? b with { TipId = Repo.UncommittedId } : b)
+            .Select(b =>
+            {
+                if (b.Name != newUncommitted.BranchName) return b;
+                if (b.TipId == b.BottomId) return b with { TipId = Repo.UncommittedId, BottomId = Repo.UncommittedId };
+                return b with { TipId = Repo.UncommittedId };
+            })
             .ToList();
         var branchByName2 = branches2.ToDictionary(b => b.Name);
 
-        return repo with
-        {
-            AllCommits = commits2,
-            CommitById = commitsById2,
-            AllBranches = branches2,
-            BranchByName = branchByName2
-        };
+        return repo with { AllCommits = commits2, CommitById = commitsById2, AllBranches = branches2, BranchByName = branchByName2 };
     }
 
 
