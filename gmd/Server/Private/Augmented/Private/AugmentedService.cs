@@ -276,7 +276,7 @@ class AugmentedService : IAugmentedService
             var c2 = repo.CommitById[id2];
             if (c1.BranchName != c2.BranchName) return R.Error("Commits are not on the same branch");
             var branch = repo.BranchByName[c1.BranchName];
-            if (!branch.IsCurrent) return R.Error("Commits not on current branch");
+            if (!branch.IsLocalCurrent) return R.Error("Commits not on current branch");
 
             // Create a backup branch (in case of errors)
             var tmpName = Guid.NewGuid().ToString();
