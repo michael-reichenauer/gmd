@@ -424,7 +424,7 @@ class AugmentedService : IAugmentedService
             var branches = repo.AllBranches
                 .Select(b =>
                 {
-                    if (b.TipId != Repo.UncommittedId) return b;
+                    if (b.Name != uncommitted.BranchName) return b;
                     if (b.TipId == Repo.UncommittedId && b.BottomId == Repo.UncommittedId)
                         return b with { TipId = parent?.Id ?? "", BottomId = parent?.Id ?? "" };
                     return b with { TipId = parent?.Id ?? "" };
@@ -456,7 +456,6 @@ class AugmentedService : IAugmentedService
             .Select(b =>
             {
                 if (b.Name != newUncommitted.BranchName) return b;
-                if (b.TipId == b.BottomId) return b with { TipId = Repo.UncommittedId, BottomId = Repo.UncommittedId };
                 return b with { TipId = Repo.UncommittedId };
             })
             .ToList();
