@@ -119,7 +119,7 @@ class CommitMenu : ICommitMenu
             .Item($"Squash until {id2.Sid()}", "", () => cmds.SquashCommits(id1, id2),
                 () => repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent))
             .Item($"Squash {selected}", "", () => cmds.SquashCommits2(c1!.Id, c2!.Id),
-                () => selection.IsEmpty && selected != "" && repo.Status.IsOk);
+                () => !selection.IsEmpty && selected != "" && repo.Status.IsOk);
     }
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items
