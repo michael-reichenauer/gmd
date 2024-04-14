@@ -38,12 +38,12 @@ record Repo
     public string Path { get; }
     public DateTime TimeStamp { get; }
     public DateTime RepoTimeStamp { get; }
-    public IReadOnlyList<Commit> ViewCommits { get; }
-    public IReadOnlyList<Branch> ViewBranches { get; }
-    public IReadOnlyList<Commit> AllCommits { get; }
-    public IReadOnlyList<Branch> AllBranches { get; }
-    public IReadOnlyDictionary<string, Commit> CommitById { get; }
-    public IReadOnlyDictionary<string, Branch> BranchByName { get; }
+    public IReadOnlyList<Commit> ViewCommits { get; init; }
+    public IReadOnlyList<Branch> ViewBranches { get; init; }
+    public IReadOnlyList<Commit> AllCommits { get; init; }
+    public IReadOnlyList<Branch> AllBranches { get; init; }
+    public IReadOnlyDictionary<string, Commit> CommitById { get; init; }
+    public IReadOnlyDictionary<string, Branch> BranchByName { get; init; }
     public IReadOnlyList<Stash> Stashes { get; }
     public Status Status { get; init; }
     public string Filter { get; }

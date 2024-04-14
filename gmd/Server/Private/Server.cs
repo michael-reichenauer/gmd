@@ -44,7 +44,6 @@ class Server : IServer
         var branches = repo.ViewBranches.Select(b => b.Name).ToArray();
 
         if (!Try(out var augmentedRepo, out var e, await augmentedService.UpdateRepoStatusAsync(repo))) return e;
-
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
@@ -60,7 +59,7 @@ class Server : IServer
         if (commitId == Repo.UncommittedId) return new List<Branch>();
 
         bool FilterOnShown(Commit cc) => isAll || !cc.IsInView;
-        // Getting all branches that are not the same as the commit branch
+        // Getting all branches that are not the same as the commit branch.
         // Also exclude branches that are shown if isNotShown is true
         var commit = repo.CommitById[commitId];
         var branch = repo.BranchByName[commit.BranchName];
