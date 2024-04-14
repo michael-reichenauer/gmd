@@ -279,19 +279,20 @@ class AugmentedService : IAugmentedService
             if (!branch.IsLocalCurrent) return R.Error("Commits not on current branch");
 
             // Create a backup branch (in case of errors)
-            var tmpName = Guid.NewGuid().ToString();
+            var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
             if (!Try(out var e, await git.CreateBranchAsync(tmpName, false, repo.Path)))
                 return R.Error("Failed to create backup branch", e);
 
-            // // Remember commits before squash to be cherry picked back
-            // var preCommits = new List<Commit>();
-            // var c = repo.CommitById[branch.TipId];
-            // while (c.Id != c1.Id)
-            // {
-            //     preCommits.Add(c);
-            //     if (!c1.ParentIds.Any()) break;
-            //     c1 = repo.CommitById[c1.ParentIds[0]];
-            // }
+            // Remember commits before squash to be cherry picked back
+            var preCommits = new List<Commit>();
+            var c = repo.CommitById[branch.TipId];
+            while (c.Id != c1.Id)
+            {
+                preCommits.Add(c);
+                if (!c1.ParentIds.Any()) break;
+                c1 = repo.CommitById[c1.ParentIds[0]];
+            }
+            Log.Info($"Commits {preCommits.ToJson()}");
 
             // // Remove all prefix commits on current branch until the first commit to squash 
             // if (preCommits.Any())
