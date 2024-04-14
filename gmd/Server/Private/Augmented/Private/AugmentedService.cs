@@ -471,7 +471,9 @@ class AugmentedService : IAugmentedService
 
     static Commit GetUncommittedCommit(Repo repo)
     {
-        var currentBranch = repo.AllBranches.First(b => b.IsCurrent);
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent)
+            ?? repo.AllBranches.FirstOrDefault(b => b.IsMainBranch)
+            ?? repo.AllBranches.First();
 
         var current = repo.CommitById[currentBranch.TipId];
         if (current.IsUncommitted)
