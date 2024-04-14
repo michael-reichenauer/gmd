@@ -289,8 +289,8 @@ class AugmentedService : IAugmentedService
             while (c.Id != c1.Id)
             {
                 preCommits.Add(c);
-                if (!c1.ParentIds.Any()) break;
-                c1 = repo.CommitById[c1.ParentIds[0]];
+                if (!c.ParentIds.Any()) break;
+                c = repo.CommitById[c.ParentIds[0]];
             }
             Log.Info($"Commits {preCommits.ToJson()}");
 
