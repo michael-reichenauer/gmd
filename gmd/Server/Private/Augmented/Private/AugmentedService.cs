@@ -451,11 +451,15 @@ class AugmentedService : IAugmentedService
         // Uncommitted commit does not exist, need to add it
         var commits2 = repo.AllCommits.Prepend(newUncommitted).ToList();
         var commitsById2 = commits2.ToDictionary(c => c.Id);
+        var branch = repo.BranchByName[newUncommitted.BranchName];
+        var parentBranch = string.IsNullOrEmpty(branch.ParentBranchName) ? null : repo.BranchByName[branch.ParentBranchName];
 
         var branches2 = repo.AllBranches
             .Select(b =>
             {
                 if (b.Name != newUncommitted.BranchName) return b;
+                if (b.TipId == b.BottomId && b.TipId == parentBranch?.TipId)
+                    return b with { TipId = newUncommitted.Id, BottomId = newUncommitted.Id };
                 return b with { TipId = Repo.UncommittedId };
             })
             .ToList();
