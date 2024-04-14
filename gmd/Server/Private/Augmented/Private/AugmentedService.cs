@@ -268,6 +268,62 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    public async Task<R> SquashCommits(Repo repo, string id1, string id2, string message)
+    {
+        using (fileMonitor.Pause())
+        {
+            var c1 = repo.CommitById[id1];
+            var c2 = repo.CommitById[id2];
+            if (c1.BranchName != c2.BranchName) return R.Error("Commits are not on the same branch");
+            var branch = repo.BranchByName[c1.BranchName];
+            if (!branch.IsCurrent) return R.Error("Commits not on current branch");
+
+            // Create a backup branch (in case of errors)
+            var tmpName = Guid.NewGuid().ToString();
+            if (!Try(out var e, await git.CreateBranchAsync(tmpName, false, repo.Path)))
+                return R.Error("Failed to create backup branch", e);
+
+            // // Remember commits before squash to be cherry picked back
+            // var preCommits = new List<Commit>();
+            // var c = repo.CommitById[branch.TipId];
+            // while (c.Id != c1.Id)
+            // {
+            //     preCommits.Add(c);
+            //     if (!c1.ParentIds.Any()) break;
+            //     c1 = repo.CommitById[c1.ParentIds[0]];
+            // }
+
+            // // Remove all prefix commits on current branch until the first commit to squash 
+            // if (preCommits.Any())
+            // {
+            //     if (!Try(out e, await git.ResetHardUntilCommitAsync(preCommits.Last().Id, repo.Path)))
+            //         return R.Error("Failed to prepare for squash", e);
+            // }
+
+            // // Squash commits and commit
+            // if (!Try(out e, await git.UncommitUntilCommitAsync(id2, repo.Path)))
+            //     return R.Error("Failed to squash commits", e);
+            // if (!Try(out e, await git.CommitAllChangesAsync(message, false, repo.Path)))
+            //     return R.Error("Failed to commit squashed commits", e);
+
+            // // Cherry pick prefix commits back to current branch
+            // foreach (var commit in preCommits.AsEnumerable().Reverse())
+            // {
+            //     if (!Try(out e, await git.CherryPickAsync(commit.Id, repo.Path)))
+            //         return R.Error($"Failed to cherry pick {commit.Sid}", e);
+            //     if (!Try(out e, await git.CommitAllChangesAsync(commit.Message, false, repo.Path)))
+            //         return R.Error($"Failed to commit cherry pick {commit.Sid}", e);
+            // }
+
+            // Remove temp backup branch
+            // if (!Try(out e, await git.DeleteLocalBranchAsync(tmpName, true, repo.Path)))
+            //     return R.Error("Failed to delete backup branch", e);
+        }
+
+        return R.Ok;
+    }
+
+
     public async Task<R> SwitchToAsync(Repo repo, string branchName)
     {
         var branch = repo.BranchByName[branchName];

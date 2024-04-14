@@ -27,6 +27,7 @@ interface ICommitCommands
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void SquashCommits(string id1, string id2);
+    void SquashCommits2(string id1, string id2);
     void CherryPick();
 
     void AddTag();
@@ -328,6 +329,22 @@ class CommitCommands : ICommitCommands
         var commit2 = repo.Repo.CommitById[id2];
         var parentId = repo.Repo.CommitById[commit2.ParentIds[0]].Id;
         if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        {
+            return R.Error($"Failed to undo commit", e);
+        }
+
+        RefreshAndCommit();
+
+        return R.Ok;
+    });
+
+
+    public void SquashCommits2(string id1, string id2) => Do(async () =>
+    {
+        var c1 = repo.Repo.CommitById[id1];
+        var c2 = repo.Repo.CommitById[id2];
+        var msg = $"{c1.Subject}\n\n{c2.Subject}";
+        if (!Try(out var e, await server.SquashCommits(repo.Repo, id1, id2, msg)))
         {
             return R.Error($"Failed to undo commit", e);
         }

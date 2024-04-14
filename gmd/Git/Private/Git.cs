@@ -124,6 +124,7 @@ internal class Git : IGit
         tagService.AddTagAsync(name, commitId, wd);
     public Task<R> RemoveTagAsync(string name, string wd) =>
         tagService.RemoveTagAsync(name, wd);
+    public Task<R> ResetHardUntilCommitAsync(string id, string wd) => commitService.ResetHardUntilCommitAsync(id, wd);
 
     public Task<R> PushTagAsync(string name, string wd) =>
         remoteService.PushTagAsync(name, wd);

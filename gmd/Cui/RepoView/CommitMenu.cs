@@ -99,9 +99,27 @@ class CommitMenu : ICommitMenu
     {
         string id1 = "HEAD";
         string id2 = repo.RowCommit.Id;
+        var selection = repo.RepoView.Selection;
+        Log.Info($"selection {selection.ToJson()}");
+        var (i1, i2) = (selection.I1, selection.I2);
+        var selected = "";
+        Commit? c1 = null;
+        Commit? c2 = null;
+        if (!selection.IsEmpty)
+        {   // User selected range of commits
+            c1 = repo.Repo.ViewCommits[i1];
+            c2 = repo.Repo.ViewCommits[i2];
+            if (!c1.IsUncommitted && !c1.IsUncommitted)
+            {
+                selected = $"{Sid(c1.Id)}...{Sid(c2.Id)}";
+            }
+        }
+
         return Menu.Items
             .Item($"Squash until {id2.Sid()}", "", () => cmds.SquashCommits(id1, id2),
-            () => repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent));
+                () => repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent))
+            .Item($"Squash {selected}", "", () => cmds.SquashCommits2(c1!.Id, c2!.Id),
+                () => selection.IsEmpty && selected != "" && repo.Status.IsOk);
     }
 
     IEnumerable<MenuItem> GetStashMenuItems() => Menu.Items
