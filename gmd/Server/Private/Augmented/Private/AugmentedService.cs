@@ -297,7 +297,7 @@ class AugmentedService : IAugmentedService
             // Remove all prefix commits on current branch until the first commit to squash 
             if (preCommits.Any())
             {
-                if (!Try(out e, await git.ResetHardUntilCommitAsync(preCommits.Last().Id, repo.Path)))
+                if (!Try(out e, await git.ResetHardUntilCommitAsync(id1, repo.Path)))
                     return R.Error("Failed to prepare for squash", e);
             }
 
