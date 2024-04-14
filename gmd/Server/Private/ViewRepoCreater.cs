@@ -280,6 +280,7 @@ class ViewRepoCreater : IViewRepoCreater
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
         return repo.AllCommits
             .Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
+            .Select(c => c with { IsAhead = false, IsBehind = false })
             .ToList();
     }
 
