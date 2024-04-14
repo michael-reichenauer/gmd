@@ -367,9 +367,6 @@ class BranchCommands : IBranchCommands
 
     public void PullAllBranches() => Do(async () =>
     {
-        if (!repo.Repo.Status.IsOk) return R.Error("Commit changes before pulling");
-        if (!CanPull()) return R.Error("No remote changes to pull");
-
         var currentRemoteName = "";
         if (CanPullCurrentBranch())
         {
