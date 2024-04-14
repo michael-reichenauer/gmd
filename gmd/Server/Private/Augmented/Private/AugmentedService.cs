@@ -424,7 +424,7 @@ class AugmentedService : IAugmentedService
             var branches = repo.AllBranches
                 .Select(b =>
                 {
-                    if (b.TipId != Repo.UncommittedId) return b;
+                    if (b.Name != uncommitted.BranchName) return b;
                     if (b.TipId == Repo.UncommittedId && b.BottomId == Repo.UncommittedId)
                         return b with { TipId = parent?.Id ?? "", BottomId = parent?.Id ?? "" };
                     return b with { TipId = parent?.Id ?? "" };
@@ -451,12 +451,15 @@ class AugmentedService : IAugmentedService
         // Uncommitted commit does not exist, need to add it
         var commits2 = repo.AllCommits.Prepend(newUncommitted).ToList();
         var commitsById2 = commits2.ToDictionary(c => c.Id);
+        var branch = repo.BranchByName[newUncommitted.BranchName];
+        var parentBranch = string.IsNullOrEmpty(branch.ParentBranchName) ? null : repo.BranchByName[branch.ParentBranchName];
 
         var branches2 = repo.AllBranches
             .Select(b =>
             {
                 if (b.Name != newUncommitted.BranchName) return b;
-                if (b.TipId == b.BottomId) return b with { TipId = Repo.UncommittedId, BottomId = Repo.UncommittedId };
+                if (b.TipId == b.BottomId && b.TipId == parentBranch?.TipId)
+                    return b with { TipId = newUncommitted.Id, BottomId = newUncommitted.Id };
                 return b with { TipId = Repo.UncommittedId };
             })
             .ToList();
@@ -468,7 +471,9 @@ class AugmentedService : IAugmentedService
 
     static Commit GetUncommittedCommit(Repo repo)
     {
-        var currentBranch = repo.AllBranches.First(b => b.IsCurrent);
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent)
+            ?? repo.AllBranches.FirstOrDefault(b => b.IsMainBranch)
+            ?? repo.AllBranches.First();
 
         var current = repo.CommitById[currentBranch.TipId];
         if (current.IsUncommitted)
