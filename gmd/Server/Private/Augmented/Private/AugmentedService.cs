@@ -294,12 +294,12 @@ class AugmentedService : IAugmentedService
             }
             Log.Info($"Commits {preCommits.ToJson()}");
 
-            // // Remove all prefix commits on current branch until the first commit to squash 
-            // if (preCommits.Any())
-            // {
-            //     if (!Try(out e, await git.ResetHardUntilCommitAsync(preCommits.Last().Id, repo.Path)))
-            //         return R.Error("Failed to prepare for squash", e);
-            // }
+            // Remove all prefix commits on current branch until the first commit to squash 
+            if (preCommits.Any())
+            {
+                if (!Try(out e, await git.ResetHardUntilCommitAsync(preCommits.Last().Id, repo.Path)))
+                    return R.Error("Failed to prepare for squash", e);
+            }
 
             // // Squash commits and commit
             // if (!Try(out e, await git.UncommitUntilCommitAsync(id2, repo.Path)))
