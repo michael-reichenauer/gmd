@@ -301,20 +301,20 @@ class AugmentedService : IAugmentedService
                     return R.Error("Failed to prepare for squash", e);
             }
 
-            // // Squash commits and commit
-            // if (!Try(out e, await git.UncommitUntilCommitAsync(id2, repo.Path)))
-            //     return R.Error("Failed to squash commits", e);
-            // if (!Try(out e, await git.CommitAllChangesAsync(message, false, repo.Path)))
-            //     return R.Error("Failed to commit squashed commits", e);
+            // Squash commits and commit
+            if (!Try(out e, await git.UncommitUntilCommitAsync(id2, repo.Path)))
+                return R.Error("Failed to squash commits", e);
+            if (!Try(out e, await git.CommitAllChangesAsync(message, false, repo.Path)))
+                return R.Error("Failed to commit squashed commits", e);
 
-            // // Cherry pick prefix commits back to current branch
-            // foreach (var commit in preCommits.AsEnumerable().Reverse())
-            // {
-            //     if (!Try(out e, await git.CherryPickAsync(commit.Id, repo.Path)))
-            //         return R.Error($"Failed to cherry pick {commit.Sid}", e);
-            //     if (!Try(out e, await git.CommitAllChangesAsync(commit.Message, false, repo.Path)))
-            //         return R.Error($"Failed to commit cherry pick {commit.Sid}", e);
-            // }
+            // Cherry pick prefix commits back to current branch
+            foreach (var commit in preCommits.AsEnumerable().Reverse())
+            {
+                if (!Try(out e, await git.CherryPickAsync(commit.Id, repo.Path)))
+                    return R.Error($"Failed to cherry pick {commit.Sid}", e);
+                if (!Try(out e, await git.CommitAllChangesAsync(commit.Message, false, repo.Path)))
+                    return R.Error($"Failed to commit cherry pick {commit.Sid}", e);
+            }
 
             // Remove temp backup branch
             // if (!Try(out e, await git.DeleteLocalBranchAsync(tmpName, true, repo.Path)))
