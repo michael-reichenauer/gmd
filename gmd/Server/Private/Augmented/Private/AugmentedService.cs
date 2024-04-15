@@ -318,8 +318,8 @@ class AugmentedService : IAugmentedService
             }
 
             // Remove temp backup branch
-            // if (!Try(out e, await git.DeleteLocalBranchAsync(tmpName, true, repo.Path)))
-            //     return R.Error("Failed to delete backup branch", e);
+            if (!Try(out e, await git.DeleteLocalBranchAsync(tmpName, true, repo.Path)))
+                return R.Error("Failed to delete backup branch", e);
         }
 
         return R.Ok;
