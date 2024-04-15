@@ -274,6 +274,7 @@ class AugmentedService : IAugmentedService
         {
             var c1 = repo.CommitById[id1];
             var c2 = repo.CommitById[id2];
+            if (!c2.ParentIds.Any()) return R.Error("Last commit does not have a parent");
             if (c1.BranchName != c2.BranchName) return R.Error("Commits are not on the same branch");
             var branch = repo.BranchByName[c1.BranchName];
             if (!branch.IsLocalCurrent) return R.Error("Commits not on current branch");
@@ -302,7 +303,7 @@ class AugmentedService : IAugmentedService
             }
 
             // Squash commits and commit
-            if (!Try(out e, await git.UncommitUntilCommitAsync(id2, repo.Path)))
+            if (!Try(out e, await git.UncommitUntilCommitAsync(c2.ParentIds[0], repo.Path)))
                 return R.Error("Failed to squash commits", e);
             if (!Try(out e, await git.CommitAllChangesAsync(message, false, repo.Path)))
                 return R.Error("Failed to commit squashed commits", e);
