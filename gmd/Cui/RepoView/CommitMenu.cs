@@ -113,7 +113,7 @@ class CommitMenu : ICommitMenu
         }
 
         return Menu.Items
-            .Item($"Squash {selected}", "", () => cmds.SquashCommits2(c1!.Id, c2!.Id),
+            .Item($"Squash {selected}", "", () => cmds.SquashCommits(c1!.Id, c2!.Id),
                 () => !selection.IsEmpty && selected != "" && repo.Status.IsOk);
     }
 

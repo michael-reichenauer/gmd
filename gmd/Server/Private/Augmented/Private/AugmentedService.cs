@@ -293,7 +293,6 @@ class AugmentedService : IAugmentedService
                 if (!c.ParentIds.Any()) break;
                 c = repo.CommitById[c.ParentIds[0]];
             }
-            Log.Info($"Commits {preCommits.ToJson()}");
 
             // Remove all prefix commits on current branch until the first commit to squash 
             if (preCommits.Any())
