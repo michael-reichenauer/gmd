@@ -1,4 +1,5 @@
 using System.Text;
+using gmd.Cui.RepoView;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -374,5 +375,8 @@ class Server : IServer
 
     public Task<R> SwitchToCommitAsync(string commitId, string wd) =>
         git.CheckoutAsync(commitId, wd);
+
+    public Task<R> SquashCommits(Repo repo, string id1, string id2, string msg) =>
+        augmentedService.SquashCommits(repo, id1, id2, msg);
 }
 

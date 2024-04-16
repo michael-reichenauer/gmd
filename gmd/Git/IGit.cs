@@ -56,6 +56,7 @@ interface IGit
     Task<R> RemoveTagAsync(string name, string wd);
     Task<R> PushTagAsync(string name, string wd);
     Task<R> DeleteRemoteTagAsync(string name, string wd);
+    Task<R> ResetHardUntilCommitAsync(string id, string wd);
 }
 
 
