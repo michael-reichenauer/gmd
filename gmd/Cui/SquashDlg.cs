@@ -25,10 +25,9 @@ class SquashDlg : ISquashDlg
 
         (string subjectPart, string messagePart) = ParseMessage(combinedMessage);
 
-        var title = $"Squash {range}";
-        var dlg = new UIDialog(title, 74, 18);
+        var dlg = new UIDialog("Squash", 74, 18);
 
-        dlg.AddLabel(1, 0, $"{title} on '{commits[0].BranchName}':");
+        dlg.AddLabel(1, 0, $"Squash {range} on '{commits[0].BranchNiceUniqueName}':");
         var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both);
 
         message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart);
