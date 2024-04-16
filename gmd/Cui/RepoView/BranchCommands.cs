@@ -380,7 +380,7 @@ class BranchCommands : IBranchCommands
         }
 
         var branches = repo.Repo.ViewBranches
-            .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
+            .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsLocalCurrent && !b.IsCurrent && b.HasRemoteOnly)
             .DistinctBy(b => b.PrimaryName);
 
         Log.Info($"Pull {string.Join(", ", branches)}");
