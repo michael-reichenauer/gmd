@@ -78,7 +78,7 @@ class SquashDlg : ISquashDlg
     {
         if (commits == null || commits.Count == 0) return "";
 
-        return commits.Reverse().Select(c => c.Message).Join("\n");
+        return commits.Reverse().Select(c => c.Message).Join("\n-----\n");
     }
 
     static string GetMessage(UITextField subject, TextView message)
