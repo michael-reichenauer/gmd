@@ -16,7 +16,7 @@ class SquashDlg : ISquashDlg
     IReadOnlyList<Server.Commit>? commits;
     UITextView message = null!;
 
-    public bool Show(IViewRepo repo, IReadOnlyList<Server.Commit> commits, out string commitMessage)
+    public bool Show(IViewRepo repo, IReadOnlyList<Commit> commits, out string commitMessage)
     {
         this.commits = commits;
 
@@ -25,14 +25,10 @@ class SquashDlg : ISquashDlg
 
         (string subjectPart, string messagePart) = ParseMessage(combinedMessage);
 
-        var commit = repo.Repo.ViewCommits[0];
-        int filesCount = repo.Repo.Status.ChangesCount;
-        string branchName = commit.BranchName;
         var title = $"Squash {range}";
-
         var dlg = new UIDialog(title, 74, 18);
 
-        dlg.AddLabel(1, 0, $"{title} {filesCount} changes on '{branchName}':");
+        dlg.AddLabel(1, 0, $"{title} on '{commits[0].BranchName}':");
         var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both);
 
         message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart);
