@@ -225,6 +225,7 @@ class CommitCommands : ICommitCommands
             }
         }
 
+        repo.RepoView.ClearSelection();
         RefreshAndCommit();
         return R.Ok;
     });
@@ -351,6 +352,7 @@ class CommitCommands : ICommitCommands
         {
             return R.Error($"Failed to undo commit", e);
         }
+        repo.RepoView.ClearSelection();
 
         RefreshAndCommit();
 
