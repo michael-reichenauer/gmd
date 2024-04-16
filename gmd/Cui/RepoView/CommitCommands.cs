@@ -345,7 +345,6 @@ class CommitCommands : ICommitCommands
             c = repo.Repo.CommitById[c.ParentIds[0]];
         }
 
-        Log.Info($"Commits {commits.ToJson()}");
         if (!squashDlg.Show(repo, commits, out var message)) return R.Ok;
 
         if (!Try(out var e, await server.SquashCommits(repo.Repo, id1, id2, message)))
