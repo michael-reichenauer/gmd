@@ -102,7 +102,7 @@ class CommitMenu : ICommitMenu
         var selected = "";
         Commit? c1 = null;
         Commit? c2 = null;
-        if (!selection.IsEmpty && i2 - i1 > 1)
+        if (!selection.IsEmpty && i2 - i1 > 0)
         {   // User selected range of commits
             c1 = repo.Repo.ViewCommits[i1];
             c2 = repo.Repo.ViewCommits[i2];
