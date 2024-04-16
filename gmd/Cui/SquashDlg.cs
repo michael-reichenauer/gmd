@@ -23,7 +23,7 @@ class SquashDlg : ISquashDlg
         var range = GetRange(commits);
         var combinedMessage = GetCombinedMessages(commits);
 
-        (string subjectPart, string messagePart) = ParseMessage(repo);
+        (string subjectPart, string messagePart) = ParseMessage(combinedMessage);
 
         var commit = repo.Repo.ViewCommits[0];
         int filesCount = repo.Repo.Status.ChangesCount;
@@ -48,10 +48,8 @@ class SquashDlg : ISquashDlg
         $"{commits.First().Sid}...{commits.Last().Sid}";
 
 
-    static (string, string) ParseMessage(IViewRepo repo)
+    static (string, string) ParseMessage(string msg)
     {
-        string msg = repo.Repo.Status.MergeMessage;
-
         if (msg.Trim() == "")
         {
             return ("", "");
@@ -76,15 +74,11 @@ class SquashDlg : ISquashDlg
         return (subject, message);
     }
 
-    private string GetCombinedMessages(IReadOnlyList<Server.Commit> commits)
+    private string GetCombinedMessages(IReadOnlyList<Commit> commits)
     {
         if (commits == null || commits.Count == 0) return "";
 
-        return commits
-            .Reverse()
-            .Select(c => c.Message + "\n")
-            .Where(m => m.Trim() != "")
-            .Join("\n");
+        return commits.Reverse().Select(c => c.Message).Join("\n");
     }
 
     static string GetMessage(UITextField subject, TextView message)
