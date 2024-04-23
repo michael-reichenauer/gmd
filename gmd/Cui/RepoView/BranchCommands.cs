@@ -367,9 +367,6 @@ class BranchCommands : IBranchCommands
 
     public void PullAllBranches() => Do(async () =>
     {
-        if (!repo.Repo.Status.IsOk) return R.Error("Commit changes before pulling");
-        if (!CanPull()) return R.Error("No remote changes to pull");
-
         var currentRemoteName = "";
         if (CanPullCurrentBranch())
         {
@@ -383,7 +380,7 @@ class BranchCommands : IBranchCommands
         }
 
         var branches = repo.Repo.ViewBranches
-            .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsCurrent && b.HasRemoteOnly)
+            .Where(b => b.Name != currentRemoteName && b.IsRemote && !b.IsLocalCurrent && !b.IsCurrent && b.HasRemoteOnly)
             .DistinctBy(b => b.PrimaryName);
 
         Log.Info($"Pull {string.Join(", ", branches)}");

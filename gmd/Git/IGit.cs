@@ -5,6 +5,7 @@ interface IGit
 {
     R<string> RootPath(string path);
     Task<R<string>> Version();
+    string CurrentAuthor { get; }
 
     Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
     Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
@@ -55,6 +56,7 @@ interface IGit
     Task<R> RemoveTagAsync(string name, string wd);
     Task<R> PushTagAsync(string name, string wd);
     Task<R> DeleteRemoteTagAsync(string name, string wd);
+    Task<R> ResetHardUntilCommitAsync(string id, string wd);
 }
 
 

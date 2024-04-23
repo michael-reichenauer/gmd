@@ -43,6 +43,7 @@ class CommitCommands : ICommitCommands
     readonly IViewRepo repo;
     readonly IServer server;
     readonly ICommitDlg commitDlg;
+    readonly ISquashDlg squashDlg;
     readonly IDiffView diffView;
     readonly IAddTagDlg addTagDlg;
     readonly IAddStashDlg addStashDlg;
@@ -53,6 +54,7 @@ class CommitCommands : ICommitCommands
         IViewRepo repo,
         IServer server,
         ICommitDlg commitDlg,
+        ISquashDlg squashDlg,
         IDiffView diffView,
         IAddTagDlg addTagDlg,
         IAddStashDlg addStashDlg,
@@ -62,6 +64,7 @@ class CommitCommands : ICommitCommands
         this.repo = repo;
         this.server = server;
         this.commitDlg = commitDlg;
+        this.squashDlg = squashDlg;
         this.diffView = diffView;
         this.addTagDlg = addTagDlg;
         this.addStashDlg = addStashDlg;
@@ -222,6 +225,7 @@ class CommitCommands : ICommitCommands
             }
         }
 
+        repo.RepoView.ClearSelection();
         RefreshAndCommit();
         return R.Ok;
     });
@@ -325,12 +329,29 @@ class CommitCommands : ICommitCommands
 
     public void SquashCommits(string id1, string id2) => Do(async () =>
     {
-        var commit2 = repo.Repo.CommitById[id2];
-        var parentId = repo.Repo.CommitById[commit2.ParentIds[0]].Id;
-        if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+        var c1 = repo.Repo.CommitById[id1];
+        var c2 = repo.Repo.CommitById[id2];
+        if (!c2.ParentIds.Any()) return R.Error("Last commit does not have a parent");
+        if (c1.BranchName != c2.BranchName) return R.Error("Commits are not on the same branch");
+        var branch = repo.Repo.BranchByName[c1.BranchName];
+        if (!branch.IsLocalCurrent) return R.Error("Commits not on current branch");
+
+        var commits = new List<Commit>();
+        var c = c1;
+        while (c.Id != c2.ParentIds[0])
+        {
+            commits.Add(c);
+            if (!c.ParentIds.Any()) break;
+            c = repo.Repo.CommitById[c.ParentIds[0]];
+        }
+
+        if (!squashDlg.Show(repo, commits, out var message)) return R.Ok;
+
+        if (!Try(out var e, await server.SquashCommits(repo.Repo, id1, id2, message)))
         {
             return R.Error($"Failed to undo commit", e);
         }
+        repo.RepoView.ClearSelection();
 
         RefreshAndCommit();
 

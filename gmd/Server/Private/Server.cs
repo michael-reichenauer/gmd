@@ -1,4 +1,5 @@
 using System.Text;
+using gmd.Cui.RepoView;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -29,6 +30,7 @@ class Server : IServer
     public event Action<ChangeEvent>? RepoChange;
     public event Action<ChangeEvent>? StatusChange;
 
+    public string CurrentAuthor => git.CurrentAuthor;
 
     public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
@@ -43,7 +45,6 @@ class Server : IServer
         var branches = repo.ViewBranches.Select(b => b.Name).ToArray();
 
         if (!Try(out var augmentedRepo, out var e, await augmentedService.UpdateRepoStatusAsync(repo))) return e;
-
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
@@ -59,7 +60,7 @@ class Server : IServer
         if (commitId == Repo.UncommittedId) return new List<Branch>();
 
         bool FilterOnShown(Commit cc) => isAll || !cc.IsInView;
-        // Getting all branches that are not the same as the commit branch
+        // Getting all branches that are not the same as the commit branch.
         // Also exclude branches that are shown if isNotShown is true
         var commit = repo.CommitById[commitId];
         var branch = repo.BranchByName[commit.BranchName];
@@ -374,5 +375,8 @@ class Server : IServer
 
     public Task<R> SwitchToCommitAsync(string commitId, string wd) =>
         git.CheckoutAsync(commitId, wd);
+
+    public Task<R> SquashCommits(Repo repo, string id1, string id2, string msg) =>
+        augmentedService.SquashCommits(repo, id1, id2, msg);
 }
 

@@ -2,6 +2,7 @@ using IOPath = System.IO.Path;
 
 namespace gmd.Git.Private;
 
+[SingleInstance]
 internal class Git : IGit
 {
     readonly ILogService logService;
@@ -42,10 +43,17 @@ internal class Git : IGit
         this.cmd = cmd;
     }
 
+
+    public string CurrentAuthor { get; private set; } = "";
+
     public R<string> RootPath(string path) => RootPathDir(path);
 
-    public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
-        logService.GetLogAsync(maxCount, wd);
+    public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
+    {
+        await SetCurrentAuthorAsync(wd);
+        return await logService.GetLogAsync(maxCount, wd);
+    }
+
     public Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         logService.GetMergeLogAsync(reference, wd);
     public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
@@ -116,6 +124,7 @@ internal class Git : IGit
         tagService.AddTagAsync(name, commitId, wd);
     public Task<R> RemoveTagAsync(string name, string wd) =>
         tagService.RemoveTagAsync(name, wd);
+    public Task<R> ResetHardUntilCommitAsync(string id, string wd) => commitService.ResetHardUntilCommitAsync(id, wd);
 
     public Task<R> PushTagAsync(string name, string wd) =>
         remoteService.PushTagAsync(name, wd);
@@ -125,7 +134,15 @@ internal class Git : IGit
     public async Task<R<string>> Version()
     {
         if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true, true))) return e;
+
         return output.TrimPrefix("git version ");
+    }
+
+    private async Task SetCurrentAuthorAsync(string path)
+    {
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", "config user.name", path, true, true))) return;
+        Log.Info($"user {output}");
+        CurrentAuthor = output.Trim();
     }
 
     public static R<string> RootPathDir(string path)

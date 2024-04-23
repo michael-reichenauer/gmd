@@ -1,9 +1,15 @@
 # Change Log for Gmd
 --------------------
 
-116 releases:
+117 releases:
 
-## [Current] - 2024-04-12
+## [Current] - 2024-04-23
+- Added support for showing my active branches
+- Fixed issue with craching gmd when status changed
+- Allow pull all even if uncommited changes
+- Support squash commits
+
+## [v0.91.530.207] - 2024-04-12
 - Adjust stash to start with empty message
 - Adjust selecting commits to highlight on same branch
 - Fixed copy of selected commits within branch

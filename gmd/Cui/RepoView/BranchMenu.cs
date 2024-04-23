@@ -85,7 +85,7 @@ class BranchMenu : IBranchMenu
             .Items(GetMoveBranchItems(branchName))
             .Separator()
             .SubMenu(!isLimited, "Show/Open Branch", "Shift →", GetShowBranchItems())
-            .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches(), () => isStatusOK)
+            .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
             .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
             .SubMenu(!isLimited, "Repo Menu", "", repoMenu.GetRepoMenuItems());
@@ -231,10 +231,15 @@ class BranchMenu : IBranchMenu
 
     public IEnumerable<MenuItem> GetShowBranchItems()
     {
+        var currentAuthor = repo.CurrentAuthor;
         var allBranches = repo.Repo.AllBranches;
 
         var liveBranches = allBranches
             .Where(b => b.IsGitBranch && b.IsPrimary)
+            .OrderBy(b => b.NiceNameUnique);
+
+        var myLiveBranches = allBranches
+            .Where(b => b.IsGitBranch && b.IsPrimary && repo.Repo.CommitById[b.TipId].Author == currentAuthor)
             .OrderBy(b => b.NiceNameUnique);
 
         var liveAndDeletedBranches = allBranches
@@ -257,6 +262,7 @@ class BranchMenu : IBranchMenu
                 .Prepend(Menu.Item("Show 5 more Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))))
             .SubMenu("    Active", "", ToHierarchicalBranchesItems(liveBranches, ShowBranch)
                 .Prepend(Menu.Item("Show All Active", "", () => cmds.ShowBranch("", false, ShowBranches.AllActive))))
+            .SubMenu("    My Active", "", ToHierarchicalBranchesItems(myLiveBranches, ShowBranch))
             .SubMenu("    Active and Deleted", "", ToHierarchicalBranchesItems(liveAndDeletedBranches, ShowBranch)
                 .Prepend(Menu.Item("Show All Active and Deleted", "", () => cmds.ShowBranch("", false, ShowBranches.AllActiveAndDeleted))));
 

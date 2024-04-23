@@ -59,6 +59,7 @@ class AugmentedService : IAugmentedService
     {
         // Get latest git status
         if (!Try(out var gitStatus, out var e, await GetGitStatusAsync(repo.Path))) return e;
+        Log.Info($"Git status {gitStatus}");
 
         // Returns the augmented repo with the new status
         return GetUpdatedAugmentedRepoStatus(repo, gitStatus);
@@ -71,7 +72,6 @@ class AugmentedService : IAugmentedService
             return await git.CommitAllChangesAsync(message, isAmend, wd);
         }
     }
-
 
     public async Task<R> FetchAsync(string path)
     {
@@ -268,6 +268,63 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    public async Task<R> SquashCommits(Repo repo, string id1, string id2, string message)
+    {
+        using (fileMonitor.Pause())
+        {
+            var c1 = repo.CommitById[id1];
+            var c2 = repo.CommitById[id2];
+            if (!c2.ParentIds.Any()) return R.Error("Last commit does not have a parent");
+            if (c1.BranchName != c2.BranchName) return R.Error("Commits are not on the same branch");
+            var branch = repo.BranchByName[c1.BranchName];
+            if (!branch.IsLocalCurrent) return R.Error("Commits not on current branch");
+
+            // Create a backup branch (in case of errors)
+            var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
+            if (!Try(out var e, await git.CreateBranchAsync(tmpName, false, repo.Path)))
+                return R.Error("Failed to create backup branch", e);
+
+            // Remember commits before squash to be cherry picked back
+            var preCommits = new List<Commit>();
+            var c = repo.CommitById[branch.TipId];
+            while (c.Id != c1.Id)
+            {
+                preCommits.Add(c);
+                if (!c.ParentIds.Any()) break;
+                c = repo.CommitById[c.ParentIds[0]];
+            }
+
+            // Remove all prefix commits on current branch until the first commit to squash 
+            if (preCommits.Any())
+            {
+                if (!Try(out e, await git.ResetHardUntilCommitAsync(id1, repo.Path)))
+                    return R.Error("Failed to prepare for squash", e);
+            }
+
+            // Squash commits and commit
+            if (!Try(out e, await git.UncommitUntilCommitAsync(c2.ParentIds[0], repo.Path)))
+                return R.Error("Failed to squash commits", e);
+            if (!Try(out e, await git.CommitAllChangesAsync(message, false, repo.Path)))
+                return R.Error("Failed to commit squashed commits", e);
+
+            // Cherry pick prefix commits back to current branch
+            foreach (var commit in preCommits.AsEnumerable().Reverse())
+            {
+                if (!Try(out e, await git.CherryPickAsync(commit.Id, repo.Path)))
+                    return R.Error($"Failed to cherry pick {commit.Sid}", e);
+                if (!Try(out e, await git.CommitAllChangesAsync(commit.Message, false, repo.Path)))
+                    return R.Error($"Failed to commit cherry pick {commit.Sid}", e);
+            }
+
+            // Remove temp backup branch
+            if (!Try(out e, await git.DeleteLocalBranchAsync(tmpName, true, repo.Path)))
+                return R.Error("Failed to delete backup branch", e);
+        }
+
+        return R.Ok;
+    }
+
+
     public async Task<R> SwitchToAsync(Repo repo, string branchName)
     {
         var branch = repo.BranchByName[branchName];
@@ -380,6 +437,7 @@ class AugmentedService : IAugmentedService
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo);
 
         var repo = converter.ToRepo(augRepo);
+        repo = AdjustUncommitted(repo);
         Log.Info($"Augmented {t} {repo}");
         return repo;
     }
@@ -388,8 +446,127 @@ class AugmentedService : IAugmentedService
     // GetUpdatedAugmentedRepoStatus an updated augmented repo with new status
     Repo GetUpdatedAugmentedRepoStatus(Repo repo, GitStatus gitStatus)
     {
+        Timing t = Timing.Start();
         var status = converter.ToStatus(gitStatus);
-        return repo with { Status = status };
+        repo = repo with { Status = status, ViewBranches = new List<Branch>(), ViewCommits = new List<Commit>() };
+        repo = AdjustUncommitted(repo);
+        Log.Info($"Augmented {t} {repo}");
+        return repo;
+    }
+
+    Repo AdjustUncommitted(Repo repo)
+    {
+        if (repo.Status.IsOk && !repo.CommitById.ContainsKey(Repo.UncommittedId)) return repo;
+
+        if (repo.Status.IsOk)
+        {   // Need to remove uncommitted commit
+            var uncommitted = repo.CommitById[Repo.UncommittedId];
+            Commit? parent = uncommitted.ParentIds.Any() ? repo.CommitById[uncommitted.ParentIds[0]] : null;
+            if (parent != null)
+            {   // Uncommitted has a parent, need to adjust parents children
+                parent = parent with
+                {
+                    AllChildIds = parent.AllChildIds.Where(c => c != uncommitted.Id).ToList(),
+                    FirstChildIds = parent.FirstChildIds.Where(c => c != uncommitted.Id).ToList(),
+                    MergeChildIds = parent.MergeChildIds.Where(c => c != uncommitted.Id).ToList()
+                };
+            }
+
+            var commits = repo.AllCommits
+                .Where(c => c.Id != Repo.UncommittedId)
+                .Select(c => c.Id == parent?.Id ? parent : c)
+                .ToList();
+            var commitsById = commits.ToDictionary(c => c.Id);
+
+            var branches = repo.AllBranches
+                .Select(b =>
+                {
+                    if (b.Name != uncommitted.BranchName) return b;
+                    if (b.TipId == Repo.UncommittedId && b.BottomId == Repo.UncommittedId)
+                        return b with { TipId = parent?.Id ?? "", BottomId = parent?.Id ?? "" };
+                    return b with { TipId = parent?.Id ?? "" };
+                })
+                .ToList();
+            var branchByName = branches.ToDictionary(b => b.Name);
+
+            return repo with { AllCommits = commits, CommitById = commitsById, AllBranches = branches, BranchByName = branchByName };
+        }
+
+        var newUncommitted = GetUncommittedCommit(repo);
+
+        // Status is not ok, need to add or update commit
+        if (repo.CommitById.TryGetValue(Repo.UncommittedId, out var uncommitted2))
+        {   // Uncommitted commit exists, need to update it
+            var commits = repo.AllCommits
+                .Select(c => c.Id == Repo.UncommittedId ? newUncommitted : c)
+                .ToList();
+            var commitsById = commits.ToDictionary(c => c.Id);
+
+            return repo with { AllCommits = commits, CommitById = commitsById, };
+        }
+
+        // Uncommitted commit does not exist, need to add it
+        var commits2 = repo.AllCommits.Prepend(newUncommitted).ToList();
+        var commitsById2 = commits2.ToDictionary(c => c.Id);
+        var branch = repo.BranchByName[newUncommitted.BranchName];
+        var parentBranch = string.IsNullOrEmpty(branch.ParentBranchName) ? null : repo.BranchByName[branch.ParentBranchName];
+
+        var branches2 = repo.AllBranches
+            .Select(b =>
+            {
+                if (b.Name != newUncommitted.BranchName) return b;
+                if (b.TipId == b.BottomId && b.TipId == parentBranch?.TipId)
+                    return b with { TipId = newUncommitted.Id, BottomId = newUncommitted.Id };
+                return b with { TipId = Repo.UncommittedId };
+            })
+            .ToList();
+        var branchByName2 = branches2.ToDictionary(b => b.Name);
+
+        return repo with { AllCommits = commits2, CommitById = commitsById2, AllBranches = branches2, BranchByName = branchByName2 };
+    }
+
+
+    static Commit GetUncommittedCommit(Repo repo)
+    {
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent)
+            ?? repo.AllBranches.FirstOrDefault(b => b.IsMainBranch)
+            ?? repo.AllBranches.First();
+
+        var current = repo.CommitById[currentBranch.TipId];
+        if (current.IsUncommitted)
+        {   // First commit is uncommitted, so use its parent as local tip
+            current = repo.CommitById[current.ParentIds[0]];
+        }
+
+        var parentIds = new List<string>() { current.Id };
+
+        if (repo.Status.MergeHeadId != "")
+        {   // Merge in progress, add the source merge id as a merge parent to the uncommitted commit
+            var mergeHead = repo.CommitById[repo.Status.MergeHeadId];
+            parentIds.Add(repo.Status.MergeHeadId);
+        }
+
+        string subject = $"{repo.Status.ChangesCount} uncommitted changes";
+        if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
+        {   // Merge in progress
+            subject = $"{repo.Status.MergeMessage}, {subject}";
+        }
+        if (repo.Status.Conflicted > 0)
+        {   // Conflicts exists
+            subject = $"CONFLICTS: {repo.Status.Conflicted}, {subject}";
+        }
+
+        // Create a new virtual uncommitted commit
+        return new Commit(
+            Id: Repo.UncommittedId, Sid: Repo.UncommittedId.Sid(),
+            Subject: subject, Message: subject, Author: "", AuthorTime: DateTime.Now,
+            IsInView: true, ViewIndex: 0, GitIndex: 0, currentBranch.Name, currentBranch.PrimaryName, currentBranch.NiceNameUnique,
+            ParentIds: parentIds, AllChildIds: new List<string>(), FirstChildIds: new List<string>(), MergeChildIds: new List<string>(),
+            Tags: new List<Tag>(), BranchTips: new List<string>(),
+            IsCurrent: false, IsDetached: false, IsUncommitted: true, IsConflicted: repo.Status.Conflicted > 0,
+            IsAhead: false, IsBehind: false,
+            IsTruncatedLogCommit: false, IsAmbiguous: false, IsAmbiguousTip: false,
+            IsBranchSetByUser: false, HasStash: false, More.None);
     }
 
     R<GitRepo> EmptyGitRepo(string path, IReadOnlyList<Git.Tag> tags, GitStatus status, MetaData metaData)

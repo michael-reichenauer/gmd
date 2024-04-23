@@ -1,3 +1,5 @@
+using gmd.Cui.RepoView;
+
 namespace gmd.Server;
 
 enum ShowBranches
@@ -12,6 +14,8 @@ interface IServer
 {
     event Action<ChangeEvent> RepoChange;
     event Action<ChangeEvent> StatusChange;
+
+    string CurrentAuthor { get; }
 
     Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<R<Repo>> GetUpdateStatusRepoAsync(Repo repo);
@@ -66,7 +70,7 @@ interface IServer
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
     Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<R> SwitchToCommitAsync(string commitId, string wd);
-
+    Task<R> SquashCommits(Repo repo, string id1, string id2, string msg);
 }
 
 internal record ChangeEvent(DateTime TimeStamp);
