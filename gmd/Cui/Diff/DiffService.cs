@@ -264,23 +264,48 @@ class DiffService : IDiffService
 
     static (Text, Text) GetDiffSides(Line lL, Line rL)
     {
-        // Ignore leading spaces in diff
+        // Mark leading space changes in diff
         var leftString = lL.Text.TrimStart();
         var rightString = rL.Text.TrimStart();
 
         // Add leading spaces back
-        var leftText = Text.Black(new string(' ', lL.Text.Length - leftString.Length));
-        var rightText = Text.Black(new string(' ', rL.Text.Length - rightString.Length));
+        var diffLeftPrefixMargin = lL.Text.Length - leftString.Length;
+        var diffRightPrefixMargin = rL.Text.Length - rightString.Length;
+        var minDiffPrefixMargin = Math.Min(diffLeftPrefixMargin, diffRightPrefixMargin);
+        var leftText = Text.Black(new string(' ', minDiffPrefixMargin));
+        if (diffLeftPrefixMargin > minDiffPrefixMargin)
+        {
+            leftText.RedBg(new string(' ', diffLeftPrefixMargin - minDiffPrefixMargin));
+        }
+        var rightText = Text.Black(new string(' ', minDiffPrefixMargin));
+        if (diffRightPrefixMargin > minDiffPrefixMargin)
+        {
+            rightText.GreenBg(new string(' ', diffRightPrefixMargin - minDiffPrefixMargin));
+        }
 
-        // Ignore trailing spaces in diff
+        // Mark trailing space changes in diff
+        var leftLength = leftString.Length;
+        var rightLength = rightString.Length;
         leftString = leftString.TrimEnd();
         rightString = rightString.TrimEnd();
+        var leftSuffix = Text.RedBg(new string(' ', leftLength - leftString.Length));
+        var rightSuffix = Text.GreenBg(new string(' ', rightLength - rightString.Length));
 
         var differ = new Differ();
         var result = differ.CreateCharacterDiffs(leftString, rightString, true);
 
         if (result.DiffBlocks.Count == 0)
-        {   // Same on both sides, just show both sides as same
+        {
+            if (leftString == rightString && lL.Color == Color.RedBg && rL.Color == Color.GreenBg)
+            {   // Some change in space (before or after) 
+                leftText.White(leftString).Add(leftSuffix);
+                rightText.White(rightString).Add(rightSuffix);
+                Text lTs = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Add(leftText);
+                Text rTs = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Add(rightText);
+                return (lTs, rTs);
+            }
+
+            // Same on both sides, just show both sides as same
             Text lT2 = Text.Dark($"{lL.LineNbr,4} ").Color(lL.Color, lL.Text);
             Text rT2 = Text.Dark($"{rL.LineNbr,4} ").Color(rL.Color, rL.Text);
             return (lT2, rT2);
@@ -330,8 +355,8 @@ class DiffService : IDiffService
             rightText.White(rightString[rightIndex..]);
         }
 
-        Text lT = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Add(leftText);
-        Text rT = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Add(rightText);
+        Text lT = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Add(leftText).Add(leftSuffix);
+        Text rT = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Add(rightText).Add(rightSuffix);
         return (lT, rT);
     }
 
