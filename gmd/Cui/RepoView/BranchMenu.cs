@@ -327,11 +327,13 @@ class BranchMenu : IBranchMenu
     string ToBranchOwnerInitials(Branch b)
     {
         var tip = repo.Repo.CommitById[b.TipId];
-        var author = tip.Author;
-        var parts = author.Split(' ');
-        var initials = "";
-        if (parts.Length == 1) initials = parts[0][..1];
-        if (parts.Length > 1) initials = $"{parts[0][..1]} {parts[1][..1]}";
+        var initials = string.Join(' ',
+            tip.Author
+                .Split(' ')
+                .Select(p => p.Trim())
+                .Where(p => p.Length > 0)
+                .Take(2)
+                .Select(p => p[0]));
 
         return $"'{initials}'";
     }
