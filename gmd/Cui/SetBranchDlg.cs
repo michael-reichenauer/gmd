@@ -24,9 +24,9 @@ class SetBranchDlg : ISetBranchDlg
         (var width, var height) = (50, 22);
         (var x, var y, var w, var h) = (1, 5, width - 5, height - 12);
 
-        items = possibleBranches;
+        IReadOnlyList<string> items = possibleBranches;
         itemTexts = items.Select(item => item.Length > w - 1
-            ? Text.Dark("…").White(item[(item.Length - w - 1)..]).ToText()
+            ? Text.Dark("…").White(item[Math.Max(0, item.Length - w - 1)..]).ToText()
             : Text.White(item.Max(w, true)).ToText()).ToList();
 
         var dlg = new UIDialog($"Set Commit {commitSid} Branch Manually", width, height, null, o => o.Y = 0);
