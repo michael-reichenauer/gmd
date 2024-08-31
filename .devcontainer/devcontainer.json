@@ -1,7 +1,6 @@
 {
 	"name": "C# (.NET)",
-	"image": "mcr.microsoft.com/devcontainers/dotnet:0-7.0",
-
+	"image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
 	"customizations": {
 		"vscode": {
 			// Add the IDs of extensions you want installed when the container is created.
@@ -12,7 +11,6 @@
 			]
 		}
 	},
-	
 	"postCreateCommand": "dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"

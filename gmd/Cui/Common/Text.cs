@@ -43,6 +43,9 @@ class Text
     public static TextBuilder BrightMagenta(string text) => new TextBuilder(Common.Color.BrightMagenta, text);
     public static TextBuilder Color(Common.Color color, string text) => new TextBuilder(color, text);
 
+    public static TextBuilder GreenBg(string text) => new TextBuilder(Common.Color.GreenBg, text);
+    public static TextBuilder RedBg(string text) => new TextBuilder(Common.Color.RedBg, text);
+
     public static TextBuilder Add(Text text)
     {
         var tb = new TextBuilder(text.Fragments);

@@ -1,9 +1,16 @@
 # Change Log for Gmd
 --------------------
 
-117 releases:
+118 releases:
 
-## [Current] - 2024-04-23
+## [Current] - 2024-08-31
+- Improve mark leading and trailing space diffs
+- Upgrade to .NET 8
+- Fixed .net version in build script
+- Fixed issue with author intials for branch tips
+- Fixed an issue with SetBranchManuallyDlg
+
+## [v0.91.541.196] - 2024-04-23
 - Added support for showing my active branches
 - Fixed issue with craching gmd when status changed
 - Allow pull all even if uncommited changes
