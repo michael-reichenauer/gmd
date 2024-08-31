@@ -68,6 +68,7 @@ interface IServer
     Task<R> StashDropAsync(string name, string wd);
     Task<R<string>> GetChangeLogAsync();
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
+    Task<R> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
     Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<R> SwitchToCommitAsync(string commitId, string wd);
     Task<R> SquashCommits(Repo repo, string id1, string id2, string msg);

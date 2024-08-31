@@ -32,6 +32,7 @@ interface IAugmentedService
     Task<R> RebaseBranchAsync(Repo repo, string name);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
+    Task<R> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
     Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<R> SquashCommits(Repo repo, string id1, string id2, string msg);

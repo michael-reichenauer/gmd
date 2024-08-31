@@ -413,9 +413,15 @@ class CommitCommands : ICommitCommands
 
         if (!Try(out var tag, addTagDlg.Show())) return R.Ok;
 
-        if (!Try(out var e, await server.AddTagAsync(tag, commit.Id, isPushable, repo.Path)))
+        if (tag.message == "")
         {
-            return R.Error($"Failed to add tag {tag}", e);
+            if (!Try(out var e, await server.AddTagAsync(tag.name, commit.Id, isPushable, repo.Path)))
+                return R.Error($"Failed to add tag {tag.name}", e);
+        }
+        else
+        {
+            if (!Try(out var e, await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, isPushable, repo.Path)))
+                return R.Error($"Failed to add tag {tag.name} '{tag.message}'", e);
         }
 
         Refresh();
