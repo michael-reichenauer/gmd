@@ -122,6 +122,8 @@ internal class Git : IGit
         diffService.GetStashDiffAsync(name, wd);
     public Task<R> AddTagAsync(string name, string commitId, string wd) =>
         tagService.AddTagAsync(name, commitId, wd);
+    public Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>
+        tagService.AddAnnotatedTagAsync(name, message, commitID, wd);
     public Task<R> RemoveTagAsync(string name, string wd) =>
         tagService.RemoveTagAsync(name, wd);
     public Task<R> ResetHardUntilCommitAsync(string id, string wd) => commitService.ResetHardUntilCommitAsync(id, wd);

@@ -398,6 +398,16 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    public async Task<R> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.AddAnnotatedTagAsync(name, message, commitId, wd))) return e;
+            if (!hasRemoteBranch) return R.Ok;
+            return await git.PushTagAsync(name, wd);
+        }
+    }
+
 
     public async Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd)
     {

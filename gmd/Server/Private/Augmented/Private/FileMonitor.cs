@@ -86,10 +86,7 @@ class FileMonitor : IFileMonitor
 
     bool OnTimer(MainLoop loop)
     {
-        if (isPaused)
-        {
-            return true;
-        }
+        lock (syncRoot) { if (isPaused) return true; }
 
         ChangeEvent? fileEvent = null;
         ChangeEvent? repoEvent = null;
@@ -170,12 +167,12 @@ class FileMonitor : IFileMonitor
 
     public IDisposable Pause()
     {
-        isPaused = true;
+        lock (syncRoot) { isPaused = true; }
         Log.Info("Pause file monitor ...");
 
         return new Disposable(() =>
         {
-            isPaused = false;
+            lock (syncRoot) { isPaused = false; }
             Log.Info("Resume file monitor");
         });
     }

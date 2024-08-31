@@ -53,6 +53,7 @@ interface IGit
     Task<R> StashDropAsync(string name, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R> AddTagAsync(string name, string commitId, string wd);
+    Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
     Task<R> RemoveTagAsync(string name, string wd);
     Task<R> PushTagAsync(string name, string wd);
     Task<R> DeleteRemoteTagAsync(string name, string wd);
