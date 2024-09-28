@@ -116,9 +116,13 @@ class DiffView : IDiffView
     {
         var undoItems = GetUndoItems();
         var scrollToItems = GetScrollToItems();
+        var diffItems = GetDiffItems();
+        var conflictItems = GetConflictItems();
 
         Menu.Show("Diff Menu", x, y, Menu.Items
             .SubMenu("Scroll to", "S", scrollToItems)
+            .SubMenu("Diff File", "", diffItems)
+            .SubMenu("Merge Conflict File", "", conflictItems)
             .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
             .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
             .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
@@ -158,6 +162,28 @@ class DiffView : IDiffView
         }
 
         var paths = diffService.GetDiffFilePaths(diffs[0]);
+        if (!paths.Any()) return Menu.Items;
+
+        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    }
+
+    IEnumerable<Common.MenuItem> GetDiffItems()
+    {
+        if (diffs.Length > 1) return Menu.Items;
+
+        var paths = diffs[0].FileDiffs.Select(fd => fd.PathAfter).ToList();
+        if (!paths.Any()) return Menu.Items;
+
+        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    }
+
+    IEnumerable<Common.MenuItem> GetConflictItems()
+    {
+        if (diffs.Length > 1) return Menu.Items;
+
+        var paths = diffs[0].FileDiffs
+            .Where(fd => fd.DiffMode == DiffMode.DiffConflicts)
+            .Select(fd => fd.PathAfter).ToList();
         if (!paths.Any()) return Menu.Items;
 
         return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
