@@ -169,7 +169,7 @@ class DiffView : IDiffView
 
     IEnumerable<Common.MenuItem> GetDiffItems()
     {
-        if (diffs.Length > 1) return Menu.Items;
+        if (diffs.Length > 1 || diffs[0].Id != "") return Menu.Items;
 
         var paths = diffs[0].FileDiffs.Select(fd => fd.PathAfter).ToList();
         if (!paths.Any()) return Menu.Items;
