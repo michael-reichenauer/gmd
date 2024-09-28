@@ -71,6 +71,8 @@ internal class Git : IGit
         diffService.GetRefsDiffAsync(sha1, sha2, message, wd);
     public Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd) =>
         diffService.GetDiffRangeAsync(sha1, sha2, message, wd);
+    public Task<R> RunDiffToolAsync(string path, string wd) => diffService.RunDiffToolAsync(path, wd);
+    public Task<R> RunMergeToolAsync(string path, string wd) => diffService.RunMergeToolAsync(path, wd);
     public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
     public Task<R> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);

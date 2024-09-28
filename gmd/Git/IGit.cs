@@ -18,6 +18,8 @@ interface IGit
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
     Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
+    Task<R> RunDiffToolAsync(string path, string wd);
+    Task<R> RunMergeToolAsync(string path, string wd);
     Task<R> FetchAsync(string wd);
     Task<R> PushBranchAsync(string name, string wd);
     Task<R> PushCurrentBranchAsync(bool isForce, string wd);

@@ -195,6 +195,10 @@ class Server : IServer
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
+    public Task<R> RunDiffToolAsync(string path, string wd) => git.RunDiffToolAsync(path, wd);
+
+    public Task<R> RunMergeToolAsync(string path, string wd) => git.RunMergeToolAsync(path, wd);
+
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
     {
         if (!Try(out var gitCommitDiffs, out var e, await git.GetFileDiffAsync(path, wd))) return e;
