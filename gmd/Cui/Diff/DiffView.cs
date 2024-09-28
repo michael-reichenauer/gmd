@@ -174,7 +174,7 @@ class DiffView : IDiffView
         var paths = diffs[0].FileDiffs.Select(fd => fd.PathAfter).ToList();
         if (!paths.Any()) return Menu.Items;
 
-        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => RunDiffTool(p))));
     }
 
     IEnumerable<Common.MenuItem> GetConflictItems()
@@ -186,7 +186,7 @@ class DiffView : IDiffView
             .Select(fd => fd.PathAfter).ToList();
         if (!paths.Any()) return Menu.Items;
 
-        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => RunMergeTool(p))));
     }
 
     void ScrollToCommit(string commitId)
@@ -200,6 +200,26 @@ class DiffView : IDiffView
         // Find the row indexes where the file diff starts
         var lineIndex = diffRows.Rows.FindIndexBy(r => r.FilePath == path);
         contentView.ScrollToShowIndex(lineIndex - 1);
+    }
+
+    void RunDiffTool(string path)
+    {
+        UI.RunInBackground(async () =>
+        {
+            if (!Try(out var e, await server.RunDiffToolAsync(path, repoPath)))
+                UI.ErrorMessage($"Failed to run diff tool\n{e.AllErrorMessages()}");
+        });
+    }
+
+    void RunMergeTool(string path)
+    {
+        UI.RunInBackground(async () =>
+        {
+            if (!Try(out var e, await server.RunMergeToolAsync(path, repoPath)))
+                UI.ErrorMessage($"Failed to run merger tool\n{e.AllErrorMessages()}");
+
+            RefreshDiff();
+        });
     }
 
     IEnumerable<Common.MenuItem> GetUndoItems()
