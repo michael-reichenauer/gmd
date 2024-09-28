@@ -8,6 +8,8 @@ interface IDiffService
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd);
     Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
+    Task<R> RunDiffToolAsync(string path, string wd);
+    Task<R> RunMergeToolAsync(string path, string wd);
 }
 
 // cSpell:ignore uFEFF
@@ -117,6 +119,21 @@ class DiffService : IDiffService
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
 
         return ParseDiff(output, message);
+    }
+
+
+    public async Task<R> RunDiffToolAsync(string path, string wd)
+    {
+        var args = $"difftool --no-prompt {path}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        return R.Ok;
+    }
+
+    public async Task<R> RunMergeToolAsync(string path, string wd)
+    {
+        var args = $"mergetool --no-prompt {path}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        return R.Ok;
     }
 
     // Parse diff output from git diff command
