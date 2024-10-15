@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Function to check if dotnet-outdated is installed
+check_dotnet_outdated_installed() {
+    if ! dotnet tool list -g | grep -q 'dotnet-outdated'; then
+        echo "dotnet-outdated is not installed. Installing it now..."
+        dotnet tool install --global dotnet-outdated-tool
+    fi
+}
+
+# Initialize variables
+update_packages=false
+include_major=false
+
+# Parse command-line arguments
+while getopts "um" opt; do
+    case $opt in
+        u)
+            update_packages=true
+            ;;
+        m)
+            update_packages=true
+            include_major=true
+            ;;
+        *)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Check if dotnet-outdated is installed
+check_dotnet_outdated_installed
+
+if [ "$update_packages" = true ]; then
+    if [ "$include_major" = true ]; then
+        echo "Upgrading all packages (including major) in '$PWD' ..."
+        dotnet outdated "$projectFile" --upgrade
+    else
+        echo "Upgrading all non-major packages in '$PWD' ..."
+        dotnet outdated "$projectFile" --upgrade --version-lock Major
+    fi
+fi
+
+echo
+echo "================================================================================="
+echo "Listing all outdated packages in $PWD"
+dotnet outdated
+echo 
+echo "---------------------------------------------------------------------------------"
+echo "Use option '-u' to update non-major outdated packages"
+echo "Use option '-m' to update all outdated packages including major versions"
+echo

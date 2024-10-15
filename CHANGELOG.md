@@ -1,9 +1,18 @@
 # Change Log for Gmd
 --------------------
 
-118 releases:
+119 releases:
 
-## [Current] - 2024-08-31
+## [Current] - 2024-10-15
+- Added support for annotated tags with messages
+- Fixed issue with clicking outside last commit
+- Added xsel (for copy text) to installtoools
+- Added updatepackages script
+- Updated some packages
+- Added support for running difftool and merge tool in diff view
+- Only show diff tool items for uncommited diffs
+
+## [v0.91.671.467] - 2024-08-31
 - Improve mark leading and trailing space diffs
 - Upgrade to .NET 8
 - Fixed .net version in build script

@@ -18,6 +18,8 @@ interface IGit
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
     Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
+    Task<R> RunDiffToolAsync(string path, string wd);
+    Task<R> RunMergeToolAsync(string path, string wd);
     Task<R> FetchAsync(string wd);
     Task<R> PushBranchAsync(string name, string wd);
     Task<R> PushCurrentBranchAsync(bool isForce, string wd);
@@ -53,6 +55,7 @@ interface IGit
     Task<R> StashDropAsync(string name, string wd);
     Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
     Task<R> AddTagAsync(string name, string commitId, string wd);
+    Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
     Task<R> RemoveTagAsync(string name, string wd);
     Task<R> PushTagAsync(string name, string wd);
     Task<R> DeleteRemoteTagAsync(string name, string wd);

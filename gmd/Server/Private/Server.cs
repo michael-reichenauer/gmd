@@ -195,6 +195,10 @@ class Server : IServer
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
+    public Task<R> RunDiffToolAsync(string path, string wd) => git.RunDiffToolAsync(path, wd);
+
+    public Task<R> RunMergeToolAsync(string path, string wd) => git.RunMergeToolAsync(path, wd);
+
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
     {
         if (!Try(out var gitCommitDiffs, out var e, await git.GetFileDiffAsync(path, wd))) return e;
@@ -369,6 +373,9 @@ class Server : IServer
 
     public Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>
         augmentedService.AddTagAsync(name, commitId, hasRemoteBranch, wd);
+
+    public Task<R> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd) =>
+        augmentedService.AddAnnotatedTagAsync(name, message, commitId, hasRemoteBranch, wd);
 
     public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
         augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);

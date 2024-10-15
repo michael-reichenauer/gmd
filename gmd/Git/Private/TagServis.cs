@@ -4,6 +4,7 @@ interface ITagService
 {
     Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
     Task<R> AddTagAsync(string name, string commitID, string wd);
+    Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
     Task<R> RemoveTagAsync(string name, string wd);
 }
 
@@ -38,6 +39,11 @@ class TagService : ITagService
     public async Task<R> AddTagAsync(string name, string commitID, string wd)
     {
         return await cmd.RunAsync("git", $"tag {name} {commitID}", wd, true);
+    }
+
+    public async Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd)
+    {
+        return await cmd.RunAsync("git", $"tag -a {name} {commitID} -m \"{message}\"", wd, true);
     }
 
     public async Task<R> RemoveTagAsync(string name, string wd)

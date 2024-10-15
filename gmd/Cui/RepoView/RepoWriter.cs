@@ -34,6 +34,8 @@ class RepoWriter : IRepoWriter
         if (!repo.Repo.ViewCommits.Any() || count == 0) return new List<Text>();
         if (!selection.IsEmpty) currentIndex = selection.InitialIndex;
         count = Math.Min(count, repo.Repo.ViewCommits.Count - firstRow);
+        currentIndex = Math.Min(currentIndex, repo.Repo.ViewCommits.Count - 1);
+        currentIndex = Math.Max(0, currentIndex);
 
         List<Text> rows = new List<Text>();
         var branchTips = GetBranchTips(repo);
