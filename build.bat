@@ -40,7 +40,7 @@ if "%1"=="-w" (
     exit 0
 )
 
-echo "Building Linux ...."
+echo "Building Linux (x64) ...."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 copy gmd\bin\Release\%DOTNET%\linux-x64\publish\gmd gmd_linux
 

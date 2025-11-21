@@ -52,7 +52,7 @@ grep -q -i "critical\|high\|moderate" build.log; [ $? -eq 0 ] && echo "Security 
 echo ""
 echo "Building linux ..."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux
+cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux_x64
 
 echo "Building linux (arm64) ..."
 # Build Linux arm64 so it can run on Apple Silicon via a Linux environment
@@ -73,7 +73,7 @@ cp ./gmd/bin/Release/$DOTNET/win-x64/publish/gmd.exe gmd.exe
 echo "Building macOS (Apple Silicon) ..."
 # Target Apple Silicon Macs (e.g. M4) with the arm64 RID
 dotnet publish gmd/gmd.csproj -c Release -r osx-arm64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-cp ./gmd/bin/Release/$DOTNET/osx-arm64/publish/gmd gmd_osx
+cp ./gmd/bin/Release/$DOTNET/osx-arm64/publish/gmd gmd_osx_arm64
 
 echo ""
 echo "Built version:"
