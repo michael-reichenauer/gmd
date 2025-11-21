@@ -39,8 +39,8 @@ jobs:
         run: |
           echo Build on branch: ${{ github.ref }}
           ./build
-          echo "version=$(./gmd_linux --version)" >> $GITHUB_OUTPUT
-          echo Version: $(./gmd_linux --version)
+          echo "version=$(./gmd_linux_x64 --version)" >> $GITHUB_OUTPUT
+          echo Version: $(./gmd_linux_x64 --version)
           echo "isRelease=${{ github.ref == 'refs/heads/main' }}" >> $GITHUB_OUTPUT
           echo "isPreRelease=${{ github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
           echo "isPublish=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
