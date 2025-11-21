@@ -5,6 +5,7 @@
 
 gmd.exe
 gmd_linux
+gmd_linux_arm64
 gmd_windows
 gmd_mac
 gmd_osx

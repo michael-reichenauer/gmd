@@ -54,6 +54,11 @@ echo "Building linux ..."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux
 
+echo "Building linux (arm64) ..."
+# Build Linux arm64 so it can run on Apple Silicon via a Linux environment
+dotnet publish gmd/gmd.csproj -c Release -r linux-arm64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+cp ./gmd/bin/Release/$DOTNET/linux-arm64/publish/gmd gmd_linux_arm64
+
 if [[ $ISBUILDLINUX == "-l" ]] ; then
   echo "Built only linux."
   ./gmd_linux --version 
@@ -65,13 +70,12 @@ dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --
 cp ./gmd/bin/Release/$DOTNET/win-x64/publish/gmd.exe gmd_windows
 cp ./gmd/bin/Release/$DOTNET/win-x64/publish/gmd.exe gmd.exe
 
-echo "Building osx/mac ..."
-dotnet publish gmd/gmd.csproj -c Release -r osx-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-cp ./gmd/bin/Release/$DOTNET/osx-x64/publish/gmd gmd_osx
+echo "Building macOS (Apple Silicon) ..."
+# Target Apple Silicon Macs (e.g. M4) with the arm64 RID
+dotnet publish gmd/gmd.csproj -c Release -r osx-arm64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+cp ./gmd/bin/Release/$DOTNET/osx-arm64/publish/gmd gmd_osx
 
 echo ""
 echo "Built version:"
 ./gmd_osx --version 2>/dev/null
 ./gmd_linux --version 2>/dev/null
-
-
