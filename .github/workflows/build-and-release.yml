@@ -80,6 +80,17 @@ jobs:
           asset_name: gmd_linux_arm64
           asset_content_type: application/octet-stream
 
+      - name: Upload Linux artifact
+        if: steps.build.outputs.isPublish == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./gmd_linux_x86
+          asset_name: gmd_linux
+          asset_content_type: application/octet-stream
+          
       - name: Upload Windows artifact
         if: steps.build.outputs.isPublish == 'true'
         uses: actions/upload-release-asset@v1
