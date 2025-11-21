@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using gmd.Common;
 using gmd.Cui.Common;
 
@@ -313,20 +314,25 @@ class Updater : IUpdater
 
     (string, string) SelectBinaryPath()
     {
-        string name = "";
+        string[] names;
         if (Build.IsMacOS)
         {
-            name = "gmd_osx";
+            names = new[] { "gmd_osx_arm64" };
         }
         else
         if (Build.IsLinux)
         {
-            name = "gmd_linux";
+            names = RuntimeInformation.OSArchitecture switch
+            {
+                Architecture.Arm64 => new[] { "gmd_linux_arm64", "gmd_linux" },
+                Architecture.X64 => new[] { "gmd_linux_x64", "gmd_linux" },
+                _ => new[] { "gmd_linux" },
+            };
         }
         else
         if (Build.IsWindows)
         {
-            name = "gmd_windows";
+            names = new[] { "gmd_windows" };
         }
         else
         {
@@ -334,6 +340,7 @@ class Updater : IUpdater
         }
 
         var release = SelectRelease();
+        var name = names.FirstOrDefault(n => release.Assets.Any(a => a.Name == n)) ?? "";
         var binaryPath = release.Assets.FirstOrDefault(a => a.Name == name)?.Url ?? "";
         Log.Debug($"{release.Version} Preview: {release.IsPreview}, {binaryPath}");
 
