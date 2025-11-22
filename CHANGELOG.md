@@ -1,9 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-122 releases:
+123 releases:
 
 ## [Current] - 2025-11-22
+- Adjust osx asset name
+
+## [v0.91.1119.371] - 2025-11-22
 - Adjust install.sh
 
 ## [v0.91.1119.328] - 2025-11-22
