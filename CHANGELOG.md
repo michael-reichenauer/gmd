@@ -1,9 +1,16 @@
 # Change Log for Gmd
 --------------------
 
-119 releases:
+121 releases:
 
-## [Current] - 2024-10-15
+## [Current] - 2025-11-22
+- Fixed path
+
+## [v0.91.1119.279] - 2025-11-22
+- Adjust building script and artifacts to support arm64
+- Support updater for x86 and arm64
+
+## [v0.91.716.1041] - 2024-10-15
 - Added support for annotated tags with messages
 - Fixed issue with clicking outside last commit
 - Added xsel (for copy text) to installtoools
