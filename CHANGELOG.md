@@ -1,9 +1,95 @@
 # Change Log for Gmd
 --------------------
 
-107 releases:
+121 releases:
 
-## [Current] - 2023-09-05
+## [Current] - 2025-11-22
+- Fixed path
+
+## [v0.91.1119.279] - 2025-11-22
+- Adjust building script and artifacts to support arm64
+- Support updater for x86 and arm64
+
+## [v0.91.716.1041] - 2024-10-15
+- Added support for annotated tags with messages
+- Fixed issue with clicking outside last commit
+- Added xsel (for copy text) to installtoools
+- Added updatepackages script
+- Updated some packages
+- Added support for running difftool and merge tool in diff view
+- Only show diff tool items for uncommited diffs
+
+## [v0.91.671.467] - 2024-08-31
+- Improve mark leading and trailing space diffs
+- Upgrade to .NET 8
+- Fixed .net version in build script
+- Fixed issue with author intials for branch tips
+- Fixed an issue with SetBranchManuallyDlg
+
+## [v0.91.541.196] - 2024-04-23
+- Added support for showing my active branches
+- Fixed issue with craching gmd when status changed
+- Allow pull all even if uncommited changes
+- Support squash commits
+
+## [v0.91.530.207] - 2024-04-12
+- Adjust stash to start with empty message
+- Adjust selecting commits to highlight on same branch
+- Fixed copy of selected commits within branch
+
+## [v0.91.453.278] - 2024-01-26
+- Fixed show menu crash on main branch
+
+## [v0.91.449.265] - 2024-01-22
+- Allow rebase current branch to master
+- Added tip author initals to branch menu items
+
+## [v0.91.419.545] - 2023-12-23
+- Alow git pull with rebase
+- Only allow rebase if current is local only
+- Fixed issue with fresing ui when after rb on remote branch
+- Allow rebaset to current even if remote
+- Push force after rebase if local branch has remote
+- Adjust how push after rebase is handled by status updates
+- Adjust push --forece to push --force-with-lease
+- Added support for uncommmit until current row
+- Added support for squash until current row
+- Use branche primary name for determine color
+- Added support diff range
+- Handle stashed values if commit no longer exists
+- Added support for named stash
+- Adjust stash dialog with curren subject
+- Added support range cherry pick
+- Added support for cherrypick a range of commits
+- Support rebasing current branch to any branch
+
+## [v0.91.350.838] - 2023-10-15
+- Increase recent folder count in startup view
+- Adjust warning texts of commmiting large files
+- Rename 'switch' to 'switch/checkout'
+- Skip moving up/down to branch when moving left/right
+- Using green/red background in diff view
+
+## [v0.91.317.1113] - 2023-09-12
+- Show white space diff
+
+## [v0.91.317.211] - 2023-09-12
+- Disable Branches menu in commitmenu, add Hide all branches
+
+## [v0.91.314.262] - 2023-09-09
+- Fixed 'branch out more' issue
+
+## [v0.91.311.1117] - 2023-09-06
+- Adjust application bar
+- Show empty repo commit in dark gray
+- Adjust current and uncommites symbol shown
+- Added ... on left side of diff if scrolled to right
+- Added branches menues to commit menu
+- Adjust version text
+- Fixed OpenRepo menu and 'O' command
+- Adjust recent repos count
+
+## [v0.90.310.1122] - 2023-09-05
 - Fixed amend
 - Improve menues
 
