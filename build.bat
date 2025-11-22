@@ -40,13 +40,19 @@ if "%1"=="-w" (
     exit 0
 )
 
-echo "Building Linux ...."
+echo "Building Linux (x64) ...."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 copy gmd\bin\Release\%DOTNET%\linux-x64\publish\gmd gmd_linux
 
-echo "Building OSX ...."
-dotnet publish gmd/gmd.csproj -c Release -r osx-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-copy gmd\bin\Release\%DOTNET%\osx-x64\publish\gmd gmd_osx
+echo "Building Linux (arm64) ...."
+rem Build Linux arm64 so it can run on Apple Silicon via a Linux environment
+dotnet publish gmd/gmd.csproj -c Release -r linux-arm64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+copy gmd\bin\Release\%DOTNET%\linux-arm64\publish\gmd gmd_linux_arm64
+
+echo "Building macOS (Apple Silicon) ...."
+rem Target Apple Silicon (e.g. M4) with arm64 RID
+dotnet publish gmd/gmd.csproj -c Release -r osx-arm64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+copy gmd\bin\Release\%DOTNET%\osx-arm64\publish\gmd gmd_osx
 
 echo "Version:"
 gmd.exe --version

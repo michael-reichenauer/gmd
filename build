@@ -9,7 +9,10 @@ ISBUILDLINUX="$1"
 echo "Cleaning ..."
 rm gmd.exe 2>/dev/null
 rm gmd_linux 2>/dev/null
+rm gmd_linux_x64 2>/dev/null
+rm gmd_linux_arm64 2>/dev/null
 rm gmd_osx 2>/dev/null
+rm gmd_osx_arm64 2>/dev/null
 rm gmd_windows 2>/dev/null
 
 if test -f "gmd.exe"; then
@@ -24,8 +27,20 @@ if test -f "gmd_linux"; then
     echo "Error: gmd_linux was not deleted!";
     exit -1;
 fi
+if test -f "gmd_linux_x64"; then
+    echo "Error: gmd_linux_x64 was not deleted!";
+    exit -1;
+fi
+if test -f "gmd_linux_arm64"; then
+    echo "Error: gmd_linux_arm64 was not deleted!";
+    exit -1;
+fi
 if test -f "gmd_osx"; then
     echo "Error: gmd_osx was not deleted!";
+    exit -1;
+fi
+if test -f "gmd_osx_arm64"; then
+    echo "Error: gmd_osx_arm64 was not deleted!";
     exit -1;
 fi
 echo ""
@@ -52,11 +67,21 @@ grep -q -i "critical\|high\|moderate" build.log; [ $? -eq 0 ] && echo "Security 
 echo ""
 echo "Building linux ..."
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux
+cp ./gmd/bin/Release/$DOTNET/linux-x64/publish/gmd gmd_linux_x64
+
+echo "Building linux (arm64) ..."
+# Build Linux arm64 so it can run on Apple Silicon via a Linux environment
+dotnet publish gmd/gmd.csproj -c Release -r linux-arm64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+cp ./gmd/bin/Release/$DOTNET/linux-arm64/publish/gmd gmd_linux_arm64
 
 if [[ $ISBUILDLINUX == "-l" ]] ; then
   echo "Built only linux."
-  ./gmd_linux --version 
+  HOST_ARCH="$(uname -m)"
+  case "${HOST_ARCH}" in
+    x86_64|amd64) ./gmd_linux_x64 --version ;;
+    arm64|aarch64) ./gmd_linux_arm64 --version ;;
+    *) echo "Unknown arch (${HOST_ARCH}); skip version check." ;;
+  esac 2>/dev/null
   exit 0
 fi
 
@@ -65,13 +90,18 @@ dotnet publish gmd/gmd.csproj -c Release -r win-x64 -p:PublishReadyToRun=true --
 cp ./gmd/bin/Release/$DOTNET/win-x64/publish/gmd.exe gmd_windows
 cp ./gmd/bin/Release/$DOTNET/win-x64/publish/gmd.exe gmd.exe
 
-echo "Building osx/mac ..."
-dotnet publish gmd/gmd.csproj -c Release -r osx-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-cp ./gmd/bin/Release/$DOTNET/osx-x64/publish/gmd gmd_osx
+echo "Building macOS (Apple Silicon) ..."
+# Target Apple Silicon Macs (e.g. M4) with the arm64 RID
+dotnet publish gmd/gmd.csproj -c Release -r osx-arm64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
+cp ./gmd/bin/Release/$DOTNET/osx-arm64/publish/gmd gmd_osx_arm64
 
 echo ""
 echo "Built version:"
-./gmd_osx --version 2>/dev/null
-./gmd_linux --version 2>/dev/null
-
-
+HOST_OS="$(uname -s)"
+HOST_ARCH="$(uname -m)"
+case "${HOST_OS}_${HOST_ARCH}" in
+  Darwin_*) ./gmd_osx_arm64 --version ;;
+  Linux_x86_64|Linux_amd64) ./gmd_linux_x64 --version ;;
+  Linux_arm64|Linux_aarch64) ./gmd_linux_arm64 --version ;;
+  *) echo "Unknown host (${HOST_OS} ${HOST_ARCH}); skip version check." ;;
+esac 2>/dev/null

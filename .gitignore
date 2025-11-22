@@ -4,10 +4,10 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 gmd.exe
-gmd_linux
+gmd_linux_x64
+gmd_linux_arm64
 gmd_windows
-gmd_mac
-gmd_osx
+gmd_osx_arm64
 *.tmp*
 *.zip
 nuget.exe
