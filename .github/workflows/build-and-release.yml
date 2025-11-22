@@ -87,7 +87,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_linux_x64c
+          asset_path: ./gmd_linux_x64
           asset_name: gmd_linux
           asset_content_type: application/octet-stream
 
