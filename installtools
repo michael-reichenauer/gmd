@@ -19,6 +19,20 @@ echo "Installing xsel ..."
 sudo apt install -q xsel -y 1>/dev/null
 
 echo ""
+echo "setting working folder as safe in git config ..."
+git config --global --add safe.directory /workspaces/gmd
+
+echo ""
+echo "Adding dotnet tools to PATH ..."
+if ! grep -qxF 'export PATH="$PATH:$HOME/.dotnet/tools"' ~/.profile; then
+  echo 'export PATH="$PATH:$HOME/.dotnet/tools"' >> ~/.profile
+fi
+
+echo ""
+echo "Install claude ..."
+curl -fsSL https://claude.ai/install.sh | bash
+
+echo ""
 echo "Install gmd ..."
 curl curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
 
