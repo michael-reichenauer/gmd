@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace gmd.Git.Private;
 
 internal interface ILogService
@@ -88,8 +90,11 @@ internal class LogService : ILogService
 
         var id = rowParts[0];
         var sid = id.Sid();
-        var authorTime = DateTime.Parse(rowParts[1]);
-        var commitTime = DateTime.Parse(rowParts[2]);
+        // Git emits the same date format regardless of the user's locale, so parse it culture
+        // invariant. Cultures with a non-Gregorian calendar (e.g. ar-SA, th-TH, fa-IR) would
+        // otherwise throw or silently parse the year hundreds of years off.
+        var authorTime = DateTime.Parse(rowParts[1], CultureInfo.InvariantCulture);
+        var commitTime = DateTime.Parse(rowParts[2], CultureInfo.InvariantCulture);
         var author = rowParts[3];
         var parentIDs = ParseParentIds(rowParts);
         var message = ParseMessage(rowParts);

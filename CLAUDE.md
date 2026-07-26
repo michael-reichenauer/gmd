@@ -187,26 +187,66 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 
 ## Testing
 
-MSTest 3.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout. Currently there are
-effectively **two real tests** (`BranchNameServiceTest`, plus a placeholder `UnitTest1`) —
-`GitRepoTest.cs` is entirely commented out and `StateTest.cs` is empty. Growing this suite is
-an explicit goal of ongoing work.
+MSTest 3.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout. Growing this suite is
+an explicit goal — see `MODERNIZATION.md` for what is planned next.
+
+There are two pieces of test infrastructure; use them rather than inventing a third way.
+
+**`RepoBuilder`** (`gmdTest/Fixtures/`) builds a `GitRepo` — the raw facts git would report —
+and runs the real augmentation pipeline. Commits are declared **newest first** (git log order)
+and named with short hex-ish names that expand to full 40-character ids:
+
+```csharp
+var repo = await new RepoBuilder()
+    .Commit("c3", "Merge branch 'dev' into main", "c2", "d1")   // parents last
+    .Commit("d1", "Feature work", "c1")
+    .Commit("c2", "Second", "c1")
+    .Commit("c1", "Initial")
+    .BranchWithRemote("main", "c3", isCurrent: true)            // adds main + origin/main
+    .LocalBranch("dev", "d1")
+    .AugmentAsync();
+
+Assert.AreEqual("dev", repo.CommitsById[RepoBuilder.Sha("d1")].Branch!.Name);
+```
+
+Watch out: a commit declared with no parents is a **root**, so forgetting the parent silently
+changes the graph under test rather than failing loudly.
+
+**`FakeCmd`** (`gmdTest/Utils/`) is a double for `ICmd`, the seam between the git services and
+the `git` executable. Every git service takes `ICmd` in its constructor, so canned output tests
+all parsing with no subprocess:
+
+```csharp
+var cmd = new FakeCmd(gitLogOutput);            // or FakeCmd.Fail("fatal: ...")
+var log = new LogService(cmd);
+Assert.IsTrue(Try(out var commits, out var e, await log.GetLogAsync(100, "/wd")));
+StringAssert.Contains(cmd.Calls[0].Args, "--max-count=100");
+```
+
+Other things to know:
 
 - Put a test at the path mirroring its subject, e.g.
-  `gmdTest/Server/Private/Augmented/Private/BranchNameServiceTest.cs`.
+  `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`.
 - `gmdTest/Usings.cs` provides the global usings (`Assert`, `Try`, `Log`).
 - `internal` types are visible to tests, so services can be constructed directly
-  (`new BranchNameService()`) — no DI container needed in tests.
-- Best test targets are the pure/inference layers: `BranchNameService`, `BranchStructureService`,
-  `Augmenter`, `ViewRepoCreater`, `GraphCreater`, `Utils/GlobPatterns`, `Utils/Result`.
-  These need no git process and no terminal.
+  (`new BranchNameService()`) — no DI container needed.
+- The whole inference chain is constructible by hand and touches no git, disk or terminal:
+  `Augmenter` → `BranchStructureService` → `BranchNameService` have no other dependencies, and
+  `Converter` has none at all. `RepoBuilder.NewAugmenter()` wires it up.
+- `Text.ToString()` flattens styled output to a plain string, so `GraphWriter` output can be
+  snapshot-tested as ASCII art without a Terminal.Gui driver.
+- `BranchColorService` and `ViewRepoCreater` need `IRepoConfig`, a two-method interface that
+  fakes in-memory.
 - Tests that need a real repository should create a throwaway repo in a temp dir and drive it
-  through `IGit`; do not run git commands against this working tree.
+  through `IGit`; **never** run git commands against this working tree.
 - Terminal.Gui views are not unit-testable without a driver — keep logic out of the view
   classes so it can be tested.
+- Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates
+  `CultureInfo.DefaultThreadCurrentCulture`, so enabling parallel execution would need care.
 
 Always run `./test` before reporting work done. Prefer adding a regression test with every
-bug fix — that is the agreed direction for this repo.
+bug fix — that is the agreed direction for this repo. When the subject is a parser or the
+inference pipeline, write the failing test first; both have already hidden real bugs.
 
 ## Gotchas
 
@@ -234,6 +274,9 @@ bug fix — that is the agreed direction for this repo.
 
 ## Working agreements
 
+- **`MODERNIZATION.md` is the running plan** for this work — the ordered, step-by-step checklist
+  of what is done and what is next. Read it before starting anything substantial, and tick items
+  off / add findings there as work lands.
 - Modernizing this codebase, fixing bugs, adding tests and improving maintainability is the
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.

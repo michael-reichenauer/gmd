@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace gmd.Git.Private;
 
 interface IDiffService
@@ -203,7 +205,9 @@ class DiffService : IDiffService
         if (i < lines.Length && lines[i].StartsWith("Date: "))
         {
             var dateText = lines[i++]["Date: ".Length..].Trim();
-            if (DateTime.TryParse(dateText, out var dt))
+            // Parsed culture invariant, the git commands use '--date=iso' (see above), which is
+            // the same regardless of locale. See the comment in GitLog.ParseRow.
+            if (DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
             {
                 time = dt;
             }
