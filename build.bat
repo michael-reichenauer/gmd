@@ -1,6 +1,6 @@
 @echo off&setlocal
 
-set DOTNET="net7.0"
+set DOTNET="net8.0"
 
 echo "Cleaning"
 del "gmd.exe" 2> nul
