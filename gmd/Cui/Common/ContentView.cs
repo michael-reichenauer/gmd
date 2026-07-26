@@ -3,17 +3,21 @@ using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
-
-internal delegate (IEnumerable<Text> rows, int total) GetContentCallback(int firstIndex, int count, int currentIndex, int contentWidth);
+internal delegate (IEnumerable<Text> rows, int total) GetContentCallback(
+    int firstIndex,
+    int count,
+    int currentIndex,
+    int contentWidth
+);
 internal delegate void OnKeyCallback();
 internal delegate bool OnKeyCallbackReturn();
 internal delegate void OnMouseCallback(int x, int y);
 internal delegate bool OnMouseCallbackReturn(int x, int y);
+
 record class Selection(int X1, int I1, int X2, int I2, int InitialIndex)
 {
     public bool IsEmpty => X1 == X2 && I1 == I2;
 }
-
 
 class ContentView : View
 {
@@ -25,7 +29,7 @@ class ContentView : View
     const int cursorWidth = 1;
     const int verticalScrollbarWidth = 1;
 
-    readonly bool isMoveUpDownWrap = false;  // Not used yet
+    readonly bool isMoveUpDownWrap = false; // Not used yet
     readonly IReadOnlyList<Text>? contentRows;
 
     int currentIndex = 0;
@@ -33,7 +37,6 @@ class ContentView : View
 
     Selection selection = new Selection(0, 0, 0, 0, 0);
     Point lastMousePoint = new Point(0, 0);
-
 
     internal ContentView(GetContentCallback onGetContent)
     {
@@ -54,7 +57,6 @@ class ContentView : View
     public event Action? CurrentIndexChange;
     public event Action<Selection>? SelectionChange;
 
-
     public bool IsFocus { get; set; } = true;
     public int FirstIndex { get; private set; } = 0;
     public int TotalCount { get; private set; } = 0;
@@ -66,11 +68,10 @@ class ContentView : View
         {
             var v = currentIndex;
             currentIndex = value;
-            if (v != value) CurrentIndexChange?.Invoke();
+            if (v != value)
+                CurrentIndexChange?.Invoke();
         }
     }
-
-
 
     public bool IsHighlightCurrentIndex { get; set; } = false;
     public int ViewHeight => Frame.Height;
@@ -93,8 +94,13 @@ class ContentView : View
 
     public void RegisterKeyHandler(Key key, OnKeyCallback callback)
     {
-        keys[key] = () => { callback(); return true; };
+        keys[key] = () =>
+        {
+            callback();
+            return true;
+        };
     }
+
     public void RegisterKeyHandler(Key key, OnKeyCallbackReturn callback)
     {
         keys[key] = callback;
@@ -102,8 +108,13 @@ class ContentView : View
 
     public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
     {
-        mouses[mouseFlags] = (x, y) => { callback(x, y); return true; };
+        mouses[mouseFlags] = (x, y) =>
+        {
+            callback(x, y);
+            return true;
+        };
     }
+
     public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallbackReturn callback)
     {
         mouses[mouseFlags] = callback;
@@ -130,13 +141,15 @@ class ContentView : View
 
     public override bool ProcessHotKey(KeyEvent keyEvent)
     {
-        if (!HasFocus) return base.ProcessHotKey(keyEvent);
+        if (!HasFocus)
+            return base.ProcessHotKey(keyEvent);
 
         // Log.Info($"HotKey: {keyEvent}, {keyEvent.Key}");
 
         if (keys.TryGetValue(keyEvent.Key, out var callback))
         {
-            if (callback()) return true;
+            if (callback())
+                return true;
         }
 
         switch (keyEvent.Key)
@@ -184,11 +197,13 @@ class ContentView : View
     public override bool MouseEvent(MouseEvent ev)
     {
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
-        if (!HasFocus) return base.MouseEvent(ev);
+        if (!HasFocus)
+            return base.MouseEvent(ev);
 
         if (mouses.TryGetValue(ev.Flags, out var callback))
         {
-            if (callback(ev.X, ev.Y)) return true;
+            if (callback(ev.X, ev.Y))
+                return true;
         }
 
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
@@ -229,47 +244,48 @@ class ContentView : View
         IReadOnlyList<Text> currentRows = GetContentRows();
 
         int y = ContentY;
-        currentRows.ForEach((row, i) =>
-        {
-            Text txt = row;
-            var index = i + FirstIndex;
-
-            if (isSelected && !IsCustomShowSelection && HasFocus)
+        currentRows.ForEach(
+            (row, i) =>
             {
-                var isRowSelected = index >= selection.I1 && index <= selection.I2;
-                if (isRowSelected && selection.I1 == selection.I2)
-                {   // One row is selected, highlight the selected sub text
-                    var x2 = Math.Min(selection.X2, txt.Length);
-                    var part1 = txt.Subtext(0, selection.X1);
-                    var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
-                    var part3 = txt.Subtext(x2, txt.Length - x2);
-                    txt = part1.ToTextBuilder().Add(part2.ToSelect()).Add(part3);
-                }
-                else if (isRowSelected)
-                {   // Multiple rows are selected, highlight the whole rows
-                    txt = txt.ToSelect();
-                }
-            }
-            else
-            {
-                txt = IsHighlightCurrentIndex && index == currentIndex && HasFocus ? row.ToHighlight() : row;
-            }
+                Text txt = row;
+                var index = i + FirstIndex;
 
-            txt.Draw(this, ContentX, y++);
-        });
+                if (isSelected && !IsCustomShowSelection && HasFocus)
+                {
+                    var isRowSelected = index >= selection.I1 && index <= selection.I2;
+                    if (isRowSelected && selection.I1 == selection.I2)
+                    { // One row is selected, highlight the selected sub text
+                        var x2 = Math.Min(selection.X2, txt.Length);
+                        var part1 = txt.Subtext(0, selection.X1);
+                        var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
+                        var part3 = txt.Subtext(x2, txt.Length - x2);
+                        txt = part1.ToTextBuilder().Add(part2.ToSelect()).Add(part3);
+                    }
+                    else if (isRowSelected)
+                    { // Multiple rows are selected, highlight the whole rows
+                        txt = txt.ToSelect();
+                    }
+                }
+                else
+                {
+                    txt = IsHighlightCurrentIndex && index == currentIndex && HasFocus ? row.ToHighlight() : row;
+                }
+
+                txt.Draw(this, ContentX, y++);
+            }
+        );
 
         DrawTopBorder();
         DrawCursor();
         DrawVerticalScrollbar();
     }
 
-
-
     public bool IsRowSelected(int index) => isSelected && index >= selection.I1 && index <= selection.I2;
 
     public void ClearSelection()
     {
-        if (!isSelected) return;
+        if (!isSelected)
+            return;
         isSelected = false;
         selection = new Selection(0, 0, 0, 0, 0);
         SetNeedsDisplay();
@@ -277,7 +293,8 @@ class ContentView : View
 
     public string CopySelectedText()
     {
-        if (!isSelected) return "";
+        if (!isSelected)
+            return "";
 
         var copyText = new StringBuilder();
         var drawCount = Math.Min(ContentHeight, TotalCount - FirstIndex);
@@ -285,28 +302,31 @@ class ContentView : View
         var currentRows = GetContentRows();
 
         int y = ContentY;
-        currentRows.ForEach((row, i) =>
-        {
-            Text txt = row;
-            var index = i + FirstIndex;
+        currentRows.ForEach(
+            (row, i) =>
+            {
+                Text txt = row;
+                var index = i + FirstIndex;
 
-            var isRowSelected = index >= selection.I1 && index <= selection.I2;
-            if (!isRowSelected) return;
+                var isRowSelected = index >= selection.I1 && index <= selection.I2;
+                if (!isRowSelected)
+                    return;
 
-            if (selection.I1 == selection.I2)
-            {   // One row is selected, copy selected sub text
-                var x2 = Math.Min(selection.X2, txt.Length);
+                if (selection.I1 == selection.I2)
+                { // One row is selected, copy selected sub text
+                    var x2 = Math.Min(selection.X2, txt.Length);
 
-                var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
-                copyText.Append(part2.ToString());
+                    var part2 = txt.Subtext(selection.X1, x2 - selection.X1);
+                    copyText.Append(part2.ToString());
+                }
+                else
+                { // Multiple rows are selected, copy whole rows
+                    copyText.AppendLine(txt.ToString());
+                }
+
+                txt.Draw(this, ContentX, y++);
             }
-            else
-            {   // Multiple rows are selected, copy whole rows
-                copyText.AppendLine(txt.ToString());
-            }
-
-            txt.Draw(this, ContentX, y++);
-        });
+        );
 
         ClearSelection();
         SetNeedsDisplay();
@@ -318,9 +338,8 @@ class ContentView : View
     {
         var drawCount = ContentHeight; //  Math.Min(ContentHeight, TotalCount - FirstIndex);
 
-
         if (contentRows != null)
-        {   // Use content provided in constructor
+        { // Use content provided in constructor
             return contentRows.Skip(FirstIndex).Take(drawCount).ToList();
         }
 
@@ -329,7 +348,7 @@ class ContentView : View
         TotalCount = totalCount;
 
         while (!currentRows.Any() && TotalCount > 0)
-        {   // TotalCount now less than previous FirstIndex, need to adjust FirstIndex and CurrentIndex and try again
+        { // TotalCount now less than previous FirstIndex, need to adjust FirstIndex and CurrentIndex and try again
             FirstIndex = Math.Max(0, TotalCount - 3);
             CurrentIndex = TotalCount - 1;
             (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);
@@ -340,13 +359,12 @@ class ContentView : View
         return currentRows;
     }
 
-
     void OnSelectUp()
     {
         int currentIndex = CurrentIndex;
 
         if (!isSelected)
-        {   // Start selection of current row
+        { // Start selection of current row
             isSelected = true;
             selection = new Selection(0, currentIndex, int.MaxValue, currentIndex, currentIndex);
             SetNeedsDisplay();
@@ -354,29 +372,28 @@ class ContentView : View
         }
 
         if (currentIndex == 0)
-        {   // Already at top of page, no need to move         
+        { // Already at top of page, no need to move
             return;
         }
 
         if (currentIndex <= selection.I1)
-        {   // Expand selection upp
+        { // Expand selection upp
             selection = selection with { I1 = currentIndex - 1 };
         }
         else
-        {   // Shrink selection upp
+        { // Shrink selection upp
             selection = selection with { I2 = currentIndex - 1 };
         }
 
         Move(-1);
     }
 
-
     void OnSelectDown()
     {
         int currentIndex = CurrentIndex;
 
         if (!isSelected)
-        {   // Start selection of current row
+        { // Start selection of current row
             isSelected = true;
             selection = new Selection(0, currentIndex, int.MaxValue, currentIndex, currentIndex);
             SetNeedsDisplay();
@@ -384,16 +401,16 @@ class ContentView : View
         }
 
         if (currentIndex >= TotalCount - 1)
-        {   // Already at bottom of page, no need to move         
+        { // Already at bottom of page, no need to move
             return;
         }
 
         if (currentIndex >= selection.I2)
-        {   // Expand selection down
+        { // Expand selection down
             selection = selection with { I2 = currentIndex + 1 };
         }
         else if (currentIndex <= selection.I1)
-        {   // Shrink selection down
+        { // Shrink selection down
             selection = selection with { I1 = currentIndex + 1 };
         }
 
@@ -406,7 +423,7 @@ class ContentView : View
         var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
 
         if (!isSelected)
-        {   // Start mouse dragging
+        { // Start mouse dragging
             isSelected = true;
             selection = new Selection(x, i, x, i, i);
             lastMousePoint = new Point(x, i);
@@ -418,23 +435,37 @@ class ContentView : View
         var i2 = selection.I2;
 
         if (x < lastMousePoint.X)
-        {   // Moving left, expand selection on left or shrink selection on right side
-            if (x < x1) x1 = x; else x2 = x;
+        { // Moving left, expand selection on left or shrink selection on right side
+            if (x < x1)
+                x1 = x;
+            else
+                x2 = x;
         }
         else if (x > lastMousePoint.X)
-        {   // Moving right expand selection on right or shrink selection on left side
-            if (x > x2) x2 = x; else x1 = x;
+        { // Moving right expand selection on right or shrink selection on left side
+            if (x > x2)
+                x2 = x;
+            else
+                x1 = x;
         }
 
         if (i < lastMousePoint.Y)
-        {   // Moving upp, expand selection upp or shrink selection on bottom side
-            if (ev.Y <= 2) Scroll(-1);
-            if (i < i1) i1 = i; else i2 = i;
+        { // Moving upp, expand selection upp or shrink selection on bottom side
+            if (ev.Y <= 2)
+                Scroll(-1);
+            if (i < i1)
+                i1 = i;
+            else
+                i2 = i;
         }
         else if (i > lastMousePoint.Y)
-        {   // // Moving down, expand selection down or shrink selection on top side
-            if (ev.Y >= ContentHeight - 2) Scroll(1);
-            if (i > i2) i2 = i; else i1 = i;
+        { // // Moving down, expand selection down or shrink selection on top side
+            if (ev.Y >= ContentHeight - 2)
+                Scroll(1);
+            if (i > i2)
+                i2 = i;
+            else
+                i1 = i;
         }
 
         selection = new Selection(x1, i1, x2, i2, selection.InitialIndex);
@@ -444,7 +475,6 @@ class ContentView : View
         SetNeedsDisplay();
         SelectionChange?.Invoke(selection);
     }
-
 
     void DrawTopBorder()
     {
@@ -465,7 +495,6 @@ class ContentView : View
         }
     }
 
-
     void DrawCursor()
     {
         if (!IsShowCursor || IsHideCursor || !IsFocus || !HasFocus)
@@ -478,39 +507,41 @@ class ContentView : View
         Driver.AddStr("┃");
     }
 
-
     internal void Scroll(int scroll)
     {
         if (TotalCount == 0)
-        {   // Cannot scroll empty view
+        { // Cannot scroll empty view
             return;
         }
 
         int newFirst = FirstIndex + scroll;
 
-        if (newFirst < 0) newFirst = 0;
+        if (newFirst < 0)
+            newFirst = 0;
 
         if (newFirst + ViewHeight >= TotalCount)
         {
             newFirst = TotalCount - ViewHeight;
         }
-        if (newFirst < 0) newFirst = 0;
+        if (newFirst < 0)
+            newFirst = 0;
         if (newFirst == FirstIndex)
-        {   // No move, reached top or bottom
+        { // No move, reached top or bottom
             return;
         }
 
         int newCurrent = CurrentIndex + (newFirst - FirstIndex);
 
         if (newCurrent < newFirst)
-        {   // Need to scroll view up to the new current line
+        { // Need to scroll view up to the new current line
             newCurrent = newFirst;
         }
         if (newCurrent >= newFirst + ContentHeight)
-        {   // Need to scroll view down to the new current line
+        { // Need to scroll view down to the new current line
             newCurrent = newFirst - ContentHeight - 1;
         }
-        if (newCurrent < 0) newCurrent = 0;
+        if (newCurrent < 0)
+            newCurrent = 0;
 
         FirstIndex = newFirst;
         CurrentIndex = newCurrent;
@@ -533,7 +564,6 @@ class ContentView : View
         SetNeedsDisplay();
     }
 
-
     internal void Move(int move)
     {
         if (IsScrollMode)
@@ -544,36 +574,36 @@ class ContentView : View
 
         // Log.Info($"move {move}, current: {currentIndex}");
         if (TotalCount == 0)
-        {   // Cannot scroll empty view
+        { // Cannot scroll empty view
             return;
         }
 
         int newCurrent = CurrentIndex + move;
 
         if (newCurrent < 0)
-        {   // Reached top, wrap or stay
+        { // Reached top, wrap or stay
             newCurrent = isMoveUpDownWrap ? TotalCount - 1 : 0;
         }
 
         if (newCurrent >= TotalCount)
-        {   // Reached bottom, wrap or stay 
+        { // Reached bottom, wrap or stay
             newCurrent = isMoveUpDownWrap ? 0 : TotalCount - 1;
         }
 
         if (newCurrent == CurrentIndex)
-        {   // No move, reached top or bottom
+        { // No move, reached top or bottom
             return;
         }
 
         CurrentIndex = newCurrent;
 
         if (CurrentIndex < FirstIndex)
-        {   // Need to scroll view up to the new current line 
+        { // Need to scroll view up to the new current line
             FirstIndex = CurrentIndex;
         }
 
         if (CurrentIndex >= FirstIndex + ViewHeight)
-        {  // Need to scroll view down to the new current line
+        { // Need to scroll view down to the new current line
             FirstIndex = CurrentIndex - ViewHeight + 1;
         }
         // Log.Info($"move {move}, current: {currentIndex}, first: {FirstIndex}");
@@ -598,7 +628,7 @@ class ContentView : View
     (int, int) GetVerticalScrollbarIndexes()
     {
         if (TotalCount == 0 || TotalCount <= ContentHeight)
-        {   // No need for a scrollbar
+        { // No need for a scrollbar
             return (0, -1);
         }
 

@@ -1,6 +1,5 @@
 namespace gmd.Utils;
 
-
 class WeekEvent
 {
     List<WeakReference<Action>> registered = new List<WeakReference<Action>>();
@@ -20,7 +19,8 @@ class WeekEvent
             action?.Invoke();
         });
 
-        if (isCleanNeeded) registered = registered.Where(wr => wr.TryGetTarget(out var _)).ToList();
+        if (isCleanNeeded)
+            registered = registered.Where(wr => wr.TryGetTarget(out var _)).ToList();
     }
 }
 
@@ -43,6 +43,7 @@ class WeekEvent<T>
             action?.Invoke(value);
         });
 
-        if (isCleanNeeded) registered = registered.Where(wr => wr.TryGetTarget(out var _)).ToList();
+        if (isCleanNeeded)
+            registered = registered.Where(wr => wr.TryGetTarget(out var _)).ToList();
     }
 }

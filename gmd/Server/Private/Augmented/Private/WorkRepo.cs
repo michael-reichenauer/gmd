@@ -1,9 +1,9 @@
 namespace gmd.Server.Private.Augmented.Private;
 
-using GitCommit = gmd.Git.Commit;
 using GitBranch = gmd.Git.Branch;
+using GitCommit = gmd.Git.Commit;
 
-// Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
+// Read/Write repo used by the AugmentedService while processing and augmenting a git repo
 class WorkRepo
 {
     public DateTime TimeStamp { get; }
@@ -24,11 +24,10 @@ class WorkRepo
         Status = status;
     }
 
-
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 
-// Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
+// Read/Write repo used by the AugmentedService while processing and augmenting a git repo
 class WorkCommit
 {
     // Git properties
@@ -40,13 +39,13 @@ class WorkCommit
     public DateTime AuthorTime { get; }
 
     // Augmented properties
-    public int GitIndex { get; set; }  // Index in git log (only used for tracing)
+    public int GitIndex { get; set; } // Index in git log (only used for tracing)
     public List<Tag> Tags { get; } = new List<Tag>();
     public List<string> BranchTips { get; } = new List<string>();
 
     public bool IsCurrent { get; set; }
     public bool IsDetached { get; set; }
-    public bool IsTruncatedLogCommit { get; set; }  // Virtual commit indicating truncated large log
+    public bool IsTruncatedLogCommit { get; set; } // Virtual commit indicating truncated large log
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
     public bool IsBranchSetByUser { get; set; }
@@ -56,12 +55,12 @@ class WorkCommit
     public WorkCommit? FirstParent { get; set; }
     public WorkCommit? MergeParent { get; set; }
 
-    public List<string> AllChildIds { get; } = new List<string>();             // Id of all children of this commit
-    public List<string> FirstChildIds { get; } = new List<string>();           // Child id, which have this commit as first parent
-    public List<string> MergeChildIds { get; } = new List<string>();           // Child id, which have this commit as merge parent
+    public List<string> AllChildIds { get; } = new List<string>(); // Id of all children of this commit
+    public List<string> FirstChildIds { get; } = new List<string>(); // Child id, which have this commit as first parent
+    public List<string> MergeChildIds { get; } = new List<string>(); // Child id, which have this commit as merge parent
 
-    public List<WorkCommit> FirstChildren { get; } = new List<WorkCommit>();   // Children which have this commit as first parent
-    public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>();   // Children, which have this commit as merge parent
+    public List<WorkCommit> FirstChildren { get; } = new List<WorkCommit>(); // Children which have this commit as first parent
+    public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>(); // Children, which have this commit as merge parent
 
     public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
     public WorkBranch? Branch { get; set; }
@@ -80,8 +79,7 @@ class WorkCommit
         ParentIds = new List<string>(c.ParentIds.AsEnumerable<string>());
     }
 
-    public WorkCommit(string id, string subject, string message, string author,
-        DateTime authorTime, string[] parentIds)
+    public WorkCommit(string id, string subject, string message, string author, DateTime authorTime, string[] parentIds)
     {
         Id = id;
         Sid = id.Sid();
@@ -95,7 +93,7 @@ class WorkCommit
     public override string ToString() => $"#{GitIndex} {Sid} {Subject} ({Branch?.Name ?? "<n/a>"})";
 }
 
-// Read/Write repo used by the AugmentedService while processing and augmenting a git repo 
+// Read/Write repo used by the AugmentedService while processing and augmenting a git repo
 internal class WorkBranch
 {
     // Git properties
@@ -106,19 +104,19 @@ internal class WorkBranch
     public bool IsCurrent { get; }
 
     // Augmented properties
-    public string PrimaryName { get; set; }  // The name of main/primary branch related branch (remote if both local and remote) 
-    public string PrimaryBaseName { get; set; } = "";  // a name based on first commit and parent commit
-    public string NiceName { get; set; } = "";         // Nice name (might not be unique)
+    public string PrimaryName { get; set; } // The name of main/primary branch related branch (remote if both local and remote)
+    public string PrimaryBaseName { get; set; } = ""; // a name based on first commit and parent commit
+    public string NiceName { get; set; } = ""; // Nice name (might not be unique)
     public string NiceNameUnique { get; set; } = ""; // Unique nice name (with branch number if needed)
-    public string RemoteName { get; set; } = "";  // A local branch's remote name
-    public string LocalName { get; set; } = "";   // A remote branch's local name
-    public string TipID { get; }                         // First commit id
-    public string BottomID { get; internal set; } = "";  // Last commit id
+    public string RemoteName { get; set; } = ""; // A local branch's remote name
+    public string LocalName { get; set; } = ""; // A remote branch's local name
+    public string TipID { get; } // First commit id
+    public string BottomID { get; internal set; } = ""; // Last commit id
 
-    public WorkBranch? ParentBranch { get; set; }       // Parent branch (remote if local)
-    public WorkBranch? PullMergeParentBranch { get; set; }    // For pull merge branches, their parent branch
+    public WorkBranch? ParentBranch { get; set; } // Parent branch (remote if local)
+    public WorkBranch? PullMergeParentBranch { get; set; } // For pull merge branches, their parent branch
 
-    public bool IsLocalCurrent { get; set; }  // True if local branch corresponding to this remote is current
+    public bool IsLocalCurrent { get; set; } // True if local branch corresponding to this remote is current
     public bool IsGitBranch { get; set; }
     public bool IsPrimary { get; set; }
     public bool IsAmbiguousBranch { get; set; }
@@ -138,7 +136,7 @@ internal class WorkBranch
     public WorkBranch(GitBranch b)
     {
         Name = b.Name;
-        PrimaryName = "";                // Will be set later
+        PrimaryName = ""; // Will be set later
         NiceName = b.Name.TrimPrefix("origin/");
         TipID = b.TipID;
         IsGitBranch = true;
@@ -146,8 +144,8 @@ internal class WorkBranch
         IsRemote = b.IsRemote;
         IsDetached = b.IsDetached;
         RemoteName = b.RemoteName;
-        LocalName = "";                  // Will be set later
-        BottomID = b.TipID;              // Will be adjusted later
+        LocalName = ""; // Will be set later
+        BottomID = b.TipID; // Will be adjusted later
     }
 
     // Called when creating a branched based on a name, usually from a deleted branch
@@ -163,4 +161,3 @@ internal class WorkBranch
 
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
-

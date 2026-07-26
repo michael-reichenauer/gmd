@@ -7,10 +7,12 @@ public static class TimeDateExtensions
     {
         return $"{source:yyyy-MM-dd HH:mm:ss}";
     }
+
     public static string IsoMs(this DateTime source)
     {
         return $"{source:yyyy-MM-dd HH:mm:ss.fff}";
     }
+
     public static string IsoZone(this DateTime source)
     {
         return $"{source:yyyy-MM-dd HH:mm:ss zzz}";
@@ -21,5 +23,3 @@ public static class TimeDateExtensions
         return $"{source:yyyy-MM-dd}";
     }
 }
-
-

@@ -3,6 +3,7 @@ using gmd.Cui.Common;
 namespace gmd.Cui;
 
 record CreateBranchResult(string Name, bool IsCheckout, bool IsPush);
+
 interface ICreateBranchDlg
 {
     R<CreateBranchResult> Show(string branchName, string commitId);
@@ -23,9 +24,9 @@ class CreateBranchDlg : ICreateBranchDlg
 
         dlg.Validate(() => name.Text != "", "Empty branch name");
 
-        if (!dlg.ShowOkCancel(name)) return R.Error();
+        if (!dlg.ShowOkCancel(name))
+            return R.Error();
 
         return new CreateBranchResult(name.Text, isCheckout.Checked, isPublish.Checked);
     }
 }
-

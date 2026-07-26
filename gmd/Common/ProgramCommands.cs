@@ -47,24 +47,22 @@ class ProgramCommands : IProgramCommands
         return new CommandResult(false, 0);
     }
 
-
-
     static int ShowHelp()
     {
         var msg = $"""
-        gmd ({Build.Version()})
-        Usage gmd [options] [arguments]
+            gmd ({Build.Version()})
+            Usage gmd [options] [arguments]
 
-        options:
-          --version           Show current version
-          --update|-u         Update gmd to latest version (downloading from GitHub)
-          --changelog         Show change log
-          --updatechangelog   Update change log file CHANGELOG.md
-          -d <path>           Show repo for working folder specified by <path>
-          -m                  Show main menu even if in working folder
-          --help|-h|-?        Show command line help.
+            options:
+              --version           Show current version
+              --update|-u         Update gmd to latest version (downloading from GitHub)
+              --changelog         Show change log
+              --updatechangelog   Update change log file CHANGELOG.md
+              -d <path>           Show repo for working folder specified by <path>
+              -m                  Show main menu even if in working folder
+              --help|-h|-?        Show command line help.
 
-        """;
+            """;
         Console.WriteLine(msg);
         return 0;
     }
@@ -102,21 +100,20 @@ class ProgramCommands : IProgramCommands
         return 0;
     }
 
-
     int ShowChangeLog()
     {
         Task.Run(async () =>
-        {
-            Console.WriteLine($"# Change Log for Gmd\n--------------------");
-            if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
             {
-                Log.Error($"Failed to get change log, {e}");
-                Console.WriteLine($"Failed to get change log, {e}");
-            }
+                Console.WriteLine($"# Change Log for Gmd\n--------------------");
+                if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
+                {
+                    Log.Error($"Failed to get change log, {e}");
+                    Console.WriteLine($"Failed to get change log, {e}");
+                }
 
-            Console.WriteLine($"{log}");
-        })
-        .Wait();
+                Console.WriteLine($"{log}");
+            })
+            .Wait();
 
         return 0;
     }
@@ -124,28 +121,30 @@ class ProgramCommands : IProgramCommands
     int UpdateChangeLog()
     {
         Task.Run(async () =>
-        {
-            Console.WriteLine($"Generating change log ...");
-            if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
             {
-                Console.WriteLine($"Failed to get change log, {e}");
-            }
+                Console.WriteLine($"Generating change log ...");
+                if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
+                {
+                    Console.WriteLine($"Failed to get change log, {e}");
+                }
 
-            if (!Try(out e, () => File.WriteAllText("CHANGELOG.md", $"# Change Log for Gmd\n--------------------\n{log}")))
-            {
-                Console.WriteLine($"Failed to write change log, {e}");
-            }
-            Console.WriteLine($"Generated change log");
-        })
-        .Wait();
+                if (
+                    !Try(
+                        out e,
+                        () => File.WriteAllText("CHANGELOG.md", $"# Change Log for Gmd\n--------------------\n{log}")
+                    )
+                )
+                {
+                    Console.WriteLine($"Failed to write change log, {e}");
+                }
+                Console.WriteLine($"Generated change log");
+            })
+            .Wait();
         return 0;
     }
-
 
     static bool HasOptions(string[] args, params string[] options)
     {
         return options.Any(x => args.Contains(x));
     }
 }
-
-

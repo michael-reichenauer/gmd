@@ -19,11 +19,9 @@ static class ConfigLogger
 
     static TaskCompletionSource doneTask = new TaskCompletionSource();
 
-
     static ConfigLogger()
     {
-        Task.Factory.StartNew(ProcessLogs, TaskCreationOptions.LongRunning)
-            .RunInBackground();
+        Task.Factory.StartNew(ProcessLogs, TaskCreationOptions.LongRunning).RunInBackground();
         // string path = $"{Environment.GetFolderPath(SpecialFolder.UserProfile)}/gmd.log";
         string path = Path.Join(Environment.GetFolderPath(SpecialFolder.UserProfile), LogFileName);
         Init(path);
@@ -46,12 +44,7 @@ static class ConfigLogger
         return doneTask.Task;
     }
 
-    internal static void Write(
-       string level,
-       string msg,
-       string memberName,
-       string sourceFilePath,
-       int sourceLineNumber)
+    internal static void Write(string level, string msg, string memberName, string sourceFilePath, int sourceLineNumber)
     {
         var msgLines = msg.Split('\n');
         foreach (var msgLine in msgLines)
@@ -61,27 +54,28 @@ static class ConfigLogger
         }
     }
 
-
     static void Init(string logFilePath, [CallerFilePath] string sourceFilePath = "")
     {
         LogPath = logFilePath;
-        string rootPath = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(
-            Path.GetDirectoryName(sourceFilePath)))) ?? "";
+        string rootPath =
+            Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(sourceFilePath))))
+            ?? "";
         prefixLength = rootPath.Length + 1;
-        if (!Try(out var e, () => File.WriteAllText(LogPath, ""))) throw Asserter.FailFast(e.ErrorMessage);
+        if (!Try(out var e, () => File.WriteAllText(LogPath, "")))
+            throw Asserter.FailFast(e.ErrorMessage);
     }
 
     static void LogDone(
-       string msg,
+        string msg,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0)
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
     {
         string text = ToLogLine(LevelInfo, msg, memberName, sourceFilePath, sourceLineNumber);
         // Bypassing log queue since that is already closed
         WriteToFile(new List<string>() { text });
     }
-
 
     private static void ProcessLogs()
     {
@@ -132,20 +126,12 @@ static class ConfigLogger
         }
     }
 
-
-
     static string ToRelativeFilePath(string sourceFilePath)
     {
         return sourceFilePath.Substring(prefixLength).Replace(";", "");
     }
 
-
-    static string ToLogLine(
-        string level,
-        string msg,
-        string memberName,
-        string sourceFilePath,
-        int lineNumber)
+    static string ToLogLine(string level, string msg, string memberName, string sourceFilePath, int lineNumber)
     {
         string timeStamp = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
         int trimLength = prefixLength;
@@ -169,10 +155,9 @@ static class ConfigLogger
         string className = filePath.Substring(classStartIndex + 1, extensionIndex - classStartIndex - 1);
         string msgLine = $"{timeStamp} {level}:\"{msg}\"";
 
-        string line = $"{msgLine,-100} {{{memberName}() {filePath}:{lineNumber}}}";
+        string line = $"{msgLine, -100} {{{memberName}() {filePath}:{lineNumber}}}";
         return line;
     }
-
 
     private static void QueueLogLine(string text)
     {
@@ -185,7 +170,6 @@ static class ConfigLogger
             // Failed to add, the buffer has been closed
         }
     }
-
 
     private static void WriteToFile(IReadOnlyCollection<string> text)
     {
@@ -245,23 +229,23 @@ static class ConfigLogger
             File.Move(LogPath, tempPath);
 
             Task.Run(() =>
-            {
-                try
                 {
-                    string secondLogFile = LogPath + ".2.log";
-                    if (File.Exists(secondLogFile))
+                    try
                     {
-                        File.Delete(secondLogFile);
+                        string secondLogFile = LogPath + ".2.log";
+                        if (File.Exists(secondLogFile))
+                        {
+                            File.Delete(secondLogFile);
+                        }
+
+                        File.Move(tempPath, secondLogFile);
                     }
-
-                    File.Move(tempPath, secondLogFile);
-                }
-                catch (Exception e)
-                {
-                    QueueLogLine("ERROR Failed to move temp to second log file: " + e);
-                }
-
-            }).RunInBackground();
+                    catch (Exception e)
+                    {
+                        QueueLogLine("ERROR Failed to move temp to second log file: " + e);
+                    }
+                })
+                .RunInBackground();
         }
         catch (Exception e)
         {

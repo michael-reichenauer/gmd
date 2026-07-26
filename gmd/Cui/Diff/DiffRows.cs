@@ -14,11 +14,9 @@ class DiffRows
     internal void Add(Text oneRow, string filePath = "", string commitId = "") =>
         Add(oneRow, Text.Empty, DiffRowMode.SpanBoth, filePath, commitId);
 
-    internal void Add(Text left, Text right) =>
-        Add(left, right, DiffRowMode.SideBySide, "", "");
+    internal void Add(Text left, Text right) => Add(left, right, DiffRowMode.SideBySide, "", "");
 
-    internal void AddLine(Text line) =>
-       Add(line, Text.Empty, DiffRowMode.DividerLine, "", "");
+    internal void AddLine(Text line) => Add(line, Text.Empty, DiffRowMode.DividerLine, "", "");
 
     void Add(Text left, Text right, DiffRowMode mode, string filePath, string commitId)
     {
@@ -37,7 +35,6 @@ class DiffRows
     public override string ToString() => $"Rows: {Count}";
 }
 
-
 record DiffRow(Text Left, Text Right, DiffRowMode Mode, string FilePath, string CommitId);
 
 enum DiffRowMode
@@ -52,6 +49,7 @@ record Line(int LineNbr, string Text, Color Color);
 class Block
 {
     public List<Line> Lines { get; } = new List<Line>();
+
     public void Add(int lineNbr, string text, Color color)
     {
         Lines.Add(new Line(lineNbr, text, color));

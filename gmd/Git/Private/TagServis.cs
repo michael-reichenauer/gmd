@@ -8,7 +8,6 @@ interface ITagService
     Task<R> RemoveTagAsync(string name, string wd);
 }
 
-
 class TagService : ITagService
 {
     readonly ICmd cmd;
@@ -26,7 +25,7 @@ class TagService : ITagService
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd, true)))
         {
             if (e.ErrorMessage.StartsWith("\n"))
-            {   // Empty tag list (no tags yet)
+            { // Empty tag list (no tags yet)
                 return new List<Tag>();
             }
             Log.Warn($"Failed to get tags, {e}");

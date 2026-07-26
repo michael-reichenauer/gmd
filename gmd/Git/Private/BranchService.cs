@@ -20,10 +20,11 @@ class BranchService : IBranchService
     static string remotePrefix = "remotes/";
 
     static readonly string regexpText =
-     @"(?im)^(\*)?\s+(\(HEAD detached at (\S+)\)|(\S+))\s+(\S+)(\s+)?(\[(\S+)(:\s)?(ahead\s(\d+))?(,\s)?(behind\s(\d+))?(gone)?\])?(\s+)?(.+)?";
-    static readonly Regex BranchesRegEx = new Regex(regexpText,
-     RegexOptions.Compiled | RegexOptions.CultureInvariant |
-     RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        @"(?im)^(\*)?\s+(\(HEAD detached at (\S+)\)|(\S+))\s+(\S+)(\s+)?(\[(\S+)(:\s)?(ahead\s(\d+))?(,\s)?(behind\s(\d+))?(gone)?\])?(\s+)?(.+)?";
+    static readonly Regex BranchesRegEx = new Regex(
+        regexpText,
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Multiline
+    );
 
     private readonly ICmd cmd;
 
@@ -32,11 +33,11 @@ class BranchService : IBranchService
         this.cmd = cmd;
     }
 
-
     public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd)
     {
         var args = "branch -vv --no-color --no-abbrev --all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         return ParseBranches(output);
     }
@@ -67,7 +68,6 @@ class BranchService : IBranchService
         args = isForced ? args + " -D" : args;
         return await cmd.RunAsync("git", args, wd);
     }
-
 
     public async Task<R> MergeBranchAsync(string name, string wd)
     {
@@ -112,13 +112,11 @@ class BranchService : IBranchService
         return rsp;
     }
 
-
     R<IReadOnlyList<Branch>> ParseBranches(string output)
     {
         var matches = BranchesRegEx.Matches(output);
 
-        return matches.Where(IsNormalBranch)
-            .Select(ToBranch).ToList();
+        return matches.Where(IsNormalBranch).Select(ToBranch).ToList();
     }
 
     Branch ToBranch(Match match)
@@ -148,7 +146,6 @@ class BranchService : IBranchService
 
         return new Branch(name, tipId, isCurrent, isRemote, remoteName, isDetached, aheadCount, behindCount);
     }
-
 
     // IsNormalBranch returns true if branch is normal and not a pointer branch
     bool IsNormalBranch(Match match) => match.Groups[5].Value != "->";

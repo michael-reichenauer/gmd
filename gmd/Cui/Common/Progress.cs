@@ -1,13 +1,11 @@
 using Terminal.Gui;
 
-
 namespace gmd.Cui.Common;
 
 interface IProgress
 {
     Disposable Show(bool isShowImmediately = false);
 }
-
 
 // cspell:ignore Wakeup
 [SingleInstance]
@@ -40,7 +38,7 @@ class Progress : IProgress
         int initialDelay = isShowImmediately ? 0 : defaultInitialDelay;
         count++;
         if (count > 1)
-        {   // Already started
+        { // Already started
             return;
         }
 
@@ -72,17 +70,23 @@ class Progress : IProgress
         progressView.Add(leftMark, progressBar, rightMark);
 
         bool isFirst = true;
-        progressTimer = new Timer(_ =>
-        {
-            if (progressView == null) return;
-            if (isFirst)
+        progressTimer = new Timer(
+            _ =>
             {
-                isFirst = false;
-                progressView.Visible = true;
-            }
-            progressBar.Pulse();
-            Application.MainLoop.Driver.Wakeup();
-        }, null, initialDelay, 100);
+                if (progressView == null)
+                    return;
+                if (isFirst)
+                {
+                    isFirst = false;
+                    progressView.Visible = true;
+                }
+                progressBar.Pulse();
+                Application.MainLoop.Driver.Wakeup();
+            },
+            null,
+            initialDelay,
+            100
+        );
 
         currentParentView = Application.Current;
         currentParentView.Add(progressView);
@@ -114,7 +118,7 @@ class Progress : IProgress
     {
         count--;
         if (count > 0)
-        {   // Not yet the last stop
+        { // Not yet the last stop
             return;
         }
 

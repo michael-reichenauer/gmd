@@ -11,16 +11,12 @@ class RepoConfig
     public List<BranchOrder> BranchOrders { get; set; } = new List<BranchOrder>();
 }
 
-
 public class BranchOrder
 {
     public string Branch { get; set; } = "";
     public string Other { get; set; } = "";
     public int Order { get; set; } = 0;
 }
-
-
-
 
 interface IRepoConfig
 {

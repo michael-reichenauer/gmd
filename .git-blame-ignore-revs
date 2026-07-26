@@ -1,0 +1,12 @@
+# Commits to ignore in `git blame` — bulk reformatting with no behavior change.
+#
+# Enable locally with (also done by './installtools'):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub honors this file automatically.
+#
+# Add the full 40-character sha of any pure-formatting commit below, one per line,
+# with a comment naming it.
+
+# Initial repo-wide CSharpier format pass
+# <sha-of-the-reformat-commit>

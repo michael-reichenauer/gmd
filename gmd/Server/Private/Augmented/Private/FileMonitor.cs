@@ -17,7 +17,6 @@ interface IFileMonitor
 
 public delegate bool Ignorer(string path);
 
-
 [SingleInstance]
 class FileMonitor : IFileMonitor
 {
@@ -29,9 +28,7 @@ class FileMonitor : IFileMonitor
     const string GitRefsFolder = "refs";
     static readonly string GitHeadFile = Path.Combine(GitFolder, "HEAD");
     const NotifyFilters NotifyFilters =
-            System.IO.NotifyFilters.LastWrite
-            | System.IO.NotifyFilters.FileName
-            | System.IO.NotifyFilters.DirectoryName;
+        System.IO.NotifyFilters.LastWrite | System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.DirectoryName;
 
     readonly FileSystemWatcher workFolderWatcher = new FileSystemWatcher();
     readonly FileSystemWatcher refsWatcher = new FileSystemWatcher();
@@ -39,7 +36,6 @@ class FileMonitor : IFileMonitor
     IReadOnlyList<Glob> matchers = new List<Glob>();
 
     readonly object syncRoot = new object();
-
 
     private string workingFolder = "";
     object timer = null!;
@@ -51,7 +47,6 @@ class FileMonitor : IFileMonitor
     public event Action<ChangeEvent>? FileChanged;
 
     public event Action<ChangeEvent>? RepoChanged;
-
 
     public FileMonitor()
     {
@@ -83,10 +78,13 @@ class FileMonitor : IFileMonitor
         }
     }
 
-
     bool OnTimer(MainLoop loop)
     {
-        lock (syncRoot) { if (isPaused) return true; }
+        lock (syncRoot)
+        {
+            if (isPaused)
+                return true;
+        }
 
         ChangeEvent? fileEvent = null;
         ChangeEvent? repoEvent = null;
@@ -115,7 +113,7 @@ class FileMonitor : IFileMonitor
             Cui.Common.UI.Post(() => RepoChanged?.Invoke(repoEvent));
         }
 
-        if (fileEvent != null && repoEvent == null)  // no need to send status event if repo changed event
+        if (fileEvent != null && repoEvent == null) // no need to send status event if repo changed event
         {
             Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
             Cui.Common.UI.Post(() => FileChanged?.Invoke(fileEvent));
@@ -164,19 +162,23 @@ class FileMonitor : IFileMonitor
         this.workingFolder = workingFolder;
     }
 
-
     public IDisposable Pause()
     {
-        lock (syncRoot) { isPaused = true; }
+        lock (syncRoot)
+        {
+            isPaused = true;
+        }
         Log.Info("Pause file monitor ...");
 
         return new Disposable(() =>
         {
-            lock (syncRoot) { isPaused = false; }
+            lock (syncRoot)
+            {
+                isPaused = false;
+            }
             Log.Info("Resume file monitor");
         });
     }
-
 
     void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
@@ -207,9 +209,11 @@ class FileMonitor : IFileMonitor
     {
         // Log.Debug($"'{fullPath}'");
 
-        if (Path.GetExtension(fullPath) == ".lock" ||
-            Directory.Exists(fullPath) ||
-            fullPath.Contains("gmd-metadata-key-value"))
+        if (
+            Path.GetExtension(fullPath) == ".lock"
+            || Directory.Exists(fullPath)
+            || fullPath.Contains("gmd-metadata-key-value")
+        )
         {
             return;
         }
@@ -221,7 +225,6 @@ class FileMonitor : IFileMonitor
         }
     }
 
-
     void FileChange(string fullPath)
     {
         // Log.Info($"Status change '{fullPath}'");
@@ -230,7 +233,6 @@ class FileMonitor : IFileMonitor
             fileChangedEvent = new ChangeEvent(DateTime.UtcNow);
         }
     }
-
 
     IReadOnlyList<Glob> GetMatches(string workingFolder)
     {
@@ -288,7 +290,6 @@ class FileMonitor : IFileMonitor
 
         return patterns;
     }
-
 
     bool IsIgnored(string path)
     {

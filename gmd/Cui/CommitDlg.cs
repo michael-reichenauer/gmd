@@ -1,6 +1,6 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
 using gmd.Cui.RepoView;
+using Terminal.Gui;
 
 namespace gmd.Cui;
 
@@ -62,12 +62,17 @@ class CommitDlg : ICommitDlg
 
     private void AddMergeMessages()
     {
-        if (commits == null || commits.Count == 0) return;
+        if (commits == null || commits.Count == 0)
+            return;
 
         // Indent all lines except the first in a commit message
-        static string Indent(string msg) => string.Join('\n', msg.Split('\n')
-            .Where((l, i) => !(i == 0 && l.StartsWith("Merge ") && !(i == 1 && l == "")))  // Skip "Merge " subjects and empty line after subject
-            .Select((l, i) => i == 0 ? l : $"{l}"));
+        static string Indent(string msg) =>
+            string.Join(
+                '\n',
+                msg.Split('\n')
+                    .Where((l, i) => !(i == 0 && l.StartsWith("Merge ") && !(i == 1 && l == ""))) // Skip "Merge " subjects and empty line after subject
+                    .Select((l, i) => i == 0 ? l : $"{l}")
+            );
 
         var msg = message.Text.ToString();
         if (msg != "")
@@ -141,4 +146,3 @@ class CommitDlg : ICommitDlg
         return msgText;
     }
 }
-

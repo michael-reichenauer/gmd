@@ -21,6 +21,5 @@ public class BranchNameServiceTest
 
         fd = bs.ParseSubject("Merge branch 'main' into main");
         Assert.AreEqual(new FromInto("main", "main", true, false), fd);
-
     }
 }

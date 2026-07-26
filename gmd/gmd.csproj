@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -15,10 +14,16 @@
     <PackageReference Include="Autofac" Version="8.1.0" />
     <PackageReference Include="DiffPlex" Version="1.7.2" />
     <PackageReference Include="Terminal.Gui" Version="1.17.1" />
+
+    <!-- Formats sources on build (Debug) and fails the build if unformatted (Release).
+         Set CSharpier_Bypass=true to skip. -->
+    <PackageReference Include="CSharpier.MsBuild" Version="1.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="doc/help.md" />
   </ItemGroup>
-
 </Project>

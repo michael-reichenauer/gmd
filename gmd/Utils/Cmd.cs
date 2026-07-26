@@ -3,11 +3,22 @@ using System.Text;
 
 namespace gmd.Utils;
 
-
 interface ICmd
 {
-    CmdResult Command(string path, string args, string workingDirectory, bool skipLogError = false, bool skipLog = false);
-    Task<CmdResult> RunAsync(string path, string args, string workingDirectory, bool skipLogError = false, bool skipLog = false);
+    CmdResult Command(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false
+    );
+    Task<CmdResult> RunAsync(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false
+    );
 }
 
 class CmdResult : R<string>
@@ -36,11 +47,15 @@ class CmdResult : R<string>
     public string ErrorOutput { get; }
 }
 
-
 class Cmd : ICmd
 {
-    public Task<CmdResult> RunAsync(string path, string args, string workingDirectory,
-        bool skipLogError = false, bool skipLog = false)
+    public Task<CmdResult> RunAsync(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false
+    )
     {
         return Task.Run(() => Command(path, args, workingDirectory, skipLogError, skipLog));
     }
@@ -48,15 +63,21 @@ class Cmd : ICmd
     public static CmdResult Run(string cmd, string workingDirectory = "")
     {
         var index = cmd.IndexOf(' ');
-        if (index == -1) return new Cmd().Command(cmd, "", workingDirectory);
+        if (index == -1)
+            return new Cmd().Command(cmd, "", workingDirectory);
 
         var path = cmd[..index];
         var args = cmd[(index + 1)..];
         return new Cmd().Command(path, args, workingDirectory);
     }
 
-    public CmdResult Command(string path, string args, string workingDirectory,
-        bool skipLogError = false, bool skipLog = false)
+    public CmdResult Command(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false
+    )
     {
         var cmdText = $"{path} {args}   [{workingDirectory},";
         var t = Timing.Start();
@@ -77,8 +98,8 @@ class Cmd : ICmd
                     RedirectStandardError = true,
                     CreateNoWindow = true,
                     StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
-                }
+                    StandardErrorEncoding = Encoding.UTF8,
+                },
             };
 
             using (process)
@@ -102,13 +123,17 @@ class Cmd : ICmd
 
                 if (process.ExitCode != 0)
                 {
-                    if (!skipLogError) Log.Warn($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
-                    if (skipLogError) Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    if (!skipLogError)
+                        Log.Warn($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    if (skipLogError)
+                        Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
                     return new CmdResult(cmdText, process.ExitCode, output, error);
                 }
 
-                if (!skipLog) Log.Info($"{cmdText} {t}]");
-                if (skipLog) Log.Debug($"OK: {cmdText} {t}]");
+                if (!skipLog)
+                    Log.Info($"{cmdText} {t}]");
+                if (skipLog)
+                    Log.Debug($"OK: {cmdText} {t}]");
                 return new CmdResult(cmdText, output, error);
             }
         }

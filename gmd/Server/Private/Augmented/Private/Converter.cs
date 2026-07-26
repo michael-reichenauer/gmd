@@ -34,9 +34,22 @@ class Converter : IConverter
     public Status ToStatus(GitStatus gitStatus)
     {
         var s = gitStatus;
-        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted, s.Renamed,
-            s.IsMerging, s.MergeMessage, s.MergeHeadId, s.ModifiedFiles,
-            s.AddedFiles, s.DeletedFiles, s.ConflictsFiles, s.RenamedSourceFiles, s.RenamedTargetFiles);
+        return new Status(
+            s.Modified,
+            s.Added,
+            s.Deleted,
+            s.Conflicted,
+            s.Renamed,
+            s.IsMerging,
+            s.MergeMessage,
+            s.MergeHeadId,
+            s.ModifiedFiles,
+            s.AddedFiles,
+            s.DeletedFiles,
+            s.ConflictsFiles,
+            s.RenamedSourceFiles,
+            s.RenamedTargetFiles
+        );
     }
 
     static Commit ToCommit(WorkCommit c, int gitIndex)
@@ -52,7 +65,6 @@ class Converter : IConverter
             IsInView: false,
             ViewIndex: -1,
             GitIndex: gitIndex,
-
             BranchName: c.Branch!.Name,
             BranchPrimaryName: c.Branch.PrimaryName,
             BranchNiceUniqueName: c.Branch.NiceNameUnique,
@@ -72,7 +84,8 @@ class Converter : IConverter
             IsAmbiguousTip: c.IsAmbiguousTip,
             IsBranchSetByUser: c.IsBranchSetByUser,
             HasStash: c.HasStash,
-            More: More.None);
+            More: More.None
+        );
     }
 
     Branch ToBranch(WorkBranch b)
@@ -90,17 +103,14 @@ class Converter : IConverter
             IsRemote: b.IsRemote,
             RemoteName: b.RemoteName,
             LocalName: b.LocalName,
-
             ParentBranchName: b.ParentBranch?.Name ?? "",
             PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
-
             IsInView: false,
             IsGitBranch: b.IsGitBranch,
             IsDetached: b.IsDetached,
             IsPrimary: b.IsPrimary,
             IsMainBranch: b.IsMainBranch,
             IsCircularAncestors: b.IsCircularAncestors,
-
             HasLocalOnly: b.HasLocalOnly,
             HasRemoteOnly: b.HasRemoteOnly,
             AmbiguousTipId: b.AmbiguousTip?.Id ?? "",
@@ -110,7 +120,7 @@ class Converter : IConverter
             AncestorNames: b.Ancestors.Select(bb => bb.Name).ToList(),
             X: 0,
             IsIn: false,
-            IsOut: false);
+            IsOut: false
+        );
     }
 }
-

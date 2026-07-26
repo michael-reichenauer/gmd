@@ -52,4 +52,3 @@ public class GitRepoTest
     //     Log.Info($"Diff: {diff}");
     // }
 }
-

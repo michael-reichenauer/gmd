@@ -35,29 +35,31 @@ class HelpDlg : IHelpDlg
 
     IReadOnlyList<Text> ToHelpText(string content)
     {
-        var rows = content.Split('\n').Select(row =>
-        {
-            row = row.TrimSuffix("\\");
-            if (row.StartsWith("* "))
+        var rows = content
+            .Split('\n')
+            .Select(row =>
             {
-                row = "● " + row.Substring(2);
-            }
+                row = row.TrimSuffix("\\");
+                if (row.StartsWith("* "))
+                {
+                    row = "● " + row.Substring(2);
+                }
 
-            if (row.StartsWith("#"))
-            {
-                return Text.Cyan(row);
-            }
+                if (row.StartsWith("#"))
+                {
+                    return Text.Cyan(row);
+                }
 
-            var text = new TextBuilder();
-            int index = 0;
-            while (index < row.Length)
-            {
-                (var fragment, index) = GetColoredFragment(row, index);
-                text.Add(fragment);
-            }
+                var text = new TextBuilder();
+                int index = 0;
+                while (index < row.Length)
+                {
+                    (var fragment, index) = GetColoredFragment(row, index);
+                    text.Add(fragment);
+                }
 
-            return text.ToText();
-        });
+                return text.ToText();
+            });
 
         return rows.ToList();
     }
@@ -83,7 +85,7 @@ class HelpDlg : IHelpDlg
         {
             '`' => (text.Yellow(row.Substring(i1 + 1, l)), i1 + l + 2),
             '*' => (text.Blue(row.Substring(i1 + 1, l)), i1 + l + 2),
-            _ => throw Asserter.FailFast("Unexpected char")
+            _ => throw Asserter.FailFast("Unexpected char"),
         };
     }
 }

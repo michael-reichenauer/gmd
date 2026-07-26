@@ -5,20 +5,25 @@ interface IBranchStructureService
     void DetermineCommitBranches(WorkRepo repo, GitRepo gitRepo);
 }
 
-
 class BranchStructureService : IBranchStructureService
 {
-    readonly string[] MainBranchNamePriority = new string[] { "origin/main", "main", "origin/master", "master", "origin/trunk", "trunk" };
-    const string truncatedBranchName = "<truncated-branch>";  // Name of virtual branch in case of truncated repo log
+    readonly string[] MainBranchNamePriority = new string[]
+    {
+        "origin/main",
+        "main",
+        "origin/master",
+        "master",
+        "origin/trunk",
+        "trunk",
+    };
+    const string truncatedBranchName = "<truncated-branch>"; // Name of virtual branch in case of truncated repo log
 
     readonly IBranchNameService branchNameService;
-
 
     public BranchStructureService(IBranchNameService branchNameService)
     {
         this.branchNameService = branchNameService;
     }
-
 
     public void DetermineCommitBranches(WorkRepo repo, GitRepo gitRepo)
     {
@@ -42,7 +47,6 @@ class BranchStructureService : IBranchStructureService
         DetermineAncestors(repo);
     }
 
-
     // Set branch tips for branches on their tip commits
     // Remove branches that are do not have an existing tip id in the repo (e.g. deleted branches or truncated)
     static void SetGitBranchTipsOnCommits(WorkRepo repo)
@@ -52,14 +56,14 @@ class BranchStructureService : IBranchStructureService
         foreach (var b in repo.Branches.Values)
         {
             if (!repo.CommitsById.TryGetValue(b.TipID, out var tip))
-            {   // A branch tip id, which commit id does not exist in the repo (deleted branch or truncated repo)
+            { // A branch tip id, which commit id does not exist in the repo (deleted branch or truncated repo)
                 // Store that branch name so it can be removed from the list later
                 notFoundBranches.TryAdd(b.Name);
                 continue;
             }
 
             if (!b.IsDetached)
-            {   // Adding the branch to the branch tip commit (unless detached, handled separately later)
+            { // Adding the branch to the branch tip commit (unless detached, handled separately later)
                 tip.Branches.TryAdd(b);
                 tip.BranchTips.TryAdd(b.Name);
             }
@@ -71,7 +75,6 @@ class BranchStructureService : IBranchStructureService
         notFoundBranches.ForEach(n => repo.Branches.Remove(n));
     }
 
-
     // Update a commit with parents and children to be able to traverse the commit graph
     // Also swap parent order for pull merges, to make branch structure more logical and persistent
     void SetCommitParentsAndChildren(WorkRepo repo)
@@ -82,18 +85,18 @@ class BranchStructureService : IBranchStructureService
             branchNameService.ParseCommitSubject(c);
 
             if (c.ParentIds.Count == 2 && branchNameService.IsPullMerge(c))
-            {   // if the commit is a pull merge (remote commits merged into the local branch),
+            { // if the commit is a pull merge (remote commits merged into the local branch),
                 // The order of parents are switched, to make the branch structure more logical.
                 // So the first parent is the now remote branch and second parent the local branch
                 // This makes the local commits to look like they where merged into the remote
                 // branch, instead of existing remote commits merged/moved into the local branch,
-                // which would make the remote branch alter commit order whenever local commits 
+                // which would make the remote branch alter commit order whenever local commits
                 // are not updated to remote server in time.
                 (c.ParentIds[1], c.ParentIds[0]) = (c.ParentIds[0], c.ParentIds[1]);
             }
 
             if (c.ParentIds.Any() && repo.CommitsById.TryGetValue(c.ParentIds[0], out var firstParent))
-            {   // Commit has a first parent, and that parents children is updated with this commit
+            { // Commit has a first parent, and that parents children is updated with this commit
                 c.FirstParent = firstParent;
                 firstParent.FirstChildren.Add(c);
                 firstParent.AllChildIds.Add(c.Id);
@@ -101,7 +104,7 @@ class BranchStructureService : IBranchStructureService
             }
 
             if (c.ParentIds.Count > 1 && repo.CommitsById.TryGetValue(c.ParentIds[1], out var mergeParent))
-            {   // Commit has a merge parent, that parents merge children is updated with this commit
+            { // Commit has a merge parent, that parents merge children is updated with this commit
                 c.MergeParent = mergeParent;
                 mergeParent.MergeChildren.Add(c);
                 mergeParent.AllChildIds.Add(c.Id);
@@ -118,21 +121,25 @@ class BranchStructureService : IBranchStructureService
             var branch = DetermineCommitBranch(repo, c, gitRepo);
             c.Branch = branch;
 
-            if (!c.IsAmbiguous && branch.IsAmbiguousBranch && branch.AmbiguousTip != null &&
-                c.GitIndex > branch.AmbiguousTip.GitIndex)
-            {   // The commit is lower than the branch ambiguous tip, set it to ambiguous as well
+            if (
+                !c.IsAmbiguous
+                && branch.IsAmbiguousBranch
+                && branch.AmbiguousTip != null
+                && c.GitIndex > branch.AmbiguousTip.GitIndex
+            )
+            { // The commit is lower than the branch ambiguous tip, set it to ambiguous as well
                 c.IsAmbiguous = true;
             }
 
             if (!c.IsAmbiguous)
-            {   // Commit has a branch, clear other possible branches
+            { // Commit has a branch, clear other possible branches
                 c.Branches.Clear();
             }
             c.Branches.TryAdd(branch);
 
             // Set the IsLikely property if the branch is likely to be the correct branch
             if (branchNameService.TryGetBranchName(c.Id, out string name) && branch.Name == name)
-            {   // This flag might improve other commits below to select correct branch;
+            { // This flag might improve other commits below to select correct branch;
                 c.IsLikely = true;
             }
 
@@ -154,65 +161,65 @@ class BranchStructureService : IBranchStructureService
             return AddTruncatedBranch(repo);
         }
         else if (TryIsBranchSetByUser(repo, gitRepo, commit, out WorkBranch? branch))
-        {   // Commit branch was set/determined by user,
+        { // Commit branch was set/determined by user,
             return branch!;
         }
         else if (TryHasOnlyOneBranch(commit, out branch))
-        {   // Commit only has one branch, use that
+        { // Commit only has one branch, use that
             return branch!;
         }
         else if (TryIsLocalRemoteBranch(commit, out branch))
-        {   // Commit has only local and its remote branch, prefer remote remote branch
+        { // Commit has only local and its remote branch, prefer remote remote branch
             return branch!;
         }
         else if (TryHasMainBranch(commit, out branch))
-        {   // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
+        { // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
             return branch!;
         }
         else if (TryIsMergedDeletedBranchTip(repo, commit, out branch))
-        {   // Commit has no branches and no children, but has a merge child.
+        { // Commit has no branches and no children, but has a merge child.
             // The commit is a tip of a deleted branch. It might be a deleted remote branch.
             // Lets try determine branch name based on merge child's subject
             // or use a generic branch name based on commit id
             return branch!;
         }
         else if (TryIsStrangeDeletedBranchTip(repo, commit, out branch))
-        {   // Commit has no branches and no children, but may have merge children.
+        { // Commit has no branches and no children, but may have merge children.
             // The commit is a tip of a deleted remote branch.
-            // Lets try determine branch name based on merge child's subject 
+            // Lets try determine branch name based on merge child's subject
             // or use a generic branch name based on commit id
             return branch!;
         }
         else if (TryHasBranchNameInSubject(repo, commit, out branch))
-        {   // A branch name could be parsed form the commit subject or a child subject.
+        { // A branch name could be parsed form the commit subject or a child subject.
             // The commit will be set to that branch and also if above (first child) commits have
             // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
             // when a parsable commit subjects are encountered.
             return branch!;
         }
         else if (TryHasOnlyOneChild(commit, out branch))
-        {   // Commit has one child commit reuse that child commit branch
+        { // Commit has one child commit reuse that child commit branch
             return branch!;
         }
         else if (TryHasOneChildWithLikelyBranch(commit, out branch))
-        {   // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
+        { // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
             return branch!;
         }
         else if (TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
-        {   // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
+        { // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
             return branch!;
         }
         else if (TrySameChildrenBranches(commit, out branch))
-        {   // For e.g. pull merges, a commit can have two children with same logical branch
+        { // For e.g. pull merges, a commit can have two children with same logical branch
             return branch!;
         }
         else if (TryIsMergedBranchesToParent(repo, commit, out branch))
-        {   // Checks if a commit with 2 children and if the one child branch is merged into the 
+        { // Checks if a commit with 2 children and if the one child branch is merged into the
             // other child branch. E.g. like a pull request or feature branch
             return branch!;
         }
         else if (TryIsChildAmbiguousCommit(commit, out branch))
-        {   // If one of the commit children is a an ambiguous commit, reuse same branch
+        { // If one of the commit children is a an ambiguous commit, reuse same branch
             // Log.Info($"Commit {commit.Sid} has ambiguous child commit {branchNames}");
             return branch!;
         }
@@ -224,26 +231,25 @@ class BranchStructureService : IBranchStructureService
         return AddAmbiguousCommit(repo, commit);
     }
 
-
     // Commit branch was set/determined by user,
     static bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
         if (!gitRepo.MetaData.TryGetCommitBranch(commit.Sid, out var branchNiceName, out var isSetByUser))
-        {   // Commit has not a branch set by user
+        { // Commit has not a branch set by user
             return false;
         }
         // Log.Info($"Commit {commit.Sid} has branch set to {branchHumanName} (by user: {isSetByUser})");
 
         var branches = commit.Branches.Where(b => b.NiceName == branchNiceName);
         if (!branches.Any())
-        {   // Branch not found by obvious commit branches, create a new branch
+        { // Branch not found by obvious commit branches, create a new branch
             commit.IsBranchSetByUser = isSetByUser;
             branch = AddNamedBranch(repo, commit, branchNiceName);
             return true;
         }
 
-        // Prefer remote branches over local branches 
+        // Prefer remote branches over local branches
         var remote = branches.FirstOrDefault(b => b.IsRemote);
         if (remote != null)
         {
@@ -262,7 +268,7 @@ class BranchStructureService : IBranchStructureService
     static bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 1)
-        {  // Commit only has one branch, use that
+        { // Commit only has one branch, use that
             branch = commit.Branches[0];
             return true;
         }
@@ -277,12 +283,12 @@ class BranchStructureService : IBranchStructureService
         if (commit.Branches.Count == 2)
         {
             if (commit.Branches[0].IsRemote && commit.Branches[0].Name == commit.Branches[1].RemoteName)
-            {   // remote and local branch, prefer remote
+            { // remote and local branch, prefer remote
                 branch = commit.Branches[0];
                 return true;
             }
             if (!commit.Branches[0].IsRemote && commit.Branches[0].RemoteName == commit.Branches[1].Name)
-            {   // local and remote branch, prefer remote
+            { // local and remote branch, prefer remote
                 branch = commit.Branches[1];
                 return true;
             }
@@ -292,22 +298,27 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-
     // For e.g. pull merges, a commit can have two children with same logical branch
     static bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch)
     {
-        if (commit.Branches.Count == 2 && commit.FirstChildren.Count == 2 &&
-            commit.FirstChildren[0].Branch!.PrimaryName == commit.FirstChildren[1].Branch!.PrimaryName)
-        {   // Commit has 2 children with same branch use that
-            if (commit.FirstChildren[0].Branch!.PullMergeParentBranch != null &&
-                commit.FirstChildren[0].Branch!.PullMergeParentBranch!.Name == commit.FirstChildren[1].Branch!.LocalName)
-            {   // child branch 0 is a pull merge of child 1 local of remote branch 1, prefer parent 1
+        if (
+            commit.Branches.Count == 2
+            && commit.FirstChildren.Count == 2
+            && commit.FirstChildren[0].Branch!.PrimaryName == commit.FirstChildren[1].Branch!.PrimaryName
+        )
+        { // Commit has 2 children with same branch use that
+            if (
+                commit.FirstChildren[0].Branch!.PullMergeParentBranch != null
+                && commit.FirstChildren[0].Branch!.PullMergeParentBranch!.Name
+                    == commit.FirstChildren[1].Branch!.LocalName
+            )
+            { // child branch 0 is a pull merge of child 1 local of remote branch 1, prefer parent 1
                 branch = commit.FirstChildren[1].Branch;
                 commit.IsAmbiguous = commit.FirstChildren[1].IsAmbiguous;
                 return true;
             }
             if (commit.FirstChildren[0].Branch!.PullMergeParentBranch == commit.FirstChildren[1].Branch)
-            {   // child branch 0 is a pull merge of child branch 1, prefer parent 1
+            { // child branch 0 is a pull merge of child branch 1, prefer parent 1
                 branch = commit.FirstChildren[1].Branch;
                 commit.IsAmbiguous = commit.FirstChildren[1].IsAmbiguous;
                 return true;
@@ -322,26 +333,23 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-
     // Commit has no branches and no children, but has a merge child.
     // The commit is a tip of a deleted branch. It might be a deleted remote branch.
     // Lets try determine branch name based on merge child's subject
     // or use a generic branch name based on commit id
-    bool TryIsMergedDeletedBranchTip(
-        WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.FirstChildren.Count == 0 && commit.MergeChildren.Count == 1)
-        {   // Commit has no branch and no children, but has a merge child. I.e. must be a
+        { // Commit has no branch and no children, but has a merge child. I.e. must be a
             // deleted branch that was merged into some other branch.
             // Trying to use parsed branch name from the merge children subjects e.g. like:
             // "Merge branch 'branch-name' into develop"
             if (branchNameService.TryGetBranchName(commit.Id, out var name))
-            {   // Managed to parse a branch-name 
+            { // Managed to parse a branch-name
                 var mergeChild = commit.MergeChildren[0];
 
-                if (branchNameService.IsPullMerge(mergeChild) &&
-                    mergeChild.Branch!.NiceName == name)
-                {   // The branch is a pull name and has same name as the branch is was merged into
+                if (branchNameService.IsPullMerge(mergeChild) && mergeChild.Branch!.NiceName == name)
+                { // The branch is a pull name and has same name as the branch is was merged into
                     // The merge child is a pull merge, so this commit is on a "dead" branch part,
                     // which used to be the local branch of the pull merge commit.
                     // Lets connect this branch with the actual branch.
@@ -364,19 +372,18 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-
     // Commit has no branches and no children, but may have merge children.
     // The commit is a tip of a deleted remote branch.
-    // Lets try determine branch name based on merge child's subject 
+    // Lets try determine branch name based on merge child's subject
     // or use a generic branch name based on commit id
     bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.FirstChildren.Count == 0)
-        {   // Commit has no branch, and no children, must be a deleted branch tip unusual branch
+        { // Commit has no branch, and no children, must be a deleted branch tip unusual branch
             // Trying to use parsed branch name from one of the merge children subjects e.g. Merge branch 'a' into develop
 
             if (branchNameService.TryGetBranchName(commit.Id, out var name))
-            {   // Managed to parse a branch name
+            { // Managed to parse a branch name
                 branch = AddNamedBranch(repo, commit, name);
                 return true;
             }
@@ -390,12 +397,11 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-
     // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
     static bool TryHasOneChildWithLikelyBranch(WorkCommit c, out WorkBranch? branch)
     {
         if (c.FirstChildren.Count == 1 && c.FirstChildren[0].IsLikely)
-        {   // Commit has one child, which has a likely known branch, use same branch
+        { // Commit has one child, which has a likely known branch, use same branch
             branch = c.FirstChildren[0].Branch;
             c.IsAmbiguous = c.FirstChildren[0].IsAmbiguous;
             return true;
@@ -419,16 +425,16 @@ class BranchStructureService : IBranchStructureService
         c.IsAmbiguous = child.IsAmbiguous;
 
         if (child.Branch!.IsRemote)
-        {   // The branch is remote, we prefer that
+        { // The branch is remote, we prefer that
             branch = child.Branch;
             return true;
         }
 
         if (child.Branch!.RemoteName != "")
-        {   // The child branch has a corresponding remote branch, lets try to use that
+        { // The child branch has a corresponding remote branch, lets try to use that
             var remoteBranch = c.Branches.FirstOrDefault(b => b.Name == child.Branch!.RemoteName);
             if (remoteBranch != null)
-            {   // The child branch was local and the corresponding remote is also possible, 
+            { // The child branch was local and the corresponding remote is also possible,
                 branch = remoteBranch;
                 return true;
             }
@@ -439,12 +445,12 @@ class BranchStructureService : IBranchStructureService
         return true;
     }
 
-
     // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
     bool TryHasMainBranch(WorkCommit c, out WorkBranch? branch)
     {
         branch = null;
-        if (c.Branches.Count < 1) return false;
+        if (c.Branches.Count < 1)
+            return false;
 
         // Check if commit has one of the main branches
         foreach (var name in MainBranchNamePriority)
@@ -467,12 +473,13 @@ class BranchStructureService : IBranchStructureService
     {
         branch = null;
 
-        if (!branchNameService.TryGetBranchName(commit.Id, out var name)) return false;
+        if (!branchNameService.TryGetBranchName(commit.Id, out var name))
+            return false;
 
         // A branch name could be parsed form the commit subject or a merge child subject.
         branch = TryGetBranchFromName(commit, name);
         if (branch == null)
-        {   // Found no matching branch
+        { // Found no matching branch
             return false;
         }
 
@@ -484,7 +491,7 @@ class BranchStructureService : IBranchStructureService
         // Lets use that as a branch name and also let children (commits above)
         // use that branch if they are an ambiguous branch
         if (branch.TipID == commit.Id)
-        {  // The commit is branch tip, we should not find higher/previous commit up, since tip would move up  
+        { // The commit is branch tip, we should not find higher/previous commit up, since tip would move up
             commit.Branch = branch;
             commit.IsLikely = true;
             commit.Branches.TryAdd(branch);
@@ -497,11 +504,11 @@ class BranchStructureService : IBranchStructureService
         Dictionary<string, string> bottoms = new Dictionary<string, string>();
         while (current.Id != branch.TipID)
         {
-            var child = current.FirstChildren
-                .Where(c => c.IsAmbiguous)
+            var child = current
+                .FirstChildren.Where(c => c.IsAmbiguous)
                 .FirstOrDefault(c => c.Branches.Contains(namedBranch));
             if (child == null)
-            {   // No ambiguous child commit with that branch, cannot step up further
+            { // No ambiguous child commit with that branch, cannot step up further
                 break;
             }
             // Remember highest known id of each branch, to later be used to set branch bottom id
@@ -511,10 +518,12 @@ class BranchStructureService : IBranchStructureService
             current = child;
         }
 
-        if (current.FirstChildren.Any() &&
-            current.Id != branch.TipID &&
-            null == current.FirstChildren.FirstOrDefault(c => !c.IsAmbiguous && c.Branch == namedBranch))
-        {   // Failed to reach last not ambiguous branch part of named branch
+        if (
+            current.FirstChildren.Any()
+            && current.Id != branch.TipID
+            && null == current.FirstChildren.FirstOrDefault(c => !c.IsAmbiguous && c.Branch == namedBranch)
+        )
+        { // Failed to reach last not ambiguous branch part of named branch
             return false;
         }
 
@@ -531,19 +540,19 @@ class BranchStructureService : IBranchStructureService
                 // Need to move bottom of current branch upp to current child since current will
                 // belong to other branch
                 if (com.FirstChildren.Any())
-                {   // Sett branch bottom to child
+                { // Sett branch bottom to child
                     var firstOtherChild = com.FirstChildren.FirstOrDefault(c => c.Branch == com.Branch);
                     if (firstOtherChild != null)
                     {
                         com.Branch!.BottomID = firstOtherChild.Id;
                     }
                     else
-                    {   // Must have been a tip on current
+                    { // Must have been a tip on current
                         com.Branch!.BottomID = com.Id;
                     }
                 }
                 else
-                {   // Has no children, set to current
+                { // Has no children, set to current
                     com.Branch!.BottomID = com.Id;
                 }
             }
@@ -551,8 +560,7 @@ class BranchStructureService : IBranchStructureService
 
         do
         {
-            if (current.Branch != null && current.Branch != branch &&
-                current.Branch.AmbiguousTip == current)
+            if (current.Branch != null && current.Branch != branch && current.Branch.AmbiguousTip == current)
             {
                 current.Branch.IsAmbiguousBranch = false;
                 current.Branch.AmbiguousBranches.Clear();
@@ -571,7 +579,6 @@ class BranchStructureService : IBranchStructureService
                 break;
             }
             current = current.FirstParent;
-
         } while (current != null);
 
         return true;
@@ -613,10 +620,10 @@ class BranchStructureService : IBranchStructureService
     static bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.FirstChildren.Count == 1)
-        {   // Commit has only one child, ensure commit has same possible branches
+        { // Commit has only one child, ensure commit has same possible branches
             var child = commit.FirstChildren[0];
             if (commit.Branches.Count != child.Branches.Count)
-            {   // Number of branches have changed
+            { // Number of branches have changed
                 branch = null;
                 return false;
             }
@@ -624,7 +631,7 @@ class BranchStructureService : IBranchStructureService
             for (int i = 0; i < commit.Branches.Count; i++)
             {
                 if (commit.Branches[i].Name != child.Branches[i].Name)
-                {   // Some branch has changed
+                { // Some branch has changed
                     branch = null;
                     return false;
                 }
@@ -641,7 +648,7 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-    // Checks if a commit with 2 children and if the one child branch is merged into the 
+    // Checks if a commit with 2 children and if the one child branch is merged into the
     // other child branch. E.g. like a pull request or feature branch
     static bool TryIsMergedBranchesToParent(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
@@ -655,16 +662,22 @@ class BranchStructureService : IBranchStructureService
             var b2MergeChildren = repo.CommitsById[b2.TipID].MergeChildren;
             var b2Bottom = repo.CommitsById[b2.BottomID];
 
-            if (!b2.IsGitBranch && b2Bottom.FirstParent == commit &&
-                b2MergeChildren.Count == 1 &&
-                b2MergeChildren[0].Branch == b1)
+            if (
+                !b2.IsGitBranch
+                && b2Bottom.FirstParent == commit
+                && b2MergeChildren.Count == 1
+                && b2MergeChildren[0].Branch == b1
+            )
             {
                 branch = b1;
                 return true;
             }
-            if (!b1.IsGitBranch && b1Bottom.FirstParent == commit &&
-                b1MergeChildren.Count == 1 &&
-                b1MergeChildren[0].Branch == b2)
+            if (
+                !b1.IsGitBranch
+                && b1Bottom.FirstParent == commit
+                && b1MergeChildren.Count == 1
+                && b1MergeChildren[0].Branch == b2
+            )
             {
                 branch = b2;
                 return true;
@@ -674,14 +687,13 @@ class BranchStructureService : IBranchStructureService
         return false;
     }
 
-
     // If one of the commit children is a an ambiguous commit, reuse same branch
     static bool TryIsChildAmbiguousCommit(WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
         var ambiguousChild = commit.FirstChildren.FirstOrDefault(c => c.IsAmbiguous);
         if (ambiguousChild == null)
-        {   // No ambiguous child
+        { // No ambiguous child
             return false;
         }
 
@@ -689,32 +701,30 @@ class BranchStructureService : IBranchStructureService
         var amBranch = branch;
 
         // If more ambiguous children, merge in their sub branches as well
-        commit.FirstChildren
-            .Where(c => c.IsAmbiguous && c != ambiguousChild)
+        commit
+            .FirstChildren.Where(c => c.IsAmbiguous && c != ambiguousChild)
             .ForEach(c => c.Branch!.AmbiguousBranches.ForEach(b => commit.Branches.TryAdd(b)));
 
         commit.IsAmbiguous = true;
         return true;
     }
 
-
     void SetMasterBackbone(WorkCommit c)
     {
         if (c.FirstParent == null || c.Branch == null)
-        {   // Reached the end of the repository or commit has no branch (which it always has now)
+        { // Reached the end of the repository or commit has no branch (which it always has now)
             return;
         }
 
         if (MainBranchNamePriority.Contains(c.Branch.Name))
-        {   // main and develop are special and will make a "backbone" for other branches to depend on
+        { // main and develop are special and will make a "backbone" for other branches to depend on
             // Adding this branch to the first parent branches will make it likely to be set as
             // branch for the parent as well, and so on up to the first (oldest/last) commit.
             c.FirstParent.Branches.TryAdd(c.Branch);
         }
     }
 
-    static WorkBranch AddPullMergeBranch(
-       WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeParentBranch)
+    static WorkBranch AddPullMergeBranch(WorkRepo repo, WorkCommit c, string name, WorkBranch pullMergeParentBranch)
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
         var humanName = name != "" ? name : $"branch@{c.Sid}";
@@ -722,9 +732,10 @@ class BranchStructureService : IBranchStructureService
             name: branchName,
             primaryName: pullMergeParentBranch.PrimaryName,
             niceName: humanName,
-            tipID: c.Id)
+            tipID: c.Id
+        )
         {
-            PullMergeParentBranch = pullMergeParentBranch
+            PullMergeParentBranch = pullMergeParentBranch,
         };
 
         repo.Branches[branch.Name] = branch;
@@ -739,7 +750,8 @@ class BranchStructureService : IBranchStructureService
             name: branchName,
             primaryName: branchName,
             niceName: branchName,
-            tipID: gmd.Server.Repo.TruncatedLogCommitId);
+            tipID: gmd.Server.Repo.TruncatedLogCommitId
+        );
 
         repo.Branches[branch.Name] = branch;
         repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
@@ -750,11 +762,7 @@ class BranchStructureService : IBranchStructureService
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
         var niceName = name != "" ? name : "branch";
-        var branch = new WorkBranch(
-            name: branchName,
-            primaryName: branchName,
-            niceName: niceName,
-            tipID: c.Id);
+        var branch = new WorkBranch(name: branchName, primaryName: branchName, niceName: niceName, tipID: c.Id);
 
         repo.Branches[branch.Name] = branch;
         repo.Branches[branch.PrimaryName].RelatedBranches.Add(branch);
@@ -809,7 +817,8 @@ class BranchStructureService : IBranchStructureService
             var likelyBranch = likelyChild.Branch!;
             ambiguousBranches = ambiguousBranches
                 .Concat(commit.FirstChildren.Select(c => c.Branch!))
-                .Distinct().ToList();
+                .Distinct()
+                .ToList();
 
             return (likelyBranch, ambiguousBranches);
         }
@@ -832,7 +841,6 @@ class BranchStructureService : IBranchStructureService
         return (likelyBranch2, ambiguousBranches);
     }
 
-
     // Determine the parent/child relationship between branches, and which branch is the main branch
     // A child branch is branches from a parent branch
     static void DetermineBranchHierarchy(WorkRepo repo)
@@ -840,31 +848,37 @@ class BranchStructureService : IBranchStructureService
         foreach (var b in repo.Branches.Values)
         {
             if (b.IsAmbiguousBranch && b.AmbiguousTip != null)
-            {   // Set ambiguous tip on commit
+            { // Set ambiguous tip on commit
                 b.AmbiguousTip.IsAmbiguousTip = true;
             }
 
             if (b.RemoteName != "")
-            {   // For a local branch with a remote branch, the remote branch should be parent.
+            { // For a local branch with a remote branch, the remote branch should be parent.
                 var remoteBranch = repo.Branches[b.RemoteName];
                 b.ParentBranch = remoteBranch;
 
                 var bb = repo.CommitsById[b.BottomID];
-                if (b.TipID != b.BottomID && bb.FirstParent?.Branch != remoteBranch && remoteBranch.TipID != bb.FirstParent?.Id)
-                {  // The bottom commit of the local branch does not have the remote branch as first parent
-                    Log.Warn($"Branch {b.Name} has unexpected bottom branch '{bb.FirstParent?.Branch}', expected: {b.ParentBranch}");
+                if (
+                    b.TipID != b.BottomID
+                    && bb.FirstParent?.Branch != remoteBranch
+                    && remoteBranch.TipID != bb.FirstParent?.Id
+                )
+                { // The bottom commit of the local branch does not have the remote branch as first parent
+                    Log.Warn(
+                        $"Branch {b.Name} has unexpected bottom branch '{bb.FirstParent?.Branch}', expected: {b.ParentBranch}"
+                    );
                 }
                 continue;
             }
 
             var bottom = repo.CommitsById[b.BottomID];
             if (b.TipID == b.BottomID && bottom.Branch != b)
-            {   // Branch does not own the bottom (or tip) commit, i.e. a branch pointer to another branch with no own commits yet 
+            { // Branch does not own the bottom (or tip) commit, i.e. a branch pointer to another branch with no own commits yet
                 b.ParentBranch = bottom.Branch;
                 continue;
             }
             if (bottom.FirstParent == null)
-            {   // Branch bottom commit has no first parent, is a root branch like e.g. main/master, or doc branch
+            { // Branch bottom commit has no first parent, is a root branch like e.g. main/master, or doc branch
                 // Log.Warn($"Branch {b.Name} has bottom commit {bottom.Sid} with no first parent");
                 continue;
             }
@@ -876,14 +890,17 @@ class BranchStructureService : IBranchStructureService
 
     // Determine the root branch, i.e. the branch that has no parent branch, and which branch is the main branch
     // A repository can have several root branches, e.g. the doc branch in GitHub. So we try to determine
-    // the most likely root branch, and set that as the main branch.    
+    // the most likely root branch, and set that as the main branch.
     void DetermineRootBranch(WorkRepo repo)
     {
         // A repo can have several root branches (e.g. the doc branch in GitHub). If the repo is truncated
-        // we need to remove the truncated branch and redirect all its children to the most likely root branch 
+        // we need to remove the truncated branch and redirect all its children to the most likely root branch
         repo.Branches.TryGetValue(truncatedBranchName, out var truncatedBranch);
-        var rootBranches = repo.Branches.Values.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch).ToList();
-        if (!rootBranches.Any()) return;  // No root branches (empty repo)
+        var rootBranches = repo
+            .Branches.Values.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch)
+            .ToList();
+        if (!rootBranches.Any())
+            return; // No root branches (empty repo)
 
         // Select most likely root branch (but prioritize)
         var rootBranch = rootBranches.First();
@@ -898,7 +915,7 @@ class BranchStructureService : IBranchStructureService
         }
 
         if (truncatedBranch != null)
-        {   // Remove the truncated branch and redirect all its children to the root branch
+        { // Remove the truncated branch and redirect all its children to the root branch
             var truncatedCommit = repo.CommitsById[gmd.Server.Repo.TruncatedLogCommitId];
             truncatedCommit.Branch = rootBranch;
             rootBranch.ParentBranch = null;
@@ -906,8 +923,7 @@ class BranchStructureService : IBranchStructureService
             repo.Branches.Remove(truncatedBranch.Name);
 
             // Redirect all branches that has the truncated branch as parent to the root branch instead
-            repo.Branches.Values
-                .Where(b => b.ParentBranch == truncatedBranch)
+            repo.Branches.Values.Where(b => b.ParentBranch == truncatedBranch)
                 .ForEach(b => b.ParentBranch = rootBranch);
         }
 
@@ -941,7 +957,7 @@ class BranchStructureService : IBranchStructureService
             }
         }
 
-        if (circularAncestors > 0) Log.Error($"Repo has {circularAncestors} circular ancestors");
+        if (circularAncestors > 0)
+            Log.Error($"Repo has {circularAncestors} circular ancestors");
     }
 }
-

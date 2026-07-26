@@ -1,8 +1,6 @@
 using System.Text.RegularExpressions;
 
-
 namespace gmd.Server.Private.Augmented.Private;
-
 
 interface IBranchNameService
 {
@@ -11,10 +9,9 @@ interface IBranchNameService
     bool TryGetBranchName(string commitId, out string branchName);
 }
 
-
 record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
-record Indexes(int from, int into, int direction);
 
+record Indexes(int from, int into, int direction);
 
 // cspell:ignore erged
 class BranchNameService : IBranchNameService
@@ -28,18 +25,23 @@ class BranchNameService : IBranchNameService
 
     // Parse subject like e.g. "Merge branch 'develop' into main"
     static readonly string regExText =
-        @"[Mm]erged?" + //                                 'Merge' or 'merged' word
-        @"(\s+remote-tracking)?" + //                      'remote-tracking' optional word when merging remote branches
-        @"(\s+(pull request #[0-9]+ from|PR|from branch|branch|commit|from))?" + //     'branch'|'commit'|'from' word
-        @"\s+'?(?<from>[0-9A-Za-z_/-]+)'?" + //           the <from> branch name
-        @"(?<direction>\s+of\s+[^\s]+)?" + //             the optional 'of repo url'
+        @"[Mm]erged?"
+        + //                                 'Merge' or 'merged' word
+        @"(\s+remote-tracking)?"
+        + //                      'remote-tracking' optional word when merging remote branches
+        @"(\s+(pull request #[0-9]+ from|PR|from branch|branch|commit|from))?"
+        + //     'branch'|'commit'|'from' word
+        @"\s+'?(?<from>[0-9A-Za-z_/-]+)'?"
+        + //           the <from> branch name
+        @"(?<direction>\s+of\s+[^\s]+)?"
+        + //             the optional 'of repo url'
         @"(\s+(into|to)\s+(?<into>[0-9A-Za-z_/-]+))?"; // the <into> branch name
 
-    static readonly Regex branchesRegEx = new Regex(regExText,
-        RegexOptions.Compiled | RegexOptions.CultureInvariant |
-        RegexOptions.IgnoreCase);
+    static readonly Regex branchesRegEx = new Regex(
+        regExText,
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase
+    );
     static readonly Indexes indexes = NameRegExpIndexes();
-
 
     public void ParseCommitSubject(WorkCommit c)
     {
@@ -57,7 +59,6 @@ class BranchNameService : IBranchNameService
         return fi.IsPullMerge;
     }
 
-
     FromInto ParseCommit(WorkCommit c)
     {
         if (c.ParentIds.Count != 2)
@@ -66,7 +67,7 @@ class BranchNameService : IBranchNameService
         }
 
         if (parsedCommits.TryGetValue(c.Id, out var fi))
-        {   // Already parsed this commit,use the cached result
+        { // Already parsed this commit,use the cached result
             return fi;
         }
 
@@ -78,17 +79,17 @@ class BranchNameService : IBranchNameService
         var name = branchNames.TryGetValue(c.Id, out var n) ? n : "";
 
         if (fi.Into != "")
-        {   // Subject does specify own commit, lets check if it is matches a possible child commit
+        { // Subject does specify own commit, lets check if it is matches a possible child commit
             // subject
             if (name != fi.Into && name.EndsWith(fi.Into))
-            {   // The child branch name is a prefix of the into value, so we can use the child branch name
+            { // The child branch name is a prefix of the into value, so we can use the child branch name
                 fi = fi with { Into = name };
             }
         }
         else
-        {   // Commit subject did not have an into value specifying the branch name of this commit
+        { // Commit subject did not have an into value specifying the branch name of this commit
             if (name != "")
-            {   // Some child subject contained info about this commits branch name so we can use that
+            { // Some child subject contained info about this commits branch name so we can use that
                 fi = fi with { Into = name };
             }
         }
@@ -104,13 +105,12 @@ class BranchNameService : IBranchNameService
             branchNames[c.ParentIds[0]] = fi.From;
         }
         else
-        {   // Normal commit, set the branch name for the second (other) parent
+        { // Normal commit, set the branch name for the second (other) parent
             branchNames[c.ParentIds[1]] = fi.From;
         }
 
         return fi;
     }
-
 
     public FromInto ParseSubject(string subject)
     {
@@ -130,7 +130,8 @@ class BranchNameService : IBranchNameService
                 From: TrimBranchName(match.Groups[indexes.from].Value),
                 Into: TrimBranchName(match.Groups[indexes.from].Value),
                 true,
-                false);
+                false
+            );
         }
 
         if (IsMatchPullRequest(match))
@@ -140,22 +141,17 @@ class BranchNameService : IBranchNameService
             if (match.Groups[3].Value == "PR")
             {
                 fr = "PR" + fr;
-
             }
-            return new FromInto(
-                From: fr,
-                Into: TrimBranchName(match.Groups[indexes.into].Value),
-                false,
-                true);
+            return new FromInto(From: fr, Into: TrimBranchName(match.Groups[indexes.into].Value), false, true);
         }
 
         return new FromInto(
             From: TrimBranchName(match.Groups[indexes.from].Value),
             Into: TrimBranchName(match.Groups[indexes.into].Value),
             false,
-            false);
+            false
+        );
     }
-
 
     bool IsPullMergeCommit(FromInto fi)
     {
@@ -169,7 +165,6 @@ class BranchNameService : IBranchNameService
             if (name.StartsWith(prefix))
             {
                 return name.Substring(prefix.Length);
-
             }
         }
 
@@ -178,16 +173,23 @@ class BranchNameService : IBranchNameService
 
     bool IsMatchPullMerge(Match match)
     {
-        if (match.Groups[indexes.from].Value != "" &&
-            match.Groups[indexes.direction].Value != "" &&
-            (match.Groups[indexes.into].Value == "" ||
-                 match.Groups[indexes.into].Value == match.Groups[indexes.from].Value))
+        if (
+            match.Groups[indexes.from].Value != ""
+            && match.Groups[indexes.direction].Value != ""
+            && (
+                match.Groups[indexes.into].Value == ""
+                || match.Groups[indexes.into].Value == match.Groups[indexes.from].Value
+            )
+        )
         {
             return true;
         }
 
-        if (match.Groups[indexes.from].Value != "" && match.Groups[indexes.into].Value != "" &&
-            TrimBranchName(match.Groups[indexes.from].Value) == TrimBranchName(match.Groups[indexes.into].Value))
+        if (
+            match.Groups[indexes.from].Value != ""
+            && match.Groups[indexes.into].Value != ""
+            && TrimBranchName(match.Groups[indexes.from].Value) == TrimBranchName(match.Groups[indexes.into].Value)
+        )
         {
             return true;
         }
@@ -209,7 +211,6 @@ class BranchNameService : IBranchNameService
         return false;
     }
 
-
     // nameRegExpIndexes returns the named group indexes to be used in parse
     static Indexes NameRegExpIndexes()
     {
@@ -229,12 +230,10 @@ class BranchNameService : IBranchNameService
             if (v == "into")
             {
                 intoIndex = i;
-
             }
             if (v == "direction")
             {
                 directionIndex = i;
-
             }
         }
         return new Indexes(fromIndex, intoIndex, directionIndex);

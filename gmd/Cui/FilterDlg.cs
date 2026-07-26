@@ -29,13 +29,11 @@ class FilterDlg : IFilterDlg
     Text repoInfo = Text.Empty;
     int closeX = 0;
 
-
     internal FilterDlg(IServer server, IBranchColorService branchColorService)
     {
         this.server = server;
         this.branchColorService = branchColorService;
     }
-
 
     public R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
@@ -45,7 +43,17 @@ class FilterDlg : IFilterDlg
         this.onRepoChanged = onRepoChanged;
         this.resultsView = commitsView;
 
-        dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
+        dlg = new UIDialog(
+            "Filter Commits",
+            Dim.Fill() + 1,
+            3,
+            OnDialogKey,
+            options =>
+            {
+                options.X = -1;
+                options.Y = -1;
+            }
+        );
         dlg.RegisterMouseHandler(OnMouseEvent);
 
         dlg.AddLabel(0, 0, Text.BrightMagenta(" Gmd"));
@@ -56,7 +64,7 @@ class FilterDlg : IFilterDlg
         closeX = searchLabelX + 8 + 29 + 2;
         var closeButton = dlg.AddLabel(closeX, 0, Text.White("X"));
 
-        filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
+        filterField.KeyUp += (k) => OnFilterFieldKeyUp(k); // Update results and select commit on keys
 
         statusLabel = dlg.AddLabel(5, 0);
 
@@ -68,7 +76,7 @@ class FilterDlg : IFilterDlg
         return selectedCommit;
     }
 
-    // User pressed key in filter field, update results 
+    // User pressed key in filter field, update results
     void OnFilterFieldKeyUp(View.KeyEventEventArgs e)
     {
         UpdateFilteredResults().RunInBackground();
@@ -78,7 +86,7 @@ class FilterDlg : IFilterDlg
     bool OnDialogKey(Key key)
     {
         if (key == Key.Enter)
-        {   // User selected commit from list
+        { // User selected commit from list
             var commit = currentRepo.ViewCommits[resultsView.CurrentIndex];
             if (commit.BranchName != "<none>")
                 this.selectedCommit = commit;
@@ -91,7 +99,6 @@ class FilterDlg : IFilterDlg
         ShowCommitInfo();
         return rsp;
     }
-
 
     bool StepUpDownInResultList(Key key)
     {
@@ -121,7 +128,6 @@ class FilterDlg : IFilterDlg
         return false;
     }
 
-
     // Support scrolling with mouse wheel (see ContentView.cs for details)
     bool OnMouseEvent(MouseEvent ev)
     {
@@ -131,7 +137,6 @@ class FilterDlg : IFilterDlg
             dlg.Close();
             return true;
         }
-
 
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
@@ -153,20 +158,23 @@ class FilterDlg : IFilterDlg
         return false;
     }
 
-
     async Task UpdateFilteredResults()
     {
         var filter = filterField.Text.Trim();
-        if (filter == currentFilter) return;
+        if (filter == currentFilter)
+            return;
         currentFilter = filter;
 
-        if (filter != "" && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults)))
-        {   // Got new filtered repo, update results
+        if (
+            filter != ""
+            && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults))
+        )
+        { // Got new filtered repo, update results
             currentRepo = filteredRepo;
             resultsView.MoveToTop();
         }
         else
-        {   // Restore original repo
+        { // Restore original repo
             currentRepo = orgRepo;
         }
 
@@ -175,7 +183,6 @@ class FilterDlg : IFilterDlg
         onRepoChanged(currentRepo);
     }
 
-
     void ShowCommitInfo()
     {
         var index = resultsView.CurrentIndex;
@@ -183,7 +190,8 @@ class FilterDlg : IFilterDlg
         {
             statusLabel.Text = repoInfo;
             return;
-        };
+        }
+        ;
 
         var commit = currentRepo.ViewCommits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];
@@ -191,15 +199,14 @@ class FilterDlg : IFilterDlg
         statusLabel.Text = Text.Add(repoInfo).Cyan($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
     }
 
-
     Text GetRepoInfo()
     {
         var commitCount = currentRepo.ViewCommits.Count(c => c.BranchName != "<none>");
-        var branchCount = currentRepo.ViewCommits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
+        var branchCount = currentRepo
+            .ViewCommits.Select(c => c.BranchPrimaryName)
+            .Where(b => b != "<none>")
+            .Distinct()
+            .Count();
         return Text.Dark($"{commitCount} commits, {branchCount} branches,");
     }
 }
-
-
-
-

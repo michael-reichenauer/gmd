@@ -1,8 +1,6 @@
 namespace gmd.Cui.Common;
 
-
 record TextFragment(string Text, Common.Color Color);
-
 
 // An immutable text with fragments of multiple colors, e.g.
 // Text text = Text.Red("Red text").Blue("Blue text"));
@@ -12,7 +10,8 @@ class Text
 {
     readonly List<TextFragment> fragments;
 
-    public Text() : this(new List<TextFragment>()) { }
+    public Text()
+        : this(new List<TextFragment>()) { }
 
     public Text(IEnumerable<TextFragment> fragments)
     {
@@ -27,23 +26,39 @@ class Text
 
     // Initial fragment of text with color, additional fragments will be added using TextBuilder
     public static TextBuilder Blue(string text) => new TextBuilder(Common.Color.Blue, text);
+
     public static TextBuilder Green(string text) => new TextBuilder(Common.Color.Green, text);
+
     public static TextBuilder Cyan(string text) => new TextBuilder(Common.Color.Cyan, text);
+
     public static TextBuilder Yellow(string text) => new TextBuilder(Common.Color.Yellow, text);
+
     public static TextBuilder Red(string text) => new TextBuilder(Common.Color.Red, text);
+
     public static TextBuilder Magenta(string text) => new TextBuilder(Common.Color.Magenta, text);
+
     public static TextBuilder Dark(string text) => new TextBuilder(Common.Color.Dark, text);
+
     public static TextBuilder White(string text) => new TextBuilder(Common.Color.White, text);
+
     public static TextBuilder Black(string text) => new TextBuilder(Common.Color.Black, text);
+
     public static TextBuilder BrightBlue(string text) => new TextBuilder(Common.Color.BrightBlue, text);
+
     public static TextBuilder BrightGreen(string text) => new TextBuilder(Common.Color.BrightGreen, text);
+
     public static TextBuilder BrightCyan(string text) => new TextBuilder(Common.Color.BrightCyan, text);
+
     public static TextBuilder BrightYellow(string text) => new TextBuilder(Common.Color.BrightYellow, text);
+
     public static TextBuilder BrightRed(string text) => new TextBuilder(Common.Color.BrightRed, text);
+
     public static TextBuilder BrightMagenta(string text) => new TextBuilder(Common.Color.BrightMagenta, text);
+
     public static TextBuilder Color(Common.Color color, string text) => new TextBuilder(color, text);
 
     public static TextBuilder GreenBg(string text) => new TextBuilder(Common.Color.GreenBg, text);
+
     public static TextBuilder RedBg(string text) => new TextBuilder(Common.Color.RedBg, text);
 
     public static TextBuilder Add(Text text)
@@ -65,8 +80,8 @@ class Text
     public override string ToString() => string.Concat(fragments.Select(f => f.Text));
 
     public Text ToHighlight() => ToHighlight(Common.Color.Dark);
-    public Text ToSelect() => ToHighlight(Common.Color.White);
 
+    public Text ToSelect() => ToHighlight(Common.Color.White);
 
     public Text ToHighlight(Common.Color newBg)
     {
@@ -80,15 +95,15 @@ class Text
 
             // Make sure foreground color is readable on new background
             if (fg == newBg && fg == Common.Color.White)
-            {   // White or yellow on white is not readable 
+            { // White or yellow on white is not readable
                 fg = Common.Color.Black;
             }
             else if (fg == newBg && fg == Common.Color.Black)
-            {   // Black on black is not readable
+            { // Black on black is not readable
                 fg = Common.Color.White;
             }
             else if (fg == newBg)
-            {   // Same color as background, use white, since background is not white or yellow
+            { // Same color as background, use white, since background is not white or yellow
                 fg = Common.Color.White;
             }
 
@@ -99,7 +114,7 @@ class Text
         return newText;
     }
 
-    // Used to creates lines like e.g. '───', Stretches the first char to fill the width. 
+    // Used to creates lines like e.g. '───', Stretches the first char to fill the width.
     public Text ToLine(int width)
     {
         if (!fragments.Any() || fragments[0].Text == "")
@@ -160,7 +175,6 @@ class Text
         Draw(startIndex, length);
     }
 
-
     void Draw(int startIndex = 0, int length = int.MaxValue)
     {
         int x = 0;
@@ -176,7 +190,7 @@ class Text
             int end = x + text.Length;
             if (end < startIndex)
             {
-                // Text left of rowX 
+                // Text left of rowX
                 x += text.Length;
                 continue;
             }
@@ -204,8 +218,6 @@ class Text
     }
 }
 
-
-
 // TextBuilder is a mutable version of Text, to make it easier to compose a text with multiple colors
 class TextBuilder
 {
@@ -227,7 +239,6 @@ class TextBuilder
         this.fragments = fragments.ToList();
     }
 
-
     public int Length { get; private set; } = 0;
 
     // Implicit conversion to Text
@@ -235,28 +246,44 @@ class TextBuilder
 
     // ToTest and ToString
     public Text ToText() => new Text(fragments);
-    public override string ToString() => string.Concat(fragments.Select(f => f.Text));
 
+    public override string ToString() => string.Concat(fragments.Select(f => f.Text));
 
     // Methods to compose a text with multiple colors
     public TextBuilder Red(string text) => Add(Common.Color.Red, text);
+
     public TextBuilder Blue(string text) => Add(Common.Color.Blue, text);
+
     public TextBuilder White(string text) => Add(Common.Color.White, text);
+
     public TextBuilder Magenta(string text) => Add(Common.Color.Magenta, text);
+
     public TextBuilder BrightBlue(string text) => Add(Common.Color.BrightBlue, text);
+
     public TextBuilder BrightCyan(string text) => Add(Common.Color.BrightCyan, text);
+
     public TextBuilder BrightGreen(string text) => Add(Common.Color.BrightGreen, text);
+
     public TextBuilder BrightMagenta(string text) => Add(Common.Color.BrightMagenta, text);
+
     public TextBuilder BrightRed(string text) => Add(Common.Color.BrightRed, text);
+
     public TextBuilder BrightYellow(string text) => Add(Common.Color.BrightYellow, text);
+
     public TextBuilder Cyan(string text) => Add(Common.Color.Cyan, text);
+
     public TextBuilder Dark(string text) => Add(Common.Color.Dark, text);
+
     public TextBuilder Green(string text) => Add(Common.Color.Green, text);
+
     public TextBuilder Yellow(string text) => Add(Common.Color.Yellow, text);
+
     public TextBuilder Black(string text) => Add(Common.Color.Black, text);
+
     public TextBuilder Color(Common.Color color, string text) => Add(color, text);
 
     public TextBuilder GreenBg(string text) => Add(Common.Color.GreenBg, text);
+
     public TextBuilder RedBg(string text) => Add(Common.Color.RedBg, text);
 
     public TextBuilder Add(Text text)
@@ -275,24 +302,28 @@ class TextBuilder
     {
         Length += text.Length;
         if (!fragments.Any())
-        {   // First fragment
+        { // First fragment
             fragments.Add(new TextFragment(text, color));
             return this;
         }
 
         var f = fragments[^1];
         if (f.Color != color)
-        {   // Color differs from previous fragment, add new fragment with new color
+        { // Color differs from previous fragment, add new fragment with new color
             fragments.Add(new TextFragment(text, color));
             return this;
         }
 
         // Same color as previous fragment, append text to previous fragment to avoid too many fragments
-        fragments[^1] = f with { Text = f.Text + text };
+        fragments[^1] = f with
+        {
+            Text = f.Text + text,
+        };
         return this;
     }
 
     public TextBuilder Highlight() => Highlight(Common.Color.Dark);
+
     public Text Select() => Highlight(Common.Color.White);
 
     public TextBuilder Highlight(Common.Color newBg)
@@ -306,15 +337,15 @@ class TextBuilder
 
             // Make sure foreground color is readable on new background
             if (fg == newBg && fg == Common.Color.White)
-            {   // White or yellow on white is not readable 
+            { // White or yellow on white is not readable
                 fg = Common.Color.Black;
             }
             else if (fg == newBg && fg == Common.Color.Black)
-            {   // Black on black is not readable
+            { // Black on black is not readable
                 fg = Common.Color.White;
             }
             else if (fg == newBg)
-            {   // Same color as background, use white, since background is not white or yellow
+            { // Same color as background, use white, since background is not white or yellow
                 fg = Common.Color.White;
             }
 
@@ -325,5 +356,3 @@ class TextBuilder
         return this;
     }
 }
-
-

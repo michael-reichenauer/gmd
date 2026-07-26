@@ -4,7 +4,4 @@ using gmd.Common;
 namespace gmdTest.Common;
 
 [TestClass]
-public class CommonTest
-{
-
-}
+public class CommonTest { }

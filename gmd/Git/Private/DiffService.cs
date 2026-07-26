@@ -24,58 +24,63 @@ class DiffService : IDiffService
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
-        var args = "show --date=iso --first-parent --root --patch --no-color" +
-            $" --find-renames --unified=6 {commitId}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        var args =
+            "show --date=iso --first-parent --root --patch --no-color" + $" --find-renames --unified=6 {commitId}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
         var commitDiffs = ParseCommitDiffs(output, "", false);
-        if (commitDiffs.Count == 0) return R.Error("Failed to parse diff");
+        if (commitDiffs.Count == 0)
+            return R.Error("Failed to parse diff");
 
         return commitDiffs[0];
     }
 
     public async Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd)
     {
-        var args = "stash show -u --date=iso --first-parent --root --patch --no-color" +
-            $" --find-renames --unified=6 {name}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        var args =
+            "stash show -u --date=iso --first-parent --root --patch --no-color" + $" --find-renames --unified=6 {name}";
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-
     public async Task<R<CommitDiff>> GetUncommittedDiff(string wd)
     {
         // To be able to include renamed and added files in uncommitted diff, we first
-        // stage all and after diff, the stage is reset.  
+        // stage all and after diff, the stage is reset.
         var needReset = false;
         if (!StatusService.IsMergeInProgress(wd))
         {
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd))) return err;
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd)))
+                return err;
             needReset = true;
         }
 
-        var args = "diff --date=iso --first-parent --root --patch --no-color" +
-            " --find-renames --unified=6 HEAD";
+        var args = "diff --date=iso --first-parent --root --patch --no-color" + " --find-renames --unified=6 HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-        {   // The diff failed, reset the 'git add .' if needed
+        { // The diff failed, reset the 'git add .' if needed
             if (e.ErrorMessage.Contains("ambiguous argument 'HEAD': unknown revision"))
             {
                 if (!Try(out output, out e, await cmd.RunAsync("git", "diff --staged", wd)))
                 {
-                    if (needReset) await cmd.RunAsync("git", "reset", wd);
+                    if (needReset)
+                        await cmd.RunAsync("git", "reset", wd);
                     return e;
                 }
             }
             else
             {
-                if (needReset) await cmd.RunAsync("git", "reset", wd);
+                if (needReset)
+                    await cmd.RunAsync("git", "reset", wd);
                 return e;
             }
         }
 
         if (needReset)
-        {   // Reset the 'git add .' previously 
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd))) return err;
+        { // Reset the 'git add .' previously
+            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd)))
+                return err;
         }
 
         // Add commit prefix text to support parser.
@@ -87,13 +92,17 @@ class DiffService : IDiffService
             return R.Error("Failed to parse diff");
         }
 
-        return commitDiffs[0] with { Message = "Uncommitted changes" };
+        return commitDiffs[0] with
+        {
+            Message = "Uncommitted changes",
+        };
     }
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
     {
         var args = $"log --date=iso --patch --follow -- \"{path}\"";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         var commitDiffs = ParseCommitDiffs(output, path, false);
         if (!commitDiffs.Any())
@@ -104,11 +113,11 @@ class DiffService : IDiffService
         return commitDiffs.ToArray();
     }
 
-
     public async Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd)
     {
         var args = $"diff --find-renames --unified=6 --full-index {sha1}~..{sha2}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         return ParseDiff(output, message);
     }
@@ -116,23 +125,25 @@ class DiffService : IDiffService
     public async Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd)
     {
         var args = $"diff --find-renames --unified=6 --full-index {sha1} {sha2}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         return ParseDiff(output, message);
     }
 
-
     public async Task<R> RunDiffToolAsync(string path, string wd)
     {
         var args = $"difftool --no-prompt {path}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
         return R.Ok;
     }
 
     public async Task<R> RunMergeToolAsync(string path, string wd)
     {
         var args = $"mergetool --no-prompt {path}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
         return R.Ok;
     }
 
@@ -182,7 +193,7 @@ class DiffService : IDiffService
         string commitId = lines[i++]["commit ".Length..].Trim();
 
         if (i < lines.Length && lines[i].StartsWith("Merge: "))
-        {   // Skip Merge line
+        { // Skip Merge line
             i++;
         }
         if (i < lines.Length && lines[i].StartsWith("Author: "))
@@ -223,11 +234,11 @@ class DiffService : IDiffService
         while (i < lines.Length)
         {
             if (lines[i].StartsWith("commit "))
-            {   // Next commit
+            { // Next commit
                 break;
             }
             if (!lines[i].StartsWith("diff --"))
-            {   // between file diffs, let try next line
+            { // between file diffs, let try next line
                 i++;
                 continue;
             }
@@ -295,12 +306,12 @@ class DiffService : IDiffService
             return (DiffMode.DiffRemoved, i);
         }
         if (lines[i].StartsWith("similarity "))
-        {   // 3 lines with rename info
+        { // 3 lines with rename info
             i += 3;
             return (DiffMode.DiffModified, i);
         }
         if (lines[i].StartsWith("rename "))
-        {   // 2 lines with rename info
+        { // 2 lines with rename info
             i += 2;
             return (DiffMode.DiffModified, i);
         }
@@ -311,18 +322,31 @@ class DiffService : IDiffService
     static (int, bool) ParsePossibleIndexRows(int i, string[] lines)
     {
         bool isBinary = false;
-        if (i >= lines.Length) return (i, isBinary);
-        if (lines[i].StartsWith("index ")) { i++; }
-        if (i >= lines.Length) return (i, isBinary);
+        if (i >= lines.Length)
+            return (i, isBinary);
+        if (lines[i].StartsWith("index "))
+        {
+            i++;
+        }
+        if (i >= lines.Length)
+            return (i, isBinary);
         if (lines[i].StartsWith("Binary "))
         {
             isBinary = true;
             i++;
         }
-        if (i >= lines.Length) return (i, isBinary);
-        if (lines[i].StartsWith("--- ")) { i++; }
-        if (i >= lines.Length) return (i, isBinary);
-        if (lines[i].StartsWith("+++ ")) { i++; }
+        if (i >= lines.Length)
+            return (i, isBinary);
+        if (lines[i].StartsWith("--- "))
+        {
+            i++;
+        }
+        if (i >= lines.Length)
+            return (i, isBinary);
+        if (lines[i].StartsWith("+++ "))
+        {
+            i++;
+        }
         return (i, isBinary);
     }
 

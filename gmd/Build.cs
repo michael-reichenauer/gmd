@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace gmd.Utils;
 
-
 // Build contains build time and version information (do not move file)
 static class Build
 {
@@ -29,32 +28,31 @@ static class Build
         return new Version(Program.MajorVersion, Program.MinorVersion, daysSinceBase, minutesSinceMidnight);
     }
 
-
     public static DateTime GetBuildTime(string versionText)
     {
-        if (!System.Version.TryParse(versionText, out var version)) return DateTime.MinValue;
+        if (!System.Version.TryParse(versionText, out var version))
+            return DateTime.MinValue;
         return GetBuildTime(version);
     }
 
     public static DateTime GetBuildTime(Version version)
     {
-        if (!TryParseDateTime(BaseBuildTimeText, out var baseBuildTime)) return DateTime.MinValue;
+        if (!TryParseDateTime(BaseBuildTimeText, out var baseBuildTime))
+            return DateTime.MinValue;
 
         return baseBuildTime.AddDays(version.Build).AddMinutes(version.Revision);
     }
 
-
-
     public static DateTime Time()
     {
         if (TryParseDateTime(CiCdBuildTimeText, out var ciCdBuildTime))
-        {   // The CI/DI build script injected the build time, lets use that
+        { // The CI/DI build script injected the build time, lets use that
             return ciCdBuildTime;
         }
 
         var assemblyBuildTimeText = AssemblyVersionBuildTime();
         if (TryParseDateTime(assemblyBuildTimeText, out var assemblyBuildTime))
-        {   // The build time form the assembly (SourceRevisionId field in .csproj file)
+        { // The build time form the assembly (SourceRevisionId field in .csproj file)
             return assemblyBuildTime;
         }
 
@@ -73,7 +71,8 @@ static class Build
 
     static (int, int) GetTimeSinceBaseTime()
     {
-        if (!TryParseDateTime(BaseBuildTimeText, out var baseBuildTime)) return (0, 0);
+        if (!TryParseDateTime(BaseBuildTimeText, out var baseBuildTime))
+            return (0, 0);
 
         // Get the current build time
         var cbt = Build.Time();
@@ -84,7 +83,8 @@ static class Build
 
         // Calculate in minutes for build time after midnight of the build date
         var buildMidnightText = $"{cbt.Year:0000}-{cbt.Month:00}-{cbt.Day:00}T00:00:00Z";
-        if (!TryParseDateTime(buildMidnightText, out var buildMidnight)) return (0, 0);
+        if (!TryParseDateTime(buildMidnightText, out var buildMidnight))
+            return (0, 0);
         var minutesSinceMidnight = (int)(cbt - buildMidnight).TotalMinutes;
 
         return (daysSinceBase, minutesSinceMidnight);
@@ -93,14 +93,11 @@ static class Build
     static bool TryParseDateTime(string text, out DateTime dateTime) =>
         DateTime.TryParseExact(text, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out dateTime);
 
-
     static string AssemblyVersionBuildTime()
     {
         const string BuildVersionMetadataPrefix = "+build";
 
-        var attribute = Assembly.GetEntryAssembly()!
-          .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
-
+        var attribute = Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 
         if (attribute?.InformationalVersion != null)
         {

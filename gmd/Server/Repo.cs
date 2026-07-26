@@ -1,6 +1,4 @@
-
 namespace gmd.Server;
-
 
 record Repo
 {
@@ -19,7 +17,8 @@ record Repo
         IReadOnlyList<Branch> allBranches,
         IReadOnlyList<Stash> stashes,
         Status status,
-        string filter)
+        string filter
+    )
     {
         Path = path;
         TimeStamp = timeStamp;
@@ -48,21 +47,23 @@ record Repo
     public Status Status { get; init; }
     public string Filter { get; }
 
-    public static Repo Empty { get; } = new Repo(
-        "",
-        DateTime.MinValue,
-        DateTime.MinValue,
-        new List<Commit>(),
-        new List<Branch>(),
-        new List<Commit>(),
-        new List<Branch>(),
-        new List<Stash>(),
-        Status.Empty,
-        "");
+    public static Repo Empty { get; } =
+        new Repo(
+            "",
+            DateTime.MinValue,
+            DateTime.MinValue,
+            new List<Commit>(),
+            new List<Branch>(),
+            new List<Commit>(),
+            new List<Branch>(),
+            new List<Stash>(),
+            Status.Empty,
+            ""
+        );
 
-    public override string ToString() => $"B:{ViewBranches.Count}/{AllBranches.Count}, C:{ViewCommits.Count}/{AllCommits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
+    public override string ToString() =>
+        $"B:{ViewBranches.Count}/{AllBranches.Count}, C:{ViewCommits.Count}/{AllCommits.Count}, S:{Status} @{TimeStamp.IsoMs()} (@{RepoTimeStamp.IsoMs()})";
 }
-
 
 public record Commit(
     // Git Properties
@@ -72,7 +73,6 @@ public record Commit(
     string Message,
     string Author,
     DateTime AuthorTime,
-
     // Augmented properties
     bool IsInView,
     int ViewIndex,
@@ -86,7 +86,6 @@ public record Commit(
     IReadOnlyList<string> MergeChildIds,
     IReadOnlyList<Tag> Tags,
     IReadOnlyList<string> BranchTips,
-
     bool IsCurrent,
     bool IsDetached,
     bool IsUncommitted,
@@ -98,19 +97,18 @@ public record Commit(
     bool IsAmbiguousTip,
     bool IsBranchSetByUser,
     bool HasStash,
-
     // View properties
-    More More)
+    More More
+)
 {
     public override string ToString() => $"{Sid} {Subject} ({BranchName})";
 }
 
-
 public enum More
 {
     None,
-    MergeIn,    // ╮
-    BranchOut,  // ╯
+    MergeIn, // ╮
+    BranchOut, // ╯
 }
 
 public record Branch(
@@ -126,17 +124,14 @@ public record Branch(
     bool IsRemote,
     string RemoteName,
     string LocalName,
-
     // Augmented properties
     bool IsInView,
     bool IsGitBranch,
     bool IsDetached,
-    bool IsPrimary,     // True if this is the primary branch (remote if local/remote pair or the local if only local) 
+    bool IsPrimary, // True if this is the primary branch (remote if local/remote pair or the local if only local)
     bool IsMainBranch,
-
     string ParentBranchName,
     string PullMergeParentBranchName,
-
     bool HasLocalOnly,
     bool HasRemoteOnly,
     string AmbiguousTipId,
@@ -145,25 +140,18 @@ public record Branch(
     IReadOnlyList<string> AncestorNames,
     IReadOnlyList<string> RelatedBranchNames,
     bool IsCircularAncestors,
-
     // View properties
     int X,
     bool IsIn,
-    bool IsOut)
+    bool IsOut
+)
 {
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
 
 public record Tag(string Name, string CommitId);
 
-public record Stash(
-    string Id,
-    string Name,
-    string Branch,
-    string ParentId,
-    string IndexId,
-    string Message
-);
+public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);
 
 public record Status(
     int Modified,
@@ -185,19 +173,28 @@ public record Status(
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
     internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
 
-    public static Status Empty { get; } = new Status(0, 0, 0, 0, 0, false, "", "", new string[0], new string[0], new string[0], new string[0], new string[0], new string[0]);
+    public static Status Empty { get; } =
+        new Status(
+            0,
+            0,
+            0,
+            0,
+            0,
+            false,
+            "",
+            "",
+            new string[0],
+            new string[0],
+            new string[0],
+            new string[0],
+            new string[0],
+            new string[0]
+        );
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }
 
-
-record CommitDiff(
-    string Id,
-    string Author,
-    DateTime Time,
-    string Message,
-    IReadOnlyList<FileDiff> FileDiffs
-)
+record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs)
 {
     public override string ToString() => $"Files: {FileDiffs.Count}";
 };

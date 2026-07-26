@@ -1,10 +1,15 @@
 # EditorConfig for gmd — see https://editorconfig.org
-# This file codifies the style already used in the codebase, so editors and
-# `dotnet format` agree with what is here rather than reformatting everything.
+#
+# Division of responsibility:
+#   - CSharpier owns all C# layout (line breaks, spacing, wrapping, using order).
+#     Its settings live in .csharpierrc. Do not add whitespace/wrapping rules here;
+#     they would just fight CSharpier.
+#   - This file owns naming rules and non-layout code style (which the IDE uses for
+#     refactoring hints), plus basic settings for non-C# files.
 #
 # Note: end_of_line is deliberately not set. .gitattributes uses `* text=auto`,
 # so the working tree is LF on Linux/macOS and CRLF on Windows; pinning it here
-# would put .editorconfig and git in conflict.
+# would put .editorconfig and git in conflict. CSharpier uses "endOfLine": "auto".
 
 root = true
 
@@ -22,51 +27,20 @@ indent_size = 2
 # Trailing whitespace is significant in Markdown (line break)
 trim_trailing_whitespace = false
 
-[*.{sh,bat,cmd}]
-indent_size = 4
-
 [*.{csproj,props,targets,sln}]
 indent_size = 2
 
 [*.cs]
+# CSharpier also reads indent_size from here; keep it in sync with .csharpierrc tabWidth
 indent_size = 4
 
-#### .NET code style ####
+#### C# code style (non-layout) ####
 
 # Namespaces are file-scoped throughout this codebase
 csharp_style_namespace_declarations = file_scoped:warning
 
-# Allman braces (opening brace on its own line)
-csharp_new_line_before_open_brace = all
-csharp_new_line_before_else = true
-csharp_new_line_before_catch = true
-csharp_new_line_before_finally = true
-csharp_new_line_before_members_in_object_initializers = true
-csharp_new_line_before_members_in_anonymous_types = true
-csharp_new_line_between_query_expression_clauses = true
-
-# Indentation
-csharp_indent_case_contents = true
-csharp_indent_switch_labels = true
-csharp_indent_labels = one_less_than_current
-csharp_indent_block_contents = true
-csharp_indent_braces = false
-csharp_indent_case_contents_when_block = false
-
-# Spacing
-csharp_space_after_cast = false
-csharp_space_after_keywords_in_control_flow_statements = true
-csharp_space_before_colon_in_inheritance_clause = true
-csharp_space_after_colon_in_inheritance_clause = true
-csharp_space_around_binary_operators = before_and_after
-csharp_space_between_method_declaration_parameter_list_parentheses = false
-csharp_space_between_method_call_parameter_list_parentheses = false
-csharp_space_between_parentheses = false
-csharp_space_between_square_brackets = false
-
-# Wrapping — the codebase uses many single-line expression-bodied members
-csharp_preserve_single_line_statements = true
-csharp_preserve_single_line_blocks = true
+# Usings go outside the namespace declaration
+csharp_using_directive_placement = outside_namespace:warning
 
 # `this.` is used only to disambiguate constructor parameters from fields
 dotnet_style_qualification_for_field = false:silent
@@ -103,7 +77,6 @@ csharp_prefer_simple_using_statement = true:silent
 csharp_prefer_braces = when_multiline:silent
 csharp_style_prefer_range_operator = true:suggestion
 csharp_style_prefer_index_operator = true:suggestion
-csharp_using_directive_placement = outside_namespace:warning
 csharp_style_prefer_null_check_over_type_check = true:suggestion
 
 dotnet_style_object_initializer = true:suggestion
@@ -114,10 +87,6 @@ dotnet_style_prefer_conditional_expression_over_assignment = true:silent
 dotnet_style_prefer_conditional_expression_over_return = true:silent
 dotnet_style_readonly_field = true:warning
 dotnet_style_prefer_auto_properties = true:suggestion
-
-# Sort System.* usings first
-dotnet_sort_system_directives_first = true
-dotnet_separate_import_directive_groups = false
 
 # Unused code — surface as hints, not build noise
 dotnet_diagnostic.IDE0051.severity = suggestion
@@ -161,8 +130,8 @@ dotnet_naming_rule.parameters_and_locals_are_camel_case.severity = suggestion
 
 #### Vendored code ####
 
-# Glob pattern matching is vendored third-party-style code — do not restyle it.
-# (Do not set `generated_code = true` here: it makes the compiler demand an explicit
+# Glob pattern matching is vendored third-party-style code — keep analyzers quiet there.
+# (Do not set `generated_code = true`: it makes the compiler demand an explicit
 #  #nullable directive in these files and adds CS8669 warnings.)
 [gmd/Utils/GlobPatterns/*.cs]
 dotnet_analyzer_diagnostic.severity = none

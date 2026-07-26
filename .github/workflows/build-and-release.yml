@@ -9,6 +9,10 @@ on:
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
 
+# Needed to create releases and upload assets
+permissions:
+  contents: write
+
 jobs:
   build_test_release_job:
     runs-on: ubuntu-latest
@@ -16,10 +20,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
-      # Update .env and manifest file with current build time and git sha id to support
-      # version handling of the web site to automatically upgrade to latest version faster
+      # Inject current build time and git sha into gmd/Build.cs, which uses them for
+      # version handling and to let the built-in updater detect newer versions.
       - name: Update git sha and build time
         shell: bash
         run: |
@@ -29,10 +33,17 @@ jobs:
           sed -i "s/BUILD_SHA/${{github.sha}}/g" gmd/Build.cs
           git log -3 --format=full
 
-      - name: Setup .NET Core SDK
-        uses: actions/setup-dotnet@v3
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.x'
+
+      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # CSharpier.MsBuild, which would hide unformatted code from the Release check.
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
 
       - name: Build & Test
         id: build
@@ -45,103 +56,25 @@ jobs:
           echo "isPreRelease=${{ github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
           echo "isPublish=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        id: create_release
+      # 'gmd_linux' is a copy of the x64 binary kept under the original asset name, since
+      # the built-in updater falls back to it (see gmd/Installation/Updater.cs).
+      - name: Prepare release assets
         if: steps.build.outputs.isPublish == 'true'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cp gmd_linux_x64 gmd_linux
+
+      - name: Create release and upload assets
+        if: steps.build.outputs.isPublish == 'true'
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.build.outputs.version }}
-          release_name: Version ${{ steps.build.outputs.version }}
+          name: Version ${{ steps.build.outputs.version }}
           draft: false
-          prerelease: ${{steps.build.outputs.isPreRelease == 'true'}}
+          prerelease: ${{ steps.build.outputs.isPreRelease == 'true' }}
           body: ${{ github.event.head_commit.message }} </br>[Change log](https://github.com/michael-reichenauer/gmd/blob/main/CHANGELOG.md)
-
-      - name: Upload Linux artifact x64
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_linux_x64
-          asset_name: gmd_linux_x64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux artifact arm64
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_linux_arm64
-          asset_name: gmd_linux_arm64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux artifact
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_linux_x64
-          asset_name: gmd_linux
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows artifact
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_windows
-          asset_name: gmd_windows
-          asset_content_type: application/octet-stream
-
-      - name: Upload OSX/Mac arm64 artifact
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_osx_arm64
-          asset_name: gmd_osx_arm64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows setup file
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd/Installation/installer/gmdSetup.exe
-          asset_name: gmdSetup.exe
-          asset_content_type: application/octet-stream
-
-      # - name: Upload Windows artifact (gmd.exe zipped)
-      #   if: steps.check-branch.outputs.isRelease == 'true'
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ github.token }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ./gmd.zip
-      #     asset_name: gmd.zip
-      #     asset_content_type: application/octet-stream
-
-      # - name: Upload Windows artifact (old name)
-      #   if: steps.check-branch.outputs.isRelease == 'true'
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ github.token }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ./gmd_windows
-      #     asset_name: gmd.exe
-      #     asset_content_type: application/octet-stream
+          files: |
+            gmd_linux_x64
+            gmd_linux_arm64
+            gmd_linux
+            gmd_windows
+            gmd_osx_arm64
+            gmd/Installation/installer/gmdSetup.exe

@@ -28,7 +28,8 @@ internal class Git : IGit
         ITagService tagService,
         IKeyValueService keyValueService,
         IStashService stashService,
-        ICmd cmd)
+        ICmd cmd
+    )
     {
         this.logService = logService;
         this.branchService = branchService;
@@ -43,7 +44,6 @@ internal class Git : IGit
         this.cmd = cmd;
     }
 
-
     public string CurrentAuthor { get; private set; } = "";
 
     public R<string> RootPath(string path) => RootPathDir(path);
@@ -56,95 +56,132 @@ internal class Git : IGit
 
     public Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         logService.GetMergeLogAsync(reference, wd);
+
     public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         logService.GetFileAsync(reference, wd);
-    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) =>
-        branchService.GetBranchesAsync(wd);
+
+    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => branchService.GetBranchesAsync(wd);
+
     public Task<R<Status>> GetStatusAsync(string wd) => statusService.GetStatusAsync(wd);
+
     public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         commitService.CommitAllChangesAsync(message, isAmend, wd);
+
     public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd) =>
         diffService.GetCommitDiffAsync(commitId, wd);
-    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) =>
-        diffService.GetFileDiffAsync(path, wd);
+
+    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) => diffService.GetFileDiffAsync(path, wd);
+
     public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd) =>
         diffService.GetRefsDiffAsync(sha1, sha2, message, wd);
+
     public Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd) =>
         diffService.GetDiffRangeAsync(sha1, sha2, message, wd);
+
     public Task<R> RunDiffToolAsync(string path, string wd) => diffService.RunDiffToolAsync(path, wd);
+
     public Task<R> RunMergeToolAsync(string path, string wd) => diffService.RunMergeToolAsync(path, wd);
+
     public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
+
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
+
     public Task<R> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);
+
     public Task<R> PushCurrentBranchAsync(bool isForce, string wd) => remoteService.PushCurrentBranchAsync(isForce, wd);
+
     public Task<R> PushRefForceAsync(string name, string wd) => remoteService.PushRefForceAsync(name, wd);
+
     public Task<R> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
+
     public Task<R> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
+
     public Task<R> PullBranchAsync(string name, string wd) => remoteService.PullBranchAsync(name, wd);
-    public Task<R> CloneAsync(string uri, string path, string wd) =>
-        remoteService.CloneAsync(uri, path, wd);
-    public Task<R> InitRepoAsync(string path, string wd) =>
-        repoService.InitAsync(path, false);
+
+    public Task<R> CloneAsync(string uri, string path, string wd) => remoteService.CloneAsync(uri, path, wd);
+
+    public Task<R> InitRepoAsync(string path, string wd) => repoService.InitAsync(path, false);
+
     public Task<R> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
+
     public Task<R> MergeBranchAsync(string name, string wd) => branchService.MergeBranchAsync(name, wd);
+
     public Task<R> RebaseBranchAsync(string name, string wd) => branchService.RebaseBranchAsync(name, wd);
+
     public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
         branchService.RebaseOntoAsync(newBase, oldBase, wd);
+
     public Task<R> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
+
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
         branchService.CreateBranchAsync(name, isCheckout, wd);
+
     public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
         branchService.CreateBranchFromCommitAsync(name, sha, isCheckout, wd);
+
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         branchService.DeleteLocalBranchAsync(name, isForced, wd);
-    public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
-        remoteService.DeleteRemoteBranchAsync(name, wd);
+
+    public Task<R> DeleteRemoteBranchAsync(string name, string wd) => remoteService.DeleteRemoteBranchAsync(name, wd);
+
     public Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd) => tagService.GetTagsAsync(wd);
-    public Task<R> UndoAllUncommittedChangesAsync(string wd) =>
-        commitService.UndoAllUncommittedChangesAsync(wd);
-    public Task<R> UndoUncommittedFileAsync(string path, string wd) =>
-        commitService.UndoUncommittedFileAsync(path, wd);
+
+    public Task<R> UndoAllUncommittedChangesAsync(string wd) => commitService.UndoAllUncommittedChangesAsync(wd);
+
+    public Task<R> UndoUncommittedFileAsync(string path, string wd) => commitService.UndoUncommittedFileAsync(path, wd);
+
     public Task<R> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
-    public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) => commitService.UndoCommitAsync(id, parentIndex, wd);
+
+    public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) =>
+        commitService.UndoCommitAsync(id, parentIndex, wd);
+
     public Task<R> UncommitLastCommitAsync(string wd) => commitService.UncommitLastCommitAsync(wd);
+
     public Task<R> UncommitUntilCommitAsync(string id, string wd) => commitService.UncommitUntilCommitAsync(id, wd);
-    public Task<R<string>> GetValueAsync(string key, string wd) =>
-       keyValueService.GetValueAsync(key, wd);
-    public Task<R> SetValueAsync(string key, string value, string wd) =>
-        keyValueService.SetValueAsync(key, value, wd);
-    public Task<R> PushValueAsync(string key, string wd) =>
-        keyValueService.PushValueAsync(key, wd);
-    public Task<R> PullValueAsync(string key, string wd) =>
-        keyValueService.PullValueAsync(key, wd);
+
+    public Task<R<string>> GetValueAsync(string key, string wd) => keyValueService.GetValueAsync(key, wd);
+
+    public Task<R> SetValueAsync(string key, string value, string wd) => keyValueService.SetValueAsync(key, value, wd);
+
+    public Task<R> PushValueAsync(string key, string wd) => keyValueService.PushValueAsync(key, wd);
+
+    public Task<R> PullValueAsync(string key, string wd) => keyValueService.PullValueAsync(key, wd);
+
     public Task<R> StashAsync(string message, string wd) => stashService.StashAsync(message, wd);
+
     public Task<R> StashPopAsync(string name, string wd) => stashService.PopAsync(name, wd);
+
     public Task<R> StashDropAsync(string name, string wd) => stashService.DropAsync(name, wd);
+
     public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
-    public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) =>
-        diffService.GetStashDiffAsync(name, wd);
-    public Task<R> AddTagAsync(string name, string commitId, string wd) =>
-        tagService.AddTagAsync(name, commitId, wd);
+
+    public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) => diffService.GetStashDiffAsync(name, wd);
+
+    public Task<R> AddTagAsync(string name, string commitId, string wd) => tagService.AddTagAsync(name, commitId, wd);
+
     public Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>
         tagService.AddAnnotatedTagAsync(name, message, commitID, wd);
-    public Task<R> RemoveTagAsync(string name, string wd) =>
-        tagService.RemoveTagAsync(name, wd);
+
+    public Task<R> RemoveTagAsync(string name, string wd) => tagService.RemoveTagAsync(name, wd);
+
     public Task<R> ResetHardUntilCommitAsync(string id, string wd) => commitService.ResetHardUntilCommitAsync(id, wd);
 
-    public Task<R> PushTagAsync(string name, string wd) =>
-        remoteService.PushTagAsync(name, wd);
-    public Task<R> DeleteRemoteTagAsync(string name, string wd) =>
-        remoteService.DeleteRemoteTagAsync(name, wd);
+    public Task<R> PushTagAsync(string name, string wd) => remoteService.PushTagAsync(name, wd);
+
+    public Task<R> DeleteRemoteTagAsync(string name, string wd) => remoteService.DeleteRemoteTagAsync(name, wd);
 
     public async Task<R<string>> Version()
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true, true))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true, true)))
+            return e;
 
         return output.TrimPrefix("git version ");
     }
 
     private async Task SetCurrentAuthorAsync(string path)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "config user.name", path, true, true))) return;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", "config user.name", path, true, true)))
+            return;
         Log.Info($"user {output}");
         CurrentAuthor = output.Trim();
     }

@@ -1,9 +1,7 @@
 using Terminal.Gui;
 using Terminal.Gui.Trees;
 
-
 namespace gmd.Cui.Common;
-
 
 public class FolderBrowseDlg
 {
@@ -15,7 +13,13 @@ public class FolderBrowseDlg
         const int height = 20;
 
         var dlg = new UIDialog("Select Folder", width, height);
-        var folderView = new TreeView<FileSystemInfo>() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2, };
+        var folderView = new TreeView<FileSystemInfo>()
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill() - 2,
+        };
 
         folderView.Style.ShowBranchLines = true;
         folderView.Style.ExpandableSymbol = '+';
@@ -28,18 +32,22 @@ public class FolderBrowseDlg
         dlg.AddLine(0, height - 4, width - 2);
         dlg.AddDlgCancel();
 
-        dlg.Show(folderView, () =>
-        {
-            SetupFileTree(folderView, recentFolders);
-            SetupScrollBar(folderView);
-            folderView.GoToFirst();
-            if (recentFolders.Any())
+        dlg.Show(
+            folderView,
+            () =>
             {
-                folderView.Expand();
+                SetupFileTree(folderView, recentFolders);
+                SetupScrollBar(folderView);
+                folderView.GoToFirst();
+                if (recentFolders.Any())
+                {
+                    folderView.Expand();
+                }
             }
-        });
+        );
 
-        if (selectedPath == "") return R.Error();
+        if (selectedPath == "")
+            return R.Error();
 
         return selectedPath;
     }
@@ -57,11 +65,7 @@ public class FolderBrowseDlg
 
     static void SetCustomColors(TreeView<FileSystemInfo> treeView)
     {
-        var yellow = new ColorScheme
-        {
-            Focus = new Color(Color.White, Color.Dark),
-            Normal = Color.White
-        };
+        var yellow = new ColorScheme { Focus = new Color(Color.White, Color.Dark), Normal = Color.White };
 
         treeView.ColorGetter = m => m is DirectoryInfo ? yellow : null;
     }
@@ -103,20 +107,17 @@ public class FolderBrowseDlg
         };
     }
 
-    void SetupFileTree(
-       TreeView<FileSystemInfo> treeView,
-       IReadOnlyList<string> recentFolders)
+    void SetupFileTree(TreeView<FileSystemInfo> treeView, IReadOnlyList<string> recentFolders)
     {
         treeView.TreeBuilder = new DelegateTreeBuilder<FileSystemInfo>(GetChildren, HasChildren);
         treeView.AspectGetter = GetName;
 
         var roots = recentFolders
             .Select(f => GetDirInfo(f))
-            .Where(f => f != null).Select(f => f!)
+            .Where(f => f != null)
+            .Select(f => f!)
             .OrderBy(f => f.Name)
-            .Concat(DriveInfo.GetDrives()
-                .Select(d => d.RootDirectory)
-                .OrderBy(f => f.Name));
+            .Concat(DriveInfo.GetDrives().Select(d => d.RootDirectory).OrderBy(f => f.Name));
 
         treeView.AddObjects(roots);
     }
@@ -154,9 +155,7 @@ public class FolderBrowseDlg
         {
             try
             {
-                return directoryInfo.EnumerateDirectories()
-                    .Where(f => f is not null)
-                    .OrderBy(f => f.Name);
+                return directoryInfo.EnumerateDirectories().Where(f => f is not null).OrderBy(f => f.Name);
             }
             catch (SystemException)
             {
@@ -165,7 +164,8 @@ public class FolderBrowseDlg
             }
         }
 
-        return Enumerable.Empty<FileSystemInfo>(); ;
+        return Enumerable.Empty<FileSystemInfo>();
+        ;
     }
 
     private string GetName(FileSystemInfo item)
@@ -182,7 +182,6 @@ public class FolderBrowseDlg
         return item.ToString();
     }
 }
-
 
 public abstract class TreeBuilder<T> : ITreeBuilder<T>
 {
@@ -210,8 +209,7 @@ public class DelegateTreeBuilder<T> : TreeBuilder<T>
         this.canExpand = canExpand;
     }
 
-    public override bool CanExpand(T toExpand) =>
-        canExpand?.Invoke(toExpand) ?? base.CanExpand(toExpand);
+    public override bool CanExpand(T toExpand) => canExpand?.Invoke(toExpand) ?? base.CanExpand(toExpand);
 
     public override IEnumerable<T> GetChildren(T forObject) => childGetter.Invoke(forObject);
 }

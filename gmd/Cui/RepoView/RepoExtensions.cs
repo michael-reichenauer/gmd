@@ -10,7 +10,7 @@ static class RepoExtensions
     {
         var name = branch.NiceNameUnique;
         if (name.Length > maxTipNameLength)
-        {   // Branch name to long, shorten it
+        { // Branch name to long, shorten it
             name = $"┅{name[^maxTipNameLength..]}";
         }
         return name;
@@ -29,11 +29,11 @@ static class RepoExtensions
     }
 
     public static IReadOnlyList<string> GetUncommittedFiles(this Repo repo) =>
-        repo.Status.ModifiedFiles
-        .Concat(repo.Status.AddedFiles)
-        .Concat(repo.Status.DeletedFiles)
-        .Concat(repo.Status.ConflictsFiles)
-        .Concat(repo.Status.RenamedTargetFiles)
-        .OrderBy(f => f)
-        .ToList();
+        repo
+            .Status.ModifiedFiles.Concat(repo.Status.AddedFiles)
+            .Concat(repo.Status.DeletedFiles)
+            .Concat(repo.Status.ConflictsFiles)
+            .Concat(repo.Status.RenamedTargetFiles)
+            .OrderBy(f => f)
+            .ToList();
 }

@@ -22,12 +22,14 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ./build -l       # linux only (much faster; use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
 ./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
+./installtools   # devcontainer setup: tools, dotnet local tools, git hooks
 ```
 
 Faster inner loop for verification: `dotnet build gmd.sln` and `./test`.
 
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
-sync when changing the shell scripts.
+sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
+scripts exist mainly for debugging Windows-specific behavior.
 
 Runtime log: `~/gmd.log`. Log with `Log.Info/Warn/Error/Debug/Exception` (`gmd.Utils.Logging`,
 already a global using). The TUI owns stdout, so **never use `Console.WriteLine` for
@@ -64,7 +66,7 @@ Key types and flow:
   tests, and preserve the pipeline comments.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
-- `Cui/RepoView/` — `IViewRepo` is the per-view façade the menus and command classes use;
+- `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
   `RepoView.cs` (~1000 lines) is the main log view. Commands are grouped into
   `RepoCommands` / `BranchCommands` / `CommitCommands`, menus into `*Menu.cs`.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
@@ -116,6 +118,43 @@ return R.Ok;                          // → R
 
 `R.Error` captures caller file/line automatically. `R<T>.GetResultValue()` fail-fasts if the
 error state was never checked, so always go through `Try`.
+
+### Formatting: CSharpier owns it
+
+**Never hand-format C#, and never argue with the formatter.** [CSharpier](https://csharpier.com)
+is the single source of truth for layout (line breaks, spacing, wrapping, `using` order), and
+it also formats `.csproj` files. Settings are in `.csharpierrc` (`printWidth` is **120** — the
+default 100 would explode this codebase's one-line delegation methods into one parameter per
+line).
+
+It runs in four places:
+
+| Where | How |
+| --- | --- |
+| On save in VS Code | `.vscode/settings.json` → `editor.formatOnSave` + the `csharpier.csharpier-vscode` extension |
+| On build | the `CSharpier.MsBuild` package in both `.csproj` files |
+| On commit | `.git/hooks/pre-commit` (installed from `gmd/tools/pre-commit-sample`) |
+| In CI | an explicit `dotnet csharpier check .` step before `./build` |
+
+The MSBuild integration behaves differently per configuration, which matters:
+
+- **Debug** — *formats* the sources in place before compiling. A `dotnet build` can therefore
+  modify files in the working tree. This is intended.
+- **Release** — *checks* only, and **fails the build** if anything is unformatted. This is why
+  CI runs an explicit `csharpier check` step *before* `./build`: `./build` runs `dotnet test`
+  (Debug) first, which would silently format everything and hide the problem from the Release
+  check.
+- Escape hatch: `dotnet build -p:CSharpier_Bypass=true`.
+
+CSharpier is a local dotnet tool pinned in `.config/dotnet-tools.json`. If `dotnet csharpier`
+is not found, run `dotnet tool restore`. Run it manually with `dotnet csharpier format .` or
+`dotnet csharpier check .`. It honors `.gitignore`, so `obj/`/`bin/` are skipped.
+
+`.editorconfig` deliberately contains **no** whitespace or wrapping rules — only naming rules
+and non-layout code style, so it cannot conflict with CSharpier.
+
+Note that C# raw string literals (`$"""…"""`) are indentation-normalized against their closing
+delimiter, so CSharpier re-indenting one does not change the string's value.
 
 ### Style as found in this codebase
 
@@ -179,15 +218,19 @@ bug fix — that is the agreed direction for this repo.
   move that file or those strings.
 - **Version lives in `gmd/Program.cs`** (`MajorVersion`/`MinorVersion`); the last two version
   components are derived from build time in `Build.cs`.
-- **Known stale references to .NET 7** (net8.0 is what the projects target): `build.bat`
-  (`set DOTNET="net7.0"`), `.vscode/launch.json` (`bin/Debug/net7.0/gmd.dll`), and
-  `.github/workflows/build-and-release.yml` (`dotnet-version: '7.x'`). Fixing these is
-  wanted; be aware the CI one changes release behaviour.
+- **A Debug build rewrites source files** (CSharpier formatting — see above). Do not be
+  surprised by a dirty working tree after `dotnet build`.
+- **`gmdSetup.exe` is a prebuilt binary committed to the repo**
+  (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
+  CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
+- **The `gmd_linux` release asset is a duplicate of `gmd_linux_x64`** kept under the original
+  name because the built-in updater falls back to it (`gmd/Installation/Updater.cs`). Do not
+  drop it from the release workflow.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
-- `NoWarn` in `gmd.csproj` suppresses `IDE0090;CA1825`. There is no `.editorconfig` yet, so
-  formatting is by imitation of nearby code.
-- `Utils/GlobPatterns/` is vendored third-party-style code — leave its style alone.
+- `NoWarn` in `gmd.csproj` suppresses `IDE0090;CA1825`.
+- `Utils/GlobPatterns/` is vendored third-party-style code. CSharpier formats it like
+  everything else, but do not restructure its logic; `.editorconfig` keeps analyzers quiet there.
 
 ## Working agreements
 
@@ -195,5 +238,5 @@ bug fix — that is the agreed direction for this repo.
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
 - Do not commit or push unless asked.
-- When behaviour visible to users changes, check whether `gmd/doc/help.md` (embedded into the
+- When behavior visible to users changes, check whether `gmd/doc/help.md` (embedded into the
   binary as a resource) needs updating too.

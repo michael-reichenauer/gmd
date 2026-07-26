@@ -3,13 +3,11 @@ using gmd.Common.Private;
 
 namespace gmd.Common;
 
-
 interface IConfigService
 {
     Config Get();
     void Set(Action<Config> setState);
 }
-
 
 // cSpell:ignore gmdconfig
 [SingleInstance]
@@ -19,12 +17,14 @@ class ConfigService : IConfigService
     readonly Config config = new Config(); // The single instance of Config used in DI
 
     // Get all public properties from Config, used when copying properties to single instance
-    static readonly PropertyInfo[] properties = typeof(Config)
-        .GetProperties(BindingFlags.Public | BindingFlags.Instance);
+    static readonly PropertyInfo[] properties = typeof(Config).GetProperties(
+        BindingFlags.Public | BindingFlags.Instance
+    );
 
-    static readonly string FilePath = Path.Join(Environment.GetFolderPath(
-        Environment.SpecialFolder.UserProfile), ".gmdconfig");
-
+    static readonly string FilePath = Path.Join(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".gmdconfig"
+    );
 
     internal ConfigService(IFileStore store, Config config)
     {
@@ -36,7 +36,6 @@ class ConfigService : IConfigService
     }
 
     public Config Get() => store.Get<Config>(FilePath);
-
 
     public void Set(Action<Config> set)
     {
@@ -52,4 +51,3 @@ class ConfigService : IConfigService
         properties.ForEach(fi => fi.SetValue(target, fi.GetValue(source)));
     }
 }
-
