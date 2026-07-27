@@ -111,11 +111,19 @@ commit.
       without the guard a genuine cycle makes the `while (ancestor != null)` loop run forever and
       grow `Ancestors` until it runs out of memory. Either restore the guard or delete both it and
       the flag. No test — a cycle could not be produced through the public pipeline.
-- [ ] With no `main`/`master`/`trunk` branch, the root/main branch is whichever branch git happened
-      to list first — not the current branch, not the one with the most commits
-      (`TestRootBranchWithoutAMainNameIsTheFirstBranch` shows the result flipping when only the
-      branch order changes). A repo with e.g. only `dev` and an orphan `docs` branch can get `docs`
-      as its main branch.
+- [x] **Fixed: with no `main`/`master`/`trunk` branch, the root/main branch was whichever branch git
+      happened to list first.** A repo with only `dev` and an orphan `docs` branch could get `docs`
+      as its main branch, and that is not cosmetic: the main branch is always forced into the log
+      view, is always magenta, and cannot be recolored or deleted. `DetermineRootBranch` now falls
+      back to the root branch whose history reaches furthest back, i.e. the oldest bottom commit,
+      since the other root branches were started later in the life of the repo. Deliberately not
+      the number of commits — an orphan `gh-pages` branch often has more commits than the trunk.
+      The branch name breaks a tie, so the choice never depends on branch order.
+
+      Also fixed on the way: the virtual `<truncated-branch>` was itself a candidate root branch,
+      and its commit carries `DateTime(1,1,1)`, so any ranking by age would always have picked it.
+      It is now excluded — being the scaffold that the block right below deletes, selecting it
+      would have left every branch pointing at a removed parent.
 - [ ] A commit below a branch point is claimed by whichever child branch has a name parsed from a
       merge subject, even when the other child is the branch it really belongs to
       (`TestCommitBelowABranchPointFollowsTheChildWithAKnownName`: a `dev` commit ends up on

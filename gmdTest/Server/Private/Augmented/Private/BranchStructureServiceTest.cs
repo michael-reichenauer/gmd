@@ -263,13 +263,16 @@ public class BranchStructureServiceTest
         Assert.AreEqual("feature", repo.Branches["origin/dev"].ParentBranch?.Name);
     }
 
-    // When no branch is named main, master or trunk, the root branch is simply the first branch
-    // git listed, which is neither the current branch nor the one with most commits.
+    // An orphan branch, e.g. a docs or gh-pages branch, has its own first commit and so is a root
+    // branch too. When no branch is named main, master or trunk, the one whose history reaches
+    // furthest back is picked as the repo's main branch, not the first one git happened to list.
+    // It matters: the main branch is always shown in the log, is always magenta and cannot be
+    // deleted or recolored.
     [TestMethod]
-    public async Task TestRootBranchWithoutAMainNameIsTheFirstBranch()
+    public async Task TestRootBranchWithoutAMainNameIsTheOldestBranch()
     {
         var devFirst = await new RepoBuilder()
-            .Commit("d1", "Docs") // A second root commit, e.g. an orphan docs branch
+            .Commit("d1", "Docs") // An unrelated history, i.e. a second root commit
             .Commit("c2", "Second", "c1")
             .Commit("c1", "Initial")
             .LocalBranch("dev", "c2", isCurrent: true)
@@ -279,6 +282,7 @@ public class BranchStructureServiceTest
         Assert.IsTrue(devFirst.Branches["dev"].IsMainBranch);
         Assert.IsFalse(devFirst.Branches["docs"].IsMainBranch);
 
+        // Same repo, only the order the branches are listed in differs
         var docsFirst = await new RepoBuilder()
             .Commit("d1", "Docs")
             .Commit("c2", "Second", "c1")
@@ -287,8 +291,46 @@ public class BranchStructureServiceTest
             .LocalBranch("dev", "c2", isCurrent: true)
             .AugmentAsync();
 
-        Assert.IsTrue(docsFirst.Branches["docs"].IsMainBranch, "Only the branch order changed");
-        Assert.IsFalse(docsFirst.Branches["dev"].IsMainBranch);
+        Assert.IsTrue(docsFirst.Branches["dev"].IsMainBranch, "The branch order must not matter");
+        Assert.IsFalse(docsFirst.Branches["docs"].IsMainBranch);
+    }
+
+    // An orphan branch can easily hold more commits than the trunk (a gh-pages branch tends to),
+    // so the age of the history decides, not the number of commits
+    [TestMethod]
+    public async Task TestRootBranchIsTheOldestEvenWhenAnotherHasMoreCommits()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("p3", "Pages 3", "p2")
+            .Commit("p2", "Pages 2", "p1")
+            .Commit("p1", "Pages 1") // Unrelated history, started after dev
+            .Commit("c1", "Initial")
+            .LocalBranch("gh-pages", "p3")
+            .LocalBranch("dev", "c1", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.IsTrue(repo.Branches["dev"].IsMainBranch, "dev has the oldest commit, gh-pages has more");
+        Assert.IsFalse(repo.Branches["gh-pages"].IsMainBranch);
+    }
+
+    // A branch left pointing at an older commit, with no commits of its own, is not a second root
+    // branch: it owns the commit it points at, so the branch above it becomes its child. There is
+    // then only one root branch to choose, whatever order the branches are listed in.
+    [TestMethod]
+    public async Task TestBranchPointingAtAnOlderCommitOwnsIt()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("b1", "Second work", "a1")
+            .Commit("a1", "Initial")
+            .LocalBranch("zeta", "a1")
+            .LocalBranch("alpha", "b1", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual("zeta", BranchOf(repo, "a1"));
+        Assert.AreEqual("zeta", repo.Branches["alpha"].ParentBranch?.Name);
+        Assert.IsNull(repo.Branches["zeta"].ParentBranch);
+        Assert.IsTrue(repo.Branches["zeta"].IsMainBranch, "The only root branch is the main branch");
+        Assert.IsFalse(repo.Branches["alpha"].IsMainBranch);
     }
 
     // In a truncated log the virtual truncated branch is only a scaffold. It is removed once the

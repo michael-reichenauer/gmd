@@ -897,22 +897,15 @@ class BranchStructureService : IBranchStructureService
         // we need to remove the truncated branch and redirect all its children to the most likely root branch
         repo.Branches.TryGetValue(truncatedBranchName, out var truncatedBranch);
         var rootBranches = repo
-            .Branches.Values.Where(b => b.ParentBranch == null || b.ParentBranch == truncatedBranch)
+            .Branches.Values.Where(b =>
+                b != truncatedBranch // The truncated branch is a scaffold, it is removed just below
+                && (b.ParentBranch == null || b.ParentBranch == truncatedBranch)
+            )
             .ToList();
         if (!rootBranches.Any())
             return; // No root branches (empty repo)
 
-        // Select most likely root branch (but prioritize)
-        var rootBranch = rootBranches.First();
-        foreach (var name in MainBranchNamePriority)
-        {
-            var branch = rootBranches.FirstOrDefault(b => b.Name == name);
-            if (branch != null)
-            {
-                rootBranch = branch;
-                break;
-            }
-        }
+        var rootBranch = SelectRootBranch(repo, rootBranches);
 
         if (truncatedBranch != null)
         { // Remove the truncated branch and redirect all its children to the root branch
@@ -934,6 +927,30 @@ class BranchStructureService : IBranchStructureService
             var rootLocalBranch = repo.Branches[rootBranch.LocalName];
             rootLocalBranch.IsMainBranch = true;
         }
+    }
+
+    // Select the branch that is most likely the trunk of the repository. A repo usually has just
+    // one root branch, but orphan branches (e.g. a gh-pages or doc branch) are root branches too,
+    // since their history is unrelated and thus has its own first commit.
+    WorkBranch SelectRootBranch(WorkRepo repo, IReadOnlyList<WorkBranch> rootBranches)
+    {
+        // A branch with a well known main branch name is the trunk, whatever its history looks like
+        foreach (var name in MainBranchNamePriority)
+        {
+            var branch = rootBranches.FirstOrDefault(b => b.Name == name);
+            if (branch != null)
+                return branch;
+        }
+
+        // No branch is named like a main branch, so the trunk is the branch whose history reaches
+        // furthest back, since the other root branches were started later in the life of the repo.
+        // Not the number of commits, an orphan branch can easily have more of them than the trunk.
+        // The name only breaks the tie of two histories starting at the same time, so that the
+        // choice never depends on the order git happened to list the branches in.
+        return rootBranches
+            .OrderBy(b => repo.CommitsById[b.BottomID].AuthorTime)
+            .ThenBy(b => b.Name, StringComparer.Ordinal)
+            .First();
     }
 
     static void DetermineAncestors(WorkRepo repo)
