@@ -155,6 +155,32 @@ Cheap, quick, and they establish the habit.
 - [ ] `TagServis.cs` — filename typo, should be `TagService.cs`.
 - [ ] Reconsider `NoWarn IDE0090;CA1825` in `gmd.csproj` once formatting churn has settled.
 
+### Migrate to collection expressions
+
+Collection expressions (`[]`) are the preferred style going forward. The codebase predates C# 12,
+so the analyzers are enabled as **suggestions** — new and touched code adopts `[]`, the rest
+migrates over time. Current state: **156 sites across 44 files**.
+
+| Diagnostic | Sites | What it changes | Risk |
+| --- | --- | --- | --- |
+| IDE0028 | 71 | `new List<T>()` → `[]` for initializers | Safe, mechanical |
+| IDE0300 | 68 | `new T[0]` / `new[] { … }` → `[]` | Safe, mechanical |
+| IDE0301 | 3 | empty collection → `[]` | Safe, mechanical |
+| IDE0305 | 14 | fluent `.ToList()` / `.ToArray()` → `[.. x]` | **Review by hand** |
+
+- [ ] Sweep the safe ones as one mechanical commit (then run CSharpier, since it normalizes the
+      resulting layout but does not do the conversion itself):
+      `dotnet format style --diagnostics IDE0028 IDE0300 IDE0301 --severity info gmd.sln`
+- [ ] IDE0305 by hand, in a separate commit. Converting `x.ToList()` to `[.. x]` can change the
+      concrete type produced behind an `IReadOnlyList<T>` return, and this codebase returns
+      `IReadOnlyList<T>` widely, so each site needs a look rather than a blanket fix.
+- [ ] Sequencing note: test coverage is still thin outside the augmentation pipeline and
+      `LogService`, so a 156-site sweep is less safe than it looks. Either do it after Steps 4–6
+      widen coverage, or accept it as a reviewed mechanical change verified by build + CSharpier.
+- [ ] Open question: target-typed `new()` (IDE0090) is currently in `<NoWarn>` in `gmd.csproj` —
+      the same "codebase predates the feature" category. Enable it too, or keep types explicit
+      there?
+
 ## Step 9 — Framework and dependency updates
 
 Deliberately after the tests, so regressions are detectable. Current status of every dependency:

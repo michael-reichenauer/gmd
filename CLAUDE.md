@@ -162,6 +162,11 @@ delimiter, so CSharpier re-indenting one does not change the string's value.
   `interface IFoo` usually sits directly above `class Foo` in the same file.
 - Fields are `readonly` and *not* prefixed (`readonly IGit git;`), assigned in a plain
   constructor — no primary constructors.
+- **Collection expressions (`[]`) are preferred for new and touched code** — `List<string> x = [];`
+  and `return [];` rather than `new List<string>()` / `new string[0]`. Most of the codebase
+  predates C# 12 and still uses the old form; it is being migrated gradually rather than in one
+  sweep, so expect both styles to coexist. The relevant analyzers (IDE0028, IDE0300–IDE0305) are
+  enabled as suggestions, so the IDE will point out remaining sites as you work in a file.
 - Expression-bodied one-line members are used heavily for delegation (see `Git.cs`).
 - Nullable reference types and implicit usings are **on**; `gmd/Usings.cs` holds the global
   usings and `[assembly: InternalsVisibleTo("gmdTest")]` (so tests can reach `internal` types).
@@ -247,6 +252,14 @@ Other things to know:
 Always run `./test` before reporting work done. Prefer adding a regression test with every
 bug fix — that is the agreed direction for this repo. When the subject is a parser or the
 inference pipeline, write the failing test first; both have already hidden real bugs.
+
+For the inference pipeline the tests are **characterization** tests: they pin down what the code
+actually does, not what it ought to do. Do not guess the expected values — discover them, then
+assert. The quickest way is a throwaway test that dumps the result and fails, e.g.
+`Assert.Fail(dumpOfEveryCommitAndBranch)`, read the real output, write the assertions, delete the
+probe. Guessing produces tests that encode a bug as correct, or that fail for the wrong reason.
+`Console.WriteLine` in a test is swallowed by the default logger, hence dumping via the failure
+message.
 
 ## Gotchas
 

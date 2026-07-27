@@ -93,10 +93,25 @@ dotnet_diagnostic.IDE0051.severity = suggestion
 dotnet_diagnostic.IDE0052.severity = suggestion
 dotnet_code_quality_unused_parameters = non_public:silent
 
+# Collection expressions ('[]' instead of 'new List<T>()' / 'new string[0]'). Preferred going
+# forward. Most of the codebase predates C# 12 and still uses the old form, so these are
+# suggestions rather than warnings: new and touched code adopts '[]', the rest migrates
+# gradually. See the collection expression step in MODERNIZATION.md.
+dotnet_style_prefer_collection_expression = true:suggestion
+dotnet_diagnostic.IDE0028.severity = suggestion
+dotnet_diagnostic.IDE0300.severity = suggestion
+dotnet_diagnostic.IDE0301.severity = suggestion
+dotnet_diagnostic.IDE0302.severity = suggestion
+dotnet_diagnostic.IDE0303.severity = suggestion
+dotnet_diagnostic.IDE0304.severity = suggestion
+dotnet_diagnostic.IDE0305.severity = suggestion
+
 #### Naming ####
 
 dotnet_naming_style.pascal_case.capitalization = pascal_case
 dotnet_naming_style.camel_case.capitalization = camel_case
+# Matches anything, used to opt a symbol group out of naming checks
+dotnet_naming_style.any_case.capitalization = pascal_case
 dotnet_naming_style.i_prefixed_pascal_case.capitalization = pascal_case
 dotnet_naming_style.i_prefixed_pascal_case.required_prefix = I
 
@@ -114,12 +129,22 @@ dotnet_naming_rule.types_and_members_are_pascal_case.symbols = types_and_members
 dotnet_naming_rule.types_and_members_are_pascal_case.style = pascal_case
 dotnet_naming_rule.types_and_members_are_pascal_case.severity = suggestion
 
-# Private fields are camelCase with no underscore prefix
+# 'static readonly' fields are used for both constants-like values and cached instances, and the
+# codebase genuinely uses both PascalCase (BranchColors, FilePath, FatalTypes) and camelCase
+# (branchesRegEx, fetchInterval). Not policed, so neither style is flagged.
+dotnet_naming_symbols.static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.static_readonly_fields.applicable_accessibilities = *
+dotnet_naming_symbols.static_readonly_fields.required_modifiers = static, readonly
+dotnet_naming_rule.static_readonly_fields_any_case.symbols = static_readonly_fields
+dotnet_naming_rule.static_readonly_fields_any_case.style = any_case
+dotnet_naming_rule.static_readonly_fields_any_case.severity = none
+
+# Instance fields are camelCase with no underscore prefix
 dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private, protected, private_protected
 dotnet_naming_rule.private_fields_are_camel_case.symbols = private_fields
 dotnet_naming_rule.private_fields_are_camel_case.style = camel_case
-dotnet_naming_rule.private_fields_are_camel_case.severity = suggestion
+dotnet_naming_rule.private_fields_are_camel_case.severity = silent
 
 # Parameters and locals are camelCase
 dotnet_naming_symbols.parameters_and_locals.applicable_kinds = parameter, local
