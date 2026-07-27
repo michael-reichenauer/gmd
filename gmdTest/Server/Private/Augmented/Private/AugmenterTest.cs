@@ -254,6 +254,123 @@ public class AugmenterTest
         Assert.IsFalse(CommitOf(repo, "c1").HasStash);
     }
 
+    // A repo with no commits at all. The AugmentedService substitutes a virtual commit and a main
+    // branch for it, so the rest of the pipeline has something to work with.
+    [TestMethod]
+    public async Task TestEmptyRepoHasAVirtualCommitOnMain()
+    {
+        var repo = await new RepoBuilder().EmptyRepo().AugmentAsync();
+
+        Assert.AreEqual(1, repo.Commits.Count);
+        var commit = repo.CommitsById[gmd.Server.Repo.EmptyRepoCommitId];
+        StringAssert.Contains(commit.Subject, "empty repo");
+        Assert.AreEqual("main", commit.Branch?.Name);
+        Assert.IsTrue(commit.IsCurrent);
+
+        var main = repo.Branches["main"];
+        Assert.IsTrue(main.IsMainBranch);
+        Assert.IsNull(main.ParentBranch);
+        Assert.AreEqual(main.TipID, main.BottomID);
+    }
+
+    // A brand new repo, one commit on a local branch with no remote
+    [TestMethod]
+    public async Task TestSingleCommitRepo()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c1", "Initial")
+            .LocalBranch("main", "c1", isCurrent: true)
+            .AugmentAsync();
+
+        var c1 = CommitOf(repo, "c1");
+        Assert.AreEqual("main", c1.Branch?.Name);
+        Assert.IsTrue(c1.IsCurrent);
+        Assert.IsNull(c1.FirstParent);
+        Assert.AreEqual(0, c1.FirstChildren.Count);
+
+        var main = repo.Branches["main"];
+        Assert.IsTrue(main.IsMainBranch);
+        Assert.IsTrue(main.IsPrimary);
+        Assert.IsNull(main.ParentBranch, "The bottom commit has no parent, so the branch is a root branch");
+    }
+
+    // Git status is carried into the repo as it is, including the merge in progress state that the
+    // UI turns into the uncommitted commit's subject
+    [TestMethod]
+    public async Task TestStatusIsCarriedIntoTheRepo()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .WithStatus(
+                modified: 2,
+                added: 1,
+                conflicted: 1,
+                isMerging: true,
+                mergeMessage: "Merge branch 'dev'",
+                mergeHeadCommit: "c1"
+            )
+            .AugmentAsync();
+
+        var status = repo.Status;
+        Assert.AreEqual(4, status.ChangesCount, "Modified, added, deleted, conflicted and renamed are summed");
+        Assert.IsFalse(status.IsOk);
+        Assert.IsTrue(status.IsMerging);
+        Assert.AreEqual("Merge branch 'dev'", status.MergeMessage);
+        Assert.AreEqual(RepoBuilder.Sha("c1"), status.MergeHeadId);
+
+        // The uncommitted commit itself is not added here, it is added by AugmentedService after
+        // the repo has been converted, so the log holds only the real commits
+        Assert.AreEqual(2, repo.Commits.Count);
+        Assert.IsFalse(repo.CommitsById.ContainsKey(gmd.Server.Repo.UncommittedId));
+    }
+
+    // A local branch with unpushed commits. The local commits stay on the local branch while
+    // everything the remote branch has is on the remote branch.
+    [TestMethod]
+    public async Task TestLocalBranchAheadOfItsRemote()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("l1", "Not yet pushed", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "c1", ahead: 1)
+            .AugmentAsync();
+
+        Assert.AreEqual("main", BranchOf(repo, "l1"), "The unpushed commit is on the local branch");
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
+        Assert.AreEqual("origin/main", repo.Branches["main"].ParentBranch?.Name);
+    }
+
+    // Local and remote branch have both moved on. Each keeps its own commits, and they meet at
+    // the commit they share.
+    [TestMethod]
+    public async Task TestDivergedLocalAndRemoteBranchKeepTheirOwnCommits()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("l1", "Only local", "c2")
+            .Commit("r1", "Only on remote", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "r1", ahead: 1, behind: 1)
+            .AugmentAsync();
+
+        Assert.AreEqual("main", BranchOf(repo, "l1"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "r1"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"), "The shared commit belongs to the remote branch");
+
+        var local = repo.Branches["main"];
+        var remote = repo.Branches["origin/main"];
+        Assert.AreEqual(RepoBuilder.Sha("l1"), local.TipID);
+        Assert.AreEqual(RepoBuilder.Sha("l1"), local.BottomID, "The local branch is only the unpushed commit");
+        Assert.AreEqual(RepoBuilder.Sha("r1"), remote.TipID);
+        Assert.AreEqual(RepoBuilder.Sha("c1"), remote.BottomID);
+
+        // Whether the branches are ahead or behind is decided later, when the view repo is built
+        Assert.IsFalse(local.HasLocalOnly);
+        Assert.IsFalse(remote.HasRemoteOnly);
+    }
+
     // Two branches with the same nice name get a counter so the UI can tell them apart
     [TestMethod]
     public async Task TestDuplicateNiceNamesGetACounter()

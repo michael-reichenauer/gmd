@@ -154,6 +154,25 @@ class RepoBuilder
         return this;
     }
 
+    // Records that the user removed a previously set branch, as UnresolveAmbiguityAsync does.
+    // The entry is kept but emptied, so the removal itself can be shared with other users.
+    public RepoBuilder UnsetBranch(string commitName)
+    {
+        metaData.RemoveCommitBranch(Sid(commitName));
+        return this;
+    }
+
+    // A repo with no commits, i.e. the virtual commit and branch that the AugmentedService
+    // substitutes for a repo where 'git log' returned nothing.
+    public RepoBuilder EmptyRepo()
+    {
+        var id = gmd.Server.Repo.EmptyRepoCommitId;
+        var msg = "<... empty repo ...>";
+        commits.Add(new GitCommit(id, id.Sid(), [], msg, msg, "", BaseTime, BaseTime));
+        branches.Add(new GitBranch("main", id, true, false, "", false, 0, 0));
+        return this;
+    }
+
     // Marks the log as truncated, as done for repos with very many commits. Commits whose
     // parents are missing then get a virtual truncated parent commit.
     public RepoBuilder Truncated()

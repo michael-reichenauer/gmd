@@ -57,26 +57,60 @@ end, so related work stays together.
 
 ---
 
-## Step 2 — Finish the augmentation characterization tests
+## Step 2 — Finish the augmentation characterization tests ✅ done
 
 The safety net that has to exist before `BranchStructureService` (~950 lines) can be refactored.
-Extend `AugmenterTest` using `RepoBuilder`; no new infrastructure needed.
+Extended `AugmenterTest` using `RepoBuilder`, plus two new test classes for the subjects that grew
+their own: `BranchStructureServiceTest` (inference, ambiguity, hierarchy) and `MetaDataTest`.
+Suite went from 31 tests to 57.
 
-- [ ] Ambiguous commits and branches: `IsAmbiguous`, `IsAmbiguousTip`, `AmbiguousTip`,
-      `AmbiguousBranches`. User-visible via the `Φ` symbol and the resolve/unresolve menu items,
-      currently untested.
-- [ ] `ResolveAmbiguityAsync` / `UnresolveAmbiguityAsync` / `SetBranchManuallyAsync` round trips.
-- [ ] More merge-subject forms in `BranchNameService.ParseSubject`. The existing test covers 4;
-      real git sees many more (GitHub/GitLab/Azure PR wording, `Merge remote-tracking branch`,
-      localized clients, `Merge tag`).
-- [ ] Branch hierarchy edge cases: `DetermineAncestors`, and `IsCircularAncestors` — there is
-      explicit handling for circular ancestry that nothing currently exercises.
-- [ ] Root branch selection when none of `main`/`master`/`trunk` exist.
-- [ ] Divergent local/remote branches (`ahead`/`behind`, `HasLocalOnly`, `HasRemoteOnly`).
-- [ ] Empty repo (`Repo.EmptyRepoCommitId`) and single-commit repo.
-- [ ] Uncommitted changes (`Repo.UncommittedId`) via `RepoBuilder.WithStatus`, and merging state.
-- [ ] Consider extending `RepoBuilder` with a compact text form for large graphs if the fluent
-      calls start to obscure the shape being tested.
+- [x] Ambiguous commits and branches: `IsAmbiguous`, `IsAmbiguousTip`, `AmbiguousTip`,
+      `AmbiguousBranches`, including how ambiguity spreads down from the ambiguous tip.
+- [x] Resolve / unresolve / set-manually round trips. All three write the same metadata, so they
+      are covered from both ends: `MetaDataTest` for what gets stored, `BranchStructureServiceTest`
+      for what the pipeline then infers (resolve, unresolve, a name that is not a git branch, and
+      the `branched` entry `CreateBranchAsync` writes). `RepoBuilder` gained `UnsetBranch`.
+- [x] 20 more merge-subject forms in `BranchNameService.ParseSubject` — remote-tracking prefixes,
+      pull merges vs merges from a remote, GitHub and Azure DevOps pull requests, and the forms the
+      parser gets wrong (below).
+- [x] Branch hierarchy: `DetermineAncestors` over a three level hierarchy, and the truncated branch
+      being replaced by the root branch.
+- [x] Root branch selection when none of `main`/`master`/`trunk` exist.
+- [x] Divergent local/remote branches — the branch structure part. See Step 3 for `ahead`/`behind`.
+- [x] Empty repo (`Repo.EmptyRepoCommitId`, via the new `RepoBuilder.EmptyRepo`) and single-commit
+      repo.
+- [x] Status and merging state via `RepoBuilder.WithStatus`. See Step 3 for `Repo.UncommittedId`.
+- [x] `RepoBuilder` stayed readable, so no compact text form was needed. Revisit in Step 3, where
+      the fixtures get bigger.
+
+### Findings
+
+Pinned by tests as current behavior, not fixed — each is a behavior change that deserves its own
+commit.
+
+- [ ] `BranchNameService.ParseSubject` misreads four real subject forms
+      (`BranchNameServiceTest.TestSubjectFormsTheParserGetsWrong`):
+      - `.` is not in the name character class, so `Merge branch 'release/1.0' into develop` yields
+        the name `release/1` and loses the `into` part entirely. Dots in branch names are common.
+      - GitLab quotes the target too (`into 'main'`), which the `into` group does not allow.
+      - `Merge tag 'v1.2.3' into main` and `Merge branches 'a' and 'b' into main` are read as
+        branches named `tag` and `branches`.
+      A fix is a regex change plus keyword handling; the tests make it safe to attempt.
+- [ ] The circular-ancestor guard in `DetermineAncestors` is commented out, so
+      `WorkBranch.IsCircularAncestors` is never set — while `ViewRepoCreater` still filters on
+      `Branch.IsCircularAncestors` in three places, i.e. that filtering is dead code today. Worse,
+      without the guard a genuine cycle makes the `while (ancestor != null)` loop run forever and
+      grow `Ancestors` until it runs out of memory. Either restore the guard or delete both it and
+      the flag. No test — a cycle could not be produced through the public pipeline.
+- [ ] With no `main`/`master`/`trunk` branch, the root/main branch is whichever branch git happened
+      to list first — not the current branch, not the one with the most commits
+      (`TestRootBranchWithoutAMainNameIsTheFirstBranch` shows the result flipping when only the
+      branch order changes). A repo with e.g. only `dev` and an orphan `docs` branch can get `docs`
+      as its main branch.
+- [ ] A commit below a branch point is claimed by whichever child branch has a name parsed from a
+      merge subject, even when the other child is the branch it really belongs to
+      (`TestCommitBelowABranchPointFollowsTheChildWithAKnownName`: a `dev` commit ends up on
+      `feature`, and `dev` ends up branched out of `feature`).
 
 ## Step 3 — Snapshot tests for the graph rendering
 
@@ -94,6 +128,14 @@ without a Terminal.Gui driver. These read as pictures of the graph, which makes 
 - [ ] Colors via `Text.Fragments` for `BranchColorService` (colors are stable per branch).
 - [ ] Decide inline expected strings (preferred — reviewable in the diff, no extra tooling)
       versus a committed approval-file workflow.
+- [ ] Moved here from Step 2, since neither is produced by the augmenter:
+      - `ahead`/`behind` and `HasLocalOnly`/`HasRemoteOnly` are set by `ViewRepoCreater`, which
+        needs the fake `IRepoConfig` above. The augmenter only gives the branches their commits;
+        `AugmenterTest.TestDivergedLocalAndRemoteBranchKeepTheirOwnCommits` covers that half.
+      - The uncommitted commit (`Repo.UncommittedId`) is added by `AugmentedService`
+        `AdjustUncommitted`, after `Converter`. Testing it needs `AugmentedService` to be
+        constructible, i.e. doubles for `IGit`, `IFileMonitor` and `IMetaDataService`. The status it
+        is built from is already covered by `AugmenterTest.TestStatusIsCarriedIntoTheRepo`.
 
 ## Step 4 — Remaining git output parsers
 
