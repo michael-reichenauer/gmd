@@ -89,24 +89,48 @@ public class BranchNameServiceTest
         Assert.AreEqual(new FromInto("", "", false, false), Parse(""));
     }
 
-    // Known limitations, pinned so a future rewrite of the regex is a deliberate change rather
-    // than an accident. See MODERNIZATION.md step 2 for the list.
+    // Dots are common in branch names, e.g. release branches. A git ref can neither start nor end
+    // with a dot, so a name is never read past a sentence ending.
     [TestMethod]
-    public void TestSubjectFormsTheParserGetsWrong()
+    public void TestBranchNamesWithDots()
     {
-        // A dot is not part of the accepted name characters, so the name is truncated at it and
-        // the rest of the subject, including the 'into' part, is then not matched
-        Assert.AreEqual(new FromInto("release/1", "", false, false), Parse("Merge branch 'release/1.0' into develop"));
+        Assert.AreEqual(
+            new FromInto("release/1.0", "develop", false, false),
+            Parse("Merge branch 'release/1.0' into develop")
+        );
+        Assert.AreEqual(new FromInto("v1.2.x", "main", false, false), Parse("Merge branch 'v1.2.x' into main"));
+        Assert.AreEqual(new FromInto("dev", "", false, false), Parse("Merged from dev."));
+    }
 
-        // GitLab quotes the target branch too, which the 'into' group does not allow
-        Assert.AreEqual(new FromInto("feature/x", "", false, false), Parse("Merge branch 'feature/x' into 'main'"));
+    // GitLab quotes the target branch as well as the source branch
+    [TestMethod]
+    public void TestGitLabQuotesTheTargetBranch()
+    {
+        Assert.AreEqual(new FromInto("feature/x", "main", false, false), Parse("Merge branch 'feature/x' into 'main'"));
+    }
 
-        // 'tag' and 'branches' are not known keywords, so they are read as the branch name
-        Assert.AreEqual(new FromInto("tag", "", false, false), Parse("Merge tag 'v1.2.3' into main"));
-        Assert.AreEqual(new FromInto("branches", "", false, false), Parse("Merge branches 'a' and 'b' into main"));
+    // Merging a tag is not merging a branch, but the merged commits still need a name to be shown
+    // under, and the subject still says which branch they were merged into
+    [TestMethod]
+    public void TestMergeOfATag()
+    {
+        Assert.AreEqual(new FromInto("v1.2.3", "main", false, false), Parse("Merge tag 'v1.2.3' into main"));
+    }
 
-        // A revert of a merge is parsed as if it were the merge itself. Harmless in practice,
-        // since only commits with two parents are parsed.
+    // An octopus merge has more than two parents. Only the first merged branch gets a name, since
+    // the parser answers "which branch is this one commit on".
+    [TestMethod]
+    public void TestOctopusMergeSubject()
+    {
+        Assert.AreEqual(new FromInto("a", "main", false, false), Parse("Merge branches 'a' and 'b' into main"));
+        Assert.AreEqual(new FromInto("a", "main", false, false), Parse("Merge branches 'a', 'b' and 'c' into main"));
+    }
+
+    // Known limitation, pinned so that changing it is a deliberate choice
+    [TestMethod]
+    public void TestRevertOfAMergeIsParsedAsTheMerge()
+    {
+        // Harmless in practice, since only commits with two parents are parsed
         Assert.AreEqual(new FromInto("dev", "main", false, false), Parse("Revert \"Merge branch 'dev' into main\""));
     }
 }

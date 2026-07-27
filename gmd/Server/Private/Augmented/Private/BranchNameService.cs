@@ -23,19 +23,28 @@ class BranchNameService : IBranchNameService
 
     static readonly string[] prefixes = { "refs/remotes/origin/", "remotes/origin/", "origin/" };
 
-    // Parse subject like e.g. "Merge branch 'develop' into main"
+    // A branch name may contain dots, e.g. 'release/1.0', but a git ref can neither start nor end
+    // with one, so the name is bounded by a non-dot character. That also keeps a sentence ending
+    // like "Merged from dev." from taking the period as part of the name.
+    const string namePattern = @"[0-9A-Za-z_/-](?:[0-9A-Za-z_/.-]*[0-9A-Za-z_/-])?";
+
+    // Parse subject like e.g. "Merge branch 'develop' into main".
+    // Only the parts that are used are captured, the rest are non-capturing groups, so that adding
+    // a group cannot shift the meaning of another one.
     static readonly string regExText =
         @"[Mm]erged?"
         + //                                 'Merge' or 'merged' word
-        @"(\s+remote-tracking)?"
-        + //                      'remote-tracking' optional word when merging remote branches
-        @"(\s+(pull request #[0-9]+ from|PR|from branch|branch|commit|from))?"
-        + //     'branch'|'commit'|'from' word
-        @"\s+'?(?<from>[0-9A-Za-z_/-]+)'?"
-        + //           the <from> branch name
+        @"(?:\s+remote-tracking)?"
+        + //                    'remote-tracking' optional word when merging remote branches
+        @"(?:\s+(?<keyword>pull request #[0-9]+ from|PR|from branch|branches|branch|commit|tag|from))?"
+        + // 'branch'|'commit'|'tag'|'from' word ('branches' before 'branch' to match the longer one)
+        $@"\s+'?(?<from>{namePattern})'?"
+        + //          the <from> branch name
+        $@"(?:(?:\s*,|\s+and)\s+'?{namePattern}'?)*"
+        + // the other names of an octopus merge, e.g. "branches 'a', 'b' and 'c'"
         @"(?<direction>\s+of\s+[^\s]+)?"
         + //             the optional 'of repo url'
-        @"(\s+(into|to)\s+(?<into>[0-9A-Za-z_/-]+))?"; // the <into> branch name
+        $@"(?:\s+(?:into|to)\s+'?(?<into>{namePattern})'?)?"; // the <into> branch name, quoted by GitLab
 
     static readonly Regex branchesRegEx = new Regex(
         regExText,
@@ -138,8 +147,8 @@ class BranchNameService : IBranchNameService
         {
             // Subject is a pull request
             var fr = TrimBranchName(match.Groups[indexes.from].Value);
-            if (match.Groups[3].Value == "PR")
-            {
+            if (match.Groups["keyword"].Value == "PR")
+            { // Azure DevOps does not name the branch, so the pull request number is used instead
                 fr = "PR" + fr;
             }
             return new FromInto(From: fr, Into: TrimBranchName(match.Groups[indexes.into].Value), false, true);

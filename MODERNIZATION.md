@@ -88,14 +88,23 @@ Suite went from 31 tests to 57.
 Pinned by tests as current behavior, not fixed — each is a behavior change that deserves its own
 commit.
 
-- [ ] `BranchNameService.ParseSubject` misreads four real subject forms
-      (`BranchNameServiceTest.TestSubjectFormsTheParserGetsWrong`):
-      - `.` is not in the name character class, so `Merge branch 'release/1.0' into develop` yields
-        the name `release/1` and loses the `into` part entirely. Dots in branch names are common.
-      - GitLab quotes the target too (`into 'main'`), which the `into` group does not allow.
-      - `Merge tag 'v1.2.3' into main` and `Merge branches 'a' and 'b' into main` are read as
-        branches named `tag` and `branches`.
-      A fix is a regex change plus keyword handling; the tests make it safe to attempt.
+- [x] **Fixed: `BranchNameService.ParseSubject` misread four real subject forms.** All four lost
+      the `into` name, i.e. the branch of the merge commit itself, and two of them invented a
+      branch name out of a keyword:
+      - `.` was not in the name character class, so `Merge branch 'release/1.0' into develop` gave
+        the name `release/1` and then failed to match the rest. Dots in branch names are common
+        (release branches). The name pattern now allows dots but is bounded by a non-dot character
+        at both ends, since a git ref can neither start nor end with one — so a sentence ending
+        like `Merged from dev.` still does not take the period into the name.
+      - GitLab quotes the target too (`into 'main'`); the `into` group now accepts the quotes.
+      - `Merge tag 'v1.2.3' into main` and `Merge branches 'a', 'b' and 'c' into main` were read as
+        branches named `tag` and `branches`. `tag` and `branches` are now keywords, and an octopus
+        merge's remaining names are skipped so the `into` name is still found.
+
+      Two related changes came with it: the structural groups in the regex are non-capturing and
+      the keyword group is named, so `ParseSubject` no longer reaches for `Groups[3]` — a hardcoded
+      positional index that any new group would have silently shifted. Verified against all 86
+      distinct merge subjects in this repo's history: identical results before and after.
 - [ ] The circular-ancestor guard in `DetermineAncestors` is commented out, so
       `WorkBranch.IsCircularAncestors` is never set — while `ViewRepoCreater` still filters on
       `Branch.IsCircularAncestors` in three places, i.e. that filtering is dead code today. Worse,
