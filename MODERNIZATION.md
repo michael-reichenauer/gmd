@@ -105,12 +105,15 @@ commit.
       the keyword group is named, so `ParseSubject` no longer reaches for `Groups[3]` — a hardcoded
       positional index that any new group would have silently shifted. Verified against all 86
       distinct merge subjects in this repo's history: identical results before and after.
-- [ ] The circular-ancestor guard in `DetermineAncestors` is commented out, so
-      `WorkBranch.IsCircularAncestors` is never set — while `ViewRepoCreater` still filters on
-      `Branch.IsCircularAncestors` in three places, i.e. that filtering is dead code today. Worse,
-      without the guard a genuine cycle makes the `while (ancestor != null)` loop run forever and
-      grow `Ancestors` until it runs out of memory. Either restore the guard or delete both it and
-      the flag. No test — a cycle could not be produced through the public pipeline.
+- [ ] **Deliberately left as is for now, revisit later.** The circular-ancestor guard in
+      `DetermineAncestors` is commented out, so `WorkBranch.IsCircularAncestors` is never set —
+      while `ViewRepoCreater` still filters on `Branch.IsCircularAncestors` in three places, i.e.
+      that filtering is dead code today. Without the guard a genuine cycle makes the
+      `while (ancestor != null)` loop run forever and grow `Ancestors` until it runs out of memory.
+      The commented-out block was a quick workaround for a problem hit at the time, so the right
+      fix is to find out what produced the cycle before deciding whether to restore the guard or
+      delete both it and the flag. No test — a cycle could not be produced through the public
+      pipeline.
 - [x] **Fixed: with no `main`/`master`/`trunk` branch, the root/main branch was whichever branch git
       happened to list first.** A repo with only `dev` and an orphan `docs` branch could get `docs`
       as its main branch, and that is not cosmetic: the main branch is always forced into the log
@@ -124,10 +127,37 @@ commit.
       and its commit carries `DateTime(1,1,1)`, so any ranking by age would always have picked it.
       It is now excluded — being the scaffold that the block right below deletes, selecting it
       would have left every branch pointing at a removed parent.
-- [ ] A commit below a branch point is claimed by whichever child branch has a name parsed from a
-      merge subject, even when the other child is the branch it really belongs to
-      (`TestCommitBelowABranchPointFollowsTheChildWithAKnownName`: a `dev` commit ends up on
-      `feature`, and `dev` ends up branched out of `feature`).
+- [x] **Fixed: a commit below a branch point was claimed by whichever child branch had a name
+      parsed from a merge subject**, even when the other child was the branch it really belonged
+      to. A `dev` commit ended up on `feature`, and worse, `dev` then looked branched out of the
+      `feature` branch it had merged in — the hierarchy came out inverted.
+
+      Root cause was one comparison in `DetermineAllCommitsBranches`: the `IsLikely` flag was set
+      by `branch.Name == name`, where `name` is a nice name parsed from a merge subject (`dev`)
+      while `branch.Name` is the primary branch name, i.e. the *remote* name (`origin/dev`) for any
+      branch that has a remote. So a merge commit on a tracked branch was never marked likely, and
+      only the other child was — which is why the wrong child won. The comparison now also accepts
+      a remote branch's nice name.
+
+      Deliberately narrow: it matches by nice name only for remote branches, *not* for a deleted
+      branch recovered from a merge subject. Those are named `<nice name>:<sid>`, so matching them
+      by nice name makes every merge into a recovered branch look like a confirmation of a name
+      that was only ever a guess — which moved 104 commits off `dev` onto a deleted feature branch
+      when tried against this repo's real history.
+
+      The branch point itself stays ambiguous, and that is the honest answer: git records nothing
+      about which branch the commit a branch was started from belongs to. gmd now marks it and
+      offers the choice instead of silently guessing wrong, and the commit that ends up as the
+      "most likely" one is now the branch that was merged into.
+
+      Verified against this repo's real history (1747 commits, 73 branches): identical result
+      before and after, still zero ambiguous commits.
+- [ ] Considered and rejected: using a merge commit's first parent to decide the branch of the
+      commit below a branch point. It looks like solid evidence — git's first parent is the branch
+      that was merged into — but it is wrong whenever a branch is created and its first commit is a
+      merge, since the first parent is then on the *parent* branch. Against this repo's real
+      history it moved the same 104 commits onto `branches/fixmergeline`, a branch created from
+      `dev` that immediately merged `dev` back in.
 
 ## Step 3 — Snapshot tests for the graph rendering
 

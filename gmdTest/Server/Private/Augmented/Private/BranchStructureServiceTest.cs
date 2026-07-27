@@ -239,12 +239,23 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Branches.Values.Any(b => b.IsCircularAncestors));
     }
 
-    // A commit below a branch point is claimed by whichever child branch has a name parsed from a
-    // merge subject. Here d1 is a dev commit, but the feature branch is the one with a known name,
-    // so d1 ends up on feature and dev ends up branched out of feature rather than the other way
-    // around. Pinned as current behavior, see MODERNIZATION.md step 2.
+    // The commit a branch was started from is shared by both branches, and git records nothing
+    // about which of them it belongs to. It is genuinely ambiguous, so gmd marks it and lets the
+    // user settle it. What it must not do is silently pick the new branch: the branch that was
+    // merged into is the more likely one, and picking the other way also drags the whole hierarchy
+    // with it, since the branch would then look branched out of the branch it merged in.
+    //
+    //   c2      main, merges dev
+    //   |\
+    //   | d2    dev, merges feature
+    //   | |\
+    //   | | f1  feature
+    //   | |/
+    //   | d1    dev or feature? feature was started here
+    //   |/
+    //   c1      main
     [TestMethod]
-    public async Task TestCommitBelowABranchPointFollowsTheChildWithAKnownName()
+    public async Task TestCommitBelowABranchPointIsTheMergedIntoBranchAndAmbiguous()
     {
         var repo = await new RepoBuilder()
             .Commit("c2", "Merge branch 'dev' into main", "c1", "d2")
@@ -257,10 +268,87 @@ public class BranchStructureServiceTest
             .LocalBranch("feature", "f1")
             .AugmentAsync();
 
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
         Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
         Assert.AreEqual("feature", BranchOf(repo, "f1"));
-        Assert.AreEqual("feature", BranchOf(repo, "d1"), "Surprising: d1 is a dev commit");
-        Assert.AreEqual("feature", repo.Branches["origin/dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
+
+        // The shared commit goes to dev, the branch that was merged into, and is marked so the
+        // user can move it to feature if that is where it belongs
+        var d1 = CommitOf(repo, "d1");
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsTrue(d1.IsAmbiguous);
+        Assert.IsTrue(d1.IsAmbiguousTip);
+        CollectionAssert.AreEqual(new[] { "origin/dev", "feature" }, d1.Branches.Select(b => b.Name).ToArray());
+
+        // Which gives the expected hierarchy, main <- dev <- feature
+        Assert.AreEqual(RepoBuilder.Sha("d1"), repo.Branches["origin/dev"].BottomID);
+        Assert.AreEqual("origin/main", repo.Branches["origin/dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/dev", repo.Branches["feature"].ParentBranch?.Name);
+    }
+
+    // Same shape, but with no remote branches. The merged into branch is then the local branch.
+    [TestMethod]
+    public async Task TestCommitBelowABranchPointIsALocalOnlyMergedIntoBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Merge branch 'dev' into main", "c1", "d2")
+            .Commit("d2", "Merge branch 'feature' into dev", "d1", "f1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .LocalBranch("dev", "d2")
+            .LocalBranch("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("dev", BranchOf(repo, "d1"));
+        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.AreEqual("origin/main", repo.Branches["dev"].ParentBranch?.Name);
+        Assert.AreEqual("dev", repo.Branches["feature"].ParentBranch?.Name);
+    }
+
+    // And the user can settle the branch point for good, which is then shared with other users
+    [TestMethod]
+    public async Task TestResolvingTheBranchPointClearsTheAmbiguity()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Merge branch 'dev' into main", "c1", "d2")
+            .Commit("d2", "Merge branch 'feature' into dev", "d1", "f1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .LocalBranch("feature", "f1")
+            .UserSetBranch("d1", "dev")
+            .AugmentAsync();
+
+        var d1 = CommitOf(repo, "d1");
+        Assert.AreEqual("origin/dev", d1.Branch?.Name, "The remote branch is preferred over the local one");
+        Assert.IsFalse(d1.IsAmbiguous);
+        Assert.IsFalse(repo.Branches.Values.Any(b => b.IsAmbiguousBranch));
+    }
+
+    // The same rule keeps the commits below a series of merges on the branch they were merged into
+    [TestMethod]
+    public async Task TestCommitBelowSeveralMergesStaysOnTheMergedIntoBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m2", "Merge branch 'b' into main", "m1", "b1")
+            .Commit("m1", "Merge branch 'a' into main", "c1", "a1")
+            .Commit("b1", "Work b", "c1")
+            .Commit("a1", "Work a", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "m2", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/main", BranchOf(repo, "m1"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"), "c1 has a merge child and two branches out");
+
+        // Both merged branches were deleted, so they are recovered from the merge subjects
+        Assert.AreEqual($"a:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
+        Assert.AreEqual($"b:{RepoBuilder.Sid("b1")}", BranchOf(repo, "b1"));
     }
 
     // An orphan branch, e.g. a docs or gh-pages branch, has its own first commit and so is a root

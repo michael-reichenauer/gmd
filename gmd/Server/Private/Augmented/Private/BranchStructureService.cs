@@ -138,7 +138,7 @@ class BranchStructureService : IBranchStructureService
             c.Branches.TryAdd(branch);
 
             // Set the IsLikely property if the branch is likely to be the correct branch
-            if (branchNameService.TryGetBranchName(c.Id, out string name) && branch.Name == name)
+            if (branchNameService.TryGetBranchName(c.Id, out string name) && IsNameOfBranch(branch, name))
             { // This flag might improve other commits below to select correct branch;
                 c.IsLikely = true;
             }
@@ -150,6 +150,15 @@ class BranchStructureService : IBranchStructureService
             c.Branch.BottomID = c.Id;
         }
     }
+
+    // A name parsed from a merge subject is a nice name, e.g. 'dev', while the branch a commit was
+    // assigned to is the primary branch, which is the remote branch, e.g. 'origin/dev', whenever
+    // the branch has one. So a plain name comparison would only ever match a branch with no remote.
+    // Deliberately not matched by nice name: a deleted branch recovered from a merge subject is
+    // named "<nice name>:<sid>", and every merge into it then looks like a confirmation of a name
+    // that was only ever a guess.
+    static bool IsNameOfBranch(WorkBranch branch, string name) =>
+        branch.Name == name || (branch.IsRemote && branch.NiceName == name);
 
     WorkBranch DetermineCommitBranch(WorkRepo repo, WorkCommit commit, GitRepo gitRepo)
     {
