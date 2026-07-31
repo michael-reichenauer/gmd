@@ -159,30 +159,66 @@ commit.
       history it moved the same 104 commits onto `branches/fixmergeline`, a branch created from
       `dev` that immediately merged `dev` back in.
 
-## Step 3 — Snapshot tests for the graph rendering
+## Step 3 — Snapshot tests for the graph rendering ✅ done
 
 `Text.ToString()` flattens the styled output to a plain string, so the drawn graph is testable
 without a Terminal.Gui driver. These read as pictures of the graph, which makes them reviewable.
+Suite went from 57 tests to 100, in three new test classes: `GraphTest` (the drawn graph),
+`ViewRepoCreaterTest` (what ends up in view) and `ServerTest` (show/hide), plus
+`BranchColorServiceTest`.
 
-- [ ] Fake `IRepoConfig` (two methods, in-memory) so `BranchColorService` and `ViewRepoCreater`
-      can be constructed in tests.
-- [ ] Pipeline helper: `GitRepo → Augmenter → Converter → ViewRepoCreater → GraphCreater →
-      GraphWriter → string`.
-- [ ] Snapshot tests over the Step 2 fixtures: linear history, branch out and merge, several
-      concurrent branches, merges from deleted branches, truncated log.
-- [ ] Branch show/hide (`ShowBranch`/`HideBranch`, the `ShowBranches` modes) — the product's
-      distinguishing feature and entirely untested.
-- [ ] Colors via `Text.Fragments` for `BranchColorService` (colors are stable per branch).
-- [ ] Decide inline expected strings (preferred — reviewable in the diff, no extra tooling)
-      versus a committed approval-file workflow.
-- [ ] Moved here from Step 2, since neither is produced by the augmenter:
-      - `ahead`/`behind` and `HasLocalOnly`/`HasRemoteOnly` are set by `ViewRepoCreater`, which
-        needs the fake `IRepoConfig` above. The augmenter only gives the branches their commits;
-        `AugmenterTest.TestDivergedLocalAndRemoteBranchKeepTheirOwnCommits` covers that half.
-      - The uncommitted commit (`Repo.UncommittedId`) is added by `AugmentedService`
-        `AdjustUncommitted`, after `Converter`. Testing it needs `AugmentedService` to be
-        constructible, i.e. doubles for `IGit`, `IFileMonitor` and `IMetaDataService`. The status it
-        is built from is already covered by `AugmenterTest.TestStatusIsCarriedIntoTheRepo`.
+- [x] `FakeRepoConfig` (`gmdTest/Fixtures/`), an in-memory `IRepoConfig`, so `BranchColorService`
+      and `ViewRepoCreater` can be constructed in tests.
+- [x] Pipeline helper: `RepoBuilder.ViewRepoAsync()` runs `GitRepo → Augmenter → Converter →
+      AugmentedService → ViewRepoCreater`, and `GraphText` (`gmdTest/Fixtures/`) runs
+      `GraphCreater → GraphWriter → string`. `GraphText.WithSubjects` writes the commit subject
+      after the graph so the expected value is a self describing picture, `GraphText.ColorsOf`
+      writes one letter per rune telling its color.
+- [x] Snapshot tests over the Step 2 fixtures: linear history, branch out and merge, several
+      concurrent branches, merges from deleted branches, truncated log, uncommitted changes,
+      diverged local/remote, ambiguous and user assigned commits.
+- [x] Branch show/hide: `ShowBranch`/`HideBranch` as pictures in `GraphTest` (including the dark
+      `╮`/`╯` markers a hidden branch leaves behind) and as branch lists in `ServerTest`, plus all
+      four `ShowBranches` modes in `ViewRepoCreaterTest`.
+- [x] Colors via `Text.Fragments`: `BranchColorServiceTest` pins the derived colors (main always
+      magenta, local and remote sharing the color of their primary name, a child stepped one color
+      when it collides with its parent, detached white) and `GraphTest` asserts the colors of the
+      drawn runes.
+- [x] Inline expected strings, no approval files. C# raw string literals keep the picture readable
+      in the source and reviewable in the diff, and CSharpier re-indenting one does not change its
+      value.
+- [x] Moved here from Step 2, since neither is produced by the augmenter:
+      - `ahead`/`behind` and `HasLocalOnly`/`HasRemoteOnly`, set by `ViewRepoCreater`. See the
+        finding below.
+      - The uncommitted commit (`Repo.UncommittedId`), added by `AugmentedService`
+        `AdjustUncommitted` after `Converter`. `RepoBuilder` now builds the real `AugmentedService`
+        with `FakeGit`, `FakeFileMonitor` and `FakeMetaDataService` (`gmdTest/Fixtures/`), so
+        `ViewRepoAsync` returns the same repo the UI gets. `FakeGit` implements only the members
+        the pipeline reaches and throws on the rest, so a test that starts depending on git fails
+        loudly.
+
+### Findings
+
+- [ ] **`ViewRepoCreater.SetAheadBehind` loses `HasRemoteOnly` on the local branch of a diverged
+      pair.** `SetBehindCommits` runs first (branches are sorted remote before local) and writes
+      `HasRemoteOnly` on both branches of the pair. `SetAheadCommits` then writes `HasLocalOnly`
+      using the `localBranch` it was passed — a copy taken by the `foreach` in `SetAheadBehind`
+      *before* that write — so the flag is overwritten back to false. The remote branch keeps both,
+      since `SetAheadCommits` re-reads it from the list.
+
+      Not cosmetic: `BranchCommands.CanPush()` and `PushAllBranches()` both filter on
+      `HasLocalOnly && !HasRemoteOnly`, i.e. "ahead but not behind, so it is safe to push". A
+      diverged branch passes that filter, so 'Push all branches' tries to push it and git rejects
+      it as non-fast-forward. `PushCurrentBranch` is unaffected, it looks at the remote branch.
+      Pinned as current behavior by
+      `ViewRepoCreaterTest.TestDivergedBranchesHaveLocalOnlyAndRemoteOnlyCommits`. The fix is to
+      re-read the local branch from the list, like `SetBehindCommits` already does.
+- [ ] Minor: the `Φ` of a commit the user assigned to a branch is drawn in the branch color rather
+      than white whenever that commit is also a branch out point. `DrawBranch` sets the sign white,
+      but `DrawBranchFromParent` then calls `SetGraphBranch` for the same cell and `SetBranch`
+      overwrites `BranchColor` unconditionally. Since a commit is normally ambiguous *because* it
+      is a branch out point, the white almost never survives. Pinned by
+      `GraphTest.TestCommitAssignedByUser`.
 
 ## Step 4 — Remaining git output parsers
 

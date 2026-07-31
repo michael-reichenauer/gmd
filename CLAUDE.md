@@ -195,7 +195,7 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 MSTest 3.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout. Growing this suite is
 an explicit goal — see `MODERNIZATION.md` for what is planned next.
 
-There are two pieces of test infrastructure; use them rather than inventing a third way.
+There are three pieces of test infrastructure; use them rather than inventing a fourth way.
 
 **`RepoBuilder`** (`gmdTest/Fixtures/`) builds a `GitRepo` — the raw facts git would report —
 and runs the real augmentation pipeline. Commits are declared **newest first** (git log order)
@@ -216,6 +216,37 @@ Assert.AreEqual("dev", repo.CommitsById[RepoBuilder.Sha("d1")].Branch!.Name);
 
 Watch out: a commit declared with no parents is a **root**, so forgetting the parent silently
 changes the graph under test rather than failing loudly.
+
+`AugmentAsync()` stops at the `WorkRepo`. `ViewRepoAsync(...)` goes all the way to the
+`Server.Repo` the UI renders — augmentation, the uncommitted commit, and the branches the user
+chose to show — by building the real `AugmentedService` and `ViewRepoCreater` with the fakes in
+`gmdTest/Fixtures/` (`FakeGit`, `FakeFileMonitor`, `FakeMetaDataService`, `FakeRepoConfig`).
+`FakeGit` implements only the members the pipeline reaches and throws on the rest, so a test that
+starts depending on git fails loudly. `builder.Config` is the in-memory `IRepoConfig`, for tests
+that set branch colors or branch order.
+
+**`GraphText`** (`gmdTest/Fixtures/`) draws the graph of a view repo as plain text, so the
+expected value is a picture that can be reviewed by looking at it:
+
+```csharp
+var repo = await new RepoBuilder()
+    .Commit("c2", "Second", "c1")
+    .Commit("c1", "Initial")
+    .BranchWithRemote("main", "c2", isCurrent: true)
+    .ViewRepoAsync();                         // or ViewRepoAsync("dev"), ViewRepoAsync(ShowBranches.AllActive)
+
+Assert.AreEqual(
+    """
+    ┣─┺  Second
+    ┗    Initial
+    """,
+    GraphText.WithSubjects(repo));
+```
+
+`Of` is the graph alone, `WithSubjects` adds the commit subject, and `ColorsOf` gives one letter
+per rune telling its color (`M` magenta, `B` blue, `W` white, …), aligned under `Of`. Use raw
+string literals for the expected value — they keep the picture readable and their value is
+unaffected by CSharpier re-indenting them.
 
 **`FakeCmd`** (`gmdTest/Utils/`) is a double for `ICmd`, the seam between the git services and
 the `git` executable. Every git service takes `ICmd` in its constructor, so canned output tests
@@ -238,10 +269,8 @@ Other things to know:
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:
   `Augmenter` → `BranchStructureService` → `BranchNameService` have no other dependencies, and
   `Converter` has none at all. `RepoBuilder.NewAugmenter()` wires it up.
-- `Text.ToString()` flattens styled output to a plain string, so `GraphWriter` output can be
-  snapshot-tested as ASCII art without a Terminal.Gui driver.
-- `BranchColorService` and `ViewRepoCreater` need `IRepoConfig`, a two-method interface that
-  fakes in-memory.
+- `Text.ToString()` flattens styled output to a plain string, which is how `GraphText` snapshots
+  `GraphWriter` output as ASCII art without a Terminal.Gui driver.
 - Tests that need a real repository should create a throwaway repo in a temp dir and drive it
   through `IGit`; **never** run git commands against this working tree.
 - Terminal.Gui views are not unit-testable without a driver — keep logic out of the view

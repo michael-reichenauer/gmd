@@ -1,9 +1,14 @@
+using gmd.Server;
+using gmd.Server.Private;
 using gmd.Server.Private.Augmented.Private;
+using AugConverter = gmd.Server.Private.Augmented.Private.Converter;
 using GitBranch = gmd.Git.Branch;
 using GitCommit = gmd.Git.Commit;
 using GitStash = gmd.Git.Stash;
 using GitStatus = gmd.Git.Status;
 using GitTag = gmd.Git.Tag;
+using ServerImpl = gmd.Server.Private.Server;
+using ViewConverter = gmd.Server.Private.Converter;
 
 namespace gmdTest.Fixtures;
 
@@ -24,6 +29,10 @@ namespace gmdTest.Fixtures;
 //         .BranchWithRemote("main", "c3", isCurrent: true)
 //         .AugmentAsync();
 //     Assert.AreEqual("origin/main", workRepo.CommitsById[RepoBuilder.Sha("c2")].Branch!.Name);
+//
+// AugmentAsync() stops at the WorkRepo the augmentation pipeline produces. ViewRepoAsync() goes
+// all the way to the Server.Repo the UI renders, i.e. it also adds the uncommitted commit and
+// applies the user's choice of which branches to show. Use GraphText to draw that as a picture.
 class RepoBuilder
 {
     // Fixed so that repeated runs produce identical repos. Branch view naming orders branches
@@ -222,6 +231,56 @@ class RepoBuilder
     // Runs the real augmentation pipeline (branch inference, hierarchy, view names)
     public Task<WorkRepo> AugmentAsync() => NewAugmenter().GetAugRepoAsync(ToGitRepo());
 
+    // The per repo user choices (branch colors and branch order) the view repo and the branch
+    // colors are based on. In-memory, so a test can set them without touching disk.
+    public FakeRepoConfig Config { get; } = new FakeRepoConfig();
+
+    // The augmented repo the server layer works with: all commits and branches with the inferred
+    // branch structure, plus the virtual uncommitted commit if the status has changes. No branch
+    // is in view yet, that is what ViewRepoAsync adds.
+    public async Task<Repo> AugmentedRepoAsync()
+    {
+        var repo = new AugConverter().ToRepo(await AugmentAsync());
+
+        // The uncommitted commit is added by the augmented service, i.e. after the converter
+        var result = await NewAugmentedService().UpdateRepoStatusAsync(repo);
+        if (!Try(out var repoWithUncommitted, out var e, result))
+            throw new InvalidOperationException($"Failed to add the uncommitted commit: {e}");
+
+        return repoWithUncommitted;
+    }
+
+    // The view repo the UI renders, i.e. only the branches the user chose to show (with their
+    // ancestors and related branches) and the commits on them. With no branches given, the
+    // current branch is shown, and the main branch is always included.
+    public async Task<Repo> ViewRepoAsync(params string[] showBranches) =>
+        NewViewRepoCreater().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches);
+
+    // The view repo for one of the show-all modes, e.g. all active branches
+    public async Task<Repo> ViewRepoAsync(ShowBranches show, int count = 1, params string[] showBranches) =>
+        NewViewRepoCreater().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches, show, count);
+
+    // The real server layer, with git, the file monitor and the config faked out. Needed for the
+    // branch show/hide commands, which work on an already created view repo.
+    public IServer NewServer() =>
+        new ServerImpl(NewGit(), NewAugmentedService(), new ViewConverter(), NewViewRepoCreater());
+
     // The augmenter with its real collaborators, none of which touch git, disk or the terminal
     public static IAugmenter NewAugmenter() => new Augmenter(new BranchStructureService(new BranchNameService()));
+
+    FakeGit NewGit() => new FakeGit(status);
+
+    ViewRepoCreater NewViewRepoCreater() => new ViewRepoCreater(new ViewConverter(), Config);
+
+    // The real augmented service, which only git, the file monitor and the shared meta data are
+    // faked out of. The repo is augmented from the built GitRepo rather than read via git, so
+    // this is used just for the steps the service itself adds.
+    AugmentedService NewAugmentedService() =>
+        new AugmentedService(
+            NewGit(),
+            NewAugmenter(),
+            new AugConverter(),
+            new FakeFileMonitor(),
+            new FakeMetaDataService(metaData)
+        );
 }
