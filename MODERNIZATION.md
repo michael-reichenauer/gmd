@@ -199,26 +199,35 @@ Suite went from 57 tests to 100, in three new test classes: `GraphTest` (the dra
 
 ### Findings
 
-- [ ] **`ViewRepoCreater.SetAheadBehind` loses `HasRemoteOnly` on the local branch of a diverged
-      pair.** `SetBehindCommits` runs first (branches are sorted remote before local) and writes
-      `HasRemoteOnly` on both branches of the pair. `SetAheadCommits` then writes `HasLocalOnly`
-      using the `localBranch` it was passed — a copy taken by the `foreach` in `SetAheadBehind`
-      *before* that write — so the flag is overwritten back to false. The remote branch keeps both,
-      since `SetAheadCommits` re-reads it from the list.
+- [x] **Fixed: `ViewRepoCreater.SetAheadBehind` lost `HasRemoteOnly` on the local branch of a
+      diverged pair.** `SetBehindCommits` runs first (branches are sorted remote before local) and
+      wrote `HasRemoteOnly` on both branches of the pair. `SetAheadCommits` then wrote
+      `HasLocalOnly` using the `localBranch` it was passed — a copy taken by the `foreach` in
+      `SetAheadBehind` *before* that write — so the flag went back to false. The remote branch kept
+      both, since `SetAheadCommits` re-read it from the list.
 
       Not cosmetic: `BranchCommands.CanPush()` and `PushAllBranches()` both filter on
       `HasLocalOnly && !HasRemoteOnly`, i.e. "ahead but not behind, so it is safe to push". A
-      diverged branch passes that filter, so 'Push all branches' tries to push it and git rejects
-      it as non-fast-forward. `PushCurrentBranch` is unaffected, it looks at the remote branch.
-      Pinned as current behavior by
-      `ViewRepoCreaterTest.TestDivergedBranchesHaveLocalOnlyAndRemoteOnlyCommits`. The fix is to
-      re-read the local branch from the list, like `SetBehindCommits` already does.
-- [ ] Minor: the `Φ` of a commit the user assigned to a branch is drawn in the branch color rather
-      than white whenever that commit is also a branch out point. `DrawBranch` sets the sign white,
-      but `DrawBranchFromParent` then calls `SetGraphBranch` for the same cell and `SetBranch`
-      overwrites `BranchColor` unconditionally. Since a commit is normally ambiguous *because* it
-      is a branch out point, the white almost never survives. Pinned by
-      `GraphTest.TestCommitAssignedByUser`.
+      diverged branch passed that filter, so 'Push all branches' tried to push it and git rejected
+      it as non-fast-forward. `PushCurrentBranch` was unaffected, it looks at the remote branch.
+
+      Both branches are now read back from the list at the point they are written, in both
+      functions — the same staleness would have hit the remote branch had the branches been sorted
+      the other way round. Covered by
+      `ViewRepoCreaterTest.TestDivergedBranchesHaveLocalOnlyAndRemoteOnlyCommits`.
+- [x] **Fixed: the `Φ` of a commit the user assigned to a branch was drawn in the branch color
+      rather than white whenever that commit was also a branch out point.** `DrawBranch` set the
+      sign white, but `DrawBranchFromParent` then called `SetGraphBranch` for the same cell and
+      `SetBranch` overwrites `BranchColor` unconditionally. Since a commit is normally ambiguous
+      *because* it is a branch out point, the white almost never survived.
+
+      The five drawing functions that can land on a commit's cell each had their own
+      `if (c.IsAmbiguous) color = Color.White;`, and the user-set case was simply missing from all
+      of them. They now share one `GraphCreater.CommitColor(commit, branchColor)`: white when git
+      does not record the commit's branch, i.e. when it is ambiguous *or* the user resolved it.
+      That also makes the line a resolved commit branches out on white, exactly as an ambiguous
+      one already was. Covered by `GraphTest.TestCommitAssignedByUser`, which now asserts the
+      colors as well as the runes.
 
 ## Step 4 — Remaining git output parsers
 

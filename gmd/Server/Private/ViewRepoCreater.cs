@@ -302,8 +302,12 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (hasBehindCommits)
         {
-            filteredBranches[remoteBranchIndex] = remoteBranch with { HasRemoteOnly = true };
-            filteredBranches[localBranchIndex] = localBranch with { HasRemoteOnly = true };
+            // Read the branches back from the list instead of using the copies above, since the
+            // other branch of the pair may have set a flag on them after those were taken
+            var remote = filteredBranches[remoteBranchIndex];
+            var local = filteredBranches[localBranchIndex];
+            filteredBranches[remoteBranchIndex] = remote with { HasRemoteOnly = true };
+            filteredBranches[localBranchIndex] = local with { HasRemoteOnly = true };
         }
     }
 
@@ -344,8 +348,12 @@ class ViewRepoCreater : IViewRepoCreater
 
         if (hasAheadCommits)
         {
-            filteredBranches[localBranchIndex] = localBranch with { HasLocalOnly = true };
-            filteredBranches[remoteBranchIndex] = remoteBranch with { HasLocalOnly = true };
+            // Read the branches back from the list instead of using the copies above, since the
+            // other branch of the pair may have set a flag on them after those were taken
+            var local = filteredBranches[localBranchIndex];
+            var remote = filteredBranches[remoteBranchIndex];
+            filteredBranches[localBranchIndex] = local with { HasLocalOnly = true };
+            filteredBranches[remoteBranchIndex] = remote with { HasLocalOnly = true };
         }
     }
 

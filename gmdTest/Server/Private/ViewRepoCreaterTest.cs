@@ -105,23 +105,19 @@ public class ViewRepoCreaterTest
     }
 
     // A branch pair with commits on both sides has local only and remote only commits, which is
-    // what enables the push and pull menu items.
-    //
-    // Note the local branch is missing HasRemoteOnly, see the finding in MODERNIZATION.md: the
-    // remote branch is handled first and writes the flag on both branches, then the local branch
-    // is handled from a stale copy taken before that write, and overwrites it.
+    // what enables the push and pull menu items. Both branches of the pair get both flags, so
+    // 'Push all branches' (which filters on HasLocalOnly && !HasRemoteOnly) leaves a diverged
+    // branch alone rather than trying a push git would reject as non-fast-forward.
     [TestMethod]
     public async Task TestDivergedBranchesHaveLocalOnlyAndRemoteOnlyCommits()
     {
         var repo = await Diverged().ViewRepoAsync();
 
-        var remote = repo.BranchByName["origin/main"];
-        Assert.IsTrue(remote.HasLocalOnly);
-        Assert.IsTrue(remote.HasRemoteOnly);
-
-        var local = repo.BranchByName["main"];
-        Assert.IsTrue(local.HasLocalOnly);
-        Assert.IsFalse(local.HasRemoteOnly, "Lost, the local branch is updated from a stale copy");
+        foreach (var name in new[] { "origin/main", "main" })
+        {
+            Assert.IsTrue(repo.BranchByName[name].HasLocalOnly, name);
+            Assert.IsTrue(repo.BranchByName[name].HasRemoteOnly, name);
+        }
     }
 
     // A branch in sync with its remote has neither

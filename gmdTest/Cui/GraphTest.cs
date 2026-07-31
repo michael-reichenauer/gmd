@@ -224,10 +224,12 @@ public class GraphTest
     }
 
     // Once the user has picked a branch for the ambiguous commit, it is drawn as a 'Φ' instead.
+    // It stays white, since the branch is still the user's answer rather than git's.
     [TestMethod]
     public async Task TestCommitAssignedByUser()
     {
-        var repo = await Ambiguous().UserSetBranch("d1", "feat-b").ViewRepoAsync(ShowBranches.AllActive);
+        var b = Ambiguous().UserSetBranch("d1", "feat-b");
+        var repo = await b.ViewRepoAsync(ShowBranches.AllActive);
 
         Assert.AreEqual(
             """
@@ -237,6 +239,15 @@ public class GraphTest
             ┗─┺╯     Initial
             """,
             GraphText.WithSubjects(repo)
+        );
+        Assert.AreEqual(
+            """
+                 RR
+                CR
+               WWR
+            MWMW
+            """,
+            GraphText.ColorsOf(repo, b.Config)
         );
     }
 

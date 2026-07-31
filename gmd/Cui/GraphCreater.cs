@@ -132,6 +132,13 @@ class GraphCreater : IGraphCreater
         }
     }
 
+    // The color a commit is drawn in. A commit whose branch git does not record is white, either
+    // because it is still ambiguous or because the user resolved it (the 'Φ' sign). Every function
+    // that can draw on the commit's own cell must use this, or the last one to draw wins and the
+    // white is lost.
+    static Color CommitColor(Commit c, Color branchColor) =>
+        c.IsAmbiguous || c.IsBranchSetByUser ? Color.White : branchColor;
+
     // DrawOtherBranchTip draws  ─┺ in when multiple tips on same commit
     static void DrawOtherBranchTip(Graph graph, GraphBranch b, Commit c)
     {
@@ -145,8 +152,7 @@ class GraphCreater : IGraphCreater
         // this tip commit is not part of the branch (multiple branch tips on the same commit)
         graph.DrawHorizontalLine(x1 + 1, x2 + 1, y2, color); //   ─
 
-        if (c.IsAmbiguous)
-            color = Color.White;
+        color = CommitColor(c, color);
 
         graph.SetGraphBranch(x2, y2, Sign.Bottom | Sign.Pass, color, b); //       ┺
     }
@@ -155,7 +161,7 @@ class GraphCreater : IGraphCreater
     {
         int x = b.X;
         int y = c.ViewIndex;
-        Color color = c.IsAmbiguous ? Color.White : b.Color;
+        Color color = CommitColor(c, b.Color);
 
         if (c.BranchName != b.B.Name && c.Id != b.B.TipId)
         { // Other branch commit, normal branch line (no commit on that branch)
@@ -249,11 +255,7 @@ class GraphCreater : IGraphCreater
         int y2 = mergeParent.ViewIndex;
 
         // Other branch is on the left side, merged from parent parent branch ╭
-        Color color = commitBranch.Color;
-        if (commit.IsAmbiguous)
-        {
-            color = Color.White;
-        }
+        Color color = CommitColor(commit, commitBranch.Color);
 
         graph.SetGraphBranch(x, y, Sign.MergeFromLeft, color, commitBranch); //     ╭
         graph.SetGraphConnect(x, y, Sign.MergeFromLeft, color);
@@ -280,12 +282,7 @@ class GraphCreater : IGraphCreater
         int y2 = mergeParent.ViewIndex;
 
         // Other branch is on same column merged from sibling branch,  │
-        Color color = parentBranch.Color;
-
-        if (mergeParent.IsAmbiguous)
-        {
-            color = Color.White;
-        }
+        Color color = CommitColor(mergeParent, parentBranch.Color);
 
         if (commitBranch != parentBranch)
         {
@@ -314,12 +311,8 @@ class GraphCreater : IGraphCreater
         int y2 = mergeParent.ViewIndex;
 
         // Other branch is on the right side, merged from child branch,  ╮
-        Color color = parentBranch.Color;
+        Color color = CommitColor(mergeParent, parentBranch.Color);
 
-        if (mergeParent.IsAmbiguous)
-        {
-            color = Color.White;
-        }
         graph.DrawHorizontalLine(x + 1, x2, y, color); //                 ─
 
         if (commitBranch != parentBranch)
@@ -348,12 +341,7 @@ class GraphCreater : IGraphCreater
         var parentBranch = graph.BranchByName(parent.BranchName);
         int x2 = parentBranch.X;
         int y2 = parent.ViewIndex;
-        Color color = commitBranch.Color;
-
-        if (c.IsAmbiguous)
-        {
-            color = Color.White;
-        }
+        Color color = CommitColor(c, commitBranch.Color);
 
         if (parentBranch.X < commitBranch.X)
         { // Other branch is left side  ╭
