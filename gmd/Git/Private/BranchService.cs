@@ -19,8 +19,17 @@ class BranchService : IBranchService
 {
     static string remotePrefix = "remotes/";
 
+    // Parses one line of 'git branch -vv --no-color --no-abbrev --all', e.g.
+    //   '* main   8ec7cee… [origin/main: ahead 1, behind 2] Subject'
+    // A detached HEAD has a parenthesized pseudo name instead of a branch name. Git writes it as
+    // '(HEAD detached at|from <ref>)', or as '(no branch…)' while rebasing or bisecting. The forms
+    // are matched explicitly rather than as any '(…)', since a git ref name may contain parenthesis.
+    // Groups are named, so adding one does not shift the others (they used to be read by index).
     static readonly string regexpText =
-        @"(?im)^(\*)?\s+(\(HEAD detached at (\S+)\)|(\S+))\s+(\S+)(\s+)?(\[(\S+)(:\s)?(ahead\s(\d+))?(,\s)?(behind\s(\d+))?(gone)?\])?(\s+)?(.+)?";
+        @"(?im)^(?<current>\*)?\s+(?:\((?<detached>HEAD\sdetached\s(?:at|from)\s\S+|no\sbranch[^)]*)\)|(?<name>\S+))"
+        + @"\s+(?<tip>\S+)(?:\s+)?"
+        + @"(?:\[(?<remote>\S+)(?::\s)?(?:ahead\s(?<ahead>\d+))?(?:,\s)?(?:behind\s(?<behind>\d+))?(?<gone>gone)?\])?"
+        + @"(?:\s+)?(?<subject>.+)?";
     static readonly Regex BranchesRegEx = new Regex(
         regexpText,
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Multiline
@@ -121,32 +130,35 @@ class BranchService : IBranchService
 
     Branch ToBranch(Match match)
     {
-        bool isCurrent = match.Groups[1].Value == "*";
-        bool isDetached = !string.IsNullOrEmpty(match.Groups[3].Value);
+        bool isCurrent = match.Groups["current"].Success;
+        bool isDetached = match.Groups["detached"].Success;
 
+        // The ref a detached HEAD points at is not kept, all detached states share one name
         bool isRemote = false;
-        string name = isDetached ? $"({match.Groups[3].Value})" : match.Groups[4].Value;
-        if (name.StartsWith(remotePrefix))
+        string name = "DETACHED";
+        if (!isDetached)
         {
-            isRemote = true;
-            name = name.Substring(remotePrefix.Length);
+            name = match.Groups["name"].Value;
+            if (name.StartsWith(remotePrefix))
+            {
+                isRemote = true;
+                name = name[remotePrefix.Length..];
+            }
         }
 
-        if (isDetached)
-        {
-            // name = $"DETACHED-{match.Groups[3].Value}";
-            name = "DETACHED";
-        }
+        string tipId = match.Groups["tip"].Value;
 
-        string tipId = match.Groups[5].Value;
-        string remoteName = match.Groups[8].Value;
+        // Note: a 'gone' upstream still reports its remote name here. Augmenter.AddAugBranches
+        // clears it, by requiring a matching remote branch rather than trusting this name.
+        string remoteName = match.Groups["remote"].Value;
 
-        int.TryParse(match.Groups[11].Value, out int aheadCount);
-        int.TryParse(match.Groups[14].Value, out int behindCount);
+        int.TryParse(match.Groups["ahead"].Value, out int aheadCount);
+        int.TryParse(match.Groups["behind"].Value, out int behindCount);
 
         return new Branch(name, tipId, isCurrent, isRemote, remoteName, isDetached, aheadCount, behindCount);
     }
 
-    // IsNormalBranch returns true if branch is normal and not a pointer branch
-    bool IsNormalBranch(Match match) => match.Groups[5].Value != "->";
+    // IsNormalBranch returns true if branch is normal and not a pointer branch, i.e. the
+    // 'remotes/origin/HEAD -> origin/main' line, which has '->' where a commit id would be
+    bool IsNormalBranch(Match match) => match.Groups["tip"].Value != "->";
 }

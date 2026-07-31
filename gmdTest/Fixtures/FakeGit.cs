@@ -11,9 +11,63 @@ class FakeGit : IGit
 
     public FakeGit(Status status) => this.status = status;
 
+    // For tests that only use the key/value storage below, where the status is irrelevant
+    public FakeGit()
+        : this(new Status(0, 0, 0, 0, 0, false, "", "", [], [], [], [], [], [])) { }
+
     public string CurrentAuthor => "Test Author";
 
     public Task<R<Status>> GetStatusAsync(string wd) => Task.FromResult<R<Status>>(status);
+
+    // The git key/value storage, i.e. the 'refs/gmd-metadata-key-value/<key>' refs MetaDataService
+    // stores the user's branch choices in. Values is what this repo has, RemoteValues what the
+    // remote server has: a pull copies remote to local and a push copies local to remote, which is
+    // all MetaDataService needs from git.
+    public Dictionary<string, string> Values { get; } = [];
+
+    public Dictionary<string, string> RemoteValues { get; } = [];
+
+    // Every key/value call made, in order, so tests can assert what was read, written and synced
+    public List<string> ValueCalls { get; } = [];
+
+    public Task<R<string>> GetValueAsync(string key, string wd)
+    {
+        ValueCalls.Add($"get {key}");
+        return Task.FromResult<R<string>>(
+            Values.TryGetValue(key, out var value)
+                ? value
+                // The message git gives for a ref that does not exist, which MetaDataService reads
+                // as 'no local value yet' rather than as a failure
+                : R.Error($"fatal: Not a valid object name refs/gmd-metadata-key-value/{key}")
+        );
+    }
+
+    public Task<R> SetValueAsync(string key, string value, string wd)
+    {
+        ValueCalls.Add($"set {key}");
+        Values[key] = value;
+        return Task.FromResult(R.Ok);
+    }
+
+    public Task<R> PushValueAsync(string key, string wd)
+    {
+        ValueCalls.Add($"push {key}");
+        if (!Values.TryGetValue(key, out var value))
+            return Task.FromResult<R>(R.Error("error: src refspec does not match any"));
+
+        RemoteValues[key] = value;
+        return Task.FromResult(R.Ok);
+    }
+
+    public Task<R> PullValueAsync(string key, string wd)
+    {
+        ValueCalls.Add($"pull {key}");
+        if (!RemoteValues.TryGetValue(key, out var value))
+            return Task.FromResult<R>(R.Error($"fatal: couldn't find remote ref {key}"));
+
+        Values[key] = value;
+        return Task.FromResult(R.Ok);
+    }
 
     // The rest of IGit is not reachable from the pipeline the tests drive
     public R<string> RootPath(string path) => throw new NotSupportedException();
@@ -98,14 +152,6 @@ class FakeGit : IGit
     public Task<R> UncommitLastCommitAsync(string wd) => throw new NotSupportedException();
 
     public Task<R> UncommitUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
-
-    public Task<R<string>> GetValueAsync(string key, string wd) => throw new NotSupportedException();
-
-    public Task<R> SetValueAsync(string key, string value, string wd) => throw new NotSupportedException();
-
-    public Task<R> PushValueAsync(string key, string wd) => throw new NotSupportedException();
-
-    public Task<R> PullValueAsync(string key, string wd) => throw new NotSupportedException();
 
     public Task<R> StashAsync(string message, string wd) => throw new NotSupportedException();
 

@@ -229,21 +229,79 @@ Suite went from 57 tests to 100, in three new test classes: `GraphTest` (the dra
       one already was. Covered by `GraphTest.TestCommitAssignedByUser`, which now asserts the
       colors as well as the runes.
 
-## Step 4 — Remaining git output parsers
+## Step 4 — Remaining git output parsers ✅ done
 
-All via `FakeCmd`, with fixtures captured from real git output once and committed.
+All via `FakeCmd`, with fixtures captured once from a throwaway repo driven through real git and
+pasted into the tests as raw string literals. Suite went from 100 tests to 232, in eight new test
+classes under `gmdTest/Git/` plus `MetaDataServiceTest`.
 
-- [ ] `BranchService.ParseBranches` — highest priority. A 16-group regex with positional
-      indices hardcoded in `ToBranch` (`Groups[1], [3], [4], [5], [8], [11], [14]`), so adding a
-      group anywhere silently shifts everything after it. Cases: detached HEAD, `ahead`/`behind`/
-      both, `gone` upstream, the `->` pointer lines `IsNormalBranch` filters, names with spaces.
-      Then refactor to named groups, which the tests make safe.
-- [ ] `StatusService.Parse` — porcelain output, the `" -> "` rename split, merge state and merge
-      messages, conflicts.
-- [ ] `DiffService` (468 lines, the largest git service) — hunk headers, binary files, renames,
-      conflict markers.
-- [ ] `TagService`, `StashService`, `RemoteService`, `CommitService`, `KeyValueService`.
-- [ ] `MetaDataService` — the push/pull of branch choices through git key/value storage.
+- [x] `BranchService.ParseBranches` — a 16-group regex with positional indices hardcoded in
+      `ToBranch` (`Groups[1], [3], [4], [5], [8], [11], [14]`), so adding a group anywhere silently
+      shifted everything after it. Covered: detached HEAD, `ahead`/`behind`/both, multi-digit
+      counts, a `gone` upstream, no upstream, the `->` pointer line `IsNormalBranch` filters, and a
+      name with `/` and `.`. Then refactored to named groups, verified identical against this
+      repo's real branch output. See the finding below for what the tests caught on the way.
+- [x] `StatusService.Parse` — porcelain output, the `" -> "` rename split (including quoted paths
+      with spaces), all seven conflict kinds, merge state read from `.git/MERGE_MSG` and
+      `.git/MERGE_HEAD`, and merging with no `MERGE_HEAD`. The temp folder with a bare `.git` in it
+      is all `GetMergeStatus` needs, so no repository is created.
+- [x] `DiffService` (496 lines, the largest git service) — the commit header including the `Merge:`
+      line, hunk headers with and without counts, modified/binary/added/deleted/renamed files, tab
+      expansion, the `\ No newline at end of file` marker, BOM stripping, conflict markers, a
+      combined (`diff --cc`) diff, and the multi-commit output of `log --patch --follow`. Plus the
+      staging dance in `GetUncommittedDiff`: it stages, diffs, resets, skips staging while merging,
+      falls back to `diff --staged` in an empty repo, and still resets when the diff fails.
+- [x] `TagService`, `StashService`, `RemoteService`, `CommitService`, `KeyValueService` — parsing
+      where they parse, and the git command line where they only build one. `RemoteService` is
+      entirely the latter, so its tests pin where the `origin/` prefix is trimmed.
+- [x] `MetaDataService` — the push/pull of branch choices through git key/value storage, including
+      that sync is off unless the user turns it on, that the remote value wins a conflict, that
+      local-only choices survive a fetch, and that a removed choice stays removed. `FakeGit` grew
+      an in-memory key/value store (`Values`/`RemoteValues`/`ValueCalls`) for it, so those four
+      members no longer throw.
+
+### Findings
+
+- [x] **Fixed: while a rebase was stopped on a conflict, gmd lost the current branch.** Git names
+      the current pseudo branch `(no branch, rebasing <branch>)` while a rebase is in progress, and
+      the regex only knew the `(HEAD detached at <ref>)` form. The line was therefore read by the
+      plain `(\S+)` name alternative, giving a branch named `(no` with the tip id `branch,`. No
+      commit has that id, so `SetGitBranchTipsOnCommits` dropped the branch and `Augmenter` found
+      no current commit — the `*` marker and the detached row were gone until the rebase finished.
+      Not a rare state: gmd's own 'Rebase branch' stops there on any conflict.
+
+      The parser now recognizes every pseudo name git writes — `(HEAD detached at|from <ref>)`,
+      `(no branch, rebasing …)`, `(no branch, bisect started on …)` and the bare `(no branch)` — and
+      reports them all as the `DETACHED` branch, which the rest of gmd already handles. The forms
+      are matched explicitly rather than as any `(…)`, since a git ref name may contain parenthesis.
+      `(HEAD detached from <ref>)`, which git writes after HEAD is moved off a branch, was broken
+      the same way and is fixed with it.
+- [ ] **Pinned as current behavior, not fixed: a staged added file is counted as modified.**
+      `StatusService.Parse` trims each line before comparing prefixes, which removes the leading
+      status column, so `A  file.txt` no longer matches the ` A ` case and falls through to the
+      `else`. Only untracked files (`?? `) reach `AddedFiles`. Harmless today — every consumer
+      either concatenates the file lists (`RepoExtensions`, `CommitMenu`, `CommitCommands`) or uses
+      `Status.ChangesCount`, which is their sum — so fixing it would change nothing a user sees.
+      Worth doing if the counts ever become visible.
+- [ ] **`DiffService` cannot parse a combined diff.** A `diff --cc` file is recognized and marked
+      `DiffConflicts`, but its `@@@ -1,1 -1,1 +1,1 @@@` hunk headers are not (`ParseSectionDiff`
+      only accepts `@@ `), so the file parses with no content at all. Unreachable today: every gmd
+      git command uses `--first-parent`, and none passes `--cc` or `-m`. Either delete the
+      `diff --cc` branch or finish it — showing a merge commit's true conflict resolution would be
+      a genuinely useful feature, and this half-written branch is what it would need.
+- [ ] Noted, no action: two small parser quirks that are invisible in the UI and pinned by tests so
+      they cannot change unnoticed.
+      - `AsConflictLine` trims two characters instead of one, so a conflict marker line comes out as
+        `<<<<<< HEAD`. Never drawn — `Cui/Diff/DiffService` replaces the marker with
+        `=== Start of conflict`.
+      - A hunk header without a count (`@@ -1 +0,0 @@`, git's shorthand for one line) is read as
+        count 0 rather than 1. `SectionDiff.LeftCount`/`RightCount` are not used by the diff view,
+        which counts the line diffs it actually got.
+      - An annotated tag is listed twice by `show-ref --dereference`, once for the tag object and
+        once for the commit, and `ParseTags` keeps both. `Augmenter.AddAugTags` drops the first,
+        since no commit has the tag object's id.
+      - `StashService.ToStash` splits the subject on `:` and takes only the third part, so a stash
+        message containing a colon is cut short at it.
 
 ## Step 5 — A thin layer of real-git integration tests
 
