@@ -364,16 +364,85 @@ asking for. Two things worth writing down:
       files, so gmd lists them as modified until the merge is committed. Still harmless, since the
       counts are only ever summed, and now pinned by `TestMergeRoundTrip` as well.
 
-## Step 6 — Pure utility tests
+## Step 6 — Pure utility tests ✅ done
 
-Cheap, quick, and they establish the habit.
+Cheap, quick, and they establish the habit. Suite went from 249 tests to 320, in seven new test
+classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `SorterTest`,
+`TimeDateExtensionsTest`, `GlobTest` and `BuildTest`. None of them touch git, disk or terminal.
 
-- [ ] `Result` / `R<T>`: error propagation, the fail-fast when the error state was never checked,
-      implicit conversions.
-- [ ] `StringExtensions`: `Sid`, `TrimPrefix`, `TrimSuffix`.
-- [ ] `Build.Version()` / `GetBuildTime` round-tripping, including the CI-placeholder path.
-- [ ] `EnumerableExtensions`, `Sorter`, `TimeDateExtensions`.
-- [ ] `Utils/GlobPatterns` — vendored, so tests document what we rely on.
+- [x] `Result` / `R<T>`: the ok and error paths of all six `Try` overloads, error propagation
+      through a call chain, wrapping an error without losing the inner messages, every implicit
+      conversion (value, exception, `ErrorResult`, `bool`), `Or`, and both `ToString` forms. Plus
+      the three fail-fasts, which is where the type stops being polite: reading the value before
+      the error was checked, reading the value of an error, and returning `null` as a value. Each
+      raises `Asserter.AssertOccurred`, so that is asserted too.
+- [x] `StringExtensions`: `Sid`, `TrimPrefix`, `TrimSuffix`, `Max`, `ToJson`, `Txt` and
+      `FileSize`, including that the trims only take one occurrence and only at their own end.
+- [x] `Build`: the version encoding both ways — days since the base build time and minutes since
+      midnight into a `Version`, and `GetBuildTime` back out of one — plus a version text that does
+      not parse and one with fewer than four parts, which `Updater` can be handed. The
+      CI-placeholder path is covered by `Build.Sha()`, whose literal CI replaces before the tests
+      run, so the assertion holds on both sides of that `sed`. See the findings for what had to be
+      fixed and made testable first.
+- [x] `EnumerableExtensions`: the whole file, i.e. both `ForEach` forms, the four `Join` overloads,
+      `TryAdd`/`TryAddAll`/`TryAddBy`, `ContainsBy`, `FindIndexBy`/`FindLastIndexBy`, `Add` and
+      `DistinctBy`.
+- [x] `Sorter`: ascending order, in place, empty and single item, that it is *not* stable, and the
+      partial-order case it exists for — a comparer that orders a branch against its ancestors and
+      says nothing about anything else, which `List.Sort` leaves untouched and `Sorter` gets right.
+      That answers the `List.Sort does not work, why ????` comment in `ViewRepoCreater`.
+- [x] `TimeDateExtensions`: the four formats, and that they are culture invariant. See the findings.
+- [x] `Utils/GlobPatterns` — vendored, so the tests document what we rely on: wildcards, `**`,
+      character sets and their inversion, literal sets, that both slashes are separators and
+      nothing is case sensitive, and the two behaviors `FileMonitor` depends on — a single-segment
+      pattern also matches the file name at any depth, and everything else is anchored at the
+      start, which is why a `folder/` line from `.gitignore` is rewritten to `**/folder/**/*`.
+
+### Findings
+
+- [x] **Fixed: the ISO date formats followed the user's culture.** `Iso`, `IsoMs`, `IsoZone` and
+      `IsoDate` formatted through an interpolated string, i.e. with `CultureInfo.CurrentCulture`,
+      so a culture with its own calendar wrote the year in that calendar: 2023-02-07 came out as
+      `1444-07-16` under `ar-SA` (Umm al-Qura), `2566-02-07` under `th-TH` (Buddhist) and
+      `1401-11-18` under `fa-IR` (Persian). The same bug as the Step 1 one, at the formatting end
+      instead of the parsing end.
+
+      Two callers make it more than cosmetic. `Server.GetChangeLogAsync` writes `IsoDate()` into
+      the generated `CHANGELOG.md`, so a maintainer on one of those locales would commit dates
+      in another calendar. `ViewRepoCreater` matches the log view's filter text against
+      `AuthorTime.IsoDate()`, so searching for `2023-02` found nothing. Fixed with
+      `CultureInfo.InvariantCulture`; covered for six locales by `TestIsCultureInvariant`.
+- [x] **Fixed: `Build.Version()` threw instead of returning a version.** Two ways to get a negative
+      `Version` component, which `Version` rejects with `ArgumentOutOfRangeException`, thrown from
+      the first line `Program.Main` logs — i.e. before anything is on screen:
+      - `Build.Time()` returns `default` when neither the CI placeholder nor the assembly's
+        `SourceRevisionId` parses, i.e. year 1, some 738,000 days *before* the base build time.
+        Every other parse failure in `Build` falls back to `(0, 0)` or `DateTime.MinValue`; this
+        path was simply unguarded. It is also what a test run gets, which is why `Build.Version()`
+        had no test until now. It now reports the base time, i.e. version `x.y.0.0`.
+      - The minutes were counted from midnight *UTC* of the build date while the build time itself
+        is local — the base time text ends in `Z`, and `TryParseExact` reads that as UTC and
+        converts to local. A build made between local midnight and the machine's UTC offset was
+        therefore negative: 00:30 in a UTC+2 zone gave −90. Now counted from `cbt.Date`, i.e. the
+        local midnight of the build day the comment always claimed. Nothing changes for a released
+        version, since CI builds in UTC where the two are the same; a local build's fourth version
+        number moves by the offset.
+
+      `GetTimeSinceBaseTime` now takes the build time as a parameter rather than calling
+      `Build.Time()` itself, which is what makes both cases testable at all.
+- [ ] **Noted, no action: `Sorter.Sort` never terminates on a cyclic comparer.** It restarts the
+      outer index on every swap (`i = i - 1`), so a comparer where a < b < c < a keeps finding
+      something to swap forever — `List.Sort` would return a wrong order or throw, this hangs the
+      process with no clue why. gmd's comparers are partial orders rather than cyclic ones, so the
+      only way in is a cycle in the branch hierarchy, which is exactly what the commented-out
+      circular-ancestor guard in `DetermineAncestors` (Step 2 finding) was there to prevent. The
+      two belong together whenever that one is revisited. No test — it would hang the suite.
+- [ ] Noted, no action: two cosmetic quirks, pinned by tests so they cannot change unnoticed.
+      - `StringExtensions.FileSize` divides with integer division before applying its `0.##`
+        format, so the fraction can never appear: 1536 bytes is `1 KB`, not `1.5 KB`. Nothing in
+        gmd calls it today.
+      - `Version.Txt()` of a version with fewer than four parts writes the missing ones as -1
+        (`0.91 (-1.-1)`), since that is what `Version` reports for them.
 
 ## Step 7 — CI and coverage
 
