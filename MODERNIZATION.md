@@ -283,12 +283,27 @@ classes under `gmdTest/Git/` plus `MetaDataServiceTest`.
       either concatenates the file lists (`RepoExtensions`, `CommitMenu`, `CommitCommands`) or uses
       `Status.ChangesCount`, which is their sum — so fixing it would change nothing a user sees.
       Worth doing if the counts ever become visible.
-- [ ] **`DiffService` cannot parse a combined diff.** A `diff --cc` file is recognized and marked
-      `DiffConflicts`, but its `@@@ -1,1 -1,1 +1,1 @@@` hunk headers are not (`ParseSectionDiff`
-      only accepts `@@ `), so the file parses with no content at all. Unreachable today: every gmd
-      git command uses `--first-parent`, and none passes `--cc` or `-m`. Either delete the
-      `diff --cc` branch or finish it — showing a merge commit's true conflict resolution would be
-      a genuinely useful feature, and this half-written branch is what it would need.
+- [x] **Removed: the half-written combined diff (`diff --cc`) branch in `DiffService`.** It
+      recognized the file and marked it `DiffConflicts`, but not its `@@@ -1,1 -1,1 +1,1 @@@` hunk
+      headers (`ParseSectionDiff` only accepts `@@ `), so the file came out with no content — which
+      reads as "nothing changed here". It was never reachable: `--first-parent` and this branch were
+      written in the same commit (b5b7b7b, Nov 2022), and no gmd git command has ever passed `--cc`
+      or `-m`.
+
+      Deleting it alone would have made things worse — `ParseFileDiffs` stopped at the first
+      unparsable `diff --` header, so a combined diff would have truncated every file after it.
+      That loop now skips an unknown header (and `Log.Warn`s it) instead of stopping, so the cost is
+      one file rather than the rest of the diff. Covered by `DiffServiceTest.TestCombinedDiffIsSkipped`
+      and `TestUnknownDiffFormatDoesNotStopTheRemainingFiles`.
+
+      Left as a landmine warning for whoever revisits this: relaxing the `@@ ` check is not enough
+      to support combined diffs, and on its own is actively harmful. `ParseSectionDiff` splits the
+      header on `'+'` and calls a bare `int.Parse` on the pieces, so `-1,1 -1,1 +1,1` gives
+      `int.Parse("1 -1")` → `FormatException`, thrown outside the `R` error handling entirely (the
+      same shape as the Step 1 date bug). Full support needs three things: n+1 `@` hunk headers with
+      n ranges, two-column line prefixes (`++`, `+ `, ` +`, `--`, `- `, ` -`, `  `) instead of one,
+      and a three-sided story for the two-column diff view. Worth it as its own feature — showing
+      what a merge actually resolved by hand is not available in gmd any other way.
 - [ ] Noted, no action: two small parser quirks that are invisible in the UI and pinned by tests so
       they cannot change unnoticed.
       - `AsConflictLine` trims two characters instead of one, so a conflict marker line comes out as

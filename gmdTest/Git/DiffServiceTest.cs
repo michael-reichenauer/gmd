@@ -71,8 +71,9 @@ public class DiffServiceTest
         +topicmod
         """;
 
-    // A combined diff, i.e. 'git show --cc' of a merge commit. None of gmd's git commands ask for
-    // one (they all use --first-parent), but the parser has a branch for it.
+    // A combined diff, i.e. 'git show --cc' of a merge commit, showing only what the merger wrote
+    // by hand while resolving. Not a format the parser handles, and nothing produces one: every
+    // gmd git command uses --first-parent.
     const string CombinedOutput = """
         commit 1c6014174680fc2302e29dc5874a4ce5d39281fd
         Merge: 063d1bf 3883620
@@ -344,18 +345,52 @@ public class DiffServiceTest
         Assert.AreEqual(DiffMode.DiffAdded, FileOf(commitDiff, "mod-del.txt").DiffMode);
     }
 
-    // A combined diff is recognized as a conflict, but its '@@@ … @@@' hunk headers are not, so it
-    // parses with no content. Nothing reaches this today, since no gmd git command asks for --cc.
+    // A combined diff is skipped rather than shown empty. It used to be recognized as a conflicted
+    // file, but its '@@@ … @@@' hunk headers were not, so the file appeared with no content, which
+    // reads as 'nothing changed here'.
     [TestMethod]
-    public async Task TestParseCombinedDiffHasNoSections()
+    public async Task TestCombinedDiffIsSkipped()
     {
         var commitDiff = await GetCommitDiffAsync(CombinedOutput);
 
+        Assert.AreEqual(0, commitDiff.FileDiffs.Count);
+    }
+
+    // Skipping must not stop the parse: a diff format we do not understand costs its own file, not
+    // every file after it. Constructed rather than captured, since git never mixes the two formats
+    // in one output.
+    [TestMethod]
+    public async Task TestUnknownDiffFormatDoesNotStopTheRemainingFiles()
+    {
+        var output = """
+            commit 1c6014174680fc2302e29dc5874a4ce5d39281fd
+            Author: Test <t@t.com>
+            Date:   2026-07-31 03:56:12 +0200
+
+                A subject
+
+            diff --cc both.txt
+            index ba2906d,0f62d67..2ab19ae
+            --- a/both.txt
+            +++ b/both.txt
+            @@@ -1,1 -1,1 +1,1 @@@
+            - main
+             -topic
+            ++resolved
+            diff --git a/a.txt b/a.txt
+            index 4cb29ea..ddc897f 100644
+            --- a/a.txt
+            +++ b/a.txt
+            @@ -1,1 +1,1 @@
+            -two
+            +TWO
+            """;
+
+        var commitDiff = await GetCommitDiffAsync(output);
+
         Assert.AreEqual(1, commitDiff.FileDiffs.Count);
-        var file = commitDiff.FileDiffs[0];
-        Assert.AreEqual("both.txt", file.PathAfter);
-        Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode);
-        Assert.AreEqual(0, file.SectionDiffs.Count);
+        Assert.AreEqual("a.txt", commitDiff.FileDiffs[0].PathAfter);
+        Assert.AreEqual("DiffRemoved two\nDiffAdded TWO", LinesOf(commitDiff.FileDiffs[0].SectionDiffs[0]));
     }
 
     // The 'Merge: <sha> <sha>' line of a merge commit is skipped, not read as the author

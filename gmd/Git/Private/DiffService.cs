@@ -248,8 +248,11 @@ class DiffService : IDiffService
             }
             (var fileDiff, i, bool ok) = ParseFileDiff(i, lines);
             if (!ok)
-            {
-                break;
+            { // A 'diff --' header of a format we do not parse. Skip the header, the loop above
+                // then skips its body too, so the remaining files are still shown
+                Log.Warn($"Skipped file diff of unknown format: '{lines[i]}'");
+                i++;
+                continue;
             }
             fileDiffs.Add(fileDiff!);
         }
@@ -257,23 +260,13 @@ class DiffService : IDiffService
         return (fileDiffs, i);
     }
 
+    // Only 'diff --git' is parsed. A combined diff ('diff --cc', a merge commit against all its
+    // parents) is a different format: n+1 '@' in the hunk header and one prefix column per parent.
+    // No gmd git command asks for one, they all use --first-parent. See MODERNIZATION.md for what
+    // it would take to support them.
     static (FileDiff?, int, bool) ParseFileDiff(int i, string[] lines)
     {
-        if (i >= lines.Length)
-        {
-            return (null, i, false);
-        }
-
-        if (lines[i].StartsWith("diff --cc "))
-        {
-            string file = lines[i++][10..];
-            (DiffMode df, i) = ParseDiffMode(i, lines);
-            (i, bool isBin) = ParsePossibleIndexRows(i, lines);
-            (var conflictSectionDiffs, i) = ParseSectionDiffs(i, lines);
-            return (new FileDiff(file, file, false, isBin, DiffMode.DiffConflicts, conflictSectionDiffs), i, true);
-        }
-
-        if (!lines[i].StartsWith("diff --git "))
+        if (i >= lines.Length || !lines[i].StartsWith("diff --git "))
         {
             return (null, i, false);
         }
