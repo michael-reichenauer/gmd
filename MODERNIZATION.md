@@ -528,14 +528,48 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
 
       `CommitDlg` was the only caller that needed a `using` change. Verified by build,
       `csharpier check` and the full suite (320 tests, unchanged).
-- [ ] The last upward reference: `Augmented/Private/FileMonitor.cs` calls `Cui.Common.UI.Post`
-      (twice) and `Cui.Common.UI.AddTimeout` by fully qualified name, so it was invisible to a
-      search for `using gmd.Cui` and is not what the item above described. It is also the harder
-      one — a real runtime dependency rather than a stale import: the Server layer marshals its
-      own change events onto Terminal.Gui's main loop and drives its one-second timer from it.
-      Needs a small dispatcher/timer interface owned by the lower layer and implemented over `UI`
-      in `Cui`, which also makes `FileMonitor`'s debounce logic testable without a driver. Its own
-      commit.
+- [x] **Fixed the last upward reference: `FileMonitor` no longer reaches into the UI.** It called
+      `Cui.Common.UI.Post` (twice) and `Cui.Common.UI.AddTimeout` by fully qualified name, so it
+      was invisible to a search for `using gmd.Cui` and was not what the item above described. It
+      was also the harder one — a real runtime dependency rather than a stale import: the Server
+      layer marshalled its own change events onto Terminal.Gui's main loop and drove its
+      one-second timer from it.
+
+      Now behind `IMainThread` (`gmd/Utils/IMainThread.cs`), the main loop reduced to the two
+      things a lower layer needs from it — `Post(Action)` and
+      `RunPeriodically(TimeSpan, Func<bool>)` — implemented by `MainThread` (`Cui/Common/`) over
+      `UI`, and injected into `FileMonitor`. Auto-registered like everything else, so there was no
+      DI to write. With it, `using Terminal.Gui;` left `FileMonitor` too (it was there only for the
+      `MainLoop` parameter of the timer callback), and so did a dead
+      `using Timer = System.Timers.Timer;`. The `object timer` field, which only ever served as a
+      "already started" flag, became a `bool`.
+
+      Timer registration deliberately stayed in `Monitor()` rather than moving to the constructor:
+      `Program.Main` resolves the whole DI graph *before* `Application.Init()`, so a constructor
+      registration would silently find no main loop. `Monitor()` is only called from
+      `AugmentedService` when a repo is read, i.e. always after the UI is up.
+- [x] The payoff, as predicted: `FileMonitor`'s debounce is now testable, and it is the first thing
+      in this codebase reachable only because the UI dependency went behind an interface. Ten tests
+      in `FileMonitorTest`, driving `FakeMainThread` (`gmdTest/Fixtures/`) — which queues posted
+      actions and captures the periodic callback — plus an internal `Now` clock seam on
+      `FileMonitor`, so the one-second trigger delays cost no wall clock time. Suite went from 320
+      tests to 330, still under two seconds.
+
+      Characterized: the trigger delay and its exact `<` boundary, that an event is raised once and
+      then consumed, that a repo change replaces (rather than defers) the file change of the same
+      tick, that `Pause` defers rather than drops, what each of `SetReadRepoTime` /
+      `SetReadStatusTime` clears, that `.lock` files and gmd's own metadata writes are not repo
+      changes, and that events are posted rather than raised inline.
+
+      One guess corrected by writing the test, which is the reason these are discovered rather than
+      predicted: the debounce is a *sliding* window, not a fixed one. Every change overwrites the
+      pending event, so the delay restarts from the latest change — a folder being written to
+      continuously defers its event for as long as the writing lasts rather than raising one a
+      second.
+- [ ] Noted, no action: `Utils/Clipboard.cs` wraps `Terminal.Gui.Clipboard`, the one direct
+      Terminal.Gui reference left outside `Cui/`. Not the same problem — `Utils` is a leaf the
+      other layers depend on, not a layer reaching up past its neighbors — but it does mean
+      `gmd.Utils` cannot be lifted out as a UI-free library as is.
 - [ ] Break up `BranchStructureService.cs` (~950 lines) along its existing pipeline stages, which
       are already well separated by `DetermineCommitBranches`. Needs Step 2 first.
 - [ ] Break up `RepoView.cs` (~1000 lines), pulling logic out of the view so it becomes testable.

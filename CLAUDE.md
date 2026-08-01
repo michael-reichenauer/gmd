@@ -72,10 +72,13 @@ Key types and flow:
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
 
-Layering note: one upward reference is left. `Augmented/Private/FileMonitor.cs` calls
-`Cui.Common.UI.Post` / `UI.AddTimeout` by fully qualified name, so the Server layer drives
-Terminal.Gui's main loop directly. Do not add new upward references; removing that one is
-welcome cleanup (see Step 8 in `MODERNIZATION.md`).
+Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
+it references Terminal.Gui. The one thing a lower layer needs from the UI is its main loop, and
+that goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an event on the UI
+thread, `RunPeriodically` for a timer, implemented by `MainThread` (`Cui/Common/`) over `UI`.
+`FileMonitor` is its only user. Keep it that way: if a lower layer needs something else from the
+UI, widen that interface rather than reaching up. (`Utils/Clipboard.cs` wrapping
+`Terminal.Gui.Clipboard` is the one remaining direct Terminal.Gui use outside `Cui/`.)
 
 ### Dependency injection
 
