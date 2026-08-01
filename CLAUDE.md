@@ -17,7 +17,7 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 
 ```bash
 ./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
-./test           # dotnet test gmdTest/gmdTest.csproj
+./test [args]    # dotnet test gmdTest/gmdTest.csproj "$@"
 ./build          # full release: test + package audit + publish all platforms (slow)
 ./build -l       # linux only (much faster; use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
@@ -195,7 +195,7 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 MSTest 3.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout. Growing this suite is
 an explicit goal — see `MODERNIZATION.md` for what is planned next.
 
-There are three pieces of test infrastructure; use them rather than inventing a fourth way.
+There are four pieces of test infrastructure; use them rather than inventing a fifth way.
 
 **`RepoBuilder`** (`gmdTest/Fixtures/`) builds a `GitRepo` — the raw facts git would report —
 and runs the real augmentation pipeline. Commits are declared **newest first** (git log order)
@@ -259,6 +259,25 @@ Assert.IsTrue(Try(out var commits, out var e, await log.GetLogAsync(100, "/wd"))
 StringAssert.Contains(cmd.Calls[0].Args, "--max-count=100");
 ```
 
+**`TempRepo`** (`gmdTest/Fixtures/`) is the opposite end: a throwaway repository in the system
+temp folder, driven through the real `git` executable and the real `IGit` services. It is the
+canary for git version and output-format drift, which canned output cannot catch, so keep these
+few and small — `FakeCmd` is the right tool for anything about parsing:
+
+```csharp
+using var repo = await TempRepo.CreateAsync();      // 'main', local config set, no commits yet
+var c1 = await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", true, repo.Path)), $"{e}");
+await repo.AddOriginAsync();                        // a bare repo next door, for push/fetch
+await repo.GitAsync("reset --hard HEAD~1");         // raw git, for what IGit has no method for
+```
+
+The repository is deleted on `Dispose`, and nothing outside its temp folder is ever touched —
+`Dispose` refuses to delete a path it did not create. Both integration test classes
+(`GitIntegrationTest`, `AugmentedServiceIntegrationTest`) carry `[TestCategory("Integration")]`,
+so `./test --filter "TestCategory!=Integration"` runs only the fast tests. `./test` passes its
+arguments on to `dotnet test`.
+
 Other things to know:
 
 - Put a test at the path mirroring its subject, e.g.
@@ -271,8 +290,8 @@ Other things to know:
   `Converter` has none at all. `RepoBuilder.NewAugmenter()` wires it up.
 - `Text.ToString()` flattens styled output to a plain string, which is how `GraphText` snapshots
   `GraphWriter` output as ASCII art without a Terminal.Gui driver.
-- Tests that need a real repository should create a throwaway repo in a temp dir and drive it
-  through `IGit`; **never** run git commands against this working tree.
+- Tests that need a real repository use `TempRepo`; **never** run git commands against this
+  working tree.
 - Terminal.Gui views are not unit-testable without a driver — keep logic out of the view
   classes so it can be tested.
 - Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates

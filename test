@@ -1,3 +1,5 @@
 #!/bin/bash
 
-dotnet test gmdTest/gmdTest.csproj -v quiet --nologo -l:"console;verbosity=normal"
+# Any arguments are passed on to 'dotnet test', e.g. to skip the tests that run real git:
+#   ./test --filter "TestCategory!=Integration"
+dotnet test gmdTest/gmdTest.csproj -v quiet --nologo -l:"console;verbosity=normal" "$@"

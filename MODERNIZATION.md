@@ -318,15 +318,51 @@ classes under `gmdTest/Git/` plus `MetaDataServiceTest`.
       - `StashService.ToStash` splits the subject on `:` and takes only the third part, so a stash
         message containing a colon is cut short at it.
 
-## Step 5 — A thin layer of real-git integration tests
+## Step 5 — A thin layer of real-git integration tests ✅ done
 
 Few and deliberately small — a canary for git version and output-format drift, which the
-`FakeCmd` tests cannot catch.
+`FakeCmd` tests cannot catch. Suite went from 233 tests to 249, in two new test classes:
+`GitIntegrationTest` (13 round trips through `IGit`) and `AugmentedServiceIntegrationTest` (real
+git output through the whole inference pipeline). All 16 run real git in about one second.
 
-- [ ] Temp-repo helper: create a throwaway repo in a temp dir, run real `git init`/commit/
-      branch/merge, drive it through `IGit`, assert. Must never touch the working tree.
-- [ ] Cover the round trip for log, branches, status, and a merge.
-- [ ] Keep them in a separate test category so `./test` can stay fast if they get slow.
+- [x] Temp-repo helper: `TempRepo` (`gmdTest/Fixtures/`) creates a throwaway repository in the
+      system temp folder and drives it through the real `IGit` services, wired by hand over the
+      real `Cmd`. It names the initial branch explicitly and sets locally the config that would
+      otherwise be the developer's (user, signing, hooks, line endings), so the fixture is the
+      same on every machine. It never touches anything outside its own temp folder: every git
+      command runs with that folder as its working directory, and `Dispose` refuses to delete a
+      path it did not create.
+- [x] Round trips through `IGit`: `git version`, root path found from a sub folder, log (order,
+      ids, parents, author, times, `--max-count`), branches (tips, current, detached HEAD), the
+      ahead/behind counts of a tracking branch against a real (bare, local) `origin` remote,
+      status (modified/added/deleted), merge (staged merge → merging status → commit → a two
+      parent merge commit), a conflicting merge, a commit diff, and the uncommitted diff —
+      including that its stage/diff/reset dance leaves the working folder as it was.
+- [x] Beyond the plan, since it is the strongest canary of the lot: the whole pipeline over a real
+      repo, i.e. real git output → `AugmentedService` → `ViewRepoCreater` → the drawn graph,
+      asserted as a `GraphText` picture. Every other pipeline test builds the git facts by hand
+      with `RepoBuilder`, so this is the one place where real git output reaches the augmenter.
+- [x] `[TestCategory("Integration")]` on both classes, and `./test` now passes its arguments on to
+      `dotnet test`, so `./test --filter "TestCategory!=Integration"` runs only the fast tests.
+- [x] Deliberately not covered, since the `FakeCmd` tests already pin the parsing and each would
+      cost another repo to set up: tags, stashes, the key/value metadata storage, rebase and
+      cherry-pick.
+
+### Findings
+
+No bugs. Every parser held up against real git 2.55 output, which is the answer this step was
+asking for. Two things worth writing down:
+
+- [ ] Noted, no action: git omits `into <branch>` from a merge message when the current branch is
+      `main` or `master`, so `Merge branch 'dev'` and `Merge branch 'dev' into feature` are both
+      shapes gmd has to handle. Only the second records which branch the merge commit itself is
+      on, which is why the inference has less to work with on the trunk than anywhere else. Both
+      forms are now pinned end to end, from what git writes to what `BranchNameService.ParseSubject`
+      recovers.
+- [ ] Noted, no action: the staged-added-file-counted-as-modified quirk from Step 4 turns out to be
+      what a user sees during every merge — `git merge --no-ff --no-commit` stages the merged in
+      files, so gmd lists them as modified until the merge is committed. Still harmless, since the
+      counts are only ever summed, and now pinned by `TestMergeRoundTrip` as well.
 
 ## Step 6 — Pure utility tests
 
