@@ -119,7 +119,7 @@ public class AugmentedServiceIntegrationTest
     {
         var service = new AugmentedService(
             repo.Git,
-            new Augmenter(new BranchStructureService(new BranchNameService())),
+            RepoBuilder.NewAugmenter(),
             new AugConverter(),
             new FakeFileMonitor(),
             new FakeMetaDataService(new MetaData())

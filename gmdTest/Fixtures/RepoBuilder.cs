@@ -265,8 +265,20 @@ class RepoBuilder
     public IServer NewServer() =>
         new ServerImpl(NewGit(), NewAugmentedService(), new ViewConverter(), NewViewRepoCreater());
 
-    // The augmenter with its real collaborators, none of which touch git, disk or the terminal
-    public static IAugmenter NewAugmenter() => new Augmenter(new BranchStructureService(new BranchNameService()));
+    // The augmenter with its real collaborators, none of which touch git, disk or the terminal.
+    // The wiring mirrors the branch structure pipeline: the commit graph, the branch of every
+    // commit, and then the hierarchy of the branches.
+    public static IAugmenter NewAugmenter()
+    {
+        var branchNameService = new BranchNameService();
+        return new Augmenter(
+            new BranchStructureService(
+                new CommitGraphService(branchNameService),
+                new CommitBranchService(branchNameService, new CommitBranchRules(branchNameService)),
+                new BranchHierarchyService()
+            )
+        );
+    }
 
     FakeGit NewGit() => new FakeGit(status);
 

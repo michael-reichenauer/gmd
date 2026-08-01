@@ -58,12 +58,21 @@ Key types and flow:
   `AllBranches` plus the `ViewCommits`/`ViewBranches` subset the user chose to show, and
   `CommitById`/`BranchByName` lookups. `Repo.UncommittedId`, `TruncatedLogCommitId` and
   `EmptyRepoCommitId` are sentinel all-`0`/`f`/`e` SHAs — check for them when touching commit code.
-- `Augmented/Private/BranchStructureService.cs` — the heart of the product and the largest,
-  most subtle file (~950 lines). `DetermineCommitBranches` runs a fixed pipeline: set branch
-  tips → link parents/children → assign branches to commits → build hierarchy → find root
-  branch → compute ancestors. Merge-commit subjects are parsed by `BranchNameService` to
-  recover branch names git has forgotten. Treat this file as high-risk: change it only with
-  tests, and preserve the pipeline comments.
+- `Augmented/Private/BranchStructureService.cs` — the heart of the product, and the most subtle
+  code in the repo. `DetermineCommitBranches` is only the pipeline: set branch tips → link
+  parents/children → assign branches to commits → build hierarchy → find root branch → compute
+  ancestors. Each stage is its own class, so start from the pipeline and follow the call:
+  - `CommitGraphService` — the first two stages, which make the commit graph traversable.
+  - `CommitBranchService` — assigns a branch to every commit. `DetermineCommitBranch` is an
+    ordered chain of rules where the order *is* the strength of the evidence; the rules
+    themselves are `CommitBranchRules`, and `BranchFactory` / `BranchAmbiguity` are what they
+    call when a branch has to be invented or a commit given up on as ambiguous.
+  - `BranchHierarchyService` — the last three stages, which relate the branches to each other.
+
+  Merge-commit subjects are parsed by `BranchNameService` to recover branch names git has
+  forgotten. Treat all of this as high-risk: change it only with tests, and preserve the
+  pipeline comments. The bar these files are held to is a before/after comparison over a real
+  repo's history, not just a green suite — see the findings in `MODERNIZATION.md`.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
@@ -290,8 +299,9 @@ Other things to know:
 - `internal` types are visible to tests, so services can be constructed directly
   (`new BranchNameService()`) — no DI container needed.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:
-  `Augmenter` → `BranchStructureService` → `BranchNameService` have no other dependencies, and
-  `Converter` has none at all. `RepoBuilder.NewAugmenter()` wires it up.
+  `Augmenter` → `BranchStructureService` → its three stage services → `BranchNameService`, whose
+  only dependency is the one before it, and `Converter` has none at all.
+  `RepoBuilder.NewAugmenter()` wires the lot up, so use that rather than repeating it.
 - `Text.ToString()` flattens styled output to a plain string, which is how `GraphText` snapshots
   `GraphWriter` output as ASCII art without a Terminal.Gui driver.
 - Tests that need a real repository use `TempRepo`; **never** run git commands against this

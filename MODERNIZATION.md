@@ -572,8 +572,48 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
       mean `gmd.Utils` cannot be lifted out as a UI-free library as is. Deliberately left alone
       because the file needs a rewrite rather than an import change, and that rewrite is a
       user-facing bug fix with its own step.
-- [ ] Break up `BranchStructureService.cs` (~950 lines) along its existing pipeline stages, which
-      are already well separated by `DetermineCommitBranches`. Needs Step 2 first.
+- [x] **Broke up `BranchStructureService.cs` (989 lines) along its pipeline stages.** The file is
+      now 54 lines and holds nothing but `DetermineCommitBranches`, i.e. the six pipeline steps and
+      their comments, delegating one stage at a time. Seven files, largest 410:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `BranchStructureService` | 54 | The pipeline, and nothing else |
+      | `CommitGraphService` | 86 | Stages 1–2: branch tips onto commits, parents/children linked |
+      | `CommitBranchService` | 166 | Stage 3: the commit loop and the ordered rule chain |
+      | `CommitBranchRules` | 410 | The 13 `Try…` rules the chain dispatches to |
+      | `BranchAmbiguity` | 179 | `TrySetBranch` (repair) and `AddAmbiguousCommit` (give up) |
+      | `BranchFactory` | 57 | The three `Add…Branch` creators for branches git no longer has |
+      | `BranchHierarchyService` | 151 | Stages 4–6: parent branch, root branch, ancestors |
+      | `WellKnownBranches` | 21 | `MainNamePriority` and the truncated branch name |
+
+      Three splits are worth the words, since they are the ones that are not simply "a stage":
+      - `CommitBranchRules` out of `CommitBranchService`, because the value of `DetermineCommitBranch`
+        is the *order* of its rules — that is the whole inference strategy, and it now fits on one
+        screen instead of being 570 lines with the rules inlined between the branches of the chain.
+        The interface doubles as a table of contents of the rules.
+      - `BranchAmbiguity`, because `TrySetBranch` and `AddAmbiguousCommit` are the two ends of the
+        same idea (repair an ambiguous stretch once evidence turns up; give up and record the
+        candidates so the user can choose) and were 180 lines sitting between unrelated rules.
+      - `WellKnownBranches`, because `MainBranchNamePriority` was needed by three of the stages and
+        the truncated branch name by two, so leaving either behind would have made a stage depend on
+        the orchestrator.
+
+      Pure code movement: no logic changed, no method renamed, every comment kept including the
+      typos in the pipeline steps. The only edits were the mechanical ones — `static` dropped where
+      a method became an interface member, the two shared constants moved, and an unused local
+      (`amBranch` in `TryIsChildAmbiguousCommit`) dropped rather than moved. The three stage classes
+      are DI-registered like everything else; the helpers below them are static, since they have no
+      state and no dependencies.
+
+      Verified beyond the suite (330 tests, unchanged), because a green suite is not the bar for
+      this file: a throwaway probe dumped the full inferred structure of a real 1758-commit repo —
+      every commit's branch, primary name, nice name, ambiguity flags and child ids, plus every
+      branch's tip, bottom, parent, ancestors, related and ambiguous branches — for the code before
+      and after. 1829 lines, 70 branches, byte identical.
+
+      `RepoBuilder.NewAugmenter()` is now the one place the pipeline is wired by hand;
+      `AugmentedServiceIntegrationTest` had a second copy of that wiring and now calls it.
 - [ ] Break up `RepoView.cs` (~1000 lines), pulling logic out of the view so it becomes testable.
 - [ ] `Cui/Common/UIDialog.cs` (633) and `Cui/Common/ContentView.cs` (621) are the next largest.
 - [ ] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)
