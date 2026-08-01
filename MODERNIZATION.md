@@ -446,10 +446,69 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
 
 ## Step 7 — CI and coverage
 
-- [ ] A fast test-only job so PRs get feedback without the full multi-platform publish
-      (today a PR runs all of `./build`).
+- [x] A fast job for pull requests, so they get feedback without the full multi-platform publish.
+      A PR used to run all of `./build`, i.e. four self-contained ReadyToRun publishes
+      (linux-x64, linux-arm64, win-x64, osx-arm64) whose output it then threw away, since only
+      the release steps were gated on the branch. The workflow now has two jobs: `test_job` on
+      `pull_request` runs `csharpier check` and `./build -l` (tests plus the two linux publishes),
+      and the unchanged `build_test_release_job` runs on everything else, i.e. push to `main`/`dev`
+      and a manual `workflow_dispatch`.
+
+      Kept the linux publish rather than tests alone, so a PR still exercises a Release publish —
+      the packaging is where a break would otherwise stay hidden until after merge. The
+      `csharpier check` step has to come first here for the same reason it does in the release job:
+      `./build` runs `dotnet test` in Debug, which formats the sources in place. The
+      `BUILD_TIME`/`BUILD_SHA` `sed` is not repeated in the PR job — nothing is released from it,
+      and `BuildTest` holds with the placeholders either way.
+
+- [x] Every push gets tested, on every branch. The push trigger was `[main, dev]` and the only
+      other trigger needs an open pull request, so a feature branch got no CI at all — the one
+      case where local testing was the only safety net. It is now `branches: ['**']`, which is the
+      pattern that matches a branch name containing a slash (`*` does not).
+
+      The two jobs split the work by what the event is rather than by event type, so exactly one
+      of them runs for any event:
+
+      | Event | Job | Publishes |
+      | --- | --- | --- |
+      | Push to a feature branch | `test_job` | – |
+      | Pull request | `test_job` | – |
+      | Push to `main`/`dev` | `build_test_release_job` | release / pre-release |
+      | Manual run, `main`/`dev` | `build_test_release_job` | release / pre-release |
+      | Manual run, other branch | `build_test_release_job` | – |
+
+      The last row is what keeps the manual full build useful: it is now the way to check the
+      windows and macOS packaging on a branch, which a pull request no longer does.
+
+      Publishing stayed exactly where it was, behind two independent gates that both key on
+      `github.ref`: the job level `if` above, and the `isPublish` output that gates the two
+      release steps. `test_job` has no release step at all, and now also drops to
+      `permissions: contents: read`, so a branch cannot publish even if a step is added to it
+      carelessly later. Both jobs run the whole suite — the same `dotnet test` in `./build`, with
+      no category filter, so the integration tests run on every branch too.
+
+      Known and accepted: a push to a branch that has a pull request open fires both the `push`
+      and the `pull_request` event, so `test_job` runs twice on that commit. Deduplicating costs
+      more complexity than the duplicate run does on free public runners. A `concurrency` group
+      would cut the other kind of waste — several pushes in a row queueing up — but it also makes
+      superseded runs report as cancelled, so it is left out until it is actually a nuisance.
 - [ ] Turn on the `coverlet.collector` that is already referenced but unused; report coverage.
+      This is the natural second step for the new `test_job`.
 - [ ] Consider a coverage floor once the number stabilizes — as a ratchet, not a hard gate.
+
+### Findings
+
+- [x] **Fixed: `./build` reported success when a `dotnet publish` failed.** There is no `set -e` and
+      only the `dotnet test` step checked `$?`, so a failed publish left the following `cp` to fail
+      too — both printing an error nobody acted on — and the script carried on to its `exit 0`. That
+      made the whole point of building on a PR moot: the job would have gone green on exactly the
+      packaging break it is there to catch. On push it was less bad but still late, since the
+      failure only surfaced as a missing file when `action-gh-release` uploaded the assets.
+
+      Each of the four publishes now exits 1 with the RID in the message. This makes `./build` match
+      `build.bat`, which has had `if errorlevel 1 exit /b 1` after every publish all along — the two
+      were out of sync, not both wrong. Fixed the `Building widows ...` typo on the way, since
+      `build.bat` already says windows.
 
 ---
 

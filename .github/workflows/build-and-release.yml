@@ -1,8 +1,11 @@
 name: Build and release
 
 on:
+  # Every branch, so a push always gets tested and a failure always reaches the author,
+  # without needing an open pull request. '**' rather than '*', since branch names here
+  # contain slashes.
   push:
-    branches: [main, dev]
+    branches: ['**']
   pull_request:
     branches: [main, dev]
 
@@ -14,7 +17,48 @@ permissions:
   contents: write
 
 jobs:
+  # Anything that is not a release, i.e. a push to a branch other than main/dev and any pull
+  # request, gets format check, tests and a linux-only publish. Feedback does not wait for the
+  # four self-contained ReadyToRun publishes of the release job below, whose output would only
+  # be thrown away here. Exactly one of the two jobs runs for any event.
+  test_job:
+    if: github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    name: Test and Linux Build Job
+
+    # This job only builds and tests, so it drops the write permission the release job needs.
+    # Nothing here can create a release even if a step is added carelessly later.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.x'
+
+      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # CSharpier.MsBuild, which would hide unformatted code from the Release check.
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+
+      # './build -l' runs the tests first and then publishes linux-x64 and linux-arm64 only,
+      # so a Release publish is still exercised, just not for all four platforms. The
+      # 'BUILD_TIME'/'BUILD_SHA' placeholders in gmd/Build.cs are deliberately left as they
+      # are, since nothing is released from here and the tests hold either way.
+      - name: Test and build (linux only)
+        run: ./build -l
+
+  # Push to main/dev, which publishes a release, plus a manual run from the Actions tab on any
+  # branch, which is the way to check the windows and macOS packaging without merging. A manual
+  # run only publishes if it is on main/dev, which the 'isPublish' output below decides.
   build_test_release_job:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     name: Build, Test and Release Job
 
