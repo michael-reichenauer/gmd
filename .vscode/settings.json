@@ -43,6 +43,8 @@
     "updatechangelog",
     "updatepackages",
     "Upgrader",
-    "ustring"
+    "ustring",
+    "xclip",
+    "xsel"
   ]
 }

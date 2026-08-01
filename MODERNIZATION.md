@@ -566,10 +566,12 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
       pending event, so the delay restarts from the latest change — a folder being written to
       continuously defers its event for as long as the writing lasts rather than raising one a
       second.
-- [ ] Noted, no action: `Utils/Clipboard.cs` wraps `Terminal.Gui.Clipboard`, the one direct
-      Terminal.Gui reference left outside `Cui/`. Not the same problem — `Utils` is a leaf the
-      other layers depend on, not a layer reaching up past its neighbors — but it does mean
-      `gmd.Utils` cannot be lifted out as a UI-free library as is.
+- [ ] Deferred to Step 11, not fixed here: `Utils/Clipboard.cs` wraps `Terminal.Gui.Clipboard`,
+      the one direct Terminal.Gui reference left outside `Cui/`. Not the same problem — `Utils` is
+      a leaf the other layers depend on, not a layer reaching up past its neighbors — but it does
+      mean `gmd.Utils` cannot be lifted out as a UI-free library as is. Deliberately left alone
+      because the file needs a rewrite rather than an import change, and that rewrite is a
+      user-facing bug fix with its own step.
 - [ ] Break up `BranchStructureService.cs` (~950 lines) along its existing pipeline stages, which
       are already well separated by `DetermineCommitBranches`. Needs Step 2 first.
 - [ ] Break up `RepoView.cs` (~1000 lines), pulling logic out of the view so it becomes testable.
@@ -640,3 +642,70 @@ Deliberately after the tests, so regressions are detectable. Current status of e
 - [ ] No `.runsettings`; tests run sequentially. If parallel execution is ever enabled, the
       culture test in `LogServiceTest` mutates `CultureInfo.DefaultThreadCurrentCulture` and
       would need isolating.
+
+## Step 11 — Rewrite clipboard copy
+
+**Reported by the user: copying text works on some systems, not at all on others, and sometimes
+works and then does not on the same machine.** `Utils/Clipboard.cs` needs a rewrite rather than a
+patch — the reasons below are separate defects that each produce that symptom.
+
+Deliberately scheduled after Step 9 rather than earlier, for one concrete reason: the Windows path
+goes through `Terminal.Gui.Clipboard`, and Terminal.Gui 2.x changes that API. Doing this before the
+2.x upgrade means writing the Windows side twice. It is not blocked by anything else, so pull it
+forward if the copy bug starts costing more than the rework would.
+
+### What is actually wrong
+
+Verified by reading the code, not guessed — but note that none of it has been reproduced against a
+failing machine yet, so confirm against a real report before assuming which one bit.
+
+- [ ] **macOS never works at all.** The `Build.IsMacOs` branch in `Clipboard.Set` is commented out
+      with a `// Does it work ????`, so `Set` falls straight through to
+      `R.Error("Clipboard not supported on this platform")`. Worse, `Build.IsMacOs` **does not
+      exist** — `Build.cs` defines only `IsWindows` and `IsLinux` — so the branch would not compile
+      if uncommented. gmd releases `gmd_osx_arm64`, so this is a whole shipped platform with no
+      copy. `pbcopy`/`pbpaste` are always present on macOS, so the fix itself is small.
+- [ ] **Linux requires `xsel`, which most distributions do not install by default** (Debian and
+      Ubuntu minimal, Fedora, Arch). There is no fallback to `xclip`, and no `wl-copy` for Wayland.
+      Under Wayland `xsel` reaches only XWayland, so the copy can *report success* and paste
+      nothing into a native Wayland application — which is exactly "works on some systems".
+- [ ] **The forking-helper problem, the best candidate for "sometimes".** An X selection is owned
+      by a live process, so `xsel -i` forks a daemon to hold it — and that daemon inherits the
+      redirected stdout/stderr pipes of `Cmd.Command`, which calls `WaitForExit()` with no timeout.
+      That is [dotnet/runtime#27128](https://github.com/dotnet/runtime/issues/27128), and the
+      commented-out `DoubleWaitForExit` workarounds sitting in *both* `Cmd.Command` and
+      `BashRunner` say someone already hit it and backed out. Depending on how the helper detaches,
+      gmd can block, or the selection can die with the process and leave the clipboard empty.
+- [ ] **A failed copy is usually silent.** Three of the five call sites discard the returned `R`:
+      `RepoView.cs:643`, `RepoView.cs:656` and `UnicodeSetsDlg.cs:36`. Only `RepoCommands` (two
+      sites) and `DiffView.cs:450` report anything, and what they report is
+      `"Clipboard copy not supported on this platform"` — which is wrong and unactionable when the
+      real cause is a missing `xsel`. So the common user experience is a menu item that appears to
+      do nothing, with no error and nothing in the log.
+- [ ] **Windows takes a completely different route** for no reason, `Terminal.Gui.Clipboard`, which
+      is also the sole Terminal.Gui reference outside `Cui/` (the Step 8 layering note).
+- [ ] Dead code to remove with it: `BashRunner` is called by nothing and throws instead of
+      returning `R`, against the codebase convention; `LinuxClipboard.cmd` is an unused field, since
+      `Cmd.Run` is static; and `LinuxClipboard.GetText`/`InnerGetText` implement paste for Linux
+      only and are never called.
+
+### Direction
+
+- [ ] One DI-registered `IClipboard` in `gmd/Utils/`, no Terminal.Gui — which settles the Step 8
+      layering note as a side effect.
+- [ ] Write through the child process's **stdin** rather than a temp file piped through `bash -c`.
+      That removes the temp file, the shell, and the nested quoting in one go.
+- [ ] Probe a chain per platform and use the first tool that exists, rather than assuming one:
+      macOS `pbcopy`; Linux `wl-copy` when `WAYLAND_DISPLAY` is set, then `xclip -selection
+      clipboard`, then `xsel -ib`; WSL `clip.exe`; Windows `clip.exe` or a direct Win32 call.
+- [ ] Handle the detaching helper explicitly — do not redirect the child's stdout/stderr for a
+      clipboard write, or wait with a timeout — rather than leaving it to `Cmd.Command`'s
+      unbounded `WaitForExit()`.
+- [ ] Report failures at every call site, and name the cause ("no clipboard tool found, install
+      xclip or wl-clipboard") instead of "not supported on this platform".
+- [ ] Consider OSC 52 as a last-resort fallback. It is the only mechanism that works over SSH,
+      where no local helper binary can reach the user's clipboard — arguably the most valuable case
+      for a terminal git client, and the one no amount of `xsel` fixing will cover.
+- [ ] Testable through `ICmd`, so `FakeCmd` covers tool selection and the command line built for
+      each platform. What cannot be faked — whether the clipboard actually holds the text
+      afterwards — needs a manual check per platform; write down which ones were verified.
