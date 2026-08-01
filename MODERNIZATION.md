@@ -663,7 +663,79 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
         hoover row to the new current row, leaving the row set while the column and the current row
         index are cleared. Deliberate — the commit of the new row stays hoovered — but the mixed
         state reads like a bug unless the test says otherwise.
-- [ ] `Cui/Common/UIDialog.cs` (633) and `Cui/Common/ContentView.cs` (621) are the next largest.
+- [x] **Broke up `UIDialog.cs` (715 lines) along the seam between the dialog and the views it is
+      made of.** Six of the seven types in the file were custom Terminal.Gui views that `UIDialog`
+      only happens to be the factory for, and each of them is used on its own elsewhere. Six files,
+      largest 383:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `UIDialog` | 383 | The builder: the `Add*` methods, `Show()` and the validations |
+      | `UIComboTextField` | 157 | A text field with a drop down list of suggestions |
+      | `UILabel` | 101 | A label that draws a styled `Text` and can be clicked |
+      | `BorderView` | 52 | A rectangle in one color, since `View.Border` does not draw for all views |
+      | `UITextView` | 29 | Multi line input where tab moves focus instead of inserting a tab |
+      | `UITextField` | 20 | One line input that returns its text trimmed |
+
+      Pure code movement, and verified as such rather than asserted: each moved class is byte
+      identical to the lines it came from, and so is what is left of `UIDialog`. The only additions
+      are one comment per file saying what the type is, since a file named after a type should say
+      what it is for.
+- [x] **Broke up `ContentView.cs` (651 lines), the scrollable list of rows that most of gmd is
+      drawn in** — the log view, the diff view, the menus and several dialogs are all one. Two
+      thirds of it was not view code at all but index math: where the view is scrolled to and what
+      is selected, neither of which could be reached without a terminal. Three files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `ContentView` | 455 | The view: drawing, the keys and mouse buttons, and fetching the rows |
+      | `ContentScroll` | 184 | The first shown row, the cursor row and the row count, and moving them |
+      | `ContentSelection` | 157 | The selected rows and columns, and extending them by key and by drag |
+
+      The two new classes follow `Hoover` from the item above: no Terminal.Gui, and the mutating
+      methods return whether anything actually moved so the view is the one that decides to redraw.
+      Two details are worth knowing before touching this again:
+      - The view height is read through callbacks (`() => ViewHeight`) rather than stored, since a
+        view is resized while it is shown. It is also two heights rather than one — a view with a
+        top border has one row less for its content than it has height — and only some of the math
+        knows the difference, which is what the last two `ContentScrollTest` tests are about.
+      - The mouse drag no longer scrolls from inside the selection code: `Drag` returns which way
+        the drag moved and the view scrolls when it reaches its edge. That moves the scroll to after
+        the selected region is updated rather than before, which is safe because the region math had
+        already read the first shown row before either could run.
+
+      46 new tests in `gmdTest/Cui/Common/` (`ContentScrollTest`, `ContentSelectionTest`,
+      `ContentViewTest`), suite 355 → 401. `ContentViewTest` is the surprise of the three: a
+      `ContentView` built from a list of rows can be moved and scrolled with no Terminal.Gui driver
+      at all, as long as its `Frame` is set, so the view's own delegation is covered too — every
+      part of it except drawing. Verified beyond the suite by a throwaway probe that resolved the
+      whole DI graph and drove a real view through its movement API.
+
+      Three bugs turned up while writing the tests. All three are pinned as current behavior rather
+      than fixed, since each is a behavior change that deserves its own commit:
+      - **shift+up selects two rows per key press, shift+down one.** `ProcessHotKey` moves the
+        cursor up after `OnSelectUp` has already moved it, so a selection made upwards grows by two
+        rows per press and leaves the cursor a row below the selection, while the same thing
+        downwards grows by one. `TestShiftUpSelectsTwoRowsPerKeyPress` and
+        `TestShiftDownSelectsOneRowPerKeyPress` are written as what the view does key press by key
+        press, so the fix — dropping the second `Move(-1)` — is the difference between them.
+      - **`MoveToTop()` only reaches the top when the cursor is on the top row of the view.** It is
+        `Move(-FirstIndex)`, i.e. it moves the cursor up by however many rows the view is scrolled
+        down, so with the cursor further down the view it stops exactly that many rows short and the
+        rows above stay out of sight. The one caller not in scroll mode (where it does reach the
+        top) is `FilterDlg.UpdateFilteredResults`, which calls it to show a new set of filter
+        results from the top: with the log scrolled down when the filter was opened, the first
+        results are out of sight and the commit info shown below is of the wrong result.
+        `Move(-CurrentIndex)` looks like the fix, since the cursor row drags the first shown row
+        with it, and it is right in scroll mode as well.
+      - **Scrolling with the cursor below the content puts it on the first row.** `Scroll` puts a
+        cursor that would end up below the view back at `newFirst - ContentHeight - 1`, which is
+        negative and then clamped to 0, where `newFirst + ContentHeight - 1` was clearly meant. Only
+        reachable in a view with a top border, since `Move` bounds the cursor by the view height
+        while the border takes a row off the content height, and gmd's one bordered view hides its
+        cursor — so it is invisible today.
+- [ ] `Cui/RepoView/BranchCommands.cs` (740), `Server/Private/Augmented/Private/AugmentedService.cs`
+      (681) and `Cui/Common/Menu.cs` (602) are the next largest.
 - [ ] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)
       — confusing when both are in scope; consider renaming.
 - [ ] `TagServis.cs` — filename typo, should be `TagService.cs`.

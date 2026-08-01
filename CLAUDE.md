@@ -84,6 +84,13 @@ Key types and flow:
   `*Menu.cs`.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
+- `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
+  diff, menus, dialogs). Rows are either handed to the constructor or fetched while drawing through
+  a `GetContentCallback`, so a large repo is never materialized as text. Where it is scrolled to
+  (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with no view, so
+  they are unit testable — keep new logic there rather than in the view.
+- `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
+  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally.
 
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
 it references Terminal.Gui. The one thing a lower layer needs from the UI is its main loop, and
@@ -311,7 +318,9 @@ Other things to know:
 - Tests that need a real repository use `TempRepo`; **never** run git commands against this
   working tree.
 - Terminal.Gui views are not unit-testable without a driver — keep logic out of the view
-  classes so it can be tested.
+  classes so it can be tested. Anything that draws needs a driver, but constructing a view does
+  not: `ContentViewTest` builds a real `ContentView`, sets its `Frame` (which is where its height
+  comes from) and drives everything on it except drawing.
 - Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates
   `CultureInfo.DefaultThreadCurrentCulture`, so enabling parallel execution would need care.
 
