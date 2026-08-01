@@ -1,4 +1,3 @@
-using gmd.Cui.RepoView;
 using gmd.Git;
 using GitStatus = gmd.Git.Status;
 

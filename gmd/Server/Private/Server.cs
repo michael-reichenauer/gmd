@@ -1,5 +1,4 @@
 using System.Text;
-using gmd.Cui.RepoView;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 

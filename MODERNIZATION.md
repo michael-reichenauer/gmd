@@ -514,9 +514,28 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
 
 ## Step 8 — Maintainability
 
-- [ ] Fix the layering violation: `gmd/Server/` has three `using gmd.Cui.RepoView;` lines
-      (`IServer.cs`, `Server.cs`, `AugmentedService.cs`), so the dependency arrow points back up
-      into the UI. Move the shared types down.
+- [x] **Fixed the layering violation: `gmd/Server/` no longer references `gmd.Cui`.** The three
+      `using gmd.Cui.RepoView;` lines existed for a single static class, `RepoExtensions`, which
+      held two unrelated kinds of helper. Split along that seam rather than moved wholesale:
+      - `CurrentBranch`, `CurrentCommit` and `GetUncommittedFiles` extend `Server.Repo` and only
+        read the model, so they moved down to `gmd/Server/RepoExtensions.cs` where the type they
+        extend lives. `AugmentedService.RebaseBranchAsync` was the one real user in the Server
+        layer — the usings in `IServer.cs` and `Server.cs` were already stale.
+      - `ShortNiceUniqueName` truncates a branch name to 16 characters with a `┅` glyph, i.e. it
+        is a drawing concern with no business in the Server layer. It stayed in the UI, as
+        `gmd/Cui/RepoView/BranchExtensions.cs` — the file is now named after the type it extends,
+        since `RepoExtensions` no longer described it.
+
+      `CommitDlg` was the only caller that needed a `using` change. Verified by build,
+      `csharpier check` and the full suite (320 tests, unchanged).
+- [ ] The last upward reference: `Augmented/Private/FileMonitor.cs` calls `Cui.Common.UI.Post`
+      (twice) and `Cui.Common.UI.AddTimeout` by fully qualified name, so it was invisible to a
+      search for `using gmd.Cui` and is not what the item above described. It is also the harder
+      one — a real runtime dependency rather than a stale import: the Server layer marshals its
+      own change events onto Terminal.Gui's main loop and drives its one-second timer from it.
+      Needs a small dispatcher/timer interface owned by the lower layer and implemented over `UI`
+      in `Cui`, which also makes `FileMonitor`'s debounce logic testable without a driver. Its own
+      commit.
 - [ ] Break up `BranchStructureService.cs` (~950 lines) along its existing pipeline stages, which
       are already well separated by `DetermineCommitBranches`. Needs Step 2 first.
 - [ ] Break up `RepoView.cs` (~1000 lines), pulling logic out of the view so it becomes testable.

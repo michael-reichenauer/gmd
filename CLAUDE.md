@@ -72,9 +72,10 @@ Key types and flow:
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
 
-Layering note: `gmd/Server/` currently has three `using gmd.Cui.RepoView;` lines
-(`IServer.cs`, `Server.cs`, `AugmentedService.cs`), so the dependency arrow is not clean
-today. Do not add new upward references; removing the existing ones is welcome cleanup.
+Layering note: one upward reference is left. `Augmented/Private/FileMonitor.cs` calls
+`Cui.Common.UI.Post` / `UI.AddTimeout` by fully qualified name, so the Server layer drives
+Terminal.Gui's main loop directly. Do not add new upward references; removing that one is
+welcome cleanup (see Step 8 in `MODERNIZATION.md`).
 
 ### Dependency injection
 
