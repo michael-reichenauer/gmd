@@ -614,7 +614,55 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
 
       `RepoBuilder.NewAugmenter()` is now the one place the pipeline is wired by hand;
       `AugmentedServiceIntegrationTest` had a second copy of that wiring and now calls it.
-- [ ] Break up `RepoView.cs` (~1000 lines), pulling logic out of the view so it becomes testable.
+- [x] **Broke up `RepoView.cs` (1068 lines) along the seam between the view and what the user does
+      to it.** Nearly half the file was input handling — the 60 line key/mouse table plus its
+      handlers — and what made those handlers long rather than one-liners was the *hoover*, i.e.
+      which branch the pointer or the cursor is on, since most keys act on the hoovered branch when
+      there is one and on the current commit when there is not. Three files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `RepoView` | 504 | The view: reading and refreshing the shown repo, and drawing the page |
+      | `RepoViewInput` | 533 | Every key and mouse button, and the handlers they dispatch through |
+      | `Hoover` | 128 | Where the hoover is, and the index math of moving it |
+
+      `Hoover` is the part that is worth testing and the reason the split is where it is. The five
+      hoover fields and the "has it actually moved" comparisons were spread over ten methods of the
+      view, so nothing about them could be reached without a terminal. It is now a plain class with
+      no Terminal.Gui, no commands and no drawing: the mutating methods return whether the hoover
+      moved and the view decides to redraw, and the navigation is `NextLeft` / `NextRight` /
+      `Locate` / `FollowCurrentIndex` returning the branch to hoover rather than hoovering it.
+
+      `RepoViewInput` gets what it needs back from the view through `IRepoViewInputHost`, five
+      members, rather than the concrete view — `ViewRepo` and `Menus` because both are replaced
+      every time a repo is shown, and `ToggleDetails` / `ToggleDetailsFocus` / `RefreshAndFetch`
+      because they are the view's own state. It is `new`ed by `RepoView`, like the menus are.
+
+      Mostly code movement, with three deliberate exceptions:
+      - `OnCursorUp` and `OnCursorDown` were the same 22 lines twice, differing only in `Move(-1)`
+        vs `Move(1)`, and are now one `MoveCursor(delta)`.
+      - The two commented-out sketches of moving the hoover left/right *across a page* went. The
+        sentence saying it was tried and disabled because it was confusing is kept — that is the
+        part worth having — but the code referred to fields that no longer exist, so keeping it
+        would have been keeping something untrue. It is in git if anyone revisits the idea.
+      - `Copy`'s text building is now `SelectedCommitsText`, an `internal static`, so the rule that
+        a multi-row copy takes only the commits of the branch it started on is testable.
+
+      25 new tests in `gmdTest/Cui/RepoView/` (`HooverTest`, `RepoViewInputTest`), suite 330 → 355.
+      `HooverTest` drives the hoover over a real graph built by `GraphCreater`, not hand-made
+      branch lists, since the whole of the hoover is where the graph puts branch columns — and that
+      is what catches the case below. Verified beyond the suite: the key/mouse table is byte
+      identical to the old one after the mechanical renames, and a throwaway probe resolved the
+      whole DI graph (`IRepoView` and `Program`) to check the view still constructs.
+
+      Two things the tests pinned that are easy to get wrong when touching this again:
+      - A branch and its remote are drawn as two columns with one primary name, so moving right has
+        to leave a branch by its *last* column (`FindLastIndexBy`) while moving left finds its
+        first. Using the same lookup for both would hoover such a branch twice on the way right.
+      - `FollowCurrentIndex` gives up a branch that is no longer on the row but still moves the
+        hoover row to the new current row, leaving the row set while the column and the current row
+        index are cleared. Deliberate — the commit of the new row stays hoovered — but the mixed
+        state reads like a bug unless the test says otherwise.
 - [ ] `Cui/Common/UIDialog.cs` (633) and `Cui/Common/ContentView.cs` (621) are the next largest.
 - [ ] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)
       — confusing when both are in scope; consider renaming.

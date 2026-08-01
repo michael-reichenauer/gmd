@@ -76,8 +76,12 @@ Key types and flow:
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
-  `RepoView.cs` (~1000 lines) is the main log view. Commands are grouped into
-  `RepoCommands` / `BranchCommands` / `CommitCommands`, menus into `*Menu.cs`.
+  `RepoView.cs` is the main log view, i.e. reading and refreshing the shown repo and drawing it.
+  What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
+  the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
+  on — what most keys act on — as state and index math with no view, so it is unit testable.
+  Commands are grouped into `RepoCommands` / `BranchCommands` / `CommitCommands`, menus into
+  `*Menu.cs`.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
 
