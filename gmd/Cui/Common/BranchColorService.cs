@@ -18,7 +18,7 @@ interface IBranchColorService
 
 class BranchColorService : IBranchColorService
 {
-    static readonly Color[] BranchColors = { Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow };
+    static readonly Color[] BranchColors = [Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow];
 
     readonly IRepoConfig repoConfig;
 

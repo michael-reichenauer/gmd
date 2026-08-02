@@ -368,7 +368,7 @@ class GraphCreater : IGraphCreater
             return ToFilteredGraphBranches(repo);
 
         List<GraphBranch> branches = repo.ViewBranches.Select((b, i) => new GraphBranch(b, i)).ToList();
-        Dictionary<string, GraphBranch> branchMap = new Dictionary<string, GraphBranch>();
+        Dictionary<string, GraphBranch> branchMap = [];
         foreach (var b in branches)
         {
             branchMap[b.B.Name] = b;
@@ -422,8 +422,8 @@ class GraphCreater : IGraphCreater
     // so first and last existing commits are used instead.
     static List<GraphBranch> ToFilteredGraphBranches(Repo repo)
     {
-        List<GraphBranch> branches = new List<GraphBranch>();
-        Dictionary<string, FirstLast> firstLast = new Dictionary<string, FirstLast>();
+        List<GraphBranch> branches = [];
+        Dictionary<string, FirstLast> firstLast = [];
 
         // Find first and last commits for each branch are located by iterating commits
         // and updating the first and last index for each branch for each commit

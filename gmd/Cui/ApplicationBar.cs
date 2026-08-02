@@ -36,7 +36,7 @@ class ApplicationBar : View, IApplicationBar
     readonly Config config;
 
     readonly UILabel label;
-    readonly List<Text> items = new List<Text>();
+    readonly List<Text> items = [];
     GraphBranch branch = null!;
     Rect bounds = Rect.Empty;
 

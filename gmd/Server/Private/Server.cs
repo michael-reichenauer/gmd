@@ -70,7 +70,7 @@ class Server : IServer
             .AllChildIds.Concat(commit.ParentIds) // All children and parents commit ids
             .Select(id => repo.CommitById[id]) // As commits
             .Where(cc => cc.BranchPrimaryName != commit.BranchPrimaryName) // Skip same branch
-            .Concat(commit.Id == branch.TipId ? new[] { commit } : new Commit[0]) // Add commit branch if tip
+            .Concat(commit.Id == branch.TipId ? [commit] : []) // Add commit branch if tip
             .Where(FilterOnShown) // Exclude shown branches (or not)
             .Select(cc => cc.BranchPrimaryName)
             .Distinct()

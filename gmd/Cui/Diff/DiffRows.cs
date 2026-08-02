@@ -4,7 +4,7 @@ namespace gmd.Cui.Diff;
 
 class DiffRows
 {
-    readonly List<DiffRow> rows = new List<DiffRow>();
+    readonly List<DiffRow> rows = [];
 
     internal int MaxLength { get; private set; }
     internal int Count => rows.Count;
@@ -48,7 +48,7 @@ record Line(int LineNbr, string Text, Color Color);
 
 class Block
 {
-    public List<Line> Lines { get; } = new List<Line>();
+    public List<Line> Lines { get; } = [];
 
     public void Add(int lineNbr, string text, Color color)
     {

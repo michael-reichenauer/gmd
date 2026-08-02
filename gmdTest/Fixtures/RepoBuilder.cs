@@ -38,10 +38,10 @@ class RepoBuilder
     // by the author time of their bottom commit, so the times must be distinct and ordered.
     static readonly DateTime BaseTime = new DateTime(2024, 10, 15, 12, 0, 0, DateTimeKind.Utc);
 
-    readonly List<GitCommit> commits = new List<GitCommit>();
-    readonly List<GitBranch> branches = new List<GitBranch>();
-    readonly List<GitTag> tags = new List<GitTag>();
-    readonly List<GitStash> stashes = new List<GitStash>();
+    readonly List<GitCommit> commits = [];
+    readonly List<GitBranch> branches = [];
+    readonly List<GitTag> tags = [];
+    readonly List<GitStash> stashes = [];
     readonly MetaData metaData = new MetaData();
 
     GitStatus status = NoChanges;

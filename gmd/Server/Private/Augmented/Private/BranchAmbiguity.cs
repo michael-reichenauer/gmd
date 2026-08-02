@@ -22,7 +22,7 @@ static class BranchAmbiguity
         // Lets iterate upp (first child) as long as commits are ambiguous and the branch exists
         var namedBranch = branch;
         var current = commit;
-        Dictionary<string, string> bottoms = new Dictionary<string, string>();
+        Dictionary<string, string> bottoms = [];
         while (current.Id != branch.TipID)
         {
             var child = current
@@ -115,7 +115,7 @@ static class BranchAmbiguity
         if (!c.Branches.Any())
         {
             branch = BranchFactory.AddNamedBranch(repo, c, "ambiguous");
-            ambiguousBranches = new List<WorkBranch>() { branch };
+            ambiguousBranches = [branch];
         }
         else
         {
@@ -161,7 +161,7 @@ static class BranchAmbiguity
 
         // Determine the most likely branch (branch of the oldest child)
         var oldestChild = commit.FirstChildren[0];
-        List<WorkBranch> childBranches = new List<WorkBranch>();
+        List<WorkBranch> childBranches = [];
         foreach (var c in commit.FirstChildren)
         {
             if (c.AuthorTime > oldestChild.AuthorTime)

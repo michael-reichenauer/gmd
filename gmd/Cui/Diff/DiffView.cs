@@ -43,8 +43,7 @@ class DiffView : IDiffView
         this.server = server;
     }
 
-    public DiffResult Show(CommitDiff diff, string commitId, string repoPath) =>
-        Show(new[] { diff }, commitId, repoPath);
+    public DiffResult Show(CommitDiff diff, string commitId, string repoPath) => Show([diff], commitId, repoPath);
 
     public void Show(CommitDiff[] diff) => Show(diff, "", "");
 
@@ -314,7 +313,7 @@ class DiffView : IDiffView
                 UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
             }
 
-            diffs = new[] { diff! };
+            diffs = [diff!];
             diffRows = diffService.ToDiffRows(diff!);
             contentView.SetNeedsDisplay();
         }

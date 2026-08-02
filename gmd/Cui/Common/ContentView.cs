@@ -24,8 +24,8 @@ internal delegate bool OnMouseCallbackReturn(int x, int y);
 class ContentView : View
 {
     readonly GetContentCallback? onGetContent;
-    readonly Dictionary<Key, OnKeyCallbackReturn> keys = new Dictionary<Key, OnKeyCallbackReturn>();
-    readonly Dictionary<MouseFlags, OnMouseCallbackReturn> mouses = new Dictionary<MouseFlags, OnMouseCallbackReturn>();
+    readonly Dictionary<Key, OnKeyCallbackReturn> keys = [];
+    readonly Dictionary<MouseFlags, OnMouseCallbackReturn> mouses = [];
 
     const int topBorderHeight = 1;
     const int cursorWidth = 1;

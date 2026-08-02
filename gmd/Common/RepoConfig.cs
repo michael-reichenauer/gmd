@@ -6,9 +6,9 @@ class RepoConfig
 {
     public bool SyncMetaData { get; set; } = false;
 
-    public List<string> Branches { get; set; } = new List<string>();
-    public Dictionary<string, int> BranchColors { get; set; } = new Dictionary<string, int>();
-    public List<BranchOrder> BranchOrders { get; set; } = new List<BranchOrder>();
+    public List<string> Branches { get; set; } = [];
+    public Dictionary<string, int> BranchColors { get; set; } = [];
+    public List<BranchOrder> BranchOrders { get; set; } = [];
 }
 
 public class BranchOrder

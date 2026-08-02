@@ -173,23 +173,7 @@ public record Status(
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
     internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
 
-    public static Status Empty { get; } =
-        new Status(
-            0,
-            0,
-            0,
-            0,
-            0,
-            false,
-            "",
-            "",
-            new string[0],
-            new string[0],
-            new string[0],
-            new string[0],
-            new string[0],
-            new string[0]
-        );
+    public static Status Empty { get; } = new Status(0, 0, 0, 0, 0, false, "", "", [], [], [], [], [], []);
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }

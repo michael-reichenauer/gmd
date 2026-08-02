@@ -2,7 +2,7 @@ namespace gmd.Utils;
 
 class WeekEvent
 {
-    List<WeakReference<Action>> registered = new List<WeakReference<Action>>();
+    List<WeakReference<Action>> registered = [];
 
     public void Add(Action action) => registered.Add(new WeakReference<Action>(action));
 
@@ -26,7 +26,7 @@ class WeekEvent
 
 class WeekEvent<T>
 {
-    List<WeakReference<Action<T>>> registered = new List<WeakReference<Action<T>>>();
+    List<WeakReference<Action<T>>> registered = [];
 
     public void Add(Action<T> action) => registered.Add(new WeakReference<Action<T>>(action));
 

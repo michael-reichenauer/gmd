@@ -78,7 +78,7 @@ static class UI
 
     internal static int InfoMessage(string title, string message, int defaultButton = 0, params string[] buttons)
     {
-        buttons = buttons.Length == 0 ? new string[] { "OK" } : buttons;
+        buttons = buttons.Length == 0 ? ["OK"] : buttons;
 
         using (EnableInput())
         {
@@ -93,7 +93,7 @@ static class UI
 
     internal static int ErrorMessage(string title, string message, int defaultButton = 0, params string[] buttons)
     {
-        buttons = buttons.Length == 0 ? new string[] { "OK" } : buttons;
+        buttons = buttons.Length == 0 ? ["OK"] : buttons;
 
         using (EnableInput())
         {

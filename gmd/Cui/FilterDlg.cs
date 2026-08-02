@@ -19,7 +19,7 @@ class FilterDlg : IFilterDlg
     UITextField filterField = null!;
     UILabel statusLabel = null!;
 
-    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
+    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = [];
     Action<Repo> onRepoChanged = null!;
     Server.Repo orgRepo = null!;
     Server.Repo currentRepo = null!;

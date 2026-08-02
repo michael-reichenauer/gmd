@@ -242,7 +242,7 @@ class FileMonitor : IFileMonitor
 
     IReadOnlyList<Glob> GetMatches(string workingFolder)
     {
-        List<Glob> patterns = new List<Glob>();
+        List<Glob> patterns = [];
         string gitIgnorePath = Path.Combine(workingFolder, ".gitignore");
         if (!File.Exists(gitIgnorePath))
         {

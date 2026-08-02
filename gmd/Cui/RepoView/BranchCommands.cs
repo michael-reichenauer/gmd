@@ -140,10 +140,7 @@ class BranchCommands : IBranchCommands
 
         if (totalCount > 20)
         {
-            if (
-                UI.InfoMessage("Show Branches", $"Do you want to show {totalCount} branches?", 1, new[] { "Yes", "No" })
-                != 0
-            )
+            if (UI.InfoMessage("Show Branches", $"Do you want to show {totalCount} branches?", 1, ["Yes", "No"]) != 0)
             {
                 return;
             }

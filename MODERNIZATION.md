@@ -869,24 +869,46 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
 
 Collection expressions (`[]`) are the preferred style going forward. The codebase predates C# 12,
 so the analyzers are enabled as **suggestions** — new and touched code adopts `[]`, the rest
-migrates over time. Current state: **156 sites across 44 files**.
+migrates over time. Sites, counting each one once (`dotnet format` reports some twice, which is
+where the earlier "156 sites" came from):
 
-| Diagnostic | Sites | What it changes | Risk |
-| --- | --- | --- | --- |
-| IDE0028 | 71 | `new List<T>()` → `[]` for initializers | Safe, mechanical |
-| IDE0300 | 68 | `new T[0]` / `new[] { … }` → `[]` | Safe, mechanical |
-| IDE0301 | 3 | empty collection → `[]` | Safe, mechanical |
-| IDE0305 | 14 | fluent `.ToList()` / `.ToArray()` → `[.. x]` | **Review by hand** |
+| Diagnostic | Sites | Left | What it changes | Risk |
+| --- | --- | --- | --- | --- |
+| IDE0028 | 71 | 0 | `new List<T>()` → `[]` for initializers | Safe, mechanical |
+| IDE0300 | 35 | 2 | `new T[0]` / `new[] { … }` → `[]` | Safe, mechanical |
+| IDE0301 | 3 | 0 | empty collection → `[]` | Safe, mechanical |
+| IDE0305 | 14 | 14 | fluent `.ToList()` / `.ToArray()` → `[.. x]` | **Review by hand** |
 
-- [ ] Sweep the safe ones as one mechanical commit (then run CSharpier, since it normalizes the
+- [x] Sweep the safe ones as one mechanical commit (then run CSharpier, since it normalizes the
       resulting layout but does not do the conversion itself):
       `dotnet format style --diagnostics IDE0028 IDE0300 IDE0301 --severity info gmd.sln`
+      Done: 107 of the 109 safe sites, 45 files. Two hand corrections to what the tool produced:
+      - `Utils/GlobPatterns/Glob.cs` reverted, so the vendored code stays as it came. The tool
+        rewrote one arm of `(last == null) ? new string[0] : new[] { last }` and not the other,
+        which is worse than leaving it; `--diagnostics` overrides the `severity = none` that
+        `.editorconfig` sets for that folder, so it has to be reverted by hand each sweep.
+      - `Server/Private/Server.cs` — the tool left `? new[] { commit } : []`, one arm of a
+        ternary in each style. Written as `? [commit] : []`, which compiles because the
+        conditional is target-typed from `Concat`'s `IEnumerable<Commit>`.
+
+      Nothing to review beyond that: the only sites where `[]` is not simply the same type are
+      the interface-typed ones, and there the compiler picks by target type — `ICollection<T>` /
+      `IList<T>` get a mutable `List<T>`, `IEnumerable<T>` / `IReadOnlyList<T>` get an empty
+      array. `Menu.Items` (`ICollection<MenuItem> => []`, added to by every menu) was the one
+      that would break loudly if that were wrong, so a throwaway test added to it and checked
+      each call still returns a fresh collection. 441 tests pass, Release build clean.
 - [ ] IDE0305 by hand, in a separate commit. Converting `x.ToList()` to `[.. x]` can change the
       concrete type produced behind an `IReadOnlyList<T>` return, and this codebase returns
-      `IReadOnlyList<T>` widely, so each site needs a look rather than a blanket fix.
-- [ ] Sequencing note: test coverage is still thin outside the augmentation pipeline and
+      `IReadOnlyList<T>` widely, so each site needs a look rather than a blanket fix. The 14 are
+      `MessageDlg.cs` (2), `UIComboTextField.cs` (1), `UIDialog.cs` (3), `StatusService.cs` (6)
+      and the vendored `GlobPatterns/` (2, leave them).
+- [x] Sequencing note: test coverage is still thin outside the augmentation pipeline and
       `LogService`, so a 156-site sweep is less safe than it looks. Either do it after Steps 4–6
       widen coverage, or accept it as a reviewed mechanical change verified by build + CSharpier.
+      Taken the second way, after Step 8 rather than before it, so the split-out services and the
+      441 tests were already in place under it.
+- [ ] Now unblocked by the sweep: no `new T[0]` is left, so `CA1825` reports nothing and the
+      `<NoWarn>` line in `gmd.csproj` can be deleted outright — see the item in Step 8.
 - [ ] Open question: target-typed `new()` (IDE0090) is the same "codebase predates the feature"
       category. Adopt it too, or keep types explicit? Only the style question is open — keeping
       types explicit needs no build setting, since `.editorconfig` already says so; see the

@@ -52,7 +52,7 @@ class TagService : ITagService
 
     R<IReadOnlyList<Tag>> ParseTags(string output)
     {
-        List<Tag> tags = new List<Tag>();
+        List<Tag> tags = [];
         var lines = output.Split('\n');
 
         foreach (var line in lines)

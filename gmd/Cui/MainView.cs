@@ -187,7 +187,7 @@ partial class MainView : IMainView
             + $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n"
             + "Do you want to update?";
 
-        var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
+        var button = UI.InfoMessage("New Release", msg, ["Yes", "No"]);
         if (button != 0)
         {
             Log.Info($"Skip update");

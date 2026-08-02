@@ -9,13 +9,13 @@ class WorkRepo
     public DateTime TimeStamp { get; }
     public string Path { get; }
     public Status Status { get; }
-    public List<WorkCommit> Commits { get; } = new List<WorkCommit>();
-    public Dictionary<string, WorkCommit> CommitsById { get; } = new Dictionary<string, WorkCommit>();
-    public Dictionary<string, WorkBranch> Branches { get; } = new Dictionary<string, WorkBranch>();
-    public List<Tag> Tags { get; } = new List<Tag>();
-    public Dictionary<string, Tag> TagById { get; } = new Dictionary<string, Tag>();
-    public List<Stash> Stashes { get; } = new List<Stash>();
-    public Dictionary<string, Stash> StashById { get; } = new Dictionary<string, Stash>();
+    public List<WorkCommit> Commits { get; } = [];
+    public Dictionary<string, WorkCommit> CommitsById { get; } = [];
+    public Dictionary<string, WorkBranch> Branches { get; } = [];
+    public List<Tag> Tags { get; } = [];
+    public Dictionary<string, Tag> TagById { get; } = [];
+    public List<Stash> Stashes { get; } = [];
+    public Dictionary<string, Stash> StashById { get; } = [];
 
     public WorkRepo(DateTime timeStamp, string path, Status status)
     {
@@ -40,8 +40,8 @@ class WorkCommit
 
     // Augmented properties
     public int GitIndex { get; set; } // Index in git log (only used for tracing)
-    public List<Tag> Tags { get; } = new List<Tag>();
-    public List<string> BranchTips { get; } = new List<string>();
+    public List<Tag> Tags { get; } = [];
+    public List<string> BranchTips { get; } = [];
 
     public bool IsCurrent { get; set; }
     public bool IsDetached { get; set; }
@@ -55,14 +55,14 @@ class WorkCommit
     public WorkCommit? FirstParent { get; set; }
     public WorkCommit? MergeParent { get; set; }
 
-    public List<string> AllChildIds { get; } = new List<string>(); // Id of all children of this commit
-    public List<string> FirstChildIds { get; } = new List<string>(); // Child id, which have this commit as first parent
-    public List<string> MergeChildIds { get; } = new List<string>(); // Child id, which have this commit as merge parent
+    public List<string> AllChildIds { get; } = []; // Id of all children of this commit
+    public List<string> FirstChildIds { get; } = []; // Child id, which have this commit as first parent
+    public List<string> MergeChildIds { get; } = []; // Child id, which have this commit as merge parent
 
-    public List<WorkCommit> FirstChildren { get; } = new List<WorkCommit>(); // Children which have this commit as first parent
-    public List<WorkCommit> MergeChildren { get; } = new List<WorkCommit>(); // Children, which have this commit as merge parent
+    public List<WorkCommit> FirstChildren { get; } = []; // Children which have this commit as first parent
+    public List<WorkCommit> MergeChildren { get; } = []; // Children, which have this commit as merge parent
 
-    public List<WorkBranch> Branches { get; } = new List<WorkBranch>();
+    public List<WorkBranch> Branches { get; } = [];
     public WorkBranch? Branch { get; set; }
 
     public bool IsLikely { get; set; }
@@ -127,10 +127,10 @@ internal class WorkBranch
     public WorkCommit? AmbiguousTip { get; set; } // Set if this branch has ambiguous last part
     public bool IsCircularAncestors { get; internal set; }
 
-    public List<WorkBranch> RelatedBranches = new List<WorkBranch>();
-    public List<WorkBranch> AmbiguousBranches = new List<WorkBranch>();
-    public List<WorkBranch> PullMergeChildBranches = new List<WorkBranch>();
-    public List<WorkBranch> Ancestors = new List<WorkBranch>();
+    public List<WorkBranch> RelatedBranches = [];
+    public List<WorkBranch> AmbiguousBranches = [];
+    public List<WorkBranch> PullMergeChildBranches = [];
+    public List<WorkBranch> Ancestors = [];
 
     // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)

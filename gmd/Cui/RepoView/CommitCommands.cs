@@ -528,7 +528,7 @@ class CommitCommands : ICommitCommands
                 $"There are {binaryFiles.Count} binary modified files:\n"
                 + $"  {string.Join("\n  ", binaryFiles)}"
                 + "\n\nDo you want to commit them as they are\nor first undo/revert them and then commit?";
-            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 1, new[] { "Commit", "Undo", "Cancel" });
+            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 1, ["Commit", "Undo", "Cancel"]);
             if (rsp == 2 || rsp == -1)
                 return false; // Cancel
 
@@ -555,7 +555,7 @@ class CommitCommands : ICommitCommands
                 $"There are {largeFiles.Count} added large files:\n"
                 + $"  {string.Join("\n  ", largeFiles)}"
                 + "\n\nDo you want to continue?";
-            if (0 != UI.InfoMessage("Large Files Detected !", msg, 1, new[] { "Yes", "No" }))
+            if (0 != UI.InfoMessage("Large Files Detected !", msg, 1, ["Yes", "No"]))
             {
                 return false;
             }

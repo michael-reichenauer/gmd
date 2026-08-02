@@ -11,7 +11,7 @@ static class ConfigLogger
     static readonly string LevelInfo = "INFO ";
     static readonly int MaxLogFileSize = 2000000;
 
-    static readonly BlockingCollection<string> logTexts = new BlockingCollection<string>();
+    static readonly BlockingCollection<string> logTexts = [];
     static readonly int ProcessID = Process.GetCurrentProcess().Id;
     static readonly object syncRoot = new object();
     static int prefixLength = 0;
@@ -83,7 +83,7 @@ static class ConfigLogger
         {
             while (!logTexts.IsCompleted)
             {
-                List<string> batchedTexts = new List<string>();
+                List<string> batchedTexts = [];
 
                 if (!logTexts.TryTake(out var logText, int.MaxValue))
                 {

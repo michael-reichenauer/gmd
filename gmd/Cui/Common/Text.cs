@@ -225,12 +225,12 @@ class TextBuilder
 
     public TextBuilder()
     {
-        this.fragments = new List<TextFragment>();
+        this.fragments = [];
     }
 
     public TextBuilder(Common.Color color, string text)
     {
-        this.fragments = new List<TextFragment>();
+        this.fragments = [];
         this.Color(color, text);
     }
 

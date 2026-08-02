@@ -15,9 +15,9 @@ enum InputMarkers
 // of, and Show() puts them into a Terminal.Gui Dialog and runs it modally until a button closes it.
 class UIDialog
 {
-    readonly List<View> views = new List<View>();
-    readonly List<Button> buttons = new List<Button>();
-    readonly Dictionary<string, bool> buttonsClicked = new Dictionary<string, bool>();
+    readonly List<View> views = [];
+    readonly List<Button> buttons = [];
+    readonly Dictionary<string, bool> buttonsClicked = [];
     readonly Func<Key, bool>? onKey;
     Func<MouseEvent, bool>? onMouse;
     readonly Action<Dialog>? options;
@@ -25,7 +25,7 @@ class UIDialog
 
     record Validation(Func<bool> IsValid, string ErrorMsg);
 
-    readonly List<Validation> validations = new List<Validation>();
+    readonly List<Validation> validations = [];
 
     internal string Title { get; }
     internal Dim Width { get; }

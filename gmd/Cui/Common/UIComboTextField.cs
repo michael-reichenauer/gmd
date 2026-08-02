@@ -13,7 +13,7 @@ class UIComboTextField : TextField
     readonly List<Label> borderSides;
     readonly Label borderBottom;
     readonly ContentView listView;
-    private List<string> items = new List<string>();
+    private List<string> items = [];
     IReadOnlyList<Text> itemTexts = new List<Text>();
     bool isShowList = false;
 

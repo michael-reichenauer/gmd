@@ -160,11 +160,11 @@ public class FolderBrowseDlg
             catch (SystemException)
             {
                 // Access violation or other error getting the file list for directory
-                return Enumerable.Empty<FileSystemInfo>();
+                return [];
             }
         }
 
-        return Enumerable.Empty<FileSystemInfo>();
+        return [];
         ;
     }
 

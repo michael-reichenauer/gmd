@@ -7,7 +7,7 @@ namespace gmd.Server.Private.Augmented.Private;
 public class MetaData
 {
     //public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
-    public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> CommitBranchBySid { get; set; } = [];
 
     internal void SetCommitBranch(string sid, string branchName)
     {

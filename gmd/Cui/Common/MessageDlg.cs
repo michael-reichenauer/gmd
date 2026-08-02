@@ -47,7 +47,7 @@ static class MessageDlg
 
         // Create button array for Dialog
         int count = 0;
-        List<Button> buttonList = new List<Button>();
+        List<Button> buttonList = [];
         if (buttons != null && defaultButton > buttons.Length - 1)
         {
             defaultButton = buttons.Length - 1;

@@ -13,7 +13,7 @@ interface IFileStore
 class FileStore : IFileStore
 {
     readonly JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
-    readonly Dictionary<string, object> cache = new Dictionary<string, object>();
+    readonly Dictionary<string, object> cache = [];
 
     public T Get<T>(string path) => Read<T>(path);
 

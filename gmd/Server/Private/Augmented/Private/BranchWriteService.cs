@@ -203,7 +203,7 @@ class BranchWriteService : IBranchWriteService
     IEnumerable<Commit> ToMergeCommits(Repo repo, IReadOnlyList<Git.Commit> commits)
     {
         if (commits.Count == 0)
-            return Enumerable.Empty<Commit>();
+            return [];
         var branchName = repo.CommitById[commits[0].Id].BranchPrimaryName;
 
         return commits.Select(c => repo.CommitById[c.Id]).Where(c => c.BranchPrimaryName == branchName);

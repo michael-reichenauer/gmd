@@ -22,7 +22,7 @@ class CommitGraphService : ICommitGraphService
     // Remove branches that are do not have an existing tip id in the repo (e.g. deleted branches or truncated)
     public void SetGitBranchTipsOnCommits(WorkRepo repo)
     {
-        List<string> notFoundBranches = new List<string>();
+        List<string> notFoundBranches = [];
 
         foreach (var b in repo.Branches.Values)
         {

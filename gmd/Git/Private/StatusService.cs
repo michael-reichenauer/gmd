@@ -28,16 +28,16 @@ class StatusService : IStatusService
         var lines = statusText.Split('\n');
 
         int conflicted = 0;
-        List<string> conflictsFiles = new List<string>();
+        List<string> conflictsFiles = [];
         int added = 0;
-        List<string> addedFiles = new List<string>();
+        List<string> addedFiles = [];
         int deleted = 0;
-        List<string> deletedFiles = new List<string>();
+        List<string> deletedFiles = [];
         int modified = 0;
-        List<string> modifiedFiles = new List<string>();
+        List<string> modifiedFiles = [];
         int renamed = 0;
-        List<string> renamedSourceFiles = new List<string>();
-        List<string> renamedTargetFiles = new List<string>();
+        List<string> renamedSourceFiles = [];
+        List<string> renamedTargetFiles = [];
 
         foreach (var lineText in lines)
         {

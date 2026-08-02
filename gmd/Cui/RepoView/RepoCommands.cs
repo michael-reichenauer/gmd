@@ -170,7 +170,7 @@ class RepoCommands : IRepoCommands
                     "Clean Working Folder",
                     "Do you want to reset folder\nand delete all untracked files and folders?",
                     1,
-                    new[] { "Yes", "No" }
+                    ["Yes", "No"]
                 ) != 0
             )
             {
@@ -202,7 +202,7 @@ class RepoCommands : IRepoCommands
                 + $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n"
                 + "Do you want to update?";
 
-            var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
+            var button = UI.InfoMessage("New Release", msg, ["Yes", "No"]);
             if (button != 0)
             {
                 Log.Info($"Skip update");

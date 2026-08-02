@@ -34,7 +34,7 @@ class Menu
     }
 
     // Creating menu helpers
-    public static ICollection<MenuItem> Items => new List<MenuItem>();
+    public static ICollection<MenuItem> Items => [];
 
     public static MenuItem Item(string text, string shortcut, Action action, Func<bool>? canExecute = null) =>
         new MenuItem(text, shortcut, action, canExecute);

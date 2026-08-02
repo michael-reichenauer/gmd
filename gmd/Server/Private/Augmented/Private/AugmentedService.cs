@@ -354,7 +354,7 @@ class AugmentedService : IAugmentedService
         var id = Repo.EmptyRepoCommitId;
         var msg = "<... empty repo ...>";
         var branchName = "main";
-        var commit = new Git.Commit(id, id.Sid(), new string[0], msg, msg, "", DateTime.UtcNow, DateTime.UtcNow);
+        var commit = new Git.Commit(id, id.Sid(), [], msg, msg, "", DateTime.UtcNow, DateTime.UtcNow);
         var branch = new Git.Branch(branchName, id, true, false, "", false, 0, 0);
         var commits = new List<Git.Commit>() { commit };
         var branches = new List<Git.Branch>() { branch };

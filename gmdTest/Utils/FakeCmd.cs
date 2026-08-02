@@ -23,7 +23,7 @@ class FakeCmd : ICmd
     public FakeCmd(Func<string, string, string, CmdResult> respond) => this.respond = respond;
 
     // All calls made, in order, so tests can assert which git commands were run
-    public List<CmdCall> Calls { get; } = new List<CmdCall>();
+    public List<CmdCall> Calls { get; } = [];
 
     public static CmdResult Ok(string output) => new CmdResult("fake-cmd", output, "");
 

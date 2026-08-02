@@ -12,7 +12,7 @@ class Config
     public bool AllowPreview { get; set; } = false;
 
     // Values managed by app
-    public List<string> RecentFolders { get; set; } = new List<string>();
+    public List<string> RecentFolders { get; set; } = [];
     public Releases Releases { get; set; } = new Releases();
     public string GitVersion { get; set; } = "";
 
@@ -32,7 +32,7 @@ public class Release
 {
     public string Version { get; set; } = "";
     public bool IsPreview { get; set; } = false;
-    public Asset[] Assets { get; set; } = new Asset[0];
+    public Asset[] Assets { get; set; } = [];
 }
 
 public class Asset

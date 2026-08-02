@@ -167,7 +167,7 @@ class Augmenter : IAugmenter
 
     void SetBranchViewNames(WorkRepo repo)
     {
-        Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
+        Dictionary<string, int> branchNameCount = [];
 
         repo.Branches.Values.Where(b => b.IsPrimary)
             .OrderBy(b => b.IsGitBranch ? 0 : 1)
@@ -266,7 +266,7 @@ class Augmenter : IAugmenter
             message: msg,
             author: "",
             authorTime: new DateTime(1, 1, 1),
-            parentIds: new string[0]
+            parentIds: []
         )
         {
             IsTruncatedLogCommit = true,

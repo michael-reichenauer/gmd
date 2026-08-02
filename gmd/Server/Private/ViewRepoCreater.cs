@@ -218,8 +218,8 @@ class ViewRepoCreater : IViewRepoCreater
         );
 
         // Convert to a view repo
-        viewCommits = new List<Commit>() { commit };
-        viewBranches = new List<Branch>() { branch };
+        viewCommits = [commit];
+        viewBranches = [branch];
         return converter.ToViewRepo(DateTime.UtcNow, viewCommits, viewBranches, filter, augRepo);
     }
 

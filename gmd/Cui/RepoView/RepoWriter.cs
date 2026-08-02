@@ -54,7 +54,7 @@ class RepoWriter : IRepoWriter
         currentIndex = Math.Min(currentIndex, repo.Repo.ViewCommits.Count - 1);
         currentIndex = Math.Max(0, currentIndex);
 
-        List<Text> rows = new List<Text>();
+        List<Text> rows = [];
         var branchTips = GetBranchTips(repo);
 
         var crc = repo.Repo.ViewCommits[currentIndex];

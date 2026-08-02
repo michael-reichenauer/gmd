@@ -20,7 +20,7 @@ class DiffService : IDiffService
 
     public DiffRows ToDiffRows(CommitDiff commitDiff)
     {
-        return ToDiffRows(new[] { commitDiff });
+        return ToDiffRows([commitDiff]);
     }
 
     public DiffRows ToDiffRows(CommitDiff[] commitDiffs)

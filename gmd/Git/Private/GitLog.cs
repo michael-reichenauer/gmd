@@ -109,7 +109,7 @@ internal class LogService : ILogService
         if (ids == "")
         {
             // No parents, (root commit has no parent)
-            return new string[] { };
+            return [];
         }
 
         return ids.Split(' ');

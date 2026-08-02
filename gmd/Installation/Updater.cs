@@ -22,7 +22,7 @@ public class GitRelease
     public bool prerelease { get; set; } = true;
     public string published_at { get; set; } = "";
     public string body { get; set; } = "";
-    public GitAsset[] assets { get; set; } = new GitAsset[0];
+    public GitAsset[] assets { get; set; } = [];
 }
 
 public class GitAsset
@@ -319,20 +319,20 @@ class Updater : IUpdater
         string[] names;
         if (Build.IsMacOS)
         {
-            names = new[] { "gmd_osx_arm64" };
+            names = ["gmd_osx_arm64"];
         }
         else if (Build.IsLinux)
         {
             names = RuntimeInformation.OSArchitecture switch
             {
-                Architecture.Arm64 => new[] { "gmd_linux_arm64", "gmd_linux" },
-                Architecture.X64 => new[] { "gmd_linux_x64", "gmd_linux" },
-                _ => new[] { "gmd_linux" },
+                Architecture.Arm64 => ["gmd_linux_arm64", "gmd_linux"],
+                Architecture.X64 => ["gmd_linux_x64", "gmd_linux"],
+                _ => ["gmd_linux"],
             };
         }
         else if (Build.IsWindows)
         {
-            names = new[] { "gmd_windows" };
+            names = ["gmd_windows"];
         }
         else
         {
@@ -413,8 +413,7 @@ class Updater : IUpdater
             return;
 
         var gitReleases = JsonSerializer.Deserialize<GitRelease[]>(latestInfoText);
-        var releases =
-            gitReleases?.OrderByDescending(rr => TagToVersion(rr.tag_name))?.ToList() ?? new List<GitRelease>();
+        var releases = gitReleases?.OrderByDescending(rr => TagToVersion(rr.tag_name))?.ToList() ?? [];
         var stable = releases.FirstOrDefault(rr => !rr.prerelease);
         var preview = releases.FirstOrDefault(rr => rr.prerelease);
 

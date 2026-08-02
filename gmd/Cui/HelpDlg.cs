@@ -66,7 +66,7 @@ class HelpDlg : IHelpDlg
 
     (Text, int) GetColoredFragment(string row, int index)
     {
-        char[] chars = new[] { '`', '*' };
+        char[] chars = ['`', '*'];
         int i1 = row.IndexOfAny(chars, index);
         if (i1 == -1)
         {

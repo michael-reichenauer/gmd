@@ -16,12 +16,12 @@ record Indexes(int from, int into, int direction);
 // cspell:ignore erged
 class BranchNameService : IBranchNameService
 {
-    readonly Dictionary<string, FromInto> parsedCommits = new Dictionary<string, FromInto>();
-    readonly Dictionary<string, string> branchNames = new Dictionary<string, string>();
+    readonly Dictionary<string, FromInto> parsedCommits = [];
+    readonly Dictionary<string, string> branchNames = [];
 
     readonly FromInto noNames = new FromInto("", "", false, false);
 
-    static readonly string[] prefixes = { "refs/remotes/origin/", "remotes/origin/", "origin/" };
+    static readonly string[] prefixes = ["refs/remotes/origin/", "remotes/origin/", "origin/"];
 
     // A branch name may contain dots, e.g. 'release/1.0', but a git ref can neither start nor end
     // with one, so the name is bounded by a non-dot character. That also keeps a sentence ending
