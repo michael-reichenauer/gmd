@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 
-
 namespace gmd.Utils.GlobPatterns
 {
     public static class GlobExtensions
@@ -12,7 +11,8 @@ namespace gmd.Utils.GlobPatterns
             var glob = new gmd.Utils.GlobPatterns.Glob(pattern);
             var truncateLength = di.FullName.Length + 1;
 
-            return di.EnumerateDirectories("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
+            return di.EnumerateDirectories("*", SearchOption.AllDirectories)
+                .Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
         }
 
         public static IEnumerable<FileInfo> GlobFiles(this DirectoryInfo di, string pattern)
@@ -20,7 +20,8 @@ namespace gmd.Utils.GlobPatterns
             var glob = new gmd.Utils.GlobPatterns.Glob(pattern);
             var truncateLength = di.FullName.Length + 1;
 
-            return di.EnumerateFiles("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
+            return di.EnumerateFiles("*", SearchOption.AllDirectories)
+                .Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
         }
 
         public static IEnumerable<FileSystemInfo> GlobFileSystemInfos(this DirectoryInfo di, string pattern)
@@ -28,7 +29,8 @@ namespace gmd.Utils.GlobPatterns
             var glob = new gmd.Utils.GlobPatterns.Glob(pattern);
             var truncateLength = di.FullName.Length + 1;
 
-            return di.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
+            return di.EnumerateFileSystemInfos("*", SearchOption.AllDirectories)
+                .Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
         }
     }
 }

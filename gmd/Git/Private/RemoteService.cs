@@ -1,6 +1,5 @@
 namespace gmd.Git.Private;
 
-
 interface IRemoteService
 {
     Task<R> FetchAsync(string wd);
@@ -48,7 +47,6 @@ class RemoteService : IRemoteService
         return await cmd.RunAsync("git", args, wd);
     }
 
-
     public async Task<R> PullCurrentBranchAsync(string wd)
     {
         var args = $"pull";
@@ -86,7 +84,6 @@ class RemoteService : IRemoteService
         var args = $"fetch origin {refs}";
         return await cmd.RunAsync("git", args, wd);
     }
-
 
     public async Task<R> CloneAsync(string uri, string path, string wd)
     {

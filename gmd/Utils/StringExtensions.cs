@@ -56,9 +56,16 @@ public static class StringExtensions
 
     public static string ToJson(this object? source)
     {
-        if (source == null) return "";
+        if (source == null)
+            return "";
 
-        if (!Try(out var json, out var e, () => JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })))
+        if (
+            !Try(
+                out var json,
+                out var e,
+                () => JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })
+            )
+        )
         {
             return $"<Error: {e}>";
         }
@@ -68,16 +75,19 @@ public static class StringExtensions
 
     public static string Txt(this Version? source)
     {
-        if (source == null) return "";
+        if (source == null)
+            return "";
         return $"{source.Major}.{source.Minor} ({source.Build}.{source.Revision})";
     }
 
     public static string FileSize(this long source)
     {
-        if (source < 1024) return $"{source} B";
-        if (source < 1024 * 1024) return $"{source / 1024:0.##} KB";
-        if (source < 1024 * 1024 * 1024) return $"{source / 1024 / 1024:0.##} MB";
+        if (source < 1024)
+            return $"{source} B";
+        if (source < 1024 * 1024)
+            return $"{source / 1024:0.##} KB";
+        if (source < 1024 * 1024 * 1024)
+            return $"{source / 1024 / 1024:0.##} MB";
         return $"{source / 1024 / 1024 / 1024:0.##} GB";
     }
 }
-

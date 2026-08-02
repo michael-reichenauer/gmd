@@ -17,7 +17,8 @@ class StatusService : IStatusService
     public async Task<R<Status>> GetStatusAsync(string wd)
     {
         var args = "status -s --porcelain --ahead-behind --untracked-files=all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         return Parse(output, wd);
     }
@@ -27,17 +28,16 @@ class StatusService : IStatusService
         var lines = statusText.Split('\n');
 
         int conflicted = 0;
-        List<string> conflictsFiles = new List<string>();
+        List<string> conflictsFiles = [];
         int added = 0;
-        List<string> addedFiles = new List<string>();
+        List<string> addedFiles = [];
         int deleted = 0;
-        List<string> deletedFiles = new List<string>();
+        List<string> deletedFiles = [];
         int modified = 0;
-        List<string> modifiedFiles = new List<string>();
+        List<string> modifiedFiles = [];
         int renamed = 0;
-        List<string> renamedSourceFiles = new List<string>();
-        List<string> renamedTargetFiles = new List<string>();
-
+        List<string> renamedSourceFiles = [];
+        List<string> renamedTargetFiles = [];
 
         foreach (var lineText in lines)
         {
@@ -47,10 +47,8 @@ class StatusService : IStatusService
                 continue;
             }
 
-            if (line.StartsWith("DD ") ||
-                line.StartsWith("AU ") ||
-                line.StartsWith("UA "))
-            {   // How to reproduce this ???
+            if (line.StartsWith("DD ") || line.StartsWith("AU ") || line.StartsWith("UA "))
+            { // How to reproduce this ???
                 conflicted++;
                 conflictsFiles.Add(line.Substring(3).Trim().Replace("\"", ""));
             }
@@ -99,9 +97,22 @@ class StatusService : IStatusService
         }
         (string mergeMessage, string mergeHeadId, bool isMerging) = GetMergeStatus(wd);
 
-        return new Status(modified, added, deleted, conflicted, renamed, isMerging, mergeMessage, mergeHeadId,
-            modifiedFiles.ToArray(), addedFiles.ToArray(), deletedFiles.ToArray(), conflictsFiles.ToArray(),
-            renamedSourceFiles.ToArray(), renamedTargetFiles.ToArray());
+        return new Status(
+            modified,
+            added,
+            deleted,
+            conflicted,
+            renamed,
+            isMerging,
+            mergeMessage,
+            mergeHeadId,
+            modifiedFiles.ToArray(),
+            addedFiles.ToArray(),
+            deletedFiles.ToArray(),
+            conflictsFiles.ToArray(),
+            renamedSourceFiles.ToArray(),
+            renamedTargetFiles.ToArray()
+        );
     }
 
     (string, string, bool) GetMergeStatus(string wd)
@@ -115,7 +126,8 @@ class StatusService : IStatusService
         }
 
         // Read the merge message
-        if (!Try(out var mergeMessage, out var e, () => File.ReadAllText(mergeMsgPath))) return ("", "", false);
+        if (!Try(out var mergeMessage, out var e, () => File.ReadAllText(mergeMsgPath)))
+            return ("", "", false);
 
         var lines = mergeMessage.Split('\n');
         mergeMessage = lines[0].Trim();
@@ -129,6 +141,5 @@ class StatusService : IStatusService
         return (mergeMessage, mergeHeadId ?? "", true);
     }
 
-    internal static bool IsMergeInProgress(string wd) =>
-        File.Exists(Path.Join(wd, ".git", "MERGE_MSG"));
+    internal static bool IsMergeInProgress(string wd) => File.Exists(Path.Join(wd, ".git", "MERGE_MSG"));
 }

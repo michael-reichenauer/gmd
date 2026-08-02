@@ -18,8 +18,7 @@ static class Clipboard
         {
             return LinuxClipboard.TrySetText(text);
         }
-        else
-        if (Build.IsWindows)
+        else if (Build.IsWindows)
         {
             return WindowsClipboard.TrySetText(text);
         }
@@ -27,7 +26,6 @@ static class Clipboard
         return R.Error("Clipboard not supported on this platform");
     }
 }
-
 
 // https://github.com/CopyText/TextCopy/blob/main/src/TextCopy/LinuxClipboard_2.1.cs
 static class LinuxClipboard
@@ -40,11 +38,11 @@ static class LinuxClipboard
         isWsl = Environment.GetEnvironmentVariable("WSL_DISTRO_NAME") != null;
     }
 
-
     public static R TrySetText(string text)
     {
         var tempFileName = Path.GetTempFileName();
-        if (!Try(out var e, () => File.WriteAllText(tempFileName, text))) return e;
+        if (!Try(out var e, () => File.WriteAllText(tempFileName, text)))
+            return e;
         return InnerSetText(tempFileName);
     }
 
@@ -65,7 +63,8 @@ static class LinuxClipboard
         {
             if (File.Exists(tempFileName))
             {
-                if (!Try(out var e, () => File.Delete(tempFileName))) Log.Warn($"{e}");
+                if (!Try(out var e, () => File.Delete(tempFileName)))
+                    Log.Warn($"{e}");
             }
         }
     }
@@ -75,15 +74,18 @@ static class LinuxClipboard
         var tempFileName = Path.GetTempFileName();
         try
         {
-            if (!Try(out var e, InnerGetText(tempFileName))) return e;
+            if (!Try(out var e, InnerGetText(tempFileName)))
+                return e;
 
-            if (!Try(out string? text, out e, () => File.ReadAllText(tempFileName))) return e;
+            if (!Try(out string? text, out e, () => File.ReadAllText(tempFileName)))
+                return e;
 
             return text;
         }
         finally
         {
-            if (File.Exists(tempFileName)) File.Delete(tempFileName);
+            if (File.Exists(tempFileName))
+                File.Delete(tempFileName);
         }
     }
 
@@ -99,7 +101,6 @@ static class LinuxClipboard
         }
     }
 }
-
 
 static class BashRunner
 {
@@ -118,12 +119,18 @@ static class BashRunner
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = false,
-            }
+            },
         };
         process.Start();
-        process.OutputDataReceived += (_, args) => { outputBuilder.AppendLine(args.Data); };
+        process.OutputDataReceived += (_, args) =>
+        {
+            outputBuilder.AppendLine(args.Data);
+        };
         process.BeginOutputReadLine();
-        process.ErrorDataReceived += (_, args) => { errorBuilder.AppendLine(args.Data); };
+        process.ErrorDataReceived += (_, args) =>
+        {
+            errorBuilder.AppendLine(args.Data);
+        };
         process.BeginErrorReadLine();
         process.WaitForExit();
         // if (!process.DoubleWaitForExit())
@@ -156,7 +163,8 @@ static class WindowsClipboard
 {
     public static R TrySetText(string text)
     {
-        if (!TerminalClipboard.TrySetClipboardData(text)) return R.Error("Failed to set clipboard");
+        if (!TerminalClipboard.TrySetClipboardData(text))
+            return R.Error("Failed to set clipboard");
         return R.Ok;
     }
 }

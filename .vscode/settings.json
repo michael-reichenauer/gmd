@@ -1,26 +1,51 @@
 {
+  "dotnet.defaultSolution": "gmd.sln",
+
+  // CSharpier owns all C# formatting. It runs on save here, on build via the
+  // CSharpier.MsBuild package, and on commit via the pre-commit hook.
+  "editor.formatOnSave": true,
+  "[csharp]": {
+    "editor.defaultFormatter": "csharpier.csharpier-vscode"
+  },
+
   "cSpell.words": [
     "Autofac",
     "Browsable",
     "cmds",
     "Collapseable",
     "Creater",
+    "csharpier",
+    "csharpierrc",
     "Dependitor",
     "devcontainers",
     "DISTRO",
     "dotnettools",
+    "errorlevel",
+    "findstr",
+    "gmdconfig",
     "gmdstate",
+    "Inno",
+    "installtools",
+    "libgit",
+    "lnav",
     "mhutchie",
+    "mstest",
+    "nologo",
     "pullable",
     "pushable",
+    "setlocal",
+    "softprops",
     "Uncommit",
     "Ungrab",
     "uninstallation",
     "unpulled",
     "unpushed",
     "Unresolve",
+    "updatechangelog",
+    "updatepackages",
     "Upgrader",
-    "ustring"
-  ],
-  "dotnet.defaultSolution": "gmd.sln"
+    "ustring",
+    "xclip",
+    "xsel"
+  ]
 }

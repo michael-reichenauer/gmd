@@ -1,4 +1,3 @@
-
 namespace gmd.Cui.Common;
 
 record Color
@@ -23,7 +22,8 @@ record Color
     public static readonly Color RedBg = Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Red);
     public static readonly Color GreenBg = Make(Terminal.Gui.Color.Black, Terminal.Gui.Color.BrightGreen);
 
-    public Color(Color fg, Color bg) : this(fg.Foreground, bg.Foreground) { }
+    public Color(Color fg, Color bg)
+        : this(fg.Foreground, bg.Foreground) { }
 
     public Color(Terminal.Gui.Color fg, Terminal.Gui.Color bg)
     {
@@ -36,15 +36,15 @@ record Color
     public Terminal.Gui.Color Background { get; init; }
 
     // Converters to Color from Gui.Attribute and Gui.Color
-    public static implicit operator Color(Terminal.Gui.Attribute a) =>
-        new Color(a.Foreground, a.Background);
+    public static implicit operator Color(Terminal.Gui.Attribute a) => new Color(a.Foreground, a.Background);
 
     // Converters to Gui.Attribute and Gui.Color from Color
     public static implicit operator Terminal.Gui.Attribute(Color color) =>
         new Terminal.Gui.Attribute(color.Foreground, color.Background);
+
     public static implicit operator Terminal.Gui.Color(Color color) => color.Foreground;
 
     static Color Make(Terminal.Gui.Color color) => Make(color, Terminal.Gui.Color.Black);
+
     static Color Make(Terminal.Gui.Color fg, Terminal.Gui.Color bg) => new Color(fg, bg);
 }
-

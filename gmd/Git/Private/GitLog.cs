@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace gmd.Git.Private;
 
 internal interface ILogService
@@ -20,7 +22,8 @@ internal class LogService : ILogService
     public async Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
         var args = $"log --all --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={maxCount}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return await Task.Run(() => ParseLines(output));
@@ -29,7 +32,8 @@ internal class LogService : ILogService
     public async Task<R<IReadOnlyList<Commit>>> GetStashListAsync(string wd)
     {
         var args = $"stash list -z --pretty=\"%H|%ai|%ci|%an|%P|%gd:%B\"";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return await Task.Run(() => ParseLines(output));
@@ -38,7 +42,8 @@ internal class LogService : ILogService
     public async Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd)
     {
         var args = $"ls-tree -r {reference} --name-only";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return output.Split('\n').ToList();
@@ -47,7 +52,8 @@ internal class LogService : ILogService
     public async Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd)
     {
         var args = $"log --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count=100 HEAD..{reference}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+            return e;
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return await Task.Run(() => ParseLines(output));
@@ -65,11 +71,11 @@ internal class LogService : ILogService
                 continue;
             }
 
-            if (!Try(out var commit, out var e, ParseRow(row))) return e;
+            if (!Try(out var commit, out var e, ParseRow(row)))
+                return e;
 
             commits.Add(commit);
         }
-
 
         return commits;
     }
@@ -84,8 +90,11 @@ internal class LogService : ILogService
 
         var id = rowParts[0];
         var sid = id.Sid();
-        var authorTime = DateTime.Parse(rowParts[1]);
-        var commitTime = DateTime.Parse(rowParts[2]);
+        // Git emits the same date format regardless of the user's locale, so parse it culture
+        // invariant. Cultures with a non-Gregorian calendar (e.g. ar-SA, th-TH, fa-IR) would
+        // otherwise throw or silently parse the year hundreds of years off.
+        var authorTime = DateTime.Parse(rowParts[1], CultureInfo.InvariantCulture);
+        var commitTime = DateTime.Parse(rowParts[2], CultureInfo.InvariantCulture);
         var author = rowParts[3];
         var parentIDs = ParseParentIds(rowParts);
         var message = ParseMessage(rowParts);
@@ -100,7 +109,7 @@ internal class LogService : ILogService
         if (ids == "")
         {
             // No parents, (root commit has no parent)
-            return new string[] { };
+            return [];
         }
 
         return ids.Split(' ');
@@ -129,4 +138,3 @@ internal class LogService : ILogService
         return lines[0].TrimEnd();
     }
 }
-

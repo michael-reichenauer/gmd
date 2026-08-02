@@ -1,6 +1,5 @@
 namespace gmd.Git;
 
-
 interface IGit
 {
     R<string> RootPath(string path);
@@ -62,7 +61,6 @@ interface IGit
     Task<R> ResetHardUntilCommitAsync(string id, string wd);
 }
 
-
 public record Commit(
     string Id,
     string Sid,
@@ -79,10 +77,10 @@ public record Branch(
     string TipID,
     bool IsCurrent,
     bool IsRemote,
-    string RemoteName,  // The remote name for a local branch 
+    string RemoteName, // The remote name for a local branch
     bool IsDetached,
-    int AheadCount,     // Number of commits on local branch not yet synced up to remote branch
-    int BehindCount     // Number of commits on remote branch not yet synced down to local branch
+    int AheadCount, // Number of commits on local branch not yet synced up to remote branch
+    int BehindCount // Number of commits on remote branch not yet synced down to local branch
 );
 
 public record Status(
@@ -107,22 +105,9 @@ public record Status(
 
 public record Tag(string Name, string CommitId);
 
-public record Stash(
-    string Id,
-    string Name,
-    string Branch,
-    string ParentId,
-    string IndexId,
-    string Message
-);
+public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);
 
-record CommitDiff(
-    string Id,
-    string Author,
-    DateTime Time,
-    string Message,
-    IReadOnlyList<FileDiff> FileDiffs
-);
+record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs);
 
 record FileDiff(
     string PathBefore,

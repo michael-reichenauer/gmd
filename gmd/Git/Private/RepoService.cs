@@ -1,11 +1,9 @@
 namespace gmd.Git.Private;
 
-
 interface IRepoService
 {
     Task<R> InitAsync(string path, bool isBare = false);
 }
-
 
 class RepoService : IRepoService
 {

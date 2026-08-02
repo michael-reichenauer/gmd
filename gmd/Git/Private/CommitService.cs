@@ -29,17 +29,18 @@ class CommitService : ICommitService
 
         if (!StatusService.IsMergeInProgress(wd))
         {
-            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd))) return e;
+            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd)))
+                return e;
         }
 
         var amendText = isAmend ? " --amend" : "";
         return await cmd.RunAsync("git", $"commit{amendText} -am \"{message}\"", wd);
     }
 
-
     public async Task<R> UndoAllUncommittedChangesAsync(string wd)
     {
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd))) return e;
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd)))
+            return e;
 
         return await cmd.RunAsync("git", "clean -fd", wd);
     }
@@ -53,7 +54,8 @@ class CommitService : ICommitService
             {
                 // Was an unknown (new/added) file, we just remove it
                 var fullPath = Path.Combine(wd, path);
-                if (!Try(out e, () => File.Delete(fullPath))) return R.Error("Failed to reset", e);
+                if (!Try(out e, () => File.Delete(fullPath)))
+                    return R.Error("Failed to reset", e);
                 Log.Info($"File '{path}' (new/added) was removed");
                 return R.Ok;
             }
@@ -66,7 +68,8 @@ class CommitService : ICommitService
 
     public async Task<R> CleanWorkingFolderAsync(string wd)
     {
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd))) return e;
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd)))
+            return e;
 
         return await cmd.RunAsync("git", "clean -fxd", wd);
     }
@@ -91,7 +94,6 @@ class CommitService : ICommitService
     {
         return await cmd.RunAsync("git", $"reset --hard {id}", wd);
     }
-
 
     static bool IsFileUnknown(ErrorResult error, string path)
     {

@@ -1,5 +1,4 @@
 using System.Text;
-using gmd.Cui.RepoView;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -10,14 +9,15 @@ class Server : IServer
 {
     readonly IGit git;
     readonly IAugmentedService augmentedService;
-    readonly IConverter converter;
+    readonly IViewRepoConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
 
     public Server(
         IGit git,
         IAugmentedService augmentedService,
-        IConverter converter,
-        IViewRepoCreater viewRepoCreater)
+        IViewRepoConverter converter,
+        IViewRepoCreater viewRepoCreater
+    )
     {
         this.git = git;
         this.augmentedService = augmentedService;
@@ -34,8 +34,8 @@ class Server : IServer
 
     public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
-        if (!Try(out var augmentedRepo, out var e,
-            await augmentedService.GetRepoAsync(path))) return e;
+        if (!Try(out var augmentedRepo, out var e, await augmentedService.GetRepoAsync(path)))
+            return e;
 
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
     }
@@ -44,7 +44,8 @@ class Server : IServer
     {
         var branches = repo.ViewBranches.Select(b => b.Name).ToArray();
 
-        if (!Try(out var augmentedRepo, out var e, await augmentedService.UpdateRepoStatusAsync(repo))) return e;
+        if (!Try(out var augmentedRepo, out var e, await augmentedService.UpdateRepoStatusAsync(repo)))
+            return e;
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
@@ -54,10 +55,10 @@ class Server : IServer
         return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount);
     }
 
-
     public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = true)
     {
-        if (commitId == Repo.UncommittedId) return new List<Branch>();
+        if (commitId == Repo.UncommittedId)
+            return new List<Branch>();
 
         bool FilterOnShown(Commit cc) => isAll || !cc.IsInView;
         // Getting all branches that are not the same as the commit branch.
@@ -65,12 +66,12 @@ class Server : IServer
         var commit = repo.CommitById[commitId];
         var branch = repo.BranchByName[commit.BranchName];
 
-        return
-            commit.AllChildIds.Concat(commit.ParentIds)                    // All children and parents commit ids         
-            .Select(id => repo.CommitById[id])               // As commits
+        return commit
+            .AllChildIds.Concat(commit.ParentIds) // All children and parents commit ids
+            .Select(id => repo.CommitById[id]) // As commits
             .Where(cc => cc.BranchPrimaryName != commit.BranchPrimaryName) // Skip same branch
-            .Concat(commit.Id == branch.TipId ? new[] { commit } : new Commit[0])                                       // Add commit branch if tip
-            .Where(FilterOnShown)                                          // Exclude shown branches (or not)
+            .Concat(commit.Id == branch.TipId ? [commit] : []) // Add commit branch if tip
+            .Where(FilterOnShown) // Exclude shown branches (or not)
             .Select(cc => cc.BranchPrimaryName)
             .Distinct()
             .Select(n => repo.BranchByName[n])
@@ -79,7 +80,8 @@ class Server : IServer
 
     public IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount)
     {
-        if (commitId == Repo.UncommittedId) return new List<string>();
+        if (commitId == Repo.UncommittedId)
+            return new List<string>();
 
         var specifiedCommit = repo.CommitById[commitId];
 
@@ -116,8 +118,11 @@ class Server : IServer
             {
                 var child = repo.CommitById[id];
 
-                if (child.ParentIds[0] != commit.Id ||  // Skip merge children (not have commit as first parent)
-                    child.IsBranchSetByUser)            // Skip children where branch is  set by user
+                if (
+                    child.ParentIds[0] != commit.Id
+                    || // Skip merge children (not have commit as first parent)
+                    child.IsBranchSetByUser
+                ) // Skip children where branch is  set by user
                 {
                     continue;
                 }
@@ -133,8 +138,13 @@ class Server : IServer
         return branches.ToList();
     }
 
-
-    public Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1)
+    public Repo ShowBranch(
+        Repo repo,
+        string branchName,
+        bool includeAmbiguous,
+        ShowBranches show = ShowBranches.Specified,
+        int count = 1
+    )
     {
         var branchNames = repo.ViewBranches.Select(b => b.Name).Append(branchName);
         if (includeAmbiguous)
@@ -146,18 +156,18 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo, branchNames.ToArray(), show, count);
     }
 
-
     public Repo HideBranch(Repo repo, string name, bool hideAllBranches = false)
     {
         Log.Info($"Hide {name}, HideAllBranches: {hideAllBranches}");
 
-        if (hideAllBranches) return viewRepoCreater.GetViewRepoAsync(repo, new[] { "main" });
+        if (hideAllBranches)
+            return viewRepoCreater.GetViewRepoAsync(repo, new[] { "main" });
 
         var branch = repo.BranchByName[name];
         branch = repo.BranchByName[branch.PrimaryName];
 
-        var branchNames = repo.ViewBranches
-            .Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
+        var branchNames = repo
+            .ViewBranches.Where(b => b.Name != branch.Name && !b.AncestorNames.Contains(branch.Name))
             .Select(b => b.Name)
             .ToArray();
 
@@ -166,31 +176,32 @@ class Server : IServer
 
     public Task<R> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
 
-
     public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
-          augmentedService.CommitAllChangesAsync(message, isAmend, wd);
+        augmentedService.CommitAllChangesAsync(message, isAmend, wd);
 
     public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
     {
-        var diffTask = commitId == Repo.UncommittedId
-            ? git.GetUncommittedDiff(wd)
-            : git.GetCommitDiffAsync(commitId, wd);
+        var diffTask =
+            commitId == Repo.UncommittedId ? git.GetUncommittedDiff(wd) : git.GetCommitDiffAsync(commitId, wd);
 
-        if (!Try(out var gitCommitDiff, out var e, await diffTask)) return e;
+        if (!Try(out var gitCommitDiff, out var e, await diffTask))
+            return e;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
     public async Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd)
     {
-        if (!Try(out var gitCommitDiff, out var e, await git.GetPreviewMergeDiffAsync(sha1, sha2, message, wd))) return e;
+        if (!Try(out var gitCommitDiff, out var e, await git.GetPreviewMergeDiffAsync(sha1, sha2, message, wd)))
+            return e;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }
 
     public async Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd)
     {
-        if (!Try(out var gitCommitDiff, out var e, await git.GetDiffRangeAsync(sha1, sha2, message, wd))) return e;
+        if (!Try(out var gitCommitDiff, out var e, await git.GetDiffRangeAsync(sha1, sha2, message, wd)))
+            return e;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }
@@ -201,20 +212,29 @@ class Server : IServer
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
     {
-        if (!Try(out var gitCommitDiffs, out var e, await git.GetFileDiffAsync(path, wd))) return e;
+        if (!Try(out var gitCommitDiffs, out var e, await git.GetFileDiffAsync(path, wd)))
+            return e;
         return converter.ToCommitDiffs(gitCommitDiffs);
     }
 
-
     public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
-      augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout, wd);
+        augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout, wd);
 
-    public Task<R> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout, string wd) =>
-        augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout, wd);
+    public Task<R> CreateBranchFromBranchAsync(
+        Repo repo,
+        string newBranchName,
+        string sourceBranch,
+        bool isCheckout,
+        string wd
+    ) => augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout, wd);
 
-
-    public Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd) =>
-        augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
+    public Task<R> CreateBranchFromCommitAsync(
+        Repo repo,
+        string newBranchName,
+        string sha,
+        bool isCheckout,
+        string wd
+    ) => augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
 
     public async Task<R> PushBranchAsync(string name, string wd)
     {
@@ -228,56 +248,45 @@ class Server : IServer
         }
     }
 
-    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) =>
-        git.PushCurrentBranchAsync(isForce, wd);
+    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) => git.PushCurrentBranchAsync(isForce, wd);
 
-    public Task<R> PullCurrentBranchAsync(string wd) =>
-        git.PullCurrentBranchAsync(wd);
+    public Task<R> PullCurrentBranchAsync(string wd) => git.PullCurrentBranchAsync(wd);
 
-    public Task<R> PullBranchAsync(string name, string wd) =>
-        git.PullBranchAsync(name, wd);
+    public Task<R> PullBranchAsync(string name, string wd) => git.PullBranchAsync(name, wd);
 
-    public Task<R> SwitchToAsync(Repo repo, string branchName) =>
-        augmentedService.SwitchToAsync(repo, branchName);
+    public Task<R> SwitchToAsync(Repo repo, string branchName) => augmentedService.SwitchToAsync(repo, branchName);
 
     public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName)
     {
-        if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo, branchName))) return e;
+        if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo, branchName)))
+            return e;
         return converter.ToViewCommits(commits).ToList();
     }
 
     public Task<R> RebaseBranchAsync(Repo repo, string branchName) =>
-         augmentedService.RebaseBranchAsync(repo, branchName);
+        augmentedService.RebaseBranchAsync(repo, branchName);
 
     public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
         git.RebaseOntoAsync(newBase, oldBase, wd);
 
-    public Task<R> CherryPickAsync(string sha, string wd) =>
-        git.CherryPickAsync(sha, wd);
+    public Task<R> CherryPickAsync(string sha, string wd) => git.CherryPickAsync(sha, wd);
 
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
 
-    public Task<R> DeleteRemoteBranchAsync(string name, string wd) =>
-        git.DeleteRemoteBranchAsync(name, wd);
+    public Task<R> DeleteRemoteBranchAsync(string name, string wd) => git.DeleteRemoteBranchAsync(name, wd);
 
-    public Task<R> UndoAllUncommittedChangesAsync(string wd) =>
-        git.UndoAllUncommittedChangesAsync(wd);
+    public Task<R> UndoAllUncommittedChangesAsync(string wd) => git.UndoAllUncommittedChangesAsync(wd);
 
-    public Task<R> UndoUncommittedFileAsync(string path, string wd) =>
-        git.UndoUncommittedFileAsync(path, wd);
+    public Task<R> UndoUncommittedFileAsync(string path, string wd) => git.UndoUncommittedFileAsync(path, wd);
 
-    public Task<R> CleanWorkingFolderAsync(string wd) =>
-        git.CleanWorkingFolderAsync(wd);
+    public Task<R> CleanWorkingFolderAsync(string wd) => git.CleanWorkingFolderAsync(wd);
 
-    public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) =>
-        git.UndoCommitAsync(id, parentIndex, wd);
+    public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) => git.UndoCommitAsync(id, parentIndex, wd);
 
-    public Task<R> UncommitLastCommitAsync(string wd) =>
-        git.UncommitLastCommitAsync(wd);
+    public Task<R> UncommitLastCommitAsync(string wd) => git.UncommitLastCommitAsync(wd);
 
-    public Task<R> UncommitUntilCommitAsync(string id, string wd) =>
-        git.UncommitUntilCommitAsync(id, wd);
+    public Task<R> UncommitUntilCommitAsync(string id, string wd) => git.UncommitUntilCommitAsync(id, wd);
 
     public Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
@@ -288,18 +297,15 @@ class Server : IServer
     public Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
         augmentedService.UnresolveAmbiguityAsync(repo, commitId);
 
-    public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
-        git.GetFileAsync(reference, wd);
+    public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) => git.GetFileAsync(reference, wd);
 
     public async Task<R> CloneAsync(string uri, string path, string wd)
     {
-        using (Timing.Start()) return await git.CloneAsync(uri, path, wd);
+        using (Timing.Start())
+            return await git.CloneAsync(uri, path, wd);
     }
 
-    public async Task<R> InitRepoAsync(string path, string wd) =>
-     await git.InitRepoAsync(path, wd);
-
-
+    public async Task<R> InitRepoAsync(string path, string wd) => await git.InitRepoAsync(path, wd);
 
     public Task<R> StashAsync(string message, string wd) => git.StashAsync(message, wd);
 
@@ -307,7 +313,8 @@ class Server : IServer
 
     public async Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd)
     {
-        if (!Try(out var diff, out var e, await git.GetStashDiffAsync(name, wd))) return e;
+        if (!Try(out var diff, out var e, await git.GetStashDiffAsync(name, wd)))
+            return e;
         return converter.ToCommitDiff(diff);
     }
 
@@ -315,7 +322,8 @@ class Server : IServer
 
     public async Task<R<string>> GetChangeLogAsync()
     {
-        if (!Try(out var repo, out var e, await GetRepoAsync("", new[] { "main" }))) return e;
+        if (!Try(out var repo, out var e, await GetRepoAsync("", new[] { "main" })))
+            return e;
 
         var nextTag = "Current";
         var nextTagDate = DateTime.UtcNow;
@@ -336,17 +344,23 @@ class Server : IServer
             }
 
             // Adjust some message lines
-            message = message.Split('\n').Select(l =>
-            {
-                if (l.StartsWith("- Fix ")) l = $"- Fixed {l[6..]}";
-                if (l.StartsWith("- Add ")) l = $"- Added {l[6..]}";
-                if (l.StartsWith("- Update ")) l = $"- Updated {l[9..]}";
-                return l;
-            }).Join("\n");
+            message = message
+                .Split('\n')
+                .Select(l =>
+                {
+                    if (l.StartsWith("- Fix "))
+                        l = $"- Fixed {l[6..]}";
+                    if (l.StartsWith("- Add "))
+                        l = $"- Added {l[6..]}";
+                    if (l.StartsWith("- Update "))
+                        l = $"- Updated {l[9..]}";
+                    return l;
+                })
+                .Join("\n");
 
             var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name[1..], out var _));
             if (tag != null)
-            {   // New version
+            { // New version
                 if (text.Trim() != "")
                 {
                     if (nextTag == "Current")
@@ -374,16 +388,19 @@ class Server : IServer
     public Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>
         augmentedService.AddTagAsync(name, commitId, hasRemoteBranch, wd);
 
-    public Task<R> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd) =>
-        augmentedService.AddAnnotatedTagAsync(name, message, commitId, hasRemoteBranch, wd);
+    public Task<R> AddAnnotatedTagAsync(
+        string name,
+        string message,
+        string commitId,
+        bool hasRemoteBranch,
+        string wd
+    ) => augmentedService.AddAnnotatedTagAsync(name, message, commitId, hasRemoteBranch, wd);
 
     public Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
         augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
 
-    public Task<R> SwitchToCommitAsync(string commitId, string wd) =>
-        git.CheckoutAsync(commitId, wd);
+    public Task<R> SwitchToCommitAsync(string commitId, string wd) => git.CheckoutAsync(commitId, wd);
 
     public Task<R> SquashCommits(Repo repo, string id1, string id2, string msg) =>
         augmentedService.SquashCommits(repo, id1, id2, msg);
 }
-

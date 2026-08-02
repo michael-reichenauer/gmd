@@ -1,0 +1,1081 @@
+# Modernization plan
+
+A living checklist for modernizing gmd: raising the test coverage, making the code easier to
+maintain, and updating the toolchain. Organized into steps small enough to review one at a time.
+
+Mark items `[x]` as they land. Add new findings under the step they belong to rather than at the
+end, so related work stays together.
+
+---
+
+## Step 0 — Toolchain and formatting ✅ done
+
+- [x] Remove unused dependencies: the four `Microsoft.Extensions.Configuration.*` packages were
+      referenced but never used anywhere in the code, plus the orphaned root `config.json`
+      (added Nov 2022 with the state-handling commit, superseded by `FileStore`/`~/.gmdconfig`).
+      Dependencies went 7 → 3.
+- [x] Fix stale .NET 7 references: `build.bat` (`net7.0` made every `copy` path invalid, so the
+      Windows build script could not produce binaries), `.vscode/launch.json`, and CI's
+      `dotnet-version` (CI was building net8.0 with the 7.x SDK installed — it only worked
+      because the runner image ships .NET 8).
+- [x] `build.bat` rewritten to mirror `./build`: same steps, same artifact names. Note it now
+      writes `gmd_osx_arm64` rather than mislabelling the arm64 binary as `gmd_osx`, and the
+      trailing `pause` was dropped.
+- [x] Release workflow modernized: `checkout@v3 → v7`, `setup-dotnet@v3 → v6`, and the archived
+      `create-release@v1` plus six `upload-release-asset@v1` steps collapsed into one
+      `softprops/action-gh-release@v3`. All six assets preserved, including the `gmd_linux`
+      duplicate that `Updater.cs` falls back to.
+- [x] CSharpier adopted as the single source of truth for formatting: on save, on build
+      (`CSharpier.MsBuild`), on commit (pre-commit hook), and in CI (`csharpier check`).
+      `printWidth` 120. See the CSharpier section in `CLAUDE.md` for the details and the
+      Debug-formats / Release-checks split.
+- [x] `.editorconfig` for naming and non-layout code style only, so it cannot fight CSharpier.
+- [x] `.csharpierignore` for the Windows installer directory — CSharpier reformats XML, which
+      invalidated the `packages.config.md5sum` Cake restore marker.
+- [x] `.git-blame-ignore-revs` so the bulk reformat does not pollute `git blame`.
+- [x] Fixed a `curl curl` typo in `installtools` that broke its gmd install step.
+
+---
+
+## Step 1 — Test foundation, first slice ✅ done
+
+- [x] `FakeCmd` (`gmdTest/Utils/`), a test double for `ICmd` — the seam between the git services
+      and the git executable. Lets git output be canned so parsing is testable with no subprocess.
+- [x] `RepoBuilder` (`gmdTest/Fixtures/`), a fluent fixture DSL that builds a `GitRepo` from
+      short commit names and runs the real augmentation pipeline via `AugmentAsync()`.
+- [x] **Bug fixed: culture-dependent date parsing.** `GitLog.ParseRow` called `DateTime.Parse`
+      with no `CultureInfo`. Under `ar-SA` (Umm al-Qura calendar) it threw `FormatException`,
+      and because `ParseRow` is not wrapped in `Try` the exception escaped the `R`-based error
+      handling entirely — gmd could not show a log at all on that locale. Under `th-TH`
+      (Buddhist) and `fa-IR` (Persian) it silently parsed the year hundreds of years off.
+      Fixed at `GitLog.cs` (2 sites) and `DiffService.cs` (1 site) with
+      `CultureInfo.InvariantCulture`. Regression test covers 6 locales.
+- [x] 14 characterization tests for the augmentation pipeline (`AugmenterTest`) and 16 parser
+      tests for `LogService`. Suite went from 2 tests (one of which asserted `true`) to 31.
+- [x] Removed dead test files: `UnitTest1.cs`, the empty `StateTest.cs`, and `GitRepoTest.cs`
+      (100% commented out — Step 5 replaces it properly).
+
+---
+
+## Step 2 — Finish the augmentation characterization tests ✅ done
+
+The safety net that has to exist before `BranchStructureService` (~950 lines) can be refactored.
+Extended `AugmenterTest` using `RepoBuilder`, plus two new test classes for the subjects that grew
+their own: `BranchStructureServiceTest` (inference, ambiguity, hierarchy) and `MetaDataTest`.
+Suite went from 31 tests to 57.
+
+- [x] Ambiguous commits and branches: `IsAmbiguous`, `IsAmbiguousTip`, `AmbiguousTip`,
+      `AmbiguousBranches`, including how ambiguity spreads down from the ambiguous tip.
+- [x] Resolve / unresolve / set-manually round trips. All three write the same metadata, so they
+      are covered from both ends: `MetaDataTest` for what gets stored, `BranchStructureServiceTest`
+      for what the pipeline then infers (resolve, unresolve, a name that is not a git branch, and
+      the `branched` entry `CreateBranchAsync` writes). `RepoBuilder` gained `UnsetBranch`.
+- [x] 20 more merge-subject forms in `BranchNameService.ParseSubject` — remote-tracking prefixes,
+      pull merges vs merges from a remote, GitHub and Azure DevOps pull requests, and the forms the
+      parser gets wrong (below).
+- [x] Branch hierarchy: `DetermineAncestors` over a three level hierarchy, and the truncated branch
+      being replaced by the root branch.
+- [x] Root branch selection when none of `main`/`master`/`trunk` exist.
+- [x] Divergent local/remote branches — the branch structure part. See Step 3 for `ahead`/`behind`.
+- [x] Empty repo (`Repo.EmptyRepoCommitId`, via the new `RepoBuilder.EmptyRepo`) and single-commit
+      repo.
+- [x] Status and merging state via `RepoBuilder.WithStatus`. See Step 3 for `Repo.UncommittedId`.
+- [x] `RepoBuilder` stayed readable, so no compact text form was needed. Revisit in Step 3, where
+      the fixtures get bigger.
+
+### Findings
+
+Pinned by tests as current behavior, not fixed — each is a behavior change that deserves its own
+commit.
+
+- [x] **Fixed: `BranchNameService.ParseSubject` misread four real subject forms.** All four lost
+      the `into` name, i.e. the branch of the merge commit itself, and two of them invented a
+      branch name out of a keyword:
+      - `.` was not in the name character class, so `Merge branch 'release/1.0' into develop` gave
+        the name `release/1` and then failed to match the rest. Dots in branch names are common
+        (release branches). The name pattern now allows dots but is bounded by a non-dot character
+        at both ends, since a git ref can neither start nor end with one — so a sentence ending
+        like `Merged from dev.` still does not take the period into the name.
+      - GitLab quotes the target too (`into 'main'`); the `into` group now accepts the quotes.
+      - `Merge tag 'v1.2.3' into main` and `Merge branches 'a', 'b' and 'c' into main` were read as
+        branches named `tag` and `branches`. `tag` and `branches` are now keywords, and an octopus
+        merge's remaining names are skipped so the `into` name is still found.
+
+      Two related changes came with it: the structural groups in the regex are non-capturing and
+      the keyword group is named, so `ParseSubject` no longer reaches for `Groups[3]` — a hardcoded
+      positional index that any new group would have silently shifted. Verified against all 86
+      distinct merge subjects in this repo's history: identical results before and after.
+- [ ] **Deliberately left as is for now, revisit later.** The circular-ancestor guard in
+      `DetermineAncestors` is commented out, so `WorkBranch.IsCircularAncestors` is never set —
+      while `ViewRepoCreater` still filters on `Branch.IsCircularAncestors` in three places, i.e.
+      that filtering is dead code today. Without the guard a genuine cycle makes the
+      `while (ancestor != null)` loop run forever and grow `Ancestors` until it runs out of memory.
+      The commented-out block was a quick workaround for a problem hit at the time, so the right
+      fix is to find out what produced the cycle before deciding whether to restore the guard or
+      delete both it and the flag. No test — a cycle could not be produced through the public
+      pipeline.
+- [x] **Fixed: with no `main`/`master`/`trunk` branch, the root/main branch was whichever branch git
+      happened to list first.** A repo with only `dev` and an orphan `docs` branch could get `docs`
+      as its main branch, and that is not cosmetic: the main branch is always forced into the log
+      view, is always magenta, and cannot be recolored or deleted. `DetermineRootBranch` now falls
+      back to the root branch whose history reaches furthest back, i.e. the oldest bottom commit,
+      since the other root branches were started later in the life of the repo. Deliberately not
+      the number of commits — an orphan `gh-pages` branch often has more commits than the trunk.
+      The branch name breaks a tie, so the choice never depends on branch order.
+
+      Also fixed on the way: the virtual `<truncated-branch>` was itself a candidate root branch,
+      and its commit carries `DateTime(1,1,1)`, so any ranking by age would always have picked it.
+      It is now excluded — being the scaffold that the block right below deletes, selecting it
+      would have left every branch pointing at a removed parent.
+- [x] **Fixed: a commit below a branch point was claimed by whichever child branch had a name
+      parsed from a merge subject**, even when the other child was the branch it really belonged
+      to. A `dev` commit ended up on `feature`, and worse, `dev` then looked branched out of the
+      `feature` branch it had merged in — the hierarchy came out inverted.
+
+      Root cause was one comparison in `DetermineAllCommitsBranches`: the `IsLikely` flag was set
+      by `branch.Name == name`, where `name` is a nice name parsed from a merge subject (`dev`)
+      while `branch.Name` is the primary branch name, i.e. the *remote* name (`origin/dev`) for any
+      branch that has a remote. So a merge commit on a tracked branch was never marked likely, and
+      only the other child was — which is why the wrong child won. The comparison now also accepts
+      a remote branch's nice name.
+
+      Deliberately narrow: it matches by nice name only for remote branches, *not* for a deleted
+      branch recovered from a merge subject. Those are named `<nice name>:<sid>`, so matching them
+      by nice name makes every merge into a recovered branch look like a confirmation of a name
+      that was only ever a guess — which moved 104 commits off `dev` onto a deleted feature branch
+      when tried against this repo's real history.
+
+      The branch point itself stays ambiguous, and that is the honest answer: git records nothing
+      about which branch the commit a branch was started from belongs to. gmd now marks it and
+      offers the choice instead of silently guessing wrong, and the commit that ends up as the
+      "most likely" one is now the branch that was merged into.
+
+      Verified against this repo's real history (1747 commits, 73 branches): identical result
+      before and after, still zero ambiguous commits.
+- [ ] Considered and rejected: using a merge commit's first parent to decide the branch of the
+      commit below a branch point. It looks like solid evidence — git's first parent is the branch
+      that was merged into — but it is wrong whenever a branch is created and its first commit is a
+      merge, since the first parent is then on the *parent* branch. Against this repo's real
+      history it moved the same 104 commits onto `branches/fixmergeline`, a branch created from
+      `dev` that immediately merged `dev` back in.
+
+## Step 3 — Snapshot tests for the graph rendering ✅ done
+
+`Text.ToString()` flattens the styled output to a plain string, so the drawn graph is testable
+without a Terminal.Gui driver. These read as pictures of the graph, which makes them reviewable.
+Suite went from 57 tests to 100, in three new test classes: `GraphTest` (the drawn graph),
+`ViewRepoCreaterTest` (what ends up in view) and `ServerTest` (show/hide), plus
+`BranchColorServiceTest`.
+
+- [x] `FakeRepoConfig` (`gmdTest/Fixtures/`), an in-memory `IRepoConfig`, so `BranchColorService`
+      and `ViewRepoCreater` can be constructed in tests.
+- [x] Pipeline helper: `RepoBuilder.ViewRepoAsync()` runs `GitRepo → Augmenter → Converter →
+      AugmentedService → ViewRepoCreater`, and `GraphText` (`gmdTest/Fixtures/`) runs
+      `GraphCreater → GraphWriter → string`. `GraphText.WithSubjects` writes the commit subject
+      after the graph so the expected value is a self describing picture, `GraphText.ColorsOf`
+      writes one letter per rune telling its color.
+- [x] Snapshot tests over the Step 2 fixtures: linear history, branch out and merge, several
+      concurrent branches, merges from deleted branches, truncated log, uncommitted changes,
+      diverged local/remote, ambiguous and user assigned commits.
+- [x] Branch show/hide: `ShowBranch`/`HideBranch` as pictures in `GraphTest` (including the dark
+      `╮`/`╯` markers a hidden branch leaves behind) and as branch lists in `ServerTest`, plus all
+      four `ShowBranches` modes in `ViewRepoCreaterTest`.
+- [x] Colors via `Text.Fragments`: `BranchColorServiceTest` pins the derived colors (main always
+      magenta, local and remote sharing the color of their primary name, a child stepped one color
+      when it collides with its parent, detached white) and `GraphTest` asserts the colors of the
+      drawn runes.
+- [x] Inline expected strings, no approval files. C# raw string literals keep the picture readable
+      in the source and reviewable in the diff, and CSharpier re-indenting one does not change its
+      value.
+- [x] Moved here from Step 2, since neither is produced by the augmenter:
+      - `ahead`/`behind` and `HasLocalOnly`/`HasRemoteOnly`, set by `ViewRepoCreater`. See the
+        finding below.
+      - The uncommitted commit (`Repo.UncommittedId`), added by `AugmentedService`
+        `AdjustUncommitted` after `Converter`. `RepoBuilder` now builds the real `AugmentedService`
+        with `FakeGit`, `FakeFileMonitor` and `FakeMetaDataService` (`gmdTest/Fixtures/`), so
+        `ViewRepoAsync` returns the same repo the UI gets. `FakeGit` implements only the members
+        the pipeline reaches and throws on the rest, so a test that starts depending on git fails
+        loudly.
+
+### Findings
+
+- [x] **Fixed: `ViewRepoCreater.SetAheadBehind` lost `HasRemoteOnly` on the local branch of a
+      diverged pair.** `SetBehindCommits` runs first (branches are sorted remote before local) and
+      wrote `HasRemoteOnly` on both branches of the pair. `SetAheadCommits` then wrote
+      `HasLocalOnly` using the `localBranch` it was passed — a copy taken by the `foreach` in
+      `SetAheadBehind` *before* that write — so the flag went back to false. The remote branch kept
+      both, since `SetAheadCommits` re-read it from the list.
+
+      Not cosmetic: `BranchCommands.CanPush()` and `PushAllBranches()` both filter on
+      `HasLocalOnly && !HasRemoteOnly`, i.e. "ahead but not behind, so it is safe to push". A
+      diverged branch passed that filter, so 'Push all branches' tried to push it and git rejected
+      it as non-fast-forward. `PushCurrentBranch` was unaffected, it looks at the remote branch.
+
+      Both branches are now read back from the list at the point they are written, in both
+      functions — the same staleness would have hit the remote branch had the branches been sorted
+      the other way round. Covered by
+      `ViewRepoCreaterTest.TestDivergedBranchesHaveLocalOnlyAndRemoteOnlyCommits`.
+- [x] **Fixed: the `Φ` of a commit the user assigned to a branch was drawn in the branch color
+      rather than white whenever that commit was also a branch out point.** `DrawBranch` set the
+      sign white, but `DrawBranchFromParent` then called `SetGraphBranch` for the same cell and
+      `SetBranch` overwrites `BranchColor` unconditionally. Since a commit is normally ambiguous
+      *because* it is a branch out point, the white almost never survived.
+
+      The five drawing functions that can land on a commit's cell each had their own
+      `if (c.IsAmbiguous) color = Color.White;`, and the user-set case was simply missing from all
+      of them. They now share one `GraphCreater.CommitColor(commit, branchColor)`: white when git
+      does not record the commit's branch, i.e. when it is ambiguous *or* the user resolved it.
+      That also makes the line a resolved commit branches out on white, exactly as an ambiguous
+      one already was. Covered by `GraphTest.TestCommitAssignedByUser`, which now asserts the
+      colors as well as the runes.
+
+## Step 4 — Remaining git output parsers ✅ done
+
+All via `FakeCmd`, with fixtures captured once from a throwaway repo driven through real git and
+pasted into the tests as raw string literals. Suite went from 100 tests to 232, in eight new test
+classes under `gmdTest/Git/` plus `MetaDataServiceTest`.
+
+- [x] `BranchService.ParseBranches` — a 16-group regex with positional indices hardcoded in
+      `ToBranch` (`Groups[1], [3], [4], [5], [8], [11], [14]`), so adding a group anywhere silently
+      shifted everything after it. Covered: detached HEAD, `ahead`/`behind`/both, multi-digit
+      counts, a `gone` upstream, no upstream, the `->` pointer line `IsNormalBranch` filters, and a
+      name with `/` and `.`. Then refactored to named groups, verified identical against this
+      repo's real branch output. See the finding below for what the tests caught on the way.
+- [x] `StatusService.Parse` — porcelain output, the `" -> "` rename split (including quoted paths
+      with spaces), all seven conflict kinds, merge state read from `.git/MERGE_MSG` and
+      `.git/MERGE_HEAD`, and merging with no `MERGE_HEAD`. The temp folder with a bare `.git` in it
+      is all `GetMergeStatus` needs, so no repository is created.
+- [x] `DiffService` (496 lines, the largest git service) — the commit header including the `Merge:`
+      line, hunk headers with and without counts, modified/binary/added/deleted/renamed files, tab
+      expansion, the `\ No newline at end of file` marker, BOM stripping, conflict markers, a
+      combined (`diff --cc`) diff, and the multi-commit output of `log --patch --follow`. Plus the
+      staging dance in `GetUncommittedDiff`: it stages, diffs, resets, skips staging while merging,
+      falls back to `diff --staged` in an empty repo, and still resets when the diff fails.
+- [x] `TagService`, `StashService`, `RemoteService`, `CommitService`, `KeyValueService` — parsing
+      where they parse, and the git command line where they only build one. `RemoteService` is
+      entirely the latter, so its tests pin where the `origin/` prefix is trimmed.
+- [x] `MetaDataService` — the push/pull of branch choices through git key/value storage, including
+      that sync is off unless the user turns it on, that the remote value wins a conflict, that
+      local-only choices survive a fetch, and that a removed choice stays removed. `FakeGit` grew
+      an in-memory key/value store (`Values`/`RemoteValues`/`ValueCalls`) for it, so those four
+      members no longer throw.
+
+### Findings
+
+- [x] **Fixed: while a rebase was stopped on a conflict, gmd lost the current branch.** Git names
+      the current pseudo branch `(no branch, rebasing <branch>)` while a rebase is in progress, and
+      the regex only knew the `(HEAD detached at <ref>)` form. The line was therefore read by the
+      plain `(\S+)` name alternative, giving a branch named `(no` with the tip id `branch,`. No
+      commit has that id, so `SetGitBranchTipsOnCommits` dropped the branch and `Augmenter` found
+      no current commit — the `*` marker and the detached row were gone until the rebase finished.
+      Not a rare state: gmd's own 'Rebase branch' stops there on any conflict.
+
+      The parser now recognizes every pseudo name git writes — `(HEAD detached at|from <ref>)`,
+      `(no branch, rebasing …)`, `(no branch, bisect started on …)` and the bare `(no branch)` — and
+      reports them all as the `DETACHED` branch, which the rest of gmd already handles. The forms
+      are matched explicitly rather than as any `(…)`, since a git ref name may contain parenthesis.
+      `(HEAD detached from <ref>)`, which git writes after HEAD is moved off a branch, was broken
+      the same way and is fixed with it.
+- [ ] **Pinned as current behavior, not fixed: a staged added file is counted as modified.**
+      `StatusService.Parse` trims each line before comparing prefixes, which removes the leading
+      status column, so `A  file.txt` no longer matches the ` A ` case and falls through to the
+      `else`. Only untracked files (`?? `) reach `AddedFiles`. Harmless today — every consumer
+      either concatenates the file lists (`RepoExtensions`, `CommitMenu`, `CommitCommands`) or uses
+      `Status.ChangesCount`, which is their sum — so fixing it would change nothing a user sees.
+      Worth doing if the counts ever become visible.
+- [x] **Removed: the half-written combined diff (`diff --cc`) branch in `DiffService`.** It
+      recognized the file and marked it `DiffConflicts`, but not its `@@@ -1,1 -1,1 +1,1 @@@` hunk
+      headers (`ParseSectionDiff` only accepts `@@ `), so the file came out with no content — which
+      reads as "nothing changed here". It was never reachable: `--first-parent` and this branch were
+      written in the same commit (b5b7b7b, Nov 2022), and no gmd git command has ever passed `--cc`
+      or `-m`.
+
+      Deleting it alone would have made things worse — `ParseFileDiffs` stopped at the first
+      unparsable `diff --` header, so a combined diff would have truncated every file after it.
+      That loop now skips an unknown header (and `Log.Warn`s it) instead of stopping, so the cost is
+      one file rather than the rest of the diff. Covered by `DiffServiceTest.TestCombinedDiffIsSkipped`
+      and `TestUnknownDiffFormatDoesNotStopTheRemainingFiles`.
+
+      Left as a landmine warning for whoever revisits this: relaxing the `@@ ` check is not enough
+      to support combined diffs, and on its own is actively harmful. `ParseSectionDiff` splits the
+      header on `'+'` and calls a bare `int.Parse` on the pieces, so `-1,1 -1,1 +1,1` gives
+      `int.Parse("1 -1")` → `FormatException`, thrown outside the `R` error handling entirely (the
+      same shape as the Step 1 date bug). Full support needs three things: n+1 `@` hunk headers with
+      n ranges, two-column line prefixes (`++`, `+ `, ` +`, `--`, `- `, ` -`, `  `) instead of one,
+      and a three-sided story for the two-column diff view. Worth it as its own feature — showing
+      what a merge actually resolved by hand is not available in gmd any other way.
+- [ ] Noted, no action: two small parser quirks that are invisible in the UI and pinned by tests so
+      they cannot change unnoticed.
+      - `AsConflictLine` trims two characters instead of one, so a conflict marker line comes out as
+        `<<<<<< HEAD`. Never drawn — `Cui/Diff/DiffService` replaces the marker with
+        `=== Start of conflict`.
+      - A hunk header without a count (`@@ -1 +0,0 @@`, git's shorthand for one line) is read as
+        count 0 rather than 1. `SectionDiff.LeftCount`/`RightCount` are not used by the diff view,
+        which counts the line diffs it actually got.
+      - An annotated tag is listed twice by `show-ref --dereference`, once for the tag object and
+        once for the commit, and `ParseTags` keeps both. `Augmenter.AddAugTags` drops the first,
+        since no commit has the tag object's id.
+      - `StashService.ToStash` splits the subject on `:` and takes only the third part, so a stash
+        message containing a colon is cut short at it.
+
+## Step 5 — A thin layer of real-git integration tests ✅ done
+
+Few and deliberately small — a canary for git version and output-format drift, which the
+`FakeCmd` tests cannot catch. Suite went from 233 tests to 249, in two new test classes:
+`GitIntegrationTest` (13 round trips through `IGit`) and `AugmentedServiceIntegrationTest` (real
+git output through the whole inference pipeline). All 16 run real git in about one second.
+
+- [x] Temp-repo helper: `TempRepo` (`gmdTest/Fixtures/`) creates a throwaway repository in the
+      system temp folder and drives it through the real `IGit` services, wired by hand over the
+      real `Cmd`. It names the initial branch explicitly and sets locally the config that would
+      otherwise be the developer's (user, signing, hooks, line endings), so the fixture is the
+      same on every machine. It never touches anything outside its own temp folder: every git
+      command runs with that folder as its working directory, and `Dispose` refuses to delete a
+      path it did not create.
+- [x] Round trips through `IGit`: `git version`, root path found from a sub folder, log (order,
+      ids, parents, author, times, `--max-count`), branches (tips, current, detached HEAD), the
+      ahead/behind counts of a tracking branch against a real (bare, local) `origin` remote,
+      status (modified/added/deleted), merge (staged merge → merging status → commit → a two
+      parent merge commit), a conflicting merge, a commit diff, and the uncommitted diff —
+      including that its stage/diff/reset dance leaves the working folder as it was.
+- [x] Beyond the plan, since it is the strongest canary of the lot: the whole pipeline over a real
+      repo, i.e. real git output → `AugmentedService` → `ViewRepoCreater` → the drawn graph,
+      asserted as a `GraphText` picture. Every other pipeline test builds the git facts by hand
+      with `RepoBuilder`, so this is the one place where real git output reaches the augmenter.
+- [x] `[TestCategory("Integration")]` on both classes, and `./test` now passes its arguments on to
+      `dotnet test`, so `./test --filter "TestCategory!=Integration"` runs only the fast tests.
+- [x] Deliberately not covered, since the `FakeCmd` tests already pin the parsing and each would
+      cost another repo to set up: tags, stashes, the key/value metadata storage, rebase and
+      cherry-pick.
+
+### Findings
+
+No bugs. Every parser held up against real git 2.55 output, which is the answer this step was
+asking for. Two things worth writing down:
+
+- [ ] Noted, no action: git omits `into <branch>` from a merge message when the current branch is
+      `main` or `master`, so `Merge branch 'dev'` and `Merge branch 'dev' into feature` are both
+      shapes gmd has to handle. Only the second records which branch the merge commit itself is
+      on, which is why the inference has less to work with on the trunk than anywhere else. Both
+      forms are now pinned end to end, from what git writes to what `BranchNameService.ParseSubject`
+      recovers.
+- [ ] Noted, no action: the staged-added-file-counted-as-modified quirk from Step 4 turns out to be
+      what a user sees during every merge — `git merge --no-ff --no-commit` stages the merged in
+      files, so gmd lists them as modified until the merge is committed. Still harmless, since the
+      counts are only ever summed, and now pinned by `TestMergeRoundTrip` as well.
+
+## Step 6 — Pure utility tests ✅ done
+
+Cheap, quick, and they establish the habit. Suite went from 249 tests to 320, in seven new test
+classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `SorterTest`,
+`TimeDateExtensionsTest`, `GlobTest` and `BuildTest`. None of them touch git, disk or terminal.
+
+- [x] `Result` / `R<T>`: the ok and error paths of all six `Try` overloads, error propagation
+      through a call chain, wrapping an error without losing the inner messages, every implicit
+      conversion (value, exception, `ErrorResult`, `bool`), `Or`, and both `ToString` forms. Plus
+      the three fail-fasts, which is where the type stops being polite: reading the value before
+      the error was checked, reading the value of an error, and returning `null` as a value. Each
+      raises `Asserter.AssertOccurred`, so that is asserted too.
+- [x] `StringExtensions`: `Sid`, `TrimPrefix`, `TrimSuffix`, `Max`, `ToJson`, `Txt` and
+      `FileSize`, including that the trims only take one occurrence and only at their own end.
+- [x] `Build`: the version encoding both ways — days since the base build time and minutes since
+      midnight into a `Version`, and `GetBuildTime` back out of one — plus a version text that does
+      not parse and one with fewer than four parts, which `Updater` can be handed. The
+      CI-placeholder path is covered by `Build.Sha()`, whose literal CI replaces before the tests
+      run, so the assertion holds on both sides of that `sed`. See the findings for what had to be
+      fixed and made testable first.
+- [x] `EnumerableExtensions`: the whole file, i.e. both `ForEach` forms, the four `Join` overloads,
+      `TryAdd`/`TryAddAll`/`TryAddBy`, `ContainsBy`, `FindIndexBy`/`FindLastIndexBy`, `Add` and
+      `DistinctBy`.
+- [x] `Sorter`: ascending order, in place, empty and single item, that it is *not* stable, and the
+      partial-order case it exists for — a comparer that orders a branch against its ancestors and
+      says nothing about anything else, which `List.Sort` leaves untouched and `Sorter` gets right.
+      That answers the `List.Sort does not work, why ????` comment in `ViewRepoCreater`.
+- [x] `TimeDateExtensions`: the four formats, and that they are culture invariant. See the findings.
+- [x] `Utils/GlobPatterns` — vendored, so the tests document what we rely on: wildcards, `**`,
+      character sets and their inversion, literal sets, that both slashes are separators and
+      nothing is case sensitive, and the two behaviors `FileMonitor` depends on — a single-segment
+      pattern also matches the file name at any depth, and everything else is anchored at the
+      start, which is why a `folder/` line from `.gitignore` is rewritten to `**/folder/**/*`.
+
+### Findings
+
+- [x] **Fixed: the ISO date formats followed the user's culture.** `Iso`, `IsoMs`, `IsoZone` and
+      `IsoDate` formatted through an interpolated string, i.e. with `CultureInfo.CurrentCulture`,
+      so a culture with its own calendar wrote the year in that calendar: 2023-02-07 came out as
+      `1444-07-16` under `ar-SA` (Umm al-Qura), `2566-02-07` under `th-TH` (Buddhist) and
+      `1401-11-18` under `fa-IR` (Persian). The same bug as the Step 1 one, at the formatting end
+      instead of the parsing end.
+
+      Two callers make it more than cosmetic. `Server.GetChangeLogAsync` writes `IsoDate()` into
+      the generated `CHANGELOG.md`, so a maintainer on one of those locales would commit dates
+      in another calendar. `ViewRepoCreater` matches the log view's filter text against
+      `AuthorTime.IsoDate()`, so searching for `2023-02` found nothing. Fixed with
+      `CultureInfo.InvariantCulture`; covered for six locales by `TestIsCultureInvariant`.
+- [x] **Fixed: `Build.Version()` threw instead of returning a version.** Two ways to get a negative
+      `Version` component, which `Version` rejects with `ArgumentOutOfRangeException`, thrown from
+      the first line `Program.Main` logs — i.e. before anything is on screen:
+      - `Build.Time()` returns `default` when neither the CI placeholder nor the assembly's
+        `SourceRevisionId` parses, i.e. year 1, some 738,000 days *before* the base build time.
+        Every other parse failure in `Build` falls back to `(0, 0)` or `DateTime.MinValue`; this
+        path was simply unguarded. It is also what a test run gets, which is why `Build.Version()`
+        had no test until now. It now reports the base time, i.e. version `x.y.0.0`.
+      - The minutes were counted from midnight *UTC* of the build date while the build time itself
+        is local — the base time text ends in `Z`, and `TryParseExact` reads that as UTC and
+        converts to local. A build made between local midnight and the machine's UTC offset was
+        therefore negative: 00:30 in a UTC+2 zone gave −90. Now counted from `cbt.Date`, i.e. the
+        local midnight of the build day the comment always claimed. Nothing changes for a released
+        version, since CI builds in UTC where the two are the same; a local build's fourth version
+        number moves by the offset.
+
+      `GetTimeSinceBaseTime` now takes the build time as a parameter rather than calling
+      `Build.Time()` itself, which is what makes both cases testable at all.
+- [ ] **Noted, no action: `Sorter.Sort` never terminates on a cyclic comparer.** It restarts the
+      outer index on every swap (`i = i - 1`), so a comparer where a < b < c < a keeps finding
+      something to swap forever — `List.Sort` would return a wrong order or throw, this hangs the
+      process with no clue why. gmd's comparers are partial orders rather than cyclic ones, so the
+      only way in is a cycle in the branch hierarchy, which is exactly what the commented-out
+      circular-ancestor guard in `DetermineAncestors` (Step 2 finding) was there to prevent. The
+      two belong together whenever that one is revisited. No test — it would hang the suite.
+- [ ] Noted, no action: two cosmetic quirks, pinned by tests so they cannot change unnoticed.
+      - `StringExtensions.FileSize` divides with integer division before applying its `0.##`
+        format, so the fraction can never appear: 1536 bytes is `1 KB`, not `1.5 KB`. Nothing in
+        gmd calls it today.
+      - `Version.Txt()` of a version with fewer than four parts writes the missing ones as -1
+        (`0.91 (-1.-1)`), since that is what `Version` reports for them.
+
+## Step 7 — CI and coverage
+
+- [x] A fast job for pull requests, so they get feedback without the full multi-platform publish.
+      A PR used to run all of `./build`, i.e. four self-contained ReadyToRun publishes
+      (linux-x64, linux-arm64, win-x64, osx-arm64) whose output it then threw away, since only
+      the release steps were gated on the branch. The workflow now has two jobs: `test_job` on
+      `pull_request` runs `csharpier check` and `./build -l` (tests plus the two linux publishes),
+      and the unchanged `build_test_release_job` runs on everything else, i.e. push to `main`/`dev`
+      and a manual `workflow_dispatch`.
+
+      Kept the linux publish rather than tests alone, so a PR still exercises a Release publish —
+      the packaging is where a break would otherwise stay hidden until after merge. The
+      `csharpier check` step has to come first here for the same reason it does in the release job:
+      `./build` runs `dotnet test` in Debug, which formats the sources in place. The
+      `BUILD_TIME`/`BUILD_SHA` `sed` is not repeated in the PR job — nothing is released from it,
+      and `BuildTest` holds with the placeholders either way.
+
+- [x] Every push gets tested, on every branch. The push trigger was `[main, dev]` and the only
+      other trigger needs an open pull request, so a feature branch got no CI at all — the one
+      case where local testing was the only safety net. It is now `branches: ['**']`, which is the
+      pattern that matches a branch name containing a slash (`*` does not).
+
+      The two jobs split the work by what the event is rather than by event type, so exactly one
+      of them runs for any event:
+
+      | Event | Job | Publishes |
+      | --- | --- | --- |
+      | Push to a feature branch | `test_job` | – |
+      | Pull request | `test_job` | – |
+      | Push to `main`/`dev` | `build_test_release_job` | release / pre-release |
+      | Manual run, `main`/`dev` | `build_test_release_job` | release / pre-release |
+      | Manual run, other branch | `build_test_release_job` | – |
+
+      The last row is what keeps the manual full build useful: it is now the way to check the
+      windows and macOS packaging on a branch, which a pull request no longer does.
+
+      Publishing stayed exactly where it was, behind two independent gates that both key on
+      `github.ref`: the job level `if` above, and the `isPublish` output that gates the two
+      release steps. `test_job` has no release step at all, and now also drops to
+      `permissions: contents: read`, so a branch cannot publish even if a step is added to it
+      carelessly later. Both jobs run the whole suite — the same `dotnet test` in `./build`, with
+      no category filter, so the integration tests run on every branch too.
+
+      Known and accepted: a push to a branch that has a pull request open fires both the `push`
+      and the `pull_request` event, so `test_job` runs twice on that commit. Deduplicating costs
+      more complexity than the duplicate run does on free public runners. A `concurrency` group
+      would cut the other kind of waste — several pushes in a row queueing up — but it also makes
+      superseded runs report as cancelled, so it is left out until it is actually a nuisance.
+- [ ] Turn on the `coverlet.collector` that is already referenced but unused; report coverage.
+      This is the natural second step for the new `test_job`.
+- [ ] Consider a coverage floor once the number stabilizes — as a ratchet, not a hard gate.
+
+### Findings
+
+- [x] **Fixed: `./build` reported success when a `dotnet publish` failed.** There is no `set -e` and
+      only the `dotnet test` step checked `$?`, so a failed publish left the following `cp` to fail
+      too — both printing an error nobody acted on — and the script carried on to its `exit 0`. That
+      made the whole point of building on a PR moot: the job would have gone green on exactly the
+      packaging break it is there to catch. On push it was less bad but still late, since the
+      failure only surfaced as a missing file when `action-gh-release` uploaded the assets.
+
+      Each of the four publishes now exits 1 with the RID in the message. This makes `./build` match
+      `build.bat`, which has had `if errorlevel 1 exit /b 1` after every publish all along — the two
+      were out of sync, not both wrong. Fixed the `Building widows ...` typo on the way, since
+      `build.bat` already says windows.
+
+---
+
+## Step 8 — Maintainability
+
+- [x] **Fixed the layering violation: `gmd/Server/` no longer references `gmd.Cui`.** The three
+      `using gmd.Cui.RepoView;` lines existed for a single static class, `RepoExtensions`, which
+      held two unrelated kinds of helper. Split along that seam rather than moved wholesale:
+      - `CurrentBranch`, `CurrentCommit` and `GetUncommittedFiles` extend `Server.Repo` and only
+        read the model, so they moved down to `gmd/Server/RepoExtensions.cs` where the type they
+        extend lives. `AugmentedService.RebaseBranchAsync` was the one real user in the Server
+        layer — the usings in `IServer.cs` and `Server.cs` were already stale.
+      - `ShortNiceUniqueName` truncates a branch name to 16 characters with a `┅` glyph, i.e. it
+        is a drawing concern with no business in the Server layer. It stayed in the UI, as
+        `gmd/Cui/RepoView/BranchExtensions.cs` — the file is now named after the type it extends,
+        since `RepoExtensions` no longer described it.
+
+      `CommitDlg` was the only caller that needed a `using` change. Verified by build,
+      `csharpier check` and the full suite (320 tests, unchanged).
+- [x] **Fixed the last upward reference: `FileMonitor` no longer reaches into the UI.** It called
+      `Cui.Common.UI.Post` (twice) and `Cui.Common.UI.AddTimeout` by fully qualified name, so it
+      was invisible to a search for `using gmd.Cui` and was not what the item above described. It
+      was also the harder one — a real runtime dependency rather than a stale import: the Server
+      layer marshalled its own change events onto Terminal.Gui's main loop and drove its
+      one-second timer from it.
+
+      Now behind `IMainThread` (`gmd/Utils/IMainThread.cs`), the main loop reduced to the two
+      things a lower layer needs from it — `Post(Action)` and
+      `RunPeriodically(TimeSpan, Func<bool>)` — implemented by `MainThread` (`Cui/Common/`) over
+      `UI`, and injected into `FileMonitor`. Auto-registered like everything else, so there was no
+      DI to write. With it, `using Terminal.Gui;` left `FileMonitor` too (it was there only for the
+      `MainLoop` parameter of the timer callback), and so did a dead
+      `using Timer = System.Timers.Timer;`. The `object timer` field, which only ever served as a
+      "already started" flag, became a `bool`.
+
+      Timer registration deliberately stayed in `Monitor()` rather than moving to the constructor:
+      `Program.Main` resolves the whole DI graph *before* `Application.Init()`, so a constructor
+      registration would silently find no main loop. `Monitor()` is only called from
+      `AugmentedService` when a repo is read, i.e. always after the UI is up.
+- [x] The payoff, as predicted: `FileMonitor`'s debounce is now testable, and it is the first thing
+      in this codebase reachable only because the UI dependency went behind an interface. Ten tests
+      in `FileMonitorTest`, driving `FakeMainThread` (`gmdTest/Fixtures/`) — which queues posted
+      actions and captures the periodic callback — plus an internal `Now` clock seam on
+      `FileMonitor`, so the one-second trigger delays cost no wall clock time. Suite went from 320
+      tests to 330, still under two seconds.
+
+      Characterized: the trigger delay and its exact `<` boundary, that an event is raised once and
+      then consumed, that a repo change replaces (rather than defers) the file change of the same
+      tick, that `Pause` defers rather than drops, what each of `SetReadRepoTime` /
+      `SetReadStatusTime` clears, that `.lock` files and gmd's own metadata writes are not repo
+      changes, and that events are posted rather than raised inline.
+
+      One guess corrected by writing the test, which is the reason these are discovered rather than
+      predicted: the debounce is a *sliding* window, not a fixed one. Every change overwrites the
+      pending event, so the delay restarts from the latest change — a folder being written to
+      continuously defers its event for as long as the writing lasts rather than raising one a
+      second.
+- [ ] Deferred to Step 11, not fixed here: `Utils/Clipboard.cs` wraps `Terminal.Gui.Clipboard`,
+      the one direct Terminal.Gui reference left outside `Cui/`. Not the same problem — `Utils` is
+      a leaf the other layers depend on, not a layer reaching up past its neighbors — but it does
+      mean `gmd.Utils` cannot be lifted out as a UI-free library as is. Deliberately left alone
+      because the file needs a rewrite rather than an import change, and that rewrite is a
+      user-facing bug fix with its own step.
+- [x] **Broke up `BranchStructureService.cs` (989 lines) along its pipeline stages.** The file is
+      now 54 lines and holds nothing but `DetermineCommitBranches`, i.e. the six pipeline steps and
+      their comments, delegating one stage at a time. Seven files, largest 410:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `BranchStructureService` | 54 | The pipeline, and nothing else |
+      | `CommitGraphService` | 86 | Stages 1–2: branch tips onto commits, parents/children linked |
+      | `CommitBranchService` | 166 | Stage 3: the commit loop and the ordered rule chain |
+      | `CommitBranchRules` | 410 | The 13 `Try…` rules the chain dispatches to |
+      | `BranchAmbiguity` | 179 | `TrySetBranch` (repair) and `AddAmbiguousCommit` (give up) |
+      | `BranchFactory` | 57 | The three `Add…Branch` creators for branches git no longer has |
+      | `BranchHierarchyService` | 151 | Stages 4–6: parent branch, root branch, ancestors |
+      | `WellKnownBranches` | 21 | `MainNamePriority` and the truncated branch name |
+
+      Three splits are worth the words, since they are the ones that are not simply "a stage":
+      - `CommitBranchRules` out of `CommitBranchService`, because the value of `DetermineCommitBranch`
+        is the *order* of its rules — that is the whole inference strategy, and it now fits on one
+        screen instead of being 570 lines with the rules inlined between the branches of the chain.
+        The interface doubles as a table of contents of the rules.
+      - `BranchAmbiguity`, because `TrySetBranch` and `AddAmbiguousCommit` are the two ends of the
+        same idea (repair an ambiguous stretch once evidence turns up; give up and record the
+        candidates so the user can choose) and were 180 lines sitting between unrelated rules.
+      - `WellKnownBranches`, because `MainBranchNamePriority` was needed by three of the stages and
+        the truncated branch name by two, so leaving either behind would have made a stage depend on
+        the orchestrator.
+
+      Pure code movement: no logic changed, no method renamed, every comment kept including the
+      typos in the pipeline steps. The only edits were the mechanical ones — `static` dropped where
+      a method became an interface member, the two shared constants moved, and an unused local
+      (`amBranch` in `TryIsChildAmbiguousCommit`) dropped rather than moved. The three stage classes
+      are DI-registered like everything else; the helpers below them are static, since they have no
+      state and no dependencies.
+
+      Verified beyond the suite (330 tests, unchanged), because a green suite is not the bar for
+      this file: a throwaway probe dumped the full inferred structure of a real 1758-commit repo —
+      every commit's branch, primary name, nice name, ambiguity flags and child ids, plus every
+      branch's tip, bottom, parent, ancestors, related and ambiguous branches — for the code before
+      and after. 1829 lines, 70 branches, byte identical.
+
+      `RepoBuilder.NewAugmenter()` is now the one place the pipeline is wired by hand;
+      `AugmentedServiceIntegrationTest` had a second copy of that wiring and now calls it.
+- [x] **Broke up `RepoView.cs` (1068 lines) along the seam between the view and what the user does
+      to it.** Nearly half the file was input handling — the 60 line key/mouse table plus its
+      handlers — and what made those handlers long rather than one-liners was the *hoover*, i.e.
+      which branch the pointer or the cursor is on, since most keys act on the hoovered branch when
+      there is one and on the current commit when there is not. Three files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `RepoView` | 504 | The view: reading and refreshing the shown repo, and drawing the page |
+      | `RepoViewInput` | 533 | Every key and mouse button, and the handlers they dispatch through |
+      | `Hoover` | 128 | Where the hoover is, and the index math of moving it |
+
+      `Hoover` is the part that is worth testing and the reason the split is where it is. The five
+      hoover fields and the "has it actually moved" comparisons were spread over ten methods of the
+      view, so nothing about them could be reached without a terminal. It is now a plain class with
+      no Terminal.Gui, no commands and no drawing: the mutating methods return whether the hoover
+      moved and the view decides to redraw, and the navigation is `NextLeft` / `NextRight` /
+      `Locate` / `FollowCurrentIndex` returning the branch to hoover rather than hoovering it.
+
+      `RepoViewInput` gets what it needs back from the view through `IRepoViewInputHost`, five
+      members, rather than the concrete view — `ViewRepo` and `Menus` because both are replaced
+      every time a repo is shown, and `ToggleDetails` / `ToggleDetailsFocus` / `RefreshAndFetch`
+      because they are the view's own state. It is `new`ed by `RepoView`, like the menus are.
+
+      Mostly code movement, with three deliberate exceptions:
+      - `OnCursorUp` and `OnCursorDown` were the same 22 lines twice, differing only in `Move(-1)`
+        vs `Move(1)`, and are now one `MoveCursor(delta)`.
+      - The two commented-out sketches of moving the hoover left/right *across a page* went. The
+        sentence saying it was tried and disabled because it was confusing is kept — that is the
+        part worth having — but the code referred to fields that no longer exist, so keeping it
+        would have been keeping something untrue. It is in git if anyone revisits the idea.
+      - `Copy`'s text building is now `SelectedCommitsText`, an `internal static`, so the rule that
+        a multi-row copy takes only the commits of the branch it started on is testable.
+
+      25 new tests in `gmdTest/Cui/RepoView/` (`HooverTest`, `RepoViewInputTest`), suite 330 → 355.
+      `HooverTest` drives the hoover over a real graph built by `GraphCreater`, not hand-made
+      branch lists, since the whole of the hoover is where the graph puts branch columns — and that
+      is what catches the case below. Verified beyond the suite: the key/mouse table is byte
+      identical to the old one after the mechanical renames, and a throwaway probe resolved the
+      whole DI graph (`IRepoView` and `Program`) to check the view still constructs.
+
+      Two things the tests pinned that are easy to get wrong when touching this again:
+      - A branch and its remote are drawn as two columns with one primary name, so moving right has
+        to leave a branch by its *last* column (`FindLastIndexBy`) while moving left finds its
+        first. Using the same lookup for both would hoover such a branch twice on the way right.
+      - `FollowCurrentIndex` gives up a branch that is no longer on the row but still moves the
+        hoover row to the new current row, leaving the row set while the column and the current row
+        index are cleared. Deliberate — the commit of the new row stays hoovered — but the mixed
+        state reads like a bug unless the test says otherwise.
+- [x] **Broke up `UIDialog.cs` (715 lines) along the seam between the dialog and the views it is
+      made of.** Six of the seven types in the file were custom Terminal.Gui views that `UIDialog`
+      only happens to be the factory for, and each of them is used on its own elsewhere. Six files,
+      largest 383:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `UIDialog` | 383 | The builder: the `Add*` methods, `Show()` and the validations |
+      | `UIComboTextField` | 157 | A text field with a drop down list of suggestions |
+      | `UILabel` | 101 | A label that draws a styled `Text` and can be clicked |
+      | `BorderView` | 52 | A rectangle in one color, since `View.Border` does not draw for all views |
+      | `UITextView` | 29 | Multi line input where tab moves focus instead of inserting a tab |
+      | `UITextField` | 20 | One line input that returns its text trimmed |
+
+      Pure code movement, and verified as such rather than asserted: each moved class is byte
+      identical to the lines it came from, and so is what is left of `UIDialog`. The only additions
+      are one comment per file saying what the type is, since a file named after a type should say
+      what it is for.
+- [x] **Broke up `ContentView.cs` (651 lines), the scrollable list of rows that most of gmd is
+      drawn in** — the log view, the diff view, the menus and several dialogs are all one. Two
+      thirds of it was not view code at all but index math: where the view is scrolled to and what
+      is selected, neither of which could be reached without a terminal. Three files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `ContentView` | 455 | The view: drawing, the keys and mouse buttons, and fetching the rows |
+      | `ContentScroll` | 184 | The first shown row, the cursor row and the row count, and moving them |
+      | `ContentSelection` | 157 | The selected rows and columns, and extending them by key and by drag |
+
+      The two new classes follow `Hoover` from the item above: no Terminal.Gui, and the mutating
+      methods return whether anything actually moved so the view is the one that decides to redraw.
+      Two details are worth knowing before touching this again:
+      - The view height is read through callbacks (`() => ViewHeight`) rather than stored, since a
+        view is resized while it is shown. It is also two heights rather than one — a view with a
+        top border has one row less for its content than it has height — and only some of the math
+        knows the difference, which is what the last two `ContentScrollTest` tests are about.
+      - The mouse drag no longer scrolls from inside the selection code: `Drag` returns which way
+        the drag moved and the view scrolls when it reaches its edge. That moves the scroll to after
+        the selected region is updated rather than before, which is safe because the region math had
+        already read the first shown row before either could run.
+
+      46 new tests in `gmdTest/Cui/Common/` (`ContentScrollTest`, `ContentSelectionTest`,
+      `ContentViewTest`), suite 355 → 401. `ContentViewTest` is the surprise of the three: a
+      `ContentView` built from a list of rows can be moved and scrolled with no Terminal.Gui driver
+      at all, as long as its `Frame` is set, so the view's own delegation is covered too — every
+      part of it except drawing. Verified beyond the suite by a throwaway probe that resolved the
+      whole DI graph and drove a real view through its movement API.
+
+      The split was pure movement, so the three bugs the tests uncovered are the three items below
+      rather than part of it. None of them could have been found without pulling the math out of the
+      view first, and each is a one line change.
+- [x] **Fixed: shift+up selected two rows per key press while shift+down selected one.**
+      `ContentView.ProcessHotKey` moved the cursor up after `OnSelectUp` had already moved it, so a
+      selection made upwards grew by two rows per press and left the cursor a row below the
+      selection, while the same thing downwards grew by one. Visible in every list in gmd — nothing
+      handles shift+up before `ContentView` does — and it is what decides which commits ctrl-c
+      copies and which range the commit menu acts on, so selecting upwards took a row more than the
+      user asked for. The second `Move(-1)` is gone. `TestShiftUpSelectsOneRowPerKeyPress` and
+      `TestShiftDownSelectsOneRowPerKeyPress` are written as what the view does, key press by key
+      press, and are deliberately mirror images of each other so that this cannot drift apart again.
+- [x] **Fixed: `MoveToTop()` only reached the top when the cursor was on the top row of the view.**
+      It was `Move(-FirstIndex)`, i.e. it moved the cursor up by however many rows the view was
+      scrolled down, so with the cursor further down the view it stopped exactly that many rows
+      short and the rows above stayed out of sight. Now `Move(-CurrentIndex)`, since the cursor row
+      takes the first shown row with it.
+
+      The one caller not in scroll mode — where it did reach the top, and still does — is
+      `FilterDlg.UpdateFilteredResults`, which calls it to show a new set of filter results from the
+      top. With the log scrolled down when the filter was opened, the first results were out of
+      sight, and worse, `ShowCommitInfo` reads `CurrentIndex`, so the commit shown below the list
+      was not the one the list appeared to be pointing at, and Enter picked that one.
+- [x] **Fixed: scrolling with the cursor below the content put it on the first row.** `Scroll` put a
+      cursor that would end up below the view back at `newFirst - ContentHeight - 1`, which is
+      negative and then clamped to 0, where `newFirst + ContentHeight - 1` was meant. Only reachable
+      in a view with a top border, since `Move` bounds the cursor by the view height while the
+      border takes a row off the content height — so it was invisible in gmd today, its one bordered
+      view being the commit details view, which hides its cursor. Fixed anyway, since it is a
+      trap for the next view that draws a border.
+- [x] **Broke up `Menu.cs` (602 lines), the context menu every menu in gmd is drawn as.** It held
+      five types, and two thirds of the `Menu` class itself was not view code but the geometry of
+      where the menu goes and the text of the rows it draws. Five files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `Menu` | 353 | The view: showing the dialog, the keys and the mouse, and opening a sub menu |
+      | `MenuDimensions` | 78 | Where the menu is drawn and how wide each of its parts is |
+      | `MenuExtensions` | 110 | The extension methods menus are built with |
+      | `MenuRows` | 69 | The items drawn as the `Text` rows the view shows |
+      | `MenuItem` | 26 | `MenuItem`, `SubMenu` and `MenuSeparator` |
+
+      `MenuDimensions` and `MenuRows` follow `Hoover` and `ContentScroll` from the items above: no
+      Terminal.Gui, so the screen size is passed in rather than read from `Application.Driver`, and
+      the dimensions are passed to the rows rather than shared as a field. That makes both testable,
+      and a menu row is a picture in the test the same way a graph row is.
+
+      Pure code movement otherwise, verified line by line against the old file: `MenuItem` and
+      `MenuExtensions` are byte identical, and the only other differences are the parameters the two
+      extracted functions now take and `Dimensions` being renamed `MenuDimensions`, since a record
+      called `Dimensions` at namespace scope says nothing about what it is.
+- [x] **Broke up `AugmentedService.cs` (681 lines) along the seam between reading a repo and
+      writing to it.** The file's own comment describes only the first: it returns augmented repos.
+      The rest was git write operations, and the two largest pieces of those had nothing to do with
+      each other. Three files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `AugmentedService` | 367 | Reading a repo and its status through the pipeline, plus the writes that go straight to git (commit, tags, the metadata that resolves ambiguity, squash) |
+      | `BranchWriteService` | 211 | The writes that need the augmented repo to work out what git to run: create, switch, merge, rebase |
+      | `Uncommitted` | 165 | The virtual uncommitted commit: adding, updating and removing it |
+
+      `Uncommitted` is the payoff: `AdjustUncommitted` and `GetUncommittedCommit` are pure `Repo` →
+      `Repo`, with no git, no disk and no dependencies at all, and were the largest such block left
+      in the Server layer. `AugmentedService` delegates the six branch write operations in one line
+      each, which is what `Git` already does for the per-area git services.
+
+      Pure code movement with one deliberate exception: `MergeBranchAsync` and `RebaseBranchAsync`
+      held the same 20 lines twice — "a branch and its remote can have different tips, so use the
+      youngest of the two" — and are now one `YoungestTipName`. Verified line by line: every other
+      moved method is byte identical.
+- [x] **Broke up `BranchCommands.cs` (740 lines) into its three groups of commands.** The interface
+      is unchanged, so no menu or key handler moved; `BranchCommands` is still what they call and
+      now delegates two groups on to the classes that own them.
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `BranchCommands` | 359 | Showing, hiding, switching, diffing, merging, and how a branch is drawn |
+      | `BranchPushPullCommands` | 272 | Pushing and pulling, and the four predicates the menus enable their items with |
+      | `BranchCreateCommands` | 239 | Creating a branch from a branch or a commit, and deleting one |
+      | `CommandRunner` | 22 | Running a command in the background with progress and an error box |
+
+      Two things beyond the movement, both to avoid making the duplication worse:
+      - The rules for what can be pushed and pulled, and which branches 'push all' and 'pull all'
+        act on, are plain functions of the shown repo, so they are now `internal static` and take a
+        `Repo`. That is what the nine new tests drive, including the diverged branch that can be
+        pulled but not pushed — the case the Step 3 finding was about, which had no test of its own
+        until now.
+      - `Do`, the eleven-line "run in the background, show progress, message box on error" helper,
+        was already copied into all three `*Commands` classes and would have become five. It is now
+        `CommandRunner.Do`, and each class keeps a one-line `Do` so no call site changed.
+
+      Every command that moved is byte identical to the lines it came from, checked one by one.
+- [x] **Fixed: gmd crashed on any repo whose local branch was behind its remote and pointed at the
+      first commit of the repo.** `ViewRepoCreater.SetBehindCommits` reads the commit a local branch
+      branched out from as `localBottom.ParentIds[0]`, with nothing to say what happens when the
+      bottom *is* a root commit and so has no parent. The `ArgumentOutOfRangeException` is thrown
+      outside the `R` error handling entirely — the same shape as the Step 1 date bug — so the log
+      view never appeared.
+
+      Reachable whenever a repo's history reaches back to its first commit on the branch being
+      shown and that branch has not been pulled: clone a repo that had one commit, someone pushes,
+      you fetch. Any local commit at all avoids it, since the branch bottom is then one of those,
+      which is why it survived this long. `localBase` is now null when there is no such commit and
+      the loop simply has one stop condition less. Found by writing the push/pull tests above, and
+      covered by `ViewRepoCreaterTest.TestBranchBehindAtTheRootCommitHasRemoteOnlyCommits`.
+- [ ] Noted, no action: three small things the new tests pin so they cannot change unnoticed.
+      - A sub menu row is two columns wider than the others, since `MenuRows` writes the columns
+        reserved for the ` >` marker *after* the marker rather than instead of it. Invisible, the
+        two extra columns being blank and clipped by the view.
+      - On a screen too narrow for the menu, `MenuDimensions` floors the item text at 10 columns,
+        which is wider than the view it is drawn in. No terminal gmd is usable in is that narrow.
+      - Adding the uncommitted commit gives it its parent but does not add it to that parent's
+        children, while removing it filters those child lists all the same. Invisible, since the
+        graph draws the row from the commit's own parent ids, but the two directions not matching
+        is worth knowing before relying on a commit's children.
+
+      Suite went from 402 tests to 441, in five new test classes (`MenuDimensionsTest`,
+      `MenuRowsTest`, `BranchPushPullCommandsTest`, `UncommittedTest`, `BranchWriteServiceTest`).
+      Verified beyond the suite as the earlier splits were: a throwaway probe resolved the whole DI
+      graph, including the two new `Func<IViewRepo, IRepoView, …>` factories Autofac has to generate
+      and the new `IBranchWriteService` registration, and the Release build (i.e. `csharpier check`)
+      is clean.
+- [x] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)
+      — confusing when both are in scope; consider renaming. Renamed after what each converts
+      *from*, so the two pipeline steps read in order: `Augmented/Private/Converter` →
+      `WorkRepoConverter` (`WorkRepo` → the immutable `Server.Repo`) and `Server/Private/Converter`
+      → `ViewRepoConverter` (that repo → the view repo the UI renders, plus the git diffs).
+      Interfaces renamed to match, files renamed with them, and a one-line comment on each names
+      the other, since which comes first is the thing that was actually unclear. The two tests
+      that had worked around the clash with `using AugConverter = …` / `using ViewConverter = …`
+      aliases now use the real names.
+- [x] `TagServis.cs` — filename typo, should be `TagService.cs`. Renamed; the types inside were
+      already `ITagService`/`TagService`, so nothing else changed.
+- [x] Reconsider `NoWarn IDE0090;CA1825` in `gmd.csproj` once formatting churn has settled.
+      Deleted, after the collection expression sweep left `CA1825` with nothing to report. Both
+      diagnostics are now unsuppressed and both builds are still 0 warnings; the cross-reference
+      comment in `.editorconfig` went with it, so the explicit-`new` preference is stated once,
+      where the rest of the style lives.
+      Measured by dropping the `<NoWarn>` line and re-running the analyzers, since neither was
+      what its name suggests any more. Both were added in `65528e8` (2023-08-05), three years
+      before CSharpier arrived, so they never had anything to do with formatting.
+      - `IDE0090` (target-typed `new()`) reports **nothing** un-suppressed, even though 11 files
+        hold the candidate pattern (`List<Button> x = new List<Button>();` in `MessageDlg.cs`,
+        `GraphCreater.cs`, `Augmenter.cs`, …). `.editorconfig` already states the preference the
+        other way (`csharp_style_implicit_object_creation_when_type_is_apparent = false:silent`),
+        and IDE rules do not run at build without `EnforceCodeStyleInBuild` anyway. The entry is
+        dead weight, and the comment at `.editorconfig` explaining the duplication goes with it.
+      - `CA1825` (`new T[0]` → `Array.Empty<T>()`) hides 12 real sites: `Config.cs`, `Updater.cs`,
+        `Repo.cs` (six in a row), `GitLog.cs`, `Server.cs`, `Augmenter.cs`, `AugmentedService.cs`.
+        Its default severity is *info*, so un-suppressing it can never fail a build — the only
+        effect is IDE hints. (`GlobPatterns/Glob.cs` has one too, exempt as vendored code.)
+      - Sequencing: those 12 sites are exactly what the collection expression sweep below
+        (IDE0300) rewrites to `[]`, so do the sweep first. Un-suppressing CA1825 before it aims
+        the IDE's fix at `Array.Empty<T>()`, the wrong direction for this codebase — and after it
+        CA1825 has nothing left to flag, so the whole `<NoWarn>` line can just be deleted with no
+        code change. `[]` for an array compiles to `Array.Empty<T>()`, so nothing is lost.
+
+### Migrate to collection expressions
+
+Collection expressions (`[]`) are the preferred style going forward. The codebase predates C# 12,
+so the analyzers are enabled as **suggestions** — new and touched code adopts `[]`, the rest
+migrates over time. Sites, counting each one once (`dotnet format` reports some twice, which is
+where the earlier "156 sites" came from):
+
+| Diagnostic | Sites | Left | What it changes | Risk |
+| --- | --- | --- | --- | --- |
+| IDE0028 | 71 | 0 | `new List<T>()` → `[]` for initializers | Safe, mechanical |
+| IDE0300 | 35 | 2 | `new T[0]` / `new[] { … }` → `[]` | Safe, mechanical |
+| IDE0301 | 3 | 0 | empty collection → `[]` | Safe, mechanical |
+| IDE0305 | 14 | 14 | fluent `.ToList()` / `.ToArray()` → `[.. x]` | **Review by hand** |
+
+- [x] Sweep the safe ones as one mechanical commit (then run CSharpier, since it normalizes the
+      resulting layout but does not do the conversion itself):
+      `dotnet format style --diagnostics IDE0028 IDE0300 IDE0301 --severity info gmd.sln`
+      Done: 107 of the 109 safe sites, 45 files. Two hand corrections to what the tool produced:
+      - `Utils/GlobPatterns/Glob.cs` reverted, so the vendored code stays as it came. The tool
+        rewrote one arm of `(last == null) ? new string[0] : new[] { last }` and not the other,
+        which is worse than leaving it; `--diagnostics` overrides the `severity = none` that
+        `.editorconfig` sets for that folder, so it has to be reverted by hand each sweep.
+      - `Server/Private/Server.cs` — the tool left `? new[] { commit } : []`, one arm of a
+        ternary in each style. Written as `? [commit] : []`, which compiles because the
+        conditional is target-typed from `Concat`'s `IEnumerable<Commit>`.
+
+      Nothing to review beyond that: the only sites where `[]` is not simply the same type are
+      the interface-typed ones, and there the compiler picks by target type — `ICollection<T>` /
+      `IList<T>` get a mutable `List<T>`, `IEnumerable<T>` / `IReadOnlyList<T>` get an empty
+      array. `Menu.Items` (`ICollection<MenuItem> => []`, added to by every menu) was the one
+      that would break loudly if that were wrong, so a throwaway test added to it and checked
+      each call still returns a fresh collection. 441 tests pass, Release build clean.
+- [ ] IDE0305 by hand, in a separate commit. Converting `x.ToList()` to `[.. x]` can change the
+      concrete type produced behind an `IReadOnlyList<T>` return, and this codebase returns
+      `IReadOnlyList<T>` widely, so each site needs a look rather than a blanket fix. The 14 are
+      `MessageDlg.cs` (2), `UIComboTextField.cs` (1), `UIDialog.cs` (3), `StatusService.cs` (6)
+      and the vendored `GlobPatterns/` (2, leave them).
+- [x] Sequencing note: test coverage is still thin outside the augmentation pipeline and
+      `LogService`, so a 156-site sweep is less safe than it looks. Either do it after Steps 4–6
+      widen coverage, or accept it as a reviewed mechanical change verified by build + CSharpier.
+      Taken the second way, after Step 8 rather than before it, so the split-out services and the
+      441 tests were already in place under it.
+- [x] Unblocked by the sweep: no `new T[0]` is left, so `CA1825` reports nothing and the
+      `<NoWarn>` line in `gmd.csproj` was deleted outright — see the item in Step 8.
+- [ ] Open question: target-typed `new()` (IDE0090) is the same "codebase predates the feature"
+      category. Adopt it too, or keep types explicit? Purely a style question now — keeping types
+      explicit needs no build setting, since `.editorconfig` says so on its own and IDE0090 stays
+      silent without the `<NoWarn>` entry that used to duplicate it.
+
+## Step 9 — Framework and dependency updates
+
+Deliberately after the tests, so regressions are detectable. Current status of every dependency:
+
+| Package | Current | Latest | Notes |
+| --- | --- | --- | --- |
+| Terminal.Gui | 1.17.1 | 2.4.17 | Major rewrite of the UI layer. Do last. |
+| Autofac | 9.3.2 | 9.3.2 | Done. |
+| DiffPlex | 1.9.0 | 1.9.0 | Done. |
+| MSTest.\* | 4.3.3 | 4.3.3 | Done. |
+| Microsoft.NET.Test.Sdk | 18.8.1 | 18.8.1 | Done. |
+| coverlet.collector | 10.0.1 | 10.0.1 | Done. |
+
+- [x] Test packages first (MSTest 3.6.0 → 4.3.3, Test.Sdk 17.11.1 → 18.8.1, coverlet 6.0.2 →
+      10.0.1) — contained to `gmdTest`, no product code touched. Two breaking changes in MSTest 4,
+      both mechanical:
+  - `Assert.ThrowsException<T>` is gone (8 sites in `ResultTest`, `EnumerableExtensionsTest`,
+    `GlobTest`). Replaced with `Assert.ThrowsExactly<T>`, **not** `Assert.Throws<T>`: MSTest 3's
+    `ThrowsException<T>` required the exact type, and `Throws<T>` accepts derived ones, so
+    `ThrowsExactly<T>` is the like-for-like replacement.
+  - `[DataTestMethod]` is obsolete (MSTEST0044; 4 sites). `[TestMethod]` carries `[DataRow]` on
+    its own now.
+
+    Left as they are on purpose: the separate `MSTest.TestAdapter` + `MSTest.TestFramework`
+    references rather than the `MSTest` meta-package, and VSTest rather than
+    `EnableMSTestRunner` — Microsoft.Testing.Platform would change the `dotnet test` command
+    line in `./test` and needs a different coverage extension than `coverlet.collector`.
+    441 tests pass, `--collect:"XPlat Code Coverage"` still writes a cobertura report, Release
+    build and `csharpier check` clean.
+- [x] `DiffPlex` 1.7.2 → 1.9.0 and `Autofac` 8.1.0 → 9.3.2. Version bumps in `gmd.csproj` only —
+      neither needed a source change, and the solution builds with no warnings. Both are used in
+      exactly one place, which is why a major Autofac bump is a small change: `DiffPlex` is
+      `new Differ().CreateCharacterDiffs` in `Cui/Diff/DiffService.cs`, and `Autofac` is
+      `Utils/DependencyInjection.cs`, whose `RegisterAssemblyTypes` / `FindConstructorsWith` /
+      `OwnedByLifetimeScope` API is unchanged in 9.x.
+  - Verified by running the app, not just the suite: neither line is covered by a test. Nothing
+    resolves the container (`./test` builds services by hand) and `DiffServiceTest` covers
+    `Git/DiffService`, the git-output parser, not the `Cui` view that calls DiffPlex. So gmd was
+    started under tmux against a throwaway repo, which resolves the whole object graph, and `d`
+    on the uncommitted-changes row drew the side-by-side diff. `beta gamma delta` vs
+    `beta gemma delta` came back with only the `a`/`e` background-colored, i.e. DiffPlex returned
+    a one-character diff block rather than falling back to a whole-line diff. `~/gmd.log` had no
+    exception, and `dotnet list package --vulnerable/--deprecated` are clean.
+  - Worth knowing for the remaining items: the DI container is a **runtime** dependency with no
+    test behind it. `RegisterAllAssemblyTypes` is convention-based, so a registration mistake
+    surfaces as a resolve failure at startup, not as a compile error — start the app after
+    touching it. `--version` is not enough on its own: `Program.Main` resolves `IProgramCommands`
+    and returns before `Resolve<Program>()`, so it never builds the UI half of the graph.
+- [x] .NET 8 → .NET 10 (LTS), ahead of .NET 8 support ending Nov 2026. Seven files, all of them
+      the same string change, and no product code touched at all: both `TargetFramework`s
+      (`gmd.csproj`, `gmdTest.csproj`), `DOTNET` in `build` and `build.bat` (it spells the
+      `bin/Release/$DOTNET/<rid>/publish` copy paths, so a miss breaks the build script rather
+      than the compile), the `program` path in `.vscode/launch.json`, `dotnet-version: '10.x'` in
+      both CI jobs, and the devcontainer image `mcr.microsoft.com/devcontainers/dotnet:10.0`.
+  - Nothing in the source needed changing — no analyzer warnings, no obsoleted API, no
+    `global.json` to pin. Every dependency already resolves for net10.0: Terminal.Gui 1.17.1 is
+    netstandard2.0, and Autofac / DiffPlex / MSTest / coverlet / `CSharpier.MsBuild` all restore
+    and run unchanged. `dotnet list package --deprecated/--vulnerable` stay clean.
+  - Verified on SDK 10.0.302: solution builds with 0 warnings, 441 tests pass (integration ones
+    included, so the real `git` path is covered), `csharpier check` clean, and `./build -l`
+    publishes both linux-x64 and linux-arm64 self-contained single-file ReadyToRun — the part
+    most likely to break on a framework bump, since it cross-compiles with crossgen2.
+  - Then started under tmux against a throwaway repo, for the reason the item above records: the
+    DI container has no test behind it and `--version` returns before the UI half of the graph is
+    built. The log view drew the branch graph and `d` drew the side-by-side diff. `~/gmd.log` had
+    no exception — only the expected DEBUG failures for a repo with no tags, no origin and no gmd
+    metadata.
+  - Note the devcontainer is *declared*, not rebuilt: an existing container keeps its .NET 8 SDK
+    until it is rebuilt, and .NET 8 cannot build a net10.0 project. So "Rebuild Container" is
+    required after pulling this, and a stale container fails with NETSDK1045 rather than anything
+    that points at the cause.
+  - Follow-up found after the rebuild: `./test` printed **nothing** in an interactive terminal.
+    The .NET 10 SDK enables the MSBuild *terminal logger* by default (it was off in .NET 8), and
+    it swallows the VSTest console logger output completely — the run still passes and still
+    exits 0, but not one line reaches the screen. It only shows when stdout is a terminal, so
+    piping the output (or CI) hides the problem. Fixed by passing `-tl:false` to `dotnet test`
+    in `test`, `build` and `build.bat`.
+- [ ] Terminal.Gui 1.x → 2.x. The big one. Should not start until Step 3 gives the UI-adjacent
+      logic snapshot coverage.
+
+## Step 10 — Deferred / open questions
+
+- [ ] `gmdSetup.exe` is a **prebuilt binary committed to the repo**
+      (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
+      CI just uploads the committed file. Should CI build it, or should it be documented as a
+      manual Windows step?
+- [ ] Intel macOS is effectively unreleased: `install.sh` looks for a `gmd_osx` asset for
+      Darwin/x86_64, but neither `./build` nor CI produces one. Drop Intel support explicitly, or
+      start building it?
+- [ ] `Program.MajorVersion`/`MinorVersion` are hand-edited constants. Worth a check that the
+      changelog and version bump are not forgotten.
+- [ ] No `.runsettings`; tests run sequentially. If parallel execution is ever enabled, the
+      culture test in `LogServiceTest` mutates `CultureInfo.DefaultThreadCurrentCulture` and
+      would need isolating.
+
+## Step 11 — Rewrite clipboard copy
+
+**Reported by the user: copying text works on some systems, not at all on others, and sometimes
+works and then does not on the same machine.** `Utils/Clipboard.cs` needs a rewrite rather than a
+patch — the reasons below are separate defects that each produce that symptom.
+
+Deliberately scheduled after Step 9 rather than earlier, for one concrete reason: the Windows path
+goes through `Terminal.Gui.Clipboard`, and Terminal.Gui 2.x changes that API. Doing this before the
+2.x upgrade means writing the Windows side twice. It is not blocked by anything else, so pull it
+forward if the copy bug starts costing more than the rework would.
+
+### What is actually wrong
+
+Verified by reading the code, not guessed — but note that none of it has been reproduced against a
+failing machine yet, so confirm against a real report before assuming which one bit.
+
+- [ ] **macOS never works at all.** The `Build.IsMacOs` branch in `Clipboard.Set` is commented out
+      with a `// Does it work ????`, so `Set` falls straight through to
+      `R.Error("Clipboard not supported on this platform")`. Worse, `Build.IsMacOs` **does not
+      exist** — `Build.cs` defines only `IsWindows` and `IsLinux` — so the branch would not compile
+      if uncommented. gmd releases `gmd_osx_arm64`, so this is a whole shipped platform with no
+      copy. `pbcopy`/`pbpaste` are always present on macOS, so the fix itself is small.
+- [ ] **Linux requires `xsel`, which most distributions do not install by default** (Debian and
+      Ubuntu minimal, Fedora, Arch). There is no fallback to `xclip`, and no `wl-copy` for Wayland.
+      Under Wayland `xsel` reaches only XWayland, so the copy can *report success* and paste
+      nothing into a native Wayland application — which is exactly "works on some systems".
+- [ ] **The forking-helper problem, the best candidate for "sometimes".** An X selection is owned
+      by a live process, so `xsel -i` forks a daemon to hold it — and that daemon inherits the
+      redirected stdout/stderr pipes of `Cmd.Command`, which calls `WaitForExit()` with no timeout.
+      That is [dotnet/runtime#27128](https://github.com/dotnet/runtime/issues/27128), and the
+      commented-out `DoubleWaitForExit` workarounds sitting in *both* `Cmd.Command` and
+      `BashRunner` say someone already hit it and backed out. Depending on how the helper detaches,
+      gmd can block, or the selection can die with the process and leave the clipboard empty.
+- [ ] **A failed copy is usually silent.** Three of the five call sites discard the returned `R`:
+      `RepoView.cs:643`, `RepoView.cs:656` and `UnicodeSetsDlg.cs:36`. Only `RepoCommands` (two
+      sites) and `DiffView.cs:450` report anything, and what they report is
+      `"Clipboard copy not supported on this platform"` — which is wrong and unactionable when the
+      real cause is a missing `xsel`. So the common user experience is a menu item that appears to
+      do nothing, with no error and nothing in the log.
+- [ ] **Windows takes a completely different route** for no reason, `Terminal.Gui.Clipboard`, which
+      is also the sole Terminal.Gui reference outside `Cui/` (the Step 8 layering note).
+- [ ] Dead code to remove with it: `BashRunner` is called by nothing and throws instead of
+      returning `R`, against the codebase convention; `LinuxClipboard.cmd` is an unused field, since
+      `Cmd.Run` is static; and `LinuxClipboard.GetText`/`InnerGetText` implement paste for Linux
+      only and are never called.
+
+### Direction
+
+- [ ] One DI-registered `IClipboard` in `gmd/Utils/`, no Terminal.Gui — which settles the Step 8
+      layering note as a side effect.
+- [ ] Write through the child process's **stdin** rather than a temp file piped through `bash -c`.
+      That removes the temp file, the shell, and the nested quoting in one go.
+- [ ] Probe a chain per platform and use the first tool that exists, rather than assuming one:
+      macOS `pbcopy`; Linux `wl-copy` when `WAYLAND_DISPLAY` is set, then `xclip -selection
+      clipboard`, then `xsel -ib`; WSL `clip.exe`; Windows `clip.exe` or a direct Win32 call.
+- [ ] Handle the detaching helper explicitly — do not redirect the child's stdout/stderr for a
+      clipboard write, or wait with a timeout — rather than leaving it to `Cmd.Command`'s
+      unbounded `WaitForExit()`.
+- [ ] Report failures at every call site, and name the cause ("no clipboard tool found, install
+      xclip or wl-clipboard") instead of "not supported on this platform".
+- [ ] Consider OSC 52 as a last-resort fallback. It is the only mechanism that works over SSH,
+      where no local helper binary can reach the user's clipboard — arguably the most valuable case
+      for a terminal git client, and the one no amount of `xsel` fixing will cover.
+- [ ] Testable through `ICmd`, so `FakeCmd` covers tool selection and the command line built for
+      each platform. What cannot be faked — whether the clipboard actually holds the text
+      afterwards — needs a manual check per platform; write down which ones were verified.

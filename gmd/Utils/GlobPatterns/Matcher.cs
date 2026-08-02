@@ -1,6 +1,5 @@
 ﻿using System.Linq;
 
-
 namespace gmd.Utils.GlobPatterns
 {
     static class Matcher
@@ -21,11 +20,14 @@ namespace gmd.Utils.GlobPatterns
                 // match zero or more chars
                 case StringWildcard _:
                     return MatchesSubSegment(segments, segmentIndex + 1, pathSegment, pathIndex) // zero
-                           || (pathIndex < pathSegment.Length &&
-                               MatchesSubSegment(segments, segmentIndex, pathSegment, pathIndex + 1)); // or one+
+                        || (
+                            pathIndex < pathSegment.Length
+                            && MatchesSubSegment(segments, segmentIndex, pathSegment, pathIndex + 1)
+                        ); // or one+
 
                 case CharacterWildcard _:
-                    return pathIndex < pathSegment.Length && MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + 1);
+                    return pathIndex < pathSegment.Length
+                        && MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + 1);
 
                 case Identifier ident:
                     var len = ident.Value.Length;
@@ -40,7 +42,16 @@ namespace gmd.Utils.GlobPatterns
                 case LiteralSet literalSet:
                     //TODO we can probably optimize this somehow to get rid of the allocations...
                     var tail = segments.Skip(nextSegment).ToArray();
-                    return literalSet.Literals.Any(lit => MatchesSubSegment(new SubSegment[] { lit }.Concat(tail).ToArray(), 0, pathSegment, pathIndex));
+                    return literalSet.Literals.Any(lit =>
+                        MatchesSubSegment(
+                            new SubSegment[] { lit }
+                                .Concat(tail)
+                                .ToArray(),
+                            0,
+                            pathSegment,
+                            pathIndex
+                        )
+                    );
 
                 case CharacterSet set:
                     if (pathIndex == pathSegment.Length)
@@ -50,7 +61,6 @@ namespace gmd.Utils.GlobPatterns
                     return inThere && MatchesSubSegment(segments, nextSegment, pathSegment, pathIndex + 1);
             }
             return false;
-
         }
     }
 }

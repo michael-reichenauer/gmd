@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text.Json;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using gmd.Common;
 using gmd.Cui.Common;
 
@@ -15,7 +15,6 @@ interface IUpdater
     Task StartCheckUpdatesRegularly();
 }
 
-
 public class GitRelease
 {
     public string tag_name { get; set; } = "";
@@ -23,7 +22,7 @@ public class GitRelease
     public bool prerelease { get; set; } = true;
     public string published_at { get; set; } = "";
     public string body { get; set; } = "";
-    public GitAsset[] assets { get; set; } = new GitAsset[0];
+    public GitAsset[] assets { get; set; } = [];
 }
 
 public class GitAsset
@@ -60,10 +59,10 @@ class Updater : IUpdater
         buildVersion = Build.Version();
     }
 
-
     public async Task CheckUpdateAvailableAsync()
     {
-        if (IsDotNet()) return;
+        if (IsDotNet())
+            return;
 
         CleanTempFiles();
         if (!Try(out var _, out var e, await IsUpdateAvailableAsync()))
@@ -75,13 +74,15 @@ class Updater : IUpdater
         var releases = config.Releases;
         var allowPreview = config.AllowPreview;
 
-        Log.Info($"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})");
+        Log.Info(
+            $"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})"
+        );
     }
-
 
     public async Task<R<Version>> UpdateAsync()
     {
-        if (IsDotNet()) return buildVersion;
+        if (IsDotNet())
+            return buildVersion;
 
         if (!Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()))
         {
@@ -111,7 +112,6 @@ class Updater : IUpdater
         return new Version(release.Version);
     }
 
-
     public async Task StartCheckUpdatesRegularly()
     {
         if (Build.IsDevInstance())
@@ -120,7 +120,8 @@ class Updater : IUpdater
             return;
         }
 
-        if (isUpdateCheckerRunning) return;
+        if (isUpdateCheckerRunning)
+            return;
         isUpdateCheckerRunning = true;
 
         while (true)
@@ -135,10 +136,12 @@ class Updater : IUpdater
                     {
                         UI.Post(() =>
                         {
-                            UI.InfoMessage("Restart for New Version ",
-                                $"Gmd has been updated to: {updatedVersion}\n" +
-                                "and the new version will run at next starts.\n\n" +
-                                "Restart gmd if you want to run the updated version now.");
+                            UI.InfoMessage(
+                                "Restart for New Version ",
+                                $"Gmd has been updated to: {updatedVersion}\n"
+                                    + "and the new version will run at next starts.\n\n"
+                                    + "Restart gmd if you want to run the updated version now."
+                            );
                         });
                     }
                 }
@@ -147,7 +150,6 @@ class Updater : IUpdater
             await Task.Delay(checkUpdateInterval);
         }
     }
-
 
     public async Task<R<(bool, Version)>> IsUpdateAvailableAsync()
     {
@@ -190,10 +192,10 @@ class Updater : IUpdater
         return (true, new Version(release.Version));
     }
 
-
     R Install(string downloadedPath)
     {
-        if (IsDotNet()) return R.Ok;
+        if (IsDotNet())
+            return R.Ok;
 
         try
         {
@@ -207,7 +209,8 @@ class Updater : IUpdater
 
             File.Move(downloadedPath, newPath);
             Log.Info($"Move {downloadedPath} => {newPath} ...");
-            if (!Try(out var e, MakeBinaryExecutable(newPath))) return e;
+            if (!Try(out var e, MakeBinaryExecutable(newPath)))
+                return e;
 
             var thisPath = Environment.ProcessPath ?? "gmd";
             var newThisPath = GetTempPath();
@@ -224,7 +227,6 @@ class Updater : IUpdater
             return R.Error("Failed to install new file", e);
         }
     }
-
 
     async Task<R<string>> DownloadBinaryAsync()
     {
@@ -261,7 +263,7 @@ class Updater : IUpdater
     static Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
     {
         if (requestingUri == requestUri && getBytesTask != null)
-        {   // A request for this uri has already been started, lets reuse task
+        { // A request for this uri has already been started, lets reuse task
             Log.Info($"Download already started for {requestUri}");
             return getBytesTask;
         }
@@ -280,7 +282,6 @@ class Updater : IUpdater
         return Path.Combine(tmpFolderPath, name);
     }
 
-
     string GetTempPath()
     {
         var thisPath = Environment.ProcessPath ?? "gmd";
@@ -290,7 +291,8 @@ class Updater : IUpdater
 
     static void CleanTempFiles()
     {
-        if (IsDotNet()) return;
+        if (IsDotNet())
+            return;
         try
         {
             var thisPath = Environment.ProcessPath ?? "gmd";
@@ -301,7 +303,8 @@ class Updater : IUpdater
                 if (path.StartsWith(tmpPathPrefix))
                 {
                     Log.Info($"Deleting {path}");
-                    if (!Try(out var e, () => File.Delete(path))) Log.Info($"Failed to delete {e}");
+                    if (!Try(out var e, () => File.Delete(path)))
+                        Log.Info($"Failed to delete {e}");
                 }
             }
         }
@@ -311,28 +314,25 @@ class Updater : IUpdater
         }
     }
 
-
     (string, string) SelectBinaryPath()
     {
         string[] names;
         if (Build.IsMacOS)
         {
-            names = new[] { "gmd_osx_arm64" };
+            names = ["gmd_osx_arm64"];
         }
-        else
-        if (Build.IsLinux)
+        else if (Build.IsLinux)
         {
             names = RuntimeInformation.OSArchitecture switch
             {
-                Architecture.Arm64 => new[] { "gmd_linux_arm64", "gmd_linux" },
-                Architecture.X64 => new[] { "gmd_linux_x64", "gmd_linux" },
-                _ => new[] { "gmd_linux" },
+                Architecture.Arm64 => ["gmd_linux_arm64", "gmd_linux"],
+                Architecture.X64 => ["gmd_linux_x64", "gmd_linux"],
+                _ => ["gmd_linux"],
             };
         }
-        else
-        if (Build.IsWindows)
+        else if (Build.IsWindows)
         {
-            names = new[] { "gmd_windows" };
+            names = ["gmd_windows"];
         }
         else
         {
@@ -347,15 +347,17 @@ class Updater : IUpdater
         return (binaryPath, release.Version);
     }
 
-
     Release SelectRelease()
     {
         var releases = config.Releases;
         var allowPreview = config.AllowPreview;
 
-        if (allowPreview && releases.PreRelease.Assets.Any() &&
-            IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version))
-        {   // user allow preview versions, and the preview version is newer
+        if (
+            allowPreview
+            && releases.PreRelease.Assets.Any()
+            && IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version)
+        )
+        { // user allow preview versions, and the preview version is newer
             return releases.PreRelease;
         }
         return releases.StableRelease;
@@ -407,10 +409,11 @@ class Updater : IUpdater
 
     void CacheLatestVersionInfo(string eTag, string latestInfoText)
     {
-        if (eTag == "") return;
+        if (eTag == "")
+            return;
 
         var gitReleases = JsonSerializer.Deserialize<GitRelease[]>(latestInfoText);
-        var releases = gitReleases?.OrderByDescending(rr => TagToVersion(rr.tag_name))?.ToList() ?? new List<GitRelease>();
+        var releases = gitReleases?.OrderByDescending(rr => TagToVersion(rr.tag_name))?.ToList() ?? [];
         var stable = releases.FirstOrDefault(rr => !rr.prerelease);
         var preview = releases.FirstOrDefault(rr => rr.prerelease);
 
@@ -418,7 +421,7 @@ class Updater : IUpdater
         {
             Etag = eTag,
             StableRelease = ToRelease(stable),
-            PreRelease = ToRelease(preview)
+            PreRelease = ToRelease(preview),
         };
 
         // Cache the latest version info
@@ -445,7 +448,7 @@ class Updater : IUpdater
         {
             Version = gr.tag_name.TrimPrefix("v"),
             IsPreview = gr.prerelease,
-            Assets = ToAssets(gr.assets)
+            Assets = ToAssets(gr.assets),
         };
     }
 
@@ -477,13 +480,13 @@ class Updater : IUpdater
     private string RandomString(int length)
     {
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return new string(Enumerable.Repeat(chars, length)
-            .Select(s => s[random.Next(s.Length)]).ToArray());
+        return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
     }
 
     R MakeBinaryExecutable(string path)
     {
-        if (Build.IsWindows) return R.Ok; // Not needed on windows
+        if (Build.IsWindows)
+            return R.Ok; // Not needed on windows
 
         return cmd.Command("chmod", $"+x {path}", "");
     }

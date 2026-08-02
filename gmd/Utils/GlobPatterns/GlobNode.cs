@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Text;
 
-
 namespace gmd.Utils.GlobPatterns
 {
     abstract class GlobNode
@@ -42,9 +41,7 @@ namespace gmd.Utils.GlobPatterns
         public static readonly DirectoryWildcard Default = new DirectoryWildcard();
 
         private DirectoryWildcard()
-            : base(GlobNodeType.DirectoryWildcard)
-        {
-        }
+            : base(GlobNodeType.DirectoryWildcard) { }
     }
 
     class DirectorySegment : Segment
@@ -61,9 +58,7 @@ namespace gmd.Utils.GlobPatterns
     abstract class Segment : GlobNode
     {
         protected Segment(GlobNodeType type)
-            : base(type)
-        {
-        }
+            : base(type) { }
     }
 
     class StringWildcard : SubSegment
@@ -71,9 +66,7 @@ namespace gmd.Utils.GlobPatterns
         public static readonly StringWildcard Default = new StringWildcard();
 
         private StringWildcard()
-            : base(GlobNodeType.StringWildcard)
-        {
-        }
+            : base(GlobNodeType.StringWildcard) { }
     }
 
     class CharacterWildcard : SubSegment
@@ -81,9 +74,7 @@ namespace gmd.Utils.GlobPatterns
         public static readonly CharacterWildcard Default = new CharacterWildcard();
 
         private CharacterWildcard()
-            : base(GlobNodeType.CharacterWildcard)
-        {
-        }
+            : base(GlobNodeType.CharacterWildcard) { }
     }
 
     class CharacterSet : SubSegment
@@ -141,7 +132,6 @@ namespace gmd.Utils.GlobPatterns
         }
     }
 
-
     class Identifier : SubSegment
     {
         public string Value { get; }
@@ -178,9 +168,7 @@ namespace gmd.Utils.GlobPatterns
     abstract class SubSegment : GlobNode
     {
         public SubSegment(GlobNodeType type)
-            : base(type)
-        {
-        }
+            : base(type) { }
     }
 
     enum GlobNodeType
@@ -197,6 +185,6 @@ namespace gmd.Utils.GlobPatterns
         Identifier,
         LiteralSet,
         StringWildcard,
-        CharacterWildcard
+        CharacterWildcard,
     }
 }

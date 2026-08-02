@@ -1,8 +1,6 @@
 using Terminal.Gui;
 using Terminal.Gui.Trees;
 
-
-
 namespace gmd.Cui.Common;
 
 public class FileBrowseDlg
@@ -16,7 +14,13 @@ public class FileBrowseDlg
 
         var dlg = new UIDialog("Select File", width, height);
 
-        var fileTreeView = new TreeView() { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+        var fileTreeView = new TreeView()
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill() - 2,
+        };
         fileTreeView.Style.ShowBranchLines = true;
         fileTreeView.Style.ExpandableSymbol = '>';
         fileTreeView.Style.CollapseableSymbol = null;
@@ -29,14 +33,18 @@ public class FileBrowseDlg
         dlg.AddLine(0, height - 4, width - 2);
         dlg.AddDlgCancel();
 
-        dlg.Show(fileTreeView, () =>
-        {
-            SetupFileTree(fileTreeView, files);
-            SetupScrollBar(fileTreeView);
-            fileTreeView.GoToFirst();
-        });
+        dlg.Show(
+            fileTreeView,
+            () =>
+            {
+                SetupFileTree(fileTreeView, files);
+                SetupScrollBar(fileTreeView);
+                fileTreeView.GoToFirst();
+            }
+        );
 
-        if (selectedPath == "") return R.Error();
+        if (selectedPath == "")
+            return R.Error();
 
         return selectedPath;
     }
@@ -44,7 +52,7 @@ public class FileBrowseDlg
     private void ItemSelected(ObjectActivatedEventArgs<ITreeNode> obj)
     {
         if (obj.ActivatedObject.Children.Any())
-        {   // Ignore selecting folders
+        { // Ignore selecting folders
             return;
         }
 
@@ -61,13 +69,16 @@ public class FileBrowseDlg
         treeView.AddObjects(roots);
     }
 
-
     IList<ITreeNode> Get(IEnumerable<IEnumerable<string>> paths, string key)
     {
         return paths
             .Where(p => p.Any())
             .GroupBy(p => p.First())
-            .Select(g => new TreeNode(g.Key) { Tag = $"{key}/{g.Key}", Children = Get(g.Select(y => y.Skip(1)), $"{key}/{g.Key}") })
+            .Select(g => new TreeNode(g.Key)
+            {
+                Tag = $"{key}/{g.Key}",
+                Children = Get(g.Select(y => y.Skip(1)), $"{key}/{g.Key}"),
+            })
             .OrderBy(tn => tn.Children.Any() ? 0 : 1)
             .Cast<ITreeNode>()
             .ToList();
@@ -75,11 +86,7 @@ public class FileBrowseDlg
 
     static void SetCustomColors(TreeView<ITreeNode> treeView)
     {
-        var scheme = new ColorScheme
-        {
-            Focus = new Color(Color.White, Color.Dark),
-            Normal = Color.White
-        };
+        var scheme = new ColorScheme { Focus = new Color(Color.White, Color.Dark), Normal = Color.White };
 
         treeView.ColorGetter = m => scheme;
     }
@@ -121,4 +128,3 @@ public class FileBrowseDlg
         };
     }
 }
-

@@ -1,5 +1,4 @@
-﻿
-namespace gmd.Utils.GlobPatterns
+﻿namespace gmd.Utils.GlobPatterns
 {
     /// <summary>
     /// Based on: https://github.com/kthompson/glob
@@ -11,13 +10,11 @@ namespace gmd.Utils.GlobPatterns
         private Tree? _root;
         private Segment[]? _segments;
 
-
         public Glob(string pattern)
         {
             this.Pattern = pattern.ToLower();
             Compile();
         }
-
 
         public bool IsMatch(string input)
         {
@@ -35,7 +32,6 @@ namespace gmd.Utils.GlobPatterns
             return IsMatch(_segments, 0, pathSegments, 0);
         }
 
-
         private void Compile()
         {
             if (_root != null)
@@ -48,7 +44,6 @@ namespace gmd.Utils.GlobPatterns
             _root = parser.ParseTree();
             _segments = _root.Segments;
         }
-
 
         static bool IsMatch(Segment[] pattern, int patternIndex, string[] input, int inputIndex)
         {
@@ -64,14 +59,13 @@ namespace gmd.Utils.GlobPatterns
                 var inputHead = input[inputIndex];
                 var patternHead = pattern[patternIndex];
 
-
                 switch (patternHead)
                 {
                     case DirectoryWildcard _:
                         // return all consuming the wildcard
                         return IsMatch(pattern, patternIndex + 1, input, inputIndex) // 0 matches
-                             || IsMatch(pattern, patternIndex + 1, input, inputIndex + 1) // 1 match
-                             || IsMatch(pattern, patternIndex, input, inputIndex + 1); // more
+                            || IsMatch(pattern, patternIndex + 1, input, inputIndex + 1) // 1 match
+                            || IsMatch(pattern, patternIndex, input, inputIndex + 1); // more
 
                     case Root root when inputHead == root.Text:
                         patternIndex++;
@@ -87,7 +81,6 @@ namespace gmd.Utils.GlobPatterns
                 return false;
             }
         }
-
 
         public static bool IsMatch(string input, string pattern) => new Glob(pattern).IsMatch(input);
     }

@@ -3,7 +3,6 @@ using gmd.Cui.Common;
 
 namespace gmd.Cui.RepoView;
 
-
 interface IRepoViewMenus
 {
     void ShowRepoMenu(int x, int y);
@@ -16,7 +15,6 @@ interface IRepoViewMenus
     void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
     void ShowDiffBranchToMenu(int x, int y, string branchName);
 }
-
 
 class RepoViewMenus : IRepoViewMenus
 {

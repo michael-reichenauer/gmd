@@ -1,5 +1,3 @@
-using gmd.Cui.RepoView;
-
 namespace gmd.Server;
 
 enum ShowBranches
@@ -24,13 +22,25 @@ interface IServer
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = false);
     IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount);
 
-    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
+    Repo ShowBranch(
+        Repo repo,
+        string branchName,
+        bool includeAmbiguous,
+        ShowBranches show = ShowBranches.Specified,
+        int count = 1
+    );
     Repo HideBranch(Repo repo, string name, bool hideAllBranches = false);
     Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<R> CreateBranchFromBranchAsync(Repo serverRepo, string newBranchName, string sourceBranch, bool isCheckout, string repoPath);
+    Task<R> CreateBranchFromBranchAsync(
+        Repo serverRepo,
+        string newBranchName,
+        string sourceBranch,
+        bool isCheckout,
+        string repoPath
+    );
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
     Task<R> StashAsync(string message, string wd);
     Task<R> StashPopAsync(string name, string wd);
@@ -45,6 +55,7 @@ interface IServer
     Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
     Task<R> RunDiffToolAsync(string path, string wd);
     Task<R> RunMergeToolAsync(string path, string wd);
+
     //Task<R<string>> GetFileTextAsync(string path, string wd);
 
     Task<R> PushBranchAsync(string name, string wd);
@@ -77,4 +88,3 @@ interface IServer
 }
 
 internal record ChangeEvent(DateTime TimeStamp);
-

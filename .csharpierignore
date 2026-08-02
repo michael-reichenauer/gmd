@@ -1,0 +1,6 @@
+# Files CSharpier must not touch (gitignore syntax).
+# CSharpier already skips anything in .gitignore, so obj/ and bin/ need no entry.
+
+# Windows installer tooling: Cake bootstrapper files. CSharpier reformats XML such as
+# packages.config, which invalidates the packages.config.md5sum restore marker.
+gmd/Installation/installer/

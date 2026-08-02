@@ -1,18 +1,17 @@
 using Terminal.Gui;
 
-
 namespace gmd.Cui.Common;
 
 static class UI
 {
-    static internal void AssertOnUIThread() => Threading.AssertIsMainThread();
+    internal static void AssertOnUIThread() => Threading.AssertIsMainThread();
 
-    static internal void RunInBackground(Func<Task> action)
+    internal static void RunInBackground(Func<Task> action)
     {
         action().RunInBackground();
     }
 
-    static internal void RunDialog(Toplevel toplevel)
+    internal static void RunDialog(Toplevel toplevel)
     {
         using (EnableInput())
         {
@@ -22,7 +21,8 @@ static class UI
 
     static Action? onActivated;
     static Action? onDeactivated;
-    static internal void SetActions(Action? deactivated, Action? activated)
+
+    internal static void SetActions(Action? deactivated, Action? activated)
     {
         onDeactivated = deactivated;
         onActivated = activated;
@@ -30,16 +30,15 @@ static class UI
 
     public static void CloseDialog() => Application.RequestStop();
 
-    static internal void StopInput()
+    internal static void StopInput()
     {
         Application.RootKeyEvent = (_) => true;
     }
 
-    static internal void StartInput()
+    internal static void StartInput()
     {
         Application.RootKeyEvent = null;
     }
-
 
     internal static void Post(Action action)
     {
@@ -47,6 +46,7 @@ static class UI
     }
 
     internal static void ShowCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Default);
+
     internal static void HideCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
     internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)
@@ -56,7 +56,14 @@ static class UI
 
     internal static object AddTimeout(TimeSpan timeout, Action callback)
     {
-        return Application.MainLoop?.AddTimeout(timeout, (_) => { callback(); return false; })!;
+        return Application.MainLoop?.AddTimeout(
+            timeout,
+            (_) =>
+            {
+                callback();
+                return false;
+            }
+        )!;
     }
 
     internal static void Shutdown()
@@ -71,14 +78,13 @@ static class UI
 
     internal static int InfoMessage(string title, string message, int defaultButton = 0, params string[] buttons)
     {
-        buttons = buttons.Length == 0 ? new string[] { "OK" } : buttons;
+        buttons = buttons.Length == 0 ? ["OK"] : buttons;
 
         using (EnableInput())
         {
             return MessageDlg.ShowInfo(title, message, defaultButton, buttons);
         }
     }
-
 
     internal static int ErrorMessage(string message, int defaultButton = 0, params string[] buttons)
     {
@@ -87,7 +93,7 @@ static class UI
 
     internal static int ErrorMessage(string title, string message, int defaultButton = 0, params string[] buttons)
     {
-        buttons = buttons.Length == 0 ? new string[] { "OK" } : buttons;
+        buttons = buttons.Length == 0 ? ["OK"] : buttons;
 
         using (EnableInput())
         {

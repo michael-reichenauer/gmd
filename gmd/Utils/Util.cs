@@ -1,5 +1,3 @@
 namespace gmd.Utils;
 
-static class Util
-{
-}
+static class Util { }

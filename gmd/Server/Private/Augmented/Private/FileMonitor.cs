@@ -1,6 +1,4 @@
 using gmd.Utils.GlobPatterns;
-using Terminal.Gui;
-using Timer = System.Timers.Timer;
 
 namespace gmd.Server.Private.Augmented.Private;
 
@@ -17,7 +15,6 @@ interface IFileMonitor
 
 public delegate bool Ignorer(string path);
 
-
 [SingleInstance]
 class FileMonitor : IFileMonitor
 {
@@ -29,32 +26,35 @@ class FileMonitor : IFileMonitor
     const string GitRefsFolder = "refs";
     static readonly string GitHeadFile = Path.Combine(GitFolder, "HEAD");
     const NotifyFilters NotifyFilters =
-            System.IO.NotifyFilters.LastWrite
-            | System.IO.NotifyFilters.FileName
-            | System.IO.NotifyFilters.DirectoryName;
+        System.IO.NotifyFilters.LastWrite | System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.DirectoryName;
 
     readonly FileSystemWatcher workFolderWatcher = new FileSystemWatcher();
     readonly FileSystemWatcher refsWatcher = new FileSystemWatcher();
+
+    readonly IMainThread mainThread;
 
     IReadOnlyList<Glob> matchers = new List<Glob>();
 
     readonly object syncRoot = new object();
 
-
     private string workingFolder = "";
-    object timer = null!;
+    bool isTimerStarted = false;
     ChangeEvent? fileChangedEvent = null;
     ChangeEvent? repoChangedEvent = null;
 
     bool isPaused = false;
 
+    // The clock the trigger delays are measured against, so tests can drive them without waiting.
+    internal Func<DateTime> Now = () => DateTime.UtcNow;
+
     public event Action<ChangeEvent>? FileChanged;
 
     public event Action<ChangeEvent>? RepoChanged;
 
-
-    public FileMonitor()
+    internal FileMonitor(IMainThread mainThread)
     {
+        this.mainThread = mainThread;
+
         workFolderWatcher.Changed += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Created += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
         workFolderWatcher.Deleted += (s, e) => WorkingFolderChange(e.FullPath, e.Name, e.ChangeType);
@@ -83,10 +83,13 @@ class FileMonitor : IFileMonitor
         }
     }
 
-
-    bool OnTimer(MainLoop loop)
+    internal bool OnTimer()
     {
-        lock (syncRoot) { if (isPaused) return true; }
+        lock (syncRoot)
+        {
+            if (isPaused)
+                return true;
+        }
 
         ChangeEvent? fileEvent = null;
         ChangeEvent? repoEvent = null;
@@ -94,7 +97,7 @@ class FileMonitor : IFileMonitor
         lock (syncRoot)
         {
             // Copy FileChangedEvents, RepoChangedEvents, read times
-            var timeStamp = DateTime.UtcNow;
+            var timeStamp = Now();
 
             if (fileChangedEvent != null && fileChangedEvent.TimeStamp + StatusDelayTriggerTime < timeStamp)
             {
@@ -112,13 +115,13 @@ class FileMonitor : IFileMonitor
         if (repoEvent != null)
         {
             Log.Info($"Repo changed event {repoEvent.TimeStamp.IsoMs()}");
-            Cui.Common.UI.Post(() => RepoChanged?.Invoke(repoEvent));
+            mainThread.Post(() => RepoChanged?.Invoke(repoEvent));
         }
 
-        if (fileEvent != null && repoEvent == null)  // no need to send status event if repo changed event
+        if (fileEvent != null && repoEvent == null) // no need to send status event if repo changed event
         {
             Log.Info($"File changed event {fileEvent.TimeStamp.IsoMs()}");
-            Cui.Common.UI.Post(() => FileChanged?.Invoke(fileEvent));
+            mainThread.Post(() => FileChanged?.Invoke(fileEvent));
         }
 
         return true;
@@ -126,9 +129,10 @@ class FileMonitor : IFileMonitor
 
     public void Monitor(string workingFolder)
     {
-        if (timer == null)
+        if (!isTimerStarted)
         {
-            timer = Cui.Common.UI.AddTimeout(TimeSpan.FromSeconds(1), OnTimer);
+            mainThread.RunPeriodically(TimeSpan.FromSeconds(1), OnTimer);
+            isTimerStarted = true;
         }
         string refsPath = Path.Combine(workingFolder, GitFolder, GitRefsFolder);
         if (!Directory.Exists(workingFolder) || !Directory.Exists(refsPath))
@@ -164,19 +168,23 @@ class FileMonitor : IFileMonitor
         this.workingFolder = workingFolder;
     }
 
-
     public IDisposable Pause()
     {
-        lock (syncRoot) { isPaused = true; }
+        lock (syncRoot)
+        {
+            isPaused = true;
+        }
         Log.Info("Pause file monitor ...");
 
         return new Disposable(() =>
         {
-            lock (syncRoot) { isPaused = false; }
+            lock (syncRoot)
+            {
+                isPaused = false;
+            }
             Log.Info("Resume file monitor");
         });
     }
-
 
     void WorkingFolderChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
@@ -203,13 +211,15 @@ class FileMonitor : IFileMonitor
         }
     }
 
-    void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
+    internal void RepoChange(string fullPath, string? path, WatcherChangeTypes changeType)
     {
         // Log.Debug($"'{fullPath}'");
 
-        if (Path.GetExtension(fullPath) == ".lock" ||
-            Directory.Exists(fullPath) ||
-            fullPath.Contains("gmd-metadata-key-value"))
+        if (
+            Path.GetExtension(fullPath) == ".lock"
+            || Directory.Exists(fullPath)
+            || fullPath.Contains("gmd-metadata-key-value")
+        )
         {
             return;
         }
@@ -217,24 +227,22 @@ class FileMonitor : IFileMonitor
         // Log.Info($"Repo change for '{fullPath}' {changeType}");
         lock (syncRoot)
         {
-            repoChangedEvent = new ChangeEvent(DateTime.UtcNow);
+            repoChangedEvent = new ChangeEvent(Now());
         }
     }
 
-
-    void FileChange(string fullPath)
+    internal void FileChange(string fullPath)
     {
         // Log.Info($"Status change '{fullPath}'");
         lock (syncRoot)
         {
-            fileChangedEvent = new ChangeEvent(DateTime.UtcNow);
+            fileChangedEvent = new ChangeEvent(Now());
         }
     }
 
-
     IReadOnlyList<Glob> GetMatches(string workingFolder)
     {
-        List<Glob> patterns = new List<Glob>();
+        List<Glob> patterns = [];
         string gitIgnorePath = Path.Combine(workingFolder, ".gitignore");
         if (!File.Exists(gitIgnorePath))
         {
@@ -288,7 +296,6 @@ class FileMonitor : IFileMonitor
 
         return patterns;
     }
-
 
     bool IsIgnored(string path)
     {

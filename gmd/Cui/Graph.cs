@@ -1,6 +1,5 @@
 using gmd.Cui.Common;
 
-
 namespace gmd.Cui;
 
 class Graph
@@ -38,26 +37,23 @@ class Graph
     public bool TryGetBranchByPos(int x, int index, out GraphBranch branch)
     {
         // Find the branch that is at the given position
-        branch = branches
-            .FirstOrDefault(b => (b.X * 2 == (x - 1) && index >= b.TipIndex && index <= b.BottomIndex))!;
+        branch = branches.FirstOrDefault(b => (b.X * 2 == (x - 1) && index >= b.TipIndex && index <= b.BottomIndex))!;
         return branch != null;
     }
 
-
     public IReadOnlyList<GraphBranch> GetRowBranches(int index) =>
-        branches
-            .Where(b => index >= b.TipIndex && index <= b.BottomIndex)
-            .OrderBy(b => b.X)
-            .ToList();
+        branches.Where(b => index >= b.TipIndex && index <= b.BottomIndex).OrderBy(b => b.X).ToList();
 
     public IReadOnlyList<GraphBranch> GetPageBranches(int firstIndex, int lastIndex) =>
-            branches
-                .Where(b => (b.TipIndex >= firstIndex && b.TipIndex <= lastIndex) ||
-                            (b.BottomIndex >= firstIndex && b.BottomIndex <= lastIndex) ||
-                            (b.TipIndex <= firstIndex && b.BottomIndex >= lastIndex))
-                .OrderBy(b => b.X)
-                .ThenBy(b => b.TipIndex)
-                .ToList();
+        branches
+            .Where(b =>
+                (b.TipIndex >= firstIndex && b.TipIndex <= lastIndex)
+                || (b.BottomIndex >= firstIndex && b.BottomIndex <= lastIndex)
+                || (b.TipIndex <= firstIndex && b.BottomIndex >= lastIndex)
+            )
+            .OrderBy(b => b.X)
+            .ThenBy(b => b.TipIndex)
+            .ToList();
 
     public IReadOnlyList<GraphBranch> GetOverlappingBranches(string branchName)
     {
@@ -69,7 +65,7 @@ class Graph
     {
         int margin = 0;
 
-        if (b2.B.Name == b1.B.Name)       // Same branch    
+        if (b2.B.Name == b1.B.Name) // Same branch
         {
             return true;
         }
@@ -79,12 +75,10 @@ class Graph
         int top2 = b2.TipIndex - margin;
         int bottom2 = b2.BottomIndex + margin;
 
-        return (top2 >= top1 && top2 <= bottom1) ||
-            (bottom2 >= top1 && bottom2 <= bottom1) ||
-            (top2 <= top1 && bottom2 >= bottom1);
+        return (top2 >= top1 && top2 <= bottom1)
+            || (bottom2 >= top1 && bottom2 <= bottom1)
+            || (top2 <= top1 && bottom2 >= bottom1);
     }
-
-
 
     public void DrawHorizontalLine(int x1, int x2, int y, Color color)
     {
@@ -103,32 +97,25 @@ class Graph
         }
     }
 
-
-    public void SetGraphConnect(int x, int y, Sign sign, Color color) =>
-        rows[y].SetConnect(x, sign, color);
-
+    public void SetGraphConnect(int x, int y, Sign sign, Color color) => rows[y].SetConnect(x, sign, color);
 
     public void SetMoreGraphConnect(int x, int y, Sign sign, Color color)
-    {   // An extra connect rune from/to branch that is not shown in the graph
+    { // An extra connect rune from/to branch that is not shown in the graph
         rows[y].SetConnect(x, sign, color);
 
         if (x == rowColumnsLength - 1)
-        {   // The last column do contain a 'more' connect rune to/from branch not shown
+        { // The last column do contain a 'more' connect rune to/from branch not shown
             this.hasMoreConnectColumn = true;
         }
     }
 
-
     public void SetGraphBranch(int x, int y, Sign sign, Color color, GraphBranch branch) =>
         rows[y].SetBranch(x, sign, color, branch);
 
-    void SetGraphBranchPass(int x, int y, Sign sign, Color color) =>
-        rows[y].SetGraphBranchPass(x, sign, color);
+    void SetGraphBranchPass(int x, int y, Sign sign, Color color) => rows[y].SetGraphBranchPass(x, sign, color);
 
-    void SetGraphPass(int x, int y, Sign sign, Color color) =>
-        rows[y].SetGraphPass(x, sign, color);
+    void SetGraphPass(int x, int y, Sign sign, Color color) => rows[y].SetGraphPass(x, sign, color);
 }
-
 
 class GraphRow
 {
@@ -170,7 +157,6 @@ class GraphRow
         columns[x].SetGraphPass(sign, color);
     }
 }
-
 
 class GraphColumn
 {
@@ -225,7 +211,6 @@ class GraphColumn
         }
     }
 }
-
 
 class GraphBranch
 {

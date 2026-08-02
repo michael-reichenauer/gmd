@@ -1,10 +1,10 @@
 namespace gmd.Server.Private.Augmented.Private;
 
-// Augmenter augments repos of git repo information, The augmentations 
-// adds information not available in git directly, but can be inferred by parsing the 
-// git information. 
+// Augmenter augments repos of git repo information, The augmentations
+// adds information not available in git directly, but can be inferred by parsing the
+// git information.
 // Examples of augmentation is which branch a commits belongs to and the hierarchical structure
-// of branches. 
+// of branches.
 interface IAugmenter
 {
     Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo);
@@ -14,18 +14,16 @@ class Augmenter : IAugmenter
 {
     private readonly IBranchStructureService branchStructureService;
 
-
     internal Augmenter(IBranchStructureService branchStructureService)
     {
         this.branchStructureService = branchStructureService;
     }
 
     public Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo)
-    {   // Run in background thread to not block the main thread since 
-        // this can take a long time for large repos and could be CPU intensive 
+    { // Run in background thread to not block the main thread since
+        // this can take a long time for large repos and could be CPU intensive
         return Task.Run(() => GetAugRepo(gitRepo));
     }
-
 
     WorkRepo GetAugRepo(GitRepo gitRepo)
     {
@@ -53,31 +51,31 @@ class Augmenter : IAugmenter
         foreach (var b in repo.Branches.Values)
         {
             if (b.RemoteName != "")
-            {   // A local branch which has a corresponding remote branch             
+            { // A local branch which has a corresponding remote branch
                 if (repo.Branches.TryGetValue(b.RemoteName, out var remoteBranch))
                 {
                     b.PrimaryName = b.RemoteName;
                     b.IsPrimary = false;
-                    remoteBranch.RelatedBranches.Add(b);  // Adds itself to primary branch related branches
+                    remoteBranch.RelatedBranches.Add(b); // Adds itself to primary branch related branches
                     remoteBranch.LocalName = b.Name;
                     if (b.IsCurrent)
-                    {   // Local branch is current, set property on remote branch as well
+                    { // Local branch is current, set property on remote branch as well
                         remoteBranch.IsLocalCurrent = true;
                     }
                 }
                 else
-                {   // No corresponding remote branch for local branch (deleted), unset property
+                { // No corresponding remote branch for local branch (deleted), unset property
                     b.RemoteName = "";
                     b.PrimaryName = b.Name;
                     b.IsPrimary = true;
-                    b.RelatedBranches.Add(b);  // Adds itself to related branches
+                    b.RelatedBranches.Add(b); // Adds itself to related branches
                 }
             }
             else
-            {   // Remote branch or a local branch without a corresponding remote branch
+            { // Remote branch or a local branch without a corresponding remote branch
                 b.PrimaryName = b.Name;
                 b.IsPrimary = true;
-                b.RelatedBranches.Add(b);  // Adds itself to related branches
+                b.RelatedBranches.Add(b); // Adds itself to related branches
             }
         }
     }
@@ -96,12 +94,13 @@ class Augmenter : IAugmenter
         for (var i = gitCommits.Count - 1; i >= 0; i--)
         {
             Git.Commit gc = gitCommits[i];
-            if (IsStashCommit(repo, gc)) continue;   // not shown in log view
+            if (IsStashCommit(repo, gc))
+                continue; // not shown in log view
 
             WorkCommit commit = new WorkCommit(gc);
 
             if (isTruncatedPossible)
-            {   // Check if parents need to be replaced with truncated commit
+            { // Check if parents need to be replaced with truncated commit
                 isTruncatedNeeded = FixTruncatedParents(repo, isTruncatedNeeded, commit);
             }
 
@@ -125,11 +124,10 @@ class Augmenter : IAugmenter
         repo.Commits.Reverse();
 
         if (isTruncatedNeeded)
-        {   // Add a virtual truncated commit, which some commits will have as a parent
+        { // Add a virtual truncated commit, which some commits will have as a parent
             AddTruncatedVirtualCommit(repo);
         }
     }
-
 
     static bool IsStashCommit(WorkRepo repo, Git.Commit gc) => repo.StashById.ContainsKey(gc.Id);
 
@@ -169,40 +167,38 @@ class Augmenter : IAugmenter
 
     void SetBranchViewNames(WorkRepo repo)
     {
-        Dictionary<string, int> branchNameCount = new Dictionary<string, int>();
+        Dictionary<string, int> branchNameCount = [];
 
-        repo.Branches.Values
-            .Where(b => b.IsPrimary)
+        repo.Branches.Values.Where(b => b.IsPrimary)
             .OrderBy(b => b.IsGitBranch ? 0 : 1)
             .ThenBy(b => repo.CommitsById[b.BottomID].AuthorTime)
             .ForEach(b =>
-        {
-            // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
-            var bottom = repo.CommitsById[b.BottomID];
-            b.PrimaryBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.PrimaryName;
-
-            if (branchNameCount.TryGetValue(b.NiceName, out var count))
-            {   // Multiple branches with same human name, add a counter to the human name
-                branchNameCount[b.NiceName] = ++count;
-                b.NiceNameUnique = $"{b.NiceName}({count})";
-            }
-            else
-            {   // First branch with this human name, setting view name to same
-                branchNameCount[b.NiceName] = 1;
-                b.NiceNameUnique = b.NiceName;
-            }
-
-            // Make sure local and pull merge branches have same view and base name as well
-            if (b.LocalName != "")
             {
-                var localBranch = repo.Branches[b.LocalName]!;
-                localBranch.NiceNameUnique = b.NiceNameUnique;
-                localBranch.PrimaryBaseName = b.PrimaryBaseName;
-            }
-            SetNamesOnPullMergeChildren(repo, b, b);
-        });
-    }
+                // Common name is the name of the branch based on bottom commit id (stable if branch is renamed)
+                var bottom = repo.CommitsById[b.BottomID];
+                b.PrimaryBaseName = bottom.Branch?.Name == b.Name ? $"{b.BottomID.Sid()}" : b.PrimaryName;
 
+                if (branchNameCount.TryGetValue(b.NiceName, out var count))
+                { // Multiple branches with same human name, add a counter to the human name
+                    branchNameCount[b.NiceName] = ++count;
+                    b.NiceNameUnique = $"{b.NiceName}({count})";
+                }
+                else
+                { // First branch with this human name, setting view name to same
+                    branchNameCount[b.NiceName] = 1;
+                    b.NiceNameUnique = b.NiceName;
+                }
+
+                // Make sure local and pull merge branches have same view and base name as well
+                if (b.LocalName != "")
+                {
+                    var localBranch = repo.Branches[b.LocalName]!;
+                    localBranch.NiceNameUnique = b.NiceNameUnique;
+                    localBranch.PrimaryBaseName = b.PrimaryBaseName;
+                }
+                SetNamesOnPullMergeChildren(repo, b, b);
+            });
+    }
 
     void SetNamesOnPullMergeChildren(WorkRepo repo, WorkBranch baseBranch, WorkBranch childBranch)
     {
@@ -217,9 +213,22 @@ class Augmenter : IAugmenter
     static Status ToStatus(GitRepo repo)
     {
         var s = repo.Status;
-        return new Status(s.Modified, s.Added, s.Deleted, s.Conflicted, s.Renamed,
-            s.IsMerging, s.MergeMessage, s.MergeHeadId, s.ModifiedFiles, s.AddedFiles,
-            s.DeletedFiles, s.ConflictsFiles, s.RenamedSourceFiles, s.RenamedTargetFiles);
+        return new Status(
+            s.Modified,
+            s.Added,
+            s.Deleted,
+            s.Conflicted,
+            s.Renamed,
+            s.IsMerging,
+            s.MergeMessage,
+            s.MergeHeadId,
+            s.ModifiedFiles,
+            s.AddedFiles,
+            s.DeletedFiles,
+            s.ConflictsFiles,
+            s.RenamedSourceFiles,
+            s.RenamedTargetFiles
+        );
     }
 
     static bool FixTruncatedParents(WorkRepo repo, bool isTruncatedNeeded, WorkCommit commit)
@@ -227,7 +236,7 @@ class Augmenter : IAugmenter
         // The repo was truncated, check if commits have missing parents, which will be set
         // to a virtual "truncated commit"
         if (commit.ParentIds.Count > 0)
-        {   // Check if first parent is missing and need a truncated commit parent
+        { // Check if first parent is missing and need a truncated commit parent
             if (!repo.CommitsById.TryGetValue(commit.ParentIds[0], out var _))
             {
                 isTruncatedNeeded = true;
@@ -236,7 +245,7 @@ class Augmenter : IAugmenter
         }
 
         if (commit.ParentIds.Count > 1)
-        {   // Merge commit, check if second parent is missing and need a truncated commit parent
+        { // Merge commit, check if second parent is missing and need a truncated commit parent
             if (!repo.CommitsById.TryGetValue(commit.ParentIds[1], out var _))
             {
                 isTruncatedNeeded = true;
@@ -252,14 +261,18 @@ class Augmenter : IAugmenter
         // Add a virtual truncated commit, which some commits will have as a parent
         string msg = "< ... log truncated, more commits exists ... >";
         WorkCommit pc = new WorkCommit(
-            id: Repo.TruncatedLogCommitId, subject: msg, message: msg,
-            author: "", authorTime: new DateTime(1, 1, 1), parentIds: new string[0])
+            id: Repo.TruncatedLogCommitId,
+            subject: msg,
+            message: msg,
+            author: "",
+            authorTime: new DateTime(1, 1, 1),
+            parentIds: []
+        )
         {
             IsTruncatedLogCommit = true,
-            GitIndex = repo.Commits.Count
+            GitIndex = repo.Commits.Count,
         };
         repo.Commits.Add(pc);
         repo.CommitsById[pc.Id] = pc;
     }
 }
-

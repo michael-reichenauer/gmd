@@ -4,7 +4,6 @@ using gmd.Server;
 
 namespace gmd.Cui.Diff;
 
-
 interface IDiffService
 {
     DiffRows ToDiffRows(CommitDiff diff);
@@ -12,7 +11,6 @@ interface IDiffService
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
 }
-
 
 class DiffService : IDiffService
 {
@@ -22,7 +20,7 @@ class DiffService : IDiffService
 
     public DiffRows ToDiffRows(CommitDiff commitDiff)
     {
-        return ToDiffRows(new[] { commitDiff });
+        return ToDiffRows([commitDiff]);
     }
 
     public DiffRows ToDiffRows(CommitDiff[] commitDiffs)
@@ -34,8 +32,12 @@ class DiffService : IDiffService
             rows.AddLine(Text.BrightCyan("═"));
             rows.Add(Text.White($"{commitDiffs.Length} Commits:"));
 
-            commitDiffs.ForEach(diff => rows.Add(Text.White(
-                $"  {diff.Time.Iso()}  {diff.Message.Max(60, true)}").Dark($"  {diff.Id.Sid(),6} {diff.Author}")));
+            commitDiffs.ForEach(diff =>
+                rows.Add(
+                    Text.White($"  {diff.Time.Iso()}  {diff.Message.Max(60, true)}")
+                        .Dark($"  {diff.Id.Sid(), 6} {diff.Author}")
+                )
+            );
             rows.Add(Text.Empty);
         }
 
@@ -49,7 +51,6 @@ class DiffService : IDiffService
     {
         return diff.FileDiffs.Select(fd => fd.PathAfter).ToList();
     }
-
 
     public IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff)
     {
@@ -68,10 +69,14 @@ class DiffService : IDiffService
     static void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
     {
         rows.AddLine(Text.Yellow("═"));
-        if (commitDiff.Id != "") rows.Add(Text.Dark("Commit:  ").White(commitDiff.Id), "", commitDiff.Id);
-        if (commitDiff.Author != "") rows.Add(Text.Dark("Author:  ").White(commitDiff.Author));
-        if (commitDiff.Time != DateTime.MinValue) rows.Add(Text.Dark("Date:    ").White(commitDiff.Time.Iso()));
-        if (commitDiff.Message != "") rows.Add(Text.Dark("Message: ").White(commitDiff.Message));
+        if (commitDiff.Id != "")
+            rows.Add(Text.Dark("Commit:  ").White(commitDiff.Id), "", commitDiff.Id);
+        if (commitDiff.Author != "")
+            rows.Add(Text.Dark("Author:  ").White(commitDiff.Author));
+        if (commitDiff.Time != DateTime.MinValue)
+            rows.Add(Text.Dark("Date:    ").White(commitDiff.Time.Iso()));
+        if (commitDiff.Message != "")
+            rows.Add(Text.Dark("Message: ").White(commitDiff.Message));
 
         rows.Add(Text.Empty);
     }
@@ -85,7 +90,7 @@ class DiffService : IDiffService
         {
             var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
             var diffMode = ToDiffModeText(fd);
-            var text = ToColorText($"  {diffMode,-12} {path}", fd).ToTextBuilder();
+            var text = ToColorText($"  {diffMode, -12} {path}", fd).ToTextBuilder();
             if (fd.IsRenamed)
             {
                 text.Cyan(" (Renamed)");
@@ -166,8 +171,8 @@ class DiffService : IDiffService
                         rightBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
-                    {   // Whole file removed, use one column
-                        Text removeTxt = Text.Dark($"{leftNr,4}").Red(diffMargin).RedBg(dl.Line);
+                    { // Whole file removed, use one column
+                        Text removeTxt = Text.Dark($"{leftNr, 4}").Red(diffMargin).RedBg(dl.Line);
                         rows.Add(removeTxt);
                     }
                     else
@@ -188,8 +193,8 @@ class DiffService : IDiffService
                         rightBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffAdded)
-                    {   // Whole file added, use one column
-                        Text addTxt = Text.Dark($"{rightNr,4}").Green(diffMargin).GreenBg(dl.Line);
+                    { // Whole file added, use one column
+                        Text addTxt = Text.Dark($"{rightNr, 4}").Green(diffMargin).GreenBg(dl.Line);
                         rows.Add(addTxt);
                     }
                     else
@@ -228,7 +233,7 @@ class DiffService : IDiffService
 
     static void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows)
     {
-        // Add block parts where both block have lines 
+        // Add block parts where both block have lines
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
         {
@@ -242,7 +247,7 @@ class DiffService : IDiffService
             for (int i = rightBlock.Lines.Count; i < leftBlock.Lines.Count; i++)
             {
                 var lL = leftBlock.Lines[i];
-                Text lT = Text.Dark($"{lL.LineNbr,4}").Red(diffMargin).Color(lL.Color, lL.Text);
+                Text lT = Text.Dark($"{lL.LineNbr, 4}").Red(diffMargin).Color(lL.Color, lL.Text);
                 rows.Add(lT, NoLine);
             }
         }
@@ -253,7 +258,7 @@ class DiffService : IDiffService
             for (int i = leftBlock.Lines.Count; i < rightBlock.Lines.Count; i++)
             {
                 var rL = rightBlock.Lines[i];
-                Text rT = Text.Dark($"{rL.LineNbr,4}").Green(diffMargin).Color(rL.Color, rL.Text);
+                Text rT = Text.Dark($"{rL.LineNbr, 4}").Green(diffMargin).Color(rL.Color, rL.Text);
                 rows.Add(NoLine, rT);
             }
         }
@@ -297,24 +302,24 @@ class DiffService : IDiffService
         if (result.DiffBlocks.Count == 0)
         {
             if (leftString == rightString && lL.Color == Color.RedBg && rL.Color == Color.GreenBg)
-            {   // Some change in space (before or after) 
+            { // Some change in space (before or after)
                 leftText.White(leftString).Add(leftSuffix);
                 rightText.White(rightString).Add(rightSuffix);
-                Text lTs = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Add(leftText);
-                Text rTs = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Add(rightText);
+                Text lTs = Text.Dark($"{lL.LineNbr, 4}").Cyan(diffMargin).Add(leftText);
+                Text rTs = Text.Dark($"{rL.LineNbr, 4}").Cyan(diffMargin).Add(rightText);
                 return (lTs, rTs);
             }
 
             // Same on both sides, just show both sides as same
-            Text lT2 = Text.Dark($"{lL.LineNbr,4} ").Color(lL.Color, lL.Text);
-            Text rT2 = Text.Dark($"{rL.LineNbr,4} ").Color(rL.Color, rL.Text);
+            Text lT2 = Text.Dark($"{lL.LineNbr, 4} ").Color(lL.Color, lL.Text);
+            Text rT2 = Text.Dark($"{rL.LineNbr, 4} ").Color(rL.Color, rL.Text);
             return (lT2, rT2);
         }
 
         if (result.DiffBlocks.Count > maxLineDiffsCount)
-        {   // To many differences in the line, show whole line side as diff
-            Text lT2 = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Color(lL.Color, lL.Text);
-            Text rT2 = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Color(rL.Color, rL.Text);
+        { // To many differences in the line, show whole line side as diff
+            Text lT2 = Text.Dark($"{lL.LineNbr, 4}").Cyan(diffMargin).Color(lL.Color, lL.Text);
+            Text rT2 = Text.Dark($"{rL.LineNbr, 4}").Cyan(diffMargin).Color(rL.Color, rL.Text);
             return (lT2, rT2);
         }
 
@@ -325,41 +330,40 @@ class DiffService : IDiffService
         {
             // Left side
             if (diff.DeleteStartA > leftIndex)
-            {   // Add text before the delete
+            { // Add text before the delete
                 leftText.White(leftString[leftIndex..diff.DeleteStartA]);
             }
             if (diff.DeleteCountA > 0)
-            {   // Add text int read that is deleted
+            { // Add text int read that is deleted
                 leftText.RedBg(leftString.Substring(diff.DeleteStartA, diff.DeleteCountA));
             }
             leftIndex = diff.DeleteStartA + diff.DeleteCountA;
 
             // Right side
             if (diff.InsertStartB > rightIndex)
-            {   // Add text before the insert
+            { // Add text before the insert
                 rightText.White(rightString[rightIndex..diff.InsertStartB]);
             }
             if (diff.InsertCountB > 0)
-            {   // Add text int green that is inserted
+            { // Add text int green that is inserted
                 rightText.GreenBg(rightString.Substring(diff.InsertStartB, diff.InsertCountB));
             }
             rightIndex = diff.InsertStartB + diff.InsertCountB;
         }
 
         if (leftIndex < leftString.Length)
-        {   // Add text after the last delete
+        { // Add text after the last delete
             leftText.White(leftString[leftIndex..]);
         }
         if (rightIndex < rightString.Length)
-        {   // Add text after the last insert
+        { // Add text after the last insert
             rightText.White(rightString[rightIndex..]);
         }
 
-        Text lT = Text.Dark($"{lL.LineNbr,4}").Cyan(diffMargin).Add(leftText).Add(leftSuffix);
-        Text rT = Text.Dark($"{rL.LineNbr,4}").Cyan(diffMargin).Add(rightText).Add(rightSuffix);
+        Text lT = Text.Dark($"{lL.LineNbr, 4}").Cyan(diffMargin).Add(leftText).Add(leftSuffix);
+        Text rT = Text.Dark($"{rL.LineNbr, 4}").Cyan(diffMargin).Add(rightText).Add(rightSuffix);
         return (lT, rT);
     }
-
 
     // Returns the colored text based on the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
     static Text ToColorText(string text, FileDiff fd)
@@ -382,7 +386,6 @@ class DiffService : IDiffService
             _ => throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"),
         };
     }
-
 
     // Returns the text to show for the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
     static string ToDiffModeText(FileDiff fd)

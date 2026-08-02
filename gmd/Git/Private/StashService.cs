@@ -40,7 +40,8 @@ class StashService : IStashService
 
     public async Task<R<IReadOnlyList<Stash>>> ListAsync(string wd)
     {
-        if (!Try(out var stashes, out var e, await logService.GetStashListAsync(wd))) return e;
+        if (!Try(out var stashes, out var e, await logService.GetStashListAsync(wd)))
+            return e;
 
         return stashes.Select(ToStash).ToList();
     }
@@ -64,6 +65,5 @@ class StashService : IStashService
         return new Stash(id, name, branch, parentId, indexId, message);
     }
 
-    public Task<R<CommitDiff>> GetDiffAsync(string name, string wd) =>
-        diffService.GetStashDiffAsync(name, wd);
+    public Task<R<CommitDiff>> GetDiffAsync(string name, string wd) => diffService.GetStashDiffAsync(name, wd);
 }
