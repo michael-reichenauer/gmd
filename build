@@ -45,7 +45,8 @@ if test -f "gmd_osx_arm64"; then
 fi
 echo ""
 echo Run tests ...
-dotnet test gmdTest/gmdTest.csproj -v quiet --nologo -l:"console;verbosity=normal"
+# '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see './test')
+dotnet test gmdTest/gmdTest.csproj -tl:false -v quiet --nologo -l:"console;verbosity=normal"
 if [ $? -ne 0 ]; then
   echo "Error: Tests failed"
   exit 1

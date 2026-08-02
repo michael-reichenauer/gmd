@@ -989,6 +989,12 @@ Deliberately after the tests, so regressions are detectable. Current status of e
     until it is rebuilt, and .NET 8 cannot build a net10.0 project. So "Rebuild Container" is
     required after pulling this, and a stale container fails with NETSDK1045 rather than anything
     that points at the cause.
+  - Follow-up found after the rebuild: `./test` printed **nothing** in an interactive terminal.
+    The .NET 10 SDK enables the MSBuild *terminal logger* by default (it was off in .NET 8), and
+    it swallows the VSTest console logger output completely — the run still passes and still
+    exits 0, but not one line reaches the screen. It only shows when stdout is a terminal, so
+    piping the output (or CI) hides the problem. Fixed by passing `-tl:false` to `dotnet test`
+    in `test`, `build` and `build.bat`.
 - [ ] Terminal.Gui 1.x → 2.x. The big one. Should not start until Step 3 gives the UI-adjacent
       logic snapshot coverage.
 

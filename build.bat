@@ -28,7 +28,8 @@ for %%F in (gmd.exe gmd_linux gmd_linux_x64 gmd_linux_arm64 gmd_osx gmd_osx_arm6
 
 echo.
 echo Run tests ...
-dotnet test gmdTest/gmdTest.csproj -v quiet --nologo -l:"console;verbosity=normal"
+rem '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see './test')
+dotnet test gmdTest/gmdTest.csproj -tl:false -v quiet --nologo -l:"console;verbosity=normal"
 if errorlevel 1 (
     echo Error: Tests failed
     exit /b 1
