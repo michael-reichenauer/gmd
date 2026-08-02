@@ -64,7 +64,6 @@ csharp_style_expression_bodied_lambdas = when_on_single_line:suggestion
 csharp_style_expression_bodied_local_functions = when_on_single_line:suggestion
 
 # Target-typed `new()` — the codebase writes the type explicitly
-# (IDE0090 is also in <NoWarn> in gmd.csproj)
 csharp_style_implicit_object_creation_when_type_is_apparent = false:silent
 
 # Modern language features the codebase does use

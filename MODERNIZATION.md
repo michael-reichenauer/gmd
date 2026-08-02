@@ -845,8 +845,12 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
       aliases now use the real names.
 - [x] `TagServis.cs` — filename typo, should be `TagService.cs`. Renamed; the types inside were
       already `ITagService`/`TagService`, so nothing else changed.
-- [ ] Reconsider `NoWarn IDE0090;CA1825` in `gmd.csproj` once formatting churn has settled.
-      Measured by dropping the `<NoWarn>` line and re-running the analyzers, since neither is
+- [x] Reconsider `NoWarn IDE0090;CA1825` in `gmd.csproj` once formatting churn has settled.
+      Deleted, after the collection expression sweep left `CA1825` with nothing to report. Both
+      diagnostics are now unsuppressed and both builds are still 0 warnings; the cross-reference
+      comment in `.editorconfig` went with it, so the explicit-`new` preference is stated once,
+      where the rest of the style lives.
+      Measured by dropping the `<NoWarn>` line and re-running the analyzers, since neither was
       what its name suggests any more. Both were added in `65528e8` (2023-08-05), three years
       before CSharpier arrived, so they never had anything to do with formatting.
       - `IDE0090` (target-typed `new()`) reports **nothing** un-suppressed, even though 11 files
@@ -907,12 +911,12 @@ where the earlier "156 sites" came from):
       widen coverage, or accept it as a reviewed mechanical change verified by build + CSharpier.
       Taken the second way, after Step 8 rather than before it, so the split-out services and the
       441 tests were already in place under it.
-- [ ] Now unblocked by the sweep: no `new T[0]` is left, so `CA1825` reports nothing and the
-      `<NoWarn>` line in `gmd.csproj` can be deleted outright — see the item in Step 8.
+- [x] Unblocked by the sweep: no `new T[0]` is left, so `CA1825` reports nothing and the
+      `<NoWarn>` line in `gmd.csproj` was deleted outright — see the item in Step 8.
 - [ ] Open question: target-typed `new()` (IDE0090) is the same "codebase predates the feature"
-      category. Adopt it too, or keep types explicit? Only the style question is open — keeping
-      types explicit needs no build setting, since `.editorconfig` already says so; see the
-      `<NoWarn>` item in Step 8 for why the `gmd.csproj` entry is redundant either way.
+      category. Adopt it too, or keep types explicit? Purely a style question now — keeping types
+      explicit needs no build setting, since `.editorconfig` says so on its own and IDE0090 stays
+      silent without the `<NoWarn>` entry that used to duplicate it.
 
 ## Step 9 — Framework and dependency updates
 
