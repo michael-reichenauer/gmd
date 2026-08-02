@@ -58,20 +58,33 @@ public class ContentViewTest
         Assert.AreEqual(0, view.CurrentIndex);
     }
 
-    // Pinned as current behavior, not fixed: MoveToTop() moves the cursor up by the number of rows
-    // the view is scrolled down, rather than to the first row, so it only reaches the top when the
-    // cursor is on the top row of the view. With the cursor further down the view it stops as many
-    // rows short as the cursor was down, and the rows above that stay out of sight.
+    // MoveToTop() used to move the cursor up by the number of rows the view was scrolled down
+    // instead of to the first row, so with the cursor further down the view it stopped exactly that
+    // many rows short, leaving the rows above out of sight. That is what the filter dialog calls to
+    // show a new set of results from the top.
     [TestMethod]
-    public void TestMoveToTopStopsShortWhenTheCursorIsFurtherDownTheView()
+    public void TestMoveToTopShowsTheFirstRowWhenTheCursorIsFurtherDownTheView()
     {
         var view = NewView(100);
         view.Move(50); // Cursor on row 50, i.e. the bottom row of the view, which shows 41-50
 
         view.MoveToTop();
 
-        Assert.AreEqual(9, view.FirstIndex); // The 9 rows above are not shown
-        Assert.AreEqual(9, view.CurrentIndex);
+        Assert.AreEqual(0, view.FirstIndex);
+        Assert.AreEqual(0, view.CurrentIndex);
+    }
+
+    [TestMethod]
+    public void TestMoveToTopShowsTheFirstRowInScrollMode()
+    {
+        var view = NewView(100);
+        view.IsScrollMode = true;
+        view.Move(50);
+
+        view.MoveToTop();
+
+        Assert.AreEqual(0, view.FirstIndex);
+        Assert.AreEqual(0, view.CurrentIndex);
     }
 
     // In scroll mode the cursor does not move on its own, the rows do, which is what a view with

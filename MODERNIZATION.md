@@ -711,29 +711,36 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
       part of it except drawing. Verified beyond the suite by a throwaway probe that resolved the
       whole DI graph and drove a real view through its movement API.
 
-      Three bugs turned up while writing the tests. All three are pinned as current behavior rather
-      than fixed, since each is a behavior change that deserves its own commit:
-      - **shift+up selects two rows per key press, shift+down one.** `ProcessHotKey` moves the
-        cursor up after `OnSelectUp` has already moved it, so a selection made upwards grows by two
-        rows per press and leaves the cursor a row below the selection, while the same thing
-        downwards grows by one. `TestShiftUpSelectsTwoRowsPerKeyPress` and
-        `TestShiftDownSelectsOneRowPerKeyPress` are written as what the view does key press by key
-        press, so the fix — dropping the second `Move(-1)` — is the difference between them.
-      - **`MoveToTop()` only reaches the top when the cursor is on the top row of the view.** It is
-        `Move(-FirstIndex)`, i.e. it moves the cursor up by however many rows the view is scrolled
-        down, so with the cursor further down the view it stops exactly that many rows short and the
-        rows above stay out of sight. The one caller not in scroll mode (where it does reach the
-        top) is `FilterDlg.UpdateFilteredResults`, which calls it to show a new set of filter
-        results from the top: with the log scrolled down when the filter was opened, the first
-        results are out of sight and the commit info shown below is of the wrong result.
-        `Move(-CurrentIndex)` looks like the fix, since the cursor row drags the first shown row
-        with it, and it is right in scroll mode as well.
-      - **Scrolling with the cursor below the content puts it on the first row.** `Scroll` puts a
-        cursor that would end up below the view back at `newFirst - ContentHeight - 1`, which is
-        negative and then clamped to 0, where `newFirst + ContentHeight - 1` was clearly meant. Only
-        reachable in a view with a top border, since `Move` bounds the cursor by the view height
-        while the border takes a row off the content height, and gmd's one bordered view hides its
-        cursor — so it is invisible today.
+      The split was pure movement, so the three bugs the tests uncovered are the three items below
+      rather than part of it. None of them could have been found without pulling the math out of the
+      view first, and each is a one line change.
+- [x] **Fixed: shift+up selected two rows per key press while shift+down selected one.**
+      `ContentView.ProcessHotKey` moved the cursor up after `OnSelectUp` had already moved it, so a
+      selection made upwards grew by two rows per press and left the cursor a row below the
+      selection, while the same thing downwards grew by one. Visible in every list in gmd — nothing
+      handles shift+up before `ContentView` does — and it is what decides which commits ctrl-c
+      copies and which range the commit menu acts on, so selecting upwards took a row more than the
+      user asked for. The second `Move(-1)` is gone. `TestShiftUpSelectsOneRowPerKeyPress` and
+      `TestShiftDownSelectsOneRowPerKeyPress` are written as what the view does, key press by key
+      press, and are deliberately mirror images of each other so that this cannot drift apart again.
+- [x] **Fixed: `MoveToTop()` only reached the top when the cursor was on the top row of the view.**
+      It was `Move(-FirstIndex)`, i.e. it moved the cursor up by however many rows the view was
+      scrolled down, so with the cursor further down the view it stopped exactly that many rows
+      short and the rows above stayed out of sight. Now `Move(-CurrentIndex)`, since the cursor row
+      takes the first shown row with it.
+
+      The one caller not in scroll mode — where it did reach the top, and still does — is
+      `FilterDlg.UpdateFilteredResults`, which calls it to show a new set of filter results from the
+      top. With the log scrolled down when the filter was opened, the first results were out of
+      sight, and worse, `ShowCommitInfo` reads `CurrentIndex`, so the commit shown below the list
+      was not the one the list appeared to be pointing at, and Enter picked that one.
+- [x] **Fixed: scrolling with the cursor below the content put it on the first row.** `Scroll` put a
+      cursor that would end up below the view back at `newFirst - ContentHeight - 1`, which is
+      negative and then clamped to 0, where `newFirst + ContentHeight - 1` was meant. Only reachable
+      in a view with a top border, since `Move` bounds the cursor by the view height while the
+      border takes a row off the content height — so it was invisible in gmd today, its one bordered
+      view being the commit details view, which hides its cursor. Fixed anyway, since it is a
+      trap for the next view that draws a border.
 - [ ] `Cui/RepoView/BranchCommands.cs` (740), `Server/Private/Augmented/Private/AugmentedService.cs`
       (681) and `Cui/Common/Menu.cs` (602) are the next largest.
 - [ ] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)

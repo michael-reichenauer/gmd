@@ -119,28 +119,27 @@ public class ContentSelectionTest
         Assert.IsFalse(selection.IsRowSelected(5));
     }
 
-    // Pinned as current behavior, not fixed: shift+up grows the selection by two rows per key
-    // press while shift+down grows it by one, and leaves the cursor a row below the selection.
-    // ContentView.ProcessHotKey moves the cursor up after OnSelectUp() has already moved it, which
-    // the shift+down case does not do. These two tests are what the view does, key press by key
-    // press, so that a fix can be seen as the difference between them.
+    // These two are what the view does, key press by key press, and are deliberately mirror images
+    // of each other: shift+up used to grow the selection by two rows per press and leave the cursor
+    // a row below it, since ContentView.ProcessHotKey moved the cursor up after OnSelectUp() had
+    // already moved it. Keep them symmetric.
     [TestMethod]
-    public void TestShiftUpSelectsTwoRowsPerKeyPress()
+    public void TestShiftUpSelectsOneRowPerKeyPress()
     {
         var selection = new ContentSelection();
         var current = 50;
 
         current = ShiftUp(selection, current);
         Assert.AreEqual(1, selection.Count); // Row 50
-        Assert.AreEqual(49, current); // But the cursor is already off it
+        Assert.AreEqual(50, current); // The cursor is on it
+
+        current = ShiftUp(selection, current);
+        Assert.AreEqual(2, selection.Count); // Rows 49-50
+        Assert.AreEqual(49, current);
 
         current = ShiftUp(selection, current);
         Assert.AreEqual(3, selection.Count); // Rows 48-50
-        Assert.AreEqual(47, current);
-
-        current = ShiftUp(selection, current);
-        Assert.AreEqual(5, selection.Count); // Rows 46-50
-        Assert.AreEqual(45, current);
+        Assert.AreEqual(48, current);
     }
 
     [TestMethod]
@@ -252,12 +251,12 @@ public class ContentSelectionTest
     }
 
     // What ContentView does on shift+up: OnSelectUp() moves the cursor when the selection was
-    // extended, and ProcessHotKey then moves it again.
+    // extended, and that is all.
     static int ShiftUp(ContentSelection selection, int currentIndex)
     {
         if (selection.SelectUp(currentIndex))
             currentIndex--;
-        return currentIndex - 1;
+        return currentIndex;
     }
 
     // What ContentView does on shift+down: OnSelectDown() moves the cursor when the selection was

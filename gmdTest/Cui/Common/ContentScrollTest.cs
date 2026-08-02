@@ -209,13 +209,12 @@ public class ContentScrollTest
         Assert.AreEqual(90, scroll.FirstIndex); // 9 content rows show 90-98, i.e. not the cursor row
     }
 
-    // Pinned as current behavior, not fixed: scrolling while the cursor is on a row below the
-    // content height throws the cursor all the way to the first row, since the row it is put on,
-    // newFirst - ContentHeight - 1, is negative and clamped to 0 (it reads like a + was meant).
-    // Only reachable in a view with a top border, where Move() lets the cursor onto the row that
-    // the border pushed out of view, and gmd's one such view hides its cursor.
+    // Scrolling while the cursor is on a row below the content used to throw it all the way to the
+    // first row, since the row it was put on, newFirst - ContentHeight - 1, is negative and then
+    // clamped to 0 where a + was meant. Only reachable in a view with a top border, where Move()
+    // lets the cursor onto the row that the border pushed out of view.
     [TestMethod]
-    public void TestScrollWithTheCursorBelowTheContentPutsItOnTheFirstRow()
+    public void TestScrollKeepsACursorBelowTheContentOnTheLastShownRow()
     {
         var scroll = NewScroll(100, viewHeight: 10, contentHeight: 9);
         scroll.Move(9); // The 10th row of a view with 9 content rows
@@ -224,7 +223,7 @@ public class ContentScrollTest
         Assert.IsTrue(scroll.Scroll(1));
 
         Assert.AreEqual(1, scroll.FirstIndex);
-        Assert.AreEqual(0, scroll.CurrentIndex); // Above the shown rows, rather than 9 or 10
+        Assert.AreEqual(9, scroll.CurrentIndex); // The last of the rows 1-9 that are now shown
     }
 
     static ContentScroll NewScroll(int totalCount, int viewHeight = 10, int contentHeight = 10)

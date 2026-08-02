@@ -150,7 +150,6 @@ class ContentView : View
                 return true;
             case Key.CursorUp | Key.ShiftMask:
                 OnSelectUp();
-                Move(-1);
                 return true;
             case Key.PageUp:
                 ClearSelection();
@@ -426,7 +425,9 @@ class ContentView : View
             SetNeedsDisplay();
     }
 
-    internal void MoveToTop() => Move(-FirstIndex);
+    // Moves the cursor to the first row, which takes the first shown row with it, so that the view
+    // shows the top of the content wherever in the view the cursor was.
+    internal void MoveToTop() => Move(-CurrentIndex);
 
     internal void SetIndexAtViewY(int viewY)
     {

@@ -93,8 +93,8 @@ class ContentScroll
             newCurrent = newFirst;
         }
         if (newCurrent >= newFirst + ContentHeight)
-        { // Need to scroll view down to the new current line
-            newCurrent = newFirst - ContentHeight - 1;
+        { // Cursor is below the shown rows, keep it on the last of them
+            newCurrent = newFirst + ContentHeight - 1;
         }
         if (newCurrent < 0)
             newCurrent = 0;
