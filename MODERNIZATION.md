@@ -925,8 +925,8 @@ Deliberately after the tests, so regressions are detectable. Current status of e
 | Package | Current | Latest | Notes |
 | --- | --- | --- | --- |
 | Terminal.Gui | 1.17.1 | 2.4.17 | Major rewrite of the UI layer. Do last. |
-| Autofac | 8.1.0 | 9.3.1 | Major; DI is small and centralized, so low risk. |
-| DiffPlex | 1.7.2 | 1.9.0 | Minor. |
+| Autofac | 9.3.2 | 9.3.2 | Done. |
+| DiffPlex | 1.9.0 | 1.9.0 | Done. |
 | MSTest.\* | 4.3.3 | 4.3.3 | Done. |
 | Microsoft.NET.Test.Sdk | 18.8.1 | 18.8.1 | Done. |
 | coverlet.collector | 10.0.1 | 10.0.1 | Done. |
@@ -947,7 +947,25 @@ Deliberately after the tests, so regressions are detectable. Current status of e
     line in `./test` and needs a different coverage extension than `coverlet.collector`.
     441 tests pass, `--collect:"XPlat Code Coverage"` still writes a cobertura report, Release
     build and `csharpier check` clean.
-- [ ] `DiffPlex` and `Autofac`.
+- [x] `DiffPlex` 1.7.2 → 1.9.0 and `Autofac` 8.1.0 → 9.3.2. Version bumps in `gmd.csproj` only —
+      neither needed a source change, and the solution builds with no warnings. Both are used in
+      exactly one place, which is why a major Autofac bump is a small change: `DiffPlex` is
+      `new Differ().CreateCharacterDiffs` in `Cui/Diff/DiffService.cs`, and `Autofac` is
+      `Utils/DependencyInjection.cs`, whose `RegisterAssemblyTypes` / `FindConstructorsWith` /
+      `OwnedByLifetimeScope` API is unchanged in 9.x.
+  - Verified by running the app, not just the suite: neither line is covered by a test. Nothing
+    resolves the container (`./test` builds services by hand) and `DiffServiceTest` covers
+    `Git/DiffService`, the git-output parser, not the `Cui` view that calls DiffPlex. So gmd was
+    started under tmux against a throwaway repo, which resolves the whole object graph, and `d`
+    on the uncommitted-changes row drew the side-by-side diff. `beta gamma delta` vs
+    `beta gemma delta` came back with only the `a`/`e` background-colored, i.e. DiffPlex returned
+    a one-character diff block rather than falling back to a whole-line diff. `~/gmd.log` had no
+    exception, and `dotnet list package --vulnerable/--deprecated` are clean.
+  - Worth knowing for the remaining items: the DI container is a **runtime** dependency with no
+    test behind it. `RegisterAllAssemblyTypes` is convention-based, so a registration mistake
+    surfaces as a resolve failure at startup, not as a compile error — start the app after
+    touching it. `--version` is not enough on its own: `Program.Main` resolves `IProgramCommands`
+    and returns before `Resolve<Program>()`, so it never builds the UI half of the graph.
 - [ ] .NET 8 → .NET 10 (LTS). .NET 8 support ends Nov 2026. Needs the devcontainer image, CI
       `dotnet-version`, both `TargetFramework`s, `DOTNET` in `build`/`build.bat`, and
       `.vscode/launch.json` updated together.
