@@ -834,8 +834,15 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
       graph, including the two new `Func<IViewRepo, IRepoView, …>` factories Autofac has to generate
       and the new `IBranchWriteService` registration, and the Release build (i.e. `csharpier check`)
       is clean.
-- [ ] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)
-      — confusing when both are in scope; consider renaming.
+- [x] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)
+      — confusing when both are in scope; consider renaming. Renamed after what each converts
+      *from*, so the two pipeline steps read in order: `Augmented/Private/Converter` →
+      `WorkRepoConverter` (`WorkRepo` → the immutable `Server.Repo`) and `Server/Private/Converter`
+      → `ViewRepoConverter` (that repo → the view repo the UI renders, plus the git diffs).
+      Interfaces renamed to match, files renamed with them, and a one-line comment on each names
+      the other, since which comes first is the thing that was actually unclear. The two tests
+      that had worked around the clash with `using AugConverter = …` / `using ViewConverter = …`
+      aliases now use the real names.
 - [ ] `TagServis.cs` — filename typo, should be `TagService.cs`.
 - [ ] Reconsider `NoWarn IDE0090;CA1825` in `gmd.csproj` once formatting churn has settled.
 

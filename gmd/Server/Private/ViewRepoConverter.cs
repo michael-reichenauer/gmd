@@ -1,6 +1,8 @@
 namespace gmd.Server.Private;
 
-interface IConverter
+// Converts into the view repo the UI renders, i.e. the augmented repo narrowed to the commits
+// and branches the user chose to show. See WorkRepoConverter for the step before this one.
+interface IViewRepoConverter
 {
     IReadOnlyList<Commit> ToViewCommits(IEnumerable<Commit> commits);
 
@@ -15,7 +17,7 @@ interface IConverter
     );
 }
 
-class Converter : IConverter
+class ViewRepoConverter : IViewRepoConverter
 {
     public IReadOnlyList<Commit> ToViewCommits(IEnumerable<Commit> commits) =>
         commits.Select((c, i) => c with { IsInView = true, ViewIndex = i }).ToList();

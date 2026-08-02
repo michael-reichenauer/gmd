@@ -2,8 +2,6 @@ using gmd.Server;
 using gmd.Server.Private;
 using gmd.Server.Private.Augmented.Private;
 using gmdTest.Fixtures;
-using AugConverter = gmd.Server.Private.Augmented.Private.Converter;
-using ViewConverter = gmd.Server.Private.Converter;
 
 namespace gmdTest.Server.Private.Augmented.Private;
 
@@ -124,5 +122,5 @@ public class AugmentedServiceIntegrationTest
     }
 
     static Repo ViewRepo(Repo augRepo, ShowBranches show = ShowBranches.Specified) =>
-        new ViewRepoCreater(new ViewConverter(), new FakeRepoConfig()).GetViewRepoAsync(augRepo, [], show, 10);
+        new ViewRepoCreater(new ViewRepoConverter(), new FakeRepoConfig()).GetViewRepoAsync(augRepo, [], show, 10);
 }

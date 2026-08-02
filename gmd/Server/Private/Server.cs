@@ -9,10 +9,15 @@ class Server : IServer
 {
     readonly IGit git;
     readonly IAugmentedService augmentedService;
-    readonly IConverter converter;
+    readonly IViewRepoConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
 
-    public Server(IGit git, IAugmentedService augmentedService, IConverter converter, IViewRepoCreater viewRepoCreater)
+    public Server(
+        IGit git,
+        IAugmentedService augmentedService,
+        IViewRepoConverter converter,
+        IViewRepoCreater viewRepoCreater
+    )
     {
         this.git = git;
         this.augmentedService = augmentedService;

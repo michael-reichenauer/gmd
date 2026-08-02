@@ -2,14 +2,12 @@ using gmd.Git;
 using gmd.Server;
 using gmd.Server.Private;
 using gmd.Server.Private.Augmented.Private;
-using AugConverter = gmd.Server.Private.Augmented.Private.Converter;
 using GitBranch = gmd.Git.Branch;
 using GitCommit = gmd.Git.Commit;
 using GitStash = gmd.Git.Stash;
 using GitStatus = gmd.Git.Status;
 using GitTag = gmd.Git.Tag;
 using ServerImpl = gmd.Server.Private.Server;
-using ViewConverter = gmd.Server.Private.Converter;
 
 namespace gmdTest.Fixtures;
 
@@ -241,7 +239,7 @@ class RepoBuilder
     // is in view yet, that is what ViewRepoAsync adds.
     public async Task<Repo> AugmentedRepoAsync()
     {
-        var repo = new AugConverter().ToRepo(await AugmentAsync());
+        var repo = new WorkRepoConverter().ToRepo(await AugmentAsync());
 
         // The uncommitted commit is added by the augmented service, i.e. after the converter
         var result = await NewAugmentedService().UpdateRepoStatusAsync(repo);
@@ -264,7 +262,7 @@ class RepoBuilder
     // The real server layer, with git, the file monitor and the config faked out. Needed for the
     // branch show/hide commands, which work on an already created view repo.
     public IServer NewServer() =>
-        new ServerImpl(NewGit(), NewAugmentedService(), new ViewConverter(), NewViewRepoCreater());
+        new ServerImpl(NewGit(), NewAugmentedService(), new ViewRepoConverter(), NewViewRepoCreater());
 
     // The augmenter with its real collaborators, none of which touch git, disk or the terminal.
     // The wiring mirrors the branch structure pipeline: the commit graph, the branch of every
@@ -283,7 +281,7 @@ class RepoBuilder
 
     FakeGit NewGit() => new FakeGit(status);
 
-    ViewRepoCreater NewViewRepoCreater() => new ViewRepoCreater(new ViewConverter(), Config);
+    ViewRepoCreater NewViewRepoCreater() => new ViewRepoCreater(new ViewRepoConverter(), Config);
 
     // The real augmented service, which only git, the file monitor and the shared meta data are
     // faked out of. The repo is augmented from the built GitRepo rather than read via git, so
@@ -296,7 +294,7 @@ class RepoBuilder
         return new AugmentedService(
             git,
             NewAugmenter(),
-            new AugConverter(),
+            new WorkRepoConverter(),
             fileMonitor,
             metaDataService,
             new BranchWriteService(git, fileMonitor, metaDataService)

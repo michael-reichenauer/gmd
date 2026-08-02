@@ -2,13 +2,15 @@ using GitStatus = gmd.Git.Status;
 
 namespace gmd.Server.Private.Augmented.Private;
 
-interface IConverter
+// Converts the WorkRepo the augmentation pipeline builds into the immutable Server.Repo,
+// which the ViewRepoConverter then narrows to what the user chose to show.
+interface IWorkRepoConverter
 {
     Repo ToRepo(WorkRepo augRepo);
     Status ToStatus(GitStatus gitStatus);
 }
 
-class Converter : IConverter
+class WorkRepoConverter : IWorkRepoConverter
 {
     public Repo ToRepo(WorkRepo workRepo)
     {

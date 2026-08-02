@@ -15,7 +15,7 @@ class AugmentedService : IAugmentedService
 
     readonly IGit git;
     readonly IAugmenter augmenter;
-    readonly IConverter converter;
+    readonly IWorkRepoConverter converter;
     readonly IFileMonitor fileMonitor;
     readonly IMetaDataService metaDataService;
     readonly IBranchWriteService branchWriteService;
@@ -23,7 +23,7 @@ class AugmentedService : IAugmentedService
     internal AugmentedService(
         IGit git,
         IAugmenter augmenter,
-        IConverter converter,
+        IWorkRepoConverter converter,
         IFileMonitor fileMonitor,
         IMetaDataService metaDataService,
         IBranchWriteService branchWriteService
