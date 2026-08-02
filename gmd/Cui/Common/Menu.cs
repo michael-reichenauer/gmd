@@ -5,10 +5,6 @@ namespace gmd.Cui.Common;
 // Context menu
 class Menu
 {
-    record Dimensions(int X, int Y, int Width, int Height, int TitleWidth, int ShortcutWidth, int SubMenuMarkerWidth);
-
-    const int maxHeight = 30;
-
     readonly string title;
     readonly int xOrg;
     readonly int yOrg;
@@ -22,7 +18,7 @@ class Menu
     ContentView itemsView = null!;
     IReadOnlyList<Text> itemRows = null!;
     IReadOnlyList<MenuItem> items = null!;
-    Dimensions dimensions = null!;
+    MenuDimensions dimensions = null!;
     MenuItem CurrentItem => items[itemsView.CurrentIndex];
     bool isAllDisabled = false;
     bool isFocus = false;
@@ -76,8 +72,16 @@ class Menu
 
         this.isAllDisabled = this.items.All(i => i.IsDisabled);
 
-        dimensions = GetDimensions();
-        itemRows = ToMenuItemsRows();
+        dimensions = MenuDimensions.Calculate(
+            this.items,
+            title,
+            xOrg,
+            yOrg,
+            altX,
+            Application.Driver.Cols,
+            Application.Driver.Rows
+        );
+        itemRows = MenuRows.ToRows(this.items, dimensions);
 
         dlg = new UIDialog(
             title,
@@ -159,125 +163,6 @@ class Menu
 
         // Is inside this menu, handle click
         UI.Post(() => OnClick(x, y - 1));
-    }
-
-    // Calculates menu view dimensions based on screen size and number of items
-    Dimensions GetDimensions()
-    {
-        var screenWidth = Application.Driver.Cols;
-        var screenHeight = Application.Driver.Rows;
-
-        // Calculate view height based on number of items, screen height and max height if very large screen
-        var viewHeight = Math.Min(items.Count + 2, Math.Min(maxHeight, screenHeight));
-
-        // Calculate items width based on longest item tex and shortcut, and if sub menu marker is needed and scrollbar is needed
-        var shortcutWidth = items.Any() ? items.Max(i => i.Shortcut.Length + 1) : 0; // Include space before
-        var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0; // Include space before
-        var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
-
-        var itemTextWidth = items.Any() ? items.Max(i => i.Text.Length) : 5;
-
-        // Calculate view width based on title, shortcut, sub menu marker and scrollbar
-        var totalItemsWidth = itemTextWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
-
-        var viewWidth = Math.Max(totalItemsWidth, title.Length + 5); // (4 for extra space around title)
-        if (viewWidth > totalItemsWidth)
-        { // Ensure shortcut and menus are to the right
-            itemTextWidth += viewWidth - totalItemsWidth;
-        }
-
-        if (viewWidth > screenWidth)
-        { // Too wide view, try to fit on screen (reduce title width)
-            viewWidth = screenWidth;
-            itemTextWidth = Math.Max(10, viewWidth - shortcutWidth - subMenuMarkerWidth - scrollbarWidth - 1);
-        }
-
-        // Calculate view x and y position to be centered if Menu.Center or based on original x and y
-        var viewX = xOrg == Center ? screenWidth / 2 - viewWidth / 2 : xOrg; // Centered if x == Center
-        var viewY = yOrg == Center ? screenHeight / 2 - viewHeight / 2 : yOrg; // Centered if y == Center
-
-        if (viewX + viewWidth > screenWidth)
-        { // Too far to the right, try to move menu left
-            if (altX >= 0)
-            { // Use alternative x position (left of parent menu)
-                viewX = altX - viewWidth;
-            }
-            else
-            { // Adjust original x position
-                viewX -= viewWidth;
-            }
-        }
-        viewX = Math.Max(0, viewX);
-
-        if (viewY + viewHeight > screenHeight)
-        { // Too far down, try to move up
-            viewY = screenHeight - viewHeight;
-        }
-        viewY = Math.Max(0, viewY);
-
-        return new Dimensions(viewX, viewY, viewWidth, viewHeight, itemTextWidth, shortcutWidth, subMenuMarkerWidth);
-    }
-
-    IReadOnlyList<Text> ToMenuItemsRows()
-    {
-        return items
-            .Select(item =>
-            {
-                if (item is MenuSeparator ms)
-                    return Text.BrightMagenta(ToSeparatorText(ms));
-
-                // Color if disabled or not
-                var titleColor = item.IsDisabled ? Color.Dark : Color.White;
-
-                // Title text might need to be truncated
-                var text = new TextBuilder();
-                if (item.Text.Length > dimensions.TitleWidth)
-                {
-                    text.Color(titleColor, item.Text.Max(dimensions.TitleWidth - 1, true)).Dark("…");
-                }
-                else
-                {
-                    text.Color(titleColor, item.Text.Max(dimensions.TitleWidth, true));
-                }
-
-                // Shortcut
-                if (!item.IsDisabled && item.Shortcut != "")
-                    text.Black(new string(' ', dimensions.ShortcutWidth - item.Shortcut.Length)).Cyan(item.Shortcut);
-                else if (item.Shortcut != "")
-                    text.Black(new string(' ', dimensions.ShortcutWidth - item.Shortcut.Length)).Dark(item.Shortcut);
-                else if (dimensions.ShortcutWidth > 0)
-                    text.Black(new string(' ', dimensions.ShortcutWidth));
-
-                // Submenu marker >
-                if (!item.IsDisabled && item is SubMenu)
-                    text.BrightMagenta(" >");
-                if (item.IsDisabled && item is SubMenu)
-                    text.Dark(" >");
-                if (dimensions.SubMenuMarkerWidth > 0)
-                    text.Black("  ");
-
-                return text.ToText();
-            })
-            .ToList();
-    }
-
-    string ToSeparatorText(MenuSeparator item)
-    {
-        string text = item.Text;
-        var width = dimensions.Width - 2;
-        var scrollbarWidth = items.Count + 2 > dimensions.Height ? 0 : 1;
-        if (text == "")
-        { // Just a line ----
-            text = new string('─', dimensions.Width - 2 + scrollbarWidth);
-        }
-        else
-        { // A line with text, e.g. '-- text ------
-            text = text.Max(width - 5);
-            string suffix = new string('─', Math.Max(0, width - text.Length - 5 + scrollbarWidth));
-            text = $"╴{text} {suffix}──";
-        }
-
-        return text;
     }
 
     ContentView CreateItemsView()
@@ -465,138 +350,4 @@ class Menu
     }
 
     bool IsInside(int x, int y) => x >= 0 && x < dimensions.Width && y >= 0 && y < dimensions.Height;
-}
-
-// A normal menu item and base class for SubMenu and MenuSeparator
-record MenuItem(string Text, string Shortcut, Action Action, Func<bool>? CanExecute = null)
-{
-    public bool IsDisabled { get; init; }
-}
-
-// To create a sub menu
-record SubMenu : MenuItem
-{
-    public SubMenu(string text, string shortcut, IEnumerable<MenuItem> children, Func<bool>? canExecute = null)
-        : base(text, shortcut, () => { }, canExecute)
-    {
-        Children = children;
-    }
-
-    public IEnumerable<MenuItem> Children { get; init; }
-}
-
-// To create a menu separator line or header line
-record MenuSeparator : MenuItem
-{
-    public MenuSeparator(string text = "")
-        : base(text, "", () => { }, () => false) { }
-}
-
-// Extension methods to make it easier to build menus
-static class MenuExtensions
-{
-    public static ICollection<MenuItem> SubMenu(
-        this ICollection<MenuItem> items,
-        string text,
-        string shortcut,
-        IEnumerable<MenuItem> children,
-        Func<bool>? canExecute = null
-    )
-    {
-        items.Add(new SubMenu(text, shortcut, children, canExecute));
-        return items;
-    }
-
-    public static ICollection<MenuItem> SubMenu(
-        this ICollection<MenuItem> items,
-        bool condition,
-        string title,
-        string shortcut,
-        IEnumerable<MenuItem> children,
-        Func<bool>? canExecute = null
-    )
-    {
-        if (condition)
-            items.Add(new SubMenu(title, shortcut, children, canExecute));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Item(
-        this ICollection<MenuItem> items,
-        string text,
-        string shortcut,
-        Action action,
-        Func<bool>? canExecute = null
-    )
-    {
-        items.Add(new MenuItem(text, shortcut, action, canExecute));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Item(
-        this ICollection<MenuItem> items,
-        bool condition,
-        string title,
-        string shortcut,
-        Action action,
-        Func<bool>? canExecute = null
-    )
-    {
-        if (condition)
-            items.Add(new MenuItem(title, shortcut, action, canExecute));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Separator(this ICollection<MenuItem> items, string text = "")
-    {
-        items.Add(new MenuSeparator(text));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Separator(this ICollection<MenuItem> items, bool condition, string text = "")
-    {
-        if (condition)
-            items.Add(new MenuSeparator(text));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Item(this ICollection<MenuItem> items, MenuItem item)
-    {
-        items.Add(item);
-        return items;
-    }
-
-    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, params MenuItem[] moreItems)
-    {
-        moreItems.Where(i => i != null).ForEach(i => items.Add(i));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Items(
-        this ICollection<MenuItem> items,
-        bool condition,
-        params MenuItem[] moreItems
-    )
-    {
-        if (condition)
-            moreItems.Where(i => i != null).ForEach(i => items.Add(i));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Items(this ICollection<MenuItem> items, IEnumerable<MenuItem> moreItems)
-    {
-        moreItems.Where(i => i != null).ForEach(i => items.Add(i));
-        return items;
-    }
-
-    public static ICollection<MenuItem> Items(
-        this ICollection<MenuItem> items,
-        bool condition,
-        IEnumerable<MenuItem> moreItems
-    )
-    {
-        if (condition)
-            moreItems.Where(i => i != null).ForEach(i => items.Add(i));
-        return items;
-    }
 }

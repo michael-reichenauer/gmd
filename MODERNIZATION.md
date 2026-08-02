@@ -741,8 +741,99 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
       border takes a row off the content height — so it was invisible in gmd today, its one bordered
       view being the commit details view, which hides its cursor. Fixed anyway, since it is a
       trap for the next view that draws a border.
-- [ ] `Cui/RepoView/BranchCommands.cs` (740), `Server/Private/Augmented/Private/AugmentedService.cs`
-      (681) and `Cui/Common/Menu.cs` (602) are the next largest.
+- [x] **Broke up `Menu.cs` (602 lines), the context menu every menu in gmd is drawn as.** It held
+      five types, and two thirds of the `Menu` class itself was not view code but the geometry of
+      where the menu goes and the text of the rows it draws. Five files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `Menu` | 353 | The view: showing the dialog, the keys and the mouse, and opening a sub menu |
+      | `MenuDimensions` | 78 | Where the menu is drawn and how wide each of its parts is |
+      | `MenuExtensions` | 110 | The extension methods menus are built with |
+      | `MenuRows` | 69 | The items drawn as the `Text` rows the view shows |
+      | `MenuItem` | 26 | `MenuItem`, `SubMenu` and `MenuSeparator` |
+
+      `MenuDimensions` and `MenuRows` follow `Hoover` and `ContentScroll` from the items above: no
+      Terminal.Gui, so the screen size is passed in rather than read from `Application.Driver`, and
+      the dimensions are passed to the rows rather than shared as a field. That makes both testable,
+      and a menu row is a picture in the test the same way a graph row is.
+
+      Pure code movement otherwise, verified line by line against the old file: `MenuItem` and
+      `MenuExtensions` are byte identical, and the only other differences are the parameters the two
+      extracted functions now take and `Dimensions` being renamed `MenuDimensions`, since a record
+      called `Dimensions` at namespace scope says nothing about what it is.
+- [x] **Broke up `AugmentedService.cs` (681 lines) along the seam between reading a repo and
+      writing to it.** The file's own comment describes only the first: it returns augmented repos.
+      The rest was git write operations, and the two largest pieces of those had nothing to do with
+      each other. Three files:
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `AugmentedService` | 367 | Reading a repo and its status through the pipeline, plus the writes that go straight to git (commit, tags, the metadata that resolves ambiguity, squash) |
+      | `BranchWriteService` | 211 | The writes that need the augmented repo to work out what git to run: create, switch, merge, rebase |
+      | `Uncommitted` | 165 | The virtual uncommitted commit: adding, updating and removing it |
+
+      `Uncommitted` is the payoff: `AdjustUncommitted` and `GetUncommittedCommit` are pure `Repo` →
+      `Repo`, with no git, no disk and no dependencies at all, and were the largest such block left
+      in the Server layer. `AugmentedService` delegates the six branch write operations in one line
+      each, which is what `Git` already does for the per-area git services.
+
+      Pure code movement with one deliberate exception: `MergeBranchAsync` and `RebaseBranchAsync`
+      held the same 20 lines twice — "a branch and its remote can have different tips, so use the
+      youngest of the two" — and are now one `YoungestTipName`. Verified line by line: every other
+      moved method is byte identical.
+- [x] **Broke up `BranchCommands.cs` (740 lines) into its three groups of commands.** The interface
+      is unchanged, so no menu or key handler moved; `BranchCommands` is still what they call and
+      now delegates two groups on to the classes that own them.
+
+      | File | Lines | What it is |
+      | --- | --- | --- |
+      | `BranchCommands` | 359 | Showing, hiding, switching, diffing, merging, and how a branch is drawn |
+      | `BranchPushPullCommands` | 272 | Pushing and pulling, and the four predicates the menus enable their items with |
+      | `BranchCreateCommands` | 239 | Creating a branch from a branch or a commit, and deleting one |
+      | `CommandRunner` | 22 | Running a command in the background with progress and an error box |
+
+      Two things beyond the movement, both to avoid making the duplication worse:
+      - The rules for what can be pushed and pulled, and which branches 'push all' and 'pull all'
+        act on, are plain functions of the shown repo, so they are now `internal static` and take a
+        `Repo`. That is what the nine new tests drive, including the diverged branch that can be
+        pulled but not pushed — the case the Step 3 finding was about, which had no test of its own
+        until now.
+      - `Do`, the eleven-line "run in the background, show progress, message box on error" helper,
+        was already copied into all three `*Commands` classes and would have become five. It is now
+        `CommandRunner.Do`, and each class keeps a one-line `Do` so no call site changed.
+
+      Every command that moved is byte identical to the lines it came from, checked one by one.
+- [x] **Fixed: gmd crashed on any repo whose local branch was behind its remote and pointed at the
+      first commit of the repo.** `ViewRepoCreater.SetBehindCommits` reads the commit a local branch
+      branched out from as `localBottom.ParentIds[0]`, with nothing to say what happens when the
+      bottom *is* a root commit and so has no parent. The `ArgumentOutOfRangeException` is thrown
+      outside the `R` error handling entirely — the same shape as the Step 1 date bug — so the log
+      view never appeared.
+
+      Reachable whenever a repo's history reaches back to its first commit on the branch being
+      shown and that branch has not been pulled: clone a repo that had one commit, someone pushes,
+      you fetch. Any local commit at all avoids it, since the branch bottom is then one of those,
+      which is why it survived this long. `localBase` is now null when there is no such commit and
+      the loop simply has one stop condition less. Found by writing the push/pull tests above, and
+      covered by `ViewRepoCreaterTest.TestBranchBehindAtTheRootCommitHasRemoteOnlyCommits`.
+- [ ] Noted, no action: three small things the new tests pin so they cannot change unnoticed.
+      - A sub menu row is two columns wider than the others, since `MenuRows` writes the columns
+        reserved for the ` >` marker *after* the marker rather than instead of it. Invisible, the
+        two extra columns being blank and clipped by the view.
+      - On a screen too narrow for the menu, `MenuDimensions` floors the item text at 10 columns,
+        which is wider than the view it is drawn in. No terminal gmd is usable in is that narrow.
+      - Adding the uncommitted commit gives it its parent but does not add it to that parent's
+        children, while removing it filters those child lists all the same. Invisible, since the
+        graph draws the row from the commit's own parent ids, but the two directions not matching
+        is worth knowing before relying on a commit's children.
+
+      Suite went from 402 tests to 441, in five new test classes (`MenuDimensionsTest`,
+      `MenuRowsTest`, `BranchPushPullCommandsTest`, `UncommittedTest`, `BranchWriteServiceTest`).
+      Verified beyond the suite as the earlier splits were: a throwaway probe resolved the whole DI
+      graph, including the two new `Func<IViewRepo, IRepoView, …>` factories Autofac has to generate
+      and the new `IBranchWriteService` registration, and the Release build (i.e. `csharpier check`)
+      is clean.
 - [ ] Two different `Converter` classes (`Server/Private/` and `Server/Private/Augmented/Private/`)
       — confusing when both are in scope; consider renaming.
 - [ ] `TagServis.cs` — filename typo, should be `TagService.cs`.

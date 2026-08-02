@@ -510,19 +510,7 @@ class CommitCommands : ICommitCommands
     //     return R.Ok;
     // });
 
-    void Do(Func<Task<R>> action)
-    {
-        UI.RunInBackground(async () =>
-        {
-            using (progress.Show())
-            {
-                if (!Try(out var e, await action()))
-                {
-                    UI.ErrorMessage($"{e.AllErrorMessages()}");
-                }
-            }
-        });
-    }
+    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
 
     async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {

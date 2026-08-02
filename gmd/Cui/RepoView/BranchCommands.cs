@@ -41,6 +41,9 @@ interface IBranchCommands
     void ChangeBranchColor(string brandName);
 }
 
+// The branch commands the menus and keys call. Creating/deleting and pushing/pulling are their
+// own classes below this one, since they are the two large groups; this class holds the rest,
+// i.e. showing, switching, diffing, merging and how a branch is shown.
 class BranchCommands : IBranchCommands
 {
     readonly IViewRepo repo;
@@ -48,11 +51,11 @@ class BranchCommands : IBranchCommands
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IDiffView diffView;
-    readonly ICreateBranchDlg createBranchDlg;
-    readonly IDeleteBranchDlg deleteBranchDlg;
     readonly IBranchColorService branchColorService;
     readonly ISetBranchDlg setBranchDlg;
     readonly IRepoConfig repoConfig;
+    readonly IBranchCreateCommands createCmds;
+    readonly IBranchPushPullCommands pushPullCmds;
 
     public BranchCommands(
         IViewRepo repo,
@@ -60,11 +63,11 @@ class BranchCommands : IBranchCommands
         IRepoView repoView,
         IServer server,
         IDiffView diffView,
-        ICreateBranchDlg createBranchDlg,
-        IDeleteBranchDlg deleteBranchDlg,
         IBranchColorService branchColorService,
         ISetBranchDlg setBranchDlg,
-        IRepoConfig repoConfig
+        IRepoConfig repoConfig,
+        Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
+        Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands
     )
     {
         this.repo = repo;
@@ -72,11 +75,11 @@ class BranchCommands : IBranchCommands
         this.repoView = repoView;
         this.server = server;
         this.diffView = diffView;
-        this.createBranchDlg = createBranchDlg;
-        this.deleteBranchDlg = deleteBranchDlg;
         this.branchColorService = branchColorService;
         this.setBranchDlg = setBranchDlg;
         this.repoConfig = repoConfig;
+        this.createCmds = newCreateCommands(repo, repoView);
+        this.pushPullCmds = newPushPullCommands(repo, repoView);
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -89,6 +92,38 @@ class BranchCommands : IBranchCommands
 
     public void RefreshAndFetch(string addName = "", string commitId = "") =>
         repoView.RefreshAndFetch(addName, commitId);
+
+    // Creating and deleting branches
+    public void CreateBranch() => createCmds.CreateBranch();
+
+    public void CreateBranchFromBranch(string name) => createCmds.CreateBranchFromBranch(name);
+
+    public void CreateBranchFromCommit() => createCmds.CreateBranchFromCommit();
+
+    public void DeleteBranch(string name) => createCmds.DeleteBranch(name);
+
+    // Pushing and pulling branches
+    public void PushCurrentBranch() => pushPullCmds.PushCurrentBranch();
+
+    public void PushBranch(string name) => pushPullCmds.PushBranch(name);
+
+    public void PushAllBranches() => pushPullCmds.PushAllBranches();
+
+    public void PublishCurrentBranch() => pushPullCmds.PublishCurrentBranch();
+
+    public void PullCurrentBranch() => pushPullCmds.PullCurrentBranch();
+
+    public void PullBranch(string name) => pushPullCmds.PullBranch(name);
+
+    public void PullAllBranches() => pushPullCmds.PullAllBranches();
+
+    public bool CanPushCurrentBranch() => pushPullCmds.CanPushCurrentBranch();
+
+    public bool CanPush() => pushPullCmds.CanPush();
+
+    public bool CanPull() => pushPullCmds.CanPull();
+
+    public bool CanPullCurrentBranch() => pushPullCmds.CanPullCurrentBranch();
 
     public void ShowBranch(
         string name,
@@ -222,410 +257,6 @@ class BranchCommands : IBranchCommands
             return R.Ok;
         });
 
-    public void PushCurrentBranch() =>
-        Do(async () =>
-        {
-            var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
-
-            if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pushing");
-            if (branch == null)
-                return R.Error("No current branch to push");
-            if (!branch.HasLocalOnly)
-                return R.Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
-
-            if (branch.RemoteName != "")
-            { // Cannot push local branch if remote needs to be pulled first
-                var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
-                if (remoteBranch != null && remoteBranch.HasRemoteOnly)
-                {
-                    if (
-                        0
-                        != UI.ErrorMessage(
-                            "Push Warning",
-                            $"""
-                            Branch '{branch.Name}' 
-                            has remote commits not yet pulled.
-                            Pull current remote branch first before pushing,
-                            or do you want to force push?
-                            NOTE: be careful!
-                            """,
-                            1,
-                            "Force Push",
-                            "Cancel"
-                        )
-                    )
-                    {
-                        RefreshAndFetch();
-                        return R.Ok;
-                    }
-                }
-
-                if (!Try(out var ee, await server.PushCurrentBranchAsync(true, repo.Path)))
-                {
-                    return R.Error($"Failed to push branch:\n{branch.Name}", ee);
-                }
-            }
-
-            if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
-            {
-                return R.Error($"Failed to push branch:\n{branch.Name}", e);
-            }
-
-            Refresh();
-            return R.Ok;
-        });
-
-    public void PublishCurrentBranch() =>
-        Do(async () =>
-        {
-            var branch = repo.Repo.ViewBranches.First(b => b.IsCurrent);
-
-            if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
-            {
-                return R.Error($"Failed to publish branch:\n{branch.Name}", e);
-            }
-
-            Refresh();
-            return R.Ok;
-        });
-
-    public void PushBranch(string name) =>
-        Do(async () =>
-        {
-            if (!Try(out var e, await server.PushBranchAsync(name, repo.Path)))
-            {
-                return R.Error($"Failed to push branch:\n{name}", e);
-            }
-
-            Refresh();
-            return R.Ok;
-        });
-
-    public bool CanPush() =>
-        repo.Repo.Status.IsOk && repo.Repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
-
-    public bool CanPushCurrentBranch()
-    {
-        var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
-        if (branch == null)
-            return false;
-
-        if (branch.RemoteName != "")
-        { // Cannot push local branch if remote needs to be pulled first
-            var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
-            if (remoteBranch != null && remoteBranch.HasRemoteOnly)
-                return false;
-        }
-
-        return repo.Repo.Status.IsOk && branch != null && branch.HasLocalOnly;
-    }
-
-    public void PullCurrentBranch() =>
-        Do(async () =>
-        {
-            var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
-            if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pulling");
-            if (branch == null)
-                return R.Error("No current branch to pull");
-            if (branch.RemoteName == "")
-                return R.Error("No current remote branch to pull");
-
-            var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
-            if (remoteBranch == null || !remoteBranch.HasRemoteOnly)
-                return R.Error("No remote changes on current branch to pull");
-
-            if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
-            {
-                return R.Error($"Failed to pull current branch", e);
-            }
-
-            Refresh();
-            return R.Ok;
-        });
-
-    public void PullBranch(string name) =>
-        Do(async () =>
-        {
-            if (!Try(out var e, await server.PullBranchAsync(name, repo.Path)))
-            {
-                return R.Error($"Failed to pull branch {name}", e);
-            }
-
-            Refresh();
-            return R.Ok;
-        });
-
-    public bool CanPull() => repo.Repo.Status.IsOk && repo.Repo.ViewBranches.Any(b => b.HasRemoteOnly);
-
-    public bool CanPullCurrentBranch()
-    {
-        var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
-        if (branch == null)
-            return false;
-
-        if (branch.RemoteName == "")
-            return false; // No remote branch to pull
-
-        var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
-        return repo.Repo.Status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
-    }
-
-    public void PushAllBranches() =>
-        Do(async () =>
-        {
-            if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pulling");
-            if (!CanPush())
-                return R.Error("No local changes to push");
-
-            var branches = repo
-                .Repo.ViewBranches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly)
-                .DistinctBy(b => b.PrimaryName);
-
-            foreach (var b in branches)
-            {
-                if (!Try(out var e, await server.PushBranchAsync(b.Name, repo.Path)))
-                {
-                    Refresh();
-                    return R.Error($"Failed to push branch {b.Name}", e);
-                }
-            }
-
-            Refresh();
-            return R.Ok;
-        });
-
-    public void PullAllBranches() =>
-        Do(async () =>
-        {
-            var currentRemoteName = "";
-            if (CanPullCurrentBranch())
-            {
-                Log.Info("Pull current");
-                // Need to treat current branch separately
-                if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
-                {
-                    return R.Error($"Failed to pull current branch", e);
-                }
-                currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
-            }
-
-            var branches = repo
-                .Repo.ViewBranches.Where(b =>
-                    b.Name != currentRemoteName && b.IsRemote && !b.IsLocalCurrent && !b.IsCurrent && b.HasRemoteOnly
-                )
-                .DistinctBy(b => b.PrimaryName);
-
-            Log.Info($"Pull {string.Join(", ", branches)}");
-            foreach (var b in branches)
-            {
-                if (!Try(out var e, await server.PullBranchAsync(b.Name, repo.Path)))
-                {
-                    Refresh();
-                    return R.Error($"Failed to pull branch {b.Name}", e);
-                }
-            }
-
-            Refresh();
-            return R.Ok;
-        });
-
-    public void CreateBranch() =>
-        Do(async () =>
-        {
-            var branchName = "";
-            try
-            {
-                var currentBranchName = repo.Repo.CurrentBranch().Name;
-                if (!Try(out var rsp, createBranchDlg.Show(currentBranchName, "")))
-                    return R.Ok;
-
-                if (!Try(out var e, await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout, repo.Path)))
-                {
-                    return R.Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, repo.Path)))
-                {
-                    // The push error could be that repo has no remote origin, (local only)
-                    if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
-                    { // The push error is that repo has no remote origin, (local repo only)
-                        // I.e. no remote repo to push to, lets just ignore the push error
-                        return R.Ok;
-                    }
-
-                    return R.Error($"Failed to push branch {branchName} to remote server", e);
-                }
-
-                return R.Ok;
-            }
-            finally
-            {
-                Refresh(branchName);
-            }
-        });
-
-    public void CreateBranchFromBranch(string name) =>
-        Do(async () =>
-        {
-            var branchName = "";
-            try
-            {
-                //var currentBranchName = repo.GetCurrentBranch().Name;
-                var branch = repo.Repo.BranchByName[name];
-                if (branch.LocalName != "")
-                    name = branch.LocalName;
-
-                if (!Try(out var rsp, createBranchDlg.Show(name, "")))
-                    return R.Ok;
-
-                if (
-                    !Try(
-                        out var e,
-                        await server.CreateBranchFromBranchAsync(repo.Repo, rsp.Name, name, rsp.IsCheckout, repo.Path)
-                    )
-                )
-                {
-                    return R.Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, repo.Path)))
-                { // The push error could be that repo has no remote origin, (local only)
-                    if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
-                    { // The push error is that repo has no remote origin, (local repo only)
-                        // I.e. no remote repo to push to, lets just ignore the push error
-                        return R.Ok;
-                    }
-
-                    return R.Error($"Failed to push branch {branchName} to remote server", e);
-                }
-
-                return R.Ok;
-            }
-            finally
-            {
-                Refresh(branchName);
-            }
-        });
-
-    public void CreateBranchFromCommit() =>
-        Do(async () =>
-        {
-            var branchName = "";
-            try
-            {
-                var commit = repo.RowCommit;
-                var commitBranchName = commit.BranchName;
-
-                if (!Try(out var rsp, createBranchDlg.Show(commitBranchName, commit.Sid)))
-                    return R.Ok;
-
-                if (
-                    !Try(
-                        out var e,
-                        await server.CreateBranchFromCommitAsync(
-                            repo.Repo,
-                            rsp.Name,
-                            commit.Id,
-                            rsp.IsCheckout,
-                            repo.Path
-                        )
-                    )
-                )
-                {
-                    return R.Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repo.Path)))
-                { // The push error could be that repo has no remote origin, (local only)
-                    if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
-                    { // The push error is that repo has no remote origin, (local repo only)
-                        // I.e. no remote repo to push to, lets just ignore the push error
-                        return R.Ok;
-                    }
-                    return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
-                }
-
-                return R.Ok;
-            }
-            finally
-            {
-                Refresh(branchName);
-            }
-        });
-
-    public void DeleteBranch(string name) =>
-        Do(async () =>
-        {
-            var allBranches = repo.Repo.AllBranches;
-            var branch = allBranches.First(b => b.Name == name);
-
-            Server.Branch? localBranch = null;
-            Server.Branch? remoteBranch = null;
-
-            if (!branch.IsRemote)
-            {
-                // Branch is a local branch
-                localBranch = branch;
-                if (branch.RemoteName != "")
-                { //with a corresponding remote branch
-                    remoteBranch = allBranches.First(b => b.Name == branch.RemoteName);
-                }
-            }
-            else
-            { // Branch is a remote branch
-                remoteBranch = branch;
-                if (branch.LocalName != "")
-                { // with a corresponding local branch
-                    localBranch = allBranches.First(b => b.Name == branch.LocalName);
-                }
-            }
-
-            var isLocal = localBranch != null;
-            var isRemote = remoteBranch != null;
-            if (!Try(out var rsp, deleteBranchDlg.Show(name, isLocal, isRemote)))
-                return R.Ok;
-
-            var newName = "";
-
-            if (rsp.IsRemote && remoteBranch != null)
-            {
-                var tip = repo.Repo.CommitById[remoteBranch.TipId];
-                if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == remoteBranch.Name)
-                {
-                    return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
-                }
-
-                if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repo.Path)))
-                {
-                    return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
-                }
-                newName = remoteBranch.PrimaryBaseName;
-            }
-
-            if (rsp.IsLocal && localBranch != null)
-            {
-                var tip = repo.Repo.CommitById[localBranch.TipId];
-                if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == localBranch.Name)
-                {
-                    return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
-                }
-                if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repo.Path)))
-                {
-                    return R.Error($"Failed to delete local branch {localBranch.Name}", e);
-                }
-                newName = localBranch.PrimaryBaseName;
-            }
-
-            Refresh(newName);
-            return R.Ok;
-        });
-
     public void ChangeBranchColor(string brandName)
     {
         var b = repo.Repo.BranchByName[brandName];
@@ -724,17 +355,5 @@ class BranchCommands : IBranchCommands
 
     void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
 
-    void Do(Func<Task<R>> action)
-    {
-        UI.RunInBackground(async () =>
-        {
-            using (progress.Show())
-            {
-                if (!Try(out var e, await action()))
-                {
-                    UI.ErrorMessage($"{e.AllErrorMessages()}");
-                }
-            }
-        });
-    }
+    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
 }

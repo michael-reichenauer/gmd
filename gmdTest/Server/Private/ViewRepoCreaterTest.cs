@@ -120,6 +120,21 @@ public class ViewRepoCreaterTest
         }
     }
 
+    // A local branch that is behind and points at the first commit of the repo has no commit it
+    // branched out from, which SetBehindCommits used to read unconditionally and crash on.
+    [TestMethod]
+    public async Task TestBranchBehindAtTheRootCommitHasRemoteOnlyCommits()
+    {
+        var repo = await BehindAtRootCommit().ViewRepoAsync();
+
+        Assert.IsTrue(repo.BranchByName["origin/main"].HasRemoteOnly);
+        Assert.IsTrue(repo.BranchByName["main"].HasRemoteOnly);
+        CollectionAssert.AreEqual(
+            new[] { "Remote 1" },
+            repo.ViewCommits.Where(c => c.IsBehind).Select(c => c.Subject).ToArray()
+        );
+    }
+
     // A branch in sync with its remote has neither
     [TestMethod]
     public async Task TestSyncedBranchHasNoLocalOrRemoteOnlyCommits()
@@ -209,6 +224,14 @@ public class ViewRepoCreaterTest
             .Commit("c2", "Second", "c1")
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "c3", isCurrent: true);
+
+    // main behind its remote, and pointing at the first commit of the repo, i.e. a local branch
+    // whose bottom commit has no parent
+    static RepoBuilder BehindAtRootCommit() =>
+        new RepoBuilder()
+            .Commit("r1", "Remote 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true, remoteTipCommit: "r1", behind: 1);
 
     // main where the local branch has two commits the remote does not, and the remote one the
     // local does not

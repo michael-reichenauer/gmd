@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Server;
 using gmd.Server.Private;
 using gmd.Server.Private.Augmented.Private;
@@ -287,12 +288,18 @@ class RepoBuilder
     // The real augmented service, which only git, the file monitor and the shared meta data are
     // faked out of. The repo is augmented from the built GitRepo rather than read via git, so
     // this is used just for the steps the service itself adds.
-    AugmentedService NewAugmentedService() =>
-        new AugmentedService(
-            NewGit(),
+    AugmentedService NewAugmentedService() => NewAugmentedService(NewGit(), new FakeMetaDataService(metaData));
+
+    public static AugmentedService NewAugmentedService(IGit git, IMetaDataService metaDataService)
+    {
+        var fileMonitor = new FakeFileMonitor();
+        return new AugmentedService(
+            git,
             NewAugmenter(),
             new AugConverter(),
-            new FakeFileMonitor(),
-            new FakeMetaDataService(metaData)
+            fileMonitor,
+            metaDataService,
+            new BranchWriteService(git, fileMonitor, metaDataService)
         );
+    }
 }

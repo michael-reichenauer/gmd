@@ -117,13 +117,7 @@ public class AugmentedServiceIntegrationTest
     // shared meta data faked out
     async Task<Repo> AugmentedRepoAsync()
     {
-        var service = new AugmentedService(
-            repo.Git,
-            RepoBuilder.NewAugmenter(),
-            new AugConverter(),
-            new FakeFileMonitor(),
-            new FakeMetaDataService(new MetaData())
-        );
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
 
         Assert.IsTrue(Try(out var augRepo, out var e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
         return augRepo;

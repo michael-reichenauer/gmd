@@ -253,7 +253,11 @@ class ViewRepoCreater : IViewRepoCreater
 
         var localTip = filteredCommits.First(c => c.Id == localBranch.TipId);
         var localBottom = filteredCommits.First(c => c.Id == localBranch.BottomId);
-        var localBase = filteredCommits.First(c => c.Id == localBottom.ParentIds[0]);
+        // The commit the local branch branched out from, which does not exist if its bottom is a
+        // root commit, i.e. a local branch that is behind and points at the first commit of the repo
+        var localBase = localBottom.ParentIds.Any()
+            ? filteredCommits.First(c => c.Id == localBottom.ParentIds[0])
+            : null;
 
         bool hasBehindCommits = false;
         int count = 0;
@@ -271,7 +275,7 @@ class ViewRepoCreater : IViewRepoCreater
                 // Local branch tip on same commit as remote branch tip (i.e. synced)
                 break;
             }
-            if (commit.Id == localBase.Id)
+            if (localBase != null && commit.Id == localBase.Id)
             {
                 // Reached same commit as local branch branched from (i.e. synced from this point)
                 break;
