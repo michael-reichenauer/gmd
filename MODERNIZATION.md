@@ -846,6 +846,24 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
 - [x] `TagServis.cs` — filename typo, should be `TagService.cs`. Renamed; the types inside were
       already `ITagService`/`TagService`, so nothing else changed.
 - [ ] Reconsider `NoWarn IDE0090;CA1825` in `gmd.csproj` once formatting churn has settled.
+      Measured by dropping the `<NoWarn>` line and re-running the analyzers, since neither is
+      what its name suggests any more. Both were added in `65528e8` (2023-08-05), three years
+      before CSharpier arrived, so they never had anything to do with formatting.
+      - `IDE0090` (target-typed `new()`) reports **nothing** un-suppressed, even though 11 files
+        hold the candidate pattern (`List<Button> x = new List<Button>();` in `MessageDlg.cs`,
+        `GraphCreater.cs`, `Augmenter.cs`, …). `.editorconfig` already states the preference the
+        other way (`csharp_style_implicit_object_creation_when_type_is_apparent = false:silent`),
+        and IDE rules do not run at build without `EnforceCodeStyleInBuild` anyway. The entry is
+        dead weight, and the comment at `.editorconfig` explaining the duplication goes with it.
+      - `CA1825` (`new T[0]` → `Array.Empty<T>()`) hides 12 real sites: `Config.cs`, `Updater.cs`,
+        `Repo.cs` (six in a row), `GitLog.cs`, `Server.cs`, `Augmenter.cs`, `AugmentedService.cs`.
+        Its default severity is *info*, so un-suppressing it can never fail a build — the only
+        effect is IDE hints. (`GlobPatterns/Glob.cs` has one too, exempt as vendored code.)
+      - Sequencing: those 12 sites are exactly what the collection expression sweep below
+        (IDE0300) rewrites to `[]`, so do the sweep first. Un-suppressing CA1825 before it aims
+        the IDE's fix at `Array.Empty<T>()`, the wrong direction for this codebase — and after it
+        CA1825 has nothing left to flag, so the whole `<NoWarn>` line can just be deleted with no
+        code change. `[]` for an array compiles to `Array.Empty<T>()`, so nothing is lost.
 
 ### Migrate to collection expressions
 
@@ -869,9 +887,10 @@ migrates over time. Current state: **156 sites across 44 files**.
 - [ ] Sequencing note: test coverage is still thin outside the augmentation pipeline and
       `LogService`, so a 156-site sweep is less safe than it looks. Either do it after Steps 4–6
       widen coverage, or accept it as a reviewed mechanical change verified by build + CSharpier.
-- [ ] Open question: target-typed `new()` (IDE0090) is currently in `<NoWarn>` in `gmd.csproj` —
-      the same "codebase predates the feature" category. Enable it too, or keep types explicit
-      there?
+- [ ] Open question: target-typed `new()` (IDE0090) is the same "codebase predates the feature"
+      category. Adopt it too, or keep types explicit? Only the style question is open — keeping
+      types explicit needs no build setting, since `.editorconfig` already says so; see the
+      `<NoWarn>` item in Step 8 for why the `gmd.csproj` entry is redundant either way.
 
 ## Step 9 — Framework and dependency updates
 
