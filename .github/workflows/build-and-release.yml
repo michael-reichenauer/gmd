@@ -38,7 +38,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '8.x'
+          dotnet-version: '10.x'
 
       # Must run before './build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.
@@ -80,7 +80,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '8.x'
+          dotnet-version: '10.x'
 
       # Must run before './build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.

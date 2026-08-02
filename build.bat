@@ -8,7 +8,7 @@ rem Usage:
 rem   build.bat        Test and build all platforms
 rem   build.bat -w     Test and build Windows only (fast path for local debugging)
 
-set DOTNET=net8.0
+set DOTNET=net10.0
 
 echo Cleaning ...
 del "gmd.exe" 2> nul

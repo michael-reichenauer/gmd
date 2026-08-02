@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## What this is
 
-**Gmd** is a cross-platform console-UI (TUI) Git client written in C# / .NET 8, built on
+**Gmd** is a cross-platform console-UI (TUI) Git client written in C# / .NET 10, built on
 [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) 1.x. Its distinguishing feature is
 *interactive branch visibility*: the user chooses which branches are shown in the commit
 graph, so a clean log is achieved without rebasing or squashing.

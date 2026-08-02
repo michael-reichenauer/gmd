@@ -966,9 +966,29 @@ Deliberately after the tests, so regressions are detectable. Current status of e
     surfaces as a resolve failure at startup, not as a compile error — start the app after
     touching it. `--version` is not enough on its own: `Program.Main` resolves `IProgramCommands`
     and returns before `Resolve<Program>()`, so it never builds the UI half of the graph.
-- [ ] .NET 8 → .NET 10 (LTS). .NET 8 support ends Nov 2026. Needs the devcontainer image, CI
-      `dotnet-version`, both `TargetFramework`s, `DOTNET` in `build`/`build.bat`, and
-      `.vscode/launch.json` updated together.
+- [x] .NET 8 → .NET 10 (LTS), ahead of .NET 8 support ending Nov 2026. Seven files, all of them
+      the same string change, and no product code touched at all: both `TargetFramework`s
+      (`gmd.csproj`, `gmdTest.csproj`), `DOTNET` in `build` and `build.bat` (it spells the
+      `bin/Release/$DOTNET/<rid>/publish` copy paths, so a miss breaks the build script rather
+      than the compile), the `program` path in `.vscode/launch.json`, `dotnet-version: '10.x'` in
+      both CI jobs, and the devcontainer image `mcr.microsoft.com/devcontainers/dotnet:10.0`.
+  - Nothing in the source needed changing — no analyzer warnings, no obsoleted API, no
+    `global.json` to pin. Every dependency already resolves for net10.0: Terminal.Gui 1.17.1 is
+    netstandard2.0, and Autofac / DiffPlex / MSTest / coverlet / `CSharpier.MsBuild` all restore
+    and run unchanged. `dotnet list package --deprecated/--vulnerable` stay clean.
+  - Verified on SDK 10.0.302: solution builds with 0 warnings, 441 tests pass (integration ones
+    included, so the real `git` path is covered), `csharpier check` clean, and `./build -l`
+    publishes both linux-x64 and linux-arm64 self-contained single-file ReadyToRun — the part
+    most likely to break on a framework bump, since it cross-compiles with crossgen2.
+  - Then started under tmux against a throwaway repo, for the reason the item above records: the
+    DI container has no test behind it and `--version` returns before the UI half of the graph is
+    built. The log view drew the branch graph and `d` drew the side-by-side diff. `~/gmd.log` had
+    no exception — only the expected DEBUG failures for a repo with no tags, no origin and no gmd
+    metadata.
+  - Note the devcontainer is *declared*, not rebuilt: an existing container keeps its .NET 8 SDK
+    until it is rebuilt, and .NET 8 cannot build a net10.0 project. So "Rebuild Container" is
+    required after pulling this, and a stale container fails with NETSDK1045 rather than anything
+    that points at the cause.
 - [ ] Terminal.Gui 1.x → 2.x. The big one. Should not start until Step 3 gives the UI-adjacent
       logic snapshot coverage.
 
