@@ -927,11 +927,26 @@ Deliberately after the tests, so regressions are detectable. Current status of e
 | Terminal.Gui | 1.17.1 | 2.4.17 | Major rewrite of the UI layer. Do last. |
 | Autofac | 8.1.0 | 9.3.1 | Major; DI is small and centralized, so low risk. |
 | DiffPlex | 1.7.2 | 1.9.0 | Minor. |
-| MSTest.\* | 3.6.0 | 4.3.2 | Major; do early, it only affects tests. |
-| Microsoft.NET.Test.Sdk | 17.11.1 | 18.8.1 | Major. |
-| coverlet.collector | 6.0.2 | 10.0.1 | Major. |
+| MSTest.\* | 4.3.3 | 4.3.3 | Done. |
+| Microsoft.NET.Test.Sdk | 18.8.1 | 18.8.1 | Done. |
+| coverlet.collector | 10.0.1 | 10.0.1 | Done. |
 
-- [ ] Test packages first (MSTest 4.x, Test.Sdk 18.x, coverlet 10.x) — contained to `gmdTest`.
+- [x] Test packages first (MSTest 3.6.0 → 4.3.3, Test.Sdk 17.11.1 → 18.8.1, coverlet 6.0.2 →
+      10.0.1) — contained to `gmdTest`, no product code touched. Two breaking changes in MSTest 4,
+      both mechanical:
+  - `Assert.ThrowsException<T>` is gone (8 sites in `ResultTest`, `EnumerableExtensionsTest`,
+    `GlobTest`). Replaced with `Assert.ThrowsExactly<T>`, **not** `Assert.Throws<T>`: MSTest 3's
+    `ThrowsException<T>` required the exact type, and `Throws<T>` accepts derived ones, so
+    `ThrowsExactly<T>` is the like-for-like replacement.
+  - `[DataTestMethod]` is obsolete (MSTEST0044; 4 sites). `[TestMethod]` carries `[DataRow]` on
+    its own now.
+
+    Left as they are on purpose: the separate `MSTest.TestAdapter` + `MSTest.TestFramework`
+    references rather than the `MSTest` meta-package, and VSTest rather than
+    `EnableMSTestRunner` — Microsoft.Testing.Platform would change the `dotnet test` command
+    line in `./test` and needs a different coverage extension than `coverlet.collector`.
+    441 tests pass, `--collect:"XPlat Code Coverage"` still writes a cobertura report, Release
+    build and `csharpier check` clean.
 - [ ] `DiffPlex` and `Autofac`.
 - [ ] .NET 8 → .NET 10 (LTS). .NET 8 support ends Nov 2026. Needs the devcontainer image, CI
       `dotnet-version`, both `TargetFramework`s, `DOTNET` in `build`/`build.bat`, and

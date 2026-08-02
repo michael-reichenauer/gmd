@@ -112,7 +112,7 @@ public class GlobTest
     [TestMethod]
     public void TestAnUnterminatedSetThrows()
     {
-        Assert.ThrowsException<Exception>(() =>
+        Assert.ThrowsExactly<Exception>(() =>
         {
             new Glob("file[0-9.txt");
         });

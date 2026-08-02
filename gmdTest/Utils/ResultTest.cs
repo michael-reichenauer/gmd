@@ -95,7 +95,7 @@ public class ResultTest
     {
         R<int> result = 5;
 
-        var e = Assert.ThrowsException<InvalidOperationException>(() =>
+        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
         {
             result.GetResultValue();
         });
@@ -108,7 +108,7 @@ public class ResultTest
         R<int> result = R.Error("the failure");
 
         Assert.IsTrue(result.IsResultError, "Checked, so this is not the never-checked fail fast");
-        var e = Assert.ThrowsException<InvalidOperationException>(() =>
+        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
         {
             result.GetResultValue();
         });
@@ -126,7 +126,7 @@ public class ResultTest
         try
         {
             R<int> result = 5;
-            Assert.ThrowsException<InvalidOperationException>(() =>
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
             {
                 result.GetResultValue();
             });
@@ -188,7 +188,7 @@ public class ResultTest
     {
         string? nothing = null;
 
-        Assert.ThrowsException<InvalidOperationException>(() =>
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
         {
             _ = (R<string>)nothing!;
         });
@@ -197,7 +197,7 @@ public class ResultTest
     [TestMethod]
     public void TestErrorOfANonErrorFailsFast()
     {
-        var e = Assert.ThrowsException<InvalidOperationException>(() =>
+        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
         {
             R.Error(R.Ok);
         });

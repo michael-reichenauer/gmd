@@ -28,7 +28,7 @@ public class LogServiceTest
     // must be culture invariant. Cultures using a non-Gregorian calendar are the interesting
     // ones: "ar-SA" (Umm al-Qura) used to throw, and "th-TH" (Buddhist) and "fa-IR" (Persian)
     // used to silently parse the year hundreds of years off.
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("en-US")]
     [DataRow("sv-SE")]
     [DataRow("de-DE")]

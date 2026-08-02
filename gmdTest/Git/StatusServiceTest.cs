@@ -134,7 +134,7 @@ public class StatusServiceTest
     }
 
     // The remaining conflict kinds, which are harder to reproduce but git documents them
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("DD both-deleted.txt")]
     [DataRow("AU added-by-us.txt")]
     [DataRow("UA added-by-them.txt")]

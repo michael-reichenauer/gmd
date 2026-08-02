@@ -114,11 +114,11 @@ public class EnumerableExtensionsTest
     public void TestDistinctByRequiresItsArguments()
     {
         IEnumerable<string>? nothing = null;
-        Assert.ThrowsException<ArgumentNullException>(() =>
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
         {
             nothing!.DistinctBy((x, y) => x == y).ToList();
         });
-        Assert.ThrowsException<ArgumentNullException>(() =>
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
         {
             Names.DistinctBy((Func<string, string, bool>)null!).ToList();
         });

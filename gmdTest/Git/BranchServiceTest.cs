@@ -225,7 +225,7 @@ public class BranchServiceTest
     }
 
     // The other '(no branch, …)' forms git writes, plus the bare '(no branch)'
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("(HEAD detached at v1.0)")]
     [DataRow("(HEAD detached from 1cc81b2)")]
     [DataRow("(no branch, rebasing topic)")]
