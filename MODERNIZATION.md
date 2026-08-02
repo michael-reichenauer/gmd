@@ -843,7 +843,8 @@ classes: `ResultTest`, `StringExtensionsTest`, `EnumerableExtensionsTest`, `Sort
       the other, since which comes first is the thing that was actually unclear. The two tests
       that had worked around the clash with `using AugConverter = …` / `using ViewConverter = …`
       aliases now use the real names.
-- [ ] `TagServis.cs` — filename typo, should be `TagService.cs`.
+- [x] `TagServis.cs` — filename typo, should be `TagService.cs`. Renamed; the types inside were
+      already `ITagService`/`TagService`, so nothing else changed.
 - [ ] Reconsider `NoWarn IDE0090;CA1825` in `gmd.csproj` once formatting churn has settled.
 
 ### Migrate to collection expressions
