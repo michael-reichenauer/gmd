@@ -1078,7 +1078,8 @@ Deliberately after the tests, so regressions are detectable. Current status of e
     cover none of drawing, layout, key dispatch, dialogs, or what color reaches the screen — which
     is exactly the break list. Worse, the color assertions that do exist (`GraphText.ColorsOf`,
     `BranchColorServiceTest`) are written against 1.x's `Color` enum, so the safety net itself needs
-    porting.
+    porting. **Step 12 exists to fix this, and should be done first** — its tmux tier names no
+    Terminal.Gui type, so it survives the port and becomes its acceptance suite.
   - **It cannot be a series of small reviewable commits**, which every other step here has been. It
     is a branch that does not compile until it is finished.
   - **2.x is stable-tagged but still moving fast**: 2.0.0 was 2026-04-28 and 2.4.17 is 2026-07-07,
@@ -1099,11 +1100,25 @@ Deliberately after the tests, so regressions are detectable. Current status of e
       `.Input`/`.Drivers`, so every file's single `using` becomes several. One thing is easier than
       the migration guide implies: static `Application.Init`/`Run`/`Shutdown`/`Invoke`/`AddTimeout`
       still exist in 2.4.17 alongside the new `Application.Create()` instance model, so the port need
-      not adopt `IApplication` on day one.
+      not adopt `IApplication` on day one. 2.4.17 also ships a single `net10.0` asset, which matches
+      gmd's target exactly — no roll-forward, unlike the `net8.0` asset 1.x is running on today.
+
+      One trap worth knowing before reading anything upstream: **the migration guide lives on
+      `v2_develop` and describes things that are not in the released package.** It states that
+      `TextField` is renamed to `Editor`, for instance, while 2.4.17 still has both `TextField` and
+      `TextView` and no `Editor` at all. Check the shipped assembly — `Terminal.Gui.xml` inside the
+      nupkg, or reflection over `GetExportedTypes()` — rather than trusting the guide on any specific
+      API. That is also how the `FakeDriver`/`FakeMainLoop` visibility in Step 3's finding was
+      settled, after the XML docs alone gave the wrong answer (they list only *documented* members,
+      so absence from them is not absence from the assembly).
 
       Start it when there is a concrete want — a real branch palette, a v1 bug with no upstream fix,
       UI-level tests blocking something else, or 2.x's cadence settling — not because the version
-      number is old. Until then the preparation is what Step 8 is already doing anyway: keep pushing
+      number is old, and not before Step 12 has given it something to be verified against. Note that
+      one of the arguments above is now weaker than it looks: "`Cui/` becomes testable" is only half
+      true, since Step 3's finding shows the *drawing* half is reachable on 1.x already. What 2.x
+      adds over that is `InputInjector`, i.e. the input half — real, but a smaller prize than it
+      first appeared. Until then the preparation is what Step 8 is already doing anyway: keep pushing
       logic out of the Terminal.Gui-touching classes, and keep the surface funnelled through
       `UI.cs`, `UIDialog.cs`, `Color.cs` and `ColorSchemes.cs`. When it does start, the order that
       follows from the list above is `Color.cs` + `ColorSchemes.cs` first (everything renders through
@@ -1197,3 +1212,90 @@ failing machine yet, so confirm against a real report before assuming which one 
 - [ ] Testable through `ICmd`, so `FakeCmd` covers tool selection and the command line built for
       each platform. What cannot be faked — whether the clipboard actually holds the text
       afterwards — needs a manual check per platform; write down which ones were verified.
+
+## Step 12 — Terminal (end-to-end) UI testing
+
+**Do this before Step 9's 2.x port.** The suite has 441 tests and none of them covers what reaches
+the screen: not drawing, not layout, not key dispatch, not dialogs, not the colors a user sees. That
+is also, precisely, the list of things the 2.x port rewrites — so today the port would be
+unverifiable, which is the single strongest argument against starting it. This step is the safety
+net that changes that, and it pays for itself long before the port ever happens.
+
+It is the same move this document has made twice already: characterization tests before a risky
+rewrite (Step 2 before `BranchStructureService`, Step 3 before the graph work). Step 9 opens with
+"deliberately after the tests, so regressions are detectable" — this is the missing half of that
+sentence for the UI.
+
+### Two tiers, and only one of them survives the port
+
+This distinction is the whole point of the step, so do not blur it.
+
+| | tmux end-to-end | `FakeDriver` headless |
+| --- | --- | --- |
+| What runs | the built binary, real git, real pty | views in-process, no terminal |
+| Drives | keystrokes (`tmux send-keys`) | direct calls; input is not reachable |
+| Asserts on | the rendered screen (`capture-pane -p`) | `FakeDriver.Contents` cell grid |
+| Speed | ~seconds per test | ~milliseconds |
+| Terminal.Gui API used | **none** | `FakeDriver`, `Application.Init`, `Contents` |
+| **Survives the 2.x port** | **yes, unchanged** | **no — rewritten by the port** |
+
+That last row is the sequencing answer. A tmux test says "open this repo, press `d`, expect a
+side-by-side diff containing `beta gemma delta`" and never names a Terminal.Gui type, so it is just
+as valid against a 2.x build as a 1.x one. Written as characterization tests — capture what gmd does
+*today*, not what it ought to do — they become a before/after comparison across the port, which is
+the bar `CLAUDE.md` already sets for `BranchStructureService` and the one Step 8 used for the
+989-line split. `FakeDriver` tests, by contrast, name types that 2.x removes; they are worth having
+for fast feedback during v1's remaining life, but they are not port insurance and should not be
+counted as such.
+
+So: build the tmux tier first and treat it as the port's acceptance suite. Add `FakeDriver` tests
+opportunistically where a fast unit-level check of drawing is what is actually wanted.
+
+### What is already known to work
+
+Both tiers were proven out in the session that wrote this step, so neither is speculative.
+
+- **tmux.** Installed by `./installtools`. The recipe, the two traps (drive the built binary rather
+  than `./run`; poll `capture-pane` rather than sleeping) and the `script` fallback are written up in
+  `CLAUDE.md` under "Running the TUI from a non-interactive shell". Driving gmd to the diff view and
+  capturing a clean, readable screen takes about a dozen lines of shell.
+- **`FakeDriver`.** Public in Terminal.Gui 1.19.0; `Application.Init(new FakeDriver(), null)`
+  initializes with no terminal at all and `FakeDriver.Contents` is the drawn cell grid, rune at
+  `[row, col, 0]` and attribute at `[row, col, 1]` — so colors are assertable too. `FakeMainLoop` is
+  `internal`, hence the `null`. See the Step 3 finding.
+
+### Determinism, which is where this will actually go wrong
+
+A captured screen is full of content that changes every run. All of it was visible in the first
+captures taken: commit sha (`88453f`), author/commit dates (`26-08-03 02:47`), the temp repo path in
+the application bar, and right-edge padding that moves with pane width. Design for it up front
+rather than fighting flakes later:
+
+- [ ] Fix the pane size explicitly (`tmux new-session -x 120 -y 40`), so wrapping and the app bar's
+      space filler are stable.
+- [ ] Normalize before comparing — replace sha, dates and the repo path with placeholders, and strip
+      trailing whitespace per line. A small helper next to `GraphText` is the natural home, since it
+      does the same job for the other snapshot style.
+- [ ] Never sleep a fixed time; poll `capture-pane` until the expected text appears, with a timeout
+      that fails loudly. Fixed sleeps are the main source of flakes in this kind of test.
+- [ ] Reuse `TempRepo` for the repository, so the fixture is identical on every machine and nothing
+      outside its temp folder is touched. It already sets the config that would otherwise be the
+      developer's.
+- [ ] `[TestCategory("Integration")]` on the lot, so `./test --filter "TestCategory!=Integration"`
+      stays fast, and confirm tmux's absence fails with a clear message rather than a timeout — CI
+      images will not have it unless the workflow installs it.
+
+### First moves
+
+- [ ] One tmux test end to end: open a `TempRepo`, assert the log view shows the branch graph and the
+      commit subjects, press `d`, assert the side-by-side diff. That single test would already have
+      caught every startup-level regression this project has hit.
+- [ ] Then the paths that are pure UI and have no other coverage at all: the menus, the branch
+      show/hide keys, the commit dialog, and scrolling a long log.
+- [ ] One `FakeDriver` test that renders a real graph and compares it against the matching
+      `GraphText` snapshot. If those two agree, every existing `GraphTest` snapshot gains weight,
+      because today they assert `GraphWriter`'s output rather than what reaches the screen.
+- [ ] Decide whether CI runs the tmux tier. It needs `tmux` in the runner image (one `apt-get`) and
+      it is slower; a separate job, or restricting it to the existing `build_test_release_job`, are
+      both reasonable. Note `test_job` already runs the whole suite with no category filter, so this
+      is a real decision, not a detail.
