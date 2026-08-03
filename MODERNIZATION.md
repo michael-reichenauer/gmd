@@ -1080,6 +1080,12 @@ Deliberately after the tests, so regressions are detectable. Current status of e
     `BranchColorServiceTest`) are written against 1.x's `Color` enum, so the safety net itself needs
     porting. **Step 12 exists to fix this, and should be done first** — its tmux tier names no
     Terminal.Gui type, so it survives the port and becomes its acceptance suite.
+    **Update: that tier now exists** (12 tests, `gmdTest/Cui/TerminalTest.cs`), so this argument is
+    weaker than it was. It is not gone: the tests cover the log view, the menus, the details pane,
+    the diff and the filter, but not the dialogs that write, not the mouse, and not colors. Run them
+    against a 2.x branch as the first thing after it compiles — a failing screen there is a real
+    regression, and a passing one is worth more than the whole 441-test model suite for this
+    purpose.
   - **It cannot be a series of small reviewable commits**, which every other step here has been. It
     is a branch that does not compile until it is finished.
   - **2.x is stable-tagged but still moving fast**: 2.0.0 was 2026-04-28 and 2.4.17 is 2026-07-07,
@@ -1213,7 +1219,7 @@ failing machine yet, so confirm against a real report before assuming which one 
       each platform. What cannot be faked — whether the clipboard actually holds the text
       afterwards — needs a manual check per platform; write down which ones were verified.
 
-## Step 12 — Terminal (end-to-end) UI testing
+## Step 12 — Terminal (end-to-end) UI testing ✅ tmux tier done
 
 **Do this before Step 9's 2.x port.** The suite has 441 tests and none of them covers what reaches
 the screen: not drawing, not layout, not key dispatch, not dialogs, not the colors a user sees. That
@@ -1264,6 +1270,79 @@ Both tiers were proven out in the session that wrote this step, so neither is sp
   `[row, col, 0]` and attribute at `[row, col, 1]` — so colors are assertable too. `FakeMainLoop` is
   `internal`, hence the `null`. See the Step 3 finding.
 
+### What was built ✅ tmux tier done
+
+Suite went from 441 tests to 453, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 12 tests,
+~14 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
+up front, it is what the investigation concluded was possible, and it is what keeps the tier valid
+across the 2.x port.
+
+| File | What it is |
+| --- | --- |
+| `Fixtures/TmuxSession.cs` | The harness: start, capture, poll, send keys, kill |
+| `Fixtures/TempHome.cs` | A throwaway `$HOME` — the whole hermeticity story |
+| `Fixtures/ScreenText.cs` | The normalizer, sibling of `GraphText` |
+| `Fixtures/E2eRepo.cs` | The fixture repo shape, seven commits over two branches |
+| `Fixtures/Proc.cs` | A process runner with environment variables and a timeout |
+| `Fixtures/TempRepo.cs` | Gained `CommitAtAsync` / `CommitFileAtAsync` / `GitAt` |
+
+Covered: startup and the whole log view, that the run is hermetic, quit by `q` and by `Esc`, the
+narrow-width column arm, the details pane, the commit menu, the help dialog, show/hide branch as a
+round trip, a commit diff, the filter, and paging a 30-commit log.
+
+- [x] **Hermeticity, which turned out to be the actual work.** A gmd run *writes* `~/.gmdconfig`,
+      **truncates `~/gmd.log`** and **deletes `~/.gmdstate*`**, and none of those paths can be
+      redirected — `ConfigService`, `ConfigLogger` and `Upgrader` all anchor on
+      `SpecialFolder.UserProfile` with no override. On Unix that resolves `$HOME`, so a throwaway
+      home is the only lever, and it covers all three plus `~/.gitconfig` for the git subprocesses.
+      This is what the step was missing: it is a bigger risk than any of the determinism items
+      below, since it is a side effect on the developer's machine rather than a flaky assertion.
+- [x] Deterministic commit ids, not just times. With the author *and* committer dates pinned, every
+      input to a commit object is fixed, so the sids on screen are stable across machines and get
+      asserted rather than masked. `ScreenText` therefore replaces only the temp repo path.
+
+### Findings
+
+- [x] **The built binary is not a dev instance, so it really does call GitHub.**
+      `Build.IsDevInstance()` (`Build.cs:64`) is `CommandLine.Contains("gmd.dll") || ProcessPath ==
+      "dotnet"`, which is true for `./run` and **false for the apphost** these tests drive. So
+      `RepoView.cs:143`'s update checker runs, and a release newer than the test build would add a
+      `⇓` to the application bar, extra items to the repo menu, and could re-open the main menu
+      asynchronously mid-test. Disabled by seeding `CheckUpdates: false`.
+- [x] **`git log --all --date-order` makes identical commit timestamps a row-order flake.** Ordering
+      is by commit date, and a fixture built in under a second has nothing to break ties with. This
+      is why the pinned dates are a correctness requirement rather than a cosmetic one — the same
+      reason `RepoBuilder`'s times are distinct and increasing.
+- [x] **gmd drops keystrokes while a git command runs.** `Progress.Show` calls `UI.StopInput`, which
+      is `Application.RootKeyEvent = _ => true` — keys are swallowed, not queued. A key sent into a
+      moving screen is silently lost, which is why `WaitFor` requires three identical captures
+      before returning and why nothing here ever sleeps a fixed time. Deliberately no resend on
+      timeout: it would mask this and could double-apply a command.
+- [x] Confirmed working, so the risk written down for it did not materialize: **modified keys
+      survive the pty** — `S-Right` reaches `RepoViewInput`'s `Key.CursorRight | Key.ShiftMask` and
+      opens the Open Branch menu.
+- [ ] **Noted, no action: tmux cannot report gmd's exit code.** `#{pane_dead_status}` is empty for a
+      binary tmux exec'd directly, and only filled in when the pane command went through a shell.
+      gmd does exit 0 (checked with `sh -c "gmd …; echo $?"`, which reports 0 and makes tmux report
+      0 too), but adding that shell only to read the code would put a wrapper process between tmux
+      and gmd, which `CLAUDE.md` warns against. The tests assert that gmd terminated; a crash shows
+      up as a `WaitFor` timing out with the screen and the log tail in the message, which is better
+      evidence anyway.
+- [ ] **Pre-existing, not introduced here, and worth fixing separately: `./test` truncates the
+      developer's `~/gmd.log`.** Any test that touches `TempRepo` goes through `gmd.Utils.Cmd`,
+      which logs, and `ConfigLogger`'s static constructor truncates the log on first use. Measured:
+      the 16 pre-existing integration tests alone rewrite it. The new tier does not add to this —
+      `Proc` logs nothing and the tmux'd gmd writes into its temp home — but it does not fix it
+      either. The fix would be to give the *test process* a redirected home too.
+- [ ] Two things left for later, deliberately: the `FakeDriver` test below, and colors.
+      `TmuxSession.CaptureColors()` (`capture-pane -p -e`) is there and unused — the branch colors,
+      the cyan sid and the highlighted current row are all real and all uncovered, but an
+      ANSI-escaped capture needs its own normalizer in the style of `GraphText.ColorsOf`.
+- [ ] A bug the suite found while being written, left as its own commit: `q` quits the log view
+      (`RepoViewInput.cs:72`, `Key.q`) but the diff view binds **uppercase only**
+      (`Diff/DiffView.cs:93`, `Key.Q`), so `q` does nothing there — while `gmd/doc/help.md:14`
+      documents "Esc / Q" for quit.
+
 ### Determinism, which is where this will actually go wrong
 
 A captured screen is full of content that changes every run. All of it was visible in the first
@@ -1271,31 +1350,49 @@ captures taken: commit sha (`88453f`), author/commit dates (`26-08-03 02:47`), t
 the application bar, and right-edge padding that moves with pane width. Design for it up front
 rather than fighting flakes later:
 
-- [ ] Fix the pane size explicitly (`tmux new-session -x 120 -y 40`), so wrapping and the app bar's
-      space filler are stable.
-- [ ] Normalize before comparing — replace sha, dates and the repo path with placeholders, and strip
-      trailing whitespace per line. A small helper next to `GraphText` is the natural home, since it
-      does the same job for the other snapshot style.
-- [ ] Never sleep a fixed time; poll `capture-pane` until the expected text appears, with a timeout
-      that fails loudly. Fixed sleeps are the main source of flakes in this kind of test.
-- [ ] Reuse `TempRepo` for the repository, so the fixture is identical on every machine and nothing
-      outside its temp folder is touched. It already sets the config that would otherwise be the
-      developer's.
-- [ ] `[TestCategory("Integration")]` on the lot, so `./test --filter "TestCategory!=Integration"`
-      stays fast, and confirm tmux's absence fails with a clear message rather than a timeout — CI
-      images will not have it unless the workflow installs it.
+- [x] Fix the pane size explicitly (`tmux new-session -x 120 -y 40`), so wrapping and the app bar's
+      space filler are stable. The size is also asserted right after start, since a detached
+      session's size interacts with `window-size`/`default-size` and has moved between tmux
+      versions — one clear failure beats every snapshot failing at once.
+- [x] Normalize before comparing — `ScreenText`, next to `GraphText` as predicted. It turned out to
+      need *less* than the step assumed: with the dates and identity pinned the shas and times are
+      deterministic and get asserted rather than masked, so only the repo path is replaced, plus a
+      per-line right trim and dropping the trailing blank rows.
+- [x] Never sleep a fixed time; `WaitFor` polls for the text **and** for three identical captures in
+      a row. The stability half was not in the plan and turned out to be required, see the swallowed
+      keystrokes finding above.
+- [x] Reuse `TempRepo` for the repository — via `E2eRepo`, and one fresh repo per test, since
+      `.git/.gmdconfig` is rewritten on every repo show and is the one piece of state a redirected
+      `HOME` cannot isolate.
+- [x] `[TestCategory("Integration")]` on the lot, plus a second `E2e` category so the slow tier can
+      be excluded on its own. tmux's absence fails with "run ./installtools" rather than a timeout;
+      on Windows it is `Assert.Inconclusive`, that being the one case where skipping is right.
 
 ### First moves
 
-- [ ] One tmux test end to end: open a `TempRepo`, assert the log view shows the branch graph and the
-      commit subjects, press `d`, assert the side-by-side diff. That single test would already have
-      caught every startup-level regression this project has hit.
-- [ ] Then the paths that are pure UI and have no other coverage at all: the menus, the branch
-      show/hide keys, the commit dialog, and scrolling a long log.
+- [x] One tmux test end to end. It is `TestStartupShowsTheLogView`, and the diff went into its own
+      test (`TestDiffOfACommit`) since the two assert different screens.
+- [x] Then the paths that are pure UI and have no other coverage at all: the menus, the branch
+      show/hide keys and scrolling a long log are covered. The commit dialog is not — it mutates the
+      repo, which this step deliberately stayed out of; it is the obvious next test.
 - [ ] One `FakeDriver` test that renders a real graph and compares it against the matching
       `GraphText` snapshot. If those two agree, every existing `GraphTest` snapshot gains weight,
       because today they assert `GraphWriter`'s output rather than what reaches the screen.
-- [ ] Decide whether CI runs the tmux tier. It needs `tmux` in the runner image (one `apt-get`) and
-      it is slower; a separate job, or restricting it to the existing `build_test_release_job`, are
-      both reasonable. Note `test_job` already runs the whole suite with no category filter, so this
-      is a real decision, not a detail.
+      Still worth doing, and cheaper now: `E2eRepo`'s shape was chosen so that the hidden-branch
+      picture it draws is the same one `GraphTest` already characterizes, so the two tiers line up.
+- [x] **CI runs the tmux tier in the existing jobs.** No workflow change was needed to make it run —
+      both jobs already run `dotnet test` unfiltered through `./build` — so the only addition is one
+      `tmux -V || apt-get install` step per job, which is free when the image already has it and
+      self-healing if a future image drops it. A separate job was rejected: it would need its own
+      checkout, SDK setup and build to get the binary, roughly doubling CI time to parallelize
+      fourteen seconds, and it would let the release job publish without this tier having passed.
+
+### Next, when this is picked up again
+
+- [ ] The repo-mutating flows, one throwaway repo each: commit (`c`), create branch (`b`), tag
+      (`t`), switch (`s`) and merge (`e`). The last two are worth it precisely because they have no
+      confirmation dialog — they are one keystroke from changing the working tree.
+- [ ] Colors, via `TmuxSession.CaptureColors()`, which is already there.
+- [ ] The middle column-width arm (`commitWidth` 70–109); the widest and the narrowest are covered.
+- [ ] Mouse interaction, which `send-keys` cannot express — it needs raw SGR sequences
+      (`send-keys -H`) and exact coordinates.
