@@ -228,6 +228,24 @@ Suite went from 57 tests to 100, in three new test classes: `GraphTest` (the dra
       That also makes the line a resolved commit branches out on white, exactly as an ambiguous
       one already was. Covered by `GraphTest.TestCommitAssignedByUser`, which now asserts the
       colors as well as the runes.
+- [ ] **Found later, and it reopens what this step assumed: the views themselves are testable, with
+      no terminal and without waiting for Terminal.Gui 2.x.** This step was built on `Text.ToString()`
+      because "anything that draws needs a driver" was taken to mean drawing could not be reached.
+      It can — Terminal.Gui ships a public `FakeDriver`, and `Application.Init(new FakeDriver(), null)`
+      initializes headlessly. `FakeDriver.Contents` is then the cell grid the app drew, with the rune
+      at `[row, col, 0]` and the attribute at `[row, col, 1]`, so the drawn output *and* its colors
+      are both assertable. Verified against 1.19.0 with a standalone probe that rendered two labels
+      and read them back out of the buffer; `FakeMainLoop` is `internal`, so the main-loop driver has
+      to be passed as `null` rather than constructed.
+
+      Worth a step of its own, because it changes the shape of several things already written down:
+      the `GraphText` snapshots test `GraphWriter`'s output rather than what reaches the screen, so a
+      drawing bug like the `Φ` one above is still only caught by reading the code; `ContentViewTest`
+      stops one method short of `Redraw`; and the "UI is untestable" premise is part of the argument
+      for the 2.x port in Step 9. It does not remove that argument — 2.x's `InputInjector` drives
+      *input*, which `FakeDriver` alone does not — but it does mean the drawing half is available now.
+      Start with one test that renders a real `RepoView` graph through `FakeDriver` and compares it to
+      the matching `GraphText` snapshot; if those agree, the existing snapshots gain a lot of weight.
 
 ## Step 4 — Remaining git output parsers ✅ done
 
@@ -1041,10 +1059,10 @@ Deliberately after the tests, so regressions are detectable. Current status of e
   - **v1 is frozen.** `v1_release` and `v1_develop` both stop at 2025-06-12, the v1 milestone is
     closed, and no v1 fixes are planned. The CPU bug is the proof of what that costs: two years
     unfixed in the pinned version, and the fix that does exist arrived under an unrelated title.
-  - **24-bit colour, which is a product feature for this tool specifically.** `BranchColorService`
-    has a five colour branch palette, because `Cui/Common/Color.cs` is pinned to 1.x's 16-value
-    `Color` enum. A tool whose whole premise is showing many branches at once runs out of colours on
-    any real repo and starts reusing them. 2.x makes `Color` a true-colour struct.
+  - **24-bit color, which is a product feature for this tool specifically.** `BranchColorService`
+    has a five color branch palette, because `Cui/Common/Color.cs` is pinned to 1.x's 16-value
+    `Color` enum. A tool whose whole premise is showing many branches at once runs out of colors on
+    any real repo and starts reusing them. 2.x makes `Color` a true-color struct.
   - **`Cui/` becomes testable.** 2.x ships a `Terminal.Gui.Testing` namespace (`InputInjector`,
     `KeyInjectionEvent`, `MouseInjectionEvent`). Steps 3 and 8 have been *working around* the
     untestability of views by extracting Terminal.Gui-free classes (`Hoover`, `ContentScroll`,
@@ -1057,8 +1075,8 @@ Deliberately after the tests, so regressions are detectable. Current status of e
       Against, for now:
   - **The 441 tests do not cover where the risk is.** They protect the model, the parsers and the
     graph's *content* (`GraphCreater`/`GraphWriter` emit gmd's own `Text`, no driver involved). They
-    cover none of drawing, layout, key dispatch, dialogs, or what colour reaches the screen — which
-    is exactly the break list. Worse, the colour assertions that do exist (`GraphText.ColorsOf`,
+    cover none of drawing, layout, key dispatch, dialogs, or what color reaches the screen — which
+    is exactly the break list. Worse, the color assertions that do exist (`GraphText.ColorsOf`,
     `BranchColorServiceTest`) are written against 1.x's `Color` enum, so the safety net itself needs
     porting.
   - **It cannot be a series of small reviewable commits**, which every other step here has been. It

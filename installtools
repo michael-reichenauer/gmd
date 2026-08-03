@@ -19,6 +19,10 @@ echo "Installing xsel ..."
 sudo apt install -q xsel -y 1>/dev/null
 
 echo ""
+echo "Installing tmux (drives the TUI in tests and for manual verification) ..."
+sudo apt install -q tmux -y 1>/dev/null
+
+echo ""
 echo "setting working folder as safe in git config ..."
 git config --global --add safe.directory /workspaces/gmd
 
