@@ -228,6 +228,24 @@ Suite went from 57 tests to 100, in three new test classes: `GraphTest` (the dra
       That also makes the line a resolved commit branches out on white, exactly as an ambiguous
       one already was. Covered by `GraphTest.TestCommitAssignedByUser`, which now asserts the
       colors as well as the runes.
+- [ ] **Found later, and it reopens what this step assumed: the views themselves are testable, with
+      no terminal and without waiting for Terminal.Gui 2.x.** This step was built on `Text.ToString()`
+      because "anything that draws needs a driver" was taken to mean drawing could not be reached.
+      It can — Terminal.Gui ships a public `FakeDriver`, and `Application.Init(new FakeDriver(), null)`
+      initializes headlessly. `FakeDriver.Contents` is then the cell grid the app drew, with the rune
+      at `[row, col, 0]` and the attribute at `[row, col, 1]`, so the drawn output *and* its colors
+      are both assertable. Verified against 1.19.0 with a standalone probe that rendered two labels
+      and read them back out of the buffer; `FakeMainLoop` is `internal`, so the main-loop driver has
+      to be passed as `null` rather than constructed.
+
+      Worth a step of its own, because it changes the shape of several things already written down:
+      the `GraphText` snapshots test `GraphWriter`'s output rather than what reaches the screen, so a
+      drawing bug like the `Φ` one above is still only caught by reading the code; `ContentViewTest`
+      stops one method short of `Redraw`; and the "UI is untestable" premise is part of the argument
+      for the 2.x port in Step 9. It does not remove that argument — 2.x's `InputInjector` drives
+      *input*, which `FakeDriver` alone does not — but it does mean the drawing half is available now.
+      Start with one test that renders a real `RepoView` graph through `FakeDriver` and compares it to
+      the matching `GraphText` snapshot; if those agree, the existing snapshots gain a lot of weight.
 
 ## Step 4 — Remaining git output parsers ✅ done
 
@@ -924,7 +942,7 @@ Deliberately after the tests, so regressions are detectable. Current status of e
 
 | Package | Current | Latest | Notes |
 | --- | --- | --- | --- |
-| Terminal.Gui | 1.17.1 | 2.4.17 | Major rewrite of the UI layer. Do last. |
+| Terminal.Gui | 1.19.0 | 2.4.17 | 1.x is now current. 2.x is a major rewrite of the UI layer — see below. |
 | Autofac | 9.3.2 | 9.3.2 | Done. |
 | DiffPlex | 1.9.0 | 1.9.0 | Done. |
 | MSTest.\* | 4.3.3 | 4.3.3 | Done. |
@@ -995,8 +1013,107 @@ Deliberately after the tests, so regressions are detectable. Current status of e
     exits 0, but not one line reaches the screen. It only shows when stdout is a terminal, so
     piping the output (or CI) hides the problem. Fixed by passing `-tl:false` to `dotnet test`
     in `test`, `build` and `build.bat`.
-- [ ] Terminal.Gui 1.x → 2.x. The big one. Should not start until Step 3 gives the UI-adjacent
-      logic snapshot coverage.
+- [x] **Terminal.Gui 1.17.1 → 1.19.0, which fixes the 100% CPU bug on Linux and macOS.** One line
+      in `gmd.csproj`, and that is the whole fix — no product code touched.
+
+      The bug: gmd pinned one CPU core for as long as it ran, on Linux and macOS only. The cause is
+      in Terminal.Gui, and it is one character. `UnixMainLoop.Setup` creates a self-pipe and
+      registers a poll watch on its *read* end (`wakeupPipes[0]`), but the watch callback drains the
+      *write* end (`wakeupPipes[1]`). `read()` on a write-only fd fails, so the byte written by
+      `Wakeup()` is never consumed, `poll()` reports `POLLIN` forever, and `MainLoop.Run`'s
+      `while (running) { EventsPending(true); MainIteration(); }` never blocks again.
+
+      The trigger is `MainLoop.Invoke` → `AddIdle` → `Driver.Wakeup()`, i.e. `UI.Post`
+      (`Cui/Common/UI.cs:45`) — which `FileMonitor` and every background operation that marshals
+      back to the UI thread go through. So the spin starts within seconds of launch and never stops.
+      It needs no user input at all, which is why it was mistaken for a key or mouse listener.
+      Windows was never affected, `WindowsDriver` having its own main loop.
+
+      Fixed upstream by commit `433df8b`, released in **1.18.0** — under the title "Fixes #3738.
+      CursesDriver stops responding", which is why it was never connected to the CPU reports.
+      [Terminal.Gui#3018](https://github.com/tui-cs/Terminal.Gui/issues/3018) describes this exact
+      symptom and is *still open*: it was reopened in Jan 2024 to track a v1 fix, and its Nov 2025
+      comments concern a v2-only PR. Nobody retested v1 after 1.18.0 shipped. So it is fixed in both
+      branches, and it needed a patch bump rather than the 2.x port it was assumed to need.
+  - Measured, not assumed — a source diff is not a measurement. gmd run against a throwaway repo on
+    a pty, CPU time sampled from `/proc/<pid>/stat` over three 10 s windows: **99.9 / 100.0 / 100.0 %
+    on 1.17.1, and 0.0 / 0.1 / 0.0 % on 1.19.0**. It was already at 100% before any file was
+    touched, since gmd's own startup repo read posts to the UI thread.
+  - `1.17.1...1.19.0` is 42 commits touching four product files, with no public API change:
+    `UnixMainLoop.cs` (the fix above), `WindowsDriver.cs` (#3752, Windows Terminal Preview corrupts
+    the app size), `Views/Menu.cs` (#3740, a disabled `MenuItem` throws — gmd builds its own `Menu`,
+    so no effect here), and a Windows clipboard availability check (#3541, which guards the
+    `TrySetClipboardData` at `Utils/Clipboard.cs:166`). 1.19.0 ships the same `lib/net8.0` asset
+    1.17.1 did, so the net10.0 roll-forward and the transitive `NStack.Core` are unchanged.
+  - Verified: 0 warnings, 441 tests unchanged, `csharpier check` clean, `./build -l` publishes both
+    linux RIDs. Then run against a throwaway repo for the reason the .NET 10 item above records —
+    the log view drew the graph, a file change still reached it (so `UI.Post` and `FileMonitor` do
+    still work, they merely stopped spinning), `d` drew the side-by-side diff, and `~/gmd.log` held
+    only the expected DEBUG failures for a repo with no tags, no origin and no gmd metadata.
+- [ ] **Terminal.Gui 1.x → 2.x. Deferred deliberately — "when, not if", no longer "do last".** The
+      CPU bug was the only urgent reason to port, and the item above removed it for a one-line diff.
+      What remains is a real case, but an unforced one. Written down here so the decision is not
+      re-litigated from scratch each time.
+
+      For it:
+  - **v1 is frozen.** `v1_release` and `v1_develop` both stop at 2025-06-12, the v1 milestone is
+    closed, and no v1 fixes are planned. The CPU bug is the proof of what that costs: two years
+    unfixed in the pinned version, and the fix that does exist arrived under an unrelated title.
+  - **24-bit color, which is a product feature for this tool specifically.** `BranchColorService`
+    has a five color branch palette, because `Cui/Common/Color.cs` is pinned to 1.x's 16-value
+    `Color` enum. A tool whose whole premise is showing many branches at once runs out of colors on
+    any real repo and starts reusing them. 2.x makes `Color` a true-color struct.
+  - **`Cui/` becomes testable.** 2.x ships a `Terminal.Gui.Testing` namespace (`InputInjector`,
+    `KeyInjectionEvent`, `MouseInjectionEvent`). Steps 3 and 8 have been *working around* the
+    untestability of views by extracting Terminal.Gui-free classes (`Hoover`, `ContentScroll`,
+    `ContentSelection`, `MenuDimensions`, `MenuRows`); this would cover the other half directly.
+  - **Code that gets deleted rather than ported**: `MessageDlg.cs` (148 lines, a vendored copy of
+    1.x's `MessageBox`), `BorderView.cs` (52 lines, which exists only because 1.x's `View.Border`
+    does not draw for all views), and the parts of `ContentView`/`Menu` that 2.x has built in
+    (per-view scrolling, adornments, `ScrollBar`, `PopoverMenu`).
+
+      Against, for now:
+  - **The 441 tests do not cover where the risk is.** They protect the model, the parsers and the
+    graph's *content* (`GraphCreater`/`GraphWriter` emit gmd's own `Text`, no driver involved). They
+    cover none of drawing, layout, key dispatch, dialogs, or what color reaches the screen — which
+    is exactly the break list. Worse, the color assertions that do exist (`GraphText.ColorsOf`,
+    `BranchColorServiceTest`) are written against 1.x's `Color` enum, so the safety net itself needs
+    porting.
+  - **It cannot be a series of small reviewable commits**, which every other step here has been. It
+    is a branch that does not compile until it is finished.
+  - **2.x is stable-tagged but still moving fast**: 2.0.0 was 2026-04-28 and 2.4.17 is 2026-07-07,
+    seventeen releases in ten weeks, with `BREAKING CHANGE` items inside *minor* bumps (2.1.0
+    renamed `TableSelection.Cursor`, 2.4.0 moved `Bind`/`PlatformKeyBinding` to a new namespace).
+    Porting now means re-porting parts of it later.
+
+      The surface, so the size is not guessed later: 32 files with a real Terminal.Gui dependency
+      over ~11.7k lines in `gmd/Cui/`, and 9 custom `View` subclasses. `ColorScheme` and `Toplevel`
+      do not exist in 2.x at all (→ `Scheme`, and `Runnable`/`Window`/`IRunnable`); the key API is
+      wholly replaced (84 `Key.*` uses, 43 distinct keys, `Key.CtrlMask | X` composition, 5
+      `ProcessKey`/`ProcessHotKey` overrides); drawing is replaced (`Redraw(Rect)` →
+      `OnDrawingContent`, `Bounds` → `Viewport`, 42 `SetNeedsDisplay` → `SetNeedsDraw`, 6 overrides);
+      `ScrollBarView` and `Terminal.Gui.Trees` are gone (~50 refs in the two browse dialogs);
+      `Application.RootKeyEvent`/`RootMouseEvent` and `WantMousePositionReports` are gone; the driver
+      glyph fields at `Program.cs:62-64` and `MainLoop.Driver.Wakeup()` at `Progress.cs:84` have no
+      equivalent; and the namespace is split into `Terminal.Gui.App`/`.Views`/`.ViewBase`/`.Drawing`/
+      `.Input`/`.Drivers`, so every file's single `using` becomes several. One thing is easier than
+      the migration guide implies: static `Application.Init`/`Run`/`Shutdown`/`Invoke`/`AddTimeout`
+      still exist in 2.4.17 alongside the new `Application.Create()` instance model, so the port need
+      not adopt `IApplication` on day one.
+
+      Start it when there is a concrete want — a real branch palette, a v1 bug with no upstream fix,
+      UI-level tests blocking something else, or 2.x's cadence settling — not because the version
+      number is old. Until then the preparation is what Step 8 is already doing anyway: keep pushing
+      logic out of the Terminal.Gui-touching classes, and keep the surface funnelled through
+      `UI.cs`, `UIDialog.cs`, `Color.cs` and `ColorSchemes.cs`. When it does start, the order that
+      follows from the list above is `Color.cs` + `ColorSchemes.cs` first (everything renders through
+      them), then `UI.cs`, then `ContentView.cs`, then `UIDialog.cs` (which carries the ~8 dialog
+      files that never reference Terminal.Gui themselves), then the two browse dialogs, with
+      `MessageDlg.cs` deleted in favour of 2.x's `MessageBox`.
+  - Knock-on for Step 11: it is sequenced after this step only to avoid writing the Windows
+    clipboard path twice against `Terminal.Gui.Clipboard`. With the port deferred that reason is
+    gone, so Step 11 should be pulled forward — and it removes the last Terminal.Gui reference
+    outside `Cui/` while it is at it.
 
 ## Step 10 — Deferred / open questions
 
@@ -1019,10 +1136,11 @@ Deliberately after the tests, so regressions are detectable. Current status of e
 works and then does not on the same machine.** `Utils/Clipboard.cs` needs a rewrite rather than a
 patch — the reasons below are separate defects that each produce that symptom.
 
-Deliberately scheduled after Step 9 rather than earlier, for one concrete reason: the Windows path
-goes through `Terminal.Gui.Clipboard`, and Terminal.Gui 2.x changes that API. Doing this before the
-2.x upgrade means writing the Windows side twice. It is not blocked by anything else, so pull it
-forward if the copy bug starts costing more than the rework would.
+Originally scheduled after Step 9 for one concrete reason: the Windows path goes through
+`Terminal.Gui.Clipboard`, and Terminal.Gui 2.x changes that API, so doing this first meant writing
+the Windows side twice. **That reason is gone** — Step 9 defers the 2.x port indefinitely, so
+waiting for it now just means the copy bug stays unfixed. Pull this forward; the direction below
+drops `Terminal.Gui.Clipboard` entirely, which also settles the Step 8 layering note.
 
 ### What is actually wrong
 

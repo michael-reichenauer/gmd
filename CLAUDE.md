@@ -27,6 +27,36 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 
 Faster inner loop for verification: `dotnet build gmd.sln` and `./test`.
 
+### Running the TUI from a non-interactive shell
+
+gmd is a full-screen curses app, so it needs a pty: started from a shell with no terminal it will
+not run at all. There are two ways in, and they answer different questions.
+
+**tmux — the real binary, and the one to use.** tmux parses the escape sequences and keeps a screen
+model, so `capture-pane` hands back the rendered screen as plain text, which is what makes it
+assertable. Installed by `./installtools`.
+
+```bash
+tmux new-session -d -s gmd -x 120 -y 40 -c /path/to/some/repo  gmd/bin/Debug/net10.0/gmd
+until tmux capture-pane -t gmd -p | grep -q "uncommitted"; do sleep 1; done  # wait, never sleep blind
+tmux capture-pane -t gmd -p        # the rendered screen, as the user sees it
+tmux capture-pane -t gmd -p -e     # ... with the colors kept as ANSI
+tmux send-keys -t gmd d            # press a key; Escape is `tmux send-keys -t gmd Escape`
+tmux kill-session -t gmd
+```
+
+Always drive the *built binary* (`gmd/bin/Debug/net10.0/gmd`), not `./run` — `dotnet run` wraps the
+app in a second process, so the pid you measure or kill is the wrong one. Never point it at this
+working tree; use a throwaway repo, exactly as `TempRepo` does.
+
+**`script` — the fallback when tmux is missing.** `script -qfc "stty rows 45 cols 140; <cmd>"
+/dev/null` gives a pty and records the raw byte stream. That stream is redraw *traffic*, not a
+screen, so it reads as a smear of partial updates and is poor to assert on. Fine for "does it start
+and not crash", and for measuring CPU; use tmux for anything about what is on screen.
+
+Measuring CPU needs the delta of `utime+stime` from `/proc/<pid>/stat` over a window — `ps %cpu` is
+the average over the whole process lifetime, which hides a spin that starts late.
+
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
 sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
 scripts exist mainly for debugging Windows-specific behavior.
@@ -317,10 +347,17 @@ Other things to know:
   `GraphWriter` output as ASCII art without a Terminal.Gui driver.
 - Tests that need a real repository use `TempRepo`; **never** run git commands against this
   working tree.
-- Terminal.Gui views are not unit-testable without a driver — keep logic out of the view
-  classes so it can be tested. Anything that draws needs a driver, but constructing a view does
-  not: `ContentViewTest` builds a real `ContentView`, sets its `Frame` (which is where its height
-  comes from) and drives everything on it except drawing.
+- Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
+  builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
+  everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `MenuDimensions` and `MenuRows` exist.
+- **A driver is available in the box, and drawing is testable with no terminal.** Terminal.Gui ships
+  a public `FakeDriver`, and `Application.Init(new FakeDriver(), null)` succeeds headlessly —
+  `FakeDriver.Contents` is then the rendered cell grid, `[row, col, 0]` being the rune and
+  `[row, col, 1]` the attribute, so both the drawn text *and* its colors can be asserted. Verified
+  against 1.19.0 by a standalone probe; not adopted by the suite yet, and note `FakeMainLoop` is
+  `internal`, so pass `null` as the main-loop driver rather than trying to construct one. See the
+  Step 3 finding in `MODERNIZATION.md`.
 - Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates
   `CultureInfo.DefaultThreadCurrentCulture`, so enabling parallel execution would need care.
 

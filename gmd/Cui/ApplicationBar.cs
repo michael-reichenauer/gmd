@@ -73,7 +73,17 @@ class ApplicationBar : View, IApplicationBar
 
         UpdateView();
 
-        UI.AddTimeout(TimeSpan.FromSeconds(5), () => UpdateView());
+        // Repeating, so the update available indicator appears on an idle repo as well. The other
+        // callers of UpdateView() are all driven by activity (SetRepo, SetBranch, a resize), and
+        // an idle gmd left open is exactly when a new release turns up.
+        UI.AddTimeout(
+            TimeSpan.FromSeconds(5),
+            (_) =>
+            {
+                UpdateView();
+                return true;
+            }
+        );
     }
 
     // Called when clicking on the label
