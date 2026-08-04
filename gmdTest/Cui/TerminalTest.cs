@@ -521,4 +521,494 @@ public class TerminalTest
             repo.Path
         );
     }
+
+    // ── Committing ────────────────────────────────────────────────────────────────────────────
+    //
+    // The first flow here that changes the repository rather than only looking at it, which is
+    // why every test below gets its own throwaway repo and why the session pins the commit dates:
+    // without that the commit gmd makes is dated 'now', so its sid and its row in the time column
+    // would differ every run. See TmuxSession.EnvironmentVariables.
+
+    // The uncommitted row, which nothing in the suite drew until now: E2eRepo leaves the working
+    // tree clean, so the Repo.UncommittedId sentinel commit, its '©2' change count in the
+    // application bar and the current branch marker moving up onto it had no coverage at any tier.
+    [TestMethod]
+    public async Task TestUncommittedChangesAreShown()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        // Its time is DateTime.Now rather than a commit date, so it is the one thing on this
+        // screen that has to be masked. The commit rows below it keep their pinned times.
+        Assert.AreEqual(
+            """
+             Gmd {repo}, ●main, ©2                                                   (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣   ©2 uncommitted changes                                                (● main)                       NN-NN-NN NN:NN
+            ┣  ● Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
+            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
+            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
+            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            """,
+            ScreenText.MaskTimes(ScreenText.Of(gmd.WaitFor("Initial"), repo.Path), "uncommitted")
+        );
+    }
+
+    // 'c' commits, i.e. the dialog, the git command behind it and the refreshed log view. The one
+    // keystroke in this suite that writes a commit.
+    [TestMethod]
+    public async Task TestCommitChanges()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(7));
+        gmd.WaitFor("Initial");
+
+        gmd.Send("c");
+        var dialog = gmd.WaitFor("Commit 2 changes");
+
+        // The dialog itself: the change count and the branch it would commit to in the title row,
+        // the subject field, the message body below it and the buttons
+        Assert.AreEqual(
+            """
+                                   ╭ Commit ────────────────────────────────────────────────────────────────╮
+                                   │ Commit 2 changes on 'main':                                            │
+                                   │                                                                        │
+                                   │[                                                  ]                    │
+                                   │┌──────────────────────────────────────────────────────────────────────┐│
+                                   ││                                                                      ││
+            """,
+            ScreenText.Rows(dialog, repo.Path, 11, 6)
+        );
+
+        // The subject field has the focus, so the message is simply typed, and Enter presses the
+        // default OK button
+        gmd.SendText("Add epsilon");
+        gmd.WaitFor("Add epsilon");
+        gmd.Send("Enter");
+
+        // The uncommitted row is gone, the new commit is at the top with the branch tip on it, and
+        // its sid and time are the pinned ones — not masked, because the session pinned the dates
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣  ● Add epsilon                                                          (● main) 2d0391 Test User      24-10-15 12:07
+            ┣    Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
+            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
+            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
+            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("uncommitted changes"),
+            repo.Path
+        );
+
+        // And the repository really changed, which the screen alone does not prove. Both files are
+        // in the commit: gmd runs 'git add .' before 'git commit -am', and the add is what picks
+        // up the untracked one.
+        Assert.AreEqual("", await repo.GitAsync("status -s"), "The working tree should be clean");
+        Assert.AreEqual("Add epsilon", await repo.GitAsync("log --format=%s -1"));
+        Assert.AreEqual("alpha.txt\nepsilon.txt", await repo.GitAsync("show --name-only --format= HEAD"));
+    }
+
+    // The subject and the message body are two separate fields joined into one commit message, so
+    // what git ends up storing is worth pinning: the blank line between them is what makes the
+    // subject a subject.
+    [TestMethod]
+    public async Task TestCommitWithAMessageBody()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(7));
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.SendText("Add epsilon");
+        gmd.WaitFor("Add epsilon");
+        gmd.Send("Tab"); // From the subject field into the message body
+        gmd.WaitForStable();
+        gmd.SendText("Some body text");
+        gmd.WaitFor("Some body text");
+        gmd.Send("Tab"); // And on to the OK button, since Enter in the body is a newline
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone("uncommitted changes"), "Add epsilon");
+        Assert.AreEqual("Add epsilon\n\nSome body text", await repo.GitAsync("log --format=%B -1"));
+    }
+
+    // Ctrl-D in the commit dialog shows the diff of what is about to be committed, i.e. reviewing
+    // the changes without losing the message already typed. It is also the only path to the
+    // uncommitted diff, which is a different screen from a commit diff — it has no commit id or
+    // author, and its 'Modified' half is drawn side by side.
+    [TestMethod]
+    public async Task TestCommitDialogShowsTheUncommittedDiff()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.Send("C-d");
+        var screen = gmd.WaitFor("Added: epsilon.txt");
+
+        // From the message row down: the row above it is the diff's own date, which is 'now'
+        Assert.AreEqual(
+            """
+            Message: Uncommitted changes
+
+            2 Files:
+              Modified:    alpha.txt
+              Added:       epsilon.txt
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: alpha.txt
+
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+               1 alpha                                                 │   1 alpha
+            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│   2┃changed
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Added: epsilon.txt
+
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+               1┃epsilon
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            """,
+            ScreenText.Rows(screen, repo.Path, 2, 20)
+        );
+
+        // Escape leaves the diff and lands back on the commit dialog rather than on the log view,
+        // which is a modal over a modal over the log view
+        gmd.Send("Escape");
+        StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
+    }
+
+    // Escape cancels the dialog, and cancelling has to leave the repository alone. Note that the
+    // same key one view further out quits gmd, so this also pins that the dialog swallows it.
+    [TestMethod]
+    public async Task TestCancelCommitLeavesTheRepoUnchanged()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Commit 2 changes"), "©2 uncommitted changes");
+        Assert.IsTrue(gmd.IsRunning, "Escape in the commit dialog should close it, not quit gmd");
+        Assert.AreEqual(" M alpha.txt\n?? epsilon.txt", await repo.GitAsync("status -s"));
+        Assert.AreEqual("Add delta", await repo.GitAsync("log --format=%s -1"), "Nothing should be committed");
+    }
+
+    // The dialog's one validation rule, which is the difference between a rejected commit and a
+    // commit with an empty message
+    [TestMethod]
+    public async Task TestCommitWithAnEmptyMessageIsRejected()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.Send("Enter");
+
+        // Drawn inside the commit dialog, which is still open behind it
+        var screen = gmd.WaitFor("Empty commit message");
+        Assert.AreEqual(
+            """
+                                   ││                    ╭ Error ! ───────────────────╮                    ││
+                                   ││                    │Empty commit message        │                    ││
+                                   ││                    │                            │                    ││
+                                   ││                    │          [◦ OK ◦]          │                    ││
+                                   ││                    ╰────────────────────────────╯                    ││
+            """,
+            ScreenText.Rows(screen, repo.Path, 17, 5)
+        );
+
+        Assert.AreEqual("Add delta", await repo.GitAsync("log --format=%s -1"), "Nothing should be committed");
+    }
+
+    // ── Branching, tagging, switching and merging ──────────────────────────────────────────────
+    //
+    // The rest of the keys that change the repository. Three of them act on the *hoovered* branch
+    // rather than on the current row, which is the part that only an end-to-end test reaches:
+    // `Hoover` is unit tested as index math, but which branch a given key sequence ends up on, and
+    // therefore what 's' switches to and what 'e' merges, is a property of the running app.
+
+    // 'b' with no branch hoovered creates the branch at the current row's commit
+    [TestMethod]
+    public async Task TestCreateBranchFromACommit()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("b");
+
+        // Both check boxes are on by default: 'Checkout' is why HEAD moves below, and 'Publish' is
+        // a push that fails silently here because the fixture has no origin — BranchCreateCommands
+        // swallows exactly that error, and this is what pins that it still does
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
+            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
+            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
+            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+
+
+
+
+
+
+
+                                                  ╭ Create Branch at Commit ─────────────────╮
+                                                  │ From: main at 17d85b                     │
+                                                  │                                          │
+                                                  ││                                        ││
+                                                  │└────────────────────────────────────────┘│
+                                                  │ ◙ Checkout                               │
+                                                  │ ◙ Publish                                │
+                                                  │                                          │
+                                                  │                                          │
+                                                  │           [◦ OK ◦] [ Cancel ]            │
+                                                  ╰──────────────────────────────────────────╯
+            """,
+            gmd.WaitFor("Create Branch at Commit"),
+            repo.Path
+        );
+
+        gmd.SendText("feature");
+        gmd.WaitFor("feature");
+        gmd.Send("Enter");
+
+        // The new branch is current and drawn as its own column, branching out of main
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●feature                                                    (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣─┺ ● Add delta                                            (main)(● feature)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("(● feature)"),
+            repo.Path
+        );
+
+        Assert.AreEqual("feature", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+        Assert.AreEqual("17d85ba889a1084f912c412d0ce435c9d7a36f53", await repo.GitAsync("rev-parse feature"));
+    }
+
+    // With a branch hoovered the same key creates from that branch instead, which is a different
+    // command and a differently titled dialog. Cancelled, so it also pins that cancelling creates
+    // nothing.
+    [TestMethod]
+    public async Task TestCreateBranchFromAHooveredBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Left"); // Hoovers main, the right most branch of the row
+        gmd.WaitForStable();
+        gmd.Send("b");
+        var screen = gmd.WaitFor("Create Branch");
+
+        Assert.AreEqual(
+            """
+                                                  ╭ Create Branch ───────────────────────────╮
+                                                  │ From: main                               │
+            """,
+            ScreenText.Rows(screen, repo.Path, 14, 2)
+        );
+
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Create Branch");
+        Assert.AreEqual("  dev\n* main", await repo.GitAsync("branch"), "No branch should have been created");
+    }
+
+    [TestMethod]
+    public async Task TestAddATag()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("t");
+        var screen = gmd.WaitFor("Add Tag");
+        Assert.AreEqual(
+            """
+                                          ╭ Add Tag ─────────────────────────────────────────────────╮
+                                          │ Name:                                                    │
+                                          ││                         │                               │
+                                          │└─────────────────────────┘                               │
+                                          │ Message:                                                 │
+            """,
+            ScreenText.Rows(screen, repo.Path, 13, 5)
+        );
+
+        gmd.SendText("v2.0");
+        gmd.WaitFor("v2.0");
+        gmd.Send("Enter");
+
+        // The new tag is drawn next to the one the fixture already has, on the current row
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣  ● Add delta                                                (● main)[v1.0][v2.0] 17d85b Test User      24-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
+            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
+            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
+            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("[v2.0]"),
+            repo.Path
+        );
+
+        Assert.AreEqual("v1.0\nv2.0", await repo.GitAsync("tag --points-at HEAD"));
+    }
+
+    // 's' switches to the hoovered branch, with no confirmation of any kind — one keystroke from
+    // changing the working tree, which is why it is worth an end-to-end test.
+    [TestMethod]
+    public async Task TestSwitchToBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        // Show dev: down to the merge commit, left to hoover main, enter to open the branch that
+        // was merged in there
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+
+        // The hoover is left on main, i.e. on the branch that is already current, and 's' on that
+        // is deliberately a no-op (OnKeyS's PrimaryName guard). Worth pinning: it is the reason
+        // 'show a branch and press s' does nothing, which reads like a dropped keystroke.
+        gmd.Send("s");
+        gmd.WaitForStable();
+        Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "'s' on the current branch");
+
+        // One step right is dev, and there it does switch
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("s");
+
+        // The current markers moved: '●dev' in the application bar, '●' on dev's tip commit and
+        // '(● dev)' on its branch tip, while main keeps its plain '(main)'
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣     Add delta                                                       (main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣│    Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┃╰╊ ● More dev work                                                        (● dev) af3ee6 Test User      24-10-15 12:03
+            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("(● dev)"),
+            repo.Path
+        );
+
+        Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+    }
+
+    // 'e' merges the hoovered branch into the current one. It does not commit by itself: the merge
+    // is left uncommitted and the commit dialog opens on top of it with the message filled in,
+    // which is the one thing about this flow that cannot be guessed from the key table.
+    [TestMethod]
+    public async Task TestMergeBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.GitAsync("checkout -q dev"); // Merge main into dev, since dev is already in main
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(7));
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Left"); // Hoovers main, the branch the cursor row is on
+        gmd.WaitForStable();
+        gmd.Send("e");
+
+        // The merge is in the working tree, as the uncommitted row says, and the dialog offers the
+        // message git would have used
+        var screen = gmd.WaitFor("Commit 2 changes");
+        Assert.AreEqual(
+            """
+             ╭╊  ©Merge branch 'main' into dev, 2 uncommitted changes                  (● dev)                       NN-NN-NN NN:NN
+            """,
+            ScreenText.MaskTimes(ScreenText.Rows(screen, repo.Path, 2, 1), "uncommitted")
+        );
+        StringAssert.Contains(screen, "[Merge branch 'main' into dev");
+
+        gmd.Send("Enter");
+
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭╊ ● Merge branch 'main' into dev                                         (● dev) 60e4d8 Test User      24-10-15 12:07
+            ┣╯┃   Add delta                                                       (main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮┃   Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣│┃   Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┃╰╊   More dev work                                                                af3ee6 Test User      24-10-15 12:03
+            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("uncommitted changes"),
+            repo.Path
+        );
+
+        // A real merge commit, i.e. two parents: dev's tip and main's tip
+        Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+        Assert.AreEqual("af3ee69 17d85ba", await repo.GitAsync("log --format=%p -1"));
+        Assert.AreEqual("", await repo.GitAsync("status -s"), "The working tree should be clean");
+    }
+
+    // The other arm of the same key: with the *current* branch hoovered there is nothing to merge
+    // into, so it offers the branches to merge from instead
+    [TestMethod]
+    public async Task TestMergeFromMenu()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Enter"); // Shows dev, and leaves the hoover on main, which is current
+        gmd.WaitFor("More dev work");
+
+        gmd.Send("e");
+
+        // Only the shown branches are offered, so the menu lists dev and nothing else. The stray
+        // 'k' is the tail of 'More dev work' behind the menu, which is drawn over the log view.
+        Assert.AreEqual(
+            """
+            ┣│ ╭ Merge from ─╮                                                                 4a15fb Test User      24-10-15 12:04
+            ┃╰╊│ o  dev      │k                                                          (dev) af3ee6 Test User      24-10-15 12:03
+            ┃╭┺╰─────────────╯                                                                 d997ad Test User      24-10-15 12:02
+            """,
+            ScreenText.Rows(gmd.WaitFor("Merge from"), repo.Path, 4, 3)
+        );
+    }
 }

@@ -15,7 +15,8 @@ namespace gmdTest.Fixtures;
 // it nothing to fetch from. It also keeps the ahead/behind markers out of every snapshot.
 //
 // The working tree is left clean, so there is no uncommitted row — that row is the one thing on
-// the screen whose time is DateTime.Now rather than a pinned commit date.
+// the screen whose time is DateTime.Now rather than a pinned commit date. CreateWithChangesAsync
+// is the variant that does have one, for the tests about committing.
 static class E2eRepo
 {
     // The standard shape:
@@ -46,6 +47,23 @@ static class E2eRepo
 
         await repo.CommitFileAtAsync("delta.txt", "delta\n", "Add delta", t.AddMinutes(6));
         await repo.GitAsync("tag v1.0");
+
+        return repo;
+    }
+
+    // The same shape with uncommitted changes on top: one tracked file modified and one new file
+    // added, so the log view draws the uncommitted row, the application bar the change count, and
+    // the commit dialog has two changes to report.
+    //
+    // Both kinds are there on purpose: gmd commits by running 'git add .' and then
+    // 'git commit -am' (CommitService), and the add is what picks up an untracked file, so a
+    // fixture with only modified files would not notice if it were lost.
+    public static async Task<TempRepo> CreateWithChangesAsync()
+    {
+        var repo = await CreateAsync();
+
+        repo.WriteFile("alpha.txt", "alpha\nchanged\n");
+        repo.WriteFile("epsilon.txt", "epsilon\n");
 
         return repo;
     }

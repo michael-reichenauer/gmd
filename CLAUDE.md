@@ -374,7 +374,7 @@ bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black)
 is how the current row's highlight is reached, that being a background rather than a foreground.
 
 Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
-filter above excludes them. Five things they do that matter, and that a new test must keep doing:
+filter above excludes them. Six things they do that matter, and that a new test must keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
   under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
@@ -388,10 +388,23 @@ filter above excludes them. Five things they do that matter, and that a new test
   screen is silently lost, not queued.
 - **A fresh repo per test.** `<repo>/.git/.gmdconfig` holds the shown-branch list and is rewritten
   on every repo show, and it is the one piece of state `HOME` cannot isolate.
+- **Pinned dates when the test lets gmd commit.** `StartGmd(repo, commitTime: …)` puts
+  `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` into gmd's environment, which the `git` it shells out to
+  inherits, so the commit it makes has a fixed sha and time and is asserted rather than masked —
+  what `CommitFileAtAsync` does for fixture commits. Opt in per test: it pins every commit of that
+  session to one second, and two of those have nothing to order them by. `E2eRepo` has
+  `CreateWithChangesAsync` for a working tree with something to commit, and the uncommitted row's
+  own time is `DateTime.Now`, so that one row goes through `ScreenText.MaskTimes`.
 
-Two traps worth knowing before adding one: **`Escape` in the log view quits the app**, so never send
-a "safety" Escape; and a modal dialog is drawn *over* the log view rather than replacing it, so the
-rows behind it still match whatever `WaitFor` is looking for — use `WaitUntilGone` to mean "closed".
+Three traps worth knowing before adding one: **`Escape` in the log view quits the app**, so never
+send a "safety" Escape; a modal dialog is drawn *over* the log view rather than replacing it, so the
+rows behind it still match whatever `WaitFor` is looking for — use `WaitUntilGone` to mean "closed";
+and for the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application
+bar does not tell you what the hoover is on** — it is set both by the hoover and by the current
+row's branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read
+the `Branch: <name>` menu title instead; that is the only readout from outside. Expect the hoover to
+stay where it was after a command, not to follow what appeared: after `Enter` opens a branch it is
+still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
 

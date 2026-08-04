@@ -140,11 +140,15 @@ sealed class TempRepo : IDisposable
     // 'git commit', i.e. a merge
     public string GitAt(string[] args, DateTimeOffset time) => Proc.Ok("git", args, Path, PinnedEnv(time));
 
+    // A time as git reads it in GIT_AUTHOR_DATE / GIT_COMMITTER_DATE. Also used by TmuxSession, to
+    // pin the dates of a commit the running gmd makes itself.
+    public static string GitDate(DateTimeOffset time) => time.ToString("yyyy-MM-ddTHH:mm:sszzz");
+
     // The identity and dates a pinned commit is made with. The identity duplicates what InitAsync
     // sets locally, since the commit id depends on it and this leaves no doubt.
     static IReadOnlyDictionary<string, string> PinnedEnv(DateTimeOffset time)
     {
-        var date = time.ToString("yyyy-MM-ddTHH:mm:sszzz");
+        var date = GitDate(time);
         return new Dictionary<string, string>
         {
             ["GIT_AUTHOR_DATE"] = date,

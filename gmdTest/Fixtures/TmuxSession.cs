@@ -39,36 +39,50 @@ sealed class TmuxSession : IDisposable
     readonly string repoPath;
     readonly int width;
     readonly int height;
+    readonly DateTimeOffset? commitTime;
 
     // Set by the environment to leave the session up after a test, for looking at a screen a
     // snapshot disagrees with
     static bool IsKeepAlive => Environment.GetEnvironmentVariable("GMD_E2E_KEEP") == "1";
 
-    TmuxSession(string socket, TempHome home, string repoPath, int width, int height)
+    TmuxSession(string socket, TempHome home, string repoPath, int width, int height, DateTimeOffset? commitTime)
     {
         this.socket = socket;
         this.home = home;
         this.repoPath = repoPath;
         this.width = width;
         this.height = height;
+        this.commitTime = commitTime;
     }
 
     // The throwaway HOME the app ran under, so a test can assert what gmd wrote there
     public string Home => home.Path;
 
-    public static TmuxSession StartGmd(TempRepo repo, int width = DefaultWidth, int height = DefaultHeight) =>
-        StartGmd(repo.Path, width, height);
+    public static TmuxSession StartGmd(
+        TempRepo repo,
+        int width = DefaultWidth,
+        int height = DefaultHeight,
+        DateTimeOffset? commitTime = null
+    ) => StartGmd(repo.Path, width, height, commitTime);
 
     public static TmuxSession StartGmd(
         string repoPath,
         int width = DefaultWidth,
         int height = DefaultHeight,
+        DateTimeOffset? commitTime = null,
         params string[] extraArgs
     )
     {
         EnsureTmux();
 
-        var session = new TmuxSession($"gmd-e2e-{Guid.NewGuid():N}", TempHome.Create(), repoPath, width, height);
+        var session = new TmuxSession(
+            $"gmd-e2e-{Guid.NewGuid():N}",
+            TempHome.Create(),
+            repoPath,
+            width,
+            height,
+            commitTime
+        );
         try
         {
             session.Start(extraArgs);
@@ -204,7 +218,9 @@ sealed class TmuxSession : IDisposable
     }
 
     // The environment gmd runs under. This is the whole hermeticity story, see TempHome.
-    IReadOnlyList<string> EnvironmentVariables() =>
+    IReadOnlyList<string> EnvironmentVariables()
+    {
+        List<string> variables =
         [
             $"HOME={home.Path}",
             // HOME alone does not cover git, which also reads $XDG_CONFIG_HOME/git/config
@@ -223,6 +239,25 @@ sealed class TmuxSession : IDisposable
             // Nothing may ever block on a credential prompt in a pane nobody is watching
             "GIT_TERMINAL_PROMPT=0",
         ];
+
+        // A commit gmd makes itself would otherwise be dated 'now', so its sid and its row in the
+        // time column would differ on every run — the one thing E2eRepo pins everywhere else. gmd
+        // shells out to git (Cmd starts it with UseShellExecute = false and never touches
+        // Environment, so the child inherits this), and CommitService runs 'git commit -am', which
+        // honors both variables. So this makes the commit the test creates as deterministic as the
+        // fixture commits it lands on top of, and it can be asserted rather than masked.
+        //
+        // Opt in per test rather than always on: it pins every commit the session makes to the
+        // same second, and 'git log --all --date-order' would then have nothing to order two of
+        // them by, which is the row order flake E2eRepo's increasing times exist to avoid.
+        if (commitTime != null)
+        {
+            variables.Add($"GIT_AUTHOR_DATE={TempRepo.GitDate(commitTime.Value)}");
+            variables.Add($"GIT_COMMITTER_DATE={TempRepo.GitDate(commitTime.Value)}");
+        }
+
+        return variables;
+    }
 
     // Polls capture-pane until the condition holds and the screen has then been unchanged for
     // StableCount polls in a row

@@ -46,10 +46,14 @@ static class ScreenText
     public static string Rows(string capture, string repoPath, int first, int count) =>
         Join(Lines(capture, repoPath).Skip(first).Take(count));
 
-    // Replaces the times in place, i.e. with a placeholder of the same width so the columns stay
-    // aligned. For the screens that show a time which cannot be pinned, i.e. the uncommitted row,
-    // whose time is DateTime.Now.
-    public static string MaskTimes(string screen) => TimeRegex.Replace(screen, "NN-NN-NN NN:NN");
+    // Replaces the time on the rows containing 'onRowsWith' with a placeholder of the same width,
+    // so the column stays aligned and its position is still asserted.
+    //
+    // For the one row whose time cannot be pinned: the uncommitted row, whose time is DateTime.Now
+    // rather than a commit date. It is row-targeted rather than whole-screen deliberately — the
+    // commit rows on the same screen do have pinned times, and those are worth asserting.
+    public static string MaskTimes(string screen, string onRowsWith) =>
+        Join(screen.Split('\n').Select(l => l.Contains(onRowsWith) ? TimeRegex.Replace(l, "NN-NN-NN NN:NN") : l));
 
     // The color of every character on the screen as one letter each, lined up under the text of
     // Of(), which is what GraphText.ColorsOf does for the graph column alone. Takes an escaped

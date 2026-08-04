@@ -1272,8 +1272,8 @@ Both tiers were proven out in the session that wrote this step, so neither is sp
 
 ### What was built ✅ tmux tier done
 
-Suite went from 441 tests to 459, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 17 tests,
-~14 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
+Suite went from 441 tests to 471, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 30 tests,
+~50 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
 up front, it is what the investigation concluded was possible, and it is what keeps the tier valid
 across the 2.x port.
 
@@ -1288,7 +1288,8 @@ across the 2.x port.
 
 Covered: startup and the whole log view, that the run is hermetic, quit by `q` and by `Esc`, the
 narrow-width column arm, the details pane, the commit menu, the help dialog, show/hide branch as a
-round trip, a commit diff, the filter, and paging a 30-commit log.
+round trip, a commit diff, the filter, paging a 30-commit log, and the repo-mutating keys —
+committing, creating a branch, tagging, switching and merging.
 
 - [x] **Hermeticity, which turned out to be the actual work.** A gmd run *writes* `~/.gmdconfig`,
       **truncates `~/gmd.log`** and **deletes `~/.gmdstate*`**, and none of those paths can be
@@ -1415,6 +1416,77 @@ round trip, a commit diff, the filter, and paging a 30-commit log.
 
       This is the first product change this step has made, and it is the payoff the step was
       argued for: a key that silently did nothing, in the one place a user is told to look.
+- [x] **The commit flow is covered, and a commit gmd makes is as deterministic as a fixture one.**
+      The first tests here that change the repository rather than only look at it. Six of them
+      (suite 459 → 465): the uncommitted row, the dialog and the commit it writes, a message with a
+      body, the dialog's Ctrl-D diff, cancelling, and the empty-message validation.
+
+      The problem worth writing down is determinism, since it is the thing that would have made
+      this tier flaky. A commit gmd creates is dated *now*, so its sid and its row in the time
+      column change every run — exactly what `E2eRepo` pins for every other commit on screen.
+      Masking both would work and would throw away the assertion. Instead the *session* pins them:
+      `TmuxSession.StartGmd(repo, commitTime: …)` puts `GIT_AUTHOR_DATE` / `GIT_COMMITTER_DATE`
+      into the environment gmd runs under, and `Cmd` starts git with `UseShellExecute = false`
+      without touching `Environment`, so the git that `CommitService` shells out to inherits them.
+      The commit the test makes then has a fixed sha, and `2d0391 … 24-10-15 12:07` is asserted
+      like any fixture row. It is opt-in per test rather than always on, for the same reason
+      `E2eRepo`'s times increase: two commits pinned to one second would have nothing to order them
+      by under `git log --all --date-order`.
+
+      Consequences and the small things found on the way:
+      - **The uncommitted row now has coverage at all**, which it had at no tier before —
+        `Repo.UncommittedId`'s sentinel row, the `©2` change count in the application bar, and the
+        current branch marker moving up onto it. Its own time really is `DateTime.Now`, so this is
+        what `ScreenText.MaskTimes` finally exists for. It was made row-targeted
+        (`MaskTimes(screen, "uncommitted")`) rather than whole-screen: the commit rows on the same
+        screen do have pinned times and are worth asserting.
+      - `E2eRepo.CreateWithChangesAsync` deliberately leaves **both** a modified tracked file and
+        an untracked one, because gmd commits by running `git add .` and then `git commit -am`, and
+        only the add picks the untracked one up. `git show --name-only` asserts both landed.
+      - **Escape from the dialog's Ctrl-D diff lands back on the commit dialog**, not on the log
+        view — a modal over a modal over the log view, drawn and unwound correctly. Cheap to assert
+        and precisely the sort of thing the 2.x port rewrites.
+      - **No product bug this time**, unlike the `Q` finding. Every branch driven behaved as the
+        code says it should.
+      - **Amend (`a`) is a no-op against this fixture**, and correctly so: `Commit` returns early
+        unless `CurrentCommit().IsAhead`, which needs a remote to be ahead of, and `E2eRepo` has
+        none on purpose. Covering amend therefore needs a fixture with an origin — `TempRepo`
+        already has `AddOriginAsync`, so it is a fixture variant rather than new machinery, but it
+        brings the ahead/behind markers into every snapshot that uses it.
+- [x] **The rest of the repo-mutating keys are covered: `b`, `t`, `s` and `e`.** Six more tests
+      (suite 465 → 471, tier ~50 s): create a branch from a commit and from a hoovered branch, add
+      a tag, switch, merge, and the merge-from menu. No product code changed, and nothing was found
+      broken — every path behaved as the code says, which is the outcome a characterization suite
+      wants and is not the same as having learned nothing.
+
+      What driving them taught, which is the part worth keeping:
+      - **The hoover is what these keys act on, and it is not what the application bar shows.**
+        `applicationBarView.SetBranch` is called from two places: by the hoover when it moves
+        (`RepoViewInput.cs:508`) and by the *current row's* branch when the row changes
+        (`RepoView.OnCurrentIndexChange`). So an operation that moves the row leaves the bar naming
+        one branch while the hoover is on another. The only reliable readout of the hoover from
+        outside is the branch menu, whose title is `Branch: <name>` — which is how these tests were
+        written, and how the next one should be.
+      - **After `Enter` shows a branch, the hoover stays on the branch it was on, not the branch
+        that appeared.** So the natural "open dev, press `s`" does nothing at all: the hoover is
+        still `main`, and `OnKeyS`'s `PrimaryName != currentName` guard drops it. That is what the
+        code says should happen and it is not a bug, but it looks exactly like a swallowed
+        keystroke, so `TestSwitchToBranch` pins both halves — the no-op, and that one `Right` later
+        the same key switches. This cost most of the time this step took, since the symptom (`s`
+        does nothing) has three plausible causes and only the menu probe distinguishes them.
+      - **`e` does not merge and commit; it merges and then opens the commit dialog.**
+        `MergeBranch` ends in `RefreshAndCommit(…, commits)`, so the working tree is left with an
+        uncommitted merge and the dialog offers `Merge branch 'main' into dev` as the message. The
+        merge is therefore one keystroke away, but the commit is not — which is the opposite of
+        what the "no confirmation dialog" note in the plan assumed, and the reason the test needs
+        `commitTime:` like the commit tests do.
+      - **Create branch publishes by default**, and against a repo with no origin the push fails
+        and the failure is deliberately swallowed (`BranchCreateCommands` matches on `'origin' does
+        not appear to be a git repository`). The dialog snapshot keeps both check boxes visible, so
+        a change to either default shows up as a failing test.
+      - **The merge-from menu lists only shown branches**, so with just `main` shown it draws an
+        empty menu box rather than saying there is nothing to merge. `TestMergeFromMenu` therefore
+        shows `dev` first. Worth a look some day; it is a UI nicety, not a defect.
 
 ### Determinism, which is where this will actually go wrong
 
@@ -1475,9 +1547,12 @@ rather than fighting flakes later:
 
 ### Next, when this is picked up again
 
-- [ ] The repo-mutating flows, one throwaway repo each: commit (`c`), create branch (`b`), tag
-      (`t`), switch (`s`) and merge (`e`). The last two are worth it precisely because they have no
-      confirmation dialog — they are one keystroke from changing the working tree.
+- [x] The repo-mutating flows, one throwaway repo each: commit (`c`), create branch (`b`), tag
+      (`t`), switch (`s`) and merge (`e`) — **all done**, see the two findings above. Commit built
+      the machinery the rest needed (a fixture with changes, and pinned dates for a commit gmd
+      makes itself); the other four turned out to be mostly a lesson in the hoover.
+- [ ] Amend (`a`), which is the one key of that family still uncovered, since it needs a fixture
+      with an origin to have anything to amend — see the finding above.
 - [x] Colors, via `TmuxSession.CaptureColors()` — done, see the finding above.
 - [ ] The middle column-width arm (`commitWidth` 70–109); the widest and the narrowest are covered.
 - [ ] Mouse interaction, which `send-keys` cannot express — it needs raw SGR sequences
