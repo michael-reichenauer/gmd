@@ -68,6 +68,31 @@ static class E2eRepo
         return repo;
     }
 
+    // The same shape with an 'origin' remote next door, everything pushed to it except one commit
+    // on top. That last part is the point: amend is only offered for a commit that is still ahead
+    // of the remote (CommitCommands.Commit checks CurrentCommit().IsAhead), i.e. one that has not
+    // been published yet and can still be rewritten.
+    //
+    // Note that this is the only fixture here with a remote, so it is also the only one whose
+    // screens carry the ahead marker and the local/remote branch tips.
+    public static async Task<TempRepo> CreateWithOriginAsync()
+    {
+        var repo = await CreateAsync();
+
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q --set-upstream origin main");
+
+        // The tag has to be pushed as well, and not for tidiness: gmd fetches with --prune-tags
+        // (RemoteService.cs), which deletes local tags that are not on the remote, so a local only
+        // tag disappears from this fixture at whatever moment the first fetch completes. Pushing
+        // it is what keeps these screens stable. See the finding in MODERNIZATION.md, Step 12.
+        await repo.GitAsync("push -q origin v1.0");
+
+        await repo.CommitFileAtAsync("zeta.txt", "zeta\n", "Add zeta", TempRepo.BaseTime.AddMinutes(7));
+
+        return repo;
+    }
+
     // A repository with more commits than fit on a screen, for the scrolling tests
     public static async Task<TempRepo> CreateLongAsync(int commits = 30)
     {

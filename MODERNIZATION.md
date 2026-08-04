@@ -1272,8 +1272,8 @@ Both tiers were proven out in the session that wrote this step, so neither is sp
 
 ### What was built ✅ tmux tier done
 
-Suite went from 441 tests to 471, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 30 tests,
-~50 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
+Suite went from 441 tests to 473, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 32 tests,
+~53 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
 up front, it is what the investigation concluded was possible, and it is what keeps the tier valid
 across the 2.x port.
 
@@ -1289,7 +1289,7 @@ across the 2.x port.
 Covered: startup and the whole log view, that the run is hermetic, quit by `q` and by `Esc`, the
 narrow-width column arm, the details pane, the commit menu, the help dialog, show/hide branch as a
 round trip, a commit diff, the filter, paging a 30-commit log, and the repo-mutating keys —
-committing, creating a branch, tagging, switching and merging.
+committing, amending, creating a branch, tagging, switching and merging.
 
 - [x] **Hermeticity, which turned out to be the actual work.** A gmd run *writes* `~/.gmdconfig`,
       **truncates `~/gmd.log`** and **deletes `~/.gmdstate*`**, and none of those paths can be
@@ -1450,9 +1450,8 @@ committing, creating a branch, tagging, switching and merging.
         code says it should.
       - **Amend (`a`) is a no-op against this fixture**, and correctly so: `Commit` returns early
         unless `CurrentCommit().IsAhead`, which needs a remote to be ahead of, and `E2eRepo` has
-        none on purpose. Covering amend therefore needs a fixture with an origin — `TempRepo`
-        already has `AddOriginAsync`, so it is a fixture variant rather than new machinery, but it
-        brings the ahead/behind markers into every snapshot that uses it.
+        none on purpose. Covering amend therefore needs a fixture with an origin — done since, see
+        below, and it was that fixture which turned up the `--prune-tags` bug.
 - [x] **The rest of the repo-mutating keys are covered: `b`, `t`, `s` and `e`.** Six more tests
       (suite 465 → 471, tier ~50 s): create a branch from a commit and from a hoovered branch, add
       a tag, switch, merge, and the merge-from menu. No product code changed, and nothing was found
@@ -1487,6 +1486,46 @@ committing, creating a branch, tagging, switching and merging.
       - **The merge-from menu lists only shown branches**, so with just `main` shown it draws an
         empty menu box rather than saying there is nothing to merge. `TestMergeFromMenu` therefore
         shows `dev` first. Worth a look some day; it is a UI nicety, not a defect.
+- [x] **Amend (`a`) is covered, and the fixture with an origin found a real bug** (suite 471 → 473).
+      Two tests: amending the message of an unpushed commit, and that the key is refused once the
+      commit is on the remote. `E2eRepo.CreateWithOriginAsync` is the fixture — the standard shape,
+      a bare origin next door, everything pushed except one commit on top, which is what
+      `CommitCommands.Commit`'s `CurrentCommit().IsAhead` guard needs to have anything to offer.
+
+      It is also the only fixture here with a remote, so these two tests are the only place the
+      ahead marker (`▲1` in the application bar, `▲` on the commit), the `(^/main)` remote tip and
+      the local branch drawn beside its remote reach a snapshot at all.
+
+      - **Amend stays deterministic**, but not the way the commit tests do: git keeps the original
+        *author* date when amending and only rewrites the committer date, so `GIT_AUTHOR_DATE` from
+        `commitTime:` is ignored and `GIT_COMMITTER_DATE` is not. Both are pinned either way, so
+        the amended sha is stable — and the time column does not move, since it shows the author
+        date. The test asserts that pair explicitly, because it is the kind of thing a future git
+        version could change.
+- [ ] **Bug found, not fixed — opening a repo deletes local tags that are not on the remote.**
+      `RemoteService.FetchAsync` (`RemoteService.cs:31`) runs
+      `git fetch --force --prune --tags --prune-tags origin`, and `--prune-tags` means exactly
+      "delete local tags the remote does not have". Git's own documentation warns about this
+      option: *"it will remove tags that were created locally"*. `RepoView` fetches when a repo is
+      opened, every five minutes after that, and on `r`/`F5`, with no way to turn it off.
+
+      Driven and isolated rather than reasoned about: a fixture with `v1.0` on a commit, a bare
+      origin the tag was never pushed to, then start gmd and press nothing. `git tag` lists `v1.0`
+      before and lists nothing after startup. The control — the same fixture with the tag pushed —
+      keeps it. So this is not about amend, or about any command; **it is the act of opening the
+      repository**, and the tag is gone with no message and no undo.
+
+      The one-line fix is to drop `--prune-tags` (keeping `--prune`, which only prunes remote
+      tracking branches, and `--tags`, which fetches the remote's tags). The cost of dropping it is
+      that a tag deleted on the server lingers locally until someone removes it by hand, which is
+      what plain `git fetch` does and is a great deal better than silently deleting a local tag.
+      Left for the maintainer to decide, since it is a deliberate flag rather than an oversight and
+      changing it changes fetch semantics for everyone; a regression test belongs with the fix.
+
+      Consequence already taken: `E2eRepo.CreateWithOriginAsync` pushes `v1.0`, since a local only
+      tag would otherwise vanish from that fixture at whatever moment the first fetch completed —
+      i.e. this bug would have shown up as a flaky snapshot rather than as a finding, had the
+      screens been written without noticing it.
 
 ### Determinism, which is where this will actually go wrong
 
@@ -1551,8 +1590,10 @@ rather than fighting flakes later:
       (`t`), switch (`s`) and merge (`e`) — **all done**, see the two findings above. Commit built
       the machinery the rest needed (a fixture with changes, and pinned dates for a commit gmd
       makes itself); the other four turned out to be mostly a lesson in the hoover.
-- [ ] Amend (`a`), which is the one key of that family still uncovered, since it needs a fixture
-      with an origin to have anything to amend — see the finding above.
+- [x] Amend (`a`) with an origin fixture — done, see the finding above, which also turned up the
+      `--prune-tags` bug.
+- [ ] Decide on the `--prune-tags` finding above: fix with a regression test, or write down why the
+      current behavior is wanted.
 - [x] Colors, via `TmuxSession.CaptureColors()` — done, see the finding above.
 - [ ] The middle column-width arm (`commitWidth` 70–109); the widest and the narrowest are covered.
 - [ ] Mouse interaction, which `send-keys` cannot express — it needs raw SGR sequences

@@ -1011,4 +1011,111 @@ public class TerminalTest
             ScreenText.Rows(gmd.WaitFor("Merge from"), repo.Path, 4, 3)
         );
     }
+
+    // 'a' amends the last commit, but only while it is still ahead of the remote, i.e. not yet
+    // published. That guard is why this is the one flow here that needs a fixture with an origin,
+    // and the fixture is also the only place in this suite where the ahead marker, the '(^/main)'
+    // remote branch tip and the local branch drawn beside its remote reach a snapshot at all.
+    [TestMethod]
+    public async Task TestAmendTheLastCommit()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(8));
+
+        // '▲1' in the application bar and '▲' on the commit are the one commit not yet pushed,
+        // and '(^/main)' is origin/main, still on the commit below it
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺ ●▲Add zeta                                                            (● main) 4dd1e9 Test User      24-10-15 12:07
+            ┣╯    Add delta                                                     (^/main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("Initial"),
+            repo.Path
+        );
+
+        gmd.Send("a");
+        var dialog = gmd.WaitFor("Amend 0 changes");
+
+        // The dialog is the commit one retitled, with the message of the commit being amended
+        // filled in and the cursor at its end. '0 changes' because the working tree is clean here:
+        // amending only the message is a normal thing to do.
+        Assert.AreEqual(
+            """
+                                   ╭ Amend ─────────────────────────────────────────────────────────────────╮
+                                   │ Amend 0 changes on 'main':                                             │
+                                   │                                                                        │
+                                   │[Add zeta                                          ]                    │
+            """,
+            ScreenText.Rows(dialog, repo.Path, 11, 4)
+        );
+
+        gmd.SendText(" amended");
+        gmd.WaitFor("Add zeta amended");
+        gmd.Send("Enter");
+
+        // Same row, same position, new message and a new id — and the time column does not move,
+        // since amending keeps the author date and only the committer date is rewritten
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺ ●▲Add zeta amended                                                    (● main) 9df2d6 Test User      24-10-15 12:07
+            ┣╯    Add delta                                                     (^/main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("Add zeta amended"),
+            repo.Path
+        );
+
+        // One commit was rewritten rather than added, and it is still the one commit that is ahead
+        Assert.AreEqual("Add zeta amended", await repo.GitAsync("log --format=%s -1"));
+        Assert.AreEqual("Add delta", await repo.GitAsync("log --format=%s -1 HEAD~1"));
+        Assert.AreEqual(
+            "2024-10-15 12:07:00 +0000|2024-10-15 12:08:00 +0000",
+            await repo.GitAsync("log --format=%ad|%cd --date=iso -1"),
+            "Amending should keep the author date and move only the committer date"
+        );
+        StringAssert.Contains(await repo.GitAsync("status -sb"), "[ahead 1]");
+    }
+
+    // The guard that makes amend safe: once the commit is on the remote it is not offered at all,
+    // and the key silently does nothing rather than rewriting published history.
+    [TestMethod]
+    public async Task TestAmendIsRefusedForAPushedCommit()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("push -q origin main"); // Nothing is ahead any more
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(8));
+        gmd.WaitFor("Initial");
+
+        gmd.Send("a");
+
+        // No dialog opens. The '▲' ahead markers are gone now that everything is pushed, and the
+        // remote is drawn as its own '(^)' tip beside the local one on the same commit.
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣─┺ ● Add zeta                                                         (^)(● main) 4dd1e9 Test User      24-10-15 12:07
+            ┣     Add delta                                                             [v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitForStable(),
+            repo.Path
+        );
+
+        Assert.AreEqual("Add zeta", await repo.GitAsync("log --format=%s -1"), "Nothing should be rewritten");
+    }
 }
