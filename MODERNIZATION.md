@@ -1328,12 +1328,39 @@ round trip, a commit diff, the filter, and paging a 30-commit log.
       and gmd, which `CLAUDE.md` warns against. The tests assert that gmd terminated; a crash shows
       up as a `WaitFor` timing out with the screen and the log tail in the message, which is better
       evidence anyway.
-- [ ] **Pre-existing, not introduced here, and worth fixing separately: `./test` truncates the
-      developer's `~/gmd.log`.** Any test that touches `TempRepo` goes through `gmd.Utils.Cmd`,
-      which logs, and `ConfigLogger`'s static constructor truncates the log on first use. Measured:
-      the 16 pre-existing integration tests alone rewrite it. The new tier does not add to this —
-      `Proc` logs nothing and the tmux'd gmd writes into its temp home — but it does not fix it
-      either. The fix would be to give the *test process* a redirected home too.
+- [x] **Fixed, and it was pre-existing rather than introduced here: `./test` truncated the
+      developer's `~/gmd.log`.** Any test that runs a git command goes through `gmd.Utils.Cmd`,
+      which logs, and `ConfigLogger`'s static constructor truncates the log the first time anything
+      in the process logs at all. So `./test` wiped the log that `./log` exists to read — worst
+      exactly when a developer is reading it, i.e. while chasing a bug. Measured before the fix:
+      the 16 pre-existing integration tests alone rewrote it.
+
+      Fixed by giving the *test process* a throwaway `$HOME` too, in `gmdTest/TestSetup.cs`
+      (`[AssemblyInitialize]`, reusing `TempHome`) — the same move `TmuxSession` already makes for
+      the gmd it starts, so both halves of the suite are now isolated the same way. It covers
+      `~/.gmdconfig` and `~/.gmdstate*` as well, should a test ever reach the services that write
+      those. No product code changed.
+
+      Two things that had to be got right, both found by probing rather than assumed:
+      - **The folder must exist before `HOME` is set.** `GetFolderPath(UserProfile)` returns an
+        *empty string* for a `HOME` that does not exist, and `Path.Join` then yields the relative
+        `gmd.log` — which would quietly land in the working directory instead. It does honor a
+        `HOME` changed at runtime, i.e. the value is not cached, which is what makes this work.
+      - **It has to run before anything logs**, since `ConfigLogger` resolves the path once in its
+        static constructor. `[AssemblyInitialize]` is early enough; nothing in the suite logs from
+        a static initializer.
+
+      Verified: 453 tests pass, `~/gmd.log` byte-identical across a full run (checked with a marker
+      line and an md5), the log demonstrably written into `/tmp/gmdTest-home-*/gmd.log` instead, no
+      stray `gmd.log` in the working directory, temp homes cleaned up, and
+      `--collect:"XPlat Code Coverage"` still writes a cobertura report.
+
+      Unix only, and deliberately so: on Windows the user profile folder does not come from `HOME`,
+      so a test run there still truncates the log. Not worth product code to fix — Linux/macOS are
+      the development platforms, and Windows matters as a *release* target that is verified by
+      running the app, not by running this suite. What a rare Windows session gets is a suite that
+      still passes: the fast and integration tests run normally, and the terminal tests report
+      `Inconclusive` (tmux being Unix only) rather than failing.
 - [ ] Two things left for later, deliberately: the `FakeDriver` test below, and colors.
       `TmuxSession.CaptureColors()` (`capture-pane -p -e`) is there and unused — the branch colors,
       the cyan sid and the highlighted current row are all real and all uncovered, but an

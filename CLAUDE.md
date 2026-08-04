@@ -394,6 +394,11 @@ Other things to know:
 - Put a test at the path mirroring its subject, e.g.
   `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`.
 - `gmdTest/Usings.cs` provides the global usings (`Assert`, `Try`, `Log`).
+- **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
+  (`[AssemblyInitialize]`) before anything can log. Without it `./test` truncated the developer's
+  `~/gmd.log`, since any test that runs a git command goes through `Cmd`, which logs, and
+  `ConfigLogger` truncates the log on first use. So a test cannot read or write the real home, and
+  `~/gmd.log` during a test run is at `/tmp/gmdTest-home-*/gmd.log`.
 - `internal` types are visible to tests, so services can be constructed directly
   (`new BranchNameService()`) — no DI container needed.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:

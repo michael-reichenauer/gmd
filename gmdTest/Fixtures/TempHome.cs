@@ -2,8 +2,8 @@ using IOPath = System.IO.Path;
 
 namespace gmdTest.Fixtures;
 
-// A throwaway $HOME for a gmd run, and the whole of the hermeticity story for the end-to-end
-// tests.
+// A throwaway $HOME, and the whole of the hermeticity story for these tests. Two callers:
+// TmuxSession, for the gmd it starts, and TestSetup, for the test process itself.
 //
 // gmd has no way to redirect where it keeps its state: the paths in ConfigService, ConfigLogger
 // and Upgrader are all anchored on SpecialFolder.UserProfile with no flag, env var or setting to
