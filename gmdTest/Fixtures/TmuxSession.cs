@@ -141,7 +141,8 @@ sealed class TmuxSession : IDisposable
     {
         if (IsKeepAlive)
         {
-            Log.Info($"GMD_E2E_KEEP: attach with 'tmux -L {socket} attach', home is '{home.Path}'");
+            // The socket is inside the home, so TMUX_TMPDIR is needed to find it again
+            Log.Info($"GMD_E2E_KEEP: attach with 'TMUX_TMPDIR={home.Path} tmux -L {socket} attach'");
             return;
         }
 
