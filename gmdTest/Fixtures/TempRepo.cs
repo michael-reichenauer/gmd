@@ -25,6 +25,10 @@ sealed class TempRepo : IDisposable
     // are ever deleted
     const string FolderPrefix = "gmdTest-repo-";
 
+    // Who commits, set locally below and passed explicitly by the pinned commits
+    public const string AuthorName = "Test User";
+    public const string AuthorEmail = "test@example.com";
+
     readonly ICmd cmd = new Cmd();
 
     string originPath = "";
@@ -99,6 +103,63 @@ sealed class TempRepo : IDisposable
         return await CommitAsync(message);
     }
 
+    // The base time for pinned commits. Fixed so repeated runs produce identical repositories,
+    // and the same value RepoBuilder uses, so the two fixture styles read alike.
+    public static readonly DateTimeOffset BaseTime = new(2024, 10, 15, 12, 0, 0, TimeSpan.Zero);
+
+    // Commits with the author and committer dates pinned, as well as the identity. That makes
+    // three things deterministic which otherwise are not:
+    //
+    //   - the time column the UI draws, since it is the author time
+    //   - the commit ids, since a commit object is exactly its tree, parents, identity, dates
+    //     and message, so fixing all of those fixes its sha
+    //   - the order of the rows, since 'git log --all --date-order' orders by commit date and
+    //     has nothing left to break a tie with
+    //
+    // The last one is the reason this is not merely cosmetic. Times must be distinct and
+    // increasing, for the same reason RepoBuilder's are.
+    //
+    // This goes around IGit rather than through it because ICmd cannot pass environment
+    // variables, and the committer date can only be set by one: there is no git config and no
+    // command line flag for it.
+    public async Task<string> CommitAtAsync(string message, DateTimeOffset time)
+    {
+        Proc.Ok("git", ["add", "-A"], Path, PinnedEnv(time));
+        Proc.Ok("git", ["commit", "-m", message, "--no-verify", "--no-gpg-sign"], Path, PinnedEnv(time));
+        return await HeadIdAsync();
+    }
+
+    // Writes a file and commits it with the dates pinned, returns the id of the new commit
+    public async Task<string> CommitFileAtAsync(string name, string text, string message, DateTimeOffset time)
+    {
+        WriteFile(name, text);
+        return await CommitAtAsync(message, time);
+    }
+
+    // Runs a raw git command with the dates pinned, for the steps that create a commit without
+    // 'git commit', i.e. a merge
+    public string GitAt(string[] args, DateTimeOffset time) => Proc.Ok("git", args, Path, PinnedEnv(time));
+
+    // A time as git reads it in GIT_AUTHOR_DATE / GIT_COMMITTER_DATE. Also used by TmuxSession, to
+    // pin the dates of a commit the running gmd makes itself.
+    public static string GitDate(DateTimeOffset time) => time.ToString("yyyy-MM-ddTHH:mm:sszzz");
+
+    // The identity and dates a pinned commit is made with. The identity duplicates what InitAsync
+    // sets locally, since the commit id depends on it and this leaves no doubt.
+    static IReadOnlyDictionary<string, string> PinnedEnv(DateTimeOffset time)
+    {
+        var date = GitDate(time);
+        return new Dictionary<string, string>
+        {
+            ["GIT_AUTHOR_DATE"] = date,
+            ["GIT_COMMITTER_DATE"] = date,
+            ["GIT_AUTHOR_NAME"] = AuthorName,
+            ["GIT_AUTHOR_EMAIL"] = AuthorEmail,
+            ["GIT_COMMITTER_NAME"] = AuthorName,
+            ["GIT_COMMITTER_EMAIL"] = AuthorEmail,
+        };
+    }
+
     public async Task<string> HeadIdAsync() => (await GitAsync("rev-parse HEAD")).Trim();
 
     // Adds a bare repository next to this one as its 'origin' remote, so pushing, fetching and
@@ -133,8 +194,8 @@ sealed class TempRepo : IDisposable
         // base section (diff3/zdiff3), diff headers losing their 'a/' 'b/' prefixes, and a
         // global ignore file hiding a file the test just wrote. The last two paths are files
         // that do not exist, i.e. no hooks and nothing ignored.
-        await GitAsync("config user.name \"Test User\"");
-        await GitAsync("config user.email test@example.com");
+        await GitAsync($"config user.name \"{AuthorName}\"");
+        await GitAsync($"config user.email {AuthorEmail}");
         await GitAsync("config commit.gpgsign false");
         await GitAsync("config tag.gpgsign false");
         await GitAsync("config core.autocrlf false");

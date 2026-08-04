@@ -18,6 +18,8 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ```bash
 ./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
 ./test [args]    # dotnet test gmdTest/gmdTest.csproj "$@"
+                 #   --filter "TestCategory!=Integration"  fast tests only (~0.4 s)
+                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests
 ./build          # full release: test + package audit + publish all platforms (slow)
 ./build -l       # linux only (much faster; use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
@@ -49,6 +51,15 @@ Always drive the *built binary* (`gmd/bin/Debug/net10.0/gmd`), not `./run` — `
 app in a second process, so the pid you measure or kill is the wrong one. Never point it at this
 working tree; use a throwaway repo, exactly as `TempRepo` does.
 
+**Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
+home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`),
+**truncates `~/gmd.log`**, and **deletes `~/.gmdstate*`**. None of those paths can be redirected —
+`ConfigService`, `ConfigLogger` and `Upgrader` all anchor on `SpecialFolder.UserProfile` with no
+override — so `HOME` is the only lever, and on Unix it also isolates `~/.gitconfig` from the git
+commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well: `Build.IsDevInstance()`
+only recognizes `gmd.dll` and `dotnet`, so the *built binary is not a dev instance* and really does
+call the GitHub releases API on startup.
+
 **`script` — the fallback when tmux is missing.** `script -qfc "stty rows 45 cols 140; <cmd>"
 /dev/null` gives a pty and records the raw byte stream. That stream is redraw *traffic*, not a
 screen, so it reads as a smear of partial updates and is poor to assert on. Fine for "does it start
@@ -56,6 +67,9 @@ and not crash", and for measuring CPU; use tmux for anything about what is on sc
 
 Measuring CPU needs the delta of `utime+stime` from `/proc/<pid>/stat` over a window — `ps %cpu` is
 the average over the whole process lifetime, which hides a spin that starts late.
+
+**The same thing, as tests.** All of the above is packaged as `TmuxSession` (`gmdTest/Fixtures/`),
+and the tests are `gmdTest/Cui/TerminalTest.cs` — see the Testing section below.
 
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
 sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
@@ -249,7 +263,7 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 MSTest 3.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout. Growing this suite is
 an explicit goal — see `MODERNIZATION.md` for what is planned next.
 
-There are four pieces of test infrastructure; use them rather than inventing a fifth way.
+There are five pieces of test infrastructure; use them rather than inventing a sixth way.
 
 **`RepoBuilder`** (`gmdTest/Fixtures/`) builds a `GitRepo` — the raw facts git would report —
 and runs the real augmentation pipeline. Commits are declared **newest first** (git log order)
@@ -332,11 +346,78 @@ The repository is deleted on `Dispose`, and nothing outside its temp folder is e
 so `./test --filter "TestCategory!=Integration"` runs only the fast tests. `./test` passes its
 arguments on to `dotnet test`.
 
+`CommitFileAtAsync` / `CommitAtAsync` / `GitAt` commit with the author *and* committer dates pinned.
+Use them for any fixture whose drawn output is asserted: it fixes the time column, makes the commit
+ids reproducible (a commit object is just its tree, parents, identity, dates and message), and —
+the part that is not cosmetic — removes the row-order flake, since `git log --all --date-order`
+orders by commit date and has nothing to break a tie with. They go around `IGit` because `ICmd`
+cannot pass environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committer date.
+
+**`TmuxSession`** (`gmdTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real
+pty. tmux keeps a screen model, so `capture-pane` gives back the rendered screen, and that is what
+is asserted — the drawing, the layout, the key dispatch and the dialogs, none of which anything
+else in the suite reaches. It names no Terminal.Gui type, deliberately, so it is as valid against a
+2.x build as a 1.x one. `ScreenText` normalizes a capture and `E2eRepo` builds the fixture repo:
+
+```csharp
+using var repo = await E2eRepo.CreateAsync();
+using var gmd = TmuxSession.StartGmd(repo);            // 120x40, hermetic env, updater off
+ScreenText.AssertEqual("""<a picture of the screen>""", gmd.WaitFor("Initial"), repo.Path);
+gmd.Send("Enter");                                     // a key; SendText types into a dialog
+gmd.WaitUntilGone("Gmd Help Guide");                   // i.e. "the dialog closed"
+```
+
+Colors are assertable too: `gmd.CaptureColors()` keeps them as ANSI, and `ScreenText.ColorsOf` /
+`ColorRows` / `BackgroundRows` turn that into one letter per cell lined up under the text, exactly
+as `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for its
+bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black). `BackgroundRows`
+is how the current row's highlight is reached, that being a background rather than a foreground.
+
+Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
+filter above excludes them. Six things they do that matter, and that a new test must keep doing:
+
+- **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
+  under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
+- **`TZ=UTC` and `LC_ALL=C.UTF-8`**, since the time column is local time formatted with the current
+  culture, and the UI is drawn with `● ┣ ┅ Ϙ`.
+- **A private tmux server** (`-L <socket> -f <conf>`, socket inside the temp home) so the
+  developer's `~/.tmux.conf` and running server cannot change a capture or be disturbed by one.
+- **Polling, never sleeping.** `WaitFor` waits for the text *and* for three identical captures in a
+  row. The stability half is not optional: gmd **drops** keystrokes while a git command is running
+  (`Progress.Show` → `UI.StopInput` → `RootKeyEvent = _ => true`), so a key sent into a moving
+  screen is silently lost, not queued.
+- **A fresh repo per test.** `<repo>/.git/.gmdconfig` holds the shown-branch list and is rewritten
+  on every repo show, and it is the one piece of state `HOME` cannot isolate.
+- **Pinned dates when the test lets gmd commit.** `StartGmd(repo, commitTime: …)` puts
+  `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` into gmd's environment, which the `git` it shells out to
+  inherits, so the commit it makes has a fixed sha and time and is asserted rather than masked —
+  what `CommitFileAtAsync` does for fixture commits. Opt in per test: it pins every commit of that
+  session to one second, and two of those have nothing to order them by. `E2eRepo` has
+  `CreateWithChangesAsync` for a working tree with something to commit, and the uncommitted row's
+  own time is `DateTime.Now`, so that one row goes through `ScreenText.MaskTimes`.
+
+Three traps worth knowing before adding one: **`Escape` in the log view quits the app**, so never
+send a "safety" Escape; a modal dialog is drawn *over* the log view rather than replacing it, so the
+rows behind it still match whatever `WaitFor` is looking for — use `WaitUntilGone` to mean "closed";
+and for the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application
+bar does not tell you what the hoover is on** — it is set both by the hoover and by the current
+row's branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read
+the `Branch: <name>` menu title instead; that is the only readout from outside. Expect the hoover to
+stay where it was after a command, not to follow what appeared: after `Enter` opens a branch it is
+still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
+When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
+`GMD_E2E_KEEP=1` leaves the session up to attach to.
+
 Other things to know:
 
 - Put a test at the path mirroring its subject, e.g.
   `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`.
 - `gmdTest/Usings.cs` provides the global usings (`Assert`, `Try`, `Log`).
+- **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
+  (`[AssemblyInitialize]`) before anything can log. Without it `./test` truncated the developer's
+  `~/gmd.log`, since any test that runs a git command goes through `Cmd`, which logs, and
+  `ConfigLogger` truncates the log on first use. So a test cannot read or write the real home, and
+  `~/gmd.log` during a test run is at `/tmp/gmdTest-home-*/gmd.log`.
 - `internal` types are visible to tests, so services can be constructed directly
   (`new BranchNameService()`) — no DI container needed.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:

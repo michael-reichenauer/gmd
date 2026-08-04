@@ -40,6 +40,13 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      # The end-to-end UI tests drive the built binary in a tmux pane (gmdTest/Fixtures/
+      # TmuxSession.cs), and they fail rather than skip when tmux is missing, deliberately, so
+      # that this tier cannot quietly stop running. ubuntu-latest ships tmux today but nothing
+      # pins that, so install it if the image ever drops it. Free when it is already there.
+      - name: Ensure tmux (end-to-end UI tests)
+        run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
+
       # Must run before './build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.
       - name: Check formatting
@@ -81,6 +88,10 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
+
+      # See the same step in test_job above
+      - name: Ensure tmux (end-to-end UI tests)
+        run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
 
       # Must run before './build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.

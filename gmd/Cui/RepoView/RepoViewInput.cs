@@ -69,7 +69,13 @@ class RepoViewInput
 
         // Keys on repo view contents
         commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
+
+        // Both cases quit, since the help guide documents this key as 'Q'. Note that keys are
+        // looked up by exact value, so a case is only handled if it is registered: 'p' and 'P'
+        // below are deliberately different commands, and that is the reason to be explicit here
+        // rather than to fold case anywhere central.
         commitsView.RegisterKeyHandler(Key.q, () => UI.Shutdown());
+        commitsView.RegisterKeyHandler(Key.Q, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
         commitsView.RegisterKeyHandler(Key.o, () => Menus.ShowOpenRepoMenu());

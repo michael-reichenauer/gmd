@@ -1078,7 +1078,14 @@ Deliberately after the tests, so regressions are detectable. Current status of e
     cover none of drawing, layout, key dispatch, dialogs, or what color reaches the screen — which
     is exactly the break list. Worse, the color assertions that do exist (`GraphText.ColorsOf`,
     `BranchColorServiceTest`) are written against 1.x's `Color` enum, so the safety net itself needs
-    porting.
+    porting. **Step 12 exists to fix this, and should be done first** — its tmux tier names no
+    Terminal.Gui type, so it survives the port and becomes its acceptance suite.
+    **Update: that tier now exists** (12 tests, `gmdTest/Cui/TerminalTest.cs`), so this argument is
+    weaker than it was. It is not gone: the tests cover the log view, the menus, the details pane,
+    the diff and the filter, but not the dialogs that write, not the mouse, and not colors. Run them
+    against a 2.x branch as the first thing after it compiles — a failing screen there is a real
+    regression, and a passing one is worth more than the whole 441-test model suite for this
+    purpose.
   - **It cannot be a series of small reviewable commits**, which every other step here has been. It
     is a branch that does not compile until it is finished.
   - **2.x is stable-tagged but still moving fast**: 2.0.0 was 2026-04-28 and 2.4.17 is 2026-07-07,
@@ -1099,11 +1106,25 @@ Deliberately after the tests, so regressions are detectable. Current status of e
       `.Input`/`.Drivers`, so every file's single `using` becomes several. One thing is easier than
       the migration guide implies: static `Application.Init`/`Run`/`Shutdown`/`Invoke`/`AddTimeout`
       still exist in 2.4.17 alongside the new `Application.Create()` instance model, so the port need
-      not adopt `IApplication` on day one.
+      not adopt `IApplication` on day one. 2.4.17 also ships a single `net10.0` asset, which matches
+      gmd's target exactly — no roll-forward, unlike the `net8.0` asset 1.x is running on today.
+
+      One trap worth knowing before reading anything upstream: **the migration guide lives on
+      `v2_develop` and describes things that are not in the released package.** It states that
+      `TextField` is renamed to `Editor`, for instance, while 2.4.17 still has both `TextField` and
+      `TextView` and no `Editor` at all. Check the shipped assembly — `Terminal.Gui.xml` inside the
+      nupkg, or reflection over `GetExportedTypes()` — rather than trusting the guide on any specific
+      API. That is also how the `FakeDriver`/`FakeMainLoop` visibility in Step 3's finding was
+      settled, after the XML docs alone gave the wrong answer (they list only *documented* members,
+      so absence from them is not absence from the assembly).
 
       Start it when there is a concrete want — a real branch palette, a v1 bug with no upstream fix,
       UI-level tests blocking something else, or 2.x's cadence settling — not because the version
-      number is old. Until then the preparation is what Step 8 is already doing anyway: keep pushing
+      number is old, and not before Step 12 has given it something to be verified against. Note that
+      one of the arguments above is now weaker than it looks: "`Cui/` becomes testable" is only half
+      true, since Step 3's finding shows the *drawing* half is reachable on 1.x already. What 2.x
+      adds over that is `InputInjector`, i.e. the input half — real, but a smaller prize than it
+      first appeared. Until then the preparation is what Step 8 is already doing anyway: keep pushing
       logic out of the Terminal.Gui-touching classes, and keep the surface funnelled through
       `UI.cs`, `UIDialog.cs`, `Color.cs` and `ColorSchemes.cs`. When it does start, the order that
       follows from the list above is `Color.cs` + `ColorSchemes.cs` first (everything renders through
@@ -1197,3 +1218,419 @@ failing machine yet, so confirm against a real report before assuming which one 
 - [ ] Testable through `ICmd`, so `FakeCmd` covers tool selection and the command line built for
       each platform. What cannot be faked — whether the clipboard actually holds the text
       afterwards — needs a manual check per platform; write down which ones were verified.
+
+## Step 12 — Terminal (end-to-end) UI testing ✅ tmux tier done
+
+**Do this before Step 9's 2.x port.** The suite has 441 tests and none of them covers what reaches
+the screen: not drawing, not layout, not key dispatch, not dialogs, not the colors a user sees. That
+is also, precisely, the list of things the 2.x port rewrites — so today the port would be
+unverifiable, which is the single strongest argument against starting it. This step is the safety
+net that changes that, and it pays for itself long before the port ever happens.
+
+It is the same move this document has made twice already: characterization tests before a risky
+rewrite (Step 2 before `BranchStructureService`, Step 3 before the graph work). Step 9 opens with
+"deliberately after the tests, so regressions are detectable" — this is the missing half of that
+sentence for the UI.
+
+### Two tiers, and only one of them survives the port
+
+This distinction is the whole point of the step, so do not blur it.
+
+| | tmux end-to-end | `FakeDriver` headless |
+| --- | --- | --- |
+| What runs | the built binary, real git, real pty | views in-process, no terminal |
+| Drives | keystrokes (`tmux send-keys`) | direct calls; input is not reachable |
+| Asserts on | the rendered screen (`capture-pane -p`) | `FakeDriver.Contents` cell grid |
+| Speed | ~seconds per test | ~milliseconds |
+| Terminal.Gui API used | **none** | `FakeDriver`, `Application.Init`, `Contents` |
+| **Survives the 2.x port** | **yes, unchanged** | **no — rewritten by the port** |
+
+That last row is the sequencing answer. A tmux test says "open this repo, press `d`, expect a
+side-by-side diff containing `beta gemma delta`" and never names a Terminal.Gui type, so it is just
+as valid against a 2.x build as a 1.x one. Written as characterization tests — capture what gmd does
+*today*, not what it ought to do — they become a before/after comparison across the port, which is
+the bar `CLAUDE.md` already sets for `BranchStructureService` and the one Step 8 used for the
+989-line split. `FakeDriver` tests, by contrast, name types that 2.x removes; they are worth having
+for fast feedback during v1's remaining life, but they are not port insurance and should not be
+counted as such.
+
+So: build the tmux tier first and treat it as the port's acceptance suite. Add `FakeDriver` tests
+opportunistically where a fast unit-level check of drawing is what is actually wanted.
+
+### What is already known to work
+
+Both tiers were proven out in the session that wrote this step, so neither is speculative.
+
+- **tmux.** Installed by `./installtools`. The recipe, the two traps (drive the built binary rather
+  than `./run`; poll `capture-pane` rather than sleeping) and the `script` fallback are written up in
+  `CLAUDE.md` under "Running the TUI from a non-interactive shell". Driving gmd to the diff view and
+  capturing a clean, readable screen takes about a dozen lines of shell.
+- **`FakeDriver`.** Public in Terminal.Gui 1.19.0; `Application.Init(new FakeDriver(), null)`
+  initializes with no terminal at all and `FakeDriver.Contents` is the drawn cell grid, rune at
+  `[row, col, 0]` and attribute at `[row, col, 1]` — so colors are assertable too. `FakeMainLoop` is
+  `internal`, hence the `null`. See the Step 3 finding.
+
+### What was built ✅ tmux tier done
+
+Suite went from 441 tests to 475, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 34 tests,
+~55 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
+up front, it is what the investigation concluded was possible, and it is what keeps the tier valid
+across the 2.x port.
+
+| File | What it is |
+| --- | --- |
+| `Fixtures/TmuxSession.cs` | The harness: start, capture, poll, send keys, kill |
+| `Fixtures/TempHome.cs` | A throwaway `$HOME` — the whole hermeticity story |
+| `Fixtures/ScreenText.cs` | The normalizer, sibling of `GraphText` |
+| `Fixtures/E2eRepo.cs` | The fixture repo shape, seven commits over two branches |
+| `Fixtures/Proc.cs` | A process runner with environment variables and a timeout |
+| `Fixtures/TempRepo.cs` | Gained `CommitAtAsync` / `CommitFileAtAsync` / `GitAt` |
+
+Covered: startup and the whole log view, that the run is hermetic, quit by `q` and by `Esc`, the
+four column-width arms, the details pane, the commit menu, the help dialog, show/hide branch as a
+round trip, a commit diff, the filter, paging a 30-commit log, and the repo-mutating keys —
+committing, amending, creating a branch, tagging, switching and merging.
+
+- [x] **Hermeticity, which turned out to be the actual work.** A gmd run *writes* `~/.gmdconfig`,
+      **truncates `~/gmd.log`** and **deletes `~/.gmdstate*`**, and none of those paths can be
+      redirected — `ConfigService`, `ConfigLogger` and `Upgrader` all anchor on
+      `SpecialFolder.UserProfile` with no override. On Unix that resolves `$HOME`, so a throwaway
+      home is the only lever, and it covers all three plus `~/.gitconfig` for the git subprocesses.
+      This is what the step was missing: it is a bigger risk than any of the determinism items
+      below, since it is a side effect on the developer's machine rather than a flaky assertion.
+- [x] Deterministic commit ids, not just times. With the author *and* committer dates pinned, every
+      input to a commit object is fixed, so the sids on screen are stable across machines and get
+      asserted rather than masked. `ScreenText` therefore replaces only the temp repo path.
+
+### Findings
+
+- [x] **The built binary is not a dev instance, so it really does call GitHub.**
+      `Build.IsDevInstance()` (`Build.cs:64`) is `CommandLine.Contains("gmd.dll") || ProcessPath ==
+      "dotnet"`, which is true for `./run` and **false for the apphost** these tests drive. So
+      `RepoView.cs:143`'s update checker runs, and a release newer than the test build would add a
+      `⇓` to the application bar, extra items to the repo menu, and could re-open the main menu
+      asynchronously mid-test. Disabled by seeding `CheckUpdates: false`.
+- [x] **`git log --all --date-order` makes identical commit timestamps a row-order flake.** Ordering
+      is by commit date, and a fixture built in under a second has nothing to break ties with. This
+      is why the pinned dates are a correctness requirement rather than a cosmetic one — the same
+      reason `RepoBuilder`'s times are distinct and increasing.
+- [x] **gmd drops keystrokes while a git command runs.** `Progress.Show` calls `UI.StopInput`, which
+      is `Application.RootKeyEvent = _ => true` — keys are swallowed, not queued. A key sent into a
+      moving screen is silently lost, which is why `WaitFor` requires three identical captures
+      before returning and why nothing here ever sleeps a fixed time. Deliberately no resend on
+      timeout: it would mask this and could double-apply a command.
+- [x] Confirmed working, so the risk written down for it did not materialize: **modified keys
+      survive the pty** — `S-Right` reaches `RepoViewInput`'s `Key.CursorRight | Key.ShiftMask` and
+      opens the Open Branch menu.
+- [ ] **Noted, no action: tmux cannot report gmd's exit code.** `#{pane_dead_status}` is empty for a
+      binary tmux exec'd directly, and only filled in when the pane command went through a shell.
+      gmd does exit 0 (checked with `sh -c "gmd …; echo $?"`, which reports 0 and makes tmux report
+      0 too), but adding that shell only to read the code would put a wrapper process between tmux
+      and gmd, which `CLAUDE.md` warns against. The tests assert that gmd terminated; a crash shows
+      up as a `WaitFor` timing out with the screen and the log tail in the message, which is better
+      evidence anyway.
+- [x] **Fixed, and it was pre-existing rather than introduced here: `./test` truncated the
+      developer's `~/gmd.log`.** Any test that runs a git command goes through `gmd.Utils.Cmd`,
+      which logs, and `ConfigLogger`'s static constructor truncates the log the first time anything
+      in the process logs at all. So `./test` wiped the log that `./log` exists to read — worst
+      exactly when a developer is reading it, i.e. while chasing a bug. Measured before the fix:
+      the 16 pre-existing integration tests alone rewrote it.
+
+      Fixed by giving the *test process* a throwaway `$HOME` too, in `gmdTest/TestSetup.cs`
+      (`[AssemblyInitialize]`, reusing `TempHome`) — the same move `TmuxSession` already makes for
+      the gmd it starts, so both halves of the suite are now isolated the same way. It covers
+      `~/.gmdconfig` and `~/.gmdstate*` as well, should a test ever reach the services that write
+      those. No product code changed.
+
+      Two things that had to be got right, both found by probing rather than assumed:
+      - **The folder must exist before `HOME` is set.** `GetFolderPath(UserProfile)` returns an
+        *empty string* for a `HOME` that does not exist, and `Path.Join` then yields the relative
+        `gmd.log` — which would quietly land in the working directory instead. It does honor a
+        `HOME` changed at runtime, i.e. the value is not cached, which is what makes this work.
+      - **It has to run before anything logs**, since `ConfigLogger` resolves the path once in its
+        static constructor. `[AssemblyInitialize]` is early enough; nothing in the suite logs from
+        a static initializer.
+
+      Verified: 459 tests pass, `~/gmd.log` byte-identical across a full run (checked with a marker
+      line and an md5), the log demonstrably written into `/tmp/gmdTest-home-*/gmd.log` instead, no
+      stray `gmd.log` in the working directory, temp homes cleaned up, and
+      `--collect:"XPlat Code Coverage"` still writes a cobertura report.
+
+      Unix only, and deliberately so: on Windows the user profile folder does not come from `HOME`,
+      so a test run there still truncates the log. Not worth product code to fix — Linux/macOS are
+      the development platforms, and Windows matters as a *release* target that is verified by
+      running the app, not by running this suite. What a rare Windows session gets is a suite that
+      still passes: the fast and integration tests run normally, and the terminal tests report
+      `Inconclusive` (tmux being Unix only) rather than failing.
+- [x] **Colors are covered now**, closing the half of this that was worth doing.
+      `ScreenText.ColorsOf` / `ColorRows` / `BackgroundRows` parse the SGR codes out of an escaped
+      capture and give one letter per cell, lined up under the text exactly as
+      `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for
+      its bright variant. Two tests, `TestLogViewColors` and `TestCurrentRowIsHighlighted`.
+
+      What that buys, beyond "colors are drawn":
+      - **The branch palette reaches the screen.** Main is magenta by special case, so the test
+        also shows `dev` and pins it as green, i.e. the SHA256-into-five-colors path in
+        `BranchColorService` that main never exercises. Which color a name lands on is a promise
+        to the user — it is why a branch keeps its color between runs.
+      - **The dark `╮`/`╯` of a hidden branch is drawn dark.** `GraphTest` asserts that on
+        `GraphWriter`'s output; this asserts it on the screen, which is the gap Step 3's `Φ` bug
+        fell through.
+      - **The current row's highlight is a background**, so it was invisible to every other
+        assertion in the suite. `BackgroundRows` shows it starts after the graph column, i.e.
+        `RepoWriter` highlights the non-graph part of the row only.
+      - The cyan sid, the dark author and time, the green tag, and that a subject is white only on
+        the branch the cursor row is on (`RepoWriter.GetSubjectText`).
+
+      Suite 453 → 455. It survives the 2.x port like the rest of this tier: the letters come from
+      what the terminal was sent, so no Terminal.Gui type is named.
+- [x] **Fixed: `Q` did not quit, although the help guide says it does.** The log view bound only
+      lower case `q` (`RepoViewInput.cs`), so the upper case `Q` that `gmd/doc/help.md:14`
+      documents as "Esc / Q  Exit application in log view" did nothing at all. Keys are looked up
+      by exact value in `ContentView.ProcessHotKey`, and nothing folds case — deliberately, since
+      `p`/`P` and `u`/`U` are different commands (push and pull, current versus all). So the fix
+      is to register both cases of this one key, in the log view and in the diff view.
+
+      **Correcting what this finding first claimed**, which was half wrong and is the more
+      interesting half: it said `q` does nothing in the diff view, since that view binds only
+      `Key.Q`. Driving it proved the opposite — `q` closes the diff, and does so *by accident*.
+      It is unbound there, so it falls through to the next toplevel in the chain, i.e. the log
+      view's quit handler, and that handler is `UI.Shutdown()` → `Application.RequestStop()`,
+      which stops the **topmost** toplevel. In the log view that is the application; with a diff
+      open it is the diff. Right outcome, wrong reason, and it would have broken silently the day
+      the diff view became modal or the log view's handler stopped being `RequestStop`. Now
+      registered explicitly, so it is intended rather than emergent.
+
+      Also checked and found *not* broken, since the same reasoning predicted it would be: that
+      `p` might reach the `P` handler and push every branch instead of the current one. Driven
+      against a repo with two branches ahead of a local bare origin, `p` ran exactly
+      `git push --porcelain origin --set-upstream refs/heads/main:refs/heads/main` and left `dev`
+      alone. Nothing folds case, as the code says.
+
+      `help.md` needed no edit — it already documented the behavior this makes true. Four test
+      cases in `TerminalTest`, written failing first: `TestQuitWithUpperCaseQ` (which timed out
+      before the fix), `TestDiffViewClosesWithQ` for both cases, and
+      `TestTypingQuitKeysIntoADialogDoesNotQuit`, which pins the risk registering a second quit
+      key introduces — a dialog above the log view has to swallow the key rather than let a
+      typed 'q' quit gmd. Suite 455 → 459.
+
+      This is the first product change this step has made, and it is the payoff the step was
+      argued for: a key that silently did nothing, in the one place a user is told to look.
+- [x] **The commit flow is covered, and a commit gmd makes is as deterministic as a fixture one.**
+      The first tests here that change the repository rather than only look at it. Six of them
+      (suite 459 → 465): the uncommitted row, the dialog and the commit it writes, a message with a
+      body, the dialog's Ctrl-D diff, cancelling, and the empty-message validation.
+
+      The problem worth writing down is determinism, since it is the thing that would have made
+      this tier flaky. A commit gmd creates is dated *now*, so its sid and its row in the time
+      column change every run — exactly what `E2eRepo` pins for every other commit on screen.
+      Masking both would work and would throw away the assertion. Instead the *session* pins them:
+      `TmuxSession.StartGmd(repo, commitTime: …)` puts `GIT_AUTHOR_DATE` / `GIT_COMMITTER_DATE`
+      into the environment gmd runs under, and `Cmd` starts git with `UseShellExecute = false`
+      without touching `Environment`, so the git that `CommitService` shells out to inherits them.
+      The commit the test makes then has a fixed sha, and `2d0391 … 24-10-15 12:07` is asserted
+      like any fixture row. It is opt-in per test rather than always on, for the same reason
+      `E2eRepo`'s times increase: two commits pinned to one second would have nothing to order them
+      by under `git log --all --date-order`.
+
+      Consequences and the small things found on the way:
+      - **The uncommitted row now has coverage at all**, which it had at no tier before —
+        `Repo.UncommittedId`'s sentinel row, the `©2` change count in the application bar, and the
+        current branch marker moving up onto it. Its own time really is `DateTime.Now`, so this is
+        what `ScreenText.MaskTimes` finally exists for. It was made row-targeted
+        (`MaskTimes(screen, "uncommitted")`) rather than whole-screen: the commit rows on the same
+        screen do have pinned times and are worth asserting.
+      - `E2eRepo.CreateWithChangesAsync` deliberately leaves **both** a modified tracked file and
+        an untracked one, because gmd commits by running `git add .` and then `git commit -am`, and
+        only the add picks the untracked one up. `git show --name-only` asserts both landed.
+      - **Escape from the dialog's Ctrl-D diff lands back on the commit dialog**, not on the log
+        view — a modal over a modal over the log view, drawn and unwound correctly. Cheap to assert
+        and precisely the sort of thing the 2.x port rewrites.
+      - **No product bug this time**, unlike the `Q` finding. Every branch driven behaved as the
+        code says it should.
+      - **Amend (`a`) is a no-op against this fixture**, and correctly so: `Commit` returns early
+        unless `CurrentCommit().IsAhead`, which needs a remote to be ahead of, and `E2eRepo` has
+        none on purpose. Covering amend therefore needs a fixture with an origin — done since, see
+        below, and it was that fixture which turned up the `--prune-tags` bug.
+- [x] **The rest of the repo-mutating keys are covered: `b`, `t`, `s` and `e`.** Six more tests
+      (suite 465 → 471, tier ~50 s): create a branch from a commit and from a hoovered branch, add
+      a tag, switch, merge, and the merge-from menu. No product code changed, and nothing was found
+      broken — every path behaved as the code says, which is the outcome a characterization suite
+      wants and is not the same as having learned nothing.
+
+      What driving them taught, which is the part worth keeping:
+      - **The hoover is what these keys act on, and it is not what the application bar shows.**
+        `applicationBarView.SetBranch` is called from two places: by the hoover when it moves
+        (`RepoViewInput.cs:508`) and by the *current row's* branch when the row changes
+        (`RepoView.OnCurrentIndexChange`). So an operation that moves the row leaves the bar naming
+        one branch while the hoover is on another. The only reliable readout of the hoover from
+        outside is the branch menu, whose title is `Branch: <name>` — which is how these tests were
+        written, and how the next one should be.
+      - **After `Enter` shows a branch, the hoover stays on the branch it was on, not the branch
+        that appeared.** So the natural "open dev, press `s`" does nothing at all: the hoover is
+        still `main`, and `OnKeyS`'s `PrimaryName != currentName` guard drops it. That is what the
+        code says should happen and it is not a bug, but it looks exactly like a swallowed
+        keystroke, so `TestSwitchToBranch` pins both halves — the no-op, and that one `Right` later
+        the same key switches. This cost most of the time this step took, since the symptom (`s`
+        does nothing) has three plausible causes and only the menu probe distinguishes them.
+      - **`e` does not merge and commit; it merges and then opens the commit dialog.**
+        `MergeBranch` ends in `RefreshAndCommit(…, commits)`, so the working tree is left with an
+        uncommitted merge and the dialog offers `Merge branch 'main' into dev` as the message. The
+        merge is therefore one keystroke away, but the commit is not — which is the opposite of
+        what the "no confirmation dialog" note in the plan assumed, and the reason the test needs
+        `commitTime:` like the commit tests do.
+      - **Create branch publishes by default**, and against a repo with no origin the push fails
+        and the failure is deliberately swallowed (`BranchCreateCommands` matches on `'origin' does
+        not appear to be a git repository`). The dialog snapshot keeps both check boxes visible, so
+        a change to either default shows up as a failing test.
+      - **The merge-from menu lists only shown branches**, so with just `main` shown it draws an
+        empty menu box rather than saying there is nothing to merge. `TestMergeFromMenu` therefore
+        shows `dev` first. Worth a look some day; it is a UI nicety, not a defect.
+- [x] **Amend (`a`) is covered, and the fixture with an origin found a real bug** (suite 471 → 473).
+      Two tests: amending the message of an unpushed commit, and that the key is refused once the
+      commit is on the remote. `E2eRepo.CreateWithOriginAsync` is the fixture — the standard shape,
+      a bare origin next door, everything pushed except one commit on top, which is what
+      `CommitCommands.Commit`'s `CurrentCommit().IsAhead` guard needs to have anything to offer.
+
+      It is also the only fixture here with a remote, so these two tests are the only place the
+      ahead marker (`▲1` in the application bar, `▲` on the commit), the `(^/main)` remote tip and
+      the local branch drawn beside its remote reach a snapshot at all.
+
+      - **Amend stays deterministic**, but not the way the commit tests do: git keeps the original
+        *author* date when amending and only rewrites the committer date, so `GIT_AUTHOR_DATE` from
+        `commitTime:` is ignored and `GIT_COMMITTER_DATE` is not. Both are pinned either way, so
+        the amended sha is stable — and the time column does not move, since it shows the author
+        date. The test asserts that pair explicitly, because it is the kind of thing a future git
+        version could change.
+- [ ] **Bug found, not fixed — opening a repo deletes local tags that are not on the remote.**
+      `RemoteService.FetchAsync` (`RemoteService.cs:31`) runs
+      `git fetch --force --prune --tags --prune-tags origin`, and `--prune-tags` means exactly
+      "delete local tags the remote does not have". Git's own documentation warns about this
+      option: *"it will remove tags that were created locally"*. `RepoView` fetches when a repo is
+      opened, every five minutes after that, and on `r`/`F5`, with no way to turn it off.
+
+      Driven and isolated rather than reasoned about: a fixture with `v1.0` on a commit, a bare
+      origin the tag was never pushed to, then start gmd and press nothing. `git tag` lists `v1.0`
+      before and lists nothing after startup. The control — the same fixture with the tag pushed —
+      keeps it. So this is not about amend, or about any command; **it is the act of opening the
+      repository**, and the tag is gone with no message and no undo.
+
+      The one-line fix is to drop `--prune-tags` (keeping `--prune`, which only prunes remote
+      tracking branches, and `--tags`, which fetches the remote's tags). The cost of dropping it is
+      that a tag deleted on the server lingers locally until someone removes it by hand, which is
+      what plain `git fetch` does and is a great deal better than silently deleting a local tag.
+
+      **Deliberately deferred** (2026-08-04): the maintainer wants to see whether this bites in
+      practice before changing fetch semantics for everyone, since `--prune-tags` is a flag someone
+      typed on purpose rather than an oversight. What it looks like when it does bite: a tag added
+      locally and not yet pushed disappears — on opening the repo, on `r`/`F5`, or within five
+      minutes of sitting in the log view — with no message. Everything needed to act on it is
+      above: the cause, the one-line change, and the fixture shape that reproduces it
+      (`E2eRepo.CreateWithOriginAsync` minus its `push origin v1.0`). A regression test belongs
+      with the fix.
+
+      Consequence already taken: `E2eRepo.CreateWithOriginAsync` pushes `v1.0`, since a local only
+      tag would otherwise vanish from that fixture at whatever moment the first fetch completed —
+      i.e. this bug would have shown up as a flaky snapshot rather than as a finding, had the
+      screens been written without noticing it.
+
+### Determinism, which is where this will actually go wrong
+
+A captured screen is full of content that changes every run. All of it was visible in the first
+captures taken: commit sha (`88453f`), author/commit dates (`26-08-03 02:47`), the temp repo path in
+the application bar, and right-edge padding that moves with pane width. Design for it up front
+rather than fighting flakes later:
+
+- [x] Fix the pane size explicitly (`tmux new-session -x 120 -y 40`), so wrapping and the app bar's
+      space filler are stable. The size is also asserted right after start, since a detached
+      session's size interacts with `window-size`/`default-size` and has moved between tmux
+      versions — one clear failure beats every snapshot failing at once.
+- [x] Normalize before comparing — `ScreenText`, next to `GraphText` as predicted. It turned out to
+      need *less* than the step assumed: with the dates and identity pinned the shas and times are
+      deterministic and get asserted rather than masked, so only the repo path is replaced, plus a
+      per-line right trim and dropping the trailing blank rows.
+- [x] Never sleep a fixed time; `WaitFor` polls for the text **and** for three identical captures in
+      a row. The stability half was not in the plan and turned out to be required, see the swallowed
+      keystrokes finding above.
+- [x] Reuse `TempRepo` for the repository — via `E2eRepo`, and one fresh repo per test, since
+      `.git/.gmdconfig` is rewritten on every repo show and is the one piece of state a redirected
+      `HOME` cannot isolate.
+- [x] `[TestCategory("Integration")]` on the lot, plus a second `E2e` category so the slow tier can
+      be excluded on its own. tmux's absence fails with "run ./installtools" rather than a timeout;
+      on Windows it is `Assert.Inconclusive`, that being the one case where skipping is right.
+
+### First moves
+
+- [x] One tmux test end to end. It is `TestStartupShowsTheLogView`, and the diff went into its own
+      test (`TestDiffOfACommit`) since the two assert different screens.
+- [x] Then the paths that are pure UI and have no other coverage at all: the menus, the branch
+      show/hide keys and scrolling a long log are covered. The commit dialog is not — it mutates the
+      repo, which this step deliberately stayed out of; it is the obvious next test.
+- [x] **Dropped: the `FakeDriver` test. The tmux tier did its job, and better.** It was here to
+      make the `GraphText` snapshots weigh more, since they assert `GraphWriter`'s output rather
+      than what reaches the screen. That gap is now closed from the other end: the tmux tests
+      assert the same graph runes *as drawn by the real binary in a real terminal*, and since the
+      colors went in they assert the runes' colors too, including the dark hidden-branch marker
+      that was the specific thing `GraphText.ColorsOf` covered at writer level.
+
+      So a `FakeDriver` test would be a third rendering of the same information, sitting between
+      two tiers that already agree — and the least durable of the three: it names `FakeDriver`,
+      `Application.Init` and `Contents`, all of which 2.x removes, so it would be written now and
+      deleted at the port. This document already says as much about the tier ("worth having for
+      fast feedback during v1's remaining life, but not port insurance"); what changed is that its
+      one concrete job is done, so the fast feedback alone does not pay for it. `GraphText` still
+      covers the writer in milliseconds.
+
+      Reversible if a reason turns up — the finding in Step 3 that `FakeDriver` works headlessly
+      stands, and the note on `FakeMainLoop` being `internal` with it. The likeliest such reason
+      is a drawing bug in a view that is genuinely hard to reach through the running app.
+- [x] **CI runs the tmux tier in the existing jobs.** No workflow change was needed to make it run —
+      both jobs already run `dotnet test` unfiltered through `./build` — so the only addition is one
+      `tmux -V || apt-get install` step per job, which is free when the image already has it and
+      self-healing if a future image drops it. A separate job was rejected: it would need its own
+      checkout, SDK setup and build to get the binary, roughly doubling CI time to parallelize
+      fourteen seconds, and it would let the release job publish without this tier having passed.
+
+### Next, when this is picked up again
+
+- [x] The repo-mutating flows, one throwaway repo each: commit (`c`), create branch (`b`), tag
+      (`t`), switch (`s`) and merge (`e`) — **all done**, see the two findings above. Commit built
+      the machinery the rest needed (a fixture with changes, and pinned dates for a commit gmd
+      makes itself); the other four turned out to be mostly a lesson in the hoover.
+- [x] Amend (`a`) with an origin fixture — done, see the finding above, which also turned up the
+      `--prune-tags` bug.
+- [ ] The `--prune-tags` finding above, parked on purpose until it is noticed in real use. Not a
+      question to re-open unprompted — pick it up when a local tag actually goes missing.
+- [x] Colors, via `TmuxSession.CaptureColors()` — done, see the finding above.
+- [x] **The middle column widths — which turned out to be two arms, not one.**
+      `RepoWriter.ColumnWidths` is a four way ladder, and the note this item used to carry ("the
+      middle arm, `commitWidth` 70–109") described the two middle ones as if they were a single
+      case. They differ by exactly one column, and it is the identifying one:
+
+      | `commitWidth` | sid | author | time | |
+      | --- | --- | --- | --- | --- |
+      | < 70 | — | — | — | `TestNarrowWidthDropsTheSidAuthorAndTimeColumns`, pane 70 |
+      | 70–99 | — | 10 | 9 | `TestMediumWidthDropsTheSidAndCutsTheTimeToADate`, pane 95 |
+      | 100–109 | 7 | 10 | 9 | `TestNearlyFullWidthKeepsTheSidButStillCutsTheTime`, pane 112 |
+      | ≥ 110 | 7 | 15 | 15 | every other test here, pane 120 |
+
+      Two things came out of writing them, both of which the next person here needs:
+      - **A shortened column is not marked as shortened.** `Txt` (`RepoWriter.cs:328`) truncates
+        with a plain `text[..width]`, so at `timeWidth` 9 the time `24-10-15 12:06` is drawn as
+        `24-10-15`: the clock is gone and the column looks like it was meant to be a date. The rest
+        of the UI marks a truncation with `┅`, which `gmd/doc/help.md` documents as meaning exactly
+        that. Not changed here — these are characterization tests — but it is the sort of thing
+        this tier exists to make visible, and it is now pinned in two snapshots.
+      - **The arm is chosen by `commitWidth`, not by the pane width**, and
+        `commitWidth = width + 1 - (graphWidth + 3)`. So the same pane can sit in different arms
+        for different repos, and *showing a branch can push a row down an arm* by widening the
+        graph. The two widths above were measured against `E2eRepo` with `dev` hidden (graph 6
+        columns, so the arms start at panes 78, 108 and 118) rather than calculated — a new width
+        test has to measure too.
+
+      Still uncovered, and cheap if it is ever wanted: the author column being *visibly* cut. At
+      `authorWidth` 10 the fixture's ` Test User` is exactly 10 columns, so it fits perfectly and
+      the narrowing cannot be seen in that column at all. It needs a fixture whose author name is
+      longer than nine characters, which means new dates and new ids for its commits.
+- [ ] Mouse interaction, which `send-keys` cannot express — it needs raw SGR sequences
+      (`send-keys -H`) and exact coordinates.
