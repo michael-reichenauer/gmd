@@ -212,6 +212,92 @@ public class TerminalTest
         StringAssert.Contains(gmd.WaitUntilGone("Gmd Help Guide"), "Add delta");
     }
 
+    // The colors a user actually sees, which nothing else in the suite reaches: GraphText.ColorsOf
+    // asserts what GraphWriter produced, not what was drawn. Showing many branches at once is what
+    // this application is for, so which color each one got is a product feature, not decoration.
+    [TestMethod]
+    public async Task TestLogViewColors()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        // Read it against the picture in TestStartupShowsTheLogView, which it lines up with from
+        // row 2 down. Row 0 is the application bar: ' Gmd ' bright magenta, the repo path dark,
+        // the current branch magenta, '[Ϙ Search]' dark, ' ? ' bright cyan. Row 1 is its border.
+        // Then one row per commit: the graph rune in the branch color, the subject white, the
+        // '[v1.0]' tag green, the sid cyan and the author and time dark.
+        //
+        // Three of these are the point. Main is magenta, which BranchColorService guarantees and
+        // no other test checks reaches the screen. The dark 'D' second rune on the merge rows is
+        // the '╮'/'╯' marker a hidden branch leaves behind, which GraphTest asserts on
+        // GraphWriter's output rather than on what was drawn. And the current row's author and
+        // time are white rather than dark, because the highlight lifts them.
+        Assert.AreEqual(
+            """
+             mmm DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD WMMMM                                                       MMMMMM DD DDDDDDD c W
+            mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+            M  W WWW WWWWW                                                      MW MMMMMGGGGGG CCCCCC WWWW WWWW      WWWWWWWW WWWWW
+            MD   WWWWW WWWWWW WWWWW WWWW WWWW                                                  CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            M    WWW WWWWW                                                                     CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            MD   WWW WWWW                                                                      CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            M    WWWWWWW                                                                       CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            """,
+            ScreenText.ColorRows(gmd.CaptureColors(), 0, 8)
+        );
+
+        // Main is a special case, always magenta, so showing 'dev' as well is what covers the
+        // palette that every other branch gets its color from — a SHA256 of the branch name into
+        // five colors, nudged if it collides with the parent branch. Which color a given name
+        // lands on is a promise to the user: it is why a branch keeps its color between runs.
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+
+        // 'dev' comes out green, and its '(dev)' tip with it. The white subjects moved with the
+        // cursor: RepoWriter.GetSubjectText draws a commit white when it is on the same branch as
+        // the row the cursor is on and dark otherwise, so landing on dev turns main's rows dark.
+        Assert.AreEqual(
+            """
+            M   W DDD DDDDD                                                     MW MMMMMGGGGGG CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            MG    DDDDD DDDDDD DDDDD DDDD DDDD                                                 CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            MG    DDD DDDDD                                                                    CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            MGG   WWWW WWW WWWW                                                          GGGGG CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            MGG   WWWW WW WWW                                                                  CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            MG    DDD DDDD                                                                     CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            M     DDDDDDD                                                                      CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            """,
+            ScreenText.ColorRows(gmd.CaptureColors(), 2, 7)
+        );
+    }
+
+    // The row the cursor is on is drawn with a background rather than a foreground color, so it is
+    // invisible to every other assertion here.
+    [TestMethod]
+    public async Task TestCurrentRowIsHighlighted()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        // The first row is the one the cursor is on, and the run of dark gray 'D' is the
+        // highlight. It starts after the graph, which keeps its own background — that is
+        // RepoWriter applying Highlight() to the non-graph part of the row only, a detail that is
+        // easy to break and invisible to every other assertion here. The rows below it are plain.
+        Assert.AreEqual(
+            """
+            -  . DDD DDDDD                                                      DD DDDDDDDDDDD DDDDDD DDDD DDDD      DDDDDDDD DDDDD
+            --   ..... ...... ..... .... ....                                                  ...... .... ....      ........ .....
+            -    ... .....                                                                     ...... .... ....      ........ .....
+            --   ... ....                                                                      ...... .... ....      ........ .....
+            """,
+            ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4)
+        );
+    }
+
     // Interactive branch visibility is the feature this application exists for, and it had no
     // end-to-end coverage at all. Asserted as a round trip rather than two independent
     // snapshots: after showing and hiding again the screen has to be what it started as.

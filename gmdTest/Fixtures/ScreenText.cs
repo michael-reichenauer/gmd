@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace gmdTest.Fixtures;
@@ -31,6 +32,9 @@ static class ScreenText
     // ApplicationBar.maxRepoLength, i.e. how much of the path the application bar keeps
     const int MaxRepoLength = 30;
 
+    // The ESC that starts every color sequence in an escaped capture
+    const char Escape = '\u001b';
+
     // 'yy-MM-dd HH:mm', as RepoWriter.WriteTime writes it
     static readonly Regex TimeRegex = new(@"\d\d-\d\d-\d\d \d\d:\d\d");
 
@@ -47,6 +51,23 @@ static class ScreenText
     // whose time is DateTime.Now.
     public static string MaskTimes(string screen) => TimeRegex.Replace(screen, "NN-NN-NN NN:NN");
 
+    // The color of every character on the screen as one letter each, lined up under the text of
+    // Of(), which is what GraphText.ColorsOf does for the graph column alone. Takes an escaped
+    // capture (TmuxSession.CaptureColors()), not a plain one.
+    //
+    // A blank keeps its space, so the letters line up below the characters they belong to. Note
+    // that row 0 does not line up with Of(), since that replaces the repo path with a shorter
+    // placeholder — everything below it does, which is where the alignment carries information.
+    public static string ColorsOf(string escapedCapture) => Join(ColorLines(escapedCapture, isForeground: true));
+
+    public static string ColorRows(string escapedCapture, int first, int count) =>
+        Join(ColorLines(escapedCapture, isForeground: true).Skip(first).Take(count));
+
+    // The same for the background, which is how the log view draws the row the cursor is on: a
+    // run of 'D', i.e. a dark gray background, over the part of the row that is highlighted.
+    public static string BackgroundRows(string escapedCapture, int first, int count) =>
+        Join(ColorLines(escapedCapture, isForeground: false).Skip(first).Take(count));
+
     // Asserts the screen matches. On a mismatch the actual screen is printed as a block that can
     // be read, checked and pasted straight back into the test, which is how these snapshots are
     // written and updated in the first place.
@@ -62,6 +83,98 @@ static class ScreenText
                 + $"Expected:\n{rule}\n{expected}\n{rule}\n\n"
                 + $"Actual:\n{rule}\n{actual}\n{rule}\n"
         );
+    }
+
+    // One letter per character cell, telling the color it was drawn in. Uppercase is the normal
+    // color and lowercase its bright variant, so 'M' is the magenta of the main branch and 'm'
+    // the bright magenta of the ' Gmd ' label. 'W' is white, 'D' dark, '.' black and '-' the
+    // terminal default, i.e. nothing was set.
+    //
+    // The codes are what a terminal is sent, so this maps them back to the gmd colors of
+    // Cui/Common/Color.cs: 30-37 are the normal colors, 90-97 the bright ones, and gmd's Dark and
+    // White are bright black and bright white, hence 90 and 97.
+    static readonly Dictionary<int, char> ColorLetters = new()
+    {
+        [30] = '.',
+        [31] = 'R',
+        [32] = 'G',
+        [33] = 'Y',
+        [34] = 'B',
+        [35] = 'M',
+        [36] = 'C',
+        [39] = '-',
+        [90] = 'D',
+        [91] = 'r',
+        [92] = 'g',
+        [93] = 'y',
+        [94] = 'b',
+        [95] = 'm',
+        [96] = 'c',
+        [97] = 'W',
+    };
+
+    // Walks an escaped capture, tracking the color the terminal is currently set to, and emits
+    // one letter per visible character. Everything drawn goes through here, so an unexpected
+    // color shows up as '?' rather than being quietly dropped.
+    static IEnumerable<string> ColorLines(string escapedCapture, bool isForeground)
+    {
+        var lines = new List<string>();
+
+        foreach (var line in escapedCapture.Split('\n'))
+        {
+            var letters = new StringBuilder();
+            var color = -1;
+            var i = 0;
+
+            while (i < line.Length)
+            {
+                // An SGR sequence, i.e. ESC [ <params> m, sets the color rather than drawing
+                if (line[i] == Escape && i + 1 < line.Length && line[i + 1] == '[')
+                {
+                    var end = line.IndexOf('m', i);
+                    if (end == -1)
+                        break;
+
+                    foreach (var part in line[(i + 2)..end].Split(';'))
+                    {
+                        // An empty or zero parameter is a reset of both colors
+                        if (part == "" || part == "0")
+                            color = -1;
+                        else if (int.TryParse(part, out var code) && IsColorCode(code, isForeground))
+                            color = ToForegroundCode(code, isForeground);
+                    }
+
+                    i = end + 1;
+                    continue;
+                }
+
+                letters.Append(line[i] == ' ' ? ' ' : Letter(color));
+                i++;
+            }
+
+            lines.Add(letters.ToString().TrimEnd());
+        }
+
+        while (lines.Count > 0 && lines[^1] == "")
+            lines.RemoveAt(lines.Count - 1);
+
+        return lines;
+    }
+
+    // Foreground is 30-39 and 90-97, background the same shifted by 10
+    static bool IsColorCode(int code, bool isForeground)
+    {
+        var offset = isForeground ? 0 : 10;
+        return (code >= 30 + offset && code <= 39 + offset) || (code >= 90 + offset && code <= 97 + offset);
+    }
+
+    static int ToForegroundCode(int code, bool isForeground) => isForeground ? code : code - 10;
+
+    static char Letter(int color)
+    {
+        if (color == -1)
+            return '-';
+        return ColorLetters.TryGetValue(color, out var letter) ? letter : '?';
     }
 
     static IEnumerable<string> Lines(string capture, string repoPath)

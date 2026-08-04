@@ -1272,7 +1272,7 @@ Both tiers were proven out in the session that wrote this step, so neither is sp
 
 ### What was built ✅ tmux tier done
 
-Suite went from 441 tests to 453, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 12 tests,
+Suite went from 441 tests to 455, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 14 tests,
 ~14 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
 up front, it is what the investigation concluded was possible, and it is what keeps the tier valid
 across the 2.x port.
@@ -1350,7 +1350,7 @@ round trip, a commit diff, the filter, and paging a 30-commit log.
         static constructor. `[AssemblyInitialize]` is early enough; nothing in the suite logs from
         a static initializer.
 
-      Verified: 453 tests pass, `~/gmd.log` byte-identical across a full run (checked with a marker
+      Verified: 455 tests pass, `~/gmd.log` byte-identical across a full run (checked with a marker
       line and an md5), the log demonstrably written into `/tmp/gmdTest-home-*/gmd.log` instead, no
       stray `gmd.log` in the working directory, temp homes cleaned up, and
       `--collect:"XPlat Code Coverage"` still writes a cobertura report.
@@ -1361,10 +1361,28 @@ round trip, a commit diff, the filter, and paging a 30-commit log.
       running the app, not by running this suite. What a rare Windows session gets is a suite that
       still passes: the fast and integration tests run normally, and the terminal tests report
       `Inconclusive` (tmux being Unix only) rather than failing.
-- [ ] Two things left for later, deliberately: the `FakeDriver` test below, and colors.
-      `TmuxSession.CaptureColors()` (`capture-pane -p -e`) is there and unused — the branch colors,
-      the cyan sid and the highlighted current row are all real and all uncovered, but an
-      ANSI-escaped capture needs its own normalizer in the style of `GraphText.ColorsOf`.
+- [x] **Colors are covered now**, closing the half of this that was worth doing.
+      `ScreenText.ColorsOf` / `ColorRows` / `BackgroundRows` parse the SGR codes out of an escaped
+      capture and give one letter per cell, lined up under the text exactly as
+      `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for
+      its bright variant. Two tests, `TestLogViewColors` and `TestCurrentRowIsHighlighted`.
+
+      What that buys, beyond "colors are drawn":
+      - **The branch palette reaches the screen.** Main is magenta by special case, so the test
+        also shows `dev` and pins it as green, i.e. the SHA256-into-five-colors path in
+        `BranchColorService` that main never exercises. Which color a name lands on is a promise
+        to the user — it is why a branch keeps its color between runs.
+      - **The dark `╮`/`╯` of a hidden branch is drawn dark.** `GraphTest` asserts that on
+        `GraphWriter`'s output; this asserts it on the screen, which is the gap Step 3's `Φ` bug
+        fell through.
+      - **The current row's highlight is a background**, so it was invisible to every other
+        assertion in the suite. `BackgroundRows` shows it starts after the graph column, i.e.
+        `RepoWriter` highlights the non-graph part of the row only.
+      - The cyan sid, the dark author and time, the green tag, and that a subject is white only on
+        the branch the cursor row is on (`RepoWriter.GetSubjectText`).
+
+      Suite 453 → 455. It survives the 2.x port like the rest of this tier: the letters come from
+      what the terminal was sent, so no Terminal.Gui type is named.
 - [ ] A bug the suite found while being written, left as its own commit: `q` quits the log view
       (`RepoViewInput.cs:72`, `Key.q`) but the diff view binds **uppercase only**
       (`Diff/DiffView.cs:93`, `Key.Q`), so `q` does nothing there — while `gmd/doc/help.md:14`
@@ -1402,11 +1420,24 @@ rather than fighting flakes later:
 - [x] Then the paths that are pure UI and have no other coverage at all: the menus, the branch
       show/hide keys and scrolling a long log are covered. The commit dialog is not — it mutates the
       repo, which this step deliberately stayed out of; it is the obvious next test.
-- [ ] One `FakeDriver` test that renders a real graph and compares it against the matching
-      `GraphText` snapshot. If those two agree, every existing `GraphTest` snapshot gains weight,
-      because today they assert `GraphWriter`'s output rather than what reaches the screen.
-      Still worth doing, and cheaper now: `E2eRepo`'s shape was chosen so that the hidden-branch
-      picture it draws is the same one `GraphTest` already characterizes, so the two tiers line up.
+- [x] **Dropped: the `FakeDriver` test. The tmux tier did its job, and better.** It was here to
+      make the `GraphText` snapshots weigh more, since they assert `GraphWriter`'s output rather
+      than what reaches the screen. That gap is now closed from the other end: the tmux tests
+      assert the same graph runes *as drawn by the real binary in a real terminal*, and since the
+      colors went in they assert the runes' colors too, including the dark hidden-branch marker
+      that was the specific thing `GraphText.ColorsOf` covered at writer level.
+
+      So a `FakeDriver` test would be a third rendering of the same information, sitting between
+      two tiers that already agree — and the least durable of the three: it names `FakeDriver`,
+      `Application.Init` and `Contents`, all of which 2.x removes, so it would be written now and
+      deleted at the port. This document already says as much about the tier ("worth having for
+      fast feedback during v1's remaining life, but not port insurance"); what changed is that its
+      one concrete job is done, so the fast feedback alone does not pay for it. `GraphText` still
+      covers the writer in milliseconds.
+
+      Reversible if a reason turns up — the finding in Step 3 that `FakeDriver` works headlessly
+      stands, and the note on `FakeMainLoop` being `internal` with it. The likeliest such reason
+      is a drawing bug in a view that is genuinely hard to reach through the running app.
 - [x] **CI runs the tmux tier in the existing jobs.** No workflow change was needed to make it run —
       both jobs already run `dotnet test` unfiltered through `./build` — so the only addition is one
       `tmux -V || apt-get install` step per job, which is free when the image already has it and
@@ -1419,7 +1450,7 @@ rather than fighting flakes later:
 - [ ] The repo-mutating flows, one throwaway repo each: commit (`c`), create branch (`b`), tag
       (`t`), switch (`s`) and merge (`e`). The last two are worth it precisely because they have no
       confirmation dialog — they are one keystroke from changing the working tree.
-- [ ] Colors, via `TmuxSession.CaptureColors()`, which is already there.
+- [x] Colors, via `TmuxSession.CaptureColors()` — done, see the finding above.
 - [ ] The middle column-width arm (`commitWidth` 70–109); the widest and the narrowest are covered.
 - [ ] Mouse interaction, which `send-keys` cannot express — it needs raw SGR sequences
       (`send-keys -H`) and exact coordinates.

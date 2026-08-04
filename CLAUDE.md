@@ -367,6 +367,12 @@ gmd.Send("Enter");                                     // a key; SendText types 
 gmd.WaitUntilGone("Gmd Help Guide");                   // i.e. "the dialog closed"
 ```
 
+Colors are assertable too: `gmd.CaptureColors()` keeps them as ANSI, and `ScreenText.ColorsOf` /
+`ColorRows` / `BackgroundRows` turn that into one letter per cell lined up under the text, exactly
+as `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for its
+bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black). `BackgroundRows`
+is how the current row's highlight is reached, that being a background rather than a foreground.
+
 Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
 filter above excludes them. Five things they do that matter, and that a new test must keep doing:
 
