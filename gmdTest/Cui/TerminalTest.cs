@@ -130,6 +130,61 @@ public class TerminalTest
         );
     }
 
+    // The two arms between the narrowest and the widest, which is where RepoWriter.ColumnWidths
+    // does its most invisible work: it drops and shortens columns with no marker of any kind,
+    // since Txt truncates with a plain substring rather than the '┅' the rest of the UI uses.
+    //
+    // The ladder is on 'commitWidth', not on the pane width: commitWidth = width + 1 - (graphWidth
+    // + 3), so the pane width that lands in a given arm depends on how wide the graph is, i.e. on
+    // the fixture and on which branches are shown. These two widths were measured against this
+    // fixture rather than calculated, and 'dev' is left hidden so the graph stays 6 columns.
+    [TestMethod]
+    public async Task TestMediumWidthDropsTheSidAndCutsTheTimeToADate()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 95, height: 12);
+
+        // commitWidth 70..99: no sid at all, and the time is cut to its date — the clock is gone
+        // with nothing to say so. The author is not visibly cut, since ' Test User' is exactly the
+        // 10 columns it is given; a fixture with a longer author name would be needed to see that.
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                              (main) [Ϙ Search] ? X
+            ───────────────────────────────────────────────────────────────────────────────────────────────
+            ┣  ● Add delta                                               (● main)[v1.0] Test User 24-10-15
+            ┣╮   Merge branch 'dev' into main                                           Test User 24-10-15
+            ┣    Add gamma                                                              Test User 24-10-15
+            ┣╯   Add beta                                                               Test User 24-10-15
+            ┗    Initial                                                                Test User 24-10-15
+            """,
+            gmd.WaitFor("Initial"),
+            repo.Path
+        );
+    }
+
+    [TestMethod]
+    public async Task TestNearlyFullWidthKeepsTheSidButStillCutsTheTime()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 112, height: 12);
+
+        // commitWidth 100..109: the sid is back, the time is still a bare date. Seventeen columns
+        // narrower than the full arm the other tests here run at, and the only difference is this.
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                               (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣  ● Add delta                                                         (● main)[v1.0] 17d85b Test User 24-10-15
+            ┣╮   Merge branch 'dev' into main                                                     4e73d2 Test User 24-10-15
+            ┣    Add gamma                                                                        4a15fb Test User 24-10-15
+            ┣╯   Add beta                                                                         dd7891 Test User 24-10-15
+            ┗    Initial                                                                          9dc406 Test User 24-10-15
+            """,
+            gmd.WaitFor("Initial"),
+            repo.Path
+        );
+    }
+
     // Enter opens the details pane, which is anchored to the bottom of the screen, so only its
     // rows are asserted rather than the 22 blank ones above it
     [TestMethod]

@@ -1272,8 +1272,8 @@ Both tiers were proven out in the session that wrote this step, so neither is sp
 
 ### What was built ✅ tmux tier done
 
-Suite went from 441 tests to 473, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 32 tests,
-~53 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
+Suite went from 441 tests to 475, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 34 tests,
+~55 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
 up front, it is what the investigation concluded was possible, and it is what keeps the tier valid
 across the 2.x port.
 
@@ -1287,7 +1287,7 @@ across the 2.x port.
 | `Fixtures/TempRepo.cs` | Gained `CommitAtAsync` / `CommitFileAtAsync` / `GitAt` |
 
 Covered: startup and the whole log view, that the run is hermetic, quit by `q` and by `Esc`, the
-narrow-width column arm, the details pane, the commit menu, the help dialog, show/hide branch as a
+four column-width arms, the details pane, the commit menu, the help dialog, show/hide branch as a
 round trip, a commit diff, the filter, paging a 30-commit log, and the repo-mutating keys —
 committing, amending, creating a branch, tagging, switching and merging.
 
@@ -1519,8 +1519,15 @@ committing, amending, creating a branch, tagging, switching and merging.
       tracking branches, and `--tags`, which fetches the remote's tags). The cost of dropping it is
       that a tag deleted on the server lingers locally until someone removes it by hand, which is
       what plain `git fetch` does and is a great deal better than silently deleting a local tag.
-      Left for the maintainer to decide, since it is a deliberate flag rather than an oversight and
-      changing it changes fetch semantics for everyone; a regression test belongs with the fix.
+
+      **Deliberately deferred** (2026-08-04): the maintainer wants to see whether this bites in
+      practice before changing fetch semantics for everyone, since `--prune-tags` is a flag someone
+      typed on purpose rather than an oversight. What it looks like when it does bite: a tag added
+      locally and not yet pushed disappears — on opening the repo, on `r`/`F5`, or within five
+      minutes of sitting in the log view — with no message. Everything needed to act on it is
+      above: the cause, the one-line change, and the fixture shape that reproduces it
+      (`E2eRepo.CreateWithOriginAsync` minus its `push origin v1.0`). A regression test belongs
+      with the fix.
 
       Consequence already taken: `E2eRepo.CreateWithOriginAsync` pushes `v1.0`, since a local only
       tag would otherwise vanish from that fixture at whatever moment the first fetch completed —
@@ -1592,9 +1599,38 @@ rather than fighting flakes later:
       makes itself); the other four turned out to be mostly a lesson in the hoover.
 - [x] Amend (`a`) with an origin fixture — done, see the finding above, which also turned up the
       `--prune-tags` bug.
-- [ ] Decide on the `--prune-tags` finding above: fix with a regression test, or write down why the
-      current behavior is wanted.
+- [ ] The `--prune-tags` finding above, parked on purpose until it is noticed in real use. Not a
+      question to re-open unprompted — pick it up when a local tag actually goes missing.
 - [x] Colors, via `TmuxSession.CaptureColors()` — done, see the finding above.
-- [ ] The middle column-width arm (`commitWidth` 70–109); the widest and the narrowest are covered.
+- [x] **The middle column widths — which turned out to be two arms, not one.**
+      `RepoWriter.ColumnWidths` is a four way ladder, and the note this item used to carry ("the
+      middle arm, `commitWidth` 70–109") described the two middle ones as if they were a single
+      case. They differ by exactly one column, and it is the identifying one:
+
+      | `commitWidth` | sid | author | time | |
+      | --- | --- | --- | --- | --- |
+      | < 70 | — | — | — | `TestNarrowWidthDropsTheSidAuthorAndTimeColumns`, pane 70 |
+      | 70–99 | — | 10 | 9 | `TestMediumWidthDropsTheSidAndCutsTheTimeToADate`, pane 95 |
+      | 100–109 | 7 | 10 | 9 | `TestNearlyFullWidthKeepsTheSidButStillCutsTheTime`, pane 112 |
+      | ≥ 110 | 7 | 15 | 15 | every other test here, pane 120 |
+
+      Two things came out of writing them, both of which the next person here needs:
+      - **A shortened column is not marked as shortened.** `Txt` (`RepoWriter.cs:328`) truncates
+        with a plain `text[..width]`, so at `timeWidth` 9 the time `24-10-15 12:06` is drawn as
+        `24-10-15`: the clock is gone and the column looks like it was meant to be a date. The rest
+        of the UI marks a truncation with `┅`, which `gmd/doc/help.md` documents as meaning exactly
+        that. Not changed here — these are characterization tests — but it is the sort of thing
+        this tier exists to make visible, and it is now pinned in two snapshots.
+      - **The arm is chosen by `commitWidth`, not by the pane width**, and
+        `commitWidth = width + 1 - (graphWidth + 3)`. So the same pane can sit in different arms
+        for different repos, and *showing a branch can push a row down an arm* by widening the
+        graph. The two widths above were measured against `E2eRepo` with `dev` hidden (graph 6
+        columns, so the arms start at panes 78, 108 and 118) rather than calculated — a new width
+        test has to measure too.
+
+      Still uncovered, and cheap if it is ever wanted: the author column being *visibly* cut. At
+      `authorWidth` 10 the fixture's ` Test User` is exactly 10 columns, so it fits perfectly and
+      the narrowing cannot be seen in that column at all. It needs a fixture whose author name is
+      longer than nine characters, which means new dates and new ids for its commits.
 - [ ] Mouse interaction, which `send-keys` cannot express — it needs raw SGR sequences
       (`send-keys -H`) and exact coordinates.
