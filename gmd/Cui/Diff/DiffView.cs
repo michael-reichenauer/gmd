@@ -90,7 +90,14 @@ class DiffView : IDiffView
     void RegisterShortcuts(ContentView view)
     {
         view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
+
+        // Both cases close the diff. Lower case did already, but only by accident: it is not
+        // registered here, so it fell through to the log view's quit handler further down the
+        // toplevel chain, which is Application.RequestStop() and so happened to stop this view
+        // rather than the application. Registering it makes that intended rather than a side
+        // effect of which view the key reached.
         view.RegisterKeyHandler(Key.Q, () => Application.RequestStop());
+        view.RegisterKeyHandler(Key.q, () => Application.RequestStop());
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);

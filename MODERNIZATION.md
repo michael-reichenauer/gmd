@@ -1272,7 +1272,7 @@ Both tiers were proven out in the session that wrote this step, so neither is sp
 
 ### What was built ✅ tmux tier done
 
-Suite went from 441 tests to 455, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 14 tests,
+Suite went from 441 tests to 459, in one new test class (`gmdTest/Cui/TerminalTest.cs`, 17 tests,
 ~14 s) over five new fixtures. **No product code was touched** — that was not a constraint chosen
 up front, it is what the investigation concluded was possible, and it is what keeps the tier valid
 across the 2.x port.
@@ -1350,7 +1350,7 @@ round trip, a commit diff, the filter, and paging a 30-commit log.
         static constructor. `[AssemblyInitialize]` is early enough; nothing in the suite logs from
         a static initializer.
 
-      Verified: 455 tests pass, `~/gmd.log` byte-identical across a full run (checked with a marker
+      Verified: 459 tests pass, `~/gmd.log` byte-identical across a full run (checked with a marker
       line and an md5), the log demonstrably written into `/tmp/gmdTest-home-*/gmd.log` instead, no
       stray `gmd.log` in the working directory, temp homes cleaned up, and
       `--collect:"XPlat Code Coverage"` still writes a cobertura report.
@@ -1383,10 +1383,38 @@ round trip, a commit diff, the filter, and paging a 30-commit log.
 
       Suite 453 → 455. It survives the 2.x port like the rest of this tier: the letters come from
       what the terminal was sent, so no Terminal.Gui type is named.
-- [ ] A bug the suite found while being written, left as its own commit: `q` quits the log view
-      (`RepoViewInput.cs:72`, `Key.q`) but the diff view binds **uppercase only**
-      (`Diff/DiffView.cs:93`, `Key.Q`), so `q` does nothing there — while `gmd/doc/help.md:14`
-      documents "Esc / Q" for quit.
+- [x] **Fixed: `Q` did not quit, although the help guide says it does.** The log view bound only
+      lower case `q` (`RepoViewInput.cs`), so the upper case `Q` that `gmd/doc/help.md:14`
+      documents as "Esc / Q  Exit application in log view" did nothing at all. Keys are looked up
+      by exact value in `ContentView.ProcessHotKey`, and nothing folds case — deliberately, since
+      `p`/`P` and `u`/`U` are different commands (push and pull, current versus all). So the fix
+      is to register both cases of this one key, in the log view and in the diff view.
+
+      **Correcting what this finding first claimed**, which was half wrong and is the more
+      interesting half: it said `q` does nothing in the diff view, since that view binds only
+      `Key.Q`. Driving it proved the opposite — `q` closes the diff, and does so *by accident*.
+      It is unbound there, so it falls through to the next toplevel in the chain, i.e. the log
+      view's quit handler, and that handler is `UI.Shutdown()` → `Application.RequestStop()`,
+      which stops the **topmost** toplevel. In the log view that is the application; with a diff
+      open it is the diff. Right outcome, wrong reason, and it would have broken silently the day
+      the diff view became modal or the log view's handler stopped being `RequestStop`. Now
+      registered explicitly, so it is intended rather than emergent.
+
+      Also checked and found *not* broken, since the same reasoning predicted it would be: that
+      `p` might reach the `P` handler and push every branch instead of the current one. Driven
+      against a repo with two branches ahead of a local bare origin, `p` ran exactly
+      `git push --porcelain origin --set-upstream refs/heads/main:refs/heads/main` and left `dev`
+      alone. Nothing folds case, as the code says.
+
+      `help.md` needed no edit — it already documented the behavior this makes true. Four test
+      cases in `TerminalTest`, written failing first: `TestQuitWithUpperCaseQ` (which timed out
+      before the fix), `TestDiffViewClosesWithQ` for both cases, and
+      `TestTypingQuitKeysIntoADialogDoesNotQuit`, which pins the risk registering a second quit
+      key introduces — a dialog above the log view has to swallow the key rather than let a
+      typed 'q' quit gmd. Suite 455 → 459.
+
+      This is the first product change this step has made, and it is the payoff the step was
+      argued for: a key that silently did nothing, in the one place a user is told to look.
 
 ### Determinism, which is where this will actually go wrong
 

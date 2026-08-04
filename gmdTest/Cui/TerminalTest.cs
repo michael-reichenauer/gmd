@@ -79,6 +79,20 @@ public class TerminalTest
         Assert.IsFalse(gmd.IsRunning);
     }
 
+    // Upper case too, which is the case gmd/doc/help.md documents ("Esc / Q")
+    [TestMethod]
+    public async Task TestQuitWithUpperCaseQ()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Q");
+
+        gmd.WaitForExit();
+        Assert.IsFalse(gmd.IsRunning);
+    }
+
     // Escape quits from the log view, which is why nothing here ever sends a 'safety' Escape
     [TestMethod]
     public async Task TestQuitWithEscape()
@@ -375,6 +389,25 @@ public class TerminalTest
         StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
     }
 
+    // Both cases close the diff, and neither quits the application, which is the difference
+    // between closing a view and closing gmd
+    [TestMethod]
+    [DataRow("q")]
+    [DataRow("Q")]
+    public async Task TestDiffViewClosesWithQ(string key)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("d");
+        gmd.WaitFor("Added: delta.txt");
+
+        gmd.Send(key);
+
+        StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
+        Assert.IsTrue(gmd.IsRunning, $"'{key}' should close the diff view, not quit gmd");
+    }
+
     [TestMethod]
     public async Task TestFilterCommits()
     {
@@ -397,6 +430,24 @@ public class TerminalTest
             gmd.WaitFor("More dev work"),
             repo.Path
         );
+    }
+
+    // The quit keys are registered on the log view, so a dialog above it has to swallow them or
+    // typing a 'q' into a text field would quit gmd. Worth pinning rather than assuming, since
+    // it is what makes registering both cases of the key safe.
+    [TestMethod]
+    public async Task TestTypingQuitKeysIntoADialogDoesNotQuit()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+
+        gmd.SendText("qQ");
+
+        StringAssert.Contains(gmd.WaitFor("Search: qQ"), "Search: qQ");
+        Assert.IsTrue(gmd.IsRunning, "Typing a quit key into a dialog should not quit gmd");
     }
 
     // ContentView's paging keys, which nothing else exercises through a real key path
