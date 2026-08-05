@@ -19,6 +19,11 @@ interface ICmd
         bool skipLogError = false,
         bool skipLog = false
     );
+
+    // Runs a command that gets its input on stdin, and waits for it to exit but never for its
+    // output streams to close. See Cmd.CommandWithStdin for why that difference is the whole
+    // reason this is not just Command().
+    CmdResult CommandWithStdin(string path, string args, string stdinText);
 }
 
 class CmdResult : R<string>
@@ -49,6 +54,13 @@ class CmdResult : R<string>
 
 class Cmd : ICmd
 {
+    // A safety net rather than a normal case: the clipboard tools this is used for exit within
+    // milliseconds, but gmd must not be frozen by one that does not.
+    const int StdinTimeoutMs = 2000;
+
+    // How long to wait for the error text of a command that has already failed
+    const int ErrorReadTimeoutMs = 200;
+
     public Task<CmdResult> RunAsync(
         string path,
         string args,
@@ -142,16 +154,95 @@ class Cmd : ICmd
             Log.Error($"Failed: {cmdText} {t}]\n{e.Message}");
             return new CmdResult(cmdText, -1, "", e.Message);
         }
+    }
 
-        // //To work around https://github.com/dotnet/runtime/issues/27128
-        // static bool DoubleWaitForExit(Process process, int timeout = 500)
-        // {
-        //     var result = process.WaitForExit(timeout);
-        //     if (result)
-        //     {
-        //         process.WaitForExit();
-        //     }
-        //     return result;
-        // }
+    // Runs a command that gets its input on stdin, e.g. a clipboard tool, and waits for it to
+    // exit, but never for its output streams to close.
+    //
+    // That difference is the whole reason this is not just Command(). An X or Wayland selection
+    // is owned by a live process, so xclip, xsel and wl-copy fork a background process to hold
+    // the text, and that process inherits the redirected output pipes of its parent. Command()
+    // calls WaitForExit() with no timeout, which also waits for those pipes to reach end of file,
+    // and that does not happen while the helper lives — i.e. it would block for as long as the
+    // clipboard holds the text (dotnet/runtime#27128). Here the output is never read and the wait
+    // is bounded, so a helper that detaches cannot freeze the UI.
+    public CmdResult CommandWithStdin(string path, string args, string stdinText)
+    {
+        var cmdText = $"{path} {args}";
+        var t = Timing.Start();
+        try
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = path,
+                    Arguments = args,
+                    UseShellExecute = false,
+                    RedirectStandardInput = true,
+                    // Redirected so that a tool writing to the terminal cannot corrupt the drawn
+                    // UI, but deliberately never read while it may still be running, see above.
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    StandardInputEncoding = new UTF8Encoding(false),
+                    StandardErrorEncoding = Encoding.UTF8,
+                },
+            };
+
+            using (process)
+            {
+                process.Start();
+
+                // Closing stdin is what tells the tool that the text has ended. A tool that
+                // rejects its arguments can exit before this, which shows up as a broken pipe —
+                // its exit code and error output below say what actually went wrong, so a failed
+                // write is not the error to report.
+                if (!Try(out var writeError, () => WriteStdin(process, stdinText)))
+                    Log.Debug($"Failed to write stdin of {cmdText}, {writeError}");
+
+                if (!process.WaitForExit(StdinTimeoutMs))
+                {
+                    if (!Try(out var killError, () => process.Kill(true)))
+                        Log.Debug($"Failed to kill {cmdText}, {killError}");
+
+                    Log.Debug($"Timeout: {cmdText} {t}]");
+                    return new CmdResult(cmdText, -1, "", $"Timeout after {StdinTimeoutMs} ms");
+                }
+
+                if (process.ExitCode != 0)
+                {
+                    var error = ErrorOf(process);
+                    Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    return new CmdResult(cmdText, process.ExitCode, "", error);
+                }
+
+                Log.Info($"{cmdText} {t}]");
+                return new CmdResult(cmdText, "", "");
+            }
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            // A tool that is not installed lands here, which is expected while probing for one
+            Log.Debug($"Failed: {cmdText} {t}]\n{e.Message}");
+            return new CmdResult(cmdText, -1, "", e.Message);
+        }
+    }
+
+    // The text, and then end of input, which is what tells the tool that there is no more
+    static void WriteStdin(Process process, string text)
+    {
+        using var stdin = process.StandardInput;
+        stdin.Write(text);
+    }
+
+    // The error output of a command that has already failed. Bounded and read on a thread of its
+    // own, since the pipe can still be held open by a helper the command forked before failing,
+    // and since the caller is usually the UI thread, where waiting on an async read would
+    // deadlock against Terminal.Gui's synchronization context.
+    static string ErrorOf(Process process)
+    {
+        var read = Task.Run(() => process.StandardError.ReadToEnd());
+        return read.Wait(ErrorReadTimeoutMs) ? read.Result.Replace("\r", "").Trim() : "";
     }
 }

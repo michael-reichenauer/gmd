@@ -40,6 +40,7 @@ class RepoCommands : IRepoCommands
     readonly IHelpDlg helpDlg;
     readonly Config config;
     readonly IUpdater updater;
+    readonly IClipboardService clipboard;
 
     internal RepoCommands(
         IViewRepo repo,
@@ -51,7 +52,8 @@ class RepoCommands : IRepoCommands
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         Config config,
-        IUpdater updater
+        IUpdater updater,
+        IClipboardService clipboard
     )
     {
         this.repo = repo;
@@ -64,6 +66,7 @@ class RepoCommands : IRepoCommands
         this.helpDlg = helpDlg;
         this.config = config;
         this.updater = updater;
+        this.clipboard = clipboard;
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -224,8 +227,8 @@ class RepoCommands : IRepoCommands
         {
             await Task.Yield();
             var commit = repo.RowCommit;
-            if (!Try(out var e, Clipboard.Set(commit.Id)))
-                return R.Error($"Clipboard copy not supported on this platform", e);
+            if (!Try(out var e, clipboard.Set(commit.Id)))
+                return R.Error("Failed to copy the commit id", e);
 
             return R.Ok;
         });
@@ -235,8 +238,8 @@ class RepoCommands : IRepoCommands
         {
             await Task.Yield();
             var commit = repo.RowCommit;
-            if (!Try(out var e, Clipboard.Set(commit.Message.TrimEnd())))
-                return R.Error($"Clipboard copy not supported on this platform", e);
+            if (!Try(out var e, clipboard.Set(commit.Message.TrimEnd())))
+                return R.Error("Failed to copy the commit message", e);
 
             return R.Ok;
         });

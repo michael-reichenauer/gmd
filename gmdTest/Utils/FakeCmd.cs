@@ -1,7 +1,8 @@
 namespace gmdTest.Utils;
 
-// Records one call made to the fake command runner
-record CmdCall(string Path, string Args, string WorkingDirectory);
+// Records one call made to the fake command runner. Stdin is what was piped to it, which is
+// empty for everything but CommandWithStdin.
+record CmdCall(string Path, string Args, string WorkingDirectory, string Stdin = "");
 
 // FakeCmd is a test double for ICmd, the seam between the git services and the git
 // executable. It lets git output be canned so parsing can be tested without running git.
@@ -49,4 +50,10 @@ class FakeCmd : ICmd
         bool skipLogError = false,
         bool skipLog = false
     ) => Task.FromResult(Command(path, args, workingDirectory, skipLogError, skipLog));
+
+    public CmdResult CommandWithStdin(string path, string args, string stdinText)
+    {
+        Calls.Add(new CmdCall(path, args, "", stdinText));
+        return respond(path, args, "");
+    }
 }

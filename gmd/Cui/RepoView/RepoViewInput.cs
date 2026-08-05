@@ -29,6 +29,7 @@ class RepoViewInput
     readonly ICommitDetailsView commitDetailsView;
     readonly IApplicationBar applicationBarView;
     readonly IUnicodeSetsDlg charDlg;
+    readonly IClipboardService clipboard;
     readonly Hoover hoover;
 
     bool isRegistered = false;
@@ -39,6 +40,7 @@ class RepoViewInput
         ICommitDetailsView commitDetailsView,
         IApplicationBar applicationBarView,
         IUnicodeSetsDlg charDlg,
+        IClipboardService clipboard,
         Hoover hoover
     )
     {
@@ -47,6 +49,7 @@ class RepoViewInput
         this.commitDetailsView = commitDetailsView;
         this.applicationBarView = applicationBarView;
         this.charDlg = charDlg;
+        this.clipboard = clipboard;
         this.hoover = hoover;
     }
 
@@ -355,13 +358,22 @@ class RepoViewInput
         var (i1, i2) = (selection.I1, selection.I2);
         if (i1 == i2)
         { // Select within the same commit
-            Utils.Clipboard.Set(commitsView.CopySelectedText());
+            CopyToClipboard(commitsView.CopySelectedText());
             return;
         }
 
-        Utils.Clipboard.Set(SelectedCommitsText(ServerRepo.ViewCommits, i1, i2));
+        CopyToClipboard(SelectedCommitsText(ServerRepo.ViewCommits, i1, i2));
         commitsView.ClearSelection();
         commitsView.SetNeedsDisplay();
+    }
+
+    // A copy that fails must say so: a clipboard tool that is missing or that cannot reach the
+    // session is the normal way for this to fail, and silence just looks like a key that does
+    // nothing.
+    void CopyToClipboard(string text)
+    {
+        if (!Try(out var e, clipboard.Set(text)))
+            UI.ErrorMessage(e.AllErrorMessages());
     }
 
     // The text of a selection that spans several commits: the sid and subject of each selected

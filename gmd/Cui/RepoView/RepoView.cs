@@ -79,7 +79,8 @@ class RepoView : IRepoView, IRepoViewInputHost
         ICommitDetailsView commitDetailsView,
         IApplicationBar applicationBarView,
         IFilterDlg filterDlg,
-        IUnicodeSetsDlg charDlg
+        IUnicodeSetsDlg charDlg,
+        IClipboardService clipboard
     )
         : base()
     {
@@ -111,7 +112,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         repoWriter = newRepoWriter(commitsView, commitsView.ContentX);
         repo = newViewRepo(this, Server.Repo.Empty);
-        input = new RepoViewInput(this, commitsView, commitDetailsView, applicationBarView, charDlg, hoover);
+        input = new RepoViewInput(this, commitsView, commitDetailsView, applicationBarView, charDlg, clipboard, hoover);
 
         server.RepoChange += OnRefreshRepo;
         server.StatusChange += OnRefreshStatus;

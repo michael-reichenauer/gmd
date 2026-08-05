@@ -19,6 +19,8 @@ Here are some essential keyboard shortcuts:
 | Enter    | Show commit details                                        |
 | Ctrl+O   | Activate 'OK' buttons in dialogs                           |
 | ? / F1   | Open this help page                                        |
+| Shift+↑↓ | Select commit rows in the log and diff views               |
+| Ctrl+C   | Copy the selected rows to the clipboard                    |
 -------------------------------------------------------------------------
 *More shortcuts are visible within the application menus.*
 

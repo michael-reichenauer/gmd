@@ -135,14 +135,22 @@ Key types and flow:
   they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
   `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally.
+- `Utils/ClipboardService.cs` — copying, which has no one answer: it tries a chain of writers in
+  order and takes the first that works (`pbcopy`; `wl-copy` / `xclip` / `xsel`, each only when the
+  display server it talks to is actually there; `clip.exe`; the Win32 API in
+  `WindowsClipboard.cs`), falling back to OSC 52 (`TerminalClipboard.cs`), which is the only one
+  that reaches the user's clipboard over ssh or from a container. Tools get the text on stdin
+  through `ICmd.CommandWithStdin`, which — unlike `Command` — never waits for the child's output
+  streams, because `xclip` and friends fork a helper that inherits them and would otherwise hang
+  gmd (dotnet/runtime#27128). A copy that fails must say so at the call site.
 
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
 it references Terminal.Gui. The one thing a lower layer needs from the UI is its main loop, and
 that goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an event on the UI
 thread, `RunPeriodically` for a timer, implemented by `MainThread` (`Cui/Common/`) over `UI`.
 `FileMonitor` is its only user. Keep it that way: if a lower layer needs something else from the
-UI, widen that interface rather than reaching up. (`Utils/Clipboard.cs` wrapping
-`Terminal.Gui.Clipboard` is the one remaining direct Terminal.Gui use outside `Cui/`.)
+UI, widen that interface rather than reaching up. Nothing outside `Cui/` names a Terminal.Gui type
+at all — `Utils/Clipboard.cs` was the last one, and Step 11 rewrote it.
 
 ### Dependency injection
 
@@ -374,10 +382,15 @@ bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black)
 is how the current row's highlight is reached, that being a background rather than a foreground.
 
 Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
-filter above excludes them. Six things they do that matter, and that a new test must keep doing:
+filter above excludes them. Seven things they do that matter, and that a new test must keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
   under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
+- **An empty `DISPLAY`, `WAYLAND_DISPLAY` and `WSL_DISTRO_NAME`**, so gmd finds no clipboard tool it
+  can reach and copies through the terminal instead (OSC 52). Two reasons, and the second is not
+  cosmetic: `set-clipboard on` makes tmux keep the sequence as a buffer, which `gmd.Clipboard()`
+  reads back — the only way to assert a copy — and on a developer's desktop a copy would otherwise
+  land on their real clipboard and overwrite it.
 - **`TZ=UTC` and `LC_ALL=C.UTF-8`**, since the time column is local time formatted with the current
   culture, and the UI is drawn with `● ┣ ┅ Ϙ`.
 - **A private tmux server** (`-L <socket> -f <conf>`, socket inside the temp home) so the
