@@ -1260,6 +1260,29 @@ Four decisions behind it:
 - [x] Characterization, found by writing that test: a selection within one row copies the row **as
       drawn**, graph column included, and with the `|` selection marker standing where the `●`
       current-commit marker normally is. A multi-row selection copies sid and subject instead.
+- [x] **Cmd+C cannot be supported on macOS, and it is not gmd that is in the way.** Asked for, and
+      settled as "leave the keys alone" — recorded here so it is not investigated a second time.
+      Three layers, each on its own fatal:
+      - **The terminal keeps the key.** Terminal.app and iTerm2 bind Cmd+C to their own Copy, of
+        the *mouse* selection, and never transmit it to the running program. So does kitty,
+        Ghostty and WezTerm by default.
+      - **The classic key protocol cannot express Cmd.** Its modifier set is Shift/Alt/Ctrl, and
+        macOS terminals map Option to Meta, never Command. Only the newer kitty keyboard protocol
+        encodes Super, and an application has to opt into it.
+      - **Terminal.Gui 1.x has no Command modifier**: `Key` defines exactly `ShiftMask`, `AltMask`
+        and `CtrlMask` (checked against the 1.19.0 API), and no driver speaks the kitty protocol.
+        Verified rather than assumed — `ESC[99;9u`, i.e. kitty's super+c, sent into a running gmd
+        did nothing at all, while Ctrl+C in the same session copied. It is at least swallowed
+        cleanly: no stray key, nothing drawn.
+
+      A user who wants the literal key can bind it in the terminal instead: an iTerm2 *profile*
+      key binding of Cmd+C to Send Hex Code `0x03` sends Ctrl+C to gmd, and being per profile it
+      leaves Cmd+C alone everywhere else. Not documented in `gmd/doc/help.md` — that file is about
+      gmd's keys, and this is a setting in someone else's application.
+
+      If this comes up again, the answer that needs no modifier key is a menu item: copy is on
+      Ctrl+C only, and the commit menu has no entry for it — which is also where the unreachable
+      `CopyCommitId` / `CopyCommitMessage` above would find a home.
 - [ ] **Windows and macOS are not verified on hardware** — see below. The Windows path is the one
       that would benefit most from a real check, since it is new code rather than a new command
       line.
