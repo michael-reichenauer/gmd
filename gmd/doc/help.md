@@ -33,7 +33,7 @@ Here are some essential keyboard shortcuts:
 | ©      | Uncommitted changes (in yellow)                              |
 | *      | Detached commit (commit checked out, not a branch)           |
 | ^      | Abbreviation for 'origin' in branch names                    |
-| ~      | Deleted branch (inactive)                                    |
+| ~      | Deleted branch (inactive, drawn in gray)                     |
 | o      | Branch displayed in menus                                    |
 | ▼      | Commit not yet pulled (blue subject)                         |
 | ▲      | Commit not yet pushed (green subject)                        |
@@ -83,7 +83,8 @@ Symbols:
 Branch tips appear on the right of the subject. Long branch names are
 shortened, and the full names can be viewed in the commit details
 (toggled with `Enter`).
-The symbol `~` highlights a deleted but still accessible branch.
+The symbol `~` highlights a deleted but still accessible branch. Such a branch
+is no longer active, so it is drawn in gray and its color cannot be changed.
 
 
 ## Noteworthy Commands:

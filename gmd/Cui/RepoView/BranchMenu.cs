@@ -98,7 +98,8 @@ class BranchMenu : IBranchMenu
                 "Change Branch Color",
                 "G",
                 () => cmds.ChangeBranchColor(branchName),
-                () => !repo.Repo.BranchByName[branchName].IsMainBranch
+                // Main is always magenta and a deleted branch always gray, so neither can be changed
+                () => !repo.Repo.BranchByName[branchName].IsMainBranch && repo.Repo.BranchByName[branchName].IsGitBranch
             )
             .Items(GetMoveBranchItems(branchName))
             .Separator()

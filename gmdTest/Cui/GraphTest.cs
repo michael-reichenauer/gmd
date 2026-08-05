@@ -123,6 +123,17 @@ public class GraphTest
             """,
             GraphText.WithSubjects(repo)
         );
+
+        // The branch is no longer active, so it is gray rather than given a color of its own
+        Assert.AreEqual(
+            """
+            MWMD
+            M  DD
+            M  D
+            MDDD
+            """,
+            GraphText.ColorsOf(repo)
+        );
     }
 
     // When the log is truncated, the oldest commit gets a virtual parent, so the graph ends in a

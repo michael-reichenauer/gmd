@@ -10,6 +10,8 @@ namespace gmd.Cui.Common;
 // is the same as the parent branch, it is changed to a different color.
 // The user can manually change the color of a branch, and the color is stored in the state
 // until user changes again.
+// Branches that are no longer active (deleted branches, which gmd inferred from merge commits)
+// are gray, so the active branches stand out. That color cannot be changed by the user.
 interface IBranchColorService
 {
     Color GetColor(Repo repo, Branch branch);
@@ -33,6 +35,8 @@ class BranchColorService : IBranchColorService
             return Color.White;
         if (branch.IsMainBranch)
             return Color.Magenta;
+        if (!branch.IsGitBranch)
+            return Color.Dark; // Branch is no longer active (deleted), it is dimmed
 
         if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryName, out var colorId))
         { // Branch has a color set by user, use it

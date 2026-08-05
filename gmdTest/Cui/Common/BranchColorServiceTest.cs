@@ -105,6 +105,28 @@ public class BranchColorServiceTest
         Assert.AreEqual(Color.White, colors.GetColor(repo, repo.BranchByName["DETACHED"]));
     }
 
+    // A branch that is no longer a git branch is deleted, i.e. not active, and is gray. The color
+    // is not derived from the name and a color the user set for it is ignored, as for main.
+    [TestMethod]
+    public async Task TestDeletedBranchIsGray()
+    {
+        var b = new RepoBuilder()
+            .Commit("c3", "Merge branch 'feat' into main", "c2", "f1")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true); // 'feat' is not a branch anymore
+        var repo = await b.ViewRepoAsync(ShowBranches.AllActiveAndDeleted);
+        var colors = new BranchColorService(b.Config);
+
+        var feat = repo.ViewBranches.First(bb => !bb.IsGitBranch);
+        Assert.AreEqual("feat", feat.NiceName);
+        Assert.AreEqual(Color.Dark, colors.GetColor(repo, feat));
+
+        b.Config.Set(repo.Path, c => c.BranchColors[feat.PrimaryName] = 4);
+        Assert.AreEqual(Color.Dark, colors.GetColor(repo, feat));
+    }
+
     static RepoBuilder Repo() =>
         new RepoBuilder()
             .Commit("c5", "Merge branch 'feat' into main", "c4", "f1")
