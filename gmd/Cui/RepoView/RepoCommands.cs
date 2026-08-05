@@ -212,7 +212,13 @@ class RepoCommands : IRepoCommands
                 return R.Ok;
             }
             Log.Info($"Updating release ...");
-            if (!Try(out var _, out var e, await updater.UpdateAsync()))
+            var updateTask = updater.UpdateAsync();
+            UI.ShowMessageWhile(
+                "Updating",
+                $"Updating to version {latest.Txt()},\nthis might take a while ...",
+                updateTask
+            );
+            if (!Try(out var _, out var e, await updateTask))
                 return e;
 
             UI.InfoMessage("Restart Required", "A program restart is required after update,\nplease start gmd again.");

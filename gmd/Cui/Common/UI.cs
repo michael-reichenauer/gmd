@@ -86,6 +86,14 @@ static class UI
         }
     }
 
+    // Shows a message box while the (already started) task is running. The box has no buttons and
+    // is closed when the task completes, so it cannot be dismissed by the user. Input is left as it
+    // is, i.e. a Progress spinner started by the caller keeps running while the message is shown.
+    internal static void ShowMessageWhile(string title, string message, Task task)
+    {
+        MessageDlg.ShowWhile(title, message, task);
+    }
+
     internal static int ErrorMessage(string message, int defaultButton = 0, params string[] buttons)
     {
         return ErrorMessage("Error !", message, defaultButton, buttons);

@@ -44,6 +44,16 @@ static class ColorSchemes
             Disabled = Color.Dark,
         };
 
+    internal static ColorScheme Progress =>
+        new ColorScheme()
+        {
+            Normal = Color.Magenta,
+            Focus = Color.Magenta,
+            HotNormal = Color.Magenta,
+            HotFocus = Color.Magenta,
+            Disabled = Color.Magenta,
+        };
+
     internal static ColorScheme Label =>
         new ColorScheme()
         {
