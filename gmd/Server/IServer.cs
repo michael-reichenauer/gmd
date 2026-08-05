@@ -42,6 +42,7 @@ interface IServer
         string repoPath
     );
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
     Task<R> StashAsync(string message, string wd);
     Task<R> StashPopAsync(string name, string wd);
 

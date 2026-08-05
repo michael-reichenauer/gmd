@@ -35,6 +35,7 @@ interface IGit
     Task<R> CherryPickAsync(string sha, string wd);
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
+    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd);

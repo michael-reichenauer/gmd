@@ -88,6 +88,15 @@ class BranchMenu : IBranchMenu
             )
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             .Item(
+                "Rename Branch ...",
+                "",
+                () => cmds.RenameBranch(b.Name),
+                // The current branch can be renamed, git moves HEAD with it, but a branch git no
+                // longer has cannot, the main branch is what the branch structure is based on, and
+                // a remote branch without a local branch has no local branch to rename
+                () => b.IsGitBranch && !b.IsMainBranch && !b.IsDetached && (!b.IsRemote || b.LocalName != "")
+            )
+            .Item(
                 "Delete Branch ...",
                 "",
                 () => cmds.DeleteBranch(b.Name),

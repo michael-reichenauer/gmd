@@ -302,6 +302,21 @@ public class BranchServiceTest
         Assert.AreEqual("checkout dev", cmd.Calls[0].Args);
     }
 
+    // A rename is '-m' and not '-M', so that git refuses rather than overwrites if the new name is
+    // already taken. The old name is trimmed the same way a checkout is, since only a local branch
+    // can be renamed.
+    [TestMethod]
+    public async Task TestRenameBranch()
+    {
+        var cmd = new FakeCmd("");
+        var service = new BranchService(cmd);
+
+        await service.RenameBranchAsync("origin/dev", "dev2", "/wd");
+
+        Assert.AreEqual("branch -m dev dev2", cmd.Calls[0].Args);
+        Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
+    }
+
     // Merge, rebase, rebase onto and cherry pick all turn a conflict into the same error, since
     // git reports conflicts as a failed command with 'CONFLICT' in the output
     [TestMethod]

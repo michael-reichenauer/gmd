@@ -421,6 +421,14 @@ still on the branch it was on, which is why `s` straight after looks like a drop
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
 
+Driving a **menu** adds two more. `Send("Down", "Down", …)` in one call loses keys — a menu redraw
+drops whatever was sent behind it, so five arrived as three — which makes a miscounted menu run the
+wrong command. Send one key per `Send`, with a `WaitForStable` after each; that is the same "never
+send a key into a screen that has not settled" rule, and it applies to a menu even though no git
+command is running. And count the moves against the *fixture*, not the menu source: `OnCursorDown`
+skips disabled items, so the same item is a different number of moves in a repo with a remote than
+in one without. `TerminalTest.TestRenameBranch` is five moves for that reason.
+
 Other things to know:
 
 - Put a test at the path mirroring its subject, e.g.

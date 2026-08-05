@@ -24,6 +24,26 @@ public class MetaData
         SetCommitBranch(sid, ""); // Mark as removed to support sync
     }
 
+    // Values are branch nice names, so a renamed branch must be renamed here as well. Without this,
+    // the stored name would no longer match any branch, and since the branch set here is the first
+    // and strongest rule when assigning commits to branches, the old name would be resurrected as a
+    // deleted branch of its own (see CommitBranchRules.TryIsBranchSetByUser).
+    internal void RenameBranch(string oldNiceName, string newNiceName)
+    {
+        foreach (var sid in CommitBranchBySid.Keys.ToList())
+        {
+            var name = CommitBranchBySid[sid];
+            if (name == oldNiceName)
+            {
+                SetBranched(sid, newNiceName);
+            }
+            else if (name == "*" + oldNiceName)
+            { // Branch was set by user, keep it set by user
+                SetCommitBranch(sid, newNiceName);
+            }
+        }
+    }
+
     internal bool TryGetCommitBranch(string sid, out string branchName, out bool isSetByUser)
     {
         branchName = "";

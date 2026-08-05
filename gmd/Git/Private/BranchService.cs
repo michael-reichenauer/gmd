@@ -8,6 +8,7 @@ interface IBranchService
     Task<R> CheckoutAsync(string name, string wd);
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
+    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> MergeBranchAsync(string name, string wd);
     Task<R> RebaseBranchAsync(string name, string wd);
@@ -69,6 +70,16 @@ class BranchService : IBranchService
         string args = isCheckout ? $"checkout -b" : $"branch";
         args += $" {name} {sha}";
         return await cmd.RunAsync("git", args, wd);
+    }
+
+    // Renames a local branch. Git moves the branch's reflog and renames its '[branch "<name>"]'
+    // config section as well, and updates HEAD if the branch is the current branch, so no checkout
+    // is needed. Note that '-m' (and not '-M') is used, since git should refuse rather than
+    // overwrite if the new name is already taken.
+    public async Task<R> RenameBranchAsync(string oldName, string newName, string wd)
+    {
+        oldName = RemoteService.TrimRemotePrefix(oldName);
+        return await cmd.RunAsync("git", $"branch -m {oldName} {newName}", wd);
     }
 
     public async Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd)

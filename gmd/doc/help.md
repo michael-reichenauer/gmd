@@ -105,6 +105,12 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
 - **Merge**: 
   Highlight a branch and merge into the current branch. 
   Use `Commit` post-merge.
+- **Rename Branch ...**:
+  Renames the branch with `git branch -m`, which also works on the current
+  branch, without checking anything out. A published branch is renamed on the
+  remote as well, by pushing the new name and then deleting the old remote
+  branch. Note that deleting it affects everyone: other clones lose track of
+  the branch and a pull request made from the old name is closed.
 - **Set Commit Branch Manually**: 
   For commits where the branch is ambiguous, this command resolves the
   uncertainty.

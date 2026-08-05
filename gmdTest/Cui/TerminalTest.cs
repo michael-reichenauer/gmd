@@ -947,6 +947,84 @@ public class TerminalTest
         Assert.AreEqual("  dev\n* main", await repo.GitAsync("branch"), "No branch should have been created");
     }
 
+    // Renaming is menu only, so this is also the one test that drives a menu item all the way to
+    // its command. The item is disabled for the main branch, hence renaming dev, and the fixture
+    // has no origin, so this is the local half of a rename; the remote half is a push and a delete
+    // of the old remote branch, which the integration tests cover.
+    [TestMethod]
+    public async Task TestRenameBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        // Show dev and hoover it: down to the merge commit, left to hoover main, enter to open the
+        // branch merged in there, right to move the hoover from main on to dev
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Branch: dev");
+
+        // Down to 'Rename Branch ...', which is five moves and not seven, since 'Rebase and push
+        // on' and 'Pull/Update' are disabled here and are skipped over. One key at a time: a menu
+        // redraw drops the keys sent behind it, so a single Send of five would arrive as three.
+        for (var i = 0; i < 5; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        // The name is filled in and the cursor is at its end, so the rename is a matter of editing
+        // it. There is no remote branch here, so the dialog says nothing about origin.
+        var dialog = gmd.WaitFor("Rename Branch");
+        Assert.AreEqual(
+            """
+                                          ╭ Rename Branch ───────────────────────────────────────────╮
+                                          │ From: dev                                                │
+                                          │                                                          │
+                                          ││dev                                                     ││
+                                          │└────────────────────────────────────────────────────────┘│
+                                          │                                                          │
+                                          │                                                          │
+                                          │                   [◦ OK ◦] [ Cancel ]                    │
+                                          ╰──────────────────────────────────────────────────────────╯
+            """,
+            ScreenText.Rows(dialog, repo.Path, 15, 9)
+        );
+
+        gmd.SendText("2");
+        gmd.WaitFor("dev2");
+        gmd.Send("Enter");
+
+        // The branch is drawn under its new name, in the same column and with the same commits
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (dev2) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣   ● Add delta                                                     (● main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣│    Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┃╰╊   More dev work                                                         (dev2) af3ee6 Test User      24-10-15 12:03
+            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("(dev2)"),
+            repo.Path
+        );
+
+        Assert.AreEqual("  dev2\n* main", await repo.GitAsync("branch"));
+        Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "Renaming does not check out");
+    }
+
     [TestMethod]
     public async Task TestAddATag()
     {

@@ -20,6 +20,7 @@ interface IBranchCommands
     void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
+    void RenameBranch(string name);
     void DeleteBranch(string name);
     void MergeBranch(string name);
     void RebaseBranchOnto(string onto);
@@ -99,6 +100,8 @@ class BranchCommands : IBranchCommands
     public void CreateBranchFromBranch(string name) => createCmds.CreateBranchFromBranch(name);
 
     public void CreateBranchFromCommit() => createCmds.CreateBranchFromCommit();
+
+    public void RenameBranch(string name) => createCmds.RenameBranch(name);
 
     public void DeleteBranch(string name) => createCmds.DeleteBranch(name);
 

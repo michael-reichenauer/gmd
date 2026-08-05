@@ -18,6 +18,7 @@ interface IBranchWriteService
         string wd
     );
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name);
     Task<R> RebaseBranchAsync(Repo repo, string name);
@@ -114,6 +115,31 @@ class BranchWriteService : IBranchWriteService
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
+
+    // Renames the local branch. The meta data remembers which branch a commit belongs to by name,
+    // so those names are renamed as well, otherwise the old name would reappear as a branch of its
+    // own. The remote branch is not renamed here, git has no such command, the caller pushes the
+    // new name and deletes the old remote branch instead.
+    public async Task<R> RenameBranchAsync(string oldName, string newName, string wd)
+    {
+        Log.Info($"Rename branch {oldName} to {newName} ...");
+
+        using (fileMonitor.Pause())
+        {
+            if (!Try(out var e, await git.RenameBranchAsync(oldName, newName, wd)))
+                return e;
+
+            // Get the latest meta data
+            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd)))
+                return e;
+
+            metaData.RenameBranch(NiceName(oldName), NiceName(newName));
+            return await metaDataService.SetMetaDataAsync(wd, metaData);
+        }
+    }
+
+    // The meta data stores nice names, i.e. names without the remote prefix
+    static string NiceName(string branchName) => branchName.TrimPrefix("origin/");
 
     public async Task<R> SwitchToAsync(Repo repo, string branchName)
     {

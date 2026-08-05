@@ -107,6 +107,77 @@ public class GitIntegrationTest
         Assert.IsFalse(main.IsCurrent);
     }
 
+    // Renaming a branch the user is not on leaves them where they are, which is the reason gmd
+    // renames with 'git branch -m' rather than creating a branch and deleting the old one
+    [TestMethod]
+    public async Task TestRenameBranchLeavesTheCurrentBranchAlone()
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", false, repo.Path));
+
+        Ok(await repo.Git.RenameBranchAsync("dev", "dev2", repo.Path));
+
+        var branches = Value(await repo.Git.GetBranchesAsync(repo.Path));
+        Assert.AreEqual("dev2, main", string.Join(", ", branches.Select(b => b.Name)));
+        Assert.AreEqual(c1, branches.First(b => b.Name == "dev2").TipID, "The branch still points at its commit");
+        Assert.IsTrue(branches.First(b => b.Name == "main").IsCurrent, "Still on the branch we were on");
+    }
+
+    // Git moves HEAD along when the renamed branch is the current one, so no checkout is needed
+    [TestMethod]
+    public async Task TestRenameCurrentBranchMovesHead()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+
+        Ok(await repo.Git.RenameBranchAsync("main", "main2", repo.Path));
+
+        Assert.AreEqual("main2", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+        var branches = Value(await repo.Git.GetBranchesAsync(repo.Path));
+        Assert.IsTrue(branches.First(b => b.Name == "main2").IsCurrent);
+    }
+
+    // Renaming the remote half is a push of the new name followed by a delete of the old one, and
+    // the push is also the repair: 'git branch -m' renames the branch but leaves it tracking the
+    // old remote branch, and PushBranchAsync pushes an explicit refspec with --set-upstream, which
+    // is what moves the tracking on to the new remote branch. Without that a later pull or push of
+    // the renamed branch would still go to the old name.
+    [TestMethod]
+    public async Task TestRenameBranchAndItsRemoteBranch()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.AddOriginAsync();
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        Ok(await repo.Git.PushBranchAsync("dev", repo.Path));
+
+        Ok(await repo.Git.RenameBranchAsync("dev", "dev2", repo.Path));
+        StringAssert.Contains(
+            await repo.GitAsync("branch -vv --no-color"),
+            "[origin/dev]",
+            "The rename alone leaves the branch tracking the old remote branch"
+        );
+
+        Ok(await repo.Git.PushBranchAsync("dev2", repo.Path));
+        Ok(await repo.Git.DeleteRemoteBranchAsync("dev", repo.Path));
+
+        var branches = Value(await repo.Git.GetBranchesAsync(repo.Path));
+        Assert.AreEqual("dev2, main, origin/dev2", string.Join(", ", branches.Select(b => b.Name).Order()));
+        Assert.AreEqual("origin/dev2", branches.First(b => b.Name == "dev2").RemoteName, "Tracks the new name");
+    }
+
+    // '-m' and not '-M', so an existing branch is never silently overwritten
+    [TestMethod]
+    public async Task TestRenameToAnExistingBranchNameFails()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", false, repo.Path));
+
+        var result = await repo.Git.RenameBranchAsync("dev", "main", repo.Path);
+
+        Assert.IsFalse(Try(out var _, result), "Expected the rename to be refused");
+        var branches = Value(await repo.Git.GetBranchesAsync(repo.Path));
+        Assert.AreEqual("dev, main", string.Join(", ", branches.Select(b => b.Name)));
+    }
+
     [TestMethod]
     public async Task TestDetachedHead()
     {

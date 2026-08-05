@@ -119,6 +119,9 @@ internal class Git : IGit
     public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
         branchService.CreateBranchFromCommitAsync(name, sha, isCheckout, wd);
 
+    public Task<R> RenameBranchAsync(string oldName, string newName, string wd) =>
+        branchService.RenameBranchAsync(oldName, newName, wd);
+
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         branchService.DeleteLocalBranchAsync(name, isForced, wd);
 

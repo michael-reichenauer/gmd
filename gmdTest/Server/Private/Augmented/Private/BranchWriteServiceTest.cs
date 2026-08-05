@@ -59,6 +59,27 @@ public class BranchWriteServiceTest
         Assert.AreEqual("main", YoungestOf(repo, "main"));
     }
 
+    // Renaming a branch renames it in the branch choices as well, or the old name would come back
+    // as a branch of its own (see BranchStructureServiceTest). The choices store nice names, so the
+    // remote prefix of the name being renamed has to be trimmed off first.
+    [TestMethod]
+    public async Task TestRenameBranchRenamesTheBranchChoices()
+    {
+        var metaData = new MetaData();
+        metaData.SetCommitBranch("abc123", "dev");
+        metaData.SetBranched("def456", "main");
+        var git = new FakeGit();
+        var service = new BranchWriteService(git, new FakeFileMonitor(), new FakeMetaDataService(metaData));
+
+        Assert.IsTrue(Try(out var e, await service.RenameBranchAsync("origin/dev", "dev2", "/wd")), $"{e}");
+
+        CollectionAssert.AreEqual(new[] { "origin/dev -> dev2" }, git.RenameCalls);
+        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("dev2", name);
+        Assert.IsTrue(metaData.TryGetCommitBranch("def456", out name, out _));
+        Assert.AreEqual("main", name);
+    }
+
     static string YoungestOf(Repo repo, string name) =>
         BranchWriteService.YoungestTipName(repo, repo.BranchByName[name]);
 

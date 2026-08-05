@@ -115,6 +115,9 @@ class AugmentedService : IAugmentedService
         string wd
     ) => branchWriteService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
 
+    public Task<R> RenameBranchAsync(string oldName, string newName, string wd) =>
+        branchWriteService.RenameBranchAsync(oldName, newName, wd);
+
     public Task<R> SwitchToAsync(Repo repo, string branchName) => branchWriteService.SwitchToAsync(repo, branchName);
 
     public Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name) =>

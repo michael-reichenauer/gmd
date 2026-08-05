@@ -183,6 +183,49 @@ public class BranchStructureServiceTest
         Assert.AreEqual(created, repo.Branches["feat-b"].ParentBranch?.Name);
     }
 
+    // Which is why renaming a branch has to rename the metadata as well: the stored name is the
+    // strongest rule there is, so a stale one does not fall back to the branch git now has, it
+    // recreates the old name as a branch of its own. This pins the failure the rename migration in
+    // MetaData.RenameBranch exists to prevent.
+    [TestMethod]
+    public async Task TestABranchNameLeftBehindByARenameIsResurrected()
+    {
+        var repo = await NewRenamedRepoBuilder("dev").AugmentAsync();
+
+        var d1 = CommitOf(repo, "d1");
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("d1")}", d1.Branch?.Name, "The old name is back as a branch");
+        Assert.IsFalse(repo.Branches[d1.Branch!.Name].IsGitBranch);
+        CollectionAssert.Contains(repo.Branches.Keys.ToList(), "dev2", "While the renamed branch is also there");
+    }
+
+    // With the metadata renamed along with the branch, the commit stays on the renamed branch and
+    // no branch is left over
+    [TestMethod]
+    public async Task TestARenamedBranchNameKeepsTheCommitOnThatBranch()
+    {
+        var repo = await NewRenamedRepoBuilder("dev2").AugmentAsync();
+
+        var d1 = CommitOf(repo, "d1");
+        Assert.AreEqual("dev2", d1.Branch?.Name);
+        Assert.IsTrue(d1.IsBranchSetByUser);
+        CollectionAssert.AreEquivalent(
+            new[] { "main", "origin/main", "dev2" },
+            repo.Branches.Keys.ToList(),
+            "No branch is left over from the old name"
+        );
+    }
+
+    // A repo where the branch 'dev' was renamed to 'dev2', with the name the metadata still holds
+    // for its tip commit left as the caller wants it, i.e. stale or renamed along with the branch
+    static RepoBuilder NewRenamedRepoBuilder(string metaDataName) =>
+        new RepoBuilder()
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .LocalBranch("dev2", "d1")
+            .UserSetBranch("d1", metaDataName);
+
     // gmd also records where a branch was created from (metadata written by CreateBranchAsync).
     // That resolves the same ambiguity, but is not flagged as a user choice, so the UI does not
     // offer to unresolve it.

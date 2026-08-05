@@ -236,6 +236,9 @@ class Server : IServer
         string wd
     ) => augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
 
+    public Task<R> RenameBranchAsync(string oldName, string newName, string wd) =>
+        augmentedService.RenameBranchAsync(oldName, newName, wd);
+
     public async Task<R> PushBranchAsync(string name, string wd)
     {
         using (Timing.Start($"Pushed {name}"))

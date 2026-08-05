@@ -52,6 +52,46 @@ public class MetaDataTest
         Assert.IsFalse(isSetByUser);
     }
 
+    // A renamed branch has to be renamed in the choices too, otherwise the old name would no longer
+    // match any branch and would be resurrected as a deleted branch of its own
+    [TestMethod]
+    public void TestRenameBranchRenamesTheChoicesOfThatBranch()
+    {
+        var metaData = new MetaData();
+        metaData.SetBranched("branched", "dev");
+        metaData.SetCommitBranch("byUser", "dev");
+        metaData.SetBranched("other", "main");
+
+        metaData.RenameBranch("dev", "dev2");
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("branched", out var name, out var isSetByUser));
+        Assert.AreEqual("dev2", name);
+        Assert.IsFalse(isSetByUser, "A branched choice stays a branched choice");
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("byUser", out name, out isSetByUser));
+        Assert.AreEqual("dev2", name);
+        Assert.IsTrue(isSetByUser, "A choice set by the user stays set by the user");
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("other", out name, out _));
+        Assert.AreEqual("main", name, "Other branches are untouched");
+    }
+
+    // Renaming to a name that is a prefix or suffix of another must not touch the other
+    [TestMethod]
+    public void TestRenameBranchOnlyRenamesExactNames()
+    {
+        var metaData = new MetaData();
+        metaData.SetBranched("similar", "dev-2");
+        metaData.SetBranched("prefixed", "my/dev");
+
+        metaData.RenameBranch("dev", "renamed");
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("similar", out var name, out _));
+        Assert.AreEqual("dev-2", name);
+        Assert.IsTrue(metaData.TryGetCommitBranch("prefixed", out name, out _));
+        Assert.AreEqual("my/dev", name);
+    }
+
     // A later choice replaces an earlier one rather than adding to it
     [TestMethod]
     public void TestSettingTheBranchAgainReplacesTheChoice()

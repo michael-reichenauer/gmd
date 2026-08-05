@@ -135,6 +135,15 @@ class FakeGit : IGit
     public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
         throw new NotSupportedException();
 
+    // Recorded rather than thrown, so a test can check what the rename did to the branch choices
+    public List<string> RenameCalls { get; } = [];
+
+    public Task<R> RenameBranchAsync(string oldName, string newName, string wd)
+    {
+        RenameCalls.Add($"{oldName} -> {newName}");
+        return Task.FromResult(R.Ok);
+    }
+
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) => throw new NotSupportedException();
 
     public Task<R> DeleteRemoteBranchAsync(string name, string wd) => throw new NotSupportedException();
