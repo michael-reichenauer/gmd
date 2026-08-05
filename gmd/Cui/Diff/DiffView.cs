@@ -24,6 +24,7 @@ class DiffView : IDiffView
     readonly IDiffService diffService;
     private readonly IProgress progress;
     private readonly IServer server;
+    readonly IClipboardService clipboard;
     ContentView contentView = null!;
     CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
@@ -36,11 +37,12 @@ class DiffView : IDiffView
 
     bool IsSelected => contentView.SelectCount > 0;
 
-    public DiffView(IDiffService diffService, IProgress progress, IServer server)
+    public DiffView(IDiffService diffService, IProgress progress, IServer server, IClipboardService clipboard)
     {
         this.diffService = diffService;
         this.progress = progress;
         this.server = server;
+        this.clipboard = clipboard;
     }
 
     public DiffResult Show(CommitDiff diff, string commitId, string repoPath) => Show([diff], commitId, repoPath);
@@ -453,9 +455,9 @@ class DiffView : IDiffView
                 .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t[5..] : t)
         );
 
-        if (!Try(out var e, Utils.Clipboard.Set(text)))
+        if (!Try(out var e, clipboard.Set(text)))
         {
-            UI.ErrorMessage($"Failed to copy to clipboard\nError: {e}");
+            UI.ErrorMessage(e.AllErrorMessages());
         }
 
         contentView.ClearSelection();

@@ -118,6 +118,32 @@ sealed class TmuxSession : IDisposable
     // Polls until the screen has simply stopped changing
     public string WaitForStable(int timeoutMs = DefaultTimeoutMs) => Poll(_ => true, "the screen to settle", timeoutMs);
 
+    // What gmd has copied, i.e. the text of the OSC 52 sequence tmux received, kept as a buffer
+    // because of set-clipboard above. Empty until something has been copied.
+    public string Clipboard()
+    {
+        var result = Tmux("show-buffer");
+        return result.IsOk ? result.Output : "";
+    }
+
+    // Polls until something has been copied. The copy is a side effect rather than something the
+    // screen shows, so there is nothing for WaitFor to look at.
+    public string WaitForClipboard(int timeoutMs = DefaultTimeoutMs)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            var text = Clipboard();
+            if (text != "")
+                return text;
+
+            Thread.Sleep(PollMs);
+        }
+
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for something to be copied\n{Diagnostics(Capture())}");
+        return "";
+    }
+
     // Sends keys, e.g. "q", "Down", "Escape", "S-Right". The screen must have settled first, see
     // StableCount.
     public void Send(params string[] keys) => Tmux(["send-keys", "-t", "gmd", .. keys]);
@@ -177,6 +203,12 @@ sealed class TmuxSession : IDisposable
         // remain-on-exit is the one that matters most. Without it a gmd that dies at startup
         // takes the session with it, and every capture fails with "can't find session" rather
         // than showing the screen and the exit code that say what happened.
+        //
+        // set-clipboard is what makes copying assertable. The default, 'external', passes an
+        // application's OSC 52 sequence on to the outer terminal but keeps nothing; 'on' also
+        // stores it as a tmux buffer, which Clipboard reads back. Since the environment below
+        // leaves gmd no clipboard tool it can reach, OSC 52 is the path it takes here, so this
+        // turns the copy into something a test can look at.
         var conf = IOPath.Join(home.Path, "tmux.conf");
         File.WriteAllText(
             conf,
@@ -184,6 +216,7 @@ sealed class TmuxSession : IDisposable
             set-option -g remain-on-exit on
             set-option -g status off
             set-option -g default-terminal "screen-256color"
+            set-option -g set-clipboard on
             """
         );
 
@@ -236,6 +269,14 @@ sealed class TmuxSession : IDisposable
             "LC_ALL=C.UTF-8",
             // HOME does not cover /etc/gitconfig, which a CI image may populate
             "GIT_CONFIG_NOSYSTEM=1",
+            // No display and no WSL, so ClipboardService offers no local clipboard tool and copies
+            // through the terminal instead. Both halves matter: on a developer's desktop these are
+            // set, and gmd would then put the copied text on their real clipboard — overwriting
+            // whatever they had there — and the test would have nothing to read back. An empty
+            // value reads as unset, see ClipboardServiceTest.
+            "DISPLAY=",
+            "WAYLAND_DISPLAY=",
+            "WSL_DISTRO_NAME=",
             // Nothing may ever block on a credential prompt in a pane nobody is watching
             "GIT_TERMINAL_PROMPT=0",
         ];

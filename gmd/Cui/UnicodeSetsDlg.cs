@@ -1,6 +1,5 @@
 using gmd.Cui.Common;
 using Terminal.Gui;
-using Clipboard = gmd.Utils.Clipboard;
 
 interface IUnicodeSetsDlg
 {
@@ -11,8 +10,15 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
 {
     record Set(string Name, int start, int end);
 
+    readonly IClipboardService clipboard;
+
     IReadOnlyList<Text> content = null!;
     ContentView contentView = null!;
+
+    public UnicodeSetsDlg(IClipboardService clipboard)
+    {
+        this.clipboard = clipboard;
+    }
 
     public void Show()
     {
@@ -33,7 +39,8 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
     {
         var text = contentView.CopySelectedText();
         Log.Info($"Copy: '{text}'");
-        Clipboard.Set(text);
+        if (!Try(out var e, clipboard.Set(text)))
+            UI.ErrorMessage(e.AllErrorMessages());
     }
 
     // Returns a list of texts of all the characters in each set in batches
