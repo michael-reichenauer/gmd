@@ -227,26 +227,24 @@ public class TerminalTest
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add│Commit ...                          C  │                                  4a15fb Test User      24-10-15 12:04
-            ┣╯   Add│Amend ...                           A  │                                  dd7891 Test User      24-10-15 12:01
-            ┗    Ini│Commit Diff ...                     D  │                                  9dc406 Test User      24-10-15 12:00
-                    │Undo                                  >│
-                    │Rebase                                >│
-                    │Stash                                 >│
-                    │Tag                                   >│
-                    │Create Branch from Commit ...       B  │
-                    │Merge From Commit to main              │
-                    │Cherry Pick Commit to main             │
-                    │Switch/Checkout to Commit              │
-                    │───────────────────────────────────────│
-                    │Branches                              >│
-                    │Show/Open Branch              Shift → >│
-                    │Hide All Branches                      │
-                    │Toggle Commit Details ...       Enter  │
-                    │File History ...                       │
-                    │Repo Menu                             >│
-                    ╰───────────────────────────────────────╯
+            ┣╮   Mer╭ Commit: 17d85b ─────────────────────╮                                    4e73d2 Test User      24-10-15 12:05
+            ┣    Add│Commit ...                        C  │                                    4a15fb Test User      24-10-15 12:04
+            ┣╯   Add│Amend ...                         A  │                                    dd7891 Test User      24-10-15 12:01
+            ┗    Ini│Commit Diff ...                   D  │                                    9dc406 Test User      24-10-15 12:00
+                    │Undo                                >│
+                    │Rebase                              >│
+                    │Stash                               >│
+                    │Tag                                 >│
+                    │Create Branch from Commit ...     B  │
+                    │Merge From Commit to main            │
+                    │Cherry Pick Commit to main           │
+                    │Switch/Checkout to Commit            │
+                    │Toggle Commit Details ...     Enter  │
+                    │─────────────────────────────────────│
+                    │Branches                            >│
+                    │File History ...                     │
+                    │Repo Menu                           >│
+                    ╰─────────────────────────────────────╯
             """,
             gmd.WaitFor("Commit ..."),
             repo.Path
@@ -281,30 +279,34 @@ public class TerminalTest
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
 
-        // 'End' to the last item and five up is the shorter and steadier walk to 'Branches': the
+        // 'End' to the last item and two up is the shorter and steadier walk to 'Branches': the
         // items below it are all unconditionally enabled, while several above it are not and
         // OnCursorDown skips over whatever is disabled.
         gmd.Send("End");
         gmd.WaitForStable();
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < 2; i++)
         {
             gmd.Send("Up");
             gmd.WaitForStable();
         }
 
         // The two shown branches, left to right as the graph draws them, with the '●' marking the
-        // current one. Both are submenus, so both carry the '>'.
+        // current one. Both are submenus, so both carry the '>'. Below the separator, the items
+        // that change which branches are shown at all.
         gmd.Send("Right");
         var branches = gmd.WaitForStable();
         Assert.AreEqual(
             """
-                     │───────────────────────────────────────│╭ Branches ─╮
-                     │Branches                              >││●   main  >│
-                     │Show/Open Branch              Shift → >││    dev   >│
-                     │Hide All Branches                      │╰───────────╯
-                     │Toggle Commit Details ...       Enter  │
+                     │Toggle Commit Details ...     Enter  │
+                     │─────────────────────────────────────│╭ Branches ─────────────────╮
+                     │Branches                            >││●   main                  >│
+                     │File History ...                     ││    dev                   >│
+                     │Repo Menu                           >││───────────────────────────│
+                     ╰─────────────────────────────────────╯│Show/Open Branch  Shift → >│
+                                                            │Hide All Branches          │
+                                                            ╰───────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 18, 5)
+            ScreenText.Rows(branches, repo.Path, 18, 8)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -315,24 +317,25 @@ public class TerminalTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │───────────────────────────────────────│╭ Branches ─╮
-                     │Branches                              >││●   main  >│╭ dev ───────────────────────────────────╮
-                     │Show/Open Branch              Shift → >││    dev   >││Switch/Checkout to Branch            S  │
-                     │Hide All Branches                      │╰───────────╯│Merge to main                        E  │
-                     │Toggle Commit Details ...       Enter  │             │Rebase and push on                     >│
-                     │File History ...                       │             │Hide Branch                          H  │
-                     │Repo Menu                             >│             │Pull/Update                          U  │
-                     ╰───────────────────────────────────────╯             │Push                                 P  │
-                                                                           │Create Branch ...                    B  │
-                                                                           │Rename Branch ...                       │
-                                                                           │Delete Branch ...                       │
-                                                                           │Diff Branch to                       D >│
-                                                                           │Change Branch Color                  G  │
-                                                                           │────────────────────────────────────────│
-                                                                           │Pull/Update All Branches       Shift-U  │
-                                                                           │Push All Branches              Shift-P  │
-                                                                           │Set Commit Branch Manually ...          │
-                                                                           ╰────────────────────────────────────────╯
+                     │Toggle Commit Details ...     Enter  │
+                     │─────────────────────────────────────│╭ Branches ─────────────────╮
+                     │Branches                            >││●   main                  >│╭ dev ───────────────────────────────────╮
+                     │File History ...                     ││    dev                   >││Switch/Checkout to Branch            S  │
+                     │Repo Menu                           >││───────────────────────────││Merge to main                        E  │
+                     ╰─────────────────────────────────────╯│Show/Open Branch  Shift → >││Rebase and push on                     >│
+                                                            │Hide All Branches          ││Hide Branch                          H  │
+                                                            ╰───────────────────────────╯│Pull/Update                          U  │
+                                                                                         │Push                                 P  │
+                                                                                         │Create Branch ...                    B  │
+                                                                                         │Rename Branch ...                       │
+                                                                                         │Delete Branch ...                       │
+                                                                                         │Diff Branch to                       D >│
+                                                                                         │Change Branch Color                  G  │
+                                                                                         │────────────────────────────────────────│
+                                                                                         │Pull/Update All Branches       Shift-U  │
+                                                                                         │Push All Branches              Shift-P  │
+                                                                                         │Set Commit Branch Manually ...          │
+                                                                                         ╰────────────────────────────────────────╯
             """,
             ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 18, 20)
         );

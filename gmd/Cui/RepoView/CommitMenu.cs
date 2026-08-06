@@ -77,11 +77,10 @@ class CommitMenu : ICommitMenu
                 () => repo.BranchCmds.SwitchToCommit(),
                 () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id
             )
-            .Separator()
-            .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
-            .SubMenu("Show/Open Branch", "Shift →", branchMenu.GetShowBranchItems())
-            .Item("Hide All Branches", "", () => repo.BranchCmds.HideBranch("", true))
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
+            .Separator()
+            // Everything about branches, including showing and hiding them, is under here
+            .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
             .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
     }

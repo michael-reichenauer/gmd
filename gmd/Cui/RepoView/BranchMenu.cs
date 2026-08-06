@@ -335,13 +335,22 @@ class BranchMenu : IBranchMenu
             : items;
     }
 
-    // The branches currently shown in the graph, each item opening that branch's own menu, so a
-    // branch operation is reachable from the commit menu without first hoovering the branch with
-    // the ← / → keys. Ordered left to right as the graph draws them, so the list reads as the
-    // graph does. The chain is deliberately left deferred (a lazy Select): Menu.Show calls
-    // Children.Any() on every submenu of the level it opens, so only the first branch's menu is
-    // built while the commit menu is shown, the rest when the user opens this submenu.
+    // Everything about branches, for the commit menu: the branches currently shown in the graph,
+    // each item opening that branch's own menu, so a branch operation is reachable without first
+    // hoovering the branch with the ← / → keys, followed by the items that show and hide branches.
     public IEnumerable<MenuItem> GetShownBranchesItems() =>
+        GetShownBranchesSubMenus()
+            .Concat(
+                Menu.Items.Separator()
+                    .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
+                    .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
+            );
+
+    // Ordered left to right as the graph draws them, so the list reads as the graph does. The chain
+    // is deliberately left deferred (a lazy Select): Menu.Show calls Children.Any() on every submenu
+    // of the level it opens, so only the first branch's menu is built while the commit menu is
+    // shown, the rest when the user opens the Branches submenu.
+    IEnumerable<MenuItem> GetShownBranchesSubMenus() =>
         repo
             .Graph.GetPageBranches(0, repo.Repo.ViewCommits.Count - 1)
             .Select(gb => gb.B)
