@@ -78,10 +78,12 @@ class CommitMenu : ICommitMenu
                 () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id
             )
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
+            // Belongs with the commit items: the files offered are the ones this commit has, even
+            // though the history then shown for the chosen one is its full history, hence 'Full'
+            .Item("Full File History ...", "", () => cmds.ShowFileHistory())
             .Separator()
             // Everything about branches, including showing and hiding them, is under here
             .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
-            .Item("File History ...", "", () => cmds.ShowFileHistory())
             .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
 

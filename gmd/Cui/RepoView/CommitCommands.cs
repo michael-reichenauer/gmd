@@ -481,7 +481,11 @@ class CommitCommands : ICommitCommands
         Do(async () =>
         {
             var commit = repo.RowCommit;
-            var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
+            // The files to pick from are the ones the reference has, while the history then shown
+            // for the picked one is its full history, so the title names where the list came from
+            var (reference, title) = commit.IsUncommitted
+                ? (commit.BranchName, $"Select File of Branch {commit.BranchName}")
+                : (commit.Id, $"Select File of Commit {commit.Id.Sid()}");
 
             if (!Try(out var files, out var e, await server.GetFileAsync(reference, repo.Path)))
             {
@@ -489,7 +493,7 @@ class CommitCommands : ICommitCommands
             }
 
             var browser = new FileBrowseDlg();
-            if (!Try(out var path, browser.Show(files)))
+            if (!Try(out var path, browser.Show(files, title)))
                 return R.Ok;
 
             if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, repo.Path)))

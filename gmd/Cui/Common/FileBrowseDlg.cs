@@ -7,12 +7,12 @@ public class FileBrowseDlg
 {
     string selectedPath = "";
 
-    internal R<string> Show(IReadOnlyList<string> files)
+    internal R<string> Show(IReadOnlyList<string> files, string title = "Select File")
     {
         const int width = 50;
         const int height = 20;
 
-        var dlg = new UIDialog("Select File", width, height);
+        var dlg = new UIDialog(title, width, height);
 
         var fileTreeView = new TreeView()
         {

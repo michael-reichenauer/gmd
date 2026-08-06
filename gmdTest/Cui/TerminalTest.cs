@@ -240,9 +240,9 @@ public class TerminalTest
                     │Cherry Pick Commit to main           │
                     │Switch/Checkout to Commit            │
                     │Toggle Commit Details ...     Enter  │
+                    │Full File History ...                │
                     │─────────────────────────────────────│
                     │Branches                            >│
-                    │File History ...                     │
                     │Repo Menu                           >│
                     ╰─────────────────────────────────────╯
             """,
@@ -279,16 +279,13 @@ public class TerminalTest
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
 
-        // 'End' to the last item and two up is the shorter and steadier walk to 'Branches': the
-        // items below it are all unconditionally enabled, while several above it are not and
+        // 'End' to the last item and one up is the shorter and steadier walk to 'Branches': the
+        // item below it is unconditionally enabled, while several above it are not and
         // OnCursorDown skips over whatever is disabled.
         gmd.Send("End");
         gmd.WaitForStable();
-        for (var i = 0; i < 2; i++)
-        {
-            gmd.Send("Up");
-            gmd.WaitForStable();
-        }
+        gmd.Send("Up");
+        gmd.WaitForStable();
 
         // The two shown branches, left to right as the graph draws them, with the '●' marking the
         // current one. Both are submenus, so both carry the '>'. Below the separator, the items
@@ -298,15 +295,16 @@ public class TerminalTest
         Assert.AreEqual(
             """
                      │Toggle Commit Details ...     Enter  │
+                     │Full File History ...                │
                      │─────────────────────────────────────│╭ Branches ─────────────────╮
                      │Branches                            >││●   main                  >│
-                     │File History ...                     ││    dev                   >│
-                     │Repo Menu                           >││───────────────────────────│
-                     ╰─────────────────────────────────────╯│Show/Open Branch  Shift → >│
+                     │Repo Menu                           >││    dev                   >│
+                     ╰─────────────────────────────────────╯│───────────────────────────│
+                                                            │Show/Open Branch  Shift → >│
                                                             │Hide All Branches          │
                                                             ╰───────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 18, 8)
+            ScreenText.Rows(branches, repo.Path, 18, 9)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -318,11 +316,12 @@ public class TerminalTest
         Assert.AreEqual(
             """
                      │Toggle Commit Details ...     Enter  │
+                     │Full File History ...                │
                      │─────────────────────────────────────│╭ Branches ─────────────────╮
                      │Branches                            >││●   main                  >│╭ dev ───────────────────────────────────╮
-                     │File History ...                     ││    dev                   >││Switch/Checkout to Branch            S  │
-                     │Repo Menu                           >││───────────────────────────││Merge to main                        E  │
-                     ╰─────────────────────────────────────╯│Show/Open Branch  Shift → >││Rebase and push on                     >│
+                     │Repo Menu                           >││    dev                   >││Switch/Checkout to Branch            S  │
+                     ╰─────────────────────────────────────╯│───────────────────────────││Merge to main                        E  │
+                                                            │Show/Open Branch  Shift → >││Rebase and push on                     >│
                                                             │Hide All Branches          ││Hide Branch                          H  │
                                                             ╰───────────────────────────╯│Pull/Update                          U  │
                                                                                          │Push                                 P  │
