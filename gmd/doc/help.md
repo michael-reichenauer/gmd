@@ -50,7 +50,9 @@ Here are some essential keyboard shortcuts:
 
 The branch graph on the left visualizes the selected branches. Navigate 
 between branches using the `←` and `→` keys and open the branch-specific 
-menu with `M` when a branch is highlighted.
+menu with `M` when a branch is highlighted. The same menu is also reachable 
+without highlighting a branch first, under **Branches** in the commit menu, 
+which lists every branch currently shown in the graph.
 
 ### Indicators for Hidden Branches
 

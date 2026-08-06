@@ -13,6 +13,7 @@ interface IBranchMenu
 
     IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false);
     IEnumerable<MenuItem> GetShowBranchItems();
+    IEnumerable<MenuItem> GetShownBranchesItems();
 }
 
 class BranchMenu : IBranchMenu
@@ -333,6 +334,29 @@ class BranchMenu : IBranchMenu
             ? items.SubMenu("    Ambiguous", "", ToBranchesItems(ambiguousBranches, b => cmds.ShowBranch(b.Name, true)))
             : items;
     }
+
+    // The branches currently shown in the graph, each item opening that branch's own menu, so a
+    // branch operation is reachable from the commit menu without first hoovering the branch with
+    // the ← / → keys. Ordered left to right as the graph draws them, so the list reads as the
+    // graph does. The chain is deliberately left deferred (a lazy Select): Menu.Show calls
+    // Children.Any() on every submenu of the level it opens, so only the first branch's menu is
+    // built while the commit menu is shown, the rest when the user opens this submenu.
+    public IEnumerable<MenuItem> GetShownBranchesItems() =>
+        repo
+            .Graph.GetPageBranches(0, repo.Repo.ViewCommits.Count - 1)
+            .Select(gb => gb.B)
+            .DistinctBy(b => b.PrimaryName)
+            // DistinctBy keeps whichever of a local/remote pair comes first, so resolve to the
+            // primary branch, which is the one the menu is built for.
+            .Select(b => repo.Repo.BranchByName[b.PrimaryName])
+            .Select(b =>
+                Menu.SubMenu(
+                    // Every branch here is shown, so the 'o' shown icon would carry no information
+                    ToBranchMenuName(b, isNoShowIcon: true),
+                    "",
+                    GetBranchMenuItems(b.PrimaryName, true)
+                )
+            );
 
     void ShowBranch(Branch b) => cmds.ShowBranch(b.Name, false);
 

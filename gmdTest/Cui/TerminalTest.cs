@@ -240,6 +240,7 @@ public class TerminalTest
                     │Cherry Pick Commit to main             │
                     │Switch/Checkout to Commit              │
                     │───────────────────────────────────────│
+                    │Branches                              >│
                     │Show/Open Branch              Shift → >│
                     │Hide All Branches                      │
                     │Toggle Commit Details ...       Enter  │
@@ -249,6 +250,91 @@ public class TerminalTest
             """,
             gmd.WaitFor("Commit ..."),
             repo.Path
+        );
+    }
+
+    // The 'Branches' submenu is the second way to the branch menu. The ← / → keys are the first,
+    // and nothing on screen says so, so every branch drawn in the graph is listed here too, each
+    // one opening the very menu 'm' gives on a hoovered branch.
+    [TestMethod]
+    public async Task TestBranchesSubMenuInCommitMenu()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        // Show dev, so the graph has two branches to list: down to the merge commit, left to hoover
+        // main, enter to open the branch merged in there. Then right twice, past dev and off the
+        // right side of the row, which is what clears the hoover and selects the commit again — 'm'
+        // on a hoovered branch would open the branch menu instead of the commit menu.
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+
+        // 'End' to the last item and five up is the shorter and steadier walk to 'Branches': the
+        // items below it are all unconditionally enabled, while several above it are not and
+        // OnCursorDown skips over whatever is disabled.
+        gmd.Send("End");
+        gmd.WaitForStable();
+        for (var i = 0; i < 5; i++)
+        {
+            gmd.Send("Up");
+            gmd.WaitForStable();
+        }
+
+        // The two shown branches, left to right as the graph draws them, with the '●' marking the
+        // current one. Both are submenus, so both carry the '>'.
+        gmd.Send("Right");
+        var branches = gmd.WaitForStable();
+        Assert.AreEqual(
+            """
+                     │───────────────────────────────────────│╭ Branches ─╮
+                     │Branches                              >││●   main  >│
+                     │Show/Open Branch              Shift → >││    dev   >│
+                     │Hide All Branches                      │╰───────────╯
+                     │Toggle Commit Details ...       Enter  │
+            """,
+            ScreenText.Rows(branches, repo.Path, 18, 5)
+        );
+
+        // Down to dev and into it: the child window is titled with the branch, and its items are
+        // the branch menu, built with isLimited so it has no 'Show/Open Branch' or 'Repo Menu' of
+        // its own to recurse into.
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        Assert.AreEqual(
+            """
+                     │───────────────────────────────────────│╭ Branches ─╮
+                     │Branches                              >││●   main  >│╭ dev ───────────────────────────────────╮
+                     │Show/Open Branch              Shift → >││    dev   >││Switch/Checkout to Branch            S  │
+                     │Hide All Branches                      │╰───────────╯│Merge to main                        E  │
+                     │Toggle Commit Details ...       Enter  │             │Rebase and push on                     >│
+                     │File History ...                       │             │Hide Branch                          H  │
+                     │Repo Menu                             >│             │Pull/Update                          U  │
+                     ╰───────────────────────────────────────╯             │Push                                 P  │
+                                                                           │Create Branch ...                    B  │
+                                                                           │Rename Branch ...                       │
+                                                                           │Delete Branch ...                       │
+                                                                           │Diff Branch to                       D >│
+                                                                           │Change Branch Color                  G  │
+                                                                           │────────────────────────────────────────│
+                                                                           │Pull/Update All Branches       Shift-U  │
+                                                                           │Push All Branches              Shift-P  │
+                                                                           │Set Commit Branch Manually ...          │
+                                                                           ╰────────────────────────────────────────╯
+            """,
+            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 18, 20)
         );
     }
 
