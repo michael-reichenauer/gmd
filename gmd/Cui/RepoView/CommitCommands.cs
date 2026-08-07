@@ -4,9 +4,20 @@ using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
+// What CommitAsync did, for the commands that have more to do afterwards. Note that this is an
+// enum and not a bool: R<bool> would be a trap, since R<T> converts implicitly both to and from
+// its value, and for T = bool 'bool b = result' silently yields IsOk rather than the value.
+enum CommitResult
+{
+    Committed,
+    NothingToCommit, // The working folder was already clean, so nothing was staged to commit
+    Cancelled, // The user backed out, so whatever was staged is still staged
+}
+
 interface ICommitCommands
 {
     void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null);
+    Task<R<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void ShowUncommittedDiff(bool isFromCommit = false);
@@ -102,31 +113,43 @@ class CommitCommands : ICommitCommands
     public void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null) =>
         Do(async () =>
         {
-            if (!isAmend && repo.Repo.Status.IsOk)
-                return R.Ok;
-            if (isAmend && !repo.Repo.CurrentCommit().IsAhead)
-                return R.Ok;
+            if (!Try(out var result, out var e, await CommitAsync(isAmend, commits)))
+                return e;
 
-            if (repo.Repo.CurrentBranch().IsDetached == true)
-            {
-                UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
-                return R.Ok;
-            }
-
-            if (!await CheckBinaryOrLargeAddedFilesAsync())
-                return R.Ok;
-
-            if (!commitDlg.Show(repo, isAmend, commits, out var message))
-                return R.Ok;
-
-            if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, repo.Path)))
-            {
-                return R.Error($"Failed to commit", e);
-            }
-
-            Refresh();
+            if (result == CommitResult.Committed)
+                Refresh();
             return R.Ok;
         });
+
+    // The commit itself, without the refresh, so a command that has more to do after the commit
+    // can await it and act on what the user did. MergeToBranch needs the difference: it can only
+    // switch back off the target branch if the merge it staged there was actually committed.
+    public async Task<R<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null)
+    {
+        if (!isAmend && repo.Repo.Status.IsOk)
+            return CommitResult.NothingToCommit;
+        if (isAmend && !repo.Repo.CurrentCommit().IsAhead)
+            return CommitResult.NothingToCommit;
+
+        if (repo.Repo.CurrentBranch().IsDetached == true)
+        {
+            UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
+            return CommitResult.Cancelled;
+        }
+
+        if (!await CheckBinaryOrLargeAddedFilesAsync())
+            return CommitResult.Cancelled;
+
+        if (!commitDlg.Show(repo, isAmend, commits, out var message))
+            return CommitResult.Cancelled;
+
+        if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, repo.Path)))
+        {
+            return R.Error($"Failed to commit", e);
+        }
+
+        return CommitResult.Committed;
+    }
 
     public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, "", isFromCommit);
 
@@ -481,7 +504,11 @@ class CommitCommands : ICommitCommands
         Do(async () =>
         {
             var commit = repo.RowCommit;
-            var reference = commit.IsUncommitted ? commit.BranchName : commit.Id;
+            // The files to pick from are the ones the reference has, while the history then shown
+            // for the picked one is its full history, so the title names where the list came from
+            var (reference, title) = commit.IsUncommitted
+                ? (commit.BranchName, $"Select File of Branch {commit.BranchName}")
+                : (commit.Id, $"Select File of Commit {commit.Id.Sid()}");
 
             if (!Try(out var files, out var e, await server.GetFileAsync(reference, repo.Path)))
             {
@@ -489,7 +516,7 @@ class CommitCommands : ICommitCommands
             }
 
             var browser = new FileBrowseDlg();
-            if (!Try(out var path, browser.Show(files)))
+            if (!Try(out var path, browser.Show(files, title)))
                 return R.Ok;
 
             if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, repo.Path)))

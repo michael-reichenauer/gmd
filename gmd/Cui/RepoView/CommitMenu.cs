@@ -77,19 +77,15 @@ class CommitMenu : ICommitMenu
                 () => repo.BranchCmds.SwitchToCommit(),
                 () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id
             )
-            .Separator()
-            // .SubMenu("Branches Menus", "", GetBranchesMenusItems())
-            .SubMenu("Show/Open Branch", "Shift →", branchMenu.GetShowBranchItems())
-            .Item("Hide All Branches", "", () => repo.BranchCmds.HideBranch("", true))
             .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
-            .Item("File History ...", "", () => cmds.ShowFileHistory())
+            // Belongs with the commit items: the files offered are the ones this commit has, even
+            // though the history then shown for the chosen one is its full history, hence 'Full'
+            .Item("Full File History ...", "", () => cmds.ShowFileHistory())
+            .Separator()
+            // Everything about branches, including showing and hiding them, is under here
+            .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
             .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
-
-    IEnumerable<MenuItem> GetBranchesMenusItems() =>
-        repo
-            .Repo.ViewBranches.DistinctBy(b => b.PrimaryName)
-            .Select(b => Menu.SubMenu(b.NiceNameUnique, "", branchMenu.GetBranchMenuItems(b.PrimaryName, true)));
 
     IEnumerable<MenuItem> GetCommitUndoItems()
     {

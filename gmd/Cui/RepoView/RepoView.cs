@@ -17,11 +17,16 @@ interface IRepoView
     Point CurrentPoint { get; }
     Selection Selection { get; }
 
+    // The shown repo, which is an immutable snapshot replaced on every refresh, so a command that
+    // refreshes and then needs the repo (or its command classes) has to read this again after.
+    IViewRepo ViewRepo { get; }
+
     Task<R> ShowInitialRepoAsync(string path);
     Task<R> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
     void UpdateRepoToAtCommit(Repo repo, string commitId);
     void Refresh(string addName = "", string commitId = "");
+    Task RefreshAsync(string addName = "", string commitId = "");
     void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null);
     void RefreshAndFetch(string addName = "", string commitId = "");
     void ToggleDetails();
@@ -181,8 +186,10 @@ class RepoView : IRepoView, IRepoViewInputHost
         Log.Info($"Showed {t} {repo} with '{commitId}'");
     }
 
-    public void Refresh(string addName = "", string commitId = "") =>
-        ShowRefreshedRepoAsync(addName, commitId, false).RunInBackground();
+    public void Refresh(string addName = "", string commitId = "") => RefreshAsync(addName, commitId).RunInBackground();
+
+    public Task RefreshAsync(string addName = "", string commitId = "") =>
+        ShowRefreshedRepoAsync(addName, commitId, false);
 
     public void RefreshAndCommit(
         string addName = "",

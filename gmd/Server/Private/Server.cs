@@ -266,6 +266,13 @@ class Server : IServer
         return converter.ToViewCommits(commits).ToList();
     }
 
+    public async Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
+    {
+        if (!Try(out var commits, out var e, await augmentedService.MergeToBranchAsync(repo, targetName)))
+            return e;
+        return converter.ToViewCommits(commits).ToList();
+    }
+
     public Task<R> RebaseBranchAsync(Repo repo, string branchName) =>
         augmentedService.RebaseBranchAsync(repo, branchName);
 

@@ -1717,3 +1717,81 @@ rather than fighting flakes later:
       longer than nine characters, which means new dates and new ids for its commits.
 - [ ] Mouse interaction, which `send-keys` cannot express — it needs raw SGR sequences
       (`send-keys -H`) and exact coordinates.
+
+## Step 13 — Merge the current branch *into* another branch ✅ done
+
+**Reported by the user: merging repeatedly in one direction is awkward.** Gmd could only merge
+*into* the current branch, so a recurring `dev → main` meant switching to `main`, picking `dev`
+under **Merge from**, committing, and switching back — four steps for one action.
+
+The first question asked was whether the mechanism behind 'Pull/Update all branches' and 'Push all
+branches' could be reused, since those already operate on branches that are not checked out.
+**It cannot, and the reason is worth writing down so it is not re-asked:** that mechanism is
+`git fetch origin <name>:<name>` (`RemoteService.PullBranchAsync`) with no `+` and no `--force`,
+so git only permits a **fast-forward** of the local ref. Gmd merges with `--no-ff`
+(`BranchService.MergeBranchAsync`), so after the very first `dev → main` merge, `main` carries a
+merge commit that is not on `dev`, and every later merge in that direction is a non-fast-forward.
+Git has no porcelain that merges into a branch without a working folder. (The plumbing route —
+`git merge-tree --write-tree` + `commit-tree` + `update-ref` — does exist, but needs git ≥ 2.38,
+which gmd does not gate on, bypasses hooks, and leaves a conflict nowhere to be resolved.)
+
+So the command automates the four steps instead: `BranchWriteService.MergeToBranchAsync` checks
+out the target and merges, then `BranchCommands.MergeToBranch` refreshes, opens the normal commit
+dialog on the target, and switches back once the merge is committed.
+
+### Findings
+
+- [x] **A refresh that does not name the branch HEAD just moved to can drop it from the view.**
+      `ShowRefreshedRepoAsync` passes the *previous* `ViewBranches` as the branches to show, and
+      `ViewRepoCreater.FilterOutViewBranches` only forces the current branch in when no branches
+      were specified at all — otherwise just main and the detached one. So refreshing after the
+      checkout, without passing the target, can leave the new current branch and its uncommitted
+      row out of `ViewCommits` entirely, and `CommitDlg` reads `ViewCommits[0]` for the branch it
+      names. Every refresh in this flow passes the branch HEAD is on.
+- [x] **`R<bool>` is a trap with this `Result` type, and was avoided.** `R<T>` defines *both*
+      `implicit operator bool(R<T>) => r.IsOk` and `implicit operator R<T>(T value)`, so for
+      `T = bool` they compile in opposite directions: `bool b = result;` silently yields `IsOk`
+      rather than the value. `CommitAsync` therefore returns a three-valued `CommitResult` enum,
+      which is what the caller actually needs anyway — `NothingToCommit` (the target already had
+      everything, so switch back) and `Cancelled` (the merge is still staged, so git cannot check
+      out over it and the user stays on the target) are different outcomes.
+- [x] **`SwitchToAsync` is not a plain checkout — it recreates a branch git no longer has**
+      (`BranchWriteService.SwitchToAsync`), so 'Merge to' a `~deleted` branch would resurrect it.
+      Merging *from* a deleted branch is fine, merging *to* one is not, so the 'Merge to' list and
+      the `Shift-E` key both require `IsGitBranch`. This is the one place where the two directions
+      do *not* share a candidate list.
+- [x] **Fixed: `ToMergeCommits` could throw a `KeyNotFoundException` past all the `R` handling.**
+      It looked up every commit of the merge log in the shown repo, which is `git log --all
+      --max-count=30000` and can be truncated, while the merge log itself is `HEAD..<source>`.
+      Pre-existing in `MergeBranchAsync`, but 'merge to' makes `HEAD..<source>` reach further back,
+      so the exposure grew. Missing commits are now skipped rather than looked up blindly.
+- [x] **The menu wording had to be settled before the item could be added**, because
+      `Merge to {current}` already existed on a *non-current* branch's menu and means the opposite
+      of the new feature. Both directions are now worded from the branch the menu is for:
+      **`Merge to X`** merges the menu's branch into X, **`Merge from X`** merges X into it. That
+      holds for the two submenus on the current branch and the two items on every other branch, so
+      the key mirrors the menu everywhere: `e` merges into the current branch, `E` merges the
+      current branch out.
+- [x] The keys hold progress — and therefore hold input off — across checkout, merge, refresh, a
+      modal dialog, the commit, the checkout back and a second refresh. That is by far the longest
+      input-dead window of any command. It is safe only because the outer `Do`'s `progress.Show()`
+      outlives the dialogs: `UI.EnableInput` *captures and restores* `RootKeyEvent`, so if progress
+      ever reached zero while a dialog were open, the restore would put back `_ => true` and input
+      would die for good. Do not move the dialog out of the `Do` action.
+- [x] `await repoView.RefreshAsync(...)` also closes a pre-existing window: `Refresh()` is
+      fire-and-forget, so the outer progress could previously drop to zero while a refresh was
+      still running.
+
+### Verified
+
+All three outcomes were driven by hand in a throwaway repo, since only the happy path is reachable
+from the E2E suite:
+
+- Happy path — `TerminalTest.TestMergeToBranch`, plus the menu arm in `TestMergeToMenu`.
+- Nothing to merge — `TerminalTest.TestMergeToBranchThatIsAlreadyUpToDate` and
+  `AugmentedServiceIntegrationTest.TestMergeToBranchThatIsAlreadyUpToDate`.
+- Commit cancelled — by hand: HEAD stays on the target, the merge stays staged, the message says
+  so, and input is still live afterwards.
+- Conflict — by hand: HEAD stays on the target, the conflict row is drawn, and the error names the
+  branch HEAD ended up on ("Failed to merge 'dev' while on 'main'"), which is the whole point of
+  reporting the checkout and the merge as separate failures.

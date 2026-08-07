@@ -227,28 +227,117 @@ public class TerminalTest
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add│Commit ...                          C  │                                  4a15fb Test User      24-10-15 12:04
-            ┣╯   Add│Amend ...                           A  │                                  dd7891 Test User      24-10-15 12:01
-            ┗    Ini│Commit Diff ...                     D  │                                  9dc406 Test User      24-10-15 12:00
-                    │Undo                                  >│
-                    │Rebase                                >│
-                    │Stash                                 >│
-                    │Tag                                   >│
-                    │Create Branch from Commit ...       B  │
-                    │Merge From Commit to main              │
-                    │Cherry Pick Commit to main             │
-                    │Switch/Checkout to Commit              │
-                    │───────────────────────────────────────│
-                    │Show/Open Branch              Shift → >│
-                    │Hide All Branches                      │
-                    │Toggle Commit Details ...       Enter  │
-                    │File History ...                       │
-                    │Repo Menu                             >│
-                    ╰───────────────────────────────────────╯
+            ┣╮   Mer╭ Commit: 17d85b ─────────────────────╮                                    4e73d2 Test User      24-10-15 12:05
+            ┣    Add│Commit ...                        C  │                                    4a15fb Test User      24-10-15 12:04
+            ┣╯   Add│Amend ...                         A  │                                    dd7891 Test User      24-10-15 12:01
+            ┗    Ini│Commit Diff ...                   D  │                                    9dc406 Test User      24-10-15 12:00
+                    │Undo                                >│
+                    │Rebase                              >│
+                    │Stash                               >│
+                    │Tag                                 >│
+                    │Create Branch from Commit ...     B  │
+                    │Merge From Commit to main            │
+                    │Cherry Pick Commit to main           │
+                    │Switch/Checkout to Commit            │
+                    │Toggle Commit Details ...     Enter  │
+                    │Full File History ...                │
+                    │─────────────────────────────────────│
+                    │Branches                            >│
+                    │Repo Menu                           >│
+                    ╰─────────────────────────────────────╯
             """,
             gmd.WaitFor("Commit ..."),
             repo.Path
+        );
+    }
+
+    // The 'Branches' submenu is the second way to the branch menu. The ← / → keys are the first,
+    // and nothing on screen says so, so every branch drawn in the graph is listed here too, each
+    // one opening the very menu 'm' gives on a hoovered branch.
+    [TestMethod]
+    public async Task TestBranchesSubMenuInCommitMenu()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        // Show dev, so the graph has two branches to list: down to the merge commit, left to hoover
+        // main, enter to open the branch merged in there. Then right twice, past dev and off the
+        // right side of the row, which is what clears the hoover and selects the commit again — 'm'
+        // on a hoovered branch would open the branch menu instead of the commit menu.
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+
+        // 'End' to the last item and one up is the shorter and steadier walk to 'Branches': the
+        // item below it is unconditionally enabled, while several above it are not and
+        // OnCursorDown skips over whatever is disabled.
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Up");
+        gmd.WaitForStable();
+
+        // The two shown branches, left to right as the graph draws them, with the '●' marking the
+        // current one. Both are submenus, so both carry the '>'. Below the separator, the items
+        // that change which branches are shown at all.
+        gmd.Send("Right");
+        var branches = gmd.WaitForStable();
+        Assert.AreEqual(
+            """
+                     │Toggle Commit Details ...     Enter  │
+                     │Full File History ...                │
+                     │─────────────────────────────────────│╭ Branches ─────────────────╮
+                     │Branches                            >││●   main                  >│
+                     │Repo Menu                           >││    dev                   >│
+                     ╰─────────────────────────────────────╯│───────────────────────────│
+                                                            │Show/Open Branch  Shift → >│
+                                                            │Hide All Branches          │
+                                                            ╰───────────────────────────╯
+            """,
+            ScreenText.Rows(branches, repo.Path, 18, 9)
+        );
+
+        // Down to dev and into it: the child window is titled with the branch, and its items are
+        // the branch menu, built with isLimited so it has no 'Show/Open Branch' or 'Repo Menu' of
+        // its own to recurse into.
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        Assert.AreEqual(
+            """
+                     │Toggle Commit Details ...     Enter  │
+                     │Full File History ...                │
+                     │─────────────────────────────────────│╭ Branches ─────────────────╮
+                     │Branches                            >││●   main                  >│╭ dev ───────────────────────────────────╮
+                     │Repo Menu                           >││    dev                   >││Switch/Checkout to Branch            S  │
+                     ╰─────────────────────────────────────╯│───────────────────────────││Merge to main                        E  │
+                                                            │Show/Open Branch  Shift → >││Merge from main                Shift-E  │
+                                                            │Hide All Branches          ││Rebase and push on                     >│
+                                                            ╰───────────────────────────╯│Hide Branch                          H  │
+                                                                                         │Pull/Update                          U  │
+                                                                                         │Push                                 P  │
+                                                                                         │Create Branch ...                    B  │
+                                                                                         │Rename Branch ...                       │
+                                                                                         │Delete Branch ...                       │
+                                                                                         │Diff Branch to                       D >│
+                                                                                         │Change Branch Color                  G  │
+                                                                                         │────────────────────────────────────────│
+                                                                                         │Pull/Update All Branches       Shift-U  │
+                                                                                         │Push All Branches              Shift-P  │
+                                                                                         │Set Commit Branch Manually ...          │
+                                                                                         ╰────────────────────────────────────────╯
+            """,
+            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 18, 21)
         );
     }
 
@@ -972,10 +1061,10 @@ public class TerminalTest
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
 
-        // Down to 'Rename Branch ...', which is five moves and not seven, since 'Rebase and push
+        // Down to 'Rename Branch ...', which is six moves and not eight, since 'Rebase and push
         // on' and 'Pull/Update' are disabled here and are skipped over. One key at a time: a menu
-        // redraw drops the keys sent behind it, so a single Send of five would arrive as three.
-        for (var i = 0; i < 5; i++)
+        // redraw drops the keys sent behind it, so a single Send of six would arrive as three.
+        for (var i = 0; i < 6; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -1196,6 +1285,132 @@ public class TerminalTest
             ┃╭┺╰─────────────╯                                                                 d997ad Test User      24-10-15 12:02
             """,
             ScreenText.Rows(gmd.WaitFor("Merge from"), repo.Path, 4, 3)
+        );
+    }
+
+    // 'E' is the other direction: the current branch is merged into the hoovered one. Git can only
+    // merge into the branch that is checked out, so the whole point of this test is what happens
+    // around the merge — the target is checked out, the commit dialog opens there, and once it is
+    // committed the branch that was current at the start is checked out again.
+    [TestMethod]
+    public async Task TestMergeToBranch()
+    {
+        // Current is main, which has 'Add delta' that dev does not, so main into dev is a real
+        // merge. It is TestMergeBranch's merge in the other direction and driven the other way:
+        // there the target was checked out first, here gmd does that checkout itself.
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(7));
+        gmd.WaitFor("Initial");
+
+        // Show dev and hoover it: down to the merge commit, left to hoover main, enter to open the
+        // branch merged in there, right to move the hoover from main on to dev
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("E");
+
+        // The uncommitted row says dev is the current branch now, i.e. gmd switched to the target
+        // on the way, and the dialog offers the message git would have used
+        var screen = gmd.WaitFor("Commit 2 changes");
+        Assert.AreEqual(
+            """
+             ╭╊  ©Merge branch 'main' into dev, 2 uncommitted changes                  (● dev)                       NN-NN-NN NN:NN
+            """,
+            ScreenText.MaskTimes(ScreenText.Rows(screen, repo.Path, 2, 1), "uncommitted")
+        );
+        StringAssert.Contains(screen, "[Merge branch 'main' into dev");
+
+        gmd.Send("Enter");
+
+        // Back on main, which is where it started, with the merge commit on dev
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭╊   Merge branch 'main' into dev                                           (dev) 60e4d8 Test User      24-10-15 12:07
+            ┣╯┃ ● Add delta                                                     (● main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮┃   Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣│┃   Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┃╰╊   More dev work                                                                af3ee6 Test User      24-10-15 12:03
+            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("uncommitted changes"),
+            repo.Path
+        );
+
+        // Switched back to where it started, and dev's tip is a real merge commit, i.e. two
+        // parents: dev's old tip and main's tip
+        Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+        Assert.AreEqual("af3ee69 17d85ba", await repo.GitAsync("log --format=%p -1 dev"));
+        Assert.AreEqual("", await repo.GitAsync("status -s"), "The working tree should be clean");
+    }
+
+    // Nothing to merge is the outcome that has to switch back without a commit dialog, since there
+    // is nothing to commit. The fixture has dev merged into main already, so it is the plain case.
+    [TestMethod]
+    public async Task TestMergeToBranchThatIsAlreadyUpToDate()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.GitAsync("checkout -q dev");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Left"); // Hoovers main, the branch the cursor row is on
+        gmd.WaitForStable();
+        gmd.Send("E");
+
+        Assert.AreEqual(
+            """
+                                                   ╭ Merge ─────────────────────────────────╮
+                                                   │'main' is already up to date with 'dev'.│
+                                                   │                                        │
+                                                   │                [◦ OK ◦]                │
+                                                   ╰────────────────────────────────────────╯
+            """,
+            ScreenText.Rows(gmd.WaitFor("already up to date"), repo.Path, 17, 5)
+        );
+
+        // Left on the branch it started on, with nothing committed anywhere
+        Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+        Assert.AreEqual("", await repo.GitAsync("status -s"), "The working tree should be clean");
+        Assert.AreEqual("17d85ba", await repo.GitAsync("rev-parse --short=7 main"));
+    }
+
+    // The other arm of 'E', mirroring TestMergeFromMenu: with the current branch hoovered there is
+    // nothing to merge it out of, so it offers the branches to merge it into instead
+    [TestMethod]
+    public async Task TestMergeToMenu()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Enter"); // Shows dev, and leaves the hoover on main, which is current
+        gmd.WaitFor("More dev work");
+
+        gmd.Send("E");
+
+        // Only the shown branches are offered, so the menu lists dev and nothing else. The stray
+        // 'k' is the tail of 'More dev work' behind the menu, which is drawn over the log view.
+        Assert.AreEqual(
+            """
+            ┣│ ╭ Merge to ─╮                                                                   4a15fb Test User      24-10-15 12:04
+            ┃╰╊│ o  dev    │ork                                                          (dev) af3ee6 Test User      24-10-15 12:03
+            ┃╭┺╰───────────╯v                                                                  d997ad Test User      24-10-15 12:02
+            """,
+            ScreenText.Rows(gmd.WaitFor("Merge to"), repo.Path, 4, 3)
         );
     }
 
