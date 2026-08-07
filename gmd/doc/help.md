@@ -106,8 +106,15 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   - **Clean/Restore Working Folder**: Reset with `git reset --hard` 
     and clean using `git clean -fxd`.
 - **Merge**: 
-  Highlight a branch and merge into the current branch. 
+  Highlight a branch and merge into the current branch (`E`). 
   Use `Commit` post-merge.
+- **Merge to** (`Shift-E`): 
+  The other direction, i.e. merge the current branch into the highlighted 
+  one. Git can only merge into the branch that is checked out, so gmd 
+  switches to the target branch, merges, opens the commit dialog there, and 
+  switches back once the merge is committed. Cancelling the commit, or a 
+  merge that conflicts, leaves you on the target branch, which is where the 
+  merge has to be finished.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on the

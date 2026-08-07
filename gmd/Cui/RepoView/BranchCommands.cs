@@ -23,6 +23,7 @@ interface IBranchCommands
     void RenameBranch(string name);
     void DeleteBranch(string name);
     void MergeBranch(string name);
+    void MergeToBranch(string targetName);
     void RebaseBranchOnto(string onto);
 
     void PushCurrentBranch();
@@ -184,6 +185,52 @@ class BranchCommands : IBranchCommands
                 return R.Error($"Failed to merge branch {branchName}", e);
 
             RefreshAndCommit("", "", commits);
+            return R.Ok;
+        });
+
+    // Merges the current branch into some other branch, the opposite direction of MergeBranch.
+    // Git can only merge into the checked out branch, so this switches to the target, merges,
+    // commits there and switches back. Anything that leaves the working folder dirty (a conflict,
+    // or a cancelled commit) stops halfway and leaves the user on the target branch, which is
+    // where the merge has to be finished, and is also the only place git would let them.
+    public void MergeToBranch(string targetName) =>
+        Do(async () =>
+        {
+            var serverRepo = repo.Repo;
+            var sourceName = serverRepo.CurrentBranch().Name;
+            var source = serverRepo.CurrentBranch().ShortNiceUniqueName();
+
+            if (!Try(out var commits, out var e, await server.MergeToBranchAsync(serverRepo, targetName)))
+            { // Left where it stopped, i.e. on the target if the merge conflicted, so show that
+                await repoView.RefreshAsync(targetName);
+                return R.Error($"Failed to merge '{source}' into '{targetName}'", e);
+            }
+
+            // Every refresh here names the target, since the branch HEAD just moved to is not
+            // necessarily one the user had shown, and the commit dialog is drawn from the view
+            await repoView.RefreshAsync(targetName);
+
+            // The commit commands of the refreshed view, since the merge replaced the repo
+            // snapshot, and the dialog is seeded from the merge message git just wrote
+            if (!Try(out var result, out e, await repoView.ViewRepo.CommitCmds.CommitAsync(false, commits)))
+                return R.Error($"Failed to commit the merge on '{targetName}'", e);
+
+            if (result == CommitResult.Cancelled)
+            { // The merge is still staged, and git cannot check out over it
+                await repoView.RefreshAsync(targetName);
+                UI.InfoMessage("Merge", $"The merge was not committed, so you are still on '{targetName}'.");
+                return R.Ok;
+            }
+
+            if (!Try(out e, await server.SwitchToAsync(serverRepo, sourceName)))
+                return R.Error($"Merged '{source}' into '{targetName}', but failed to switch back", e);
+
+            await repoView.RefreshAsync(sourceName);
+
+            // Nothing was staged, so the target already had everything the source has
+            if (result == CommitResult.NothingToCommit)
+                UI.InfoMessage("Merge", $"'{targetName}' is already up to date with '{source}'.");
+
             return R.Ok;
         });
 

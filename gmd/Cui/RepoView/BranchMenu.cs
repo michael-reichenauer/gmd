@@ -10,6 +10,7 @@ interface IBranchMenu
     void ShowDiffBranchToMenu(int x, int y, string branchName);
     void ShowCommitBranchesMenu(int x, int y);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
+    void ShowMergeToMenu(int x = Menu.Center, int y = 0);
 
     IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false);
     IEnumerable<MenuItem> GetShowBranchItems();
@@ -58,6 +59,11 @@ class BranchMenu : IBranchMenu
         Menu.Show("Merge from", x, y, GetMergeFromItems());
     }
 
+    public void ShowMergeToMenu(int x = Menu.Center, int y = 0)
+    {
+        Menu.Show("Merge to", x, y, GetMergeToItems());
+    }
+
     public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
     {
         var c = repo.RowCommit;
@@ -65,19 +71,30 @@ class BranchMenu : IBranchMenu
         var cb = repo.Repo.CurrentBranch();
         var isStatusOK = repo.Repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
-        var mergeToName = cb?.ShortNiceUniqueName() ?? "";
+        var currentName = cb.ShortNiceUniqueName();
 
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
             .Item(GetSwitchToBranchItem(branchName))
+            // Both directions, worded from the branch this menu is for: 'to' merges it into the
+            // named branch, 'from' merges the named branch into it. Merging into a branch that is
+            // not current means checking it out on the way, so it is only offered for a git branch.
             .Item(
                 !isCurrent,
-                $"Merge to {mergeToName}",
+                $"Merge to {currentName}",
                 "E",
                 () => cmds.MergeBranch(b.Name),
                 () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK
             )
+            .Item(
+                !isCurrent,
+                $"Merge from {currentName}",
+                "Shift-E",
+                () => cmds.MergeToBranch(LocalName(b)),
+                () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK && b.IsGitBranch
+            )
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
+            .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems())
             .SubMenu("Rebase and push on", "", GetRebaseFromItems(b))
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
             .Item("Pull/Update", "U", () => cmds.PullBranch(branchName), () => b.HasRemoteOnly && isStatusOK)
@@ -134,21 +151,33 @@ class BranchMenu : IBranchMenu
         );
     }
 
-    IEnumerable<MenuItem> GetMergeFromItems()
+    IEnumerable<MenuItem> GetMergeFromItems() =>
+        GetMergeBranches().Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
+
+    // The other direction: the current branch is merged into the picked one. The picked branch is
+    // checked out on the way, so it has to be one git still has, else SwitchToAsync would recreate
+    // it, and it is the local branch of a pair that is named.
+    IEnumerable<MenuItem> GetMergeToItems() =>
+        GetMergeBranches()
+            .Where(b => b.IsGitBranch)
+            .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeToBranch(LocalName(b))));
+
+    // The branches a merge can involve, i.e. all shown branches except the current one, which is
+    // always the other end of the merge.
+    IEnumerable<Branch> GetMergeBranches()
     {
         if (!repo.Repo.Status.IsOk)
-            return Menu.Items;
+            return [];
 
         var currentName = repo.Repo.CurrentBranch().PrimaryName;
 
-        // Get all branches except current
-        var branches = repo
+        return repo
             .Repo.ViewBranches.Where(b => b.IsPrimary && b.PrimaryName != currentName)
             .DistinctBy(b => b.TipId)
             .OrderBy(b => b.PrimaryName);
-
-        return branches.Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
     }
+
+    static string LocalName(Branch branch) => branch.LocalName != "" ? branch.LocalName : branch.Name;
 
     IEnumerable<MenuItem> GetRebaseFromItems(Branch selectedBranch)
     {

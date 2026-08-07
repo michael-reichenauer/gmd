@@ -21,6 +21,7 @@ interface IBranchWriteService
     Task<R> RenameBranchAsync(string oldName, string newName, string wd);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name);
+    Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
     Task<R> RebaseBranchAsync(Repo repo, string name);
 }
 
@@ -175,6 +176,36 @@ class BranchWriteService : IBranchWriteService
         return ToMergeCommits(repo, commits).ToList();
     }
 
+    // Merges the current branch into some other branch, i.e. the opposite direction of
+    // MergeBranchAsync. Git can only merge into the branch that is checked out, and there is no
+    // way to merge into a branch without a working folder, so the target is checked out first and
+    // the merge is left staged there for the caller to commit and then switch back.
+    //
+    // Anything that fails leaves HEAD where the failure left it, which for a conflict is on the
+    // target branch, since that is where the conflict has to be resolved.
+    public async Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
+    {
+        using (fileMonitor.Pause())
+        {
+            var mergeName = YoungestTipName(repo, repo.BranchByName[repo.CurrentBranch().Name]);
+
+            // The two failures are told apart, since they leave the user in very different places:
+            // a failed checkout has not moved HEAD at all, while a conflicting merge has, and the
+            // conflict then has to be resolved on the target branch.
+            if (!Try(out var e, await SwitchToAsync(repo, targetName)))
+                return R.Error($"Failed to switch to '{targetName}'", e);
+            if (!Try(out e, await git.MergeBranchAsync(mergeName, repo.Path)))
+                return R.Error($"Failed to merge '{mergeName}' while on '{targetName}'", e);
+
+            // Now on the target branch, so this is the commits the merge brings in. An empty list
+            // means the target was already up to date, i.e. the merge did nothing.
+            if (!Try(out var commits, out e, await git.GetMergeLogAsync(mergeName, repo.Path)))
+                return e;
+
+            return ToMergeCommits(repo, commits).ToList();
+        }
+    }
+
     public async Task<R> RebaseBranchAsync(Repo repo, string name)
     {
         using (fileMonitor.Pause())
@@ -226,12 +257,19 @@ class BranchWriteService : IBranchWriteService
         return branch.Name;
     }
 
+    // The merge log reaches as far back as the merge does, while the shown repo is a log truncated
+    // to a max count, so a commit of the merge can be missing from it. Those are skipped rather
+    // than looked up blindly, which would throw a KeyNotFoundException past all the R handling.
     IEnumerable<Commit> ToMergeCommits(Repo repo, IReadOnlyList<Git.Commit> commits)
     {
-        if (commits.Count == 0)
+        var mergeCommits = commits
+            .Select(c => repo.CommitById.TryGetValue(c.Id, out var commit) ? commit : null)
+            .OfType<Commit>()
+            .ToList();
+        if (mergeCommits.Count == 0)
             return [];
-        var branchName = repo.CommitById[commits[0].Id].BranchPrimaryName;
 
-        return commits.Select(c => repo.CommitById[c.Id]).Where(c => c.BranchPrimaryName == branchName);
+        var branchName = mergeCommits[0].BranchPrimaryName;
+        return mergeCommits.Where(c => c.BranchPrimaryName == branchName);
     }
 }

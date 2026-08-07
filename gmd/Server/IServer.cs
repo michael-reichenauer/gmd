@@ -65,6 +65,7 @@ interface IServer
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
+    Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
     Task<R> RebaseBranchAsync(Repo repo, string branchName);
     Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);

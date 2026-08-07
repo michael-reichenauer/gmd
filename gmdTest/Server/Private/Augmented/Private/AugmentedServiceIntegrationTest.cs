@@ -1,5 +1,6 @@
 using gmd.Server;
 using gmd.Server.Private;
+using gmd.Server.Private.Augmented;
 using gmd.Server.Private.Augmented.Private;
 using gmdTest.Fixtures;
 
@@ -96,6 +97,62 @@ public class AugmentedServiceIntegrationTest
             GraphText.WithSubjects(ViewRepo(augRepo))
         );
     }
+
+    // 'Merge to' is the one write operation that moves HEAD twice, so what it leaves behind is
+    // asserted against real git rather than against a fake: the target checked out, the merge
+    // staged but not committed, and the commits the caller needs for the commit dialog.
+    [TestMethod]
+    public async Task TestMergeToBranchOfARealRepo()
+    {
+        var service = await BuildBranchAsync();
+
+        Assert.IsTrue(Try(out var augRepo, out var e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
+        Assert.IsTrue(Try(out var commits, out e, await service.MergeToBranchAsync(augRepo, "main")), $"Merge: {e}");
+
+        // Now on the target, with the merge staged for the caller to commit
+        Assert.AreEqual("main", await CurrentBranchAsync());
+        Assert.AreEqual("Dev work", string.Join(", ", commits.Select(c => c.Subject)));
+
+        Assert.IsTrue(Try(out var status, out e, await repo.Git.GetStatusAsync(repo.Path)), $"Status: {e}");
+        Assert.IsTrue(status.IsMerging, "The merge is left uncommitted");
+        StringAssert.StartsWith(status.MergeMessage, "Merge branch 'dev'");
+    }
+
+    // The other outcome the command has to tell apart: nothing to merge. It cannot be read off the
+    // exit code, since git is happy either way, so it is the empty commit list that says so.
+    [TestMethod]
+    public async Task TestMergeToBranchThatIsAlreadyUpToDate()
+    {
+        var service = await BuildBranchAsync();
+
+        Assert.IsTrue(Try(out var augRepo, out var e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
+        Assert.IsTrue(Try(out _, out e, await service.MergeToBranchAsync(augRepo, "main")), $"Merge: {e}");
+        Assert.IsTrue(Try(out var status, out e, await repo.Git.GetStatusAsync(repo.Path)), $"Status: {e}");
+        await repo.CommitAsync(status.MergeMessage);
+        Assert.IsTrue(Try(out e, await repo.Git.CheckoutAsync("dev", repo.Path)), $"Checkout: {e}");
+
+        // 'dev' is now in 'main', so merging it again brings in nothing
+        Assert.IsTrue(Try(out augRepo, out e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
+        Assert.IsTrue(Try(out var commits, out e, await service.MergeToBranchAsync(augRepo, "main")), $"Merge: {e}");
+
+        Assert.AreEqual(0, commits.Count);
+        Assert.AreEqual("main", await CurrentBranchAsync());
+        Assert.IsTrue(Try(out status, out e, await repo.Git.GetStatusAsync(repo.Path)), $"Status: {e}");
+        Assert.IsFalse(status.IsMerging, "Nothing was merged, so there is nothing to commit");
+    }
+
+    // Initial on main and one commit on a 'dev' branched out from it, with 'dev' current, i.e.
+    // the smallest repo that has something to merge back to main
+    async Task<IAugmentedService> BuildBranchAsync()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", true, repo.Path)), $"Git failed: {e}");
+        await repo.CommitFileAsync("dev.txt", "dev\n", "Dev work");
+
+        return RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+    }
+
+    async Task<string> CurrentBranchAsync() => (await repo.GitAsync("rev-parse --abbrev-ref HEAD")).Trim();
 
     // Initial on main, a 'dev' branch out and back in again, i.e. the smallest repo where the
     // inference has something to infer

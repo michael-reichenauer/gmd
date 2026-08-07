@@ -123,6 +123,9 @@ class AugmentedService : IAugmentedService
     public Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name) =>
         branchWriteService.MergeBranchAsync(repo, name);
 
+    public Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName) =>
+        branchWriteService.MergeToBranchAsync(repo, targetName);
+
     public Task<R> RebaseBranchAsync(Repo repo, string name) => branchWriteService.RebaseBranchAsync(repo, name);
 
     // GetGitRepoAsync returns a fresh git repo info object with commits, branches, ...

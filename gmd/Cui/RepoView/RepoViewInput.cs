@@ -110,6 +110,7 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.y, () => BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, OnKeyS);
         commitsView.RegisterKeyHandler(Key.e, OnKeyE);
+        commitsView.RegisterKeyHandler(Key.E, OnKeyShiftE);
         commitsView.RegisterKeyHandler(Key.h, () => BranchCmds.HideBranch(GetBranchName()));
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
@@ -227,6 +228,32 @@ class RepoViewInput
             { // Current branch showing menu of branches to merge from
                 var hb = Repo.Graph.BranchByName(branch.Name);
                 Menus.ShowMergeFromMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
+                return;
+            }
+        }
+    }
+
+    // The mirror of OnKeyE: 'e' merges into the current branch, 'E' merges the current branch out
+    // into another one, which git can only do by checking that one out on the way.
+    void OnKeyShiftE()
+    {
+        if (hoover.IsBranch)
+        {
+            var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
+            if (branch.LocalName != "")
+                branch = ServerRepo.BranchByName[branch.LocalName];
+            // A branch git no longer has would be recreated by the checkout, so it is not offered,
+            // exactly as in the branch menu
+            if (!branch.IsCurrent && branch.IsGitBranch && ServerRepo.Status.IsOk)
+            { // Current branch merging to some other branch
+                BranchCmds.MergeToBranch(branch.Name);
+                return;
+            }
+
+            if (branch.IsCurrent && ServerRepo.Status.IsOk)
+            { // Current branch showing menu of branches to merge to
+                var hb = Repo.Graph.BranchByName(branch.Name);
+                Menus.ShowMergeToMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
                 return;
             }
         }
