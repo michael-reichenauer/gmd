@@ -15,6 +15,7 @@ interface IGit
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
+    Task<R<Blame>> GetBlameAsync(string path, string reference, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
     Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
     Task<R> RunDiffToolAsync(string path, string wd);
@@ -129,6 +130,31 @@ record SectionDiff(
 );
 
 record LineDiff(DiffMode DiffMode, string Line);
+
+// The blame of one file, i.e. which commit last changed each line. The commits are kept in a
+// dictionary the lines reference by id, since a commit typically covers many consecutive lines.
+record Blame(
+    string Path,
+    string Reference,
+    IReadOnlyList<BlameLine> Lines,
+    IReadOnlyDictionary<string, BlameCommit> CommitById
+);
+
+record BlameLine(string CommitId, int LineNbr, int OriginalLineNbr, string Text);
+
+record BlameCommit(
+    string Id,
+    string Sid,
+    string Author,
+    string AuthorMail,
+    DateTime AuthorTime,
+    string Subject,
+    bool IsUncommitted,
+    bool IsBoundary, // The first commit of the history, so it has no previous version to blame
+    string PreviousId, // The commit and path to blame to see the version before this commit
+    string PreviousPath,
+    string Path // The path the file had in this commit, which differs from Blame.Path if renamed
+);
 
 enum DiffMode
 {

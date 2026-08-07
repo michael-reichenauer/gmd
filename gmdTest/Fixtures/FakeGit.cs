@@ -92,6 +92,8 @@ class FakeGit : IGit
 
     public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) => throw new NotSupportedException();
 
+    public Task<R<Blame>> GetBlameAsync(string path, string reference, string wd) => throw new NotSupportedException();
+
     public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd) =>
         throw new NotSupportedException();
 

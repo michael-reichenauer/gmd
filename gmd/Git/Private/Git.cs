@@ -15,6 +15,7 @@ internal class Git : IGit
     readonly ITagService tagService;
     readonly IKeyValueService keyValueService;
     readonly IStashService stashService;
+    readonly IBlameService blameService;
     readonly ICmd cmd;
 
     public Git(
@@ -28,6 +29,7 @@ internal class Git : IGit
         ITagService tagService,
         IKeyValueService keyValueService,
         IStashService stashService,
+        IBlameService blameService,
         ICmd cmd
     )
     {
@@ -41,6 +43,7 @@ internal class Git : IGit
         this.tagService = tagService;
         this.keyValueService = keyValueService;
         this.stashService = stashService;
+        this.blameService = blameService;
         this.cmd = cmd;
     }
 
@@ -71,6 +74,9 @@ internal class Git : IGit
         diffService.GetCommitDiffAsync(commitId, wd);
 
     public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) => diffService.GetFileDiffAsync(path, wd);
+
+    public Task<R<Blame>> GetBlameAsync(string path, string reference, string wd) =>
+        blameService.GetBlameAsync(path, reference, wd);
 
     public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd) =>
         diffService.GetRefsDiffAsync(sha1, sha2, message, wd);

@@ -43,6 +43,8 @@ Here are some essential keyboard shortcuts:
 | ┣╮ ┣╯  | Unseen branch merging in or branching out at commit          |
 | Φ      | Manually set branch for that commit                          |
 | ╂┸     | Synced remote and local branch tips                          |
+| ┌ │ └  | Blame lines from the same commit (see 'Blame File ...')      |
+| ╺      | A blame run of one single line                               |
 -------------------------------------------------------------------------
 
 
@@ -105,6 +107,20 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   - **Uncommit Last Commit**: `git reset HEAD~1`
   - **Clean/Restore Working Folder**: Reset with `git reset --hard` 
     and clean using `git clean -fxd`.
+- **Blame File ...**:
+  Pick a file and see which commit last changed each of its lines. Consecutive
+  lines from the same commit are bracketed together with `┌ │ └` (`╺` for a run
+  of a single line) and that commit is named once per run rather than on every
+  line, which is what makes this readable where the console `git blame` is not.
+  The bracket and the short id are shaded by age, from yellow for the newest
+  commit through to gray for the oldest, and lines that are not committed yet
+  are bright yellow and marked `©`.
+  Within the view: `D` shows the diff of the current line's commit, `P` blames
+  the version before it (so a reformat or a rename can be stepped past to the
+  change that actually matters) and `Backspace` steps back out again, `I`
+  cycles how much of each commit the left column names, `←` `→` scroll the code
+  while the left column stays put, `C` copies the current line's commit id, and
+  `Ctrl-C` copies the selected lines.
 - **Merge**: 
   Highlight a branch and merge into the current branch (`E`). 
   Use `Commit` post-merge.

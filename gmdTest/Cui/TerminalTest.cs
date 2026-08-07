@@ -241,6 +241,7 @@ public class TerminalTest
                     │Switch/Checkout to Commit            │
                     │Toggle Commit Details ...     Enter  │
                     │Full File History ...                │
+                    │Blame File ...                       │
                     │─────────────────────────────────────│
                     │Branches                            >│
                     │Repo Menu                           >│
@@ -294,8 +295,8 @@ public class TerminalTest
         var branches = gmd.WaitForStable();
         Assert.AreEqual(
             """
-                     │Toggle Commit Details ...     Enter  │
                      │Full File History ...                │
+                     │Blame File ...                       │
                      │─────────────────────────────────────│╭ Branches ─────────────────╮
                      │Branches                            >││●   main                  >│
                      │Repo Menu                           >││    dev                   >│
@@ -304,7 +305,7 @@ public class TerminalTest
                                                             │Hide All Branches          │
                                                             ╰───────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 18, 9)
+            ScreenText.Rows(branches, repo.Path, 19, 9)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -315,8 +316,8 @@ public class TerminalTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │Toggle Commit Details ...     Enter  │
                      │Full File History ...                │
+                     │Blame File ...                       │
                      │─────────────────────────────────────│╭ Branches ─────────────────╮
                      │Branches                            >││●   main                  >│╭ dev ───────────────────────────────────╮
                      │Repo Menu                           >││    dev                   >││Switch/Checkout to Branch            S  │
@@ -337,7 +338,7 @@ public class TerminalTest
                                                                                          │Set Commit Branch Manually ...          │
                                                                                          ╰────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 18, 21)
+            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 19, 21)
         );
     }
 
@@ -550,6 +551,74 @@ public class TerminalTest
 
         StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
         Assert.IsTrue(gmd.IsRunning, $"'{key}' should close the diff view, not quit gmd");
+    }
+
+    // The blame view is the only place the run bracket is drawn, so it is asserted here rather
+    // than only as rows: '┌ │ └' for a run of several lines, '╺' for a run of one, and the sid,
+    // author and date named once per run instead of on every line, which is the point of it.
+    [TestMethod]
+    public async Task TestBlameFile()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        // Two commits over one file, so the blame has two runs of two lines each. It has to be
+        // alpha.txt: the file picker opens on the first file of the tree and OpenBlameOf takes it.
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nthree\nfour\n", "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nCHANGED\nFOUR\n", "Change lines", t.AddMinutes(8));
+
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        OpenBlameOf(gmd, "alpha.txt");
+
+        Assert.AreEqual(
+            """
+            Blame  alpha.txt  @7e09a8   4 lines, 2 commits
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┌ 65480e Test User   24-10-15 │   1┃one
+            └                             │   2┃two
+            ┌ 7e09a8 Test User   24-10-15 │   3┃CHANGED
+            └                             │   4┃FOUR
+            """,
+            ScreenText.Rows(gmd.WaitFor("CHANGED"), repo.Path, 0, 6)
+        );
+    }
+
+    // Both cases close the blame view, and neither quits the application
+    [TestMethod]
+    [DataRow("q")]
+    [DataRow("Q")]
+    public async Task TestBlameViewClosesWithQ(string key)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("Blame  alpha.txt");
+
+        gmd.Send(key);
+
+        StringAssert.Contains(gmd.WaitUntilGone("Blame  alpha.txt"), "Merge branch 'dev' into main");
+        Assert.IsTrue(gmd.IsRunning, $"'{key}' should close the blame view, not quit gmd");
+    }
+
+    // 'Blame File ...' is the second last item of the commit menu, so 'End' and two 'Up' is the
+    // steadier walk to it than counting downwards past the items OnCursorDown skips. One key per
+    // Send with a wait after each, since a menu redraw drops whatever was sent behind it.
+    static void OpenBlameOf(TmuxSession gmd, string path)
+    {
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Up");
+        gmd.WaitForStable();
+        gmd.Send("Up");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor(path);
+        gmd.Send("Enter");
     }
 
     [TestMethod]

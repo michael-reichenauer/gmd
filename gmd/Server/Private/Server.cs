@@ -217,6 +217,13 @@ class Server : IServer
         return converter.ToCommitDiffs(gitCommitDiffs);
     }
 
+    public async Task<R<Blame>> GetBlameAsync(string path, string reference, string wd)
+    {
+        if (!Try(out var gitBlame, out var e, await git.GetBlameAsync(path, reference, wd)))
+            return e;
+        return converter.ToBlame(gitBlame);
+    }
+
     public Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
         augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout, wd);
 

@@ -1,3 +1,4 @@
+using gmd.Cui.Blame;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
 using gmd.Server;
@@ -24,6 +25,7 @@ interface ICommitCommands
     void ShowCurrentRowDiff();
     void ShowDiff(string commitId, string commitId2, bool isFromCommit = false);
     void ShowFileHistory();
+    void BlameFile();
 
     void Stash();
     void StashPop(string name);
@@ -53,6 +55,7 @@ class CommitCommands : ICommitCommands
     readonly ICommitDlg commitDlg;
     readonly ISquashDlg squashDlg;
     readonly IDiffView diffView;
+    readonly IBlameView blameView;
     readonly IAddTagDlg addTagDlg;
     readonly IAddStashDlg addStashDlg;
     readonly IRepoView repoView;
@@ -64,6 +67,7 @@ class CommitCommands : ICommitCommands
         ICommitDlg commitDlg,
         ISquashDlg squashDlg,
         IDiffView diffView,
+        IBlameView blameView,
         IAddTagDlg addTagDlg,
         IAddStashDlg addStashDlg,
         IRepoView repoView
@@ -75,6 +79,7 @@ class CommitCommands : ICommitCommands
         this.commitDlg = commitDlg;
         this.squashDlg = squashDlg;
         this.diffView = diffView;
+        this.blameView = blameView;
         this.addTagDlg = addTagDlg;
         this.addStashDlg = addStashDlg;
         this.repoView = repoView;
@@ -525,6 +530,44 @@ class CommitCommands : ICommitCommands
             }
 
             diffView.Show(diffs);
+            return R.Ok;
+        });
+
+    public void BlameFile() =>
+        Do(async () =>
+        {
+            var commit = repo.RowCommit;
+            // The uncommitted row has no tree of its own, so its branch supplies the file list. It
+            // then blames the working tree, so the uncommitted lines are part of the answer.
+            var (reference, title) = commit.IsUncommitted
+                ? (commit.BranchName, $"Blame File of Branch {commit.BranchName}")
+                : (commit.Id, $"Blame File of Commit {commit.Id.Sid()}");
+
+            if (!Try(out var files, out var e, await server.GetFileAsync(reference, repo.Path)))
+            {
+                return R.Error($"Failed to get files", e);
+            }
+
+            var browser = new FileBrowseDlg();
+            if (!Try(out var path, browser.Show(files, title)))
+                return R.Ok;
+
+            // Git blames a binary file as text, which arrives as mojibake. Only checked when the
+            // file is in the working tree, since blaming an old revision of a since deleted file
+            // is legitimate and IsText says 'not text' for a file that is not there.
+            var fullPath = System.IO.Path.Join(repo.Path, path);
+            if (File.Exists(fullPath) && !Files.IsText(fullPath))
+            {
+                return R.Error($"Cannot blame a binary file:\n{path}");
+            }
+
+            var blameReference = commit.IsUncommitted ? "" : commit.Id;
+            if (!Try(out var blame, out e, await server.GetBlameAsync(path, blameReference, repo.Path)))
+            {
+                return R.Error($"Failed to blame {path}", e);
+            }
+
+            UI.Post(() => blameView.Show(blame, repo.Path));
             return R.Ok;
         });
 

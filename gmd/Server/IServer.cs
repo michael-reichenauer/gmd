@@ -52,6 +52,7 @@ interface IServer
     Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
     Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
+    Task<R<Blame>> GetBlameAsync(string path, string reference, string wd);
     Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
     Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
     Task<R> RunDiffToolAsync(string path, string wd);
