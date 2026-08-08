@@ -72,6 +72,7 @@ sealed class TempRepo : IDisposable
             new TagService(cmd, remoteService),
             new KeyValueService(cmd),
             new StashService(cmd, logService, diffService),
+            new BlameService(cmd),
             cmd
         );
     }

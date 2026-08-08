@@ -203,6 +203,34 @@ record SectionDiff(
 
 record LineDiff(DiffMode DiffMode, string Line);
 
+// The blame of one file, i.e. which commit last changed each line. The commits are kept in a
+// dictionary the lines reference by id, since a commit typically covers many consecutive lines.
+record Blame(
+    string Path,
+    string Reference,
+    IReadOnlyList<BlameLine> Lines,
+    IReadOnlyDictionary<string, BlameCommit> CommitById
+)
+{
+    public override string ToString() => $"{Path}: {Lines.Count} lines, {CommitById.Count} commits";
+};
+
+record BlameLine(string CommitId, int LineNbr, int OriginalLineNbr, string Text);
+
+record BlameCommit(
+    string Id,
+    string Sid,
+    string Author,
+    string AuthorMail,
+    DateTime AuthorTime,
+    string Subject,
+    bool IsUncommitted,
+    bool IsBoundary, // The first commit of the history, so it has no previous version to blame
+    string PreviousId, // The commit and path to blame to see the version before this commit
+    string PreviousPath,
+    string Path // The path the file had in this commit, which differs from Blame.Path if renamed
+);
+
 enum DiffMode
 {
     DiffModified,

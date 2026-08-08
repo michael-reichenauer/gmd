@@ -1795,3 +1795,112 @@ from the E2E suite:
 - Conflict — by hand: HEAD stays on the target, the conflict row is drawn, and the error names the
   branch HEAD ended up on ("Failed to merge 'dev' while on 'main'"), which is the whole point of
   reporting the checkout and the merge as separate failures.
+
+## Step 14 — Blame a file ✅ done
+
+`Full File History ...` answers "how did this file change". The other half — "who last touched
+*this line*, and why" — meant leaving gmd for a console. Console `git blame` is also hard to read:
+it repeats the sha, author and date on every line, so a 40-line block from one commit costs 40
+identical prefixes and the eye has nothing to latch onto.
+
+**`Blame File ...`**, next to `Full File History ...` in the commit menu, reusing the same
+`FileBrowseDlg` picker. The new view aggregates *runs* — consecutive lines from the same commit —
+into one bracket in the gutter and names the commit once per run:
+
+```
+┌ c6d2d7 Test User   25-11-02 │   1┃// Blames a file
+│                             │   2┃
+└                             │   3┃interface IBlameService
+╺ 215c93 Test User   24-07-19 │   4┃    Task<R<Blame>> BlameAsync(
+```
+
+- [x] `gmd/Git/Private/BlameService.cs` — `git blame --porcelain`, parsed into
+      `Blame`/`BlameLine`/`BlameCommit` (`IGit.cs`). The porcelain block is emitted only on the
+      first sighting of a sha, so the parser keeps a dictionary and the lines reference it by id —
+      which is also the shape the view wants.
+- [x] `gmd/Server/` — mirrored records plus `ViewRepoConverter.ToBlame`, the `CommitDiff`
+      precedent, so nothing under `Cui/` names a `gmd.Git` record.
+- [x] `gmd/Cui/Blame/` — `BlameRows` (row model), `BlameColumns` (pure column math),
+      `BlameService` (run classification, age heat, gutter text) and `BlameView` (the Toplevel).
+      Everything except the view is pure, so the gutter is snapshot-asserted as ASCII art through
+      `Text.ToString()` with no driver, the way `GraphText` does for the graph.
+- [x] Drill-down: `P` re-blames at the porcelain `previous` sha *and path*, so a rename is followed
+      for free where `<sha>^` plus the current path would silently get it wrong. A stack inside the
+      one `Show` call rather than nested views, so `Esc` still means "close" and `Backspace` means
+      "one hop back".
+- [x] Commit details: `Enter` toggles the log view's own `CommitDetailsView` in a pane at the
+      bottom, following the cursor. The blame knows only the *first* line of the message
+      (porcelain `summary`) and nothing about branches, so the full body and the gmd-inferred
+      branch come from `Repo.CommitById` — the view takes a `Server.Repo` rather than just its
+      path for this. `ICommitDetailsView` grew a `SetRows` overload so a caller with no
+      `Server.Commit` can render its own rows, which is the fallback below.
+
+### Findings
+
+- **A missing `blame.ignoreRevsFile` is fatal, not ignored.** `git blame` exits with
+  `fatal: could not open object name list: <file>`. This repo's own `installtools:31` sets that
+  config, and `.git-blame-ignore-revs` was deleted in `a81fbda` — it survives only as an untracked
+  file in existing clones, so **a fresh clone of gmd cannot blame anything**. The service honors
+  the config (that is what `git blame` and the hosting sites do) but retries once with
+  `-c blame.ignoreRevsFile=` when it hits exactly that error. `installtools:31` is now dead either
+  way and should be dropped or the file restored — left alone here deliberately.
+- **`Cmd.Command` `TrimEnd()`s the whole output** (`Utils/Cmd.cs:133`), so a file whose last line is
+  empty loses its `\t` content marker entirely and the output ends on a bare header. Only the last
+  line can ever be affected, since every other content line is followed by a header. The parser
+  treats "header at EOF with no content line" as an empty line rather than an error; there is a
+  regression test for it. Its `Replace("\r", "")` is welcome — CRLF files render correctly.
+- **Tabs are expanded in the Cui layer, not the git layer**, so `Ctrl-C` yields the file's own text.
+  `DiffView.OnCopy` has to guess where the line-number prefix ends; blame rows map 1:1 onto
+  `blame.Lines`, so the copy slices those directly.
+- **The uncommitted sha is the all-`0` `Repo.UncommittedId`.** `git blame` uses the same value, so
+  a blamed line's commit id can be handed straight to `IServer.GetCommitDiffAsync`, which already
+  routes that sentinel to the uncommitted diff — `D` works on uncommitted lines with no special
+  case.
+- **`IBranchColorService` was investigated for the gutter and rejected.** `GetColor` returns
+  magenta for any main branch, and in a normal repo most commits are on main, so nearly every run
+  would be the same color — the exact adjacency collapse the coloring is there to prevent. It also
+  has no answer for a sha outside the loaded log. Age heat by *rank* over the distinct commits is
+  used instead: rank rather than absolute time means the ramp is fully used whether the file is a
+  week or a decade old, and recent edits stay apart in a file dominated by one ancient bulk commit.
+  Annotating `BlameCommit` with the gmd branch in the Server layer, and *tinting* rather than
+  replacing, is where the branch-color idea would actually pay off.
+- **`UILabel.Text` sizes the label from the text it is replacing** (`UILabel.cs:40-48` sets
+  `Width = text.Length` before assigning), so a header that grows is clipped to the previous
+  header's length. `BlameView.SetHeader` sets `Width = Dim.Fill()` after every assignment. The
+  setter itself is worth fixing, but not from here.
+- **`ToggleDetailsFocus` does not move the keyboard, only the drawn highlight.** `RepoView`'s
+  version says so in a comment ("unfortunately SetFocus() does not seem to work"), and the
+  consequence is easy to miss: `ContentView.ProcessHotKey` returns early on `!HasFocus`, so the
+  pane never receives a key no matter what `IsFocus` says. Tab in the blame view therefore *looked*
+  like it worked — the border went heavy — while `Down` still moved the blame cursor underneath.
+  Fixed by forwarding the scroll keys by hand from the view that really has the keyboard, which is
+  what `FilterDlg` already does for the log view's results (`FilterDlg.cs:86-129`). Worth knowing
+  that the log view's own Tab has the same limitation.
+- **`Server.Commit` and `Server.Branch` are ~30 fields each**, so synthesizing one for a commit the
+  log does not have was rejected as fragile. The blame view falls back to
+  `BlameService.ToDetailsRows`, which renders what git blame itself said and names what is missing
+  rather than leaving blanks the reader has to interpret. Only the log is capped (30 000 commits),
+  never the blame, so this is reachable in a very large repo.
+- **Adding one commit-menu item broke three golden screens** (`TerminalTest` `TestCommitMenu` and
+  both windows of `TestBranchesSubMenuInCommitMenu`), exactly as the menu section of `CLAUDE.md`
+  warns. The menu grows one row taller, so the `ScreenText.Rows` windows shift by one.
+
+### Verified
+
+`./test` is green (490 fast + 45 E2E). Beyond the suite, driven by hand in a throwaway repo with a
+redirected `HOME`: the run brackets and the `╺` single-line stub; the age ramp in real ANSI
+(yellow → bright cyan → dark, bright yellow for uncommitted); `I` through all four detail levels;
+the automatic step-down on a narrow view; `←`/`→` scrolling the code with the gutter pinned and `…`
+at both cut ends; `P` twice down to the root commit and the refusal there; `Backspace` back out;
+`D` opening the diff over the blame view and input still live after `Esc` (the Step 13 check);
+`Ctrl-C` putting the file's own text on the clipboard through OSC 52; and `q` closing the view
+rather than gmd. For the details pane: `Enter` opening it, the pane following the cursor through
+three commits including the uncommitted one, `Tab` into it and `PageDown` reaching the last line of
+a 14-line message while the blame cursor stayed put, `Tab` back restoring cursor movement, and
+`Enter` closing it.
+
+### Not done, deliberately
+
+`-w` (ignore whitespace) and `-M` / `-C` (detect moved lines) as menu toggles that re-run the
+blame. They change the answer, so gmd would disagree with `git blame` at the CLI, and `-C` is slow
+— they are per-question and belong on the menu, but they are not part of this cut.

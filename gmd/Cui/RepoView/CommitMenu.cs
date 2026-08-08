@@ -81,6 +81,9 @@ class CommitMenu : ICommitMenu
             // Belongs with the commit items: the files offered are the ones this commit has, even
             // though the history then shown for the chosen one is its full history, hence 'Full'
             .Item("Full File History ...", "", () => cmds.ShowFileHistory())
+            // The same file list, answering the other question: not how the file changed over
+            // time, but which commit each line of it as it stands came from
+            .Item("Blame File ...", "", () => cmds.BlameFile())
             .Separator()
             // Everything about branches, including showing and hiding them, is under here
             .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())

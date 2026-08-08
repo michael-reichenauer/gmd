@@ -8,6 +8,7 @@ interface IViewRepoConverter
 
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
+    Blame ToBlame(Git.Blame gitBlame);
     Repo ToViewRepo(
         DateTime timeStamp,
         IReadOnlyList<Commit> viewCommits,
@@ -29,6 +30,35 @@ class ViewRepoConverter : IViewRepoConverter
         var d = gitCommitDiff;
         return new CommitDiff(d.Id, d.Author, d.Time, d.Message, ToFileDiffs(d.FileDiffs));
     }
+
+    public Blame ToBlame(Git.Blame gitBlame)
+    {
+        var b = gitBlame;
+        return new Blame(b.Path, b.Reference, ToBlameLines(b.Lines), ToBlameCommits(b.CommitById));
+    }
+
+    static IReadOnlyList<BlameLine> ToBlameLines(IReadOnlyList<Git.BlameLine> lines) =>
+        lines.Select(l => new BlameLine(l.CommitId, l.LineNbr, l.OriginalLineNbr, l.Text)).ToList();
+
+    static IReadOnlyDictionary<string, BlameCommit> ToBlameCommits(
+        IReadOnlyDictionary<string, Git.BlameCommit> commits
+    ) =>
+        commits.ToDictionary(
+            p => p.Key,
+            p => new BlameCommit(
+                p.Value.Id,
+                p.Value.Sid,
+                p.Value.Author,
+                p.Value.AuthorMail,
+                p.Value.AuthorTime,
+                p.Value.Subject,
+                p.Value.IsUncommitted,
+                p.Value.IsBoundary,
+                p.Value.PreviousId,
+                p.Value.PreviousPath,
+                p.Value.Path
+            )
+        );
 
     static IReadOnlyList<FileDiff> ToFileDiffs(IReadOnlyList<Git.FileDiff> fileDiffs) =>
         fileDiffs
