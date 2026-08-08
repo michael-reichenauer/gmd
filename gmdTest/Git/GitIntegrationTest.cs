@@ -492,6 +492,134 @@ public class GitIntegrationTest
         Assert.AreEqual(1, status.OperationTotal);
     }
 
+    // Abort puts the working folder back as it was, from each of the operations gmd can start
+    [TestMethod]
+    public async Task TestAbortOfAConflictedMerge()
+    {
+        await TwoBranchesThatConflictAsync();
+        var head = await repo.HeadIdAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        Ok(await repo.Git.AbortOperationAsync(repo.Path));
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.None, status.Operation);
+        Assert.AreEqual(0, status.Conflicted, "The working folder is clean again");
+        Assert.AreEqual(head, await repo.HeadIdAsync());
+    }
+
+    [TestMethod]
+    public async Task TestAbortOfAConflictedRebase()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        var head = await repo.HeadIdAsync();
+        await repo.GitAllowFailAsync("rebase main");
+
+        Ok(await repo.Git.AbortOperationAsync(repo.Path));
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.None, status.Operation);
+        Assert.AreEqual(head, await repo.HeadIdAsync(), "Back on the commit it started from");
+    }
+
+    [TestMethod]
+    public async Task TestAbortOfAConflictedCherryPick()
+    {
+        var d1 = await TwoBranchesThatConflictAsync();
+        await repo.GitAllowFailAsync($"cherry-pick {d1}");
+
+        Ok(await repo.Git.AbortOperationAsync(repo.Path));
+
+        Assert.AreEqual(GitOperation.None, Value(await repo.Git.GetStatusAsync(repo.Path)).Operation);
+    }
+
+    // Continuing is what finishes a rebase, and gmd could not do it at all before: 'git commit'
+    // makes the commit but leaves the rebase mid flight with its remaining commits unapplied
+    [TestMethod]
+    public async Task TestContinueFinishesAConflictedRebase()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+        repo.WriteFile("file.txt", "resolved\n");
+        await repo.GitAsync("add file.txt");
+
+        Ok(await repo.Git.ContinueOperationAsync(repo.Path));
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.None, status.Operation, "The rebase is finished, not left mid flight");
+        Assert.AreEqual(0, status.Conflicted);
+        Assert.AreEqual("Dev work", (await repo.GitAsync("log -1 --pretty=%s")).Trim());
+    }
+
+    // The editor '--continue' would otherwise open would hang gmd behind the terminal it owns
+    [TestMethod]
+    public async Task TestContinueOfACherryPickDoesNotOpenAnEditor()
+    {
+        var d1 = await TwoBranchesThatConflictAsync();
+        await repo.GitAllowFailAsync($"cherry-pick {d1}");
+        repo.WriteFile("file.txt", "resolved\n");
+        await repo.GitAsync("add file.txt");
+
+        Ok(await repo.Git.ContinueOperationAsync(repo.Path));
+
+        Assert.AreEqual("Dev work", (await repo.GitAsync("log -1 --pretty=%s")).Trim());
+    }
+
+    [TestMethod]
+    public async Task TestContinueWithConflictsStillUnresolvedSaysWhatIsMissing()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+
+        var result = await repo.Git.ContinueOperationAsync(repo.Path);
+
+        Assert.IsTrue(result.IsResultError);
+        StringAssert.Contains(result.GetResultError().ErrorMessage, "unresolved conflicts");
+    }
+
+    // A rebase over two commits that conflicts twice: continuing gets past the first and stops on
+    // the second, which is the operation working rather than failing
+    [TestMethod]
+    public async Task TestContinueThatStopsOnTheNextCommitSaysSo()
+    {
+        await repo.CommitFileAsync("file.txt", "a\nb\n", "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        await repo.CommitFileAsync("file.txt", "dev1\nb\n", "Dev 1");
+        await repo.CommitFileAsync("file.txt", "dev1\ndev2\n", "Dev 2");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await repo.CommitFileAsync("file.txt", "main1\nmain2\n", "Main work");
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+        repo.WriteFile("file.txt", "r1\nmain2\n");
+        await repo.GitAsync("add file.txt");
+
+        var result = await repo.Git.ContinueOperationAsync(repo.Path);
+
+        Assert.IsTrue(result.IsResultError);
+        StringAssert.Contains(result.GetResultError().ErrorMessage, "stopped on more conflicts");
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.Rebase, status.Operation, "Still rebasing, now on the second commit");
+        Assert.AreEqual(2, status.OperationStep);
+    }
+
+    // Skipping drops the commit the rebase stopped on and carries on with the rest
+    [TestMethod]
+    public async Task TestSkipDropsTheCommitTheRebaseStoppedOn()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+
+        Ok(await repo.Git.SkipOperationAsync(repo.Path));
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.None, status.Operation);
+        Assert.AreEqual("Main work", (await repo.GitAsync("log -1 --pretty=%s")).Trim(), "'Dev work' was dropped");
+    }
+
     [TestMethod]
     public async Task TestCommitDiffRoundTrip()
     {

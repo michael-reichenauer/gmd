@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
@@ -9,6 +10,7 @@ interface IRepoMenu
     void ShowOpenRepo(int x, int y);
 
     IEnumerable<MenuItem> GetNewReleaseItems();
+    IEnumerable<MenuItem> GetOperationItems();
     IEnumerable<MenuItem> GetRepoMenuItems();
 }
 
@@ -42,12 +44,8 @@ class RepoMenu : IRepoMenu
         var isStatusOK = repo.Repo.Status.IsOk;
 
         return Menu
-            .Items.Item(
-                "Pull/Update All Branches",
-                "Shift-U",
-                () => repo.BranchCmds.PullAllBranches(),
-                () => isStatusOK
-            )
+            .Items.Items(GetOperationItems())
+            .Item("Pull/Update All Branches", "Shift-U", () => repo.BranchCmds.PullAllBranches(), () => isStatusOK)
             .Item("Push All Branches", "Shift-P", () => repo.BranchCmds.PushAllBranches(), () => isStatusOK)
             .Item("Search/Filter ...", "F", () => cmds.SearchFilterRepo())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
@@ -57,6 +55,36 @@ class RepoMenu : IRepoMenu
             .Item("Help ...", "?, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Q, Esc", () => UI.Shutdown());
+    }
+
+    // What can be done about an operation git stopped part way through. Heads the menu because a
+    // stopped rebase is the most urgent thing about the repo while it lasts, and self-hides when
+    // there is none, as GetNewReleaseItems does — so nothing changes for the usual case.
+    //
+    // A merge has no 'Continue': committing is what finishes one, and Commit is already on the
+    // commit menu with its dialog behind it. The other operations really do need telling to carry
+    // on, and until now gmd could start them but not finish them.
+    public IEnumerable<MenuItem> GetOperationItems()
+    {
+        var status = repo.Repo.Status;
+        if (status.Operation == GitOperation.None)
+            return Menu.Items;
+
+        var name = cmds.OperationName();
+
+        // Omitted rather than disabled: neither can ever apply to the operation in progress, so a
+        // permanently greyed 'Continue Merge' would only suggest that continuing a merge is a thing
+        // gmd might one day do. Contrast the diff view's More/Less Context, which are disabled
+        // because they are meaningful in general and merely have nowhere to go just now.
+        var hasContinue = status.Operation != GitOperation.Merge;
+        var hasSkip = status.Operation is GitOperation.Rebase or GitOperation.Am;
+
+        return Menu
+            .Items.Separator(cmds.OperationSummary())
+            .Item(hasContinue, $"Continue {name}", "", () => cmds.ContinueOperation())
+            .Item(hasSkip, "Skip This Commit", "", () => cmds.SkipOperationCommit())
+            .Item($"Abort {name}", "", () => cmds.AbortOperation())
+            .Separator();
     }
 
     public IEnumerable<MenuItem> GetNewReleaseItems()

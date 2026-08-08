@@ -308,6 +308,14 @@ class Server : IServer
 
     public Task<R> CherryPickAsync(string sha, string wd) => git.CherryPickAsync(sha, wd);
 
+    // These take no operation: the Git layer probes which one is in progress itself, so the UI
+    // cannot act on a stale one and no enum has to be converted back down through the layers
+    public Task<R> AbortOperationAsync(string wd) => git.AbortOperationAsync(wd);
+
+    public Task<R> ContinueOperationAsync(string wd) => git.ContinueOperationAsync(wd);
+
+    public Task<R> SkipOperationAsync(string wd) => git.SkipOperationAsync(wd);
+
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
 

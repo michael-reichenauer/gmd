@@ -234,8 +234,12 @@ class StatusService : IStatusService
 
     static string TrimRefsHeads(string name) => name.TrimPrefix("refs/heads/");
 
+    // Which operation git is part way through, for the callers that only need that much: the two
+    // 'git add .' guards below, and ConflictService deciding what '--abort' attaches to.
+    internal static GitOperation GetOperation(string wd) => GetOperationStatus(wd).Operation;
+
     // True while git is part way through an operation it has to be told to finish or abort. What
     // this guards is 'git add .' and 'git commit -a': either would stage an unmerged path with the
     // conflict markers as its content and drop the stages, which cannot be undone.
-    internal static bool IsOperationInProgress(string wd) => GetOperationStatus(wd).Operation != GitOperation.None;
+    internal static bool IsOperationInProgress(string wd) => GetOperation(wd) != GitOperation.None;
 }

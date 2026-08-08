@@ -16,6 +16,7 @@ internal class Git : IGit
     readonly IKeyValueService keyValueService;
     readonly IStashService stashService;
     readonly IBlameService blameService;
+    readonly IConflictService conflictService;
     readonly ICmd cmd;
 
     public Git(
@@ -30,6 +31,7 @@ internal class Git : IGit
         IKeyValueService keyValueService,
         IStashService stashService,
         IBlameService blameService,
+        IConflictService conflictService,
         ICmd cmd
     )
     {
@@ -44,6 +46,7 @@ internal class Git : IGit
         this.keyValueService = keyValueService;
         this.stashService = stashService;
         this.blameService = blameService;
+        this.conflictService = conflictService;
         this.cmd = cmd;
     }
 
@@ -130,6 +133,12 @@ internal class Git : IGit
         branchService.RebaseOntoAsync(newBase, oldBase, wd);
 
     public Task<R> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
+
+    public Task<R> AbortOperationAsync(string wd) => conflictService.AbortOperationAsync(wd);
+
+    public Task<R> ContinueOperationAsync(string wd) => conflictService.ContinueOperationAsync(wd);
+
+    public Task<R> SkipOperationAsync(string wd) => conflictService.SkipOperationAsync(wd);
 
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
         branchService.CreateBranchAsync(name, isCheckout, wd);

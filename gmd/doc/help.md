@@ -136,7 +136,7 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   copies the current line's commit id, and `Ctrl-C` copies the selected lines.
 - **Merge**: 
   Highlight a branch and merge into the current branch (`E`). 
-  Use `Commit` post-merge.
+  Use `Commit` post-merge, or **Abort Merge** in the repo menu to back out.
 - **Merge to** (`Shift-E`): 
   The other direction, i.e. merge the current branch into the highlighted 
   one. Git can only merge into the branch that is checked out, so gmd 
@@ -144,6 +144,20 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   switches back once the merge is committed. Cancelling the commit, or a 
   merge that conflicts, leaves you on the target branch, which is where the 
   merge has to be finished.
+- **Continue / Skip / Abort**:
+  When a merge, rebase, cherry pick or revert stops on conflicts, the repo
+  menu grows a section at the top naming what is in progress, how far it has
+  got and how many conflicts are left, e.g.
+  `Rebase 'dev' (1 of 2)  ·  1 conflict`.
+  **Continue** carries on once every conflicted file is resolved and marked
+  resolved (`git add`); a rebase over several commits may then stop again on
+  the next one, and it says so. **Skip This Commit** drops the commit it
+  stopped on and carries on with the rest. **Abort** throws the whole
+  operation away and puts the working folder back as it was.
+  A merge has no *Continue* — committing is what finishes one — and only a
+  rebase has commits to skip, so those items appear only where they apply.
+  Note that a commit is refused while any file is still unresolved, rather
+  than silently committing the `<<<<<<<` markers.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on the

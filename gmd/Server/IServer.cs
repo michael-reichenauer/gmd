@@ -70,6 +70,9 @@ interface IServer
     Task<R> RebaseBranchAsync(Repo repo, string branchName);
     Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
+    Task<R> AbortOperationAsync(string wd);
+    Task<R> ContinueOperationAsync(string wd);
+    Task<R> SkipOperationAsync(string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);

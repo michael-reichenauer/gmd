@@ -2028,7 +2028,7 @@ prefixes. Resolution reads the working-tree file itself and writes the whole fil
 new service rather than an extension of `DiffRows`.
 
 - [x] **Step 1 — operation detection, and the two bugs it fixes.** See below.
-- [ ] Step 2 — abort *and continue*, through a new `Git/Private/ConflictService.cs`.
+- [x] **Step 2 — abort *and continue*.** See below.
 - [ ] Step 3 — commit gating (`Status.Conflicted`, `git diff --cached --check`), and routing a
       rebase to *Continue* rather than *Commit*.
 - [ ] Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.
@@ -2107,3 +2107,45 @@ merge, where the diff view leaves all three index stages intact, an unresolved c
 with gmd's own wording, and a hand-resolved and staged commit goes through with the resolved
 content; and a `rebase --apply` conflict — no `MERGE_MSG` on disk — where opening the diff left
 `git ls-files -u` reporting all three stages, which is the bug above.
+
+### Step 2 findings
+
+`Git/Private/ConflictService.cs` — `AbortOperationAsync`, `ContinueOperationAsync`,
+`SkipOperationAsync` — plus a self-hiding section at the head of the repo menu, wording the
+operation as e.g. `Rebase 'dev' (1 of 2)  ·  1 conflict`.
+
+- [x] **gmd could start a rebase and not finish it.** `BranchService` runs `rebase`, `rebase --onto`
+      and `cherry-pick`, and on a conflict there was no `--continue` anywhere in the codebase. For a
+      rebase "commit" is the wrong verb entirely — `git commit` makes the commit but leaves the
+      rebase mid flight with its remaining commits unapplied — so a conflicted rebase started in gmd
+      could only be finished by leaving for a console. That, rather than abort, was the real gap.
+- [x] **`--continue` opens an editor, which would hang gmd behind the terminal it owns.** `ICmd`
+      cannot pass environment variables, so `GIT_EDITOR` is out; `-c core.editor=true` says the same
+      thing as config, `true` being a program that exits 0 without writing. Verified for both
+      `rebase --continue` and `cherry-pick --continue`.
+- [x] **Stopping again is success, not failure.** A rebase over several commits stops on each one
+      that conflicts, and `--continue` then exits non-zero with `CONFLICT` in its output — the same
+      shape as being refused because nothing was resolved (`needs merge` / `You must edit all merge
+      conflicts`). Both are non-zero, so they are told apart by what git printed, the same sniffing
+      `BranchService` already does when *starting* one, and each gets its own wording.
+- [x] **The Server methods take no operation.** `AbortOperationAsync(wd)` rather than
+      `AbortOperationAsync(operation, wd)`: the Git layer probes what is in progress itself, so the
+      UI cannot act on a stale operation and the `GitOperation` enum never has to be converted back
+      *down* through the layers — only up, which `StatusConverter` already does.
+- [x] **Only a rebase and an `am` have a commit to skip, and only a merge has no continue.** Both
+      are *omitted* rather than disabled: a permanently greyed `Continue Merge` would suggest that
+      continuing a merge is something gmd might one day do. That is the opposite of the diff view's
+      `More/Less Context`, which are disabled because they are meaningful in general and merely have
+      nowhere to go just now — the distinction is "never applies here" versus "nothing to do yet".
+- [x] `git merge --abort` after a conflicted merge, `rebase --abort`, `cherry-pick --abort` and
+      `revert --abort` all leave a clean tree at the commit they started from. Pinned per operation,
+      since this is exactly the sort of thing a git version can change.
+
+### Step 2 verified
+
+`./test` is green (630, up from 608). By hand against the built binary under tmux with a redirected
+`HOME`: a two step rebase stopped on both of its commits, driven entirely from the repo menu —
+Continue refused with gmd's wording while unresolved, then advanced 1 of 2 → 2 of 2 and said it had
+stopped on more conflicts, then finished, leaving `dev` rebased onto `main` with a clean tree and no
+rebase state; and a conflicted merge, whose menu section correctly offers only **Abort Merge**,
+confirmed first, leaving the working folder as it was.

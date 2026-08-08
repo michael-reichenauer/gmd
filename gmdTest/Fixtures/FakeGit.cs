@@ -144,6 +144,12 @@ class FakeGit : IGit
 
     public Task<R> CherryPickAsync(string sha, string wd) => throw new NotSupportedException();
 
+    public Task<R> AbortOperationAsync(string wd) => throw new NotSupportedException();
+
+    public Task<R> ContinueOperationAsync(string wd) => throw new NotSupportedException();
+
+    public Task<R> SkipOperationAsync(string wd) => throw new NotSupportedException();
+
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
 
     public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
