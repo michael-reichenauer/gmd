@@ -346,6 +346,152 @@ public class GitIntegrationTest
         );
     }
 
+    // Sets up 'main' and 'dev' both changing the same line, so anything replaying one onto the
+    // other conflicts. Returns the dev commit id.
+    async Task<string> TwoBranchesThatConflictAsync()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        var d1 = await repo.CommitFileAsync("file.txt", "dev\n", "Dev work");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await repo.CommitFileAsync("file.txt", "main\n", "Main work");
+        return d1;
+    }
+
+    // The regression test for silent, unrecoverable data loss. A rebase with the --apply backend
+    // writes no .git/MERGE_MSG, which is what the merge-in-progress check used to look for, so
+    // GetUncommittedDiff ran its 'git add .' — staging the unmerged path with the conflict markers
+    // as its content. That resolves the conflict, and the 'git reset' afterwards does not put the
+    // stages back: 'git checkout --merge' can no longer recover it, only 'git rebase --abort'.
+    //
+    // Merely opening the diff view was enough to trigger it.
+    [TestMethod]
+    public async Task TestDiffDuringAnApplyRebaseKeepsTheConflictUnmerged()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase --apply main");
+
+        var before = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.Rebase, before.Operation, "The --apply backend is still a rebase");
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".git", "MERGE_MSG")), "Which is why it was missed");
+
+        Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+
+        var unmerged = await repo.GitAsync("ls-files -u");
+        Assert.AreNotEqual("", unmerged.Trim(), "The index stages must survive being looked at");
+        var after = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(1, after.Conflicted, "Still one conflict, not resolved behind the user's back");
+    }
+
+    // The same for a merge, which was already safe — it is here so that the guard cannot regress
+    // for the case that did work
+    [TestMethod]
+    public async Task TestDiffDuringAMergeKeepsTheConflictUnmerged()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+
+        Assert.AreNotEqual("", (await repo.GitAsync("ls-files -u")).Trim());
+    }
+
+    // 'git commit -am' during a conflicted merge succeeds and commits the '<<<<<<<' markers into
+    // history — the reason the commit path stages nothing while an operation is in progress
+    [TestMethod]
+    public async Task TestCommitDuringAMergeDoesNotCommitConflictMarkers()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        var headBefore = await repo.HeadIdAsync();
+
+        var result = await repo.Git.CommitAllChangesAsync("Merge branch 'dev'", false, repo.Path);
+
+        Assert.IsTrue(result.IsResultError, "Git refuses to commit while a path is unmerged");
+        StringAssert.Contains(result.GetResultError().ErrorMessage, "unresolved conflicts");
+        Assert.AreEqual(headBefore, await repo.HeadIdAsync(), "No commit was made");
+    }
+
+    // Resolving in an external editor and not staging is a real workflow, and it used to work by
+    // accident: 'git commit -am' staged the edited file for the user. Now that nothing is staged
+    // git refuses, so the message has to say what is missing rather than passing on git's hints.
+    [TestMethod]
+    public async Task TestCommitAfterAHandResolveSaysWhatIsMissing()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+        repo.WriteFile("file.txt", "resolved by hand\n");
+
+        var result = await repo.Git.CommitAllChangesAsync("Merge branch 'dev'", false, repo.Path);
+
+        Assert.IsTrue(result.IsResultError, "The path is still unmerged until it is staged");
+        StringAssert.Contains(result.GetResultError().ErrorMessage, "mark it resolved");
+    }
+
+    // ... and once it is staged, which is what 'git mergetool' does for you, the commit goes through
+    [TestMethod]
+    public async Task TestCommitAfterAStagedResolveSucceeds()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+        repo.WriteFile("file.txt", "resolved by hand\n");
+        await repo.GitAsync("add file.txt");
+
+        Ok(await repo.Git.CommitAllChangesAsync("Merge branch 'dev'", false, repo.Path));
+
+        Assert.AreEqual("Merge branch 'dev'", (await repo.GitAsync("log -1 --pretty=%s")).Trim());
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.None, status.Operation, "The merge is finished");
+    }
+
+    // gmd's own cherry-pick is 'cherry-pick --no-commit', and that writes no CHERRY_PICK_HEAD at
+    // all — only MERGE_MSG. Reporting a merge is right rather than a shortcoming: with --no-commit
+    // there is no cherry-pick sequence to continue or abort ('git cherry-pick --abort' answers
+    // "no cherry-pick or revert in progress"), only a conflicted index to resolve and commit.
+    [TestMethod]
+    public async Task TestOperationOfGmdsOwnCherryPickIsAMerge()
+    {
+        var d1 = await TwoBranchesThatConflictAsync();
+        await repo.GitAllowFailAsync($"cherry-pick --no-commit {d1}");
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".git", "CHERRY_PICK_HEAD")));
+        Assert.AreEqual(GitOperation.Merge, status.Operation);
+        Assert.AreEqual(1, status.Conflicted);
+        Assert.AreEqual(ConflictKind.BothModified, status.Conflicts[0].Kind);
+    }
+
+    // A cherry-pick started outside gmd, which does record a sequence to continue or abort
+    [TestMethod]
+    public async Task TestOperationIsDetectedForARealCherryPick()
+    {
+        var d1 = await TwoBranchesThatConflictAsync();
+        await repo.GitAllowFailAsync($"cherry-pick {d1}");
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+
+        Assert.AreEqual(GitOperation.CherryPick, status.Operation);
+        Assert.AreEqual(d1, status.MergeHeadId, "Read from CHERRY_PICK_HEAD");
+    }
+
+    [TestMethod]
+    public async Task TestOperationIsDetectedForARealRebase()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+
+        Assert.AreEqual(GitOperation.Rebase, status.Operation);
+        Assert.AreEqual("dev", status.OperationBranchName);
+        Assert.AreEqual(1, status.OperationStep);
+        Assert.AreEqual(1, status.OperationTotal);
+    }
+
     [TestMethod]
     public async Task TestCommitDiffRoundTrip()
     {

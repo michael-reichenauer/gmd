@@ -58,17 +58,39 @@ public class CommitServiceTest
         Assert.AreEqual("commit -am \"Fix \\\"the\\\" bug\"", cmd.Calls[1].Args);
     }
 
-    // While a merge is in progress the staging must be left alone, since staging is what marks a
-    // conflict as resolved
+    // While an operation is in progress nothing is staged — and that means '-a' as well as
+    // 'git add .', which is the half this used to miss. Both stage an unmerged path with whatever
+    // the working tree holds, so 'git commit -am' on a conflicted merge succeeds and commits the
+    // '<<<<<<<' markers into history (verified against real git; see ConflictIntegrationTest).
+    // The operation staged its own result, and a resolved file is staged explicitly, so a plain
+    // 'commit -m' commits exactly what is meant to be committed.
     [TestMethod]
-    public async Task TestCommitDoesNotStageWhileMerging()
+    [DataRow("MERGE_MSG", "Merge branch 'topic'\n")]
+    [DataRow("CHERRY_PICK_HEAD", "3883620149\n")]
+    [DataRow("REVERT_HEAD", "3883620149\n")]
+    public async Task TestCommitStagesNothingWhileAnOperationIsInProgress(string name, string content)
     {
-        File.WriteAllText(Path.Join(wd, ".git", "MERGE_MSG"), "Merge branch 'topic'\n");
+        File.WriteAllText(Path.Join(wd, ".git", name), content);
         var cmd = new FakeCmd("");
 
         await new CommitService(cmd).CommitAllChangesAsync("The message", false, wd);
 
-        CollectionAssert.AreEqual(new[] { "commit -am \"The message\"" }, ArgsOf(cmd));
+        CollectionAssert.AreEqual(new[] { "commit -m \"The message\"" }, ArgsOf(cmd));
+    }
+
+    // A rebase with the --apply backend, and 'git am', write no MERGE_MSG at all. That is what made
+    // them invisible to the old check and let 'git add .' resolve their conflicts irrecoverably.
+    [TestMethod]
+    [DataRow("rebase-merge")]
+    [DataRow("rebase-apply")]
+    public async Task TestCommitStagesNothingWhileRebasing(string dir)
+    {
+        Directory.CreateDirectory(Path.Join(wd, ".git", dir));
+        var cmd = new FakeCmd("");
+
+        await new CommitService(cmd).CommitAllChangesAsync("The message", false, wd);
+
+        CollectionAssert.AreEqual(new[] { "commit -m \"The message\"" }, ArgsOf(cmd));
     }
 
     [TestMethod]

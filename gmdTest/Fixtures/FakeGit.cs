@@ -13,7 +13,7 @@ class FakeGit : IGit
 
     // For tests that only use the key/value storage below, where the status is irrelevant
     public FakeGit()
-        : this(new Status(0, 0, 0, 0, 0, false, "", "", [], [], [], [], [], [])) { }
+        : this(new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, [], [], [], [], [], [])) { }
 
     public string CurrentAuthor => "Test Author";
 

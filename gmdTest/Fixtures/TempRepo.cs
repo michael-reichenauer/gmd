@@ -86,6 +86,10 @@ sealed class TempRepo : IDisposable
         return result.Output;
     }
 
+    // As GitAsync, but for the commands that are expected to fail — creating a conflict means
+    // running a 'git merge' or 'git rebase' that stops, and those exit non-zero.
+    public async Task<string> GitAllowFailAsync(string args) => (await cmd.RunAsync("git", args, Path)).Output;
+
     public void WriteFile(string name, string text) => File.WriteAllText(IOPath.Join(Path, name), text);
 
     public void DeleteFile(string name) => File.Delete(IOPath.Join(Path, name));

@@ -2012,3 +2012,98 @@ file history, which is one of the views whose refresh was broken; and `Ctrl-C` p
 
 A step *below* 6 (0 or 3, "changes only") for scanning a large commit. Same shape as the rest, and
 a one line addition to `DiffContext.Levels` if it is wanted.
+
+## Step 16 — Resolve merge conflicts
+
+**Reported by the user: the diff view can *show* a conflict but there is no way to resolve one.**
+That it shows conflicts at all is incidental — `GetUncommittedDiff` skips its `git add .` while
+merging and runs `git diff HEAD`, so the markers git wrote into the working-tree file arrive as
+ordinary `+` lines, which `ParseLineDiff` recognises. The only way on is `git mergetool`, i.e. out
+of gmd. The plan is a three-way resolver (ours / base / theirs with an editable result) in a new
+`Cui/Conflict/`, entered from the diff view.
+
+The shaping finding: **that data is fine for showing and useless for writing.** It is a diff, with
+diff context, and the ours/theirs pairing in `AddSectionDiff` is a rendering heuristic over `+`
+prefixes. Resolution reads the working-tree file itself and writes the whole file back, so it is a
+new service rather than an extension of `DiffRows`.
+
+- [x] **Step 1 — operation detection, and the two bugs it fixes.** See below.
+- [ ] Step 2 — abort *and continue*, through a new `Git/Private/ConflictService.cs`.
+- [ ] Step 3 — commit gating (`Status.Conflicted`, `git diff --cached --check`), and routing a
+      rebase to *Continue* rather than *Commit*.
+- [ ] Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.
+- [ ] Step 5 — the resolver view.
+- [ ] Step 6 — the base pane, via `checkout-index --stage=all --temp` + `merge-file --diff3`.
+- [ ] Step 7 — file-level resolutions (whole-file ours/theirs, `UD`/`DU`/`DD`, binary, un-resolve).
+- [ ] Step 8 — manual edit of a conflict region.
+- [ ] Step 9 — (optional) true inline editing, gated on a focus probe.
+- [ ] Step 10 — `gmd/doc/help.md`.
+
+### Step 1 findings
+
+Everything below was probed against real git (2.55) before it was written; three of the probes
+changed the design and two of them found bugs that were already shipping.
+
+- [x] **Opening the diff view during a `git rebase --apply` or `git am` conflict destroyed it.**
+      Those backends write `rebase-apply/` and **no `MERGE_MSG`**, which is the only thing
+      `IsMergeInProgress` looked at, so `GetUncommittedDiff` ran its `git add .` — staging the
+      unmerged path with the conflict markers as its content. That resolves the conflict, and the
+      `git reset` afterwards does **not** put the stages back: `git ls-files -u` drops to zero and
+      `git checkout --merge` can no longer recover it, only `--abort` can. Silent, unrecoverable,
+      and triggered by merely *looking* at the diff. The default rebase backend and cherry-pick do
+      write `MERGE_MSG`, so gmd's own rebase was safe — it needed `rebase.backend=apply`, an
+      explicit `git rebase --apply`, or `git am`. Pinned by
+      `TestDiffDuringAnApplyRebaseKeepsTheConflictUnmerged`.
+- [x] **`git commit -am` on a conflicted merge succeeds and commits the markers into history.**
+      Verified by reading `git show HEAD:f.txt` back. `-a` is `add -u` semantics, and `git add` on
+      an unmerged path *resolves* it with the working-tree content — so `-a` was a second way into
+      the same hole as `git add .`, and the old guard only ever covered the first. Both are now
+      guarded on `Operation != None`.
+- [x] **`MERGE_MSG` never meant "a merge is in progress".** A stopped rebase (merge backend) and a
+      stopped cherry-pick both write it. It is now tested for last, after the directories and the
+      `*_HEAD` files, which is the order git's own `wt_status_get_state()` uses.
+- [x] **An interactive rebase cannot be told from a plain one, so the distinction was dropped.**
+      Modern git runs both through the sequencer and writes `rebase-merge/interactive` for both —
+      a plain `git rebase main` produces it. A `RebaseInteractive` enum member was written, found
+      to be undetectable by its own test, and removed. Nothing needs it: `--continue`, `--skip` and
+      `--abort` are the same commands either way.
+- [x] **gmd's own cherry-pick reports `Merge`, and that is correct.** `BranchService` runs
+      `cherry-pick --no-commit`, which writes no `CHERRY_PICK_HEAD` at all — only `MERGE_MSG` — and
+      `git cherry-pick --abort` in that state answers "no cherry-pick or revert in progress". There
+      is genuinely no sequence to continue or abort, only a conflicted index to resolve and commit.
+      A cherry-pick started outside gmd does record one and is detected.
+      Both are pinned, so the day gmd drops `--no-commit` the test says so.
+- [x] **`.git` is a *file* in a linked worktree and in a submodule**, holding `gitdir: <path>`, and
+      that is where the operation state lives — so `Path.Join(wd, ".git")` found none of it there.
+      `GetGitDir` follows the pointer, resolving a relative one (a submodule's) against the working
+      folder. Pre-existing; every new probe would have inherited it. No extra git process: reading
+      the file is cheaper than `git rev-parse --absolute-git-dir` on every status.
+- [x] **Staging nothing made git refuse a commit it used to make.** Resolving in an external editor
+      without `git add` worked by accident before, because `-am` staged the edited file. Now git
+      answers `error: Committing is not possible because you have unmerged files` with four lines
+      of hints, so `CommitAllChangesAsync` recognises that and leads with gmd's own sentence. The
+      `git mergetool` path is unaffected — mergetool stages for you.
+- [x] **The conflict *kind* was parsed and thrown away.** All seven porcelain codes were recognised
+      only to be flattened into a list of paths, so nothing downstream could tell a modify/delete
+      (no text to merge, only keep-or-delete) from a both-modified. `Status.Conflicts` is now
+      `ConflictedFile(Path, Kind)` and `ConflictsFiles` is derived from it, one source of truth.
+- [x] `IsMerging` is kept as the name, now `Operation != GitOperation.None`, so `Status.IsOk`,
+      `Uncommitted` and the integration tests were untouched. It is a misnomer — documented at both
+      declarations rather than renamed, which would have rippled for no behavioural gain.
+- [x] `Augmenter.ToStatus` and `WorkRepoConverter.ToStatus` were byte-identical copies of the same
+      field-for-field conversion. Rather than add the new members to both, they are now one
+      `StatusConverter`, whose two enum switches fail fast on an unmapped member as
+      `ViewRepoConverter` does.
+- [x] The `Status` record is declared twice and built in four places, all compiler-enforced — the
+      change was mechanical exactly as expected, and `RepoBuilder.WithStatus(isMerging:)` became
+      `WithStatus(operation:)` in the two tests that used it.
+
+### Step 1 verified
+
+`./test` is green (561 fast + integration, 606 with E2E). Beyond the suite, driven by hand against
+the built binary under tmux with a redirected `HOME`: a normal commit including an untracked file,
+which is the path Step 1 changes for *every* user, not just users with conflicts; a conflicted
+merge, where the diff view leaves all three index stages intact, an unresolved commit is refused
+with gmd's own wording, and a hand-resolved and staged commit goes through with the resolved
+content; and a `rebase --apply` conflict — no `MERGE_MSG` on disk — where opening the diff left
+`git ls-files -u` reporting all three stages, which is the bug above.

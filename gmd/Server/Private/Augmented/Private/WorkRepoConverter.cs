@@ -33,26 +33,7 @@ class WorkRepoConverter : IWorkRepoConverter
         );
     }
 
-    public Status ToStatus(GitStatus gitStatus)
-    {
-        var s = gitStatus;
-        return new Status(
-            s.Modified,
-            s.Added,
-            s.Deleted,
-            s.Conflicted,
-            s.Renamed,
-            s.IsMerging,
-            s.MergeMessage,
-            s.MergeHeadId,
-            s.ModifiedFiles,
-            s.AddedFiles,
-            s.DeletedFiles,
-            s.ConflictsFiles,
-            s.RenamedSourceFiles,
-            s.RenamedTargetFiles
-        );
-    }
+    public Status ToStatus(GitStatus gitStatus) => StatusConverter.ToStatus(gitStatus);
 
     static Commit ToCommit(WorkCommit c, int gitIndex)
     {

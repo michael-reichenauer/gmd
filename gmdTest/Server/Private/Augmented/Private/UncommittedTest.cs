@@ -91,7 +91,7 @@ public class UncommittedTest
                 {
                     Modified = 2,
                     Conflicted = 1,
-                    IsMerging = true,
+                    Operation = GitOperation.Merge,
                     MergeMessage = "Merge branch 'dev'",
                 },
             }

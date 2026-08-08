@@ -307,7 +307,7 @@ public class AugmenterTest
                 modified: 2,
                 added: 1,
                 conflicted: 1,
-                isMerging: true,
+                operation: gmd.Git.GitOperation.Merge,
                 mergeMessage: "Merge branch 'dev'",
                 mergeHeadCommit: "c1"
             )

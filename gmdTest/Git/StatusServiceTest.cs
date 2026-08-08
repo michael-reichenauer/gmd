@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Git.Private;
 using gmdTest.Utils;
 
@@ -30,8 +31,9 @@ public class StatusServiceTest
         DU mod-del.txt
         """;
 
-    // GetStatusAsync also reads .git/MERGE_MSG and .git/MERGE_HEAD, so it needs a working
-    // directory. A plain temp folder with a .git in it is enough, no repository required.
+    // GetStatusAsync probes the git dir for the files git leaves behind while an operation is in
+    // progress, so it needs a working directory. A plain temp folder with a .git in it is enough,
+    // no repository required — which is the whole reason these can be fast tests.
     string wd = "";
 
     [TestInitialize]
@@ -54,6 +56,14 @@ public class StatusServiceTest
         File.WriteAllText(Path.Join(wd, ".git", "MERGE_MSG"), message);
         if (mergeHeadId != null)
             File.WriteAllText(Path.Join(wd, ".git", "MERGE_HEAD"), mergeHeadId + "\n");
+    }
+
+    void WriteGitFile(string name, string content) => File.WriteAllText(Path.Join(wd, ".git", name), content);
+
+    void WriteGitDirFile(string dir, string name, string content)
+    {
+        Directory.CreateDirectory(Path.Join(wd, ".git", dir));
+        File.WriteAllText(Path.Join(wd, ".git", dir, name), content);
     }
 
     async Task<gmd.Git.Status> GetStatusAsync(string output)
@@ -133,16 +143,45 @@ public class StatusServiceTest
         );
     }
 
+    // The XY code is the only record of what git could not merge, and it decides what can be
+    // offered for the path: a modify/delete has no text to merge, only a keep-or-delete choice
+    [TestMethod]
+    public async Task TestParseKeepsTheKindOfEachConflict()
+    {
+        var status = await GetStatusAsync(ConflictOutput);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                new ConflictedFile("addboth.txt", ConflictKind.BothAdded),
+                new ConflictedFile("both.txt", ConflictKind.BothModified),
+                new ConflictedFile("del-mod.txt", ConflictKind.DeletedByThem),
+                new ConflictedFile("mod-del.txt", ConflictKind.DeletedByUs),
+            },
+            status.Conflicts
+        );
+    }
+
     // The remaining conflict kinds, which are harder to reproduce but git documents them
     [TestMethod]
-    [DataRow("DD both-deleted.txt")]
-    [DataRow("AU added-by-us.txt")]
-    [DataRow("UA added-by-them.txt")]
-    public async Task TestParseRareConflictKinds(string line)
+    [DataRow("DD both-deleted.txt", ConflictKind.BothDeleted)]
+    [DataRow("AU added-by-us.txt", ConflictKind.AddedByUs)]
+    [DataRow("UA added-by-them.txt", ConflictKind.AddedByThem)]
+    public async Task TestParseRareConflictKinds(string line, ConflictKind kind)
     {
         var status = await GetStatusAsync(line);
 
         Assert.AreEqual(1, status.Conflicted, $"'{line}' should be a conflict");
+        Assert.AreEqual(kind, status.Conflicts[0].Kind);
+    }
+
+    // A quoted path is unquoted like any other, and the ' -> ' of a rename is not involved
+    [TestMethod]
+    public async Task TestParseConflictedFileWithSpacesInName()
+    {
+        var status = await GetStatusAsync("UU \"some file.txt\"");
+
+        Assert.AreEqual(new ConflictedFile("some file.txt", ConflictKind.BothModified), status.Conflicts[0]);
     }
 
     [TestMethod]
@@ -171,7 +210,7 @@ public class StatusServiceTest
         Assert.IsFalse(status.IsMerging);
         Assert.AreEqual("", status.MergeMessage);
         Assert.AreEqual("", status.MergeHeadId);
-        Assert.IsFalse(StatusService.IsMergeInProgress(wd));
+        Assert.IsFalse(StatusService.IsOperationInProgress(wd));
     }
 
     // While merging, the message is the first line of MERGE_MSG — the rest is git's '# Conflicts:'
@@ -189,7 +228,7 @@ public class StatusServiceTest
         Assert.IsTrue(status.IsMerging);
         Assert.AreEqual("Merge branch 'topic'", status.MergeMessage);
         Assert.AreEqual("388362014956bb2f054d1699d4853904194e3dab", status.MergeHeadId);
-        Assert.IsTrue(StatusService.IsMergeInProgress(wd));
+        Assert.IsTrue(StatusService.IsOperationInProgress(wd));
     }
 
     // A squash merge or a merge of an unrelated ref writes MERGE_MSG but no MERGE_HEAD
@@ -203,6 +242,162 @@ public class StatusServiceTest
         Assert.IsTrue(status.IsMerging);
         Assert.AreEqual("Merge branch 'topic'", status.MergeMessage);
         Assert.AreEqual("", status.MergeHeadId);
+    }
+
+    // Every operation git can stop part way through, and what it leaves behind to say so. There is
+    // no porcelain command that reports this, so probing the git dir is the only way — it is what
+    // git's own wt_status_get_state() does.
+    [TestMethod]
+    public async Task TestCherryPickIsDetected()
+    {
+        WriteGitFile("CHERRY_PICK_HEAD", "388362014956bb2f054d1699d4853904194e3dab\n");
+        WriteGitFile("MERGE_MSG", "Add gamma\n");
+
+        var status = await GetStatusAsync(ConflictOutput);
+
+        Assert.AreEqual(GitOperation.CherryPick, status.Operation);
+        Assert.AreEqual("388362014956bb2f054d1699d4853904194e3dab", status.MergeHeadId);
+        Assert.AreEqual("Add gamma", status.MergeMessage);
+        Assert.IsTrue(status.IsMerging, "IsMerging is any operation, not only a merge");
+    }
+
+    [TestMethod]
+    public async Task TestRevertIsDetected()
+    {
+        WriteGitFile("REVERT_HEAD", "388362014956bb2f054d1699d4853904194e3dab\n");
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.Revert, status.Operation);
+        Assert.AreEqual("388362014956bb2f054d1699d4853904194e3dab", status.MergeHeadId);
+    }
+
+    // The merge backend, which git has used by default since 2.26
+    [TestMethod]
+    public async Task TestRebaseIsDetectedWithItsProgress()
+    {
+        WriteGitDirFile("rebase-merge", "head-name", "refs/heads/dev\n");
+        WriteGitDirFile("rebase-merge", "msgnum", "3\n");
+        WriteGitDirFile("rebase-merge", "end", "7\n");
+
+        var status = await GetStatusAsync(ConflictOutput);
+
+        Assert.AreEqual(GitOperation.Rebase, status.Operation);
+        Assert.AreEqual("dev", status.OperationBranchName, "'refs/heads/' is trimmed off");
+        Assert.AreEqual(3, status.OperationStep);
+        Assert.AreEqual(7, status.OperationTotal);
+    }
+
+    // An interactive rebase is not a separate kind. Modern git runs plain and interactive rebases
+    // alike through the sequencer and writes 'rebase-merge/interactive' for both, so that file no
+    // longer tells them apart — and nothing needs the difference, since --continue, --skip and
+    // --abort are the same commands either way.
+    [TestMethod]
+    public async Task TestInteractiveRebaseIsJustARebase()
+    {
+        WriteGitDirFile("rebase-merge", "head-name", "refs/heads/dev\n");
+        WriteGitDirFile("rebase-merge", "interactive", "");
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.Rebase, status.Operation);
+    }
+
+    // The --apply backend and 'git am' share a directory; only the 'applying' file separates them
+    [TestMethod]
+    public async Task TestRebaseWithApplyBackendIsDetected()
+    {
+        WriteGitDirFile("rebase-apply", "next", "2\n");
+        WriteGitDirFile("rebase-apply", "last", "4\n");
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.Rebase, status.Operation);
+        Assert.AreEqual(2, status.OperationStep);
+        Assert.AreEqual(4, status.OperationTotal);
+    }
+
+    [TestMethod]
+    public async Task TestAmIsDetected()
+    {
+        WriteGitDirFile("rebase-apply", "applying", "");
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.Am, status.Operation);
+    }
+
+    // The bug this detection exists for. A rebase with the --apply backend and 'git am' write no
+    // MERGE_MSG, so the old .git/MERGE_MSG test reported "not merging" — and both 'git add .' in
+    // GetUncommittedDiff and 'git commit -a' then staged the unmerged paths, resolving the conflict
+    // with the markers as content and dropping the stages with no way back but --abort.
+    [TestMethod]
+    [DataRow("rebase-apply")]
+    [DataRow("rebase-merge")]
+    public async Task TestRebaseIsInProgressEvenWithNoMergeMsg(string dir)
+    {
+        Directory.CreateDirectory(Path.Join(wd, ".git", dir));
+
+        var status = await GetStatusAsync(ConflictOutput);
+
+        Assert.IsFalse(File.Exists(Path.Join(wd, ".git", "MERGE_MSG")), "The fixture writes none");
+        Assert.IsTrue(status.IsMerging);
+        Assert.IsTrue(StatusService.IsOperationInProgress(wd), "What guards the two 'git add .' sites");
+    }
+
+    // A stopped rebase and a stopped cherry-pick both write MERGE_MSG, so it never meant "a merge
+    // is in progress" and has to be tested for last
+    [TestMethod]
+    public async Task TestRebaseWinsOverMergeMsg()
+    {
+        WriteGitDirFile("rebase-merge", "head-name", "refs/heads/dev\n");
+        StartMerge("Add gamma\n");
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.Rebase, status.Operation);
+    }
+
+    // In a linked worktree and in a submodule '.git' is a file pointing at the real git dir, which
+    // is where the operation state lives — so joining '.git' blindly finds none of it
+    [TestMethod]
+    public async Task TestGitDirIsFollowedWhenDotGitIsAFile()
+    {
+        var realGitDir = Path.Join(wd, "real-git-dir");
+        Directory.CreateDirectory(realGitDir);
+        Directory.Delete(Path.Join(wd, ".git"), true);
+        File.WriteAllText(Path.Join(wd, ".git"), $"gitdir: {realGitDir}\n");
+        File.WriteAllText(Path.Join(realGitDir, "CHERRY_PICK_HEAD"), "3883620149\n");
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.CherryPick, status.Operation);
+    }
+
+    // A submodule's pointer is relative to the folder holding the '.git' file
+    [TestMethod]
+    public async Task TestRelativeGitDirIsResolvedAgainstTheWorkingFolder()
+    {
+        var realGitDir = Path.Join(wd, "modules", "sub");
+        Directory.CreateDirectory(realGitDir);
+        Directory.Delete(Path.Join(wd, ".git"), true);
+        File.WriteAllText(Path.Join(wd, ".git"), "gitdir: modules/sub\n");
+        File.WriteAllText(Path.Join(realGitDir, "REVERT_HEAD"), "3883620149\n");
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.Revert, status.Operation);
+    }
+
+    [TestMethod]
+    public async Task TestNoOperationWhenThereIsNoGitDir()
+    {
+        Directory.Delete(Path.Join(wd, ".git"), true);
+
+        var status = await GetStatusAsync("");
+
+        Assert.AreEqual(GitOperation.None, status.Operation);
+        Assert.IsFalse(status.IsMerging);
     }
 
     [TestMethod]

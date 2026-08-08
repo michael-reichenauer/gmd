@@ -153,19 +153,50 @@ public record Tag(string Name, string CommitId);
 
 public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);
 
+// The Git layer's GitOperation / ConflictKind / ConflictedFile, as the UI sees them. Same shape,
+// converted 1:1 by ViewRepoConverter, so nothing above this layer names a gmd.Git type.
+public enum GitOperation
+{
+    None,
+    Merge,
+    CherryPick,
+    Revert,
+    Rebase,
+    Am,
+}
+
+public enum ConflictKind
+{
+    BothModified, // UU
+    BothAdded, // AA
+    BothDeleted, // DD
+    AddedByUs, // AU
+    AddedByThem, // UA
+    DeletedByThem, // UD
+    DeletedByUs, // DU
+}
+
+public record ConflictedFile(string Path, ConflictKind Kind)
+{
+    public override string ToString() => $"{Kind} {Path}";
+}
+
 public record Status(
     int Modified,
     int Added,
     int Deleted,
     int Conflicted,
     int Renamed,
-    bool IsMerging,
+    GitOperation Operation,
     string MergeMessage,
     string MergeHeadId,
+    string OperationBranchName,
+    int OperationStep,
+    int OperationTotal,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
-    string[] ConflictsFiles,
+    ConflictedFile[] Conflicts,
     string[] RenamedSourceFiles,
     string[] RenamedTargetFiles
 )
@@ -173,7 +204,13 @@ public record Status(
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
     internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
 
-    public static Status Empty { get; } = new Status(0, 0, 0, 0, 0, false, "", "", [], [], [], [], [], []);
+    // See the note on the Git layer's Status: this is any operation in progress, not just a merge
+    public bool IsMerging => Operation != GitOperation.None;
+
+    public string[] ConflictsFiles => Conflicts.Select(c => c.Path).ToArray();
+
+    public static Status Empty { get; } =
+        new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, [], [], [], [], [], []);
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }

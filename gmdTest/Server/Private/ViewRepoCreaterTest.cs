@@ -191,7 +191,12 @@ public class ViewRepoCreaterTest
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "c2", isCurrent: true)
             .LocalBranch("dev", "d1")
-            .WithStatus(conflicted: 2, isMerging: true, mergeMessage: "Merge branch 'dev'", mergeHeadCommit: "d1")
+            .WithStatus(
+                conflicted: 2,
+                operation: gmd.Git.GitOperation.Merge,
+                mergeMessage: "Merge branch 'dev'",
+                mergeHeadCommit: "d1"
+            )
             .ViewRepoAsync("dev");
 
         var uncommitted = repo.ViewCommits[0];

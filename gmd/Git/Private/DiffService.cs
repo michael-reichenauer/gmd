@@ -53,8 +53,14 @@ class DiffService : IDiffService
     {
         // To be able to include renamed and added files in uncommitted diff, we first
         // stage all and after diff, the stage is reset.
+        //
+        // Never while an operation is in progress: 'git add .' stages an unmerged path with the
+        // conflict markers as its content, which resolves the conflict, and the 'git reset' below
+        // does not put the stages back. This used to test for .git/MERGE_MSG, which a rebase with
+        // the --apply backend and 'git am' do not write — so merely opening the diff during one of
+        // those destroyed the conflict with no way back but 'git rebase --abort'.
         var needReset = false;
-        if (!StatusService.IsMergeInProgress(wd))
+        if (!StatusService.IsOperationInProgress(wd))
         {
             if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd)))
                 return err;

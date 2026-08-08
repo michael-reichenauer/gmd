@@ -4,6 +4,7 @@ using gmd.Server.Private;
 using gmd.Server.Private.Augmented.Private;
 using GitBranch = gmd.Git.Branch;
 using GitCommit = gmd.Git.Commit;
+using GitOp = gmd.Git.GitOperation;
 using GitStash = gmd.Git.Stash;
 using GitStatus = gmd.Git.Status;
 using GitTag = gmd.Git.Tag;
@@ -62,7 +63,8 @@ class RepoBuilder
     // Short id, as shown in the UI, of the commit with the given short name
     public static string Sid(string name) => Sha(name).Sid();
 
-    public static GitStatus NoChanges => new GitStatus(0, 0, 0, 0, 0, false, "", "", [], [], [], [], [], []);
+    public static GitStatus NoChanges =>
+        new GitStatus(0, 0, 0, 0, 0, GitOp.None, "", "", "", 0, 0, [], [], [], [], [], []);
 
     // Adds a commit. Declare newest first. The first line of 'message' becomes the subject,
     // which is what branch names are recovered from for merge commits.
@@ -194,7 +196,7 @@ class RepoBuilder
         int added = 0,
         int deleted = 0,
         int conflicted = 0,
-        bool isMerging = false,
+        GitOp operation = GitOp.None,
         string mergeMessage = "",
         string mergeHeadCommit = ""
     )
@@ -205,9 +207,12 @@ class RepoBuilder
             deleted,
             conflicted,
             0,
-            isMerging,
+            operation,
             mergeMessage,
             mergeHeadCommit == "" ? "" : Sha(mergeHeadCommit),
+            "",
+            0,
+            0,
             [],
             [],
             [],
