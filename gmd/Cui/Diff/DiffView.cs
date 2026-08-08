@@ -13,8 +13,8 @@ enum DiffResult
 
 interface IDiffView
 {
-    DiffResult Show(CommitDiff diff, string commitId, string repoPath);
-    void Show(CommitDiff[] diffs);
+    DiffResult Show(CommitDiff diff, string commitId, string repoPath, DiffReload reload);
+    void Show(CommitDiff[] diffs, string repoPath, DiffReload reload);
 }
 
 class DiffView : IDiffView
@@ -28,6 +28,11 @@ class DiffView : IDiffView
     ContentView contentView = null!;
     CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
+    DiffReload reload = null!;
+
+    // The context lines of each file that is not at the default, keyed on path. Only the file the
+    // cursor is on is ever stepped, so the others keep whatever they were last shown with.
+    readonly Dictionary<string, int> fileContext = [];
     int rowStartX = 0;
     string commitId = "";
     string repoPath = "";
@@ -45,20 +50,23 @@ class DiffView : IDiffView
         this.clipboard = clipboard;
     }
 
-    public DiffResult Show(CommitDiff diff, string commitId, string repoPath) => Show([diff], commitId, repoPath);
+    public DiffResult Show(CommitDiff diff, string commitId, string repoPath, DiffReload reload) =>
+        Show([diff], commitId, repoPath, reload);
 
-    public void Show(CommitDiff[] diff) => Show(diff, "", "");
+    public void Show(CommitDiff[] diffs, string repoPath, DiffReload reload) => Show(diffs, "", repoPath, reload);
 
-    DiffResult Show(CommitDiff[] diffs, string commitId, string repoPath)
+    DiffResult Show(CommitDiff[] diffs, string commitId, string repoPath, DiffReload reload)
     {
         this.diffs = diffs;
+        this.reload = reload;
         this.rowStartX = 0;
         this.commitId = commitId;
         this.repoPath = repoPath;
         this.isFocusLeft = true;
         this.isCommitTriggered = false;
         this.isRefreshNeeded = false;
-        this.diffRows = diffService.ToDiffRows(diffs);
+        this.fileContext.Clear();
+        this.diffRows = diffService.ToDiffRows(diffs, fileContext);
 
         Toplevel diffView = new Toplevel()
         {
@@ -111,6 +119,13 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
 
+        // More/less context around the changes of the file the cursor is on. Terminal.Gui 1.x has
+        // no Key value for these, so use the ascii code, as the '?' key does in RepoViewInput.
+        // '=' is '+' without the shift, which is where the key is on most layouts.
+        view.RegisterKeyHandler((Key)43, () => StepContext(1)); // '+' key
+        view.RegisterKeyHandler((Key)61, () => StepContext(1)); // '=' key
+        view.RegisterKeyHandler((Key)45, () => StepContext(-1)); // '-' key
+
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(x, y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
     }
@@ -145,8 +160,13 @@ class DiffView : IDiffView
                 .SubMenu("Diff File", "", diffItems)
                 .SubMenu("Merge Conflict File", "", conflictItems)
                 .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
-                .Item("Refresh", "R", () => RefreshDiff(), () => undoItems.Any())
+                // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
+                .Item("Refresh", "R", () => RefreshDiff())
                 .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
+                // Named after the file they act on, since that is the part of these that is not
+                // obvious, and disabled when the cursor is on no file or that file is at an end
+                .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
+                .Item(ContextItemText("Less Context", -1), "-", () => StepContext(-1), () => CanStepContext(-1))
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
                 .Item("Close", "Esc", () => Application.RequestStop())
@@ -313,20 +333,134 @@ class DiffView : IDiffView
         RefreshDiff();
     }
 
-    async void RefreshDiff()
+    // Shows the file the cursor is on with more (step 1) or less (step -1) context around its
+    // changes. Git only has whole-diff options, so the diff is re-fetched at the new context and
+    // just this one file taken from it, leaving the other files at whatever they were shown with.
+    async void StepContext(int step)
     {
+        var anchor = CurrentAnchor();
+        var wanted = WantedContext(anchor.FilePath, step);
+        if (wanted == 0)
+            return;
+
         using (progress.Show())
         {
-            if (!Try(out var diff, out var e, await server.GetCommitDiffAsync(commitId, repoPath)))
+            if (!Try(out var fetched, out var e, await reload(wanted)))
             {
                 UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
+                return;
             }
 
-            diffs = [diff!];
-            diffRows = diffService.ToDiffRows(diff!);
-            contentView.SetNeedsDisplay();
+            fileContext[anchor.FilePath] = wanted;
+            SetDiffs(DiffService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
         }
+    }
+
+    // The context the file would then be shown with, or 0 if the step would do nothing: there is
+    // no file under the cursor, or that file is already at the widest or the narrowest. Also what
+    // the menu asks to know whether to offer the item.
+    int WantedContext(string filePath, int step)
+    {
+        if (filePath == "")
+            return 0; // The cursor is above the first file, so there is nothing to step
+
+        var current = fileContext.GetValueOrDefault(filePath, DiffContext.Default);
+        var wanted = DiffContext.Step(current, step);
+
+        return wanted == current ? 0 : wanted;
+    }
+
+    bool CanStepContext(int step) => WantedContext(CurrentAnchor().FilePath, step) != 0;
+
+    // Names the file the item would act on and what it would then show, since 'the file the cursor
+    // is on' is the part of these two commands that the name alone does not give away. Falls back
+    // to the bare name when there is nothing to step, where the item is disabled anyway.
+    string ContextItemText(string name, int step)
+    {
+        var path = CurrentAnchor().FilePath;
+        var wanted = WantedContext(path, step);
+        if (wanted == 0)
+            return name;
+
+        return $"{name} of {path.Max(40)} ({DiffContext.ToItemText(wanted)})";
+    }
+
+    // Re-fetches the whole diff, e.g. after undoing a file or running the merge tool. Every file
+    // goes back to the default context, since the diff itself may now be a different shape.
+    async void RefreshDiff()
+    {
+        var anchor = CurrentAnchor();
+
+        using (progress.Show())
+        {
+            if (!Try(out var refreshed, out var e, await reload(DiffContext.Default)))
+            {
+                UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
+                return;
+            }
+
+            fileContext.Clear();
+            SetDiffs(refreshed, anchor);
+        }
+
         isRefreshNeeded = true;
+    }
+
+    // Replaces the shown diffs and redraws, keeping the cursor on the content it was on rather
+    // than on the row index it was at, which means nothing once the rows are rebuilt.
+    void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
+    {
+        diffs = newDiffs;
+        diffRows = diffService.ToDiffRows(diffs, fileContext);
+
+        // The old selection covers rows that no longer hold what they did, and a copy would take
+        // whatever now sits there
+        contentView.ClearSelection();
+
+        RestoreAnchor(anchor);
+        contentView.SetNeedsDisplay();
+    }
+
+    // Where the cursor is, expressed as content: the file it is in and the source line it is on
+    DiffAnchor CurrentAnchor()
+    {
+        var rows = diffRows.Rows;
+        var index = contentView.CurrentIndex;
+        if (index < 0 || index >= rows.Count)
+            return DiffAnchor.None;
+
+        return new DiffAnchor(FilePathAt(rows, index), rows[index].LineNbr);
+    }
+
+    // Puts the cursor back where the anchor points, or on the nearest line of that file
+    void RestoreAnchor(DiffAnchor anchor)
+    {
+        if (anchor.FilePath == "")
+            return;
+
+        var rows = diffRows.Rows;
+        var fileIndex = rows.FindIndexBy(r => r.FilePath == anchor.FilePath);
+        if (fileIndex == -1)
+            return;
+
+        var index = DiffService.FindClosestLineIndex(rows, fileIndex, anchor.LineNbr);
+
+        // Scroll first and set the cursor after: scrolling moves the cursor by the same amount as
+        // the rows, so setting it first would leave it somewhere else entirely
+        contentView.ScrollToShowIndex(index);
+        contentView.SetCurrentIndex(index);
+    }
+
+    // The file the row is part of, i.e. the closest file header at or above it ("" above them all)
+    static string FilePathAt(IReadOnlyList<DiffRow> rows, int index)
+    {
+        for (int i = index; i >= 0; i--)
+        {
+            if (rows[i].FilePath != "")
+                return rows[i].FilePath;
+        }
+
+        return "";
     }
 
     // Move both sides in view left, or select left side text if text is selected
@@ -445,14 +579,17 @@ class DiffView : IDiffView
 
         var rows = diffRows.Rows.Skip(contentView.SelectStartIndex).Take(contentView.SelectCount);
 
-        // Convert left or right rows to text, remove empty lines and line numbers
+        // Convert left or right rows to text, remove empty lines and the line number gutter
         var text = string.Join(
             "\n",
             rows.Where(r => r.Mode != DiffRowMode.DividerLine)
-                .Select(r => isFocusLeft || r.Mode != DiffRowMode.SideBySide ? r.Left : r.Right)
-                .Where(l => l != DiffService.NoLine)
-                .Select(l => l.ToString())
-                .Select(t => t.Length > 4 && char.IsNumber(t[3]) ? t[5..] : t)
+                .Select(r =>
+                {
+                    var isLeft = isFocusLeft || r.Mode != DiffRowMode.SideBySide;
+                    return (Text: isLeft ? r.Left : r.Right, LineNbr: isLeft ? r.LeftLineNbr : r.RightLineNbr);
+                })
+                .Where(r => r.Text != DiffService.NoLine)
+                .Select(r => DiffService.WithoutLineNbr(r.Text.ToString(), r.LineNbr))
         );
 
         if (!Try(out var e, clipboard.Set(text)))

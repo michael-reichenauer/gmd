@@ -86,19 +86,31 @@ class FakeGit : IGit
 
     public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) => throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd) => throw new NotSupportedException();
+    public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
+        throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => throw new NotSupportedException();
+    public Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) => throw new NotSupportedException();
 
-    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) => throw new NotSupportedException();
+    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
+        throw new NotSupportedException();
 
     public Task<R<Blame>> GetBlameAsync(string path, string reference, string wd) => throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd) =>
-        throw new NotSupportedException();
+    public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(
+        string sha1,
+        string sha2,
+        string message,
+        int contextLines,
+        string wd
+    ) => throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd) =>
-        throw new NotSupportedException();
+    public Task<R<CommitDiff>> GetDiffRangeAsync(
+        string sha1,
+        string sha2,
+        string message,
+        int contextLines,
+        string wd
+    ) => throw new NotSupportedException();
 
     public Task<R> RunDiffToolAsync(string path, string wd) => throw new NotSupportedException();
 
@@ -172,7 +184,8 @@ class FakeGit : IGit
 
     public Task<R> StashDropAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd) =>
+        throw new NotSupportedException();
 
     public Task<R> AddTagAsync(string name, string commitId, string wd) => throw new NotSupportedException();
 

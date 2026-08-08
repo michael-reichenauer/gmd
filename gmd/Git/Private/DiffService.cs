@@ -4,12 +4,12 @@ namespace gmd.Git.Private;
 
 interface IDiffService
 {
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
-    Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
-    Task<R<CommitDiff>> GetUncommittedDiff(string wd);
-    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
-    Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd);
-    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
+    Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
     Task<R> RunDiffToolAsync(string path, string wd);
     Task<R> RunMergeToolAsync(string path, string wd);
 }
@@ -24,10 +24,11 @@ class DiffService : IDiffService
         this.cmd = cmd;
     }
 
-    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd)
+    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
     {
         var args =
-            "show --date=iso --first-parent --root --patch --no-color" + $" --find-renames --unified=6 {commitId}";
+            "show --date=iso --first-parent --root --patch --no-color"
+            + $" --find-renames --unified={contextLines} {commitId}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
             return e;
         var commitDiffs = ParseCommitDiffs(output, "", false);
@@ -37,17 +38,18 @@ class DiffService : IDiffService
         return commitDiffs[0];
     }
 
-    public async Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd)
+    public async Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
         var args =
-            "stash show -u --date=iso --first-parent --root --patch --no-color" + $" --find-renames --unified=6 {name}";
+            "stash show -u --date=iso --first-parent --root --patch --no-color"
+            + $" --find-renames --unified={contextLines} {name}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
             return e;
 
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-    public async Task<R<CommitDiff>> GetUncommittedDiff(string wd)
+    public async Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
     {
         // To be able to include renamed and added files in uncommitted diff, we first
         // stage all and after diff, the stage is reset.
@@ -59,12 +61,14 @@ class DiffService : IDiffService
             needReset = true;
         }
 
-        var args = "diff --date=iso --first-parent --root --patch --no-color" + " --find-renames --unified=6 HEAD";
+        var args =
+            "diff --date=iso --first-parent --root --patch --no-color"
+            + $" --find-renames --unified={contextLines} HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         { // The diff failed, reset the 'git add .' if needed
             if (e.ErrorMessage.Contains("ambiguous argument 'HEAD': unknown revision"))
             {
-                if (!Try(out output, out e, await cmd.RunAsync("git", "diff --staged", wd)))
+                if (!Try(out output, out e, await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd)))
                 {
                     if (needReset)
                         await cmd.RunAsync("git", "reset", wd);
@@ -100,9 +104,9 @@ class DiffService : IDiffService
         };
     }
 
-    public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd)
+    public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
-        var args = $"log --date=iso --patch --follow -- \"{path}\"";
+        var args = $"log --date=iso --patch --follow --unified={contextLines} -- \"{path}\"";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
             return e;
 
@@ -115,18 +119,30 @@ class DiffService : IDiffService
         return commitDiffs.ToArray();
     }
 
-    public async Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd)
+    public async Task<R<CommitDiff>> GetDiffRangeAsync(
+        string sha1,
+        string sha2,
+        string message,
+        int contextLines,
+        string wd
+    )
     {
-        var args = $"diff --find-renames --unified=6 --full-index {sha1}~..{sha2}";
+        var args = $"diff --find-renames --unified={contextLines} --full-index {sha1}~..{sha2}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
             return e;
 
         return ParseDiff(output, message);
     }
 
-    public async Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, string wd)
+    public async Task<R<CommitDiff>> GetRefsDiffAsync(
+        string sha1,
+        string sha2,
+        string message,
+        int contextLines,
+        string wd
+    )
     {
-        var args = $"diff --find-renames --unified=6 --full-index {sha1} {sha2}";
+        var args = $"diff --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
             return e;
 

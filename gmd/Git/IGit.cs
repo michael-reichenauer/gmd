@@ -12,12 +12,12 @@ interface IGit
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<R<Status>> GetStatusAsync(string wd);
     Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
-    Task<R<CommitDiff>> GetUncommittedDiff(string wd);
-    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
     Task<R<Blame>> GetBlameAsync(string path, string reference, string wd);
-    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
-    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
+    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
     Task<R> RunDiffToolAsync(string path, string wd);
     Task<R> RunMergeToolAsync(string path, string wd);
     Task<R> FetchAsync(string wd);
@@ -54,7 +54,7 @@ interface IGit
     Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
     Task<R> StashPopAsync(string name, string wd);
     Task<R> StashDropAsync(string name, string wd);
-    Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
+    Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<R> AddTagAsync(string name, string commitId, string wd);
     Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
     Task<R> RemoveTagAsync(string name, string wd);

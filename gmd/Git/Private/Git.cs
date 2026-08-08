@@ -70,25 +70,37 @@ internal class Git : IGit
     public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         commitService.CommitAllChangesAsync(message, isAmend, wd);
 
-    public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd) =>
-        diffService.GetCommitDiffAsync(commitId, wd);
+    public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
+        diffService.GetCommitDiffAsync(commitId, contextLines, wd);
 
-    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd) => diffService.GetFileDiffAsync(path, wd);
+    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
+        diffService.GetFileDiffAsync(path, contextLines, wd);
 
     public Task<R<Blame>> GetBlameAsync(string path, string reference, string wd) =>
         blameService.GetBlameAsync(path, reference, wd);
 
-    public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd) =>
-        diffService.GetRefsDiffAsync(sha1, sha2, message, wd);
+    public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(
+        string sha1,
+        string sha2,
+        string message,
+        int contextLines,
+        string wd
+    ) => diffService.GetRefsDiffAsync(sha1, sha2, message, contextLines, wd);
 
-    public Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd) =>
-        diffService.GetDiffRangeAsync(sha1, sha2, message, wd);
+    public Task<R<CommitDiff>> GetDiffRangeAsync(
+        string sha1,
+        string sha2,
+        string message,
+        int contextLines,
+        string wd
+    ) => diffService.GetDiffRangeAsync(sha1, sha2, message, contextLines, wd);
 
     public Task<R> RunDiffToolAsync(string path, string wd) => diffService.RunDiffToolAsync(path, wd);
 
     public Task<R> RunMergeToolAsync(string path, string wd) => diffService.RunMergeToolAsync(path, wd);
 
-    public Task<R<CommitDiff>> GetUncommittedDiff(string wd) => diffService.GetUncommittedDiff(wd);
+    public Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
+        diffService.GetUncommittedDiff(contextLines, wd);
 
     public Task<R> FetchAsync(string wd) => remoteService.FetchAsync(wd);
 
@@ -164,7 +176,8 @@ internal class Git : IGit
 
     public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
 
-    public Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd) => diffService.GetStashDiffAsync(name, wd);
+    public Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd) =>
+        diffService.GetStashDiffAsync(name, contextLines, wd);
 
     public Task<R> AddTagAsync(string name, string commitId, string wd) => tagService.AddTagAsync(name, commitId, wd);
 
