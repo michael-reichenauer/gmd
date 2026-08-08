@@ -1904,3 +1904,106 @@ a 14-line message while the blame cursor stayed put, `Tab` back restoring cursor
 `-w` (ignore whitespace) and `-M` / `-C` (detect moved lines) as menu toggles that re-run the
 blame. They change the answer, so gmd would disagree with `git blame` at the CLI, and `-C` is slow
 — they are per-question and belong on the menu, but they are not part of this cut.
+
+## Step 15 — Adjustable diff context ✅ done
+
+**Reported by the user: the diff shows six lines around each change and there is no way to see
+more.** `--unified=6` was a literal in five separate command strings in `Git/Private/DiffService.cs`,
+so when six lines was not enough the only way on was to leave gmd for a console.
+
+**`+` and `-` in the diff view**, stepping the file the cursor is on through 6 → 15 → the whole
+file and back (`=` is an alias for `+`, which needs a shift on most layouts). It is per file: the
+rest of the commit stays as it was, and a file that is not at the default says so in its header —
+
+```
+Modified: long.txt  (context 15)
+```
+
+- [x] `Cui/Diff/DiffContext.cs` — the levels, the default, and `WholeFile`. Every caller of the
+      server diff methods is in `Cui/`, so the numbers live in one layer and the two below just
+      pass on what they are given: `int contextLines` before the trailing `wd` in the six diff
+      methods of `IDiffService`/`IGit`/`IServer`. The parser and `ViewRepoConverter` needed no
+      change at all — a larger `-U` only means more `DiffSame` lines and fewer sections.
+- [x] `Cui/Diff/DiffReload.cs` — a `DiffReload` delegate captured when the view opens, replacing
+      the hardcoded `GetCommitDiffAsync(commitId, …)` the refresh used. See the findings.
+- [x] `DiffRow` carries the source line numbers it draws, so the cursor can be put back on the line
+      it was on after the rows are rebuilt, and `OnCopy` can slice the gutter off by its real width
+      instead of guessing.
+
+### Findings
+
+- [x] **A pathspec would have been cheaper and is wrong.** Asking git for one file
+      (`git show <sha> --unified=15 -- <path>`) is the obvious way to make a per-file feature cheap,
+      but `--find-renames` runs on the pathspec-filtered set — which is the whole reason
+      `git log --follow` exists — so a renamed file comes back as *added* with its history lost.
+      The diff is therefore re-fetched whole and the one file spliced into the one on screen
+      (`DiffService.ReplaceFileDiff`). That costs exactly what `r` already cost. If it ever needs
+      to be cheap, the pathspec has to name **both** sides (`-- <before> <after>`).
+- [x] **Refresh was fetching the wrong thing in four of the six views.** `RefreshDiff` always called
+      `server.GetCommitDiffAsync(commitId, …)` however the diff had been opened, and `commitId` is a
+      *stash name* for a stash diff, the wrong end of a range for a range diff, a branch tip for a
+      preview merge, and `""` for full file history — where it would have run `git show` with no
+      rev. Pre-existing, and invisible because `r`/`d` are rarely pressed there. The `DiffReload`
+      delegate fixes all four, which is also what made `+`/`-` work everywhere rather than only on
+      a commit. The menu's `Refresh` item was gated on the diff being the uncommitted one while the
+      `r`/`d` *keys* were not; the gate is gone now that refresh is genuinely valid everywhere.
+- [x] **`RefreshDiff` dereferenced the diff it had just failed to get.** It reported the error and
+      then ran `diffs = [diff!]` regardless — a `NullReferenceException` past all the `R` handling.
+- [x] **`SetCurrentIndex` then `ScrollToShowIndex` does not put the cursor where you asked**, and
+      that is the order `BlameView.ScrollToCommit` (`BlameView.cs:453`) uses. `ContentScroll.Scroll`
+      moves `CurrentIndex` by the same delta as `FirstIndex`, so setting the cursor first has the
+      scroll add the delta to it a second time; the clamp then leaves it on the *last visible row*
+      rather than the target. Scrolling first and setting the cursor after is correct, and is what
+      the diff view does. Blame's "scroll to commit" highlights the wrong row for this reason —
+      not fixed here, since it is a different view and a different command.
+- [x] **`ContentScroll` never clamps a cursor that the content shrank past.** `SetTotalCount` comes
+      from the draw callback, and the only rescue is for the case where *zero* rows come back, which
+      jumps to the bottom. Narrowing the context makes this reachable — the cursor simply stops
+      being drawn — so both reload paths restore it explicitly rather than leaving the index alone.
+      A stale selection has the same shape: it covers rows that no longer hold what they did, and
+      `OnCopy` would copy whatever now sits there, so a reload clears it.
+- [x] **Two commands were quietly inconsistent about context.** `GetFileDiffAsync` passed no
+      `--unified` at all, so full file history rendered at git's default of 3 while everything else
+      used 6, and the empty-repo fallback `git diff --staged` passed none either, so an empty repo
+      ignored whatever was asked for. Both are told now; the file history change is visible.
+- [x] **Git has no "all", but a context larger than the file is not an error** — it stops at the
+      ends of the file. `WholeFile` is 100 000, which is beyond any source file worth reading in a
+      terminal; a longer file stays truncated. Pinned by a `TempRepo` test, since this is git's own
+      behavior and canned output cannot catch it.
+- [x] **Terminal.Gui 1.x has no `Key` value for `+`, `-` or `=`**, and the ascii cast used for `?`
+      in `RepoViewInput` works for them too — verified by logging `ProcessHotKey`, which reported
+      43, 45 and 61. `+ - =` were the only obvious keys still free in the diff view; taken are
+      `Esc Q q ← → Ctrl-C m r d s u c`.
+- [x] **The line number gutter is wider than 5 once the number does not fit in 4**, which whole
+      file context on a large file reaches. `OnCopy` guessed the width with
+      `t.Length > 4 && char.IsNumber(t[3]) ? t[5..] : t` and so left a digit on every copied line
+      of such a file. Now that the row carries the number, `WithoutLineNbr` computes it.
+- [x] **No E2E fixture could show this feature at all.** Every file in `E2eRepo` is one or two lines
+      long, so the whole file is already drawn at six lines of context and `+` would change nothing
+      on screen. `CreateWithLongFileAsync` is a *new* fixture rather than another commit on
+      `CreateAsync`, because changing that one changes the id of that commit and of every commit
+      after it, and with it every snapshot in `TerminalTest` that names one.
+- [x] `ScreenText.Of` keeps the scroll bar column, so a scrolled screen has trailing spaces and a
+      `"Modified: short.txt\n"` substring assertion silently fails. Assert the text without the
+      anchor and the *absence* of what should not be there.
+- [x] `IStashService.GetDiffAsync` is dead in production — `Git.cs` calls `diffService`
+      directly — and is reached only by `StashServiceTest`. Left alone, with the parameter threaded
+      through it like the rest.
+
+### Verified
+
+`./test` is green (511 fast + 46 E2E + integration = 580). Beyond the suite, driven by hand in a
+throwaway repo with a redirected `HOME`: the full `6 → 15 → whole file → 15 → 6` cycle on a 60 line
+file, with the second file of the same commit untouched throughout and its header staying plain;
+`+` above the first file header and `-` on a file already at the narrowest, both no-ops that run no
+git command; the cursor staying on line 29 across a forced scroll into the whole-file view, and
+landing on the nearest line still drawn when narrowing removed the one it was on; `+` inside full
+file history, which is one of the views whose refresh was broken; and `Ctrl-C` putting `line 29`
+`line 30` `line 31` on the clipboard through OSC 52 with the gutter cleanly removed.
+
+### Not done, deliberately
+
+A `Context lines` submenu in the diff menu. The keys are the whole feature and the header says what
+a file is at, but nothing advertises the keys, and the diff view has no footer to put a hint in —
+worth adding if the keys turn out not to be discovered. A step *below* 6 (0 or 3, "changes only")
+is the same shape and equally easy to add to `DiffContext.Levels`.

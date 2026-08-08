@@ -132,7 +132,7 @@ public class StashServiceTest
         var cmd = new FakeCmd("");
         var service = NewService(cmd);
 
-        await service.GetDiffAsync("stash@{0}", "/wd");
+        await service.GetDiffAsync("stash@{0}", 6, "/wd");
 
         StringAssert.StartsWith(cmd.Calls[0].Args, "stash show -u ");
         StringAssert.EndsWith(cmd.Calls[0].Args, " stash@{0}");

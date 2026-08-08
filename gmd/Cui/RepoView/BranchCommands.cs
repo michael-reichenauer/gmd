@@ -266,12 +266,13 @@ class BranchCommands : IBranchCommands
 
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
-            if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha2, sha1, message, repo.Path)))
+            var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
+            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
             {
                 return R.Error($"Failed to get diff", e);
             }
 
-            diffView.Show(diff, sha1, repo.Path);
+            diffView.Show(diffs[0], sha1, repo.Path, reload);
             return R.Ok;
         });
 
@@ -295,12 +296,13 @@ class BranchCommands : IBranchCommands
                 message = $"Diff '{repo.Repo.CurrentBranch().NiceName}' with '{branch.NiceName}'";
             }
 
-            if (!Try(out var diff, out var e, await server.GetPreviewMergeDiffAsync(sha1, sha2, message, repo.Path)))
+            var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha1, sha2, message, n, repo.Path));
+            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
             {
                 return R.Error($"Failed to get diff", e);
             }
 
-            diffView.Show(diff, sha1, repo.Path);
+            diffView.Show(diffs[0], sha1, repo.Path, reload);
             return R.Ok;
         });
 

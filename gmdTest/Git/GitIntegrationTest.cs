@@ -337,7 +337,7 @@ public class GitIntegrationTest
         Assert.AreEqual(d1, status.MergeHeadId);
 
         // The conflict markers git wrote into the file are what the diff view draws as conflicts
-        var diff = Value(await repo.Git.GetUncommittedDiff(repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
         var fileDiff = diff.FileDiffs.First(f => f.PathAfter == "file.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, fileDiff.DiffMode);
         Assert.AreEqual(
@@ -352,7 +352,7 @@ public class GitIntegrationTest
         await repo.CommitFileAsync("file.txt", "one\ntwo\nthree\n", "First");
         var c2 = await repo.CommitFileAsync("file.txt", "one\nchanged\nthree\n", "Second");
 
-        var diff = Value(await repo.Git.GetCommitDiffAsync(c2, repo.Path));
+        var diff = Value(await repo.Git.GetCommitDiffAsync(c2, 6, repo.Path));
 
         Assert.AreEqual(c2, diff.Id);
         Assert.AreEqual("Test User <test@example.com>", diff.Author);
@@ -376,6 +376,38 @@ public class GitIntegrationTest
         );
     }
 
+    // What the diff view's '+' and '-' keys actually buy: git shows more unchanged lines around
+    // the change, and a context larger than the file stops at its ends rather than failing, which
+    // is how 'whole file' is asked for. Canned output cannot catch this one — it is git's own
+    // behavior, and the value used for the whole file is well outside what any test fixture has.
+    [TestMethod]
+    public async Task TestMoreContextShowsMoreOfTheFile()
+    {
+        var lines = Enumerable.Range(1, 60).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAsync("file.txt", string.Join("\n", lines) + "\n", "First");
+
+        lines[29] = "line 30 changed";
+        var c2 = await repo.CommitFileAsync("file.txt", string.Join("\n", lines) + "\n", "Second");
+
+        // 6 and 15 lines either side of the one changed line, then all 59 lines that did not change
+        Assert.AreEqual(12, await SameLineCountAsync(6));
+        Assert.AreEqual(30, await SameLineCountAsync(15));
+        Assert.AreEqual(
+            59,
+            await SameLineCountAsync(gmd.Cui.Diff.DiffContext.WholeFile),
+            "The rest of the 60 line file"
+        );
+
+        async Task<int> SameLineCountAsync(int contextLines)
+        {
+            var diff = Value(await repo.Git.GetCommitDiffAsync(c2, contextLines, repo.Path));
+
+            return diff
+                .FileDiffs.Single()
+                .SectionDiffs.Sum(s => s.LineDiffs.Count(l => l.DiffMode == DiffMode.DiffSame));
+        }
+    }
+
     // GetUncommittedDiff stages the changes, diffs them and resets the index again, since a diff
     // of untracked files is not otherwise possible. This pins that the working folder is left as
     // it was, which the FakeCmd tests can only assert the git commands for.
@@ -389,7 +421,7 @@ public class GitIntegrationTest
         repo.DeleteFile("del.txt");
         repo.WriteFile("new.txt", "new\n");
 
-        var diff = Value(await repo.Git.GetUncommittedDiff(repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
 
         Assert.AreEqual("Uncommitted changes", diff.Message);
         Assert.AreEqual(

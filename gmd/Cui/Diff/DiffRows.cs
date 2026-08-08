@@ -11,14 +11,28 @@ class DiffRows
 
     public IReadOnlyList<DiffRow> Rows => rows;
 
-    internal void Add(Text oneRow, string filePath = "", string commitId = "") =>
-        Add(oneRow, Text.Empty, DiffRowMode.SpanBoth, filePath, commitId);
+    internal void Add(
+        Text oneRow,
+        string filePath = "",
+        string commitId = "",
+        int leftLineNbr = 0,
+        int rightLineNbr = 0
+    ) => Add(oneRow, Text.Empty, DiffRowMode.SpanBoth, filePath, commitId, leftLineNbr, rightLineNbr);
 
-    internal void Add(Text left, Text right) => Add(left, right, DiffRowMode.SideBySide, "", "");
+    internal void Add(Text left, Text right, int leftLineNbr = 0, int rightLineNbr = 0) =>
+        Add(left, right, DiffRowMode.SideBySide, "", "", leftLineNbr, rightLineNbr);
 
-    internal void AddLine(Text line) => Add(line, Text.Empty, DiffRowMode.DividerLine, "", "");
+    internal void AddLine(Text line) => Add(line, Text.Empty, DiffRowMode.DividerLine, "", "", 0, 0);
 
-    void Add(Text left, Text right, DiffRowMode mode, string filePath, string commitId)
+    void Add(
+        Text left,
+        Text right,
+        DiffRowMode mode,
+        string filePath,
+        string commitId,
+        int leftLineNbr,
+        int rightLineNbr
+    )
     {
         if (left.Length > MaxLength)
         {
@@ -29,13 +43,36 @@ class DiffRows
             MaxLength = right.Length;
         }
 
-        rows.Add(new DiffRow(left, right, mode, filePath, commitId));
+        rows.Add(new DiffRow(left, right, mode, filePath, commitId, leftLineNbr, rightLineNbr));
     }
 
     public override string ToString() => $"Rows: {Count}";
 }
 
-record DiffRow(Text Left, Text Right, DiffRowMode Mode, string FilePath, string CommitId);
+// A drawn row. LeftLineNbr/RightLineNbr are the source line numbers the row shows, or 0 for a row
+// that is not a source line (a divider, a header, a conflict marker) or for the side that has no
+// line (the '░' filler). They are what the gutter is drawn from, so they also say how wide it is,
+// which is how a copy strips it and how the cursor is put back on the same line after a reload.
+record DiffRow(
+    Text Left,
+    Text Right,
+    DiffRowMode Mode,
+    string FilePath,
+    string CommitId,
+    int LeftLineNbr,
+    int RightLineNbr
+)
+{
+    // The line number this row is at, preferring the new file's side, or 0 if it is not a source line
+    internal int LineNbr => RightLineNbr != 0 ? RightLineNbr : LeftLineNbr;
+}
+
+// Where the cursor is, as content rather than a row index, so it survives the rows being rebuilt
+// with a different amount of context. LineNbr is 0 when the cursor is not on a source line.
+record DiffAnchor(string FilePath, int LineNbr)
+{
+    public static readonly DiffAnchor None = new DiffAnchor("", 0);
+}
 
 enum DiffRowMode
 {

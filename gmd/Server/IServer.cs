@@ -50,11 +50,11 @@ interface IServer
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R> FetchAsync(string wd);
     Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
-    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
     Task<R<Blame>> GetBlameAsync(string path, string reference, string wd);
-    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
-    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
+    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
     Task<R> RunDiffToolAsync(string path, string wd);
     Task<R> RunMergeToolAsync(string path, string wd);
 
@@ -80,7 +80,7 @@ interface IServer
     Task<R> UncommitUntilCommitAsync(string id, string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R> InitRepoAsync(string path, string wd);
-    Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
+    Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<R> StashDropAsync(string name, string wd);
     Task<R<string>> GetChangeLogAsync();
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);

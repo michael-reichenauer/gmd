@@ -93,6 +93,33 @@ static class E2eRepo
         return repo;
     }
 
+    // Two commits changing one line in the middle of a 40 line file, plus a two line file beside
+    // it. Every file of the fixtures above is one or two lines long, so the whole file is already
+    // drawn at the default 6 lines of context and asking for more would change nothing on screen —
+    // this is the fixture the diff view's '+' and '-' keys need. The short file is there to show
+    // that widening one file leaves the others alone.
+    //
+    // Deliberately its own repository rather than another commit on CreateAsync: changing that
+    // fixture would change the id of that commit and of every commit after it, and with it every
+    // snapshot in TerminalTest that names one.
+    public static async Task<TempRepo> CreateWithLongFileAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 40).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", t);
+        await repo.CommitFileAtAsync("short.txt", "one\ntwo\n", "Add short file", t.AddMinutes(1));
+
+        // One commit touching both, so the diff has a file to widen and a file to leave alone
+        lines[19] = "line 20 changed";
+        repo.WriteFile("long.txt", string.Join("\n", lines) + "\n");
+        repo.WriteFile("short.txt", "one\nTWO\n");
+        await repo.CommitAtAsync("Change both files", t.AddMinutes(2));
+
+        return repo;
+    }
+
     // A repository with more commits than fit on a screen, for the scrolling tests
     public static async Task<TempRepo> CreateLongAsync(int commits = 30)
     {

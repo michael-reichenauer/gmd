@@ -299,10 +299,11 @@ class BlameView : IBlameView
         if (row == null)
             return;
 
-        Server.CommitDiff? diff;
+        var reload = DiffReloads.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path));
+        Server.CommitDiff[]? diffs;
         using (progress.Show())
         {
-            if (!Try(out diff, out var e, await server.GetCommitDiffAsync(row.Commit.Id, repo.Path)))
+            if (!Try(out diffs, out var e, await reload(DiffContext.Default)))
             {
                 UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
                 return;
@@ -310,7 +311,7 @@ class BlameView : IBlameView
         }
 
         // A read only view two dialogs deep cannot usefully act on the result, so it is ignored
-        diffView.Show(diff!, row.Commit.Id, repo.Path);
+        diffView.Show(diffs![0], row.Commit.Id, repo.Path, reload);
         contentView.SetNeedsDisplay();
     }
 

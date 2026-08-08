@@ -189,27 +189,27 @@ class CommitCommands : ICommitCommands
             if (commitId == Repo.EmptyRepoCommitId)
                 return R.Ok;
 
-            CommitDiff? diff;
+            // How the diff view gets this same diff again, at whatever context it is asked for
+            DiffReload reload;
             if (commitId2 == "")
             {
-                if (!Try(out diff, out var e, await server.GetCommitDiffAsync(commitId, repo.Path)))
-                {
-                    return R.Error($"Failed to get diff", e);
-                }
+                reload = DiffReloads.Single(n => server.GetCommitDiffAsync(commitId, n, repo.Path));
             }
             else
             {
                 repo.RepoView.ClearSelection();
                 var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
-                if (!Try(out diff, out var e, await server.GetDiffRangeAsync(commitId2, commitId, msg, repo.Path)))
-                {
-                    return R.Error($"Failed to get diff", e);
-                }
+                reload = DiffReloads.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path));
+            }
+
+            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
+            {
+                return R.Error($"Failed to get diff", e);
             }
 
             UI.Post(() =>
             {
-                var rsp = diffView.Show(diff, commitId, repo.Path);
+                var rsp = diffView.Show(diffs[0], commitId, repo.Path, reload);
                 if (rsp == DiffResult.Commit && !isFromCommit)
                 {
                     RefreshAndCommit();
@@ -304,12 +304,13 @@ class CommitCommands : ICommitCommands
     public void StashDiff(string name) =>
         Do(async () =>
         {
-            if (!Try(out var diff, out var e, await server.GetStashDiffAsync(name, repo.Path)))
+            var reload = DiffReloads.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
+            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
             {
                 return R.Error($"Failed to diff stash {name}", e);
             }
 
-            diffView.Show(diff, name, repo.Path);
+            diffView.Show(diffs[0], name, repo.Path, reload);
             return R.Ok;
         });
 
@@ -524,12 +525,13 @@ class CommitCommands : ICommitCommands
             if (!Try(out var path, browser.Show(files, title)))
                 return R.Ok;
 
-            if (!Try(out var diffs, out e, await server.GetFileDiffAsync(path, repo.Path)))
+            DiffReload reload = n => server.GetFileDiffAsync(path, n, repo.Path);
+            if (!Try(out var diffs, out e, await reload(DiffContext.Default)))
             {
                 return R.Error($"Failed to show file history", e);
             }
 
-            diffView.Show(diffs);
+            diffView.Show(diffs, repo.Path, reload);
             return R.Ok;
         });
 

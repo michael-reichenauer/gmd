@@ -534,6 +534,90 @@ public class TerminalTest
         StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
     }
 
+    // '+' shows more of the file around its changes and '-' shows less, stepping 6 → 15 → the whole
+    // file. It is per file: the file the cursor is on is the one that changes. The window asserted
+    // is the file header and the first lines under it, which is where both halves show — the header
+    // names the context it is at, and the first line says how far up the file it now starts.
+    //
+    // The cursor has to be inside a file for the keys to mean anything, hence the Down presses;
+    // each one is its own Send, since a key sent into a screen that has not settled is dropped.
+    // The '┃' down the right hand side is the scroll bar, which appears once the diff is taller
+    // than the view.
+    [TestMethod]
+    public async Task TestDiffContextIsSteppedPerFile()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change both files");
+
+        gmd.Send("d");
+        var atDefault = ScreenText.Of(gmd.WaitFor("Modified: long.txt"), repo.Path);
+        MoveIntoTheLongFile();
+
+        // Six lines either side of the change, so the file is drawn from line 14
+        StringAssert.Contains(atDefault, "  14 line 14");
+        StringAssert.Contains(atDefault, "Modified: long.txt");
+        Assert.IsFalse(atDefault.Contains("long.txt  ("), "No context is named while it is the default");
+
+        gmd.Send("+");
+        ScreenText.AssertEqual(
+            """
+            Modified: long.txt  (context 15)                                                                                       ┃
+                                                                                                                                   ┃
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┃
+               5 line 5                                                │   5 line 5                                                ┃
+               6 line 6                                                │   6 line 6                                                ┃
+            """,
+            ScreenText.Rows(gmd.WaitFor("(context 15)"), repo.Path, 11, 5),
+            repo.Path
+        );
+
+        gmd.Send("+");
+        ScreenText.AssertEqual(
+            """
+            Modified: long.txt  (whole file)                                                                                       ┃
+                                                                                                                                   ┃
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┃
+               1 line 1                                                │   1 line 1                                                ┃
+               2 line 2                                                │   2 line 2                                                ┃
+            """,
+            ScreenText.Rows(gmd.WaitFor("(whole file)"), repo.Path, 11, 5),
+            repo.Path
+        );
+
+        // The other file of the same commit was left at the default, which is the point of the
+        // whole thing: only the file the cursor was on was re-fetched and redrawn
+        gmd.Send("End");
+        var bottom = ScreenText.Of(gmd.WaitForStable(), repo.Path);
+        StringAssert.Contains(bottom, "Modified: short.txt");
+        StringAssert.Contains(bottom, "   2┃two", "Its two lines, exactly as it was drawn to begin with");
+        Assert.IsFalse(bottom.Contains("short.txt  ("), "The other file was left at the default");
+
+        // '-' acts on the file the cursor is on too, and short.txt is already at the narrowest
+        gmd.Send("-");
+        var unchanged = ScreenText.Of(gmd.WaitForStable(), repo.Path);
+        Assert.IsFalse(unchanged.Contains("short.txt  ("), "Nothing to narrow");
+        StringAssert.Contains(unchanged, "  40 line 40", "And the long file is still drawn to its end");
+
+        // Back onto the long file and all the way down again, which is where it started
+        gmd.Send("Home");
+        gmd.WaitForStable();
+        MoveIntoTheLongFile();
+        gmd.Send("-");
+        gmd.WaitFor("(context 15)");
+        gmd.Send("-");
+        ScreenText.AssertEqual(atDefault, gmd.WaitUntilGone("(context 15)"), repo.Path);
+
+        void MoveIntoTheLongFile()
+        {
+            for (int i = 0; i < 18; i++)
+            {
+                gmd.Send("Down");
+                gmd.WaitForStable();
+            }
+        }
+    }
+
     // Both cases close the diff, and neither quits the application, which is the difference
     // between closing a view and closing gmd
     [TestMethod]

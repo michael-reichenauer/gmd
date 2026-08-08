@@ -8,6 +8,10 @@ interface IDiffService
 {
     DiffRows ToDiffRows(CommitDiff diff);
     DiffRows ToDiffRows(CommitDiff[] commitDiffs);
+
+    // fileContext names the files shown with something other than the default context, so their
+    // headers can say so; the diff itself carries no record of how much context it was made with.
+    DiffRows ToDiffRows(CommitDiff[] commitDiffs, IReadOnlyDictionary<string, int> fileContext);
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
 }
@@ -18,12 +22,26 @@ class DiffService : IDiffService
     const string diffMargin = "┃"; // │ ┃ ;
     public static readonly Text NoLine = Text.Dark(new string('░', 300));
 
+    // Strips the line number gutter a row is drawn with, so a copy yields the file's own text.
+    // The gutter is the number right-aligned in 4 (wider if the number does not fit, which a large
+    // file reaches) followed by the one margin character.
+    public static string WithoutLineNbr(string rowText, int lineNbr)
+    {
+        if (lineNbr == 0)
+            return rowText;
+
+        var width = Math.Max(4, lineNbr.ToString().Length) + 1;
+        return rowText.Length > width ? rowText[width..] : "";
+    }
+
     public DiffRows ToDiffRows(CommitDiff commitDiff)
     {
         return ToDiffRows([commitDiff]);
     }
 
-    public DiffRows ToDiffRows(CommitDiff[] commitDiffs)
+    public DiffRows ToDiffRows(CommitDiff[] commitDiffs) => ToDiffRows(commitDiffs, new Dictionary<string, int>());
+
+    public DiffRows ToDiffRows(CommitDiff[] commitDiffs, IReadOnlyDictionary<string, int> fileContext)
     {
         DiffRows rows = new DiffRows();
 
@@ -41,10 +59,59 @@ class DiffService : IDiffService
             rows.Add(Text.Empty);
         }
 
-        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows));
+        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows, fileContext));
         rows.Add(Text.Empty);
         rows.AddLine(Text.Yellow("━"));
         return rows;
+    }
+
+    // The row of the file starting at fileIndex whose source line is closest to lineNbr. Used to
+    // put the cursor back on the line it was on after the file was redrawn with more or less
+    // context, where the exact line may no longer be shown at all. Falls back to the file header.
+    public static int FindClosestLineIndex(IReadOnlyList<DiffRow> rows, int fileIndex, int lineNbr)
+    {
+        if (lineNbr == 0)
+            return fileIndex;
+
+        var index = fileIndex;
+        var closest = int.MaxValue;
+
+        // Walk the file's own rows, i.e. up to the header of the next file
+        for (int i = fileIndex + 1; i < rows.Count && rows[i].FilePath == ""; i++)
+        {
+            if (rows[i].LineNbr == 0)
+                continue;
+
+            var distance = Math.Abs(rows[i].LineNbr - lineNbr);
+            if (distance < closest)
+            {
+                closest = distance;
+                index = i;
+            }
+        }
+
+        return index;
+    }
+
+    // Replaces one file of a diff with the same file fetched at a different context, leaving every
+    // other file as it was. A pathspec would have been cheaper than re-fetching the whole diff and
+    // keeping one file of it, but it suppresses git's rename detection, so a renamed file would
+    // come back as added with its history lost.
+    public static CommitDiff[] ReplaceFileDiff(CommitDiff[] diffs, string path, CommitDiff[] fetched)
+    {
+        // Full file history is one file over many commits, so there is nothing to pick out
+        if (diffs.Length > 1 || fetched.Length != 1)
+            return fetched;
+
+        var index = diffs[0].FileDiffs.FindIndexBy(fd => fd.PathAfter == path);
+        var fetchedFile = fetched[0].FileDiffs.FirstOrDefault(fd => fd.PathAfter == path);
+        if (index == -1 || fetchedFile == null)
+            return diffs;
+
+        var fileDiffs = diffs[0].FileDiffs.ToList();
+        fileDiffs[index] = fetchedFile;
+
+        return [diffs[0] with { FileDiffs = fileDiffs }];
     }
 
     public IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff)
@@ -57,12 +124,12 @@ class DiffService : IDiffService
         return diff.FileDiffs.Where(fd => fd.IsBinary).Select(fd => fd.PathAfter).ToList();
     }
 
-    static void AddCommitDiff(CommitDiff commitDiff, DiffRows rows)
+    static void AddCommitDiff(CommitDiff commitDiff, DiffRows rows, IReadOnlyDictionary<string, int> fileContext)
     {
         AddCommitSummery(commitDiff, rows);
         AddDiffFileNamesSummery(commitDiff, rows);
 
-        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows));
+        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext));
     }
 
     // Add a summery of the commit with id, author, date and message
@@ -104,7 +171,7 @@ class DiffService : IDiffService
     }
 
     // Add a diff for the file, which consists of several file section diffs
-    static void AddFileDiff(FileDiff fileDiff, DiffRows rows)
+    static void AddFileDiff(FileDiff fileDiff, DiffRows rows, IReadOnlyDictionary<string, int> fileContext)
     {
         rows.Add(Text.Empty);
         rows.AddLine(Text.Blue("━"));
@@ -120,6 +187,10 @@ class DiffService : IDiffService
         if (fd.IsBinary)
         {
             text.Dark("  (Binary)");
+        }
+        if (fileContext.TryGetValue(fd.PathAfter, out var contextLines) && contextLines != DiffContext.Default)
+        {
+            text.Dark($"  {DiffContext.ToText(contextLines)}");
         }
         rows.Add(text, fd.PathAfter);
 
@@ -173,7 +244,7 @@ class DiffService : IDiffService
                     else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
                     { // Whole file removed, use one column
                         Text removeTxt = Text.Dark($"{leftNr, 4}").Red(diffMargin).RedBg(dl.Line);
-                        rows.Add(removeTxt);
+                        rows.Add(removeTxt, leftLineNbr: leftNr);
                     }
                     else
                     {
@@ -195,7 +266,7 @@ class DiffService : IDiffService
                     else if (fileDiff.DiffMode == DiffMode.DiffAdded)
                     { // Whole file added, use one column
                         Text addTxt = Text.Dark($"{rightNr, 4}").Green(diffMargin).GreenBg(dl.Line);
-                        rows.Add(addTxt);
+                        rows.Add(addTxt, rightLineNbr: rightNr);
                     }
                     else
                     {
@@ -238,7 +309,7 @@ class DiffService : IDiffService
         for (int i = 0; i < minCount; i++)
         {
             var (lT, rT) = GetDiffSides(leftBlock.Lines[i], rightBlock.Lines[i]);
-            rows.Add(lT, rT);
+            rows.Add(lT, rT, leftBlock.Lines[i].LineNbr, rightBlock.Lines[i].LineNbr);
         }
 
         // Add left lines where no corresponding on right
@@ -248,7 +319,7 @@ class DiffService : IDiffService
             {
                 var lL = leftBlock.Lines[i];
                 Text lT = Text.Dark($"{lL.LineNbr, 4}").Red(diffMargin).Color(lL.Color, lL.Text);
-                rows.Add(lT, NoLine);
+                rows.Add(lT, NoLine, lL.LineNbr, 0);
             }
         }
 
@@ -259,7 +330,7 @@ class DiffService : IDiffService
             {
                 var rL = rightBlock.Lines[i];
                 Text rT = Text.Dark($"{rL.LineNbr, 4}").Green(diffMargin).Color(rL.Color, rL.Text);
-                rows.Add(NoLine, rT);
+                rows.Add(NoLine, rT, 0, rL.LineNbr);
             }
         }
 
