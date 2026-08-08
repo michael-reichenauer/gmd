@@ -618,6 +618,65 @@ public class TerminalTest
         }
     }
 
+    // The same thing from the diff menu, which is how the keys are found in the first place. The
+    // items name the file they would act on and what it would then show, and the direction that
+    // has nowhere to go is disabled — at the default context there is no less context to ask for.
+    [TestMethod]
+    public async Task TestDiffContextMenuItems()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change both files");
+
+        gmd.Send("d");
+        gmd.WaitFor("Modified: long.txt");
+        for (int i = 0; i < 18; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+
+        gmd.Send("m");
+        ScreenText.AssertEqual(
+            """
+            ═══════════════════════════════════════╭ Diff Menu ──────────────────────────────╮═════════════════════════════════════
+            Commit:  c00a3cc9fb5f429e9136ddb81fe75f│Scroll to                             S >│
+            Author:  Test User <test@example.com>  │Diff File                               >│
+            Date:    2024-10-15 12:02:00           │Merge Conflict File                     >│
+            Message: Change both files             │Undo/Restore Uncommitted              U >│
+                                                   │Refresh                               R  │
+            2 Files:                               │Commit                                C  │
+              Modified:    long.txt                │More Context of long.txt (15 lines)   +  │
+              Modified:    short.txt               │Less Context                          -  │
+                                                   │Focus Left Column                     ←  │
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Focus Right Column                    →  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: long.txt                     │Close                               Esc  │
+                                                   ╰─────────────────────────────────────────╯
+            """,
+            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 13),
+            repo.Path
+        );
+
+        // 'Less Context' is dark, i.e. disabled, while 'More Context' is white — the file is at the
+        // default, so there is nothing narrower to ask for
+        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 7, 2).Split('\n');
+        StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
+        StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
+
+        // Two moves down from 'Scroll to', since the disabled items in between are skipped
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        StringAssert.Contains(
+            ScreenText.Of(gmd.WaitFor("(context 15)"), repo.Path),
+            "Modified: long.txt  (context 15)",
+            "The menu item does what the '+' key does"
+        );
+    }
+
     // Both cases close the diff, and neither quits the application, which is the difference
     // between closing a view and closing gmd
     [TestMethod]

@@ -163,6 +163,10 @@ class DiffView : IDiffView
                 // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
                 .Item("Refresh", "R", () => RefreshDiff())
                 .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
+                // Named after the file they act on, since that is the part of these that is not
+                // obvious, and disabled when the cursor is on no file or that file is at an end
+                .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
+                .Item(ContextItemText("Less Context", -1), "-", () => StepContext(-1), () => CanStepContext(-1))
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
                 .Item("Close", "Esc", () => Application.RequestStop())
@@ -335,13 +339,9 @@ class DiffView : IDiffView
     async void StepContext(int step)
     {
         var anchor = CurrentAnchor();
-        if (anchor.FilePath == "")
-            return; // The cursor is above the first file, so there is nothing to widen
-
-        var current = fileContext.GetValueOrDefault(anchor.FilePath, DiffContext.Default);
-        var wanted = DiffContext.Step(current, step);
-        if (wanted == current)
-            return; // Already at the widest or the narrowest
+        var wanted = WantedContext(anchor.FilePath, step);
+        if (wanted == 0)
+            return;
 
         using (progress.Show())
         {
@@ -354,6 +354,35 @@ class DiffView : IDiffView
             fileContext[anchor.FilePath] = wanted;
             SetDiffs(DiffService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
         }
+    }
+
+    // The context the file would then be shown with, or 0 if the step would do nothing: there is
+    // no file under the cursor, or that file is already at the widest or the narrowest. Also what
+    // the menu asks to know whether to offer the item.
+    int WantedContext(string filePath, int step)
+    {
+        if (filePath == "")
+            return 0; // The cursor is above the first file, so there is nothing to step
+
+        var current = fileContext.GetValueOrDefault(filePath, DiffContext.Default);
+        var wanted = DiffContext.Step(current, step);
+
+        return wanted == current ? 0 : wanted;
+    }
+
+    bool CanStepContext(int step) => WantedContext(CurrentAnchor().FilePath, step) != 0;
+
+    // Names the file the item would act on and what it would then show, since 'the file the cursor
+    // is on' is the part of these two commands that the name alone does not give away. Falls back
+    // to the bare name when there is nothing to step, where the item is disabled anyway.
+    string ContextItemText(string name, int step)
+    {
+        var path = CurrentAnchor().FilePath;
+        var wanted = WantedContext(path, step);
+        if (wanted == 0)
+            return name;
+
+        return $"{name} of {path.Max(40)} ({DiffContext.ToItemText(wanted)})";
     }
 
     // Re-fetches the whole diff, e.g. after undoing a file or running the merge tool. Every file

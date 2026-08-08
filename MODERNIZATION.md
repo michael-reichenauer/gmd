@@ -2001,9 +2001,14 @@ landing on the nearest line still drawn when narrowing removed the one it was on
 file history, which is one of the views whose refresh was broken; and `Ctrl-C` putting `line 29`
 `line 30` `line 31` on the clipboard through OSC 52 with the gutter cleanly removed.
 
+- [x] **The keys needed somewhere to be found.** The diff view has no footer and nothing else
+      advertised them, so the menu (`M`) carries the same two commands. They are worded
+      `More Context of long.txt (15 lines)` — naming the file, because per-file is the part these
+      commands do not give away, and naming what picking it would show rather than what is shown
+      now, which is what the header already says. The direction with nowhere to go is disabled, so
+      at the default there is no **Less Context** to pick and at the whole file no **More Context**.
+
 ### Not done, deliberately
 
-A `Context lines` submenu in the diff menu. The keys are the whole feature and the header says what
-a file is at, but nothing advertises the keys, and the diff view has no footer to put a hint in —
-worth adding if the keys turn out not to be discovered. A step *below* 6 (0 or 3, "changes only")
-is the same shape and equally easy to add to `DiffContext.Levels`.
+A step *below* 6 (0 or 3, "changes only") for scanning a large commit. Same shape as the rest, and
+a one line addition to `DiffContext.Levels` if it is wanted.

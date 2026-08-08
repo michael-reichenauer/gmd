@@ -26,7 +26,13 @@ static class DiffContext
         return next < 0 || next >= Levels.Count ? contextLines : Levels[next];
     }
 
-    // How a non-default level is named in the file header row, e.g. '(context 15)'.
+    // How a non-default level is named in the file header row, e.g. '(context 15)', i.e. what the
+    // file being looked at is showing.
     public static string ToText(int contextLines) =>
         contextLines == WholeFile ? "(whole file)" : $"(context {contextLines})";
+
+    // How a level is named in a menu item, i.e. what picking it would show rather than what is
+    // shown now. 'whole file' is worded the same in both, which is what ties the two together.
+    public static string ToItemText(int contextLines) =>
+        contextLines == WholeFile ? "whole file" : $"{contextLines} lines";
 }

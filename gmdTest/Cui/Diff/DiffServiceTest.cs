@@ -92,6 +92,18 @@ public class DiffServiceTest
         Assert.AreEqual(DiffContext.Default, DiffContext.Step(7, 1));
     }
 
+    // The header says what the file is showing, the menu item says what picking it would show, and
+    // the whole file is worded the same either way
+    [TestMethod]
+    public void TestALevelIsNamedForTheHeaderAndForAMenuItem()
+    {
+        Assert.AreEqual("(context 15)", DiffContext.ToText(15));
+        Assert.AreEqual("15 lines", DiffContext.ToItemText(15));
+
+        Assert.AreEqual("(whole file)", DiffContext.ToText(DiffContext.WholeFile));
+        Assert.AreEqual("whole file", DiffContext.ToItemText(DiffContext.WholeFile));
+    }
+
     // The file header, which is the only place the view says what context a file is shown with
 
     [TestMethod]

@@ -105,11 +105,13 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   changes and `-` shows less, stepping 6 lines of context, then 15, then the
   whole file (and `=` does what `+` does, without the shift). It applies to
   that one file, so the rest of the commit stays as it was, and the header of
-  a widened file says what it is showing. `R` re-reads the diff from git, `S`
-  scrolls to a file, `U` restores an uncommitted file, `C` commits, `M` opens
-  the menu, `←` `→` scroll the two columns sideways and pick which one a
-  selection copies from, `Ctrl-C` copies the selected lines, and `Esc` or `Q`
-  closes the view.
+  a widened file says what it is showing. The menu has the same two, as
+  **More Context** and **Less Context**, naming the file they would act on
+  and what it would then show.
+  `R` re-reads the diff from git, `S` scrolls to a file, `U` restores an
+  uncommitted file, `C` commits, `M` opens the menu, `←` `→` scroll the two
+  columns sideways and pick which one a selection copies from, `Ctrl-C`
+  copies the selected lines, and `Esc` or `Q` closes the view.
 - **Undo Options**:
   - **Restore Uncommitted File**: `git checkout --force -- <file-path>`
   - **Undo Commit**: `git revert --no-commit <commit-sha>`
