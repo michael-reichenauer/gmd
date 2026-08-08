@@ -7,7 +7,7 @@ namespace gmd.Cui.Blame;
 
 interface IBlameView
 {
-    void Show(Server.Blame blame, string repoPath);
+    void Show(Server.Blame blame, Repo repo);
 }
 
 // Shows which commit last changed each line of a file. Consecutive lines of the same commit are
@@ -21,12 +21,18 @@ class BlameView : IBlameView
     readonly IDiffView diffView;
     readonly IClipboardService clipboard;
 
+    // A new details view per Show, since it creates its own view in its constructor and that view
+    // is added to the toplevel this Show builds, which the next Show replaces
+    readonly Func<ICommitDetailsView> newDetailsView;
+
     ContentView contentView = null!;
+    ICommitDetailsView detailsView = null!;
     UILabel header = null!;
     Server.Blame blame = null!;
+    Repo repo = null!;
     BlameRows blameRows = new BlameRows();
-    string repoPath = "";
     int rowStartX = 0;
+    bool isShowDetails = false;
     BlameDetails details = BlameDetails.Full;
 
     // Where the user came from, so a drill down into previous versions can be stepped back out of.
@@ -40,7 +46,8 @@ class BlameView : IBlameView
         IServer server,
         IProgress progress,
         IDiffView diffView,
-        IClipboardService clipboard
+        IClipboardService clipboard,
+        Func<ICommitDetailsView> newDetailsView
     )
     {
         this.blameService = blameService;
@@ -48,6 +55,7 @@ class BlameView : IBlameView
         this.progress = progress;
         this.diffView = diffView;
         this.clipboard = clipboard;
+        this.newDetailsView = newDetailsView;
     }
 
     bool IsSelected => contentView.SelectCount > 0;
@@ -57,12 +65,13 @@ class BlameView : IBlameView
             ? blameRows.Rows[contentView.CurrentIndex]
             : null;
 
-    public void Show(Server.Blame blame, string repoPath)
+    public void Show(Server.Blame blame, Repo repo)
     {
         this.blame = blame;
         this.blameRows = blameService.ToBlameRows(blame);
-        this.repoPath = repoPath;
+        this.repo = repo;
         this.rowStartX = 0;
+        this.isShowDetails = false;
         this.details = BlameDetails.Full;
         this.backStack.Clear();
 
@@ -91,8 +100,15 @@ class BlameView : IBlameView
             IsCustomShowSelection = true,
         };
 
-        blameView.Add(header, border, contentView);
+        detailsView = newDetailsView();
+
+        blameView.Add(header, border, contentView, detailsView.View);
         RegisterShortcuts(contentView);
+        detailsView.View.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
+        detailsView.View.RegisterKeyHandler(Key.Enter, ToggleDetails);
+
+        // The details follow the cursor, so walking down the lines walks through the commits
+        contentView.CurrentIndexChange += OnCurrentIndexChange;
 
         SetHeader();
         contentView.SetNeedsDisplay();
@@ -111,6 +127,16 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
 
+        view.RegisterKeyHandler(Key.Enter, ToggleDetails);
+        view.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
+
+        // While the details pane is the focused one, the scroll keys are forwarded to it. They
+        // have to be taken here, since this is the view that actually has the keyboard, see
+        // ToggleDetailsFocus. Returning false leaves the key to this view, i.e. moves the cursor.
+        view.RegisterKeyHandler(Key.CursorUp, () => ScrollDetails(-1));
+        view.RegisterKeyHandler(Key.CursorDown, () => ScrollDetails(1));
+        view.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-CommitDetailsView.ContentHeight));
+        view.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(CommitDetailsView.ContentHeight));
         view.RegisterKeyHandler(Key.m, () => ShowMainMenu());
         view.RegisterKeyHandler(Key.i, CycleDetails);
         view.RegisterKeyHandler(Key.d, ShowLineCommitDiff);
@@ -192,6 +218,79 @@ class BlameView : IBlameView
         contentView.SetNeedsDisplay();
     }
 
+    // The commit details of the current line, in a pane at the bottom, as the log view shows them
+    // for the current commit and with the same key
+    void ToggleDetails()
+    {
+        isShowDetails = !isShowDetails;
+
+        if (isShowDetails)
+        {
+            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+            detailsView.View.Height = CommitDetailsView.ContentHeight;
+            OnCurrentIndexChange();
+        }
+        else
+        {
+            contentView.Height = Dim.Fill();
+            detailsView.View.Height = 0;
+            contentView.IsFocus = true;
+            detailsView.View.IsFocus = false;
+        }
+
+        contentView.SetNeedsDisplay();
+        detailsView.View.SetNeedsDisplay();
+    }
+
+    // Focus moves to the details so a long commit message can be scrolled, as in the log view.
+    // Only the drawn focus moves: Terminal.Gui's own focus stays on the blame, since SetFocus does
+    // not move it (the log view says the same), which is why ScrollDetails forwards the keys.
+    void ToggleDetailsFocus()
+    {
+        if (!isShowDetails)
+            return;
+
+        contentView.IsFocus = !contentView.IsFocus;
+        detailsView.View.IsFocus = !detailsView.View.IsFocus;
+
+        contentView.SetNeedsDisplay();
+        detailsView.View.SetNeedsDisplay();
+    }
+
+    // True when the key was consumed by the details pane, i.e. it is the focused one
+    bool ScrollDetails(int count)
+    {
+        if (!isShowDetails || !detailsView.View.IsFocus)
+            return false;
+
+        detailsView.View.Scroll(count);
+        return true;
+    }
+
+    void OnCurrentIndexChange()
+    {
+        if (!isShowDetails)
+            return;
+
+        var row = CurrentRow;
+        if (row == null)
+            return;
+
+        // The blame only knows the first line of the commit message and nothing about branches, so
+        // the shown log is what the full details come from. Only the log is capped, not the blame,
+        // so a very large repo can blame a commit that is not in it, hence the fallback.
+        if (
+            repo.CommitById.TryGetValue(row.Commit.Id, out var commit)
+            && repo.BranchByName.TryGetValue(commit.BranchName, out var branch)
+        )
+        {
+            detailsView.Set(repo, commit, branch);
+            return;
+        }
+
+        detailsView.SetRows(blameService.ToDetailsRows(row.Commit));
+    }
+
     // Shows the commit that last changed the current line. The uncommitted lines carry the all '0'
     // sha, which the server routes to the uncommitted diff, so they need no special case here.
     async void ShowLineCommitDiff()
@@ -203,7 +302,7 @@ class BlameView : IBlameView
         Server.CommitDiff? diff;
         using (progress.Show())
         {
-            if (!Try(out diff, out var e, await server.GetCommitDiffAsync(row.Commit.Id, repoPath)))
+            if (!Try(out diff, out var e, await server.GetCommitDiffAsync(row.Commit.Id, repo.Path)))
             {
                 UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
                 return;
@@ -211,7 +310,7 @@ class BlameView : IBlameView
         }
 
         // A read only view two dialogs deep cannot usefully act on the result, so it is ignored
-        diffView.Show(diff!, row.Commit.Id, repoPath);
+        diffView.Show(diff!, row.Commit.Id, repo.Path);
         contentView.SetNeedsDisplay();
     }
 
@@ -251,7 +350,7 @@ class BlameView : IBlameView
         Server.Blame? newBlame;
         using (progress.Show())
         {
-            if (!Try(out newBlame, out var e, await server.GetBlameAsync(path, reference, repoPath)))
+            if (!Try(out newBlame, out var e, await server.GetBlameAsync(path, reference, repo.Path)))
             {
                 UI.ErrorMessage($"Failed to blame {path}\n{e.AllErrorMessages()}");
                 return false;
@@ -321,6 +420,7 @@ class BlameView : IBlameView
                 .Item("Back", "Backspace", () => Back(), () => backStack.Count > 0)
                 .Separator()
                 .SubMenu("Scroll to Commit", "", GetScrollToItems())
+                .Item("Toggle Commit Details ...", "Enter", () => ToggleDetails())
                 .Item($"Gutter Detail ({details}) ...", "I", () => CycleDetails())
                 .Item("Reset Horizontal Scroll", "", () => ResetScroll(), () => rowStartX > 0)
                 .Separator()

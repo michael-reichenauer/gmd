@@ -115,12 +115,14 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   The bracket and the short id are shaded by age, from yellow for the newest
   commit through to gray for the oldest, and lines that are not committed yet
   are bright yellow and marked `©`.
-  Within the view: `D` shows the diff of the current line's commit, `P` blames
-  the version before it (so a reformat or a rename can be stepped past to the
-  change that actually matters) and `Backspace` steps back out again, `I`
-  cycles how much of each commit the left column names, `←` `→` scroll the code
-  while the left column stays put, `C` copies the current line's commit id, and
-  `Ctrl-C` copies the selected lines.
+  Within the view: `Enter` toggles the commit details of the current line, the
+  same pane the log view shows, which follows the cursor as you move down the
+  lines (`Tab` moves into it to scroll a long message). `D` shows the diff of
+  the current line's commit, `P` blames the version before it (so a reformat or
+  a rename can be stepped past to the change that actually matters) and
+  `Backspace` steps back out again, `I` cycles how much of each commit the left
+  column names, `←` `→` scroll the code while the left column stays put, `C`
+  copies the current line's commit id, and `Ctrl-C` copies the selected lines.
 - **Merge**: 
   Highlight a branch and merge into the current branch (`E`). 
   Use `Commit` post-merge.

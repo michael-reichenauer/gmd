@@ -584,6 +584,45 @@ public class TerminalTest
         );
     }
 
+    // Enter toggles the same commit details pane the log view shows, for the current line's commit.
+    // The blame itself only knows the first line of the message and nothing about branches, so this
+    // is also what proves the details are read from the shown log.
+    [TestMethod]
+    public async Task TestBlameCommitDetails()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync(
+            "alpha.txt",
+            "one\ntwo\n",
+            "Add lines\n\nA body line that only the log knows.",
+            t.AddMinutes(7)
+        );
+
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("Blame  alpha.txt");
+
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            """
+            Id:         199af616c757fa248670aa1ea368ba31d046f1e3  ({repo})
+            Branch:     main  (main)
+            Author:     Test User, time: 2024-10-15 12:07:00 +00:00
+            Children:
+            Parents:    17d85b
+            Tips:       (main)
+            Add lines
+
+            A body line that only the log knows.
+            """,
+            ScreenText.Rows(gmd.WaitFor("A body line"), repo.Path, 30, 9)
+        );
+    }
+
     // Both cases close the blame view, and neither quits the application
     [TestMethod]
     [DataRow("q")]

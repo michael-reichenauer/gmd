@@ -9,6 +9,7 @@ interface ICommitDetailsView
     ContentView View { get; }
 
     void Set(Repo repo, Commit commit, Branch branch);
+    void SetRows(IReadOnlyList<Text> rows);
 }
 
 class CommitDetailsView : ICommitDetailsView
@@ -138,10 +139,17 @@ class CommitDetailsView : ICommitDetailsView
             newRows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
             newRows.Add(Text.Black(""));
 
-            rows = newRows;
-            contentView!.SetNeedsDisplay();
-            contentView!.MoveToTop();
+            SetRows(newRows);
         });
+
+    // For a caller that builds its own rows, i.e. has no Server.Commit to render. The blame view
+    // uses this for a commit that is not in the shown log, where all it has is what git blame said.
+    public void SetRows(IReadOnlyList<Text> rows)
+    {
+        this.rows = rows;
+        contentView!.SetNeedsDisplay();
+        contentView!.MoveToTop();
+    }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width) =>
         (rows.Skip(firstIndex).Take(count), rows.Count);

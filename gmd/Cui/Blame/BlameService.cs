@@ -6,6 +6,7 @@ interface IBlameService
 {
     BlameRows ToBlameRows(Server.Blame blame);
     Text ToRowText(BlameRow row, BlameColumns cw, int rowStartX, bool isCurrent, bool isSelected);
+    IReadOnlyList<Text> ToDetailsRows(Server.BlameCommit commit);
 }
 
 // Turns a blame into the rows the blame view draws. Kept out of the view so the run aggregation,
@@ -111,6 +112,27 @@ class BlameService : IBlameService
             : isCurrent ? rest.Highlight()
             : rest;
         return text.Add(restText);
+    }
+
+    // The details of a commit that is not in the shown log, so there is no Server.Commit for the
+    // commit details view to render. Only the log is capped (30000 commits), not the blame, so
+    // this is what a very large repo falls back to. Named fields are the same as that view's, and
+    // the missing ones are called out rather than left as blanks the reader has to interpret.
+    public IReadOnlyList<Text> ToDetailsRows(Server.BlameCommit c)
+    {
+        var author = c.AuthorMail == "" ? c.Author : $"{c.Author} <{c.AuthorMail}>";
+
+        return
+        [
+            c.IsUncommitted
+                ? Text.Dark("Id:         ").BrightYellow("Uncommitted")
+                : Text.Dark("Id:         ").White(c.Id),
+            Text.Dark("Author:     ").White(author).Dark(", time: ").White(c.AuthorTime.IsoZone()),
+            Text.Dark("Subject:    ").White(c.Subject),
+            Text.Empty,
+            Text.Dark("This commit is not in the shown log, so its branch and full"),
+            Text.Dark("message are not known here. The subject above is all git blame gives."),
+        ];
     }
 
     // The commit is named only on the first row of a run, the rest of the run is blank under it

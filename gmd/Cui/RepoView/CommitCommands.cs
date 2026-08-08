@@ -567,7 +567,7 @@ class CommitCommands : ICommitCommands
                 return R.Error($"Failed to blame {path}", e);
             }
 
-            UI.Post(() => blameView.Show(blame, repo.Path));
+            UI.Post(() => blameView.Show(blame, repo.Repo));
             return R.Ok;
         });
 

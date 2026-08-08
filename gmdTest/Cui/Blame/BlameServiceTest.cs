@@ -207,6 +207,33 @@ public class BlameServiceTest
         Assert.AreEqual("\tindented", blame.Lines[0].Text);
     }
 
+    // The fallback details, for a commit the shown log does not have. Only the log is capped, not
+    // the blame, so this is what a repo past the log cap falls back to.
+    [TestMethod]
+    public void TestDetailsRowsOfACommitNotInTheLog()
+    {
+        var commit = BlameOf((Id1, "one")).CommitById[Id1] with { AuthorMail = "alice@example.com" };
+
+        var rows = new BlameService().ToDetailsRows(commit);
+
+        Assert.AreEqual($"Id:         {Id1}", rows[0].ToString());
+        // The time is local with its zone offset, as the commit details view shows it, so only the
+        // part that does not depend on the machine's time zone is asserted
+        StringAssert.StartsWith(rows[1].ToString(), "Author:     Author1 <alice@example.com>, time: 2025-01-05 ");
+        Assert.AreEqual("Subject:    Subject 1", rows[2].ToString());
+        StringAssert.Contains(rows[4].ToString(), "not in the shown log");
+    }
+
+    [TestMethod]
+    public void TestDetailsRowsOfAnUncommittedCommit()
+    {
+        var commit = BlameOf((Id0, "one")).CommitById[Id0];
+
+        var rows = new BlameService().ToDetailsRows(commit);
+
+        Assert.AreEqual("Id:         Uncommitted", rows[0].ToString());
+    }
+
     [TestMethod]
     public void TestMaxLengthIsTheWidestCodeLine()
     {

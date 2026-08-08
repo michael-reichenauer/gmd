@@ -1828,6 +1828,12 @@ into one bracket in the gutter and names the commit once per run:
       for free where `<sha>^` plus the current path would silently get it wrong. A stack inside the
       one `Show` call rather than nested views, so `Esc` still means "close" and `Backspace` means
       "one hop back".
+- [x] Commit details: `Enter` toggles the log view's own `CommitDetailsView` in a pane at the
+      bottom, following the cursor. The blame knows only the *first* line of the message
+      (porcelain `summary`) and nothing about branches, so the full body and the gmd-inferred
+      branch come from `Repo.CommitById` — the view takes a `Server.Repo` rather than just its
+      path for this. `ICommitDetailsView` grew a `SetRows` overload so a caller with no
+      `Server.Commit` can render its own rows, which is the fallback below.
 
 ### Findings
 
@@ -1862,20 +1868,36 @@ into one bracket in the gutter and names the commit once per run:
   `Width = text.Length` before assigning), so a header that grows is clipped to the previous
   header's length. `BlameView.SetHeader` sets `Width = Dim.Fill()` after every assignment. The
   setter itself is worth fixing, but not from here.
+- **`ToggleDetailsFocus` does not move the keyboard, only the drawn highlight.** `RepoView`'s
+  version says so in a comment ("unfortunately SetFocus() does not seem to work"), and the
+  consequence is easy to miss: `ContentView.ProcessHotKey` returns early on `!HasFocus`, so the
+  pane never receives a key no matter what `IsFocus` says. Tab in the blame view therefore *looked*
+  like it worked — the border went heavy — while `Down` still moved the blame cursor underneath.
+  Fixed by forwarding the scroll keys by hand from the view that really has the keyboard, which is
+  what `FilterDlg` already does for the log view's results (`FilterDlg.cs:86-129`). Worth knowing
+  that the log view's own Tab has the same limitation.
+- **`Server.Commit` and `Server.Branch` are ~30 fields each**, so synthesizing one for a commit the
+  log does not have was rejected as fragile. The blame view falls back to
+  `BlameService.ToDetailsRows`, which renders what git blame itself said and names what is missing
+  rather than leaving blanks the reader has to interpret. Only the log is capped (30 000 commits),
+  never the blame, so this is reachable in a very large repo.
 - **Adding one commit-menu item broke three golden screens** (`TerminalTest` `TestCommitMenu` and
   both windows of `TestBranchesSubMenuInCommitMenu`), exactly as the menu section of `CLAUDE.md`
   warns. The menu grows one row taller, so the `ScreenText.Rows` windows shift by one.
 
 ### Verified
 
-`./test` is green (491 fast + 44 E2E). Beyond the suite, driven by hand in a throwaway repo with a
+`./test` is green (490 fast + 45 E2E). Beyond the suite, driven by hand in a throwaway repo with a
 redirected `HOME`: the run brackets and the `╺` single-line stub; the age ramp in real ANSI
 (yellow → bright cyan → dark, bright yellow for uncommitted); `I` through all four detail levels;
 the automatic step-down on a narrow view; `←`/`→` scrolling the code with the gutter pinned and `…`
 at both cut ends; `P` twice down to the root commit and the refusal there; `Backspace` back out;
 `D` opening the diff over the blame view and input still live after `Esc` (the Step 13 check);
 `Ctrl-C` putting the file's own text on the clipboard through OSC 52; and `q` closing the view
-rather than gmd.
+rather than gmd. For the details pane: `Enter` opening it, the pane following the cursor through
+three commits including the uncommitted one, `Tab` into it and `PageDown` reaching the last line of
+a 14-line message while the blame cursor stayed put, `Tab` back restoring cursor movement, and
+`Enter` closing it.
 
 ### Not done, deliberately
 
