@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace gmd.Git.Private;
 
 // The operations git can stop part way through, and the three things that can then be done to one:
@@ -10,6 +12,13 @@ interface IConflictService
     Task<R> ContinueOperationAsync(string wd);
     Task<R> SkipOperationAsync(string wd);
     Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
+
+    Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
+    Task<R> WriteAsync(ConflictFile file, string wd);
+    Task<R> MarkResolvedAsync(string path, string wd);
+    Task<R> UnresolveAsync(string path, string wd);
+    Task<R> UseWholeFileAsync(string path, bool isOurs, string wd);
+    Task<R> DeleteConflictedAsync(string path, string wd);
 }
 
 class ConflictService : IConflictService
@@ -63,6 +72,86 @@ class ConflictService : IConflictService
 
         return ToResult(await cmd.RunAsync("git", $"{NoEditor} {verb} --skip", wd), verb);
     }
+
+    // A pathspec, not a bare path: '--' stops options being parsed but does *not* stop globbing, so
+    // a file really named 'a[1].txt' would otherwise match 'a1.txt' instead of itself. Note that
+    // 'git checkout-index' is the one command that will not take this — it wants a plain path.
+    static string Spec(string path) => $"-- \":(literal){path}\"";
+
+    // Reads the working tree file and parses it. The working tree file rather than the index
+    // stages, because it is the only artifact that holds the text *between* the conflicts, and it
+    // is what git takes verbatim once the path is marked resolved — including any hand edits.
+    public async Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
+    {
+        await Task.CompletedTask;
+        var fullPath = System.IO.Path.Join(wd, path);
+
+        // A delete conflict has no file on one side, and a binary one has nothing to merge as text.
+        // Both are resolved whole file, so they are reported rather than parsed.
+        if (kind is ConflictKind.BothDeleted or ConflictKind.DeletedByUs && !File.Exists(fullPath))
+            return new ConflictFile(path, kind, false, false, []);
+
+        if (!File.Exists(fullPath))
+            return R.Error($"File does not exist: {path}");
+
+        if (!Files.IsText(fullPath))
+            return new ConflictFile(path, kind, true, false, []);
+
+        if (!Try(out var bytes, out var e, () => File.ReadAllBytes(fullPath)))
+            return R.Error($"Failed to read {path}", e);
+
+        var hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+
+        // Throwing rather than replacing, so a file gmd cannot represent exactly is refused instead
+        // of being silently rewritten with U+FFFD where it could not decode
+        var encoding = new UTF8Encoding(false, true);
+        if (!Try(out var text, out e, () => encoding.GetString(bytes, hasBom ? 3 : 0, bytes.Length - (hasBom ? 3 : 0))))
+            return R.Error($"{path} is not UTF-8 text, so it cannot be resolved here", e);
+
+        return ConflictParser.Parse(path, kind, text, hasBom);
+    }
+
+    // Writes the resolved text back and marks the path resolved. Nothing about line endings is
+    // done here: every line carries the terminator it was read with, so what comes out is what went
+    // in, and git's own check-in conversion then applies exactly as it would to a hand edit.
+    public async Task<R> WriteAsync(ConflictFile file, string wd)
+    {
+        if (file.IsBinary)
+            return R.Error($"{file.Path} is binary, so there is no text to write");
+
+        var fullPath = System.IO.Path.Join(wd, file.Path);
+        var text = ConflictParser.ToText(file);
+
+        // File.WriteAllText defaults to UTF-8 without a BOM, so a file that had one would lose it
+        if (!Try(out var e, () => File.WriteAllText(fullPath, text, new UTF8Encoding(file.HasBom))))
+            return R.Error($"Failed to write {file.Path}", e);
+
+        return await MarkResolvedAsync(file.Path, wd);
+    }
+
+    // Staging a path is what 'resolved' means to git, for a file it merged and for one it deleted
+    public async Task<R> MarkResolvedAsync(string path, string wd) =>
+        await cmd.RunAsync("git", $"add {Spec(path)}", wd);
+
+    // Puts the conflict back, markers and all, discarding whatever was resolved. Git can do this
+    // even after the path was staged, from the resolve-undo data it keeps in the index.
+    public async Task<R> UnresolveAsync(string path, string wd) =>
+        await cmd.RunAsync("git", $"checkout --merge {Spec(path)}", wd);
+
+    // The whole file from one side, which is the only thing on offer for a binary conflict and the
+    // quickest answer for a text one that is not worth reading through
+    public async Task<R> UseWholeFileAsync(string path, bool isOurs, string wd)
+    {
+        var side = isOurs ? "--ours" : "--theirs";
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", $"checkout {side} {Spec(path)}", wd)))
+            return e;
+
+        return await MarkResolvedAsync(path, wd);
+    }
+
+    // Accepts the deletion of a path one side removed, which is the other half of a modify/delete
+    public async Task<R> DeleteConflictedAsync(string path, string wd) =>
+        await cmd.RunAsync("git", $"rm -f {Spec(path)}", wd);
 
     const string MarkerNote = ": leftover conflict marker";
 

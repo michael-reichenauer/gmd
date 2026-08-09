@@ -2030,7 +2030,7 @@ new service rather than an extension of `DiffRows`.
 - [x] **Step 1 — operation detection, and the two bugs it fixes.** See below.
 - [x] **Step 2 — abort *and continue*.** See below.
 - [x] **Step 3 — commit gating, and routing a rebase to *Continue*.** See below.
-- [ ] Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.
+- [x] **Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.** See below.
 - [ ] Step 5 — the resolver view.
 - [ ] Step 6 — the base pane, via `checkout-index --stage=all --temp` + `merge-file --diff3`.
 - [ ] Step 7 — file-level resolutions (whole-file ours/theirs, `UD`/`DU`/`DD`, binary, un-resolve).
@@ -2193,3 +2193,65 @@ Rebase** rather than the detached head message; Continue then stopped by **Unres
 worded "then continue"; and after resolving, the rebase finishing from the same key, leaving `dev`
 rebased with a clean tree. Finally an ordinary commit of a modified and an untracked file, with
 trailing whitespace in one of them, going through untouched.
+
+### Step 4 findings
+
+`Git/ConflictFile.cs` (the model), `Git/Private/ConflictParser.cs` (pure, no `ICmd` and no `File`),
+and the reading, writing and per-path commands on `ConflictService`. No UI.
+
+- [x] **One line ending flag per file would be wrong.** A merge of an LF file and a CRLF file really
+      does produce a file with both, so the terminator is kept per line — `FileLine(Text, Eol)`,
+      where `Eol` is `"\r\n"`, `"\n"`, or `""` on a last line the file did not end with. Because
+      every line carries what followed it, writing back what was read needs no line ending logic at
+      all, and git's check-in conversion then applies exactly as it would to a hand edit. There is
+      no `core.autocrlf` handling anywhere in gmd as a result.
+- [x] **`ToText(Parse(x)) == x` is the test that matters**, and it is asserted byte for byte over
+      every shape a file can have: all three conflict styles, CRLF, *mixed* endings, no final
+      newline, an empty file, an empty side, markers with no labels, longer markers, and conflicts
+      at the very start and very end. Everything the resolver writes is a hunk change plus `ToText`,
+      so while that identity holds, resolving one conflict cannot rewrite the rest of the file.
+- [x] **Marker lines are kept verbatim rather than regenerated.** `.gitattributes` can set
+      `conflict-marker-size`, so a file with eleven-character markers must come back with eleven.
+      Recognition is a run of *at least* seven followed by end of line or a space, which is what
+      makes `=======x` text and `<<<<<< ` (six) text.
+- [x] **Anything that is not a complete conflict is text.** A `<<<<<<<` with no `>>>>>>>`, a
+      `>>>>>>>` with no `=======`, two starts in a row — each is kept as ordinary lines rather than
+      guessed at, which is what makes the round trip hold for a half-edited file too.
+- [x] **Git normalizes a missing final newline itself, and gmd cannot put it back.** A conflicted
+      file whose sides had no trailing newline comes out of git ending `>>>>>>> dev\n`, with a
+      newline after the last line of each side so the markers can start a line — so the missing
+      terminator is not represented in the conflict at all. Found by an integration test written
+      expecting the opposite. What gmd must not do is add one of *its* own, which the write-back
+      test and the parser round trip both pin.
+- [x] **The trailing newline repair in `Chosen` is live only for hand edited text.** Every parsed
+      block is followed by a marker line, so its last line always has a terminator; only `Manual`
+      lines can arrive without one, and without the repair the line after the conflict would be
+      joined onto the last edited line. Nearly left untested for being unreachable — it is not.
+- [x] **`:(literal)` works on `add`, `checkout` and `rm` but not on `checkout-index`**, which wants
+      a plain path (verified in Step 3's probing and again here). `--` alone does not disable
+      globbing, so a file named `a[1].txt` would otherwise match `a1.txt`; pinned by a test with
+      both files present.
+- [x] A BOM is read, remembered and written back — `File.WriteAllText` defaults to UTF-8 *without*
+      one, so a file that had a BOM would silently lose it and show as wholly changed. Decoding
+      throws rather than replacing, so a file gmd cannot represent exactly is refused instead of
+      being rewritten with `U+FFFD`.
+- [x] The model is `public` like `ConflictKind` and `ConflictedFile` beside it, rather than
+      `internal` like `CommitDiff` — a `[DataRow]` of an internal enum cannot be a public test
+      method's parameter, and the family reads better kept together.
+- [x] Step 4 stops at the Git layer: `IServer` gains nothing, because `ConflictFile` has no Server
+      mirror until Step 5 builds one alongside its converter, as `CommitDiff` has.
+
+### Step 4 verified
+
+`./test` is green (697, up from 639) — 47 pure parser tests with no fake, no repository and no
+driver, plus real-git tests for reading, writing, whole-file resolution, un-resolve, a `zdiff3`
+repository, a BOM, CRLF, and a path with glob characters in its name.
+
+**A pre-existing E2E flake was found while checking this and is *not* fixed here.**
+`TestShowAndHideBranchRoundTrip` failed once in Step 3 and once here, and passes in isolation and in
+three consecutive full runs of both this tree and an unmodified one. The cause looks like the test
+rather than the app: it does `Send("Down")` then `WaitFor("Merge branch")`, but that text is already
+on screen before the key, so the wait is satisfied by the already-settled screen and does not
+actually wait for the key to be processed. Under load the `Left` can then be sent first and `Enter`
+act on the wrong hoover. A real wait would be one for something that *changes* — the application bar
+going from `(main)` to `(dev)` once the branch is hoovered.

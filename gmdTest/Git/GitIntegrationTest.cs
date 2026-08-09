@@ -1,4 +1,5 @@
 using gmd.Git;
+using gmd.Git.Private;
 using gmd.Server.Private.Augmented.Private;
 using gmdTest.Fixtures;
 
@@ -660,6 +661,184 @@ public class GitIntegrationTest
         var paths = Value(await repo.Git.GetLeftoverMarkerPathsAsync(repo.Path));
 
         Assert.AreEqual(0, paths.Count, "A trailing space must not block a commit");
+    }
+
+    // ---- reading and writing a conflicted file ----
+
+    // Makes 'file.txt' conflict, with the given content on each side, and returns the parsed file
+    async Task<ConflictFile> ConflictedFileAsync(string baseText, string ourText, string theirText)
+    {
+        await repo.CommitFileAsync("file.txt", baseText, "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        await repo.CommitFileAsync("file.txt", theirText, "Dev work");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await repo.CommitFileAsync("file.txt", ourText, "Main work");
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        var result = await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path);
+        Assert.IsTrue(Try(out var file, out var e, result), $"{e}");
+        return file;
+    }
+
+    [TestMethod]
+    public async Task TestReadingAConflictedFileGivesItsTwoSides()
+    {
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        Assert.AreEqual(1, file.Hunks.Count);
+        Assert.AreEqual("OURS\n", ConflictParser.ToText(file.Hunks[0].Ours));
+        Assert.AreEqual("THEIRS\n", ConflictParser.ToText(file.Hunks[0].Theirs));
+        Assert.AreEqual("HEAD", file.Hunks[0].OursLabel);
+        Assert.AreEqual("dev", file.Hunks[0].TheirsLabel, "Git labels the other side with the branch merged in");
+    }
+
+    // Writing back an unchanged file must produce the same bytes, or every resolution would show up
+    // as a whole file rewrite in the diff
+    [TestMethod]
+    public async Task TestWritingBackAnUnchangedFileChangesNothing()
+    {
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+        var before = await File.ReadAllBytesAsync(Path.Join(repo.Path, "file.txt"));
+
+        Ok(await repo.Git.WriteConflictFileAsync(file, repo.Path));
+
+        var after = await File.ReadAllBytesAsync(Path.Join(repo.Path, "file.txt"));
+        CollectionAssert.AreEqual(before, after, "Byte for byte the same file");
+    }
+
+    [TestMethod]
+    public async Task TestResolvingAndWritingStagesThePathAsResolved()
+    {
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        Ok(await repo.Git.WriteConflictFileAsync(ConflictParser.SetChoice(file, 0, HunkChoice.Ours), repo.Path));
+
+        Assert.AreEqual("a\nOURS\nc\n", await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(0, status.Conflicted, "Writing also marks it resolved");
+        Assert.AreEqual(0, Value(await repo.Git.GetLeftoverMarkerPathsAsync(repo.Path)).Count);
+    }
+
+    // The one that says the per line terminators are doing their job: resolving one conflict in a
+    // CRLF file must not convert the rest of it
+    [TestMethod]
+    public async Task TestResolvingACrLfFileKeepsCrLf()
+    {
+        var file = await ConflictedFileAsync("a\r\nb\r\nc\r\n", "a\r\nOURS\r\nc\r\n", "a\r\nTHEIRS\r\nc\r\n");
+
+        Ok(await repo.Git.WriteConflictFileAsync(ConflictParser.SetChoice(file, 0, HunkChoice.Theirs), repo.Path));
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt"));
+        Assert.AreEqual("a\r\nTHEIRS\r\nc\r\n", text);
+    }
+
+    // Git, not gmd, is what adds a final newline to a file that had none: the conflict it writes
+    // ends '>>>>>>> dev\n' and puts a newline after 'OURS' so the '=======' can start a line, so
+    // the file's missing terminator is not represented in the conflict at all and cannot be put
+    // back. What gmd must not do is add one of its own — hence writing the file back unchanged is
+    // asserted above, and the parser's own no-trailing-newline round trip in ConflictParserTest.
+    [TestMethod]
+    public async Task TestGitItselfNormalizesAMissingFinalNewline()
+    {
+        var file = await ConflictedFileAsync("a\nb", "a\nOURS", "a\nTHEIRS");
+        var conflicted = await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt"));
+        Assert.IsTrue(conflicted.EndsWith(">>>>>>> dev\n"), $"Git ended the conflict with a newline:\n{conflicted}");
+
+        Ok(await repo.Git.WriteConflictFileAsync(ConflictParser.SetChoice(file, 0, HunkChoice.Ours), repo.Path));
+
+        Assert.AreEqual("a\nOURS\n", await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
+    }
+
+    // 'git add' would happily stage a file whose BOM gmd had dropped, so the whole file would show
+    // as changed
+    [TestMethod]
+    public async Task TestABomIsKeptAcrossAResolve()
+    {
+        var bom = "﻿";
+        var file = await ConflictedFileAsync($"{bom}a\nb\nc\n", $"{bom}a\nOURS\nc\n", $"{bom}a\nTHEIRS\nc\n");
+        Assert.IsTrue(file.HasBom, "The file was read as having a BOM");
+
+        Ok(await repo.Git.WriteConflictFileAsync(ConflictParser.SetChoice(file, 0, HunkChoice.Ours), repo.Path));
+
+        var bytes = await File.ReadAllBytesAsync(Path.Join(repo.Path, "file.txt"));
+        CollectionAssert.AreEqual(new byte[] { 0xEF, 0xBB, 0xBF }, bytes.Take(3).ToArray());
+    }
+
+    // TempRepo pins 'merge.conflictStyle' to 'merge', but a user may well have set diff3 or zdiff3,
+    // in which case git writes the common ancestor into the file itself and the parser has to read
+    // it. Note the label is a bare sha rather than a phrase, which is why nothing keys off its text.
+    [TestMethod]
+    public async Task TestZdiff3ConflictStyleIsParsedWithItsBase()
+    {
+        await repo.GitAsync("config merge.conflictStyle zdiff3");
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        var hunk = file.Hunks[0];
+
+        Assert.IsTrue(hunk.HasBase, "zdiff3 records the common ancestor in the file");
+        Assert.AreEqual("b\n", ConflictParser.ToText(hunk.Base));
+        Assert.AreNotEqual("", hunk.BaseLabel, "Git labels it with the merge base sha");
+    }
+
+    // Choosing a side must drop the '|||||||' section along with the markers
+    [TestMethod]
+    public async Task TestResolvingAZdiff3ConflictLeavesNoBaseSection()
+    {
+        await repo.GitAsync("config merge.conflictStyle zdiff3");
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        Ok(await repo.Git.WriteConflictFileAsync(ConflictParser.SetChoice(file, 0, HunkChoice.Ours), repo.Path));
+
+        Assert.AreEqual("a\nOURS\nc\n", await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
+        Assert.AreEqual(0, Value(await repo.Git.GetLeftoverMarkerPathsAsync(repo.Path)).Count);
+    }
+
+    [TestMethod]
+    public async Task TestUseWholeFileTakesOneSideAndResolvesIt()
+    {
+        await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        Ok(await repo.Git.UseWholeFileAsync("file.txt", isOurs: false, repo.Path));
+
+        Assert.AreEqual("a\nTHEIRS\nc\n", await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
+        Assert.AreEqual(0, Value(await repo.Git.GetStatusAsync(repo.Path)).Conflicted);
+    }
+
+    // Un-resolving puts the markers back, which git can do from the resolve-undo data in the index
+    // even after the path was staged
+    [TestMethod]
+    public async Task TestUnresolvePutsTheConflictBack()
+    {
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+        Ok(await repo.Git.WriteConflictFileAsync(ConflictParser.SetChoice(file, 0, HunkChoice.Ours), repo.Path));
+
+        Ok(await repo.Git.UnresolveAsync("file.txt", repo.Path));
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(1, status.Conflicted, "It is an unmerged path again");
+        StringAssert.Contains(await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")), "<<<<<<<");
+    }
+
+    // A path whose name contains glob characters, which '--' alone does not protect
+    [TestMethod]
+    public async Task TestPathWithGlobCharactersIsMatchedLiterally()
+    {
+        await repo.CommitFileAsync("a1.txt", "decoy\n", "Decoy");
+        await repo.CommitFileAsync("a[1].txt", "one\n", "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        await repo.CommitFileAsync("a[1].txt", "dev\n", "Dev work");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await repo.CommitFileAsync("a[1].txt", "main\n", "Main work");
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        Ok(await repo.Git.UseWholeFileAsync("a[1].txt", isOurs: true, repo.Path));
+
+        Assert.AreEqual(0, Value(await repo.Git.GetStatusAsync(repo.Path)).Conflicted);
+        Assert.AreEqual(
+            "decoy\n",
+            await File.ReadAllTextAsync(Path.Join(repo.Path, "a1.txt")),
+            "The decoy is untouched"
+        );
     }
 
     [TestMethod]

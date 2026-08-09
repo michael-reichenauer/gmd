@@ -143,6 +143,20 @@ internal class Git : IGit
     public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) =>
         conflictService.GetLeftoverMarkerPathsAsync(wd);
 
+    public Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd) =>
+        conflictService.GetConflictFileAsync(path, kind, wd);
+
+    public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => conflictService.WriteAsync(file, wd);
+
+    public Task<R> MarkResolvedAsync(string path, string wd) => conflictService.MarkResolvedAsync(path, wd);
+
+    public Task<R> UnresolveAsync(string path, string wd) => conflictService.UnresolveAsync(path, wd);
+
+    public Task<R> UseWholeFileAsync(string path, bool isOurs, string wd) =>
+        conflictService.UseWholeFileAsync(path, isOurs, wd);
+
+    public Task<R> DeleteConflictedAsync(string path, string wd) => conflictService.DeleteConflictedAsync(path, wd);
+
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
         branchService.CreateBranchAsync(name, isCheckout, wd);
 

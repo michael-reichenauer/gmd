@@ -152,6 +152,19 @@ class FakeGit : IGit
 
     public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) => throw new NotSupportedException();
 
+    public Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => throw new NotSupportedException();
+
+    public Task<R> MarkResolvedAsync(string path, string wd) => throw new NotSupportedException();
+
+    public Task<R> UnresolveAsync(string path, string wd) => throw new NotSupportedException();
+
+    public Task<R> UseWholeFileAsync(string path, bool isOurs, string wd) => throw new NotSupportedException();
+
+    public Task<R> DeleteConflictedAsync(string path, string wd) => throw new NotSupportedException();
+
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
 
     public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
