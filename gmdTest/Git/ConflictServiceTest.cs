@@ -159,6 +159,79 @@ public class ConflictServiceTest
         StringAssert.Contains(e.ErrorMessage, "stopped on more conflicts");
     }
 
+    // 'git diff --cached --check' reports whitespace problems as well as conflict markers, and
+    // exits non-zero for either. Gating on the exit code would therefore refuse a commit over a
+    // trailing space, so the lines are filtered instead. This is the test that says so.
+    [TestMethod]
+    public async Task TestWhitespaceProblemsAreNotConflictMarkers()
+    {
+        var cmd = new FakeCmd(
+            (_, _, _) => FakeCmd.Problems("f.txt:2: trailing whitespace.\n+b   \ng.txt:9: space before tab in indent.")
+        );
+
+        Assert.IsTrue(Try(out var paths, out var e, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        Assert.AreEqual(0, paths.Count, $"Whitespace is not a conflict marker: {string.Join(", ", paths)}");
+    }
+
+    [TestMethod]
+    public async Task TestLeftoverMarkerPathsAreNamedOncePerFile()
+    {
+        var cmd = new FakeCmd(
+            (_, _, _) =>
+                FakeCmd.Problems(
+                    "f.txt:1: leftover conflict marker\n"
+                        + "f.txt:3: leftover conflict marker\n"
+                        + "sub/g.txt:7: leftover conflict marker"
+                )
+        );
+
+        Assert.IsTrue(Try(out var paths, out var e, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        CollectionAssert.AreEqual(new[] { "f.txt", "sub/g.txt" }, paths.ToArray());
+        Assert.AreEqual("diff --cached --check", cmd.Calls[0].Args);
+    }
+
+    // Whitespace and markers together, which is what a half resolved file usually looks like
+    [TestMethod]
+    public async Task TestMarkersAreFoundAmongWhitespaceProblems()
+    {
+        var cmd = new FakeCmd(
+            (_, _, _) => FakeCmd.Problems("f.txt:2: trailing whitespace.\n+trail   \nf.txt:3: leftover conflict marker")
+        );
+
+        Assert.IsTrue(Try(out var paths, out var _, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        CollectionAssert.AreEqual(new[] { "f.txt" }, paths.ToArray());
+    }
+
+    // A path may itself contain a colon, so the line number is taken from the right
+    [TestMethod]
+    public async Task TestPathWithAColonInIt()
+    {
+        var cmd = new FakeCmd((_, _, _) => FakeCmd.Problems("od:d/f:1.txt:12: leftover conflict marker"));
+
+        Assert.IsTrue(Try(out var paths, out var _, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        CollectionAssert.AreEqual(new[] { "od:d/f:1.txt" }, paths.ToArray());
+    }
+
+    [TestMethod]
+    public async Task TestNothingStagedIsNoMarkers()
+    {
+        var cmd = new FakeCmd("");
+
+        Assert.IsTrue(Try(out var paths, out var _, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        Assert.AreEqual(0, paths.Count);
+    }
+
+    // Findings go to stdout; anything on stderr means the command itself did not run
+    [TestMethod]
+    public async Task TestARealFailureIsPropagated()
+    {
+        var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: not a git repository"));
+
+        var result = await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd);
+
+        Assert.IsFalse(Try(out var _, out var _, result));
+    }
+
     [TestMethod]
     public async Task TestContinueWithUnresolvedConflictsSaysWhatIsMissing()
     {

@@ -156,8 +156,14 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   operation away and puts the working folder back as it was.
   A merge has no *Continue* — committing is what finishes one — and only a
   rebase has commits to skip, so those items appear only where they apply.
-  Note that a commit is refused while any file is still unresolved, rather
-  than silently committing the `<<<<<<<` markers.
+  Pressing `C` during a rebase, an `am`, or a cherry pick or revert started
+  outside gmd offers **Continue** instead: committing there would make the one
+  commit git stopped on and leave the rest of the operation unapplied.
+  Both *Commit* and *Continue* check the conflicts first. A file that is still
+  unresolved stops them, naming it. So does a file marked resolved that still
+  contains `<<<<<<<` — marking resolved is only `git add`, and git does not
+  look at what it stages, so without the check those markers go into history.
+  That one can be overridden if it is really what you want.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on the

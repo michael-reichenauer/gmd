@@ -25,6 +25,7 @@ interface IRepoCommands
 
     string OperationName();
     string OperationSummary();
+    Task<bool> ConfirmConflictsResolvedAsync(string action);
     void AbortOperation();
     void ContinueOperation();
     void SkipOperationCommit();
@@ -226,6 +227,68 @@ class RepoCommands : IRepoCommands
         return text;
     }
 
+    // Whether it is safe to make a commit, i.e. whether the conflicts of an operation in progress
+    // really are resolved. Two separate things can be wrong, and only the first is git's own job:
+    //
+    //   - a path is still unmerged, which git would refuse anyway, but saying so here means the
+    //     user is not asked for a commit message first and refused after;
+    //   - a path was marked resolved with the conflict markers still in it. Marking resolved is
+    //     just 'git add', which does not look at what it stages, so this commits '<<<<<<<' into
+    //     history and neither git nor gmd's own staging guards catch it.
+    //
+    // 'action' names what is about to happen, for the button that overrides the second warning.
+    public async Task<bool> ConfirmConflictsResolvedAsync(string action)
+    {
+        if (repo.Repo.Status.Operation == GitOperation.None)
+            return true;
+
+        var conflicted = repo.Repo.Status.ConflictsFiles;
+        if (conflicted.Length > 0)
+        {
+            var text = UnresolvedText(conflicted, action);
+            if (UI.InfoMessage("Unresolved Conflicts", text, 0, ["Show Diff", "Cancel"]) == 0)
+                repo.CommitCmds.ShowUncommittedDiff();
+            return false;
+        }
+
+        if (!Try(out var marked, out var e, await server.GetLeftoverMarkerPathsAsync(repo.Path)))
+        {
+            Log.Warn($"Failed to check for conflict markers: {e}");
+            return true; // Never block a commit because the check itself broke
+        }
+        if (marked.Count == 0)
+            return true;
+
+        var choice = UI.InfoMessage(
+            "Conflict Markers Left",
+            MarkersText(marked),
+            2,
+            ["Show Diff", $"{action} Anyway", "Cancel"]
+        );
+        if (choice == 0)
+            repo.CommitCmds.ShowUncommittedDiff();
+
+        return choice == 1;
+    }
+
+    static string UnresolvedText(IReadOnlyList<string> paths, string action) =>
+        $"{Count(paths.Count, "file")} still {(paths.Count == 1 ? "has" : "have")} unresolved conflicts:\n\n"
+        + $"{FileList(paths)}\n\n"
+        + $"Resolve each one and mark it resolved, then {action.ToLower()}.";
+
+    static string MarkersText(IReadOnlyList<string> paths) =>
+        $"{Count(paths.Count, "file")} marked as resolved still {(paths.Count == 1 ? "contains" : "contain")} "
+        + $"conflict markers:\n\n"
+        + $"{FileList(paths)}\n\n"
+        + "Committing now would put the '<<<<<<<' markers into history.";
+
+    static string Count(int count, string noun) => $"{count} {noun}{(count == 1 ? "" : "s")}";
+
+    // At most a handful of names, so a long list does not push the buttons off the screen
+    static string FileList(IReadOnlyList<string> paths) =>
+        string.Join('\n', paths.Take(8).Select(p => $"  {p}"))
+        + (paths.Count > 8 ? $"\n  ... and {paths.Count - 8} more" : "");
+
     // Throws away everything the operation did and puts the working folder back as it was. It is
     // the only way out of a conflicted rebase, so it is worth confirming rather than a stray key.
     public void AbortOperation() =>
@@ -247,6 +310,10 @@ class RepoCommands : IRepoCommands
     public void ContinueOperation() =>
         Do(async () =>
         {
+            // Continuing is how a rebase makes its commit, so it needs the same gate as Commit
+            if (!await ConfirmConflictsResolvedAsync("Continue"))
+                return R.Ok;
+
             if (!Try(out var e, await server.ContinueOperationAsync(repo.Path)))
             {
                 Refresh(); // It may have got further before stopping again, so show where it is now

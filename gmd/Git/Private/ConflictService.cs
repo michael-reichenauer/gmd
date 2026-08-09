@@ -9,6 +9,7 @@ interface IConflictService
     Task<R> AbortOperationAsync(string wd);
     Task<R> ContinueOperationAsync(string wd);
     Task<R> SkipOperationAsync(string wd);
+    Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
 }
 
 class ConflictService : IConflictService
@@ -61,6 +62,42 @@ class ConflictService : IConflictService
             return e;
 
         return ToResult(await cmd.RunAsync("git", $"{NoEditor} {verb} --skip", wd), verb);
+    }
+
+    const string MarkerNote = ": leftover conflict marker";
+
+    // The staged files that still contain conflict markers. Marking a file resolved is just
+    // 'git add', and git does not look at what it is staging — so a file staged with '<<<<<<<'
+    // still in it commits the markers into history, which the guards on gmd's own staging cannot
+    // catch because the user (or a merge tool that gave up) staged it deliberately.
+    //
+    // 'git diff --cached --check' is git's own answer to this. Note it reports whitespace problems
+    // as well and exits non-zero for those too, so the *lines* have to be filtered rather than the
+    // exit code trusted — gating on the exit code alone would refuse a commit over a trailing
+    // space. Findings go to stdout; a real failure is what puts anything on stderr.
+    public async Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd)
+    {
+        var result = await cmd.RunAsync("git", "diff --cached --check", wd, skipLogError: true);
+        if (result.ErrorOutput != "")
+            return R.Error($"Failed to check for conflict markers\n{result.ErrorOutput}");
+
+        return result
+            .Output.Split('\n')
+            .Where(line => line.EndsWith(MarkerNote))
+            .Select(ToPath)
+            .Where(path => path != "")
+            .Distinct()
+            .ToList();
+    }
+
+    // 'some/file.txt:12: leftover conflict marker' -> 'some/file.txt'. Taken from the right, since
+    // a path may itself contain a colon.
+    static string ToPath(string line)
+    {
+        var text = line[..^MarkerNote.Length];
+        var lineNbrAt = text.LastIndexOf(':');
+
+        return lineNbrAt <= 0 ? "" : text[..lineNbrAt];
     }
 
     // The git sub command of whatever is in progress, i.e. what '--abort' and friends attach to

@@ -316,6 +316,8 @@ class Server : IServer
 
     public Task<R> SkipOperationAsync(string wd) => git.SkipOperationAsync(wd);
 
+    public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) => git.GetLeftoverMarkerPathsAsync(wd);
+
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
 

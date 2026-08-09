@@ -620,6 +620,48 @@ public class GitIntegrationTest
         Assert.AreEqual("Main work", (await repo.GitAsync("log -1 --pretty=%s")).Trim(), "'Dev work' was dropped");
     }
 
+    // Marking a file resolved is just 'git add', and git does not look at what it stages — so a
+    // file staged with the markers still in it commits '<<<<<<<' into history. Neither git nor the
+    // guards on gmd's own staging catch it, because the user staged it deliberately.
+    [TestMethod]
+    public async Task TestLeftoverMarkersInAFileStagedAsResolvedAreFound()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+        await repo.GitAsync("add file.txt"); // Marked resolved without removing the markers
+
+        var paths = Value(await repo.Git.GetLeftoverMarkerPathsAsync(repo.Path));
+
+        CollectionAssert.AreEqual(new[] { "file.txt" }, paths.ToArray());
+    }
+
+    [TestMethod]
+    public async Task TestNoLeftoverMarkersOnceTheFileIsReallyResolved()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+        repo.WriteFile("file.txt", "resolved\n");
+        await repo.GitAsync("add file.txt");
+
+        var paths = Value(await repo.Git.GetLeftoverMarkerPathsAsync(repo.Path));
+
+        Assert.AreEqual(0, paths.Count);
+    }
+
+    // 'git diff --cached --check' also reports whitespace problems, and exits non-zero for them
+    // too. Trusting the exit code would refuse an ordinary commit over a trailing space.
+    [TestMethod]
+    public async Task TestTrailingWhitespaceIsNotReportedAsAConflictMarker()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        repo.WriteFile("file.txt", "one\ntwo   \n");
+        await repo.GitAsync("add file.txt");
+
+        var paths = Value(await repo.Git.GetLeftoverMarkerPathsAsync(repo.Path));
+
+        Assert.AreEqual(0, paths.Count, "A trailing space must not block a commit");
+    }
+
     [TestMethod]
     public async Task TestCommitDiffRoundTrip()
     {

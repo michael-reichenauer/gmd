@@ -73,6 +73,7 @@ interface IServer
     Task<R> AbortOperationAsync(string wd);
     Task<R> ContinueOperationAsync(string wd);
     Task<R> SkipOperationAsync(string wd);
+    Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);

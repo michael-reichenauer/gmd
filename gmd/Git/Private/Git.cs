@@ -140,6 +140,9 @@ internal class Git : IGit
 
     public Task<R> SkipOperationAsync(string wd) => conflictService.SkipOperationAsync(wd);
 
+    public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) =>
+        conflictService.GetLeftoverMarkerPathsAsync(wd);
+
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) =>
         branchService.CreateBranchAsync(name, isCheckout, wd);
 

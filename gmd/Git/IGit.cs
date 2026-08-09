@@ -37,6 +37,7 @@ interface IGit
     Task<R> AbortOperationAsync(string wd);
     Task<R> ContinueOperationAsync(string wd);
     Task<R> SkipOperationAsync(string wd);
+    Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> RenameBranchAsync(string oldName, string newName, string wd);

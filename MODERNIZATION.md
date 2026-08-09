@@ -2029,8 +2029,7 @@ new service rather than an extension of `DiffRows`.
 
 - [x] **Step 1 — operation detection, and the two bugs it fixes.** See below.
 - [x] **Step 2 — abort *and continue*.** See below.
-- [ ] Step 3 — commit gating (`Status.Conflicted`, `git diff --cached --check`), and routing a
-      rebase to *Continue* rather than *Commit*.
+- [x] **Step 3 — commit gating, and routing a rebase to *Continue*.** See below.
 - [ ] Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.
 - [ ] Step 5 — the resolver view.
 - [ ] Step 6 — the base pane, via `checkout-index --stage=all --temp` + `merge-file --diff3`.
@@ -2149,3 +2148,48 @@ Continue refused with gmd's wording while unresolved, then advanced 1 of 2 → 2
 stopped on more conflicts, then finished, leaving `dev` rebased onto `main` with a clean tree and no
 rebase state; and a conflicted merge, whose menu section correctly offers only **Abort Merge**,
 confirmed first, leaving the working folder as it was.
+
+### Step 3 findings
+
+`RepoCommands.ConfirmConflictsResolvedAsync`, in front of both of the things that make a commit —
+`CommitCommands.CommitAsync` and `ContinueOperation` — plus `OfferContinueInsteadOfCommit`.
+
+- [x] **Marking a file resolved does not mean it is resolved.** Marking resolved is only `git add`,
+      and git does not look at what it stages, so a file staged with the markers still in it commits
+      `<<<<<<<` into history. Step 1's guards cannot catch this: they stop *gmd* from staging, and
+      here the user staged it deliberately — or a merge tool gave up half way. `git diff --cached
+      --check` is git's own answer, and it is what the second check runs.
+- [x] **Trusting `--check`'s exit code would refuse a commit over a trailing space.** It reports
+      whitespace problems as well as conflict markers and exits non-zero for either — verified, a
+      file with only trailing whitespace exits 2. So the *lines* are filtered for
+      `: leftover conflict marker` and the exit code is ignored. Findings go to stdout; stderr stays
+      empty, which is what tells a real failure apart from a finding. Both halves are pinned, the
+      whitespace one twice: with `FakeCmd` and against real git.
+- [x] **A rebase leaves HEAD detached, so `c` during one used to answer "Cannot commit in detached
+      head state. Please create/switch to a branch first."** True, and useless: the way out is to
+      continue the rebase, not to make a branch. The routing therefore runs *before* that check.
+- [x] **The check is skipped entirely when no operation is in progress**, so an ordinary commit runs
+      no extra git command and cannot be blocked by it. Verified by reading the log after a normal
+      commit — `diff --cached --check` does not appear.
+- [x] The gate is on `IRepoCommands` rather than duplicated, because continuing a rebase *is* how it
+      makes its commit and needs exactly the same two checks. `CommitCommands` reaches it through
+      `IViewRepo.Cmds`.
+- [x] Wording is per action: the same gate says "then commit" or "then continue" depending on which
+      called it, and the override button is `Commit Anyway` or `Continue Anyway`. The default button
+      on the marker warning is **Cancel**, since committing markers is the thing being prevented.
+- [x] `FakeCmd.Problems(output)` was added beside `Ok` and `Fail`: a command that reports problems
+      on *stdout* with a non-zero exit had no shape in the fake, and `Fail` puts its text on stderr.
+
+### Step 3 verified
+
+`./test` is green (639, up from 630). One run of the full suite failed a single E2E test which two
+later full runs and a standalone E2E run all passed — a timing flake, not tracked down further,
+noted here because it happened.
+
+By hand against the built binary under tmux with a redirected `HOME`: a file staged with the markers
+still in it, where Commit is stopped by **Conflict Markers Left** naming the file, *Show Diff* opens
+the uncommitted diff on it, and *Cancel* is the default; `c` during a rebase offering **Continue
+Rebase** rather than the detached head message; Continue then stopped by **Unresolved Conflicts**
+worded "then continue"; and after resolving, the rebase finishing from the same key, leaving `dev`
+rebased with a clean tree. Finally an ordinary commit of a modified and an untracked file, with
+trailing whitespace in one of them, going through untouched.

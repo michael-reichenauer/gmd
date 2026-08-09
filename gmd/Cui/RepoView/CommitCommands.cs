@@ -131,6 +131,12 @@ class CommitCommands : ICommitCommands
     // switch back off the target branch if the merge it staged there was actually committed.
     public async Task<R<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null)
     {
+        // Before the detached head check below, which a rebase would otherwise answer with
+        // "create/switch to a branch first" — a rebase does leave HEAD detached, so that message is
+        // both true and useless: the way out is to continue the rebase, not to make a branch.
+        if (!OfferContinueInsteadOfCommit())
+            return CommitResult.Cancelled;
+
         if (!isAmend && repo.Repo.Status.IsOk)
             return CommitResult.NothingToCommit;
         if (isAmend && !repo.Repo.CurrentCommit().IsAhead)
@@ -141,6 +147,10 @@ class CommitCommands : ICommitCommands
             UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
             return CommitResult.Cancelled;
         }
+
+        // Ahead of the dialog, so the user is not asked for a message and then refused
+        if (!await repo.Cmds.ConfirmConflictsResolvedAsync("Commit"))
+            return CommitResult.Cancelled;
 
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
@@ -154,6 +164,34 @@ class CommitCommands : ICommitCommands
         }
 
         return CommitResult.Committed;
+    }
+
+    // A rebase, an 'am', and a cherry pick or revert started outside gmd are finished by continuing
+    // them, not by committing: 'git commit' makes the commit git stopped on but leaves the
+    // operation mid flight, with its remaining commits never applied. So point at the command that
+    // does finish it. Returns false when it has answered for the commit.
+    //
+    // A merge is not one of these — committing is exactly how a merge is finished — and neither is
+    // gmd's own cherry pick, which runs '--no-commit' and so leaves no sequence to continue.
+    bool OfferContinueInsteadOfCommit()
+    {
+        var operation = repo.Repo.Status.Operation;
+        if (operation is not (GitOperation.Rebase or GitOperation.Am or GitOperation.CherryPick or GitOperation.Revert))
+            return true;
+
+        var name = repo.Cmds.OperationName();
+        var choice = UI.InfoMessage(
+            $"{name} In Progress",
+            $"A {name.ToLower()} is in progress.\n\n"
+                + $"It is finished with Continue {name}, not by committing:\n"
+                + "committing here would leave it part way through.",
+            0,
+            [$"Continue {name}", "Cancel"]
+        );
+        if (choice == 0)
+            repo.Cmds.ContinueOperation();
+
+        return false;
     }
 
     public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, "", isFromCommit);

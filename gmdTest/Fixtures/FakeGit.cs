@@ -150,6 +150,8 @@ class FakeGit : IGit
 
     public Task<R> SkipOperationAsync(string wd) => throw new NotSupportedException();
 
+    public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) => throw new NotSupportedException();
+
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
 
     public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>

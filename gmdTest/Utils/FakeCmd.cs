@@ -31,6 +31,11 @@ class FakeCmd : ICmd
     public static CmdResult Fail(string errorOutput, int exitCode = 1) =>
         new CmdResult("fake-cmd", exitCode, "", errorOutput);
 
+    // A non-zero exit whose findings are on stdout and whose stderr is empty, which is what a
+    // command that reports problems rather than failing looks like — 'git diff --check' is one.
+    public static CmdResult Problems(string output, int exitCode = 2) =>
+        new CmdResult("fake-cmd", exitCode, output, "");
+
     public CmdResult Command(
         string path,
         string args,
