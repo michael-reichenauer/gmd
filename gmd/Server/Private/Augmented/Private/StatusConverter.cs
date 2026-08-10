@@ -38,7 +38,7 @@ static class StatusConverter
 
     // Both switches are exhaustive and fail fast on an unmapped member, as ViewRepoConverter does,
     // so adding one to the Git enum and forgetting it here is loud rather than silent.
-    static GitOperation ToOperation(GitOperationKind operation) =>
+    public static GitOperation ToOperation(GitOperationKind operation) =>
         operation switch
         {
             GitOperationKind.None => GitOperation.None,

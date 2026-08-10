@@ -148,6 +148,13 @@ internal class Git : IGit
 
     public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => conflictService.WriteAsync(file, wd);
 
+    public Task<R> ResolveConflictFileAsync(
+        string path,
+        ConflictKind kind,
+        IReadOnlyList<HunkResolution> choices,
+        string wd
+    ) => conflictService.ResolveAsync(path, kind, choices, wd);
+
     public Task<R> MarkResolvedAsync(string path, string wd) => conflictService.MarkResolvedAsync(path, wd);
 
     public Task<R> UnresolveAsync(string path, string wd) => conflictService.UnresolveAsync(path, wd);

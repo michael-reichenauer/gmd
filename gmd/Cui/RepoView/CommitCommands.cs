@@ -245,9 +245,18 @@ class CommitCommands : ICommitCommands
                 return R.Error($"Failed to get diff", e);
             }
 
+            // Only the uncommitted diff can have conflicts, and reading them here keeps the await
+            // off the main loop — see the note on IDiffView.Show
+            var conflicts = ConflictState.None;
+            if (commitId == Repo.UncommittedId && !repo.Repo.Status.IsOk)
+            {
+                if (Try(out var state, out var _, await server.GetConflictStateAsync(repo.Path)))
+                    conflicts = state;
+            }
+
             UI.Post(() =>
             {
-                var rsp = diffView.Show(diffs[0], commitId, repo.Path, reload);
+                var rsp = diffView.Show(diffs[0], commitId, repo.Path, reload, conflicts);
                 if (rsp == DiffResult.Commit && !isFromCommit)
                 {
                     RefreshAndCommit();
@@ -348,7 +357,7 @@ class CommitCommands : ICommitCommands
                 return R.Error($"Failed to diff stash {name}", e);
             }
 
-            diffView.Show(diffs[0], name, repo.Path, reload);
+            diffView.Show(diffs[0], name, repo.Path, reload, ConflictState.None);
             return R.Ok;
         });
 

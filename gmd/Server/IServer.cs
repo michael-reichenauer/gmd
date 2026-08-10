@@ -74,6 +74,13 @@ interface IServer
     Task<R> ContinueOperationAsync(string wd);
     Task<R> SkipOperationAsync(string wd);
     Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
+    Task<R<ConflictState>> GetConflictStateAsync(string wd);
+    Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
+    Task<R> ResolveConflictFileAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
+    Task<R> UnresolveAsync(string path, string wd);
+    Task<R> UseWholeFileAsync(string path, bool isOurs, string wd);
+    Task<R> KeepConflictedFileAsync(string path, string wd);
+    Task<R> DeleteConflictedAsync(string path, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);

@@ -109,9 +109,10 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   **More Context** and **Less Context**, naming the file they would act on
   and what it would then show.
   `R` re-reads the diff from git, `S` scrolls to a file, `U` restores an
-  uncommitted file, `C` commits, `M` opens the menu, `←` `→` scroll the two
-  columns sideways and pick which one a selection copies from, `Ctrl-C`
-  copies the selected lines, and `Esc` or `Q` closes the view.
+  uncommitted file, `C` commits, `Enter` resolves a conflicted file, `M` opens
+  the menu, `←` `→` scroll the two columns sideways and pick which one a
+  selection copies from, `Ctrl-C` copies the selected lines, and `Esc` or `Q`
+  closes the view.
 - **Undo Options**:
   - **Restore Uncommitted File**: `git checkout --force -- <file-path>`
   - **Undo Commit**: `git revert --no-commit <commit-sha>`
@@ -144,6 +145,27 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   switches back once the merge is committed. Cancelling the commit, or a 
   merge that conflicts, leaves you on the target branch, which is where the 
   merge has to be finished.
+- **Resolve Conflicts** (`Enter` in the diff view):
+  Opens the conflicted file the cursor is on in the resolver, or the list of
+  them if the cursor is elsewhere. They are also under **Resolve Conflicts**
+  in the diff menu, which lists every conflicted file — including the ones the
+  diff cannot show, such as a file one side deleted or a binary file.
+  The resolver puts the two sides beside each other, titled with the names git
+  wrote into the markers (`HEAD` and `topic`, or a commit during a rebase)
+  rather than "ours" and "theirs", which mean the opposite of what you expect
+  while rebasing. Below them a pane shows what the conflict under the cursor
+  currently resolves to.
+  Within the view: `1` takes the left side, `2` the right, `3` both with the
+  left first, `4` both with the right first, `0` neither, and `U` un-decides.
+  `]` and `[` (or `N` and `P`) step between conflicts, `B` shows the common
+  ancestor as a third column where git recorded one, `←` `→` scroll all the
+  columns together, `A` resolves the whole file from one side or puts the
+  conflicts back, `M` opens the menu, and `S` saves and marks the file
+  resolved. Nothing is written until `S`, so closing without saving changes
+  nothing on disk — and closing with decisions unsaved asks first.
+  A file with no text to merge — binary, or deleted on one side — is not shown
+  in columns; it asks the one question it can, which for a deleted file is
+  whether to keep it or accept the deletion.
 - **Continue / Skip / Abort**:
   When a merge, rebase, cherry pick or revert stops on conflicts, the repo
   menu grows a section at the top naming what is in progress, how far it has

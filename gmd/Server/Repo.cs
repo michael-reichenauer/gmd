@@ -176,6 +176,15 @@ public enum ConflictKind
     DeletedByUs, // DU
 }
 
+// What is conflicted right now and what git is in the middle of, which is one status read rather
+// than two — the operation is what names the resolver and says which side is which.
+public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile> Files)
+{
+    public static readonly ConflictState None = new ConflictState(GitOperation.None, []);
+
+    public override string ToString() => $"{Operation}: {Files.Count} conflicts";
+}
+
 public record ConflictedFile(string Path, ConflictKind Kind)
 {
     public override string ToString() => $"{Kind} {Path}";
@@ -213,6 +222,66 @@ public record Status(
         new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, [], [], [], [], [], []);
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
+}
+
+// A conflicted file as the resolver shows it. Narrower than the Git layer's own model: the marker
+// lines, the BOM and the per line terminators of the file are write side concerns that stay down
+// there, so nothing here can get them wrong. What comes up is what is drawn.
+public record FileLine(string Text)
+{
+    public override string ToString() => Text;
+}
+
+// What the user chose for one conflict. None means it is still a conflict.
+public enum HunkChoice
+{
+    None,
+    Ours,
+    Theirs,
+    OursThenTheirs,
+    TheirsThenOurs,
+    Neither,
+    Manual,
+}
+
+// One conflict region. The labels are the names git wrote into the markers, e.g. 'HEAD' and
+// 'topic', which is what the view titles its columns with — during a rebase 'ours' and 'theirs'
+// mean the opposite of what is expected, and these do not.
+public record ConflictHunk(
+    int Index,
+    string OursLabel,
+    string BaseLabel,
+    string TheirsLabel,
+    IReadOnlyList<FileLine> Ours,
+    IReadOnlyList<FileLine> Base,
+    IReadOnlyList<FileLine> Theirs
+)
+{
+    public bool HasBase => Base.Count > 0;
+
+    public override string ToString() => $"{Index}: {OursLabel} vs {TheirsLabel}";
+}
+
+// Either text that is not in dispute, or a conflict
+public record ConflictSegment(IReadOnlyList<FileLine> Lines, ConflictHunk? Hunk)
+{
+    public override string ToString() => Hunk?.ToString() ?? $"{Lines.Count} lines";
+}
+
+public record ConflictFile(string Path, ConflictKind Kind, bool IsBinary, IReadOnlyList<ConflictSegment> Segments)
+{
+    public IReadOnlyList<ConflictHunk> Hunks => Segments.Select(s => s.Hunk).OfType<ConflictHunk>().ToList();
+
+    public override string ToString() => $"{Path} ({Kind}): {Hunks.Count} conflicts";
+}
+
+// What the user decided for one conflict, which is all that goes back down. The file itself is not
+// sent back: the Git layer re-reads it and applies these by position, so there is nothing to
+// convert in that direction and a file that changed on disk meanwhile is caught rather than
+// silently resolved against the wrong conflicts.
+public record HunkResolution(int Index, HunkChoice Choice, string ManualText = "")
+{
+    public override string ToString() => $"{Index}: {Choice}";
 }
 
 record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs)
@@ -276,6 +345,7 @@ enum DiffMode
     DiffSame,
     DiffConflicts,
     DiffConflictStart,
+    DiffConflictBase,
     DiffConflictSplit,
     DiffConflictEnd,
 }

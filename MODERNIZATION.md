@@ -2031,7 +2031,7 @@ new service rather than an extension of `DiffRows`.
 - [x] **Step 2 — abort *and continue*.** See below.
 - [x] **Step 3 — commit gating, and routing a rebase to *Continue*.** See below.
 - [x] **Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.** See below.
-- [ ] Step 5 — the resolver view.
+- [x] **Step 5 — the resolver view.** See below.
 - [ ] Step 6 — the base pane, via `checkout-index --stage=all --temp` + `merge-file --diff3`.
 - [ ] Step 7 — file-level resolutions (whole-file ours/theirs, `UD`/`DU`/`DD`, binary, un-resolve).
 - [ ] Step 8 — manual edit of a conflict region.
@@ -2255,3 +2255,67 @@ on screen before the key, so the wait is satisfied by the already-settled screen
 actually wait for the key to be processed. Under load the `Left` can then be sent first and `Enter`
 act on the wrong hoover. A real wait would be one for something that *changes* — the application bar
 going from `(main)` to `(dev)` once the branch is hoovered.
+
+### Step 5 findings
+
+`gmd/Cui/Conflict/` — `ConflictColumns`, `ConflictRows`, `ConflictResolution`, `ConflictRowService`
+and `ConflictView` — entered from the diff view with `Enter`, plus the Server layer mirror of the
+conflict model and the two diff display fixes.
+
+- [x] **`.Result` on the main loop deadlocks Terminal.Gui outright.** The first build read the
+      conflicted file with `server.GetConflictFileAsync(...).Result` from a key handler; the git
+      command completed, and gmd then hung with a blank screen. Terminal.Gui installs a
+      `SynchronizationContext` that posts an `await`'s continuation to the main loop, so blocking
+      that loop on the Task means the continuation can never run. Every git call in the resolver now
+      goes through `UI.RunInBackground`, and the two loads that must happen *before* a view opens are
+      awaited by the caller and passed in — which is why `IDiffView.Show` and `IConflictView.Show`
+      take what they need rather than fetching it.
+- [x] **`new Label(x, y, text)` fixes an absolute frame, so a `Pos.AnchorEnd` assigned afterwards is
+      silently ignored** — the result pane's rule was drawn at the top of the view, over the header.
+      The object initializer form (`new Label(text) { Y = Pos.AnchorEnd(n) }`) is the one that lays
+      out, which is what `CommitDetailsView` uses.
+- [x] **`Text.ToLine(width)` is not "pad to width" — it repeats the first character**, which is how
+      the divider rules are drawn. Padding a pane with it turned a line reading `a` into a row of
+      `aaaaaaa…`. `Subtext(startX, width, isFillRest: true)` is the padding one, as the diff view's
+      columns already use.
+- [x] **A modify/delete conflict has no "theirs" to check out.** `git checkout --theirs` on a `UD`
+      path answers `does not have their version` — verified — because stage 3 does not exist. The
+      first cut offered Keep Ours / Keep Theirs / Delete It, two thirds of which would have errored
+      every time. It now asks the one question that has an answer: keep the file, or accept the
+      deletion, worded by which side did which.
+- [x] **The model is mirrored one way and the decisions travel back down, not the file.** The Server
+      `ConflictFile` is genuinely narrower — no marker lines, no BOM, no per line terminators, since
+      those are write side concerns — so it is a narrowing rather than a rename, and there is no
+      second converter to get wrong. `ResolveAsync` re-reads the file and applies the decisions by
+      position, which also makes a file that changed on disk while the resolver was open a caught
+      error instead of a silent mis-resolve.
+- [x] **The conflicted file list comes from the status, not from the diff.** A modify/delete conflict
+      whose working tree copy matches HEAD produces *no diff at all*, so it cannot appear in a diff
+      derived list however the parser is fixed. Reading `git status` is what makes it offerable —
+      and reviving the long dead `SetConflictsFilesMode` in the Git layer's parser would never have
+      worked, which is why the classification is done in `Cui/Diff/DiffService` where the status is
+      reachable.
+- [x] **`+|||||||` was not recognised at all**, so a user whose `merge.conflictStyle` is `diff3` or
+      `zdiff3` has been seeing the common ancestor drawn as part of the 'ours' side, markers and
+      all. It is now its own `DiffMode.DiffConflictBase`, drawn dark across both columns since it
+      belongs to neither. Pinned with a fixture captured from real git.
+- [x] `Enter` on a row that is not a conflicted file opens the list rather than doing nothing, which
+      would read as a dropped keystroke — the diff view's cursor starts above the first file.
+- [x] The resolver's panes have no line number gutter, unlike the diff view's. A conflict is
+      identified by its number, and the width is better spent on the code; that is also why three
+      panes fit at 92 columns rather than the 89 the plan estimated with a gutter.
+- [x] Regenerating `TestDiffContextMenuItems` was expected and needed three edits, not one: the menu
+      grew by a row so the window had to grow with it, the last row is the *diff's* rule with the
+      menu's corner on top of it rather than the corner alone, and the `More/Less Context` color
+      check moved down a row. Raw string literals also require every line to carry the closing
+      delimiter's indentation, so a pasted-in screen row fails to compile until it is indented.
+
+### Step 5 verified
+
+`./test` is green (724). By hand against the built binary under tmux with a redirected `HOME`, on a
+repository with both a text conflict and a modify/delete: the diff menu listing both, the second
+named `gone.txt  (deleted by them)`; the resolver drawing the two sides titled `HEAD` and `dev` with
+the result pane below; `3` combining both sides, which the header, the conflict title and the result
+pane all reflect; `S` writing exactly that and staging it; the modify/delete asking whether to keep
+the file or accept the deletion; and the whole merge then committing to a clean tree with the file
+holding both sides in order.

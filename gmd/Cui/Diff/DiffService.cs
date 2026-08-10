@@ -11,7 +11,14 @@ interface IDiffService
 
     // fileContext names the files shown with something other than the default context, so their
     // headers can say so; the diff itself carries no record of how much context it was made with.
-    DiffRows ToDiffRows(CommitDiff[] commitDiffs, IReadOnlyDictionary<string, int> fileContext);
+    // conflictPaths are the files git reports as unmerged. Needed because the diff can only see a
+    // conflict git wrote markers for: a modify/delete or a binary conflict has none, and would
+    // otherwise be headed 'Added:' or 'Modified:' as if there were nothing to resolve.
+    DiffRows ToDiffRows(
+        CommitDiff[] commitDiffs,
+        IReadOnlyDictionary<string, int> fileContext,
+        IReadOnlyList<string> conflictPaths
+    );
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
 }
@@ -41,8 +48,16 @@ class DiffService : IDiffService
 
     public DiffRows ToDiffRows(CommitDiff[] commitDiffs) => ToDiffRows(commitDiffs, new Dictionary<string, int>());
 
-    public DiffRows ToDiffRows(CommitDiff[] commitDiffs, IReadOnlyDictionary<string, int> fileContext)
+    public DiffRows ToDiffRows(CommitDiff[] commitDiffs, IReadOnlyDictionary<string, int> fileContext) =>
+        ToDiffRows(commitDiffs, fileContext, []);
+
+    public DiffRows ToDiffRows(
+        CommitDiff[] commitDiffs,
+        IReadOnlyDictionary<string, int> fileContext,
+        IReadOnlyList<string> conflictPaths
+    )
     {
+        commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
         DiffRows rows = new DiffRows();
 
         if (commitDiffs.Length > 1)
@@ -122,6 +137,29 @@ class DiffService : IDiffService
     public IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff)
     {
         return diff.FileDiffs.Where(fd => fd.IsBinary).Select(fd => fd.PathAfter).ToList();
+    }
+
+    // Marks the files git reports as unmerged, which is what the dead SetConflictsFilesMode in the
+    // Git layer's parser used to try to do. Done here rather than there because this is the layer
+    // that has the status: the parser only ever sees the diff text.
+    static CommitDiff AsConflicted(CommitDiff diff, IReadOnlyList<string> conflictPaths)
+    {
+        if (conflictPaths.Count == 0)
+            return diff;
+
+        return diff with
+        {
+            FileDiffs = diff
+                .FileDiffs.Select(fd =>
+                    fd.DiffMode != DiffMode.DiffConflicts && conflictPaths.Contains(fd.PathAfter)
+                        ? fd with
+                        {
+                            DiffMode = DiffMode.DiffConflicts,
+                        }
+                        : fd
+                )
+                .ToList(),
+        };
     }
 
     static void AddCommitDiff(CommitDiff commitDiff, DiffRows rows, IReadOnlyDictionary<string, int> fileContext)
@@ -221,6 +259,15 @@ class DiffService : IDiffService
                     rows.Add(txt, txt);
                     break;
 
+                // The common ancestor of a 'diff3' or 'zdiff3' conflict. It belongs to neither
+                // side, so it is drawn dark across both columns rather than folded into 'ours',
+                // which is where it used to end up for want of being recognised at all.
+                case DiffMode.DiffConflictBase:
+                    diffMode = DiffMode.DiffConflictBase;
+                    AddBlocks(ref leftBlock, ref rightBlock, rows);
+                    rows.Add(Text.Dark("=== Common ancestor"));
+                    break;
+
                 case DiffMode.DiffConflictSplit:
                     diffMode = DiffMode.DiffConflictSplit;
                     break;
@@ -233,7 +280,11 @@ class DiffService : IDiffService
                     break;
 
                 case DiffMode.DiffRemoved:
-                    if (diffMode == DiffMode.DiffConflictStart)
+                    if (diffMode == DiffMode.DiffConflictBase)
+                    {
+                        rows.Add(Text.Dark(dl.Line));
+                    }
+                    else if (diffMode == DiffMode.DiffConflictStart)
                     {
                         leftBlock.Add(leftNr, dl.Line, Color.Yellow);
                     }
@@ -255,7 +306,11 @@ class DiffService : IDiffService
                     break;
 
                 case DiffMode.DiffAdded:
-                    if (diffMode == DiffMode.DiffConflictStart)
+                    if (diffMode == DiffMode.DiffConflictBase)
+                    {
+                        rows.Add(Text.Dark(dl.Line));
+                    }
+                    else if (diffMode == DiffMode.DiffConflictStart)
                     {
                         leftBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }
@@ -277,7 +332,11 @@ class DiffService : IDiffService
                     break;
 
                 case DiffMode.DiffSame:
-                    if (diffMode == DiffMode.DiffConflictStart)
+                    if (diffMode == DiffMode.DiffConflictBase)
+                    {
+                        rows.Add(Text.Dark(dl.Line));
+                    }
+                    else if (diffMode == DiffMode.DiffConflictStart)
                     {
                         leftBlock.Add(rightNr, dl.Line, Color.Yellow);
                     }

@@ -9,6 +9,7 @@ interface IViewRepoConverter
     CommitDiff ToCommitDiff(Git.CommitDiff gitCommitDiff);
     CommitDiff[] ToCommitDiffs(Git.CommitDiff[] gitCommitDiffs);
     Blame ToBlame(Git.Blame gitBlame);
+    ConflictFile ToConflictFile(Git.ConflictFile gitFile);
     Repo ToViewRepo(
         DateTime timeStamp,
         IReadOnlyList<Commit> viewCommits,
@@ -30,6 +31,67 @@ class ViewRepoConverter : IViewRepoConverter
         var d = gitCommitDiff;
         return new CommitDiff(d.Id, d.Author, d.Time, d.Message, ToFileDiffs(d.FileDiffs));
     }
+
+    // The Git layer's parsed file, narrowed to what is drawn: the marker lines and the per line
+    // terminators are not carried up, since only the writing side has any use for them.
+    public ConflictFile ToConflictFile(Git.ConflictFile f) =>
+        new ConflictFile(f.Path, ToConflictKind(f.Kind), f.IsBinary, f.Segments.Select(ToConflictSegment).ToList());
+
+    static ConflictSegment ToConflictSegment(Git.ConflictSegment s) =>
+        new ConflictSegment(ToFileLines(s.Lines), s.Hunk == null ? null : ToConflictHunk(s.Hunk));
+
+    static ConflictHunk ToConflictHunk(Git.ConflictHunk h) =>
+        new ConflictHunk(
+            h.Index,
+            h.OursLabel,
+            h.BaseLabel,
+            h.TheirsLabel,
+            ToFileLines(h.Ours),
+            ToFileLines(h.Base),
+            ToFileLines(h.Theirs)
+        );
+
+    static IReadOnlyList<FileLine> ToFileLines(IReadOnlyList<Git.FileLine> lines) =>
+        lines.Select(l => new FileLine(l.Text)).ToList();
+
+    public static ConflictKind ToConflictKind(Git.ConflictKind kind) =>
+        kind switch
+        {
+            Git.ConflictKind.BothModified => ConflictKind.BothModified,
+            Git.ConflictKind.BothAdded => ConflictKind.BothAdded,
+            Git.ConflictKind.BothDeleted => ConflictKind.BothDeleted,
+            Git.ConflictKind.AddedByUs => ConflictKind.AddedByUs,
+            Git.ConflictKind.AddedByThem => ConflictKind.AddedByThem,
+            Git.ConflictKind.DeletedByThem => ConflictKind.DeletedByThem,
+            Git.ConflictKind.DeletedByUs => ConflictKind.DeletedByUs,
+            _ => throw Asserter.FailFast($"Unknown conflict kind {kind}"),
+        };
+
+    public static Git.ConflictKind ToGitConflictKind(ConflictKind kind) =>
+        kind switch
+        {
+            ConflictKind.BothModified => Git.ConflictKind.BothModified,
+            ConflictKind.BothAdded => Git.ConflictKind.BothAdded,
+            ConflictKind.BothDeleted => Git.ConflictKind.BothDeleted,
+            ConflictKind.AddedByUs => Git.ConflictKind.AddedByUs,
+            ConflictKind.AddedByThem => Git.ConflictKind.AddedByThem,
+            ConflictKind.DeletedByThem => Git.ConflictKind.DeletedByThem,
+            ConflictKind.DeletedByUs => Git.ConflictKind.DeletedByUs,
+            _ => throw Asserter.FailFast($"Unknown conflict kind {kind}"),
+        };
+
+    public static Git.HunkChoice ToGitChoice(HunkChoice choice) =>
+        choice switch
+        {
+            HunkChoice.None => Git.HunkChoice.None,
+            HunkChoice.Ours => Git.HunkChoice.Ours,
+            HunkChoice.Theirs => Git.HunkChoice.Theirs,
+            HunkChoice.OursThenTheirs => Git.HunkChoice.OursThenTheirs,
+            HunkChoice.TheirsThenOurs => Git.HunkChoice.TheirsThenOurs,
+            HunkChoice.Neither => Git.HunkChoice.Neither,
+            HunkChoice.Manual => Git.HunkChoice.Manual,
+            _ => throw Asserter.FailFast($"Unknown choice {choice}"),
+        };
 
     public Blame ToBlame(Git.Blame gitBlame)
     {
@@ -101,6 +163,8 @@ class ViewRepoConverter : IViewRepoConverter
                 return DiffMode.DiffConflictSplit;
             case Git.DiffMode.DiffConflictStart:
                 return DiffMode.DiffConflictStart;
+            case Git.DiffMode.DiffConflictBase:
+                return DiffMode.DiffConflictBase;
             case Git.DiffMode.DiffModified:
                 return DiffMode.DiffModified;
             case Git.DiffMode.DiffRemoved:

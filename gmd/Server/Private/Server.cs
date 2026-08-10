@@ -318,6 +318,58 @@ class Server : IServer
 
     public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) => git.GetLeftoverMarkerPathsAsync(wd);
 
+    // The conflicted paths and what kind of conflict each is, which is what decides what can be
+    // offered for it. Read from the status rather than from a diff, so a conflict git wrote no
+    // markers for — a modify/delete, a binary file — is in the list like any other.
+    public async Task<R<ConflictState>> GetConflictStateAsync(string wd)
+    {
+        if (!Try(out var status, out var e, await git.GetStatusAsync(wd)))
+            return e;
+
+        return new ConflictState(
+            Augmented.Private.StatusConverter.ToOperation(status.Operation),
+            status.Conflicts.Select(c => new ConflictedFile(c.Path, ToConflictKind(c.Kind))).ToList()
+        );
+    }
+
+    public async Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
+    {
+        if (!Try(out var file, out var e, await git.GetConflictFileAsync(path, ToGitConflictKind(kind), wd)))
+            return e;
+
+        return converter.ToConflictFile(file);
+    }
+
+    public Task<R> ResolveConflictFileAsync(
+        string path,
+        ConflictKind kind,
+        IReadOnlyList<HunkResolution> choices,
+        string wd
+    ) =>
+        git.ResolveConflictFileAsync(
+            path,
+            ToGitConflictKind(kind),
+            choices
+                .Select(c => new Git.HunkResolution(c.Index, ViewRepoConverter.ToGitChoice(c.Choice), c.ManualText))
+                .ToList(),
+            wd
+        );
+
+    public Task<R> UnresolveAsync(string path, string wd) => git.UnresolveAsync(path, wd);
+
+    public Task<R> UseWholeFileAsync(string path, bool isOurs, string wd) => git.UseWholeFileAsync(path, isOurs, wd);
+
+    // Keeping a file one side deleted is the same act as marking any other conflict resolved
+    public Task<R> KeepConflictedFileAsync(string path, string wd) => git.MarkResolvedAsync(path, wd);
+
+    public Task<R> DeleteConflictedAsync(string path, string wd) => git.DeleteConflictedAsync(path, wd);
+
+    // Member for member switches rather than a cast between the two enums: a cast would keep
+    // compiling and start lying the day either one gains or reorders a member
+    static ConflictKind ToConflictKind(Git.ConflictKind kind) => ViewRepoConverter.ToConflictKind(kind);
+
+    static Git.ConflictKind ToGitConflictKind(ConflictKind kind) => ViewRepoConverter.ToGitConflictKind(kind);
+
     public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         git.DeleteLocalBranchAsync(name, isForced, wd);
 

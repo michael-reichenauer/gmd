@@ -15,6 +15,7 @@ interface IConflictService
 
     Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
     Task<R> WriteAsync(ConflictFile file, string wd);
+    Task<R> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
     Task<R> MarkResolvedAsync(string path, string wd);
     Task<R> UnresolveAsync(string path, string wd);
     Task<R> UseWholeFileAsync(string path, bool isOurs, string wd);
@@ -109,6 +110,33 @@ class ConflictService : IConflictService
             return R.Error($"{path} is not UTF-8 text, so it cannot be resolved here", e);
 
         return ConflictParser.Parse(path, kind, text, hasBom);
+    }
+
+    // Applies one decision per conflict, in order, and writes the file back.
+    //
+    // The file is re-read rather than passed back down, which is what makes the layer above able to
+    // hold a narrowed model with no markers in it. It also makes a file that changed on disk while
+    // the resolver was open a caught error rather than a silent mis-resolve: if it no longer has
+    // the same number of conflicts, the decisions no longer line up with them.
+    public async Task<R> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd)
+    {
+        if (!Try(out var file, out var e, await GetConflictFileAsync(path, kind, wd)))
+            return e;
+
+        if (file.Hunks.Count != choices.Count)
+            return R.Error(
+                $"{path} has changed on disk since it was opened "
+                    + $"({file.Hunks.Count} conflicts now, {choices.Count} before).\n\n"
+                    + "Close the resolver and open it again."
+            );
+
+        foreach (var choice in choices)
+        {
+            var manual = choice.Choice == HunkChoice.Manual ? ConflictParser.ToLines(choice.ManualText) : null;
+            file = ConflictParser.SetChoice(file, choice.Index, choice.Choice, manual);
+        }
+
+        return await WriteAsync(file, wd);
     }
 
     // Writes the resolved text back and marks the path resolved. Nothing about line endings is

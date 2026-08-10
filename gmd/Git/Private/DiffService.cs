@@ -443,6 +443,13 @@ class DiffService : IDiffService
         {
             return (new LineDiff(DiffMode.DiffConflictStart, AsConflictLine(lines[i++])), i, true);
         }
+        // The common ancestor section of the 'diff3' and 'zdiff3' conflict styles. Without this
+        // it falls through to '+' and is drawn as part of the 'ours' side, which is what a user
+        // with one of those styles set has been seeing.
+        if (lines[i].StartsWith("+|||||||"))
+        {
+            return (new LineDiff(DiffMode.DiffConflictBase, AsConflictLine(lines[i++])), i, true);
+        }
         if (lines[i].StartsWith("+======="))
         {
             return (new LineDiff(DiffMode.DiffConflictSplit, AsConflictLine(lines[i++])), i, true);

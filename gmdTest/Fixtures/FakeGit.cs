@@ -157,6 +157,13 @@ class FakeGit : IGit
 
     public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => throw new NotSupportedException();
 
+    public Task<R> ResolveConflictFileAsync(
+        string path,
+        ConflictKind kind,
+        IReadOnlyList<HunkResolution> choices,
+        string wd
+    ) => throw new NotSupportedException();
+
     public Task<R> MarkResolvedAsync(string path, string wd) => throw new NotSupportedException();
 
     public Task<R> UnresolveAsync(string path, string wd) => throw new NotSupportedException();

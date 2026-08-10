@@ -272,7 +272,7 @@ class BranchCommands : IBranchCommands
                 return R.Error($"Failed to get diff", e);
             }
 
-            diffView.Show(diffs[0], sha1, repo.Path, reload);
+            diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
             return R.Ok;
         });
 
@@ -302,7 +302,7 @@ class BranchCommands : IBranchCommands
                 return R.Error($"Failed to get diff", e);
             }
 
-            diffView.Show(diffs[0], sha1, repo.Path, reload);
+            diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
             return R.Ok;
         });
 

@@ -64,6 +64,13 @@ public record ConflictHunk(
     public override string ToString() => $"{Index}: {OursLabel} vs {TheirsLabel} ({Choice})";
 }
 
+// What the layer above decided for one conflict, sent back down by position rather than as a whole
+// file — see ConflictService.ResolveAsync.
+public record HunkResolution(int Index, HunkChoice Choice, string ManualText = "")
+{
+    public override string ToString() => $"{Index}: {Choice}";
+}
+
 // One part of a conflicted file: either text that is not in dispute, or a conflict. Exactly one of
 // the two is set — Hunk is null for the stable stretches, and Lines is empty for a conflict, whose
 // text lives in the hunk's three blocks.
