@@ -2033,7 +2033,7 @@ new service rather than an extension of `DiffRows`.
 - [x] **Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.** See below.
 - [x] **Step 5 — the resolver view.** See below.
 - [x] **Step 6 — the base pane.** See below.
-- [ ] Step 7 — file-level resolutions (whole-file ours/theirs, `UD`/`DU`/`DD`, binary, un-resolve).
+- [x] **Step 7 — file-level resolutions.** See below.
 - [ ] Step 8 — manual edit of a conflict region.
 - [ ] Step 9 — (optional) true inline editing, gated on a focus probe.
 - [ ] Step 10 — `gmd/doc/help.md`.
@@ -2248,7 +2248,9 @@ repository, a BOM, CRLF, and a path with glob characters in its name.
 
 **A pre-existing E2E flake was found while checking this and is *not* fixed here.**
 `TestShowAndHideBranchRoundTrip` failed once in Step 3 and once here, and passes in isolation and in
-three consecutive full runs of both this tree and an unmodified one. The cause looks like the test
+three consecutive full runs of both this tree and an unmodified one. `TestDiffOfACommit` then failed
+once in Step 7 in the same way — so it is a family rather than one test, and the diagnosis below
+fits both: neither waits for anything that the key it just sent would *change*. The cause looks like the test
 rather than the app: it does `Send("Down")` then `WaitFor("Merge branch")`, but that text is already
 on screen before the key, so the wait is satisfied by the already-settled screen and does not
 actually wait for the key to be processed. Under load the `Left` can then be sent first and `Enter`
@@ -2398,3 +2400,41 @@ is the shape of a bug that reads the environment.
 
 **The app was affected, not only the tests.** *Continue Rebase* from the repo menu would have hung
 gmd outright, with nothing on screen to say why, for any user with `GIT_EDITOR` set.
+
+### Step 7 findings
+
+What a file with no text to merge can be resolved to, decided from the sides that actually exist.
+
+- [x] **The options were derived from the conflict's kind, and that was wrong for four of the seven.**
+      `git checkout --theirs` on a path the other side deleted answers `does not have their version`,
+      so every offer of it was a command git would refuse. Step 5 fixed this by hand for `UD`/`DU`;
+      `AU`, `UA` and `DD` had the same hole. They are now decided from stages 2 and 3 of the index —
+      `ConflictFile.HasOurs` / `HasTheirs` — which covers all seven kinds and anything odd besides.
+- [x] **For `DD` the button did the opposite of what it said.** Both sides had removed the path, so
+      there was no version to keep, and *Keep the File* would have run `git add` — which for a path
+      with no working file **records the deletion**. It now offers only *Accept the Deletion*, and
+      says why: renamed on one side, or renamed differently on each.
+- [x] **`rename/rename` is how to reach the rare kinds**, and it produces all three at once: renaming
+      one file to two different names gives `AU` for our name, `UA` for theirs and `DD` for the old
+      one. Trying to make a `DD` the obvious way does not work — two sides deleting a file
+      identically is not a conflict at all, git merges it cleanly.
+- [x] The three shapes the dialog can take are now: **which side** (both exist — a binary file both
+      sides changed), **keep or delete** (one exists), and **accept the deletion** (neither does).
+      The explanatory sentence still names which side did what, since 'ours' and 'theirs' is exactly
+      the wrong way round to say it for a delete.
+- [x] Reading the stages costs one `git ls-files -u` per file opened, which also feeds the base pane.
+      Worth it for a dialog that cannot offer an impossible command.
+- [x] A binary conflict does have both sides in the index — it is `UU` with all three stages — so it
+      is a straight choice of version, and `checkout --ours/--theirs` restores it byte for byte.
+
+### Step 7 verified
+
+`./test` is green (744), including a run with `GIT_EDITOR` pointed at a blocking editor. By hand
+under tmux: a `rename/rename` merge, which is the hardest kind gmd can be shown, resolved entirely
+inside it — the three conflicts listed and named by kind, the old name offering only *Accept the
+Deletion*, each new name offering keep or delete with the right side named, and the merge then
+committed to a clean tree with both files present.
+
+`TestDiffOfACommit` failed once during this step and passed in isolation, in an E2E only run, and in
+two further full runs. It is the same flake family as `TestShowAndHideBranchRoundTrip`, recorded in
+Step 4 and still deliberately not fixed.

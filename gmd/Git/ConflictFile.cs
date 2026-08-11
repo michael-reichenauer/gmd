@@ -88,7 +88,13 @@ public record ConflictFile(
     ConflictKind Kind,
     bool IsBinary,
     bool HasBom,
-    IReadOnlyList<ConflictSegment> Segments
+    IReadOnlyList<ConflictSegment> Segments,
+    // Which sides the index actually holds, i.e. stages 2 and 3. Not every conflict has both: a
+    // file one side deleted has only the other, and a rename/rename leaves a path with neither.
+    // What can be offered for a file is decided from these rather than from its kind, so a command
+    // that git would refuse is never put in front of the user.
+    bool HasOurs = true,
+    bool HasTheirs = true
 )
 {
     public IReadOnlyList<ConflictHunk> Hunks => Segments.Select(s => s.Hunk).OfType<ConflictHunk>().ToList();

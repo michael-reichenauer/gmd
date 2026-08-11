@@ -84,21 +84,24 @@ class ConflictService : IConflictService
     // is what git takes verbatim once the path is marked resolved — including any hand edits.
     public async Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
     {
-        await Task.CompletedTask;
         var fullPath = System.IO.Path.Join(wd, path);
 
-        // A delete conflict has no file on one side, and a binary one has nothing to merge as text.
-        // Both are resolved whole file, so they are reported rather than parsed.
-        if (kind is ConflictKind.BothDeleted or ConflictKind.DeletedByUs && !File.Exists(fullPath))
-            return new ConflictFile(path, kind, false, false, []);
+        // Which sides exist decides what can be offered for the file, so it is read for every one
+        if (!Try(out var stages, out var e, await GetStagesAsync(path, wd)))
+            return e;
 
+        var hasOurs = stages.ContainsKey(2);
+        var hasTheirs = stages.ContainsKey(3);
+
+        // A file that is not there at all — both sides deleted it, or one did and this is that side
         if (!File.Exists(fullPath))
-            return R.Error($"File does not exist: {path}");
+            return new ConflictFile(path, kind, false, false, [], hasOurs, hasTheirs);
 
+        // Nothing to merge as text, so it is resolved whole file rather than parsed
         if (!Files.IsText(fullPath))
-            return new ConflictFile(path, kind, true, false, []);
+            return new ConflictFile(path, kind, true, false, [], hasOurs, hasTheirs);
 
-        if (!Try(out var bytes, out var e, () => File.ReadAllBytes(fullPath)))
+        if (!Try(out var bytes, out e, () => File.ReadAllBytes(fullPath)))
             return R.Error($"Failed to read {path}", e);
 
         var hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
@@ -109,7 +112,8 @@ class ConflictService : IConflictService
         if (!Try(out var text, out e, () => encoding.GetString(bytes, hasBom ? 3 : 0, bytes.Length - (hasBom ? 3 : 0))))
             return R.Error($"{path} is not UTF-8 text, so it cannot be resolved here", e);
 
-        return ConflictParser.Parse(path, kind, text, hasBom);
+        var parsed = ConflictParser.Parse(path, kind, text, hasBom);
+        return parsed with { HasOurs = hasOurs, HasTheirs = hasTheirs };
     }
 
     // Fills in the common ancestor of each conflict, i.e. what the base pane shows.

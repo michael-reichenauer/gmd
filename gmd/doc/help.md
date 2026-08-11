@@ -167,9 +167,13 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   conflicts back, `M` opens the menu, and `S` saves and marks the file
   resolved. Nothing is written until `S`, so closing without saving changes
   nothing on disk — and closing with decisions unsaved asks first.
-  A file with no text to merge — binary, or deleted on one side — is not shown
-  in columns; it asks the one question it can, which for a deleted file is
-  whether to keep it or accept the deletion.
+  A file with no text to merge is not shown in columns; it asks the one
+  question it can, and which question that is depends on which sides still
+  have the file. A binary file both sides changed asks which version to use.
+  A file only one side has — one side deleted it, or each renamed it
+  differently — asks whether to keep it or accept the deletion. A file neither
+  side has any longer can only be removed, and says so rather than offering a
+  version to keep that does not exist.
 - **Continue / Skip / Abort**:
   When a merge, rebase, cherry pick or revert stops on conflicts, the repo
   menu grows a section at the top naming what is in progress, how far it has

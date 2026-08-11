@@ -268,7 +268,17 @@ public record ConflictSegment(IReadOnlyList<FileLine> Lines, ConflictHunk? Hunk)
     public override string ToString() => Hunk?.ToString() ?? $"{Lines.Count} lines";
 }
 
-public record ConflictFile(string Path, ConflictKind Kind, bool IsBinary, IReadOnlyList<ConflictSegment> Segments)
+public record ConflictFile(
+    string Path,
+    ConflictKind Kind,
+    bool IsBinary,
+    IReadOnlyList<ConflictSegment> Segments,
+    // Which sides the index holds. A file one side deleted has only the other, and a rename against
+    // a rename leaves a path with neither — so what the resolver can offer is decided from these
+    // rather than guessed from the kind.
+    bool HasOurs,
+    bool HasTheirs
+)
 {
     public IReadOnlyList<ConflictHunk> Hunks => Segments.Select(s => s.Hunk).OfType<ConflictHunk>().ToList();
 

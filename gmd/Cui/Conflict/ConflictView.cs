@@ -388,15 +388,25 @@ class ConflictView : IConflictView
             ["Stay", "Close Anyway"]
         ) == 1;
 
-    // A file with no text to merge is resolved whole, and what "whole" means depends on the kind.
-    // A modify/delete has only one side in the index — 'git checkout --theirs' on a UD path answers
-    // "does not have their version" — so offering both sides there would be an error every time.
-    // The choice is keep it or accept the deletion.
+    // A file with no text to merge is resolved whole. What can be offered depends on which sides
+    // the index actually holds, not on the kind: 'git checkout --theirs' on a path the other side
+    // deleted answers "does not have their version", so offering both sides would be an error every
+    // time. A rename against a rename leaves a path with neither side, where the only thing left to
+    // say is that it is gone.
     bool ShowWholeFileChoice()
     {
-        if (IsDeleteConflict(file.Kind))
-            return ShowDeleteChoice();
+        if (!file.HasOurs && !file.HasTheirs)
+            return ShowGoneChoice();
 
+        if (file.HasOurs != file.HasTheirs)
+            return ShowKeepOrDeleteChoice();
+
+        return ShowSideChoice();
+    }
+
+    // Both sides exist, so the question is which one to take. A binary file is the usual case.
+    bool ShowSideChoice()
+    {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
             $"{file.Path} {WhyWholeFile()}, so it is resolved as a whole file.",
@@ -414,7 +424,8 @@ class ConflictView : IConflictView
         return true;
     }
 
-    bool ShowDeleteChoice()
+    // Only one side has the file, so it is kept as that side left it, or the deletion is accepted
+    bool ShowKeepOrDeleteChoice()
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -433,6 +444,26 @@ class ConflictView : IConflictView
         return true;
     }
 
+    // Neither side has it. There is no version to keep, so 'keep' is not offered — it would run the
+    // command that records the deletion, i.e. do the opposite of what it says.
+    bool ShowGoneChoice()
+    {
+        var choice = UI.InfoMessage(
+            $"Resolve {file.Path}",
+            $"{file.Path} is gone on both sides, but they did not remove it the same way\n"
+                + "— it was renamed on one side, or renamed differently on each.\n\n"
+                + "There is no version of it left to keep.",
+            1,
+            ["Accept the Deletion", "Cancel"]
+        );
+
+        if (choice != 0)
+            return false;
+
+        Run(() => server.DeleteConflictedAsync(file.Path, repoPath));
+        return true;
+    }
+
     string WhyWholeFile() => file.IsBinary ? "is binary" : "has no text conflicts";
 
     // Which side did what, since 'ours' and 'theirs' is exactly the wrong way round to say it here
@@ -441,12 +472,10 @@ class ConflictView : IConflictView
         {
             ConflictKind.DeletedByThem => $"{file.Path} was changed here but deleted on the other side.",
             ConflictKind.DeletedByUs => $"{file.Path} was deleted here but changed on the other side.",
-            ConflictKind.BothDeleted => $"{file.Path} was deleted on both sides, but not identically.",
-            _ => $"{file.Path} has no text to merge.",
+            ConflictKind.AddedByUs => $"{file.Path} was added here but is not on the other side.",
+            ConflictKind.AddedByThem => $"{file.Path} was added on the other side but is not here.",
+            _ => $"{file.Path} is only on one side.",
         } + "\n\nKeep it, or accept the deletion?";
-
-    static bool IsDeleteConflict(ConflictKind kind) =>
-        kind is ConflictKind.DeletedByUs or ConflictKind.DeletedByThem or ConflictKind.BothDeleted;
 
     void ShowWholeFileMenu()
     {
@@ -529,18 +558,8 @@ class ConflictView : IConflictView
 
     IEnumerable<Common.MenuItem> WholeFileItems() =>
         Menu
-            .Items.Item(
-                !IsDeleteConflict(file.Kind),
-                $"Use {OursLabel()} for the Whole File",
-                "",
-                () => UseWholeFile(true)
-            )
-            .Item(
-                !IsDeleteConflict(file.Kind),
-                $"Use {TheirsLabel()} for the Whole File",
-                "",
-                () => UseWholeFile(false)
-            )
+            .Items.Item(file.HasOurs, $"Use {OursLabel()} for the Whole File", "", () => UseWholeFile(true))
+            .Item(file.HasTheirs, $"Use {TheirsLabel()} for the Whole File", "", () => UseWholeFile(false))
             .Separator()
             .Item("Un-resolve This File", "", Unresolve);
 }

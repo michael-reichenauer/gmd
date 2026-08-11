@@ -21,7 +21,7 @@ public class ConflictResolutionTest
             );
         }
 
-        return new ConflictFile("f.txt", ConflictKind.BothModified, false, segments);
+        return new ConflictFile("f.txt", ConflictKind.BothModified, false, segments, true, true);
     }
 
     [TestMethod]

@@ -35,7 +35,14 @@ class ViewRepoConverter : IViewRepoConverter
     // The Git layer's parsed file, narrowed to what is drawn: the marker lines and the per line
     // terminators are not carried up, since only the writing side has any use for them.
     public ConflictFile ToConflictFile(Git.ConflictFile f) =>
-        new ConflictFile(f.Path, ToConflictKind(f.Kind), f.IsBinary, f.Segments.Select(ToConflictSegment).ToList());
+        new ConflictFile(
+            f.Path,
+            ToConflictKind(f.Kind),
+            f.IsBinary,
+            f.Segments.Select(ToConflictSegment).ToList(),
+            f.HasOurs,
+            f.HasTheirs
+        );
 
     static ConflictSegment ToConflictSegment(Git.ConflictSegment s) =>
         new ConflictSegment(ToFileLines(s.Lines), s.Hunk == null ? null : ToConflictHunk(s.Hunk));

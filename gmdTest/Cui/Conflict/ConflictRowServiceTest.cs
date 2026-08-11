@@ -31,7 +31,9 @@ public class ConflictRowServiceTest
                     )
                 ),
                 new ConflictSegment(Lines("b"), null),
-            ]
+            ],
+            true,
+            true
         );
 
     static string Draw(ConflictFile file, ConflictResolution resolution, int width, bool isShowBase = false)
@@ -99,7 +101,9 @@ public class ConflictRowServiceTest
                     new ConflictHunk(0, "HEAD", "9c2f1a", "topic", Lines("ours"), Lines("base"), Lines("theirs"))
                 ),
                 new ConflictSegment([], new ConflictHunk(1, "HEAD", "", "topic", Lines("o2"), [], Lines("t2"))),
-            ]
+            ],
+            true,
+            true
         );
 
         Assert.AreEqual(
@@ -161,7 +165,9 @@ public class ConflictRowServiceTest
             "f.txt",
             ConflictKind.BothModified,
             false,
-            [new ConflictSegment([], new ConflictHunk(0, "HEAD", "", "topic", Lines("o1", "o2"), [], Lines("t1")))]
+            [new ConflictSegment([], new ConflictHunk(0, "HEAD", "", "topic", Lines("o1", "o2"), [], Lines("t1")))],
+            true,
+            true
         );
 
         Assert.AreEqual(

@@ -975,6 +975,133 @@ public class GitIntegrationTest
         Assert.AreEqual("\r\n", withBase.Hunks[0].Base[0].Eol, "And the terminator survived");
     }
 
+    // ---- the kinds with only one side, or none ----
+
+    // Renaming the same file to two different names produces the three awkward kinds at once:
+    // 'AU' for our new name, 'UA' for theirs, and 'DD' for the old one that is now on neither side.
+    async Task RenameRenameAsync()
+    {
+        await repo.CommitFileAsync("file.txt", string.Join('\n', Enumerable.Range(1, 20)) + "\n", "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        await repo.GitAsync("mv file.txt theirs.txt");
+        await repo.CommitAsync("Dev renames");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await repo.GitAsync("mv file.txt ours.txt");
+        await repo.CommitAsync("Main renames");
+        await repo.GitAllowFailAsync("merge dev");
+    }
+
+    // A file only one side has must not be offered the side that does not exist: 'git checkout
+    // --theirs' on it answers "does not have their version", so the resolver asks whether to keep
+    // it or accept the deletion instead of offering a command git would refuse.
+    [TestMethod]
+    public async Task TestAFileAddedByUsHasOnlyOurSide()
+    {
+        await RenameRenameAsync();
+
+        var file = Value(await repo.Git.GetConflictFileAsync("ours.txt", ConflictKind.AddedByUs, repo.Path));
+
+        Assert.IsTrue(file.HasOurs);
+        Assert.IsFalse(file.HasTheirs, "The other side renamed it to something else");
+        Assert.AreEqual(0, file.Hunks.Count, "No markers, so it is a whole file question");
+    }
+
+    [TestMethod]
+    public async Task TestAFileAddedByThemHasOnlyTheirSide()
+    {
+        await RenameRenameAsync();
+
+        var file = Value(await repo.Git.GetConflictFileAsync("theirs.txt", ConflictKind.AddedByThem, repo.Path));
+
+        Assert.IsFalse(file.HasOurs);
+        Assert.IsTrue(file.HasTheirs);
+    }
+
+    // The old name is on neither side, so there is no version of it left to keep — the resolver
+    // offers only to accept the deletion, and 'git add' there would record it rather than keep it
+    [TestMethod]
+    public async Task TestTheOldNameHasNeitherSide()
+    {
+        await RenameRenameAsync();
+
+        var file = Value(await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothDeleted, repo.Path));
+
+        Assert.IsFalse(file.HasOurs);
+        Assert.IsFalse(file.HasTheirs);
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, "file.txt")), "And it is not in the working folder");
+    }
+
+    [TestMethod]
+    public async Task TestAcceptingTheDeletionOfAPathWithNeitherSide()
+    {
+        await RenameRenameAsync();
+
+        Ok(await repo.Git.DeleteConflictedAsync("file.txt", repo.Path));
+
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain -- file.txt"));
+    }
+
+    [TestMethod]
+    public async Task TestKeepingAFileOnlyOneSideHas()
+    {
+        await RenameRenameAsync();
+
+        Ok(await repo.Git.MarkResolvedAsync("ours.txt", repo.Path));
+
+        // Nothing to report for it: our side already committed this name, so staging it makes the
+        // index match HEAD again. What matters is that it is no longer unmerged and still there.
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain -- ours.txt"));
+        Assert.AreEqual("", await repo.GitAsync("ls-files -u -- ours.txt"), "No longer unmerged");
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, "ours.txt")), "The file is still there");
+    }
+
+    // ---- binary ----
+
+    // A binary conflict has both sides in the index but nothing to merge as text, so it is a choice
+    // of whole file. Git leaves our version in the working folder.
+    [TestMethod]
+    public async Task TestABinaryConflictOffersBothSidesAndNoHunks()
+    {
+        await repo.CommitFileAsync("seed.txt", "seed\n", "Initial");
+        await WriteBinaryAndCommitAsync("bin.dat", [0x00, 0x01, 0x42, 0x00], "Add binary");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        await WriteBinaryAndCommitAsync("bin.dat", [0x00, 0x01, 0x54, 0x00, 0x02], "Dev binary");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await WriteBinaryAndCommitAsync("bin.dat", [0x00, 0x01, 0x4F, 0x00, 0x03], "Main binary");
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        var file = Value(await repo.Git.GetConflictFileAsync("bin.dat", ConflictKind.BothModified, repo.Path));
+
+        Assert.IsTrue(file.IsBinary, "So the resolver asks rather than drawing empty columns");
+        Assert.IsTrue(file.HasOurs);
+        Assert.IsTrue(file.HasTheirs);
+        Assert.AreEqual(0, file.Hunks.Count);
+    }
+
+    [TestMethod]
+    public async Task TestUseWholeFileOnABinaryConflict()
+    {
+        await repo.CommitFileAsync("seed.txt", "seed\n", "Initial");
+        await WriteBinaryAndCommitAsync("bin.dat", [0x00, 0x42], "Add binary");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        await WriteBinaryAndCommitAsync("bin.dat", [0x00, 0x54, 0x54], "Dev binary");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await WriteBinaryAndCommitAsync("bin.dat", [0x00, 0x4F, 0x4F], "Main binary");
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        Ok(await repo.Git.UseWholeFileAsync("bin.dat", isOurs: false, repo.Path));
+
+        var bytes = await File.ReadAllBytesAsync(Path.Join(repo.Path, "bin.dat"));
+        CollectionAssert.AreEqual(new byte[] { 0x00, 0x54, 0x54 }, bytes, "Their version, byte for byte");
+        Assert.AreEqual(0, Value(await repo.Git.GetStatusAsync(repo.Path)).Conflicted);
+    }
+
+    async Task WriteBinaryAndCommitAsync(string name, byte[] bytes, string message)
+    {
+        await File.WriteAllBytesAsync(Path.Join(repo.Path, name), bytes);
+        await repo.CommitAsync(message);
+    }
+
     [TestMethod]
     public async Task TestUseWholeFileTakesOneSideAndResolvesIt()
     {
