@@ -554,6 +554,59 @@ public class GitIntegrationTest
         Assert.AreEqual("Dev work", (await repo.GitAsync("log -1 --pretty=%s")).Trim());
     }
 
+    // The regression test for a hang, and it has to set a real blocking editor to be worth anything.
+    //
+    // 'git rebase --continue' opens an editor on the commit message, and GIT_EDITOR takes precedence
+    // over core.editor — so passing '-c core.editor=true' looked like it prevented that and did
+    // nothing at all for any user who has GIT_EDITOR set, which VS Code does ('code --wait'). gmd
+    // owns the terminal, so the editor never appears and the application simply freezes.
+    //
+    // This was invisible in development because the shell used there happened to have
+    // GIT_EDITOR=true already, i.e. the very thing being tested was supplied by the environment.
+    [TestMethod]
+    public async Task TestContinueDoesNotOpenAnEditorEvenWhenGitEditorIsSet()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("The blocking editor this needs is a shell script");
+
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+        repo.WriteFile("file.txt", "resolved\n");
+        await repo.GitAsync("add file.txt");
+
+        // An editor that never returns, which is what 'vi' or 'code --wait' is to a process with no
+        // terminal of its own. Restored afterwards, since it is inherited by every later child.
+        var before = Environment.GetEnvironmentVariable("GIT_EDITOR");
+        Environment.SetEnvironmentVariable("GIT_EDITOR", BlockingEditor());
+        try
+        {
+            var continued = repo.Git.ContinueOperationAsync(repo.Path);
+            var finished = await Task.WhenAny(continued, Task.Delay(TimeSpan.FromSeconds(30)));
+
+            Assert.AreSame(continued, finished, "'rebase --continue' hung waiting for an editor");
+            Assert.IsTrue(Try(out var e, await continued), $"{e}");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("GIT_EDITOR", before);
+        }
+
+        Assert.AreEqual(GitOperation.None, Value(await repo.Git.GetStatusAsync(repo.Path)).Operation);
+    }
+
+    // A command that blocks for longer than the test would wait, written into the repo so it is
+    // cleaned up with it
+    string BlockingEditor()
+    {
+        var path = Path.Join(repo.Path, "blocking-editor.sh");
+        File.WriteAllText(path, "#!/bin/sh\nexec sleep 300\n");
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        return path;
+    }
+
     // The editor '--continue' would otherwise open would hang gmd behind the terminal it owns
     [TestMethod]
     public async Task TestContinueOfACherryPickDoesNotOpenAnEditor()

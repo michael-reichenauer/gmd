@@ -80,18 +80,18 @@ public class ConflictServiceTest
         Assert.AreEqual(0, cmd.Calls.Count, "Nothing to abort, so git is not run at all");
     }
 
-    // '--continue' opens an editor on the commit message by default, which would hang gmd behind
-    // the terminal it owns. ICmd cannot pass environment variables, so GIT_EDITOR is out and the
-    // same thing is said as config instead.
+    // Nothing on the command line stops the editor: GIT_EDITOR beats '-c core.editor=...', so it is
+    // done in the environment of every git process instead. See Cmd.NeverOpenAnEditor, and
+    // TestContinueDoesNotOpenAnEditorEvenWhenGitEditorIsSet for the one that proves it.
     [TestMethod]
-    public async Task TestContinueDisablesTheEditor()
+    public async Task TestContinueUsesThePlainCommand()
     {
         MakeGitDir("rebase-merge");
         var cmd = new FakeCmd("");
 
         Assert.IsTrue(Try(out var e, await new ConflictService(cmd).ContinueOperationAsync(wd)), $"{e}");
 
-        Assert.AreEqual("-c core.editor=true rebase --continue", cmd.Calls[0].Args);
+        Assert.AreEqual("rebase --continue", cmd.Calls[0].Args);
     }
 
     [TestMethod]
@@ -102,7 +102,7 @@ public class ConflictServiceTest
 
         await new ConflictService(cmd).ContinueOperationAsync(wd);
 
-        Assert.AreEqual("-c core.editor=true cherry-pick --continue", cmd.Calls[0].Args);
+        Assert.AreEqual("cherry-pick --continue", cmd.Calls[0].Args);
     }
 
     // A merge is finished by committing it, which is a different command with a dialog behind it
@@ -128,7 +128,7 @@ public class ConflictServiceTest
 
         await new ConflictService(cmd).SkipOperationAsync(wd);
 
-        Assert.AreEqual("-c core.editor=true rebase --skip", cmd.Calls[0].Args);
+        Assert.AreEqual("rebase --skip", cmd.Calls[0].Args);
     }
 
     [TestMethod]

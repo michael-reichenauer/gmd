@@ -25,12 +25,11 @@ interface IConflictService
 
 class ConflictService : IConflictService
 {
-    // 'git rebase --continue' and its siblings open an editor on the commit message, which would
-    // hang gmd behind the terminal it owns. ICmd cannot pass environment variables, so GIT_EDITOR
-    // is out; '-c core.editor=true' is the same thing said as config, and 'true' is a program that
-    // exits 0 without writing, i.e. "accept the message as it stands".
-    const string NoEditor = "-c core.editor=true";
-
+    // '--continue' and '--skip' open an editor on the commit message, which would hang gmd behind
+    // the terminal it owns. Nothing is passed here to prevent that: Cmd stops every git process it
+    // starts from opening one at all, which is the only place it can be done reliably — GIT_EDITOR
+    // beats '-c core.editor=...', so a command line flag is silently ineffective for any user who
+    // has that set. See Cmd.NeverOpenAnEditor.
     readonly ICmd cmd;
 
     public ConflictService(ICmd cmd)
@@ -58,7 +57,7 @@ class ConflictService : IConflictService
         if (!Try(out var verb, out var e, OperationVerb(wd)))
             return e;
 
-        return ToResult(await cmd.RunAsync("git", $"{NoEditor} {verb} --continue", wd), verb);
+        return ToResult(await cmd.RunAsync("git", $"{verb} --continue", wd), verb);
     }
 
     public async Task<R> SkipOperationAsync(string wd)
@@ -72,7 +71,7 @@ class ConflictService : IConflictService
         if (!Try(out var verb, out var e, OperationVerb(wd)))
             return e;
 
-        return ToResult(await cmd.RunAsync("git", $"{NoEditor} {verb} --skip", wd), verb);
+        return ToResult(await cmd.RunAsync("git", $"{verb} --skip", wd), verb);
     }
 
     // A pathspec, not a bare path: '--' stops options being parsed but does *not* stop globbing, so

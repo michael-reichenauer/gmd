@@ -2118,10 +2118,9 @@ operation as e.g. `Rebase 'dev' (1 of 2)  ·  1 conflict`.
       rebase "commit" is the wrong verb entirely — `git commit` makes the commit but leaves the
       rebase mid flight with its remaining commits unapplied — so a conflicted rebase started in gmd
       could only be finished by leaving for a console. That, rather than abort, was the real gap.
-- [x] **`--continue` opens an editor, which would hang gmd behind the terminal it owns.** `ICmd`
-      cannot pass environment variables, so `GIT_EDITOR` is out; `-c core.editor=true` says the same
-      thing as config, `true` being a program that exits 0 without writing. Verified for both
-      `rebase --continue` and `cherry-pick --continue`.
+- [x] **`--continue` opens an editor, which would hang gmd behind the terminal it owns.** The first
+      fix for this was `-c core.editor=true` on the command line, and **it was ineffective** — see
+      the Step 2 correction below.
 - [x] **Stopping again is success, not failure.** A rebase over several commits stops on each one
       that conflicts, and `--continue` then exits non-zero with `CONFLICT` in its output — the same
       shape as being refused because nothing was resolved (`needs merge` / `You must edit all merge
@@ -2370,3 +2369,32 @@ to 120 bringing it back; and a conflict resolved and saved with the pane open.
 One thing that looked like a bug and was not: a keystroke sent immediately after `tmux
 resize-window` is dropped, so a resolve appeared to save nothing. That is the "never send a key into
 a screen that has not settled" trap in this document, on the driving side rather than in the app.
+
+### Step 2 correction — the editor guard was in the wrong place
+
+**Reported by the user: `./test` hangs.** It hung for them and passed here, several times over, which
+is the shape of a bug that reads the environment.
+
+- [x] **`GIT_EDITOR` takes precedence over `core.editor`, so `-c core.editor=true` prevented
+      nothing** for anyone who has it set — and VS Code sets it, to `code --wait`. `git rebase
+      --continue` then waits for an editor that gmd, owning the terminal, never lets appear. Proven
+      rather than reasoned about: `GIT_EDITOR='sleep 300' git -c core.editor=true var GIT_EDITOR`
+      answers `sleep 300`, and the same command against a real blocking editor sat until it was
+      killed.
+- [x] **This was invisible here because the development shell already had `GIT_EDITOR=true` set**,
+      i.e. the environment was quietly supplying the very thing being tested. Every run passed, and
+      the two `TempRepo` folders the user's hung run left behind — both stopped mid rebase with the
+      file staged, exactly where `--continue` is called — were what identified it.
+- [x] **It is fixed in `Cmd`, not in the command**: `NeverOpenAnEditor` puts `GIT_EDITOR=true` and
+      `GIT_SEQUENCE_EDITOR=true` into the environment of every process gmd starts. That is the only
+      place it can be done reliably, and it is right for all of them rather than for one command —
+      gmd owns the terminal, so no child of it may ever open an editor. The `-c core.editor=true` is
+      gone rather than kept as a second line of defence: it implied a protection it did not give.
+- [x] **The regression test sets a genuinely blocking editor** (`sleep 300`) into the test process's
+      own environment and fails if the call has not returned in thirty seconds. Confirmed to fail
+      without the fix, with the message `'rebase --continue' hung waiting for an editor`.
+- [x] The whole suite was then run once more with `GIT_EDITOR` pointed at that blocking editor, i.e.
+      under the conditions that hung for the user: 737 green.
+
+**The app was affected, not only the tests.** *Continue Rebase* from the repo menu would have hung
+gmd outright, with nothing on screen to say why, for any user with `GIT_EDITOR` set.
