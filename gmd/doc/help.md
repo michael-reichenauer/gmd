@@ -158,7 +158,11 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   Within the view: `1` takes the left side, `2` the right, `3` both with the
   left first, `4` both with the right first, `0` neither, and `U` un-decides.
   `]` and `[` (or `N` and `P`) step between conflicts, `B` shows the common
-  ancestor as a third column where git recorded one, `←` `→` scroll all the
+  ancestor as a third column — the version both sides started from, which is
+  usually what settles which change to keep. Git only records it in the file
+  when `merge.conflictStyle` is `diff3` or `zdiff3`, so otherwise gmd works it
+  out on demand from the staged versions, without touching your files. A file
+  both sides created has no ancestor, and says so. `←` `→` scroll all the
   columns together, `A` resolves the whole file from one side or puts the
   conflicts back, `M` opens the menu, and `S` saves and marks the file
   resolved. Nothing is written until `S`, so closing without saving changes

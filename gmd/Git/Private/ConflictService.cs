@@ -14,6 +14,7 @@ interface IConflictService
     Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
 
     Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
+    Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd);
     Task<R> WriteAsync(ConflictFile file, string wd);
     Task<R> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
     Task<R> MarkResolvedAsync(string path, string wd);
@@ -110,6 +111,106 @@ class ConflictService : IConflictService
             return R.Error($"{path} is not UTF-8 text, so it cannot be resolved here", e);
 
         return ConflictParser.Parse(path, kind, text, hasBom);
+    }
+
+    // Fills in the common ancestor of each conflict, i.e. what the base pane shows.
+    //
+    // The default 'merge' conflict style records no ancestor in the file, so it has to be recovered
+    // by re-running the merge with '--diff3' over the three index stages and taking the base blocks
+    // out of the result. It is display only: nothing here is ever written back to the file.
+    //
+    // Nothing touches the working tree. 'git unpack-file' writes its temp file into the *current
+    // directory* and returns its name, so pointing that at a scratch folder inside the git dir keeps
+    // the whole thing out of the user's sight — where 'git checkout-index --temp' would have been
+    // the obvious tool but always writes to the worktree root, whatever its cwd, and those files
+    // show up as untracked in the very status gmd is displaying.
+    public async Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd)
+    {
+        // Already there: the user's conflict style is 'diff3' or 'zdiff3', so git wrote it into the
+        // file itself and it is aligned by construction
+        if (file.Hunks.Count == 0 || file.Hunks.Any(h => h.HasBase))
+            return file;
+
+        if (!Try(out var stages, out var e, await GetStagesAsync(file.Path, wd)))
+            return e;
+
+        // An add/add conflict has no stage 1: both sides created the file, so there is no ancestor
+        if (!stages.TryGetValue(1, out var baseSha) || !stages.ContainsKey(2) || !stages.ContainsKey(3))
+            return file;
+
+        var tempDir = System.IO.Path.Join(StatusService.GetGitDir(wd), $"gmd-conflict-{Guid.NewGuid():N}");
+        if (!Try(out e, () => Directory.CreateDirectory(tempDir)))
+            return R.Error("Failed to create a scratch folder", e);
+
+        try
+        {
+            if (!Try(out var merged, out e, await MergeWithBaseAsync(stages, baseSha, tempDir)))
+                return e;
+
+            // Mapped by the lines each conflict covers rather than by position: '--diff3' groups
+            // conflicts differently from the merge that wrote the file, so the two do not
+            // necessarily have the same number of them. See SetBasesFrom.
+            return ConflictParser.SetBasesFrom(file, ConflictParser.Parse(file.Path, file.Kind, merged));
+        }
+        finally
+        {
+            Try(out var _, () => Directory.Delete(tempDir, true));
+        }
+    }
+
+    // The blob of each stage of an unmerged path, keyed on stage number
+    async Task<R<IReadOnlyDictionary<int, string>>> GetStagesAsync(string path, string wd)
+    {
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", $"ls-files -u {Spec(path)}", wd)))
+            return e;
+
+        var stages = new Dictionary<int, string>();
+        foreach (var line in output.Split('\n'))
+        {
+            // '<mode> <sha> <stage>\t<path>'
+            var parts = line.Split('\t')[0].Split(' ');
+            if (parts.Length == 3 && int.TryParse(parts[2], out var stage))
+                stages[stage] = parts[1];
+        }
+
+        return stages;
+    }
+
+    // Re-runs the merge with the ancestor kept, and returns the result read straight off disk —
+    // never through ICmd, whose stdout handling strips carriage returns and trailing newlines
+    async Task<R<string>> MergeWithBaseAsync(IReadOnlyDictionary<int, string> stages, string baseSha, string tempDir)
+    {
+        if (!Try(out var baseFile, out var e, await UnpackAsync(baseSha, tempDir)))
+            return e;
+        if (!Try(out var oursFile, out e, await UnpackAsync(stages[2], tempDir)))
+            return e;
+        if (!Try(out var theirsFile, out e, await UnpackAsync(stages[3], tempDir)))
+            return e;
+
+        // '--diff3' and not '--zdiff3': zdiff3 hoists lines common to both sides out of the region,
+        // so its conflicts would not line up with the ones git wrote into the working tree file and
+        // every base would be paired with the wrong conflict — silently.
+        //
+        // merge-file writes its result into the *first* file, which is why 'ours' is unpacked to a
+        // temp of its own. A non-zero exit is the conflict count, i.e. the normal case, so the
+        // result is judged by what it produced rather than by the exit code.
+        var args = $"merge-file --diff3 -L ours -L base -L theirs \"{oursFile}\" \"{baseFile}\" \"{theirsFile}\"";
+        await cmd.RunAsync("git", args, tempDir, skipLogError: true);
+
+        var mergedPath = System.IO.Path.Join(tempDir, oursFile);
+        if (!Try(out var text, out e, () => File.ReadAllText(mergedPath)))
+            return R.Error("Failed to read the merged file", e);
+
+        return text;
+    }
+
+    // Writes the blob to a file in tempDir and returns its name, which git chooses
+    async Task<R<string>> UnpackAsync(string sha, string tempDir)
+    {
+        if (!Try(out var name, out var e, await cmd.RunAsync("git", $"unpack-file {sha}", tempDir)))
+            return e;
+
+        return name.Trim();
     }
 
     // Applies one decision per conflict, in order, and writes the file back.

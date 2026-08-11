@@ -83,6 +83,66 @@ public class ConflictRowServiceTest
         );
     }
 
+    // A conflict whose ancestor is empty — both sides added lines where there were none — still
+    // gets the middle slot, or its 'theirs' would be drawn under the ancestor column: the widths
+    // are worked out once for the whole view, not per conflict
+    [TestMethod]
+    public void TestAConflictWithNoBaseStillFillsTheMiddlePane()
+    {
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [
+                new ConflictSegment(
+                    [],
+                    new ConflictHunk(0, "HEAD", "9c2f1a", "topic", Lines("ours"), Lines("base"), Lines("theirs"))
+                ),
+                new ConflictSegment([], new ConflictHunk(1, "HEAD", "", "topic", Lines("o2"), [], Lines("t2"))),
+            ]
+        );
+
+        Assert.AreEqual(
+            """
+            ─── Conflict 1 ── unresolved ───────
+            HEAD                              │9c2f1a                            │topic
+            ours                              │base                              │theirs
+            ─── Conflict 2 ── unresolved ───────
+            HEAD                              │(no common ancestor)              │topic
+            o2                                │                                  │t2
+            """,
+            Draw(file, new ConflictResolution(file), 104, isShowBase: true)
+        );
+    }
+
+    // The rows are built once from what the user asked for, but the widths are worked out per draw
+    // and drop the ancestor on a narrow view. When they disagree the *middle* pane is the one that
+    // goes: taking the first two panes would drop 'theirs', losing a whole side of the conflict.
+    [TestMethod]
+    public void TestSteppingDownDropsTheAncestorAndNotTheirs()
+    {
+        var file = FileWithOneConflict(hasBase: true);
+        var service = new ConflictRowService();
+        var rows = service.ToRows(file, new ConflictResolution(file), isShowBase: true);
+
+        // Rows made for three panes, drawn into the two a narrow view allows
+        var narrow = ConflictColumns.Calculate(60, isShowBase: true);
+        Assert.AreEqual(2, narrow.PaneCount);
+
+        var drawn = string.Join('\n', rows.Rows.Select(r => service.ToRowText(r, narrow, 0).ToString().TrimEnd()));
+
+        Assert.AreEqual(
+            """
+            a
+            ─── Conflict 1 ── unresolved ───────
+            HEAD                         │topic
+            ours                         │theirs
+            b
+            """,
+            drawn
+        );
+    }
+
     // A decided conflict says so in its header, naming the side rather than saying 'ours'
     [TestMethod]
     public void TestHeaderNamesTheChosenSide()

@@ -332,9 +332,15 @@ class Server : IServer
         );
     }
 
-    public async Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
+    // isWithBase also recovers the common ancestor of each conflict, which costs five git commands
+    // and is only wanted when the base pane is actually shown. Enriched down here rather than in the
+    // Cui layer because the model that comes up is narrowed and cannot be converted back down.
+    public async Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, bool isWithBase, string wd)
     {
         if (!Try(out var file, out var e, await git.GetConflictFileAsync(path, ToGitConflictKind(kind), wd)))
+            return e;
+
+        if (isWithBase && !Try(out file, out e, await git.WithBaseAsync(file, wd)))
             return e;
 
         return converter.ToConflictFile(file);

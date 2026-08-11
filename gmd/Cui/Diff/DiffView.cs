@@ -308,7 +308,13 @@ class DiffView : IDiffView
         ConflictFile file;
         using (progress.Show())
         {
-            if (!Try(out file!, out var e, await server.GetConflictFileAsync(conflict.Path, conflict.Kind, repoPath)))
+            if (
+                !Try(
+                    out file!,
+                    out var e,
+                    await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath)
+                )
+            )
             {
                 UI.ErrorMessage($"Failed to open {conflict.Path}\n{e.AllErrorMessages()}");
                 return;

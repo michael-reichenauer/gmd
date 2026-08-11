@@ -146,6 +146,8 @@ internal class Git : IGit
     public Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd) =>
         conflictService.GetConflictFileAsync(path, kind, wd);
 
+    public Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd) => conflictService.WithBaseAsync(file, wd);
+
     public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => conflictService.WriteAsync(file, wd);
 
     public Task<R> ResolveConflictFileAsync(

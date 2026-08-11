@@ -113,6 +113,85 @@ static class ConflictParser
         };
     }
 
+    // Takes the common ancestor of each conflict from a separately computed diff3 merge of the same
+    // three versions, and maps it onto this file's conflicts.
+    //
+    // Not by position, which is the obvious way and is wrong: '--diff3' changes how git *groups*
+    // conflicts, not only whether it records the ancestor. Two changes a line or two apart come back
+    // from 'git merge' as one conflict and from 'merge-file --diff3' as two, split at the common line
+    // between them — so the second conflict's ancestor would be shown against the first, and nothing
+    // would look amiss.
+    //
+    // What is the same in both is the *ours* text: choosing our side at every conflict reconstructs
+    // our version of the file, whichever way the conflicts were grouped. So each conflict is located
+    // by the lines it occupies in that reconstruction, and its ancestor is whatever the diff3 merge
+    // has over the same lines — an ancestor split across two of its conflicts is joined back up,
+    // together with the common text between them, which is part of the ancestor too.
+    public static ConflictFile SetBasesFrom(ConflictFile file, ConflictFile merged)
+    {
+        var pieces = ToPieces(merged);
+        if (pieces.Sum(p => p.Ours.Count) != OursLineCount(file))
+            return file; // Not the same three versions, so there is nothing safe to map
+
+        var bases = new List<IReadOnlyList<FileLine>>();
+        var at = 0;
+        foreach (var segment in file.Segments)
+        {
+            if (segment.Hunk == null)
+            {
+                at += segment.Lines.Count;
+                continue;
+            }
+
+            bases.Add(BaseOver(pieces, at, at + segment.Hunk.Ours.Count));
+            at += segment.Hunk.Ours.Count;
+        }
+
+        return SetBases(file, bases);
+    }
+
+    // One stretch of the diff3 merge: the lines it contributes to our version of the file, and the
+    // lines the ancestor had there. Outside a conflict the two are the same text, since text neither
+    // side touched is the ancestor's.
+    record Piece(IReadOnlyList<FileLine> Ours, IReadOnlyList<FileLine> Base, bool IsConflict);
+
+    static IReadOnlyList<Piece> ToPieces(ConflictFile merged) =>
+        merged
+            .Segments.Select(s =>
+                s.Hunk == null ? new Piece(s.Lines, s.Lines, false) : new Piece(s.Hunk.Ours, s.Hunk.Base, true)
+            )
+            .ToList();
+
+    static int OursLineCount(ConflictFile file) =>
+        file.Segments.Sum(s => s.Hunk == null ? s.Lines.Count : s.Hunk.Ours.Count);
+
+    // The ancestor of the lines our version has in [from, to)
+    static IReadOnlyList<FileLine> BaseOver(IReadOnlyList<Piece> pieces, int from, int to)
+    {
+        var lines = new List<FileLine>();
+        var at = 0;
+
+        foreach (var piece in pieces)
+        {
+            var end = at + piece.Ours.Count;
+            if (end > from && at < to)
+            {
+                // A conflict is taken whole: its ancestor does not line up with our side line for
+                // line, so there is no meaningful part of it to take
+                if (piece.IsConflict)
+                    lines.AddRange(piece.Base);
+                else
+                    lines.AddRange(piece.Base.Take(Math.Min(end, to) - at).Skip(Math.Max(from, at) - at));
+            }
+
+            at = end;
+            if (at >= to)
+                break;
+        }
+
+        return lines;
+    }
+
     // Splits text into lines that each carry the terminator that followed them, so that joining
     // them back gives the original text whatever mixture of endings it had. An empty text is no
     // lines at all, which is how an empty file stays empty.

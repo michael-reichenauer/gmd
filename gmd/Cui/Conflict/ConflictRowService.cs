@@ -50,14 +50,19 @@ class ConflictRowService : IConflictRowService
         // The names git wrote into the markers, not 'ours' and 'theirs' — during a rebase those two
         // mean the opposite of what is expected, and these say which side is really which
         var labels = new List<Text> { Text.Yellow(hunk.OursLabel.Max(60)), Text.Cyan(hunk.TheirsLabel.Max(60)) };
-        if (isShowBase && hunk.HasBase)
-            labels.Insert(1, Text.Dark(hunk.BaseLabel == "" ? "common ancestor" : hunk.BaseLabel.Max(60)));
+
+        // The base slot is drawn whenever the pane is on, even for a conflict whose ancestor is
+        // empty — both sides added lines where there were none. Leaving it out for that one hunk
+        // would put its 'theirs' under the ancestor column, since the column widths are worked out
+        // once for the whole view rather than per conflict.
+        if (isShowBase)
+            labels.Insert(1, Text.Dark(BaseLabelOf(hunk)));
 
         rows.Add(new ConflictRow(labels, ConflictRowMode.Panes, hunk.Index));
 
         var sides = new List<IReadOnlyList<FileLine>> { hunk.Ours, hunk.Theirs };
         var colors = new List<Color> { Color.Yellow, Color.Cyan };
-        if (isShowBase && hunk.HasBase)
+        if (isShowBase)
         {
             sides.Insert(1, hunk.Base);
             colors.Insert(1, Color.Dark);
@@ -71,6 +76,14 @@ class ConflictRowService : IConflictRowService
                 .ToList();
             rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index));
         }
+    }
+
+    static string BaseLabelOf(ConflictHunk hunk)
+    {
+        if (!hunk.HasBase)
+            return "(no common ancestor)";
+
+        return hunk.BaseLabel == "" ? "common ancestor" : hunk.BaseLabel.Max(60);
     }
 
     static Text ChoiceText(HunkChoice choice, ConflictHunk hunk) =>
@@ -100,13 +113,21 @@ class ConflictRowService : IConflictRowService
         if (row.Mode == ConflictRowMode.SpanAll)
             return Scroll(row.Panes[0], startX, columns.TotalWidth, isPad: false);
 
+        // The rows are built once, from what the user asked for, but the widths are worked out per
+        // draw and may have dropped the ancestor because the view is too narrow for three. When they
+        // disagree it is the *middle* pane that goes — the ancestor is what the step-down drops.
+        // Taking the first n panes instead would drop 'theirs', losing a whole side of the conflict.
+        var panes = row.Panes;
+        if (panes.Count > columns.PaneCount)
+            panes = [panes[0], .. panes.Skip(panes.Count - (columns.PaneCount - 1))];
+
         var text = new TextBuilder();
         for (int p = 0; p < columns.PaneCount; p++)
         {
             if (p > 0)
                 text.Dark(PaneSeparator);
 
-            var pane = p < row.Panes.Count ? row.Panes[p] : Text.Empty;
+            var pane = p < panes.Count ? panes[p] : Text.Empty;
             text.Add(Scroll(pane, startX, columns.Pane));
         }
 

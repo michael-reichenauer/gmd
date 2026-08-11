@@ -39,6 +39,7 @@ interface IGit
     Task<R> SkipOperationAsync(string wd);
     Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
     Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
+    Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd);
     Task<R> WriteConflictFileAsync(ConflictFile file, string wd);
     Task<R> ResolveConflictFileAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
     Task<R> MarkResolvedAsync(string path, string wd);

@@ -793,6 +793,135 @@ public class GitIntegrationTest
         Assert.AreEqual(0, Value(await repo.Git.GetLeftoverMarkerPathsAsync(repo.Path)).Count);
     }
 
+    // ---- the common ancestor ----
+
+    // The guard for the one thing in this feature that can be silently wrong. The base is recovered
+    // by re-running the merge with '--diff3' over the index stages, and paired with the conflicts of
+    // the working tree file *by position* — so if the two ever produced different regions, every
+    // base would be shown against the wrong conflict and nothing would look amiss.
+    [TestMethod]
+    public async Task TestRecoveredBasesLineUpWithTheWorkingTreeConflicts()
+    {
+        var lines = Enumerable.Range(1, 30).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAsync("file.txt", string.Join('\n', lines) + "\n", "Initial");
+
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        var theirs = lines.ToList();
+        theirs[2] = "L3 THEIRS";
+        theirs[11] = "L12 THEIRS";
+        theirs[24] = "L25 THEIRS";
+        await repo.CommitFileAsync("file.txt", string.Join('\n', theirs) + "\n", "Dev work");
+
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        var ours = lines.ToList();
+        ours[2] = "L3 OURS";
+        ours[11] = "L12 OURS";
+        ours[24] = "L25 OURS";
+        await repo.CommitFileAsync("file.txt", string.Join('\n', ours) + "\n", "Main work");
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        var file = Value(await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path));
+        Assert.AreEqual(3, file.Hunks.Count);
+        Assert.IsFalse(file.Hunks[0].HasBase, "The default 'merge' style records no ancestor");
+
+        var withBase = Value(await repo.Git.WithBaseAsync(file, repo.Path));
+
+        Assert.AreEqual(3, withBase.Hunks.Count, "Recovering the base must not change the conflicts");
+        Assert.AreEqual("line 3\n", ConflictParser.ToText(withBase.Hunks[0].Base));
+        Assert.AreEqual("line 12\n", ConflictParser.ToText(withBase.Hunks[1].Base));
+        Assert.AreEqual("line 25\n", ConflictParser.ToText(withBase.Hunks[2].Base));
+
+        // Each side is still what it was, i.e. the bases were added and nothing else moved
+        Assert.AreEqual("L3 OURS\n", ConflictParser.ToText(withBase.Hunks[0].Ours));
+        Assert.AreEqual("L25 THEIRS\n", ConflictParser.ToText(withBase.Hunks[2].Theirs));
+    }
+
+    // The case that makes mapping by position wrong, against real git rather than by hand. Two
+    // changes with one common line between them come back from 'git merge' as a single conflict and
+    // from 'merge-file --diff3' as two — so taking its conflicts in order would leave this file's
+    // one conflict holding only the first ancestor, silently missing the rest.
+    [TestMethod]
+    public async Task TestBaseOfAConflictThatDiff3WouldSplit()
+    {
+        var file = await ConflictedFileAsync(
+            "head\nalpha\nmid\nbeta\ntail\n",
+            "head\nOURS alpha\nmid\nOURS beta\ntail\n",
+            "head\nTHEIRS alpha\nmid\nTHEIRS beta\ntail\n"
+        );
+        Assert.AreEqual(1, file.Hunks.Count, "Git wrote the two changes as one conflict");
+
+        var withBase = Value(await repo.Git.WithBaseAsync(file, repo.Path));
+
+        Assert.AreEqual(1, withBase.Hunks.Count);
+        Assert.AreEqual(
+            "alpha\nmid\nbeta\n",
+            ConflictParser.ToText(withBase.Hunks[0].Base),
+            "The whole ancestor of the joined region, including the common line between the two"
+        );
+    }
+
+    // Nothing may appear in the working tree: 'git checkout-index --temp' would have been the
+    // obvious way to get the stages onto disk, but it writes to the worktree root whatever its cwd,
+    // and those files then show up as untracked in the very status gmd is displaying
+    [TestMethod]
+    public async Task TestRecoveringTheBaseLeavesNoTraceInTheWorkingTree()
+    {
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+        var before = await repo.GitAsync("status --porcelain");
+
+        Value(await repo.Git.WithBaseAsync(file, repo.Path));
+
+        Assert.AreEqual(before, await repo.GitAsync("status --porcelain"), "No stray files");
+        var strays = Directory.GetFiles(repo.Path, ".merge_file_*");
+        Assert.AreEqual(0, strays.Length, $"Left behind: {string.Join(", ", strays)}");
+        var scratch = Directory.GetDirectories(Path.Join(repo.Path, ".git"), "gmd-conflict-*");
+        Assert.AreEqual(0, scratch.Length, "The scratch folder is removed");
+    }
+
+    // Already recorded in the file, so there is nothing to recover and no git command to run
+    [TestMethod]
+    public async Task TestZdiff3BaseIsKeptAsItIs()
+    {
+        await repo.GitAsync("config merge.conflictStyle zdiff3");
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        var withBase = Value(await repo.Git.WithBaseAsync(file, repo.Path));
+
+        Assert.AreEqual("b\n", ConflictParser.ToText(withBase.Hunks[0].Base));
+    }
+
+    // Both sides created the file, so there is no ancestor to show — and no error either
+    [TestMethod]
+    public async Task TestAddAddConflictHasNoBase()
+    {
+        await repo.CommitFileAsync("other.txt", "x\n", "Initial");
+        Ok(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
+        await repo.CommitFileAsync("both.txt", "theirs\n", "Dev work");
+        Ok(await repo.Git.CheckoutAsync("main", repo.Path));
+        await repo.CommitFileAsync("both.txt", "ours\n", "Main work");
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        var file = Value(await repo.Git.GetConflictFileAsync("both.txt", ConflictKind.BothAdded, repo.Path));
+        var withBase = Value(await repo.Git.WithBaseAsync(file, repo.Path));
+
+        Assert.AreEqual(1, withBase.Hunks.Count);
+        Assert.IsFalse(withBase.Hunks[0].HasBase, "There is no common ancestor of two independent adds");
+    }
+
+    // A CRLF file goes through unpack-file and back as bytes, never through ICmd's stdout, which
+    // strips carriage returns — so the recovered base is the real one rather than a mangled copy
+    [TestMethod]
+    public async Task TestBaseOfACrLfFileKeepsItsLineEndings()
+    {
+        var file = await ConflictedFileAsync("a\r\nb\r\nc\r\n", "a\r\nOURS\r\nc\r\n", "a\r\nTHEIRS\r\nc\r\n");
+
+        var withBase = Value(await repo.Git.WithBaseAsync(file, repo.Path));
+
+        Assert.AreEqual(1, withBase.Hunks.Count);
+        Assert.AreEqual("b", withBase.Hunks[0].Base[0].Text, "The text is the line without its terminator");
+        Assert.AreEqual("\r\n", withBase.Hunks[0].Base[0].Eol, "And the terminator survived");
+    }
+
     [TestMethod]
     public async Task TestUseWholeFileTakesOneSideAndResolvesIt()
     {

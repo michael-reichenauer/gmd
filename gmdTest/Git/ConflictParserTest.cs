@@ -329,6 +329,76 @@ public class ConflictParserTest
         Assert.AreEqual("base\n", ConflictParser.ToText(file.Hunks[0].Base));
     }
 
+    // ---- mapping an ancestor from a separately computed diff3 merge ----
+
+    // The case that makes mapping by position wrong. 'git merge' writes two nearby changes as one
+    // conflict; 'merge-file --diff3' writes the same three versions as two, split at the common line
+    // between them. Taking its conflicts in order would put the second ancestor against the first
+    // conflict — here, there is only one conflict to put it against at all.
+    [TestMethod]
+    public void TestBaseIsJoinedBackUpWhenDiff3SplitsAConflict()
+    {
+        var file = Parse("head\n<<<<<<< HEAD\nO1\nmid\nO2\n=======\nT1\nmid\nT2\n>>>>>>> topic\ntail\n");
+        var merged = Parse(
+            "head\n"
+                + "<<<<<<< ours\nO1\n||||||| base\nB1\n=======\nT1\n>>>>>>> theirs\n"
+                + "mid\n"
+                + "<<<<<<< ours\nO2\n||||||| base\nB2\n=======\nT2\n>>>>>>> theirs\n"
+                + "tail\n"
+        );
+        Assert.AreEqual(1, file.Hunks.Count);
+        Assert.AreEqual(2, merged.Hunks.Count, "diff3 split what the merge wrote as one");
+
+        var withBase = ConflictParser.SetBasesFrom(file, merged);
+
+        // The common line between the two is part of the ancestor of the joined region
+        Assert.AreEqual("B1\nmid\nB2\n", ConflictParser.ToText(withBase.Hunks[0].Base));
+    }
+
+    // The straightforward case still works, i.e. joining is not applied where nothing was split
+    [TestMethod]
+    public void TestBaseIsMappedOneForOneWhenTheGroupingAgrees()
+    {
+        var file = Parse(
+            "a\n<<<<<<< HEAD\nO1\n=======\nT1\n>>>>>>> topic\nb\n<<<<<<< HEAD\nO2\n=======\nT2\n>>>>>>> topic\nc\n"
+        );
+        var merged = Parse(
+            "a\n<<<<<<< ours\nO1\n||||||| base\nB1\n=======\nT1\n>>>>>>> theirs\n"
+                + "b\n<<<<<<< ours\nO2\n||||||| base\nB2\n=======\nT2\n>>>>>>> theirs\nc\n"
+        );
+
+        var withBase = ConflictParser.SetBasesFrom(file, merged);
+
+        Assert.AreEqual("B1\n", ConflictParser.ToText(withBase.Hunks[0].Base));
+        Assert.AreEqual("B2\n", ConflictParser.ToText(withBase.Hunks[1].Base));
+    }
+
+    // An ancestor that is empty is a real answer — both sides added lines where there were none
+    [TestMethod]
+    public void TestAnEmptyBaseIsMappedAsEmpty()
+    {
+        var file = Parse("a\n<<<<<<< HEAD\nO1\n=======\nT1\n>>>>>>> topic\nb\n");
+        var merged = Parse("a\n<<<<<<< ours\nO1\n||||||| base\n=======\nT1\n>>>>>>> theirs\nb\n");
+
+        var withBase = ConflictParser.SetBasesFrom(file, merged);
+
+        Assert.AreEqual(0, withBase.Hunks[0].Base.Count);
+        Assert.IsFalse(withBase.Hunks[0].HasBase, "So the pane says there is none rather than showing nothing");
+    }
+
+    // A merge of different content altogether, i.e. the file changed on disk since. Mapping it would
+    // show an ancestor belonging to some other version of the file.
+    [TestMethod]
+    public void TestBaseIsNotMappedWhenTheOursTextDoesNotMatch()
+    {
+        var file = Parse("a\n<<<<<<< HEAD\nO1\n=======\nT1\n>>>>>>> topic\nb\n");
+        var merged = Parse("a\nEXTRA\n<<<<<<< ours\nO1\n||||||| base\nB1\n=======\nT1\n>>>>>>> theirs\nb\n");
+
+        var withBase = ConflictParser.SetBasesFrom(file, merged);
+
+        Assert.IsFalse(withBase.Hunks[0].HasBase);
+    }
+
     // A mismatched count means the file has been edited since the bases were computed, so pairing
     // them by position would show the wrong ancestor for a conflict — better to show none
     [TestMethod]

@@ -2032,7 +2032,7 @@ new service rather than an extension of `DiffRows`.
 - [x] **Step 3 — commit gating, and routing a rebase to *Continue*.** See below.
 - [x] **Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.** See below.
 - [x] **Step 5 — the resolver view.** See below.
-- [ ] Step 6 — the base pane, via `checkout-index --stage=all --temp` + `merge-file --diff3`.
+- [x] **Step 6 — the base pane.** See below.
 - [ ] Step 7 — file-level resolutions (whole-file ours/theirs, `UD`/`DU`/`DD`, binary, un-resolve).
 - [ ] Step 8 — manual edit of a conflict region.
 - [ ] Step 9 — (optional) true inline editing, gated on a focus probe.
@@ -2319,3 +2319,54 @@ the result pane below; `3` combining both sides, which the header, the conflict 
 pane all reflect; `S` writing exactly that and staging it; the modify/delete asking whether to keep
 the file or accept the deletion; and the whole merge then committing to a clean tree with the file
 holding both sides in order.
+
+### Step 6 findings
+
+`ConflictService.WithBaseAsync` recovers the common ancestor of each conflict, and `b` in the
+resolver fetches it the first time it is asked for. Step 5 already drew the third column; this is
+what fills it for the default conflict style, which records no ancestor in the file.
+
+- [x] **`--diff3` changes how git *groups* conflicts, not just whether it records the ancestor.**
+      This is the "silently wrong" risk the plan named, and it is far more common than expected: two
+      changes with a single common line between them come back from `git merge` as **one** conflict
+      and from `merge-file --diff3` as **two**, split at that line. Pairing them in order would show
+      the second ancestor against the first conflict. The first probe missed it entirely because its
+      conflicts were twenty lines apart, where there is nothing to group.
+- [x] **So the ancestor is mapped by content, not by position.** What is the same in both is the
+      *ours* text — choosing our side at every conflict reconstructs our version of the file however
+      the conflicts were grouped — so each conflict is located by the lines it occupies in that
+      reconstruction and takes whatever the diff3 merge has over the same lines. An ancestor split
+      across two of its conflicts is joined back up, together with the common text between them,
+      which is part of the ancestor too. `ConflictParser.SetBasesFrom`, pinned both as a unit test
+      and against real git.
+- [x] **`git checkout-index --temp` writes to the worktree root whatever its cwd** — `--prefix` does
+      not redirect it and neither does running from a subdirectory — and those files then show up as
+      untracked in the very status gmd is displaying. **`git unpack-file` does respect the cwd**, so
+      it is used instead, pointed at a scratch folder inside the git dir. Nothing ever appears in the
+      user's working tree; pinned by a test that compares `git status` before and after.
+- [x] **A pane count that the row and the layout disagree on drops a whole side.** The rows are built
+      once from what the user asked for, but the widths are worked out per draw and drop the ancestor
+      on a narrow view — and taking the first *n* panes of a three pane row then drew `HEAD | common
+      ancestor` with **theirs missing altogether**. It is the middle pane that has to go. The mirror
+      of this was also live: a conflict whose ancestor is legitimately empty rendered two panes
+      inside a three pane layout, putting its 'theirs' under the ancestor column. Both are tested.
+- [x] The fetch is lazy and cached: five git commands is too much to spend on every open when most
+      conflicts are settled without ever looking at the ancestor, and once fetched it stays on the
+      file so toggling costs nothing. A file that gained or lost conflicts in the meantime is caught
+      rather than re-pointing the decisions at different conflicts.
+- [x] An add/add conflict has no stage 1, so there is no ancestor to show — the pane says so in
+      words rather than appearing broken, and the per conflict label reads `(no common ancestor)`.
+- [x] The scratch folder is removed in a `finally`, as `KeyValueService` does for its temp file.
+
+### Step 6 verified
+
+`./test` is green (736). By hand under tmux with a redirected `HOME`: `b` on a default-style conflict
+fetching the ancestor and drawing three columns, with `alpha`/`middle`/`beta` correctly joined back
+up for a region git wrote as one and diff3 would have split; the working tree and `git status`
+untouched throughout and no scratch folder left; toggling off and on again running no further git
+commands; narrowing to 80 columns dropping the ancestor while keeping both sides, and widening back
+to 120 bringing it back; and a conflict resolved and saved with the pane open.
+
+One thing that looked like a bug and was not: a keystroke sent immediately after `tmux
+resize-window` is dropped, so a resolve appeared to save nothing. That is the "never send a key into
+a screen that has not settled" trap in this document, on the driving side rather than in the app.

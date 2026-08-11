@@ -245,10 +245,63 @@ class ConflictView : IConflictView
         contentView.SetCurrentIndex(index);
     }
 
+    // The common ancestor is fetched the first time it is asked for rather than when the view opens:
+    // recovering it costs five git commands, and most conflicts are settled without ever looking at
+    // it. Once fetched it stays on the file, so toggling it off and on again is free.
     void ToggleBase()
     {
-        isShowBase = !isShowBase;
-        SetRows();
+        if (isShowBase)
+        {
+            isShowBase = false;
+            SetRows();
+            return;
+        }
+
+        if (file.Hunks.Any(h => h.HasBase))
+        {
+            isShowBase = true;
+            SetRows();
+            return;
+        }
+
+        UI.RunInBackground(async () =>
+        {
+            ConflictFile withBase;
+            using (progress.Show())
+            {
+                var result = await server.GetConflictFileAsync(file.Path, file.Kind, true, repoPath);
+                if (!Try(out withBase!, out var e, result))
+                {
+                    UI.ErrorMessage($"Failed to get the common ancestor\n{e.AllErrorMessages()}");
+                    return;
+                }
+            }
+
+            // The decisions are held by conflict number, so a file that gained or lost conflicts
+            // while the resolver was open would silently re-point them at different conflicts
+            if (withBase.Hunks.Count != file.Hunks.Count)
+            {
+                UI.ErrorMessage(
+                    $"{file.Path} has changed on disk since it was opened.\n\nClose the resolver and open it again."
+                );
+                return;
+            }
+
+            if (!withBase.Hunks.Any(h => h.HasBase))
+            {
+                UI.InfoMessage(
+                    "No Common Ancestor",
+                    $"{file.Path} has no common ancestor to show.\n\n"
+                        + "This happens when both sides added the file, so there is no earlier\n"
+                        + "version of it that they both started from."
+                );
+                return;
+            }
+
+            file = withBase;
+            isShowBase = true;
+            SetRows();
+        });
     }
 
     void Scroll(int step)

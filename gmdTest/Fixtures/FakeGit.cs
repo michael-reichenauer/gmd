@@ -155,6 +155,8 @@ class FakeGit : IGit
     public Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd) =>
         throw new NotSupportedException();
 
+    public Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd) => throw new NotSupportedException();
+
     public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => throw new NotSupportedException();
 
     public Task<R> ResolveConflictFileAsync(
