@@ -2034,7 +2034,7 @@ new service rather than an extension of `DiffRows`.
 - [x] **Step 5 — the resolver view.** See below.
 - [x] **Step 6 — the base pane.** See below.
 - [x] **Step 7 — file-level resolutions.** See below.
-- [ ] Step 8 — manual edit of a conflict region.
+- [ ] Step 8 — manual edit of a conflict region. // more text
 - [ ] Step 9 — (optional) true inline editing, gated on a focus probe.
 - [ ] Step 10 — `gmd/doc/help.md`.
 

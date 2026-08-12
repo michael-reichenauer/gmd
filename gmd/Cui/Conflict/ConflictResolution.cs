@@ -58,10 +58,14 @@ class ConflictResolution
             HunkChoice.OursThenTheirs => [.. hunk.Ours, .. hunk.Theirs],
             HunkChoice.TheirsThenOurs => [.. hunk.Theirs, .. hunk.Ours],
             HunkChoice.Neither => [], // neither
-            HunkChoice.Manual => ManualTextOf(hunk.Index).Split('\n').Select(l => new FileLine(l)).ToList(), // Manual
+            HunkChoice.Manual => ManualTextOf(hunk.Index).Split('\n').Select(l => new FileLine(l)).ToList(), // Manualc
             _ => [],
-        };
+        }; // other text
 
+    // yyyy
+    // rrrr
+    // rrr
+    // rrrr
     // The conflict at or after a row's, walking in the given direction, or -1 if there is none that
     // way. A row between conflicts has -1 as its own index, so it starts from the one after it.
     public int NextHunk(int fromHunkIndex, int step)
