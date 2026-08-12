@@ -9,19 +9,62 @@ namespace gmdTest.Git;
 [TestClass]
 public class RemoteServiceTest
 {
+    static RemoteService NewService(ICmd cmd) => new RemoteService(cmd, new TagService(cmd));
+
     static async Task<string> ArgsOf(Func<RemoteService, Task<R>> run)
     {
         var cmd = new FakeCmd("");
-        await run(new RemoteService(cmd));
+        await run(NewService(cmd));
         Assert.AreEqual(1, cmd.Calls.Count);
         Assert.AreEqual("git", cmd.Calls[0].Path);
         return cmd.Calls[0].Args;
     }
 
+    // Deliberately no --prune-tags: it deletes local tags that were never pushed. The refspec is
+    // what replaces it — it mirrors the remote's tags into gmd's own tracking namespace, which
+    // --prune prunes, so TagService can tell a deleted tag from an unpushed one afterwards.
     [TestMethod]
-    public async Task TestFetchPrunesBranchesAndTags()
+    public async Task TestFetchPrunesBranchesAndMirrorsRemoteTags()
     {
-        Assert.AreEqual("fetch --force --prune --tags --prune-tags origin", await ArgsOf(s => s.FetchAsync("/wd")));
+        var cmd = new FakeCmd("");
+
+        await NewService(cmd).FetchAsync("/wd");
+
+        Assert.AreEqual(
+            "fetch --force --prune --tags origin +refs/tags/*:refs/gmdtags/origin/*",
+            cmd.Calls.Single(c => c.Args.StartsWith("fetch")).Args
+        );
+    }
+
+    // The tracked remote tags have to be read before the fetch, since the fetch is what updates
+    // them: read afterwards they would already be the new state and nothing would ever be pruned.
+    [TestMethod]
+    public async Task TestFetchReadsTheTrackedRemoteTagsBeforeFetching()
+    {
+        var cmd = new FakeCmd("");
+
+        await NewService(cmd).FetchAsync("/wd");
+
+        StringAssert.StartsWith(cmd.Calls[0].Args, "for-each-ref");
+        StringAssert.Contains(cmd.Calls[0].Args, "refs/gmdtags/origin/");
+        StringAssert.StartsWith(cmd.Calls[1].Args, "fetch");
+    }
+
+    // A failed fetch says nothing about what the remote has, so nothing may be pruned from it
+    [TestMethod]
+    public async Task TestFailedFetchPrunesNoTags()
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.StartsWith("fetch")
+                    ? FakeCmd.Fail("fatal: could not read from remote")
+                    : FakeCmd.Ok("134e1960d41fc44fb5ffffde38c2273f5e9910fc v1.0")
+        );
+
+        var result = await NewService(cmd).FetchAsync("/wd");
+
+        Assert.IsFalse(Try(out var _, result), "Expected the git failure to propagate");
+        Assert.IsFalse(cmd.Calls.Any(c => c.Args.StartsWith("tag -d")), "Expected no tag to be deleted");
     }
 
     // The remote name is given as a local ref pair, so the 'origin/' prefix has to go
@@ -126,9 +169,9 @@ public class RemoteServiceTest
     [TestMethod]
     public async Task TestGitCommandFailureIsPropagated()
     {
-        var service = new RemoteService(new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: could not read from remote")));
+        var service = NewService(new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: could not read from remote")));
 
-        var result = await service.FetchAsync("/wd");
+        var result = await service.PushCurrentBranchAsync(false, "/wd");
 
         Assert.IsFalse(Try(out var _, result), "Expected the git failure to propagate");
     }

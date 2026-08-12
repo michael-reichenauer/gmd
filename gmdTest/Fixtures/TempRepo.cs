@@ -59,7 +59,8 @@ sealed class TempRepo : IDisposable
     {
         var logService = new LogService(cmd);
         var diffService = new DiffService(cmd);
-        var remoteService = new RemoteService(cmd);
+        var tagService = new TagService(cmd);
+        var remoteService = new RemoteService(cmd, tagService);
 
         return new gmd.Git.Private.Git(
             logService,
@@ -69,7 +70,7 @@ sealed class TempRepo : IDisposable
             diffService,
             remoteService,
             new RepoService(cmd),
-            new TagService(cmd, remoteService),
+            tagService,
             new KeyValueService(cmd),
             new StashService(cmd, logService, diffService),
             new BlameService(cmd),

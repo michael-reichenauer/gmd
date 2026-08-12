@@ -18,18 +18,37 @@ interface IRemoteService
 class RemoteService : IRemoteService
 {
     private readonly ICmd cmd;
+    private readonly ITagService tagService;
 
-    public RemoteService(ICmd cmd)
+    public RemoteService(ICmd cmd, ITagService tagService)
     {
         this.cmd = cmd;
+        this.tagService = tagService;
     }
 
     public static string TrimRemotePrefix(string name) => name.TrimPrefix("origin/");
 
+    // Fetches branches and tags and prunes what the remote no longer has. Deliberately without
+    // --prune-tags: that deletes every local tag the remote does not have, which throws away tags
+    // that were never pushed — silently, and on merely opening a repo, since this runs then and
+    // every five minutes after. The remote's tags are mirrored into gmd's own tracking namespace
+    // instead (see TagService.TrackedRemoteTagsRef), which --prune does prune, and the local tags
+    // are then pruned from that record so only tags the remote actually deleted are deleted here.
     public async Task<R> FetchAsync(string wd)
     {
-        var args = "fetch --force --prune --tags --prune-tags origin";
-        return await cmd.RunAsync("git", args, wd, true);
+        // Read before the fetch, since the fetch is what updates it. An error is not fatal here, it
+        // only means no local tag is pruned this time.
+        var tracked = (await tagService.GetTrackedRemoteTagsAsync(wd)).Or(new Dictionary<string, string>());
+
+        var args = $"fetch --force --prune --tags origin {TagService.FetchRefSpec}";
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", args, wd, true)))
+            return e;
+
+        // Only after a fetch that worked: a failed fetch says nothing about what the remote has
+        if (!Try(out var pe, await tagService.PruneDeletedRemoteTagsAsync(tracked, wd)))
+            Log.Warn($"Failed to prune deleted remote tags, {pe}");
+
+        return R.Ok;
     }
 
     public async Task<R> PushBranchAsync(string name, string wd)

@@ -82,12 +82,12 @@ static class E2eRepo
         await repo.AddOriginAsync();
         await repo.GitAsync("push -q --set-upstream origin main");
 
-        // The tag has to be pushed as well, and not for tidiness: gmd fetches with --prune-tags
-        // (RemoteService.cs), which deletes local tags that are not on the remote, so a local only
-        // tag disappears from this fixture at whatever moment the first fetch completes. Pushing
-        // it is what keeps these screens stable. See the finding in MODERNIZATION.md, Step 12.
-        await repo.GitAsync("push -q origin v1.0");
-
+        // Note what is deliberately *not* done here: v1.0 is not pushed. It used to have to be,
+        // since gmd fetched with --prune-tags, which deletes every local tag the remote does not
+        // have — so the tag vanished from this fixture at whatever moment the first fetch completed
+        // and the screens flaked. That is fixed (Step 17), and leaving the tag unpushed is what
+        // keeps these screens honest about it: if unpushed tags are ever deleted again, the tag
+        // disappears from the snapshots below.
         await repo.CommitFileAtAsync("zeta.txt", "zeta\n", "Add zeta", TempRepo.BaseTime.AddMinutes(7));
 
         return repo;

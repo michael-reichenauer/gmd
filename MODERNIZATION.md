@@ -1585,7 +1585,7 @@ committing, amending, creating a branch, tagging, switching and merging.
         the amended sha is stable — and the time column does not move, since it shows the author
         date. The test asserts that pair explicitly, because it is the kind of thing a future git
         version could change.
-- [ ] **Bug found, not fixed — opening a repo deletes local tags that are not on the remote.**
+- [x] **Bug found here, fixed in Step 17 — opening a repo deletes local tags that are not on the remote.**
       `RemoteService.FetchAsync` (`RemoteService.cs:31`) runs
       `git fetch --force --prune --tags --prune-tags origin`, and `--prune-tags` means exactly
       "delete local tags the remote does not have". Git's own documentation warns about this
@@ -1603,19 +1603,16 @@ committing, amending, creating a branch, tagging, switching and merging.
       that a tag deleted on the server lingers locally until someone removes it by hand, which is
       what plain `git fetch` does and is a great deal better than silently deleting a local tag.
 
-      **Deliberately deferred** (2026-08-04): the maintainer wants to see whether this bites in
-      practice before changing fetch semantics for everyone, since `--prune-tags` is a flag someone
-      typed on purpose rather than an oversight. What it looks like when it does bite: a tag added
-      locally and not yet pushed disappears — on opening the repo, on `r`/`F5`, or within five
-      minutes of sitting in the log view — with no message. Everything needed to act on it is
-      above: the cause, the one-line change, and the fixture shape that reproduces it
-      (`E2eRepo.CreateWithOriginAsync` minus its `push origin v1.0`). A regression test belongs
-      with the fix.
+      Deferred on 2026-08-04 to see whether it bit in practice, since `--prune-tags` is a flag
+      someone typed on purpose rather than an oversight. Picked up on 2026-08-12 and fixed properly
+      rather than by the one-line drop above — see **Step 17**, which keeps both directions: a tag
+      the remote deleted still goes, a tag that was never pushed stays.
 
-      Consequence already taken: `E2eRepo.CreateWithOriginAsync` pushes `v1.0`, since a local only
-      tag would otherwise vanish from that fixture at whatever moment the first fetch completed —
-      i.e. this bug would have shown up as a flaky snapshot rather than as a finding, had the
-      screens been written without noticing it.
+      Consequence taken at the time and now reversed: `E2eRepo.CreateWithOriginAsync` used to push
+      `v1.0`, since a local only tag would otherwise vanish from that fixture at whatever moment the
+      first fetch completed — i.e. this bug would have shown up as a flaky snapshot rather than as a
+      finding, had the screens been written without noticing it. It no longer pushes it, which is
+      what makes those snapshots a standing check that unpushed tags survive.
 
 ### Determinism, which is where this will actually go wrong
 
@@ -1682,8 +1679,8 @@ rather than fighting flakes later:
       makes itself); the other four turned out to be mostly a lesson in the hoover.
 - [x] Amend (`a`) with an origin fixture — done, see the finding above, which also turned up the
       `--prune-tags` bug.
-- [ ] The `--prune-tags` finding above, parked on purpose until it is noticed in real use. Not a
-      question to re-open unprompted — pick it up when a local tag actually goes missing.
+- [x] The `--prune-tags` finding above — was parked until it was noticed in real use; it was, and
+      Step 17 fixes it.
 - [x] Colors, via `TmuxSession.CaptureColors()` — done, see the finding above.
 - [x] **The middle column widths — which turned out to be two arms, not one.**
       `RepoWriter.ColumnWidths` is a four way ladder, and the note this item used to carry ("the
@@ -2580,3 +2577,111 @@ surviving the diff view that used to destroy it.
 - **A conflict list in the log view.** Conflicts are reached through the diff view, which is one
   keystroke from the uncommitted row, and the repo menu names the operation and the count. A second
   route was not worth the duplication.
+
+## Step 17 — Stop a fetch deleting local tags ✅ done
+
+**The Step 12 finding, picked up because it bit in practice.** Opening a repo deleted local tags
+that were not on the remote, silently and with no undo — `RemoteService.FetchAsync` ran
+`git fetch … --prune-tags`, and `RepoView` fetches on open, on `r`/`F5` and every five minutes.
+
+The reason it was parked rather than fixed by dropping the flag is that both directions matter and
+`--prune-tags` gets one of them right: drop it and a tag deleted on the server lingers locally, and
+can be published again. So the question was never "which side loses", it was that git cannot answer
+it.
+
+**The root cause, which names the fix: tags have no remote-tracking namespace.** A branch has
+`refs/remotes/origin/*`, a record of what the remote had at the last fetch, which is exactly how
+`--prune` tells a branch the remote deleted from one that was never pushed. Tags are fetched
+straight into the shared `refs/tags/*`, so `--prune-tags` has only one question it can ask — "is it
+on the remote right now" — and both cases answer no. The information is not hidden, it does not
+exist. So the fix is to make it exist.
+
+- [x] **The fetch mirrors the remote's tags into gmd's own tracking namespace**, `refs/gmdtags/origin/*`:
+
+      `fetch --force --prune --tags origin +refs/tags/*:refs/gmdtags/origin/*`
+
+      replacing `fetch --force --prune --tags --prune-tags origin`. `--tags` still creates the local
+      tags, `--prune` still prunes the remote branches — and now the mirror as well, because it is
+      fetched by an explicit refspec.
+- [x] **`TagService.PruneDeletedRemoteTagsAsync` is the rule.** The mirror is read before the fetch
+      and again after it, and a local tag is deleted only if it was in the mirror before and is not
+      there after, i.e. gmd has seen it on the remote and the remote has since dropped it. Two cases
+      are left alone, and they are the ones `--prune-tags` got wrong: a tag that was never in the
+      mirror (never pushed), and one that no longer points where it did when it was seen (re-tagged
+      locally, so the local ref is no longer the remote's).
+- [x] **Safe to turn on, with no flag day.** The mirror starts empty, so the first fetch after
+      upgrading deletes nothing and merely seeds it; from the second fetch on the rule has a record
+      to work from. It can never delete a tag it has not observed. The one cost is that a tag deleted
+      on the remote *before* gmd first ran this lingers, since it was never in the mirror — a one-off
+      residue at the upgrade, not an ongoing behavior.
+- [x] **Every deletion is logged with its object id**, so `~/gmd.log` holds `git tag <name> <id>`,
+      which is how it is put back. The old code did not know it had happened at all.
+
+### Findings
+
+Everything below was probed against real git 2.55 before any of it was written, since the whole
+design rests on what `--prune` does to a namespace fetched by an explicit refspec.
+
+- [x] **`--prune` does prune the mirror namespace.** This was the load-bearing assumption and the
+      reason to probe first: git's documentation says tags fetched by an *explicit refspec* are
+      subject to pruning, as opposed to the auto-following that `--tags` does — and it holds.
+      `- [deleted] (none) -> refs/gmdtags/origin/v1` is what a tag deleted on the remote looks like.
+      Without `--prune` the stale mirror ref survives, so the flag is load-bearing too.
+- [x] **One command does all three, which was not expected.** The plan for this step was a second,
+      parallel fetch for the mirror, on the assumption that a command-line refspec suppresses the
+      configured `+refs/heads/*:refs/remotes/origin/*`. It does not: with only the tag refspec on the
+      command line git still updated *and* pruned the remote-tracking branches. So this is one fetch,
+      one connection, no `remote.origin.fetch` config written into the user's repo, and no change
+      above `gmd/Git/` at all — `IGit`, `FakeGit` and every layer above are untouched.
+- [x] **The mirror is invisible to everything gmd reads.** `show-ref --dereference --tags`
+      (`GetTagsAsync`) and `branch -vv --no-color --no-abbrev --all` (`GetBranchesAsync`) both limit
+      themselves to `refs/tags/` and `refs/heads`+`refs/remotes`, so no duplicate tag or phantom
+      branch reaches the model. Checked by running both against a repo with the mirror populated.
+- [ ] Noted, no action: **`git log --all` does include the mirror**, `--all` meaning every ref under
+      `refs/`, and `GitLog.cs:24` uses it. Confirmed with a commit reachable only through a mirror
+      ref. It makes no practical difference — `--tags` creates a local tag for every remote tag, so
+      `refs/tags` covers the mirror, and the only way to diverge is to delete a local tag while the
+      remote still has it, which the next fetch undoes anyway. Written down because it is the kind of
+      thing that would otherwise be discovered as "why is this commit in my log".
+- [x] **`--prune-tags` is inert once the refspec is there.** Found by checking that the new
+      regression tests actually regress: with `--prune-tags` added back *alongside* the refspec they
+      still passed, i.e. the never-pushed tag survived. Against the original command line
+      (`--prune-tags`, no refspec) both fail. So the refspec is what does the work and the flag is
+      the thing that must not be there alone — the exact argument string is pinned by
+      `RemoteServiceTest.TestFetchPrunesBranchesAndMirrorsRemoteTags`.
+- [x] **`for-each-ref` rather than `show-ref` for reading the two namespaces.** It strips the
+      namespace prefix off the name (`--format="%(objectname) %(refname:strip=3)"`, and a tag name may
+      itself contain `/`, so the depth is what has to be stripped) and does not repeat an annotated
+      tag as a peeled `^{}` line the way `--dereference` does — the quirk `ParseTags` works around.
+      Both sides of the comparison are the ref's own value, i.e. the tag object of an annotated tag
+      rather than the commit, which is what makes one comparison cover both tag kinds.
+- [x] **`TagService` had an unused `IRemoteService` field**, injected and never read. Removed, which
+      is also what let the dependency go the other way: `RemoteService` now takes `ITagService`, so
+      the whole mechanism sits in the git layer where the git knowledge belongs, and no caller of
+      `FetchAsync` needs to know tags have a tracking namespace.
+
+### Verified
+
+`./test` is green (757, up from 747: 9 new `FakeCmd` tests and 2 new integration tests).
+
+The two integration tests are the ones that matter, since it is git that decides what `--prune`
+removes and canned output cannot catch that: `TestFetchDeletesTagsTheRemoteDeletedAndKeepsUnpushedOnes`
+pushes two tags, fetches to observe them, then deletes one on the remote and creates a third locally,
+and asserts after the second fetch that exactly the deleted one is gone.
+`TestFetchKeepsATagThatWasRetaggedLocally` covers the re-tag guard. Both were checked to fail against
+the original `--prune-tags` command line, not merely to pass against the new one.
+
+The end-to-end tier now carries the standing check: `E2eRepo.CreateWithOriginAsync` no longer pushes
+`v1.0`, so every snapshot in `TerminalTest` that shows that tag is a test that the real binary, doing
+a real fetch against a real remote, leaves an unpushed tag alone.
+
+### Not done, deliberately
+
+- **Marking local-only tags in the log view.** The mirror makes "this tag is not on the remote"
+  knowable, and showing it is the honest answer to the other half of the dilemma — you would see a
+  tag is unpublished, or stale, before acting on it. It is a UI change with its own design question
+  (a color? a marker? the details pane?), so it does not belong in a fix for silent data loss.
+- **Pruning tags for remotes other than `origin`.** Everything in `RemoteService` is hardcoded to
+  `origin` already; this follows that rather than widening it.
+- **Cleaning up the mirror when a remote is removed.** The refs are harmless and tiny, and the
+  namespace is gmd's own, so nothing else trips over them.

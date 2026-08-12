@@ -237,6 +237,70 @@ public class GitIntegrationTest
         Assert.AreNotEqual(main.TipID, branches.First(b => b.Name == "origin/main").TipID);
     }
 
+    // What a fetch does to tags, which is the one thing here that cannot be tested with canned
+    // output: it is git that decides what --prune removes from the tracking namespace, and the
+    // whole mechanism rests on that. gmd used to fetch with --prune-tags, which deletes every local
+    // tag the remote does not have — including tags that had never been pushed, silently and on
+    // merely opening a repo. Both halves are asserted here, since dropping the prune altogether
+    // would pass the first half and fail the second.
+    [TestMethod]
+    public async Task TestFetchDeletesTagsTheRemoteDeletedAndKeepsUnpushedOnes()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "First");
+        await repo.AddOriginAsync();
+        Ok(await repo.Git.PushBranchAsync("main", repo.Path));
+
+        Ok(await repo.Git.AddTagAsync("v1.0", "HEAD", repo.Path));
+        Ok(await repo.Git.AddAnnotatedTagAsync("v2.0", "Released", "HEAD", repo.Path));
+        Ok(await repo.Git.PushTagAsync("v1.0", repo.Path));
+        Ok(await repo.Git.PushTagAsync("v2.0", repo.Path));
+
+        // The first fetch is what observes them, i.e. fills in the tracking namespace
+        Ok(await repo.Git.FetchAsync(repo.Path));
+        Assert.AreEqual("v1.0, v2.0", await TagNames(), "Nothing is pruned before anything is observed");
+
+        // Someone else deletes one of them, and a third tag is created locally and never pushed
+        Ok(await repo.Git.DeleteRemoteTagAsync("v1.0", repo.Path));
+        Ok(await repo.Git.AddTagAsync("local-only", "HEAD", repo.Path));
+
+        Ok(await repo.Git.FetchAsync(repo.Path));
+
+        Assert.AreEqual(
+            "local-only, v2.0",
+            await TagNames(),
+            "v1.0 was deleted on the remote, local-only never pushed"
+        );
+    }
+
+    // A tag that has been moved locally since it was last seen on the remote is a local tag again,
+    // so deleting it on the remote must not take the local one with it
+    [TestMethod]
+    public async Task TestFetchKeepsATagThatWasRetaggedLocally()
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        await repo.AddOriginAsync();
+        Ok(await repo.Git.PushBranchAsync("main", repo.Path));
+        Ok(await repo.Git.AddTagAsync("v1.0", c1, repo.Path));
+        Ok(await repo.Git.PushTagAsync("v1.0", repo.Path));
+        Ok(await repo.Git.FetchAsync(repo.Path));
+
+        var c2 = await repo.CommitFileAsync("file.txt", "two\n", "Second");
+        await repo.GitAsync($"tag -f v1.0 {c2}");
+        Ok(await repo.Git.DeleteRemoteTagAsync("v1.0", repo.Path));
+
+        Ok(await repo.Git.FetchAsync(repo.Path));
+
+        Assert.AreEqual("v1.0", await TagNames());
+        Assert.AreEqual(c2, (await repo.GitAsync("rev-parse refs/tags/v1.0")).Trim());
+    }
+
+    // The tags git reports, sorted and without the duplicate an annotated tag is listed as
+    async Task<string> TagNames()
+    {
+        var tags = Value(await repo.Git.GetTagsAsync(repo.Path));
+        return string.Join(", ", tags.Select(t => t.Name).Distinct().Order());
+    }
+
     [TestMethod]
     public async Task TestStatusRoundTrip()
     {
