@@ -157,6 +157,11 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   currently resolves to.
   Within the view: `1` takes the left side, `2` the right, `3` both with the
   left first, `4` both with the right first, `0` neither, and `U` un-decides.
+  `E` edits the result of the current conflict by hand, for the merge that is
+  neither side but something of both: a box opens holding what the conflict
+  resolves to now, or both sides if you have not chosen yet, and it says which
+  of the two it gave you. `Tab` moves from the box to the buttons, since Enter
+  in it is a newline.
   `]` and `[` (or `N` and `P`) step between conflicts, `B` shows the common
   ancestor as a third column — the version both sides started from, which is
   usually what settles which change to keep. Git only records it in the file

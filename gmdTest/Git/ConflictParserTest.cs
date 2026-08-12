@@ -308,6 +308,42 @@ public class ConflictParserTest
         Assert.AreEqual("one\r\nedited\r\ntwo\r\n", ConflictParser.ToText(file), "CRLF taken from the end marker");
     }
 
+    // Hand edited text arrives with whatever ending the editor used — a Terminal.Gui TextView joins
+    // its lines with Environment.NewLine, which is CRLF on Windows whatever the file is. Every line
+    // is re-terminated with the file's own ending so an edit cannot convert the region.
+    [TestMethod]
+    public void TestManualTextWithForeignLineEndingsIsReterminated()
+    {
+        var text = "one\n<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> topic\ntwo\n";
+        var crlfEdit = ConflictParser.ToLines("first\r\nsecond\r\n");
+
+        var file = ConflictParser.SetChoice(Parse(text), 0, HunkChoice.Manual, crlfEdit);
+
+        Assert.AreEqual("one\nfirst\nsecond\ntwo\n", ConflictParser.ToText(file), "The file stays LF throughout");
+    }
+
+    [TestMethod]
+    public void TestManualTextIsGivenCrLfInACrLfFile()
+    {
+        var text = "one\r\n<<<<<<< HEAD\r\nours\r\n=======\r\ntheirs\r\n>>>>>>> topic\r\ntwo\r\n";
+        var lfEdit = ConflictParser.ToLines("first\nsecond\n");
+
+        var file = ConflictParser.SetChoice(Parse(text), 0, HunkChoice.Manual, lfEdit);
+
+        Assert.AreEqual("one\r\nfirst\r\nsecond\r\ntwo\r\n", ConflictParser.ToText(file));
+    }
+
+    // A multi line edit of a conflict that ends the file must not gain a trailing newline
+    [TestMethod]
+    public void TestMultiLineManualTextAtTheEndOfTheFile()
+    {
+        var text = "head\n<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> topic";
+
+        var file = ConflictParser.SetChoice(Parse(text), 0, HunkChoice.Manual, ConflictParser.ToLines("a\nb"));
+
+        Assert.AreEqual("head\na\nb", ConflictParser.ToText(file), "Still ends without a newline");
+    }
+
     [TestMethod]
     public void TestCrLfIsKeptWhenChoosingASide()
     {

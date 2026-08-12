@@ -267,7 +267,7 @@ static class ConflictParser
             HunkChoice.Theirs => hunk.Theirs,
             HunkChoice.OursThenTheirs => [.. hunk.Ours, .. hunk.Theirs],
             HunkChoice.TheirsThenOurs => [.. hunk.Theirs, .. hunk.Ours],
-            HunkChoice.Manual => hunk.Manual ?? [],
+            HunkChoice.Manual => Reterminate(hunk.Manual ?? [], hunk),
             _ => (IReadOnlyList<FileLine>)[],
         };
 
@@ -275,6 +275,22 @@ static class ConflictParser
             return lines;
 
         return [.. lines.Take(lines.Count - 1), lines[^1] with { Eol = hunk.EndMarker.Eol }];
+    }
+
+    // Hand edited text arrives with whatever line ending the editor it came from used, which on
+    // Windows is CRLF regardless of the file — so every line is given the file's own ending instead.
+    // The '<<<<<<<' line is what that is read from: it always has a terminator, since the conflict
+    // continues after it, where the '>>>>>>>' line has none when the conflict ends the file.
+    static IReadOnlyList<FileLine> Reterminate(IReadOnlyList<FileLine> lines, ConflictHunk hunk)
+    {
+        var eol = hunk.StartMarker.Eol;
+        var terminated = lines.Select(l => l with { Eol = eol }).ToList();
+
+        // ... and if the conflict ended the file without a trailing newline, it still does
+        if (terminated.Count > 0 && hunk.EndMarker.Eol == "")
+            terminated[^1] = terminated[^1] with { Eol = "" };
+
+        return terminated;
     }
 
     // A complete '<<<<<<< ... >>>>>>>' starting at 'start', or false if what follows is not one

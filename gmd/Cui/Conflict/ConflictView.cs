@@ -153,6 +153,7 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler(Key.n, () => GotoHunk(1));
         view.RegisterKeyHandler(Key.p, () => GotoHunk(-1));
 
+        view.RegisterKeyHandler(Key.e, EditCurrentHunk);
         view.RegisterKeyHandler(Key.b, ToggleBase);
         view.RegisterKeyHandler(Key.s, Save);
         view.RegisterKeyHandler(Key.a, ShowWholeFileMenu);
@@ -248,6 +249,47 @@ class ConflictView : IConflictView
     // The common ancestor is fetched the first time it is asked for rather than when the view opens:
     // recovering it costs five git commands, and most conflicts are settled without ever looking at
     // it. Once fetched it stays on the file, so toggling it off and on again is free.
+    // Hand edits the result of one conflict, for the merge that is neither side but something of
+    // both. A modal box rather than editing in the view itself: Terminal.Gui's text view needs the
+    // real keyboard focus, and this is the one arrangement of it the codebase already relies on —
+    // the commit dialog is the same thing with a different label.
+    void EditCurrentHunk()
+    {
+        var hunk = CurrentHunkOrNull();
+        if (hunk == null)
+            return;
+
+        var width = Math.Min(100, Application.Driver.Cols - 8);
+        var height = Math.Min(26, Application.Driver.Rows - 4);
+        var dlg = new UIDialog($"Edit Conflict {hunk.Index + 1} of {file.Path}", width, height);
+
+        dlg.AddLabel(1, 0, SeedNote(hunk));
+        var edit = dlg.AddMultiLineInputView(1, 2, width - 4, height - 6, SeedText(hunk));
+
+        if (!dlg.ShowOkCancel(edit))
+            return;
+
+        // RawText and not Text: the latter trims, and indentation is part of code
+        resolution.Set(hunk.Index, HunkChoice.Manual, edit.RawText);
+        SetRows();
+    }
+
+    // Says where the text in the box came from, so it is never a surprise
+    string SeedNote(ConflictHunk hunk) =>
+        resolution.ChoiceOf(hunk.Index) != HunkChoice.None
+            ? "What this conflict resolves to now:"
+            : $"Both sides, {hunk.OursLabel.Max(20)} first, to cut down to what you want:";
+
+    string SeedText(ConflictHunk hunk)
+    {
+        // Something already chosen is what to start from, so '1' then 'e' means "ours, but tweaked"
+        if (resolution.ChoiceOf(hunk.Index) != HunkChoice.None)
+            return string.Join('\n', resolution.ResultOf(hunk).Select(l => l.Text));
+
+        // Otherwise both sides, which is the usual starting point for a merge written by hand
+        return string.Join('\n', hunk.Ours.Concat(hunk.Theirs).Select(l => l.Text));
+    }
+
     void ToggleBase()
     {
         if (isShowBase)
@@ -544,6 +586,7 @@ class ConflictView : IConflictView
                 .Item($"Use {ours} then {theirs}", "3", () => Choose(HunkChoice.OursThenTheirs), () => hasHunk)
                 .Item($"Use {theirs} then {ours}", "4", () => Choose(HunkChoice.TheirsThenOurs), () => hasHunk)
                 .Item("Use Neither", "0", () => Choose(HunkChoice.Neither), () => hasHunk)
+                .Item("Edit by Hand ...", "E", EditCurrentHunk, () => hasHunk)
                 .Item("Un-choose", "U", () => Choose(HunkChoice.None), () => hasHunk)
                 .Separator()
                 .Item("Next Conflict", "], N", () => GotoHunk(1), () => resolution.NextHunk(CurrentHunk, 1) != -1)

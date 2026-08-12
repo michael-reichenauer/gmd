@@ -2034,7 +2034,7 @@ new service rather than an extension of `DiffRows`.
 - [x] **Step 5 — the resolver view.** See below.
 - [x] **Step 6 — the base pane.** See below.
 - [x] **Step 7 — file-level resolutions.** See below.
-- [ ] Step 8 — manual edit of a conflict region.
+- [x] **Step 8 — manual edit of a conflict region.** See below.
 - [ ] Step 9 — (optional) true inline editing, gated on a focus probe.
 - [ ] Step 10 — `gmd/doc/help.md`.
 
@@ -2438,3 +2438,39 @@ committed to a clean tree with both files present.
 `TestDiffOfACommit` failed once during this step and passed in isolation, in an E2E only run, and in
 two further full runs. It is the same flake family as `TestShowAndHideBranchRoundTrip`, recorded in
 Step 4 and still deliberately not fixed.
+
+### Step 8 findings
+
+`E` in the resolver opens the current conflict's result in a modal box, for the merge that is
+neither side but something of both.
+
+- [x] **Hand edited text arrives with the editor's line endings, not the file's.** A Terminal.Gui
+      `TextView` joins its lines with `Environment.NewLine`, which is CRLF on Windows whatever the
+      file is — so an edit would have converted the region and shown the whole file as changed.
+      Every manual line is re-terminated from the `<<<<<<<` marker, which is the reliable source of
+      the file's own ending: it always has a terminator, where `>>>>>>>` has none when the conflict
+      ends the file. That end-of-file case is then restored on the last line.
+- [x] **`UITextView.Text` trims**, which is right for a commit message and wrong for code, where
+      leading indentation and trailing blank lines are content. `RawText` was added beside it and is
+      what the resolver reads.
+- [x] **The box says where its text came from**, because two seeds are useful and picking silently
+      would be a surprise: what the conflict resolves to now if a side has been chosen, so `1` then
+      `E` means "ours, but tweaked", and otherwise both sides in order, which is the usual starting
+      point for a merge written by hand.
+- [x] **The focus question Step 9 was gated on is answered: a `TextView` in a modal `UIDialog` takes
+      the keyboard normally** — typing, `Ctrl-K`, and `Tab` to the buttons all work, driven through
+      tmux against the built binary. What that settles is only the *modal* case, which is the one the
+      commit dialog already proved; it says nothing about a text view sharing a `Toplevel` with two
+      `ContentView`s, which is what Step 9 would need.
+- [x] `Ctrl-O` is documented in the help as activating OK but is not bound anywhere — dialogs are
+      accepted with `Tab` then `Enter`, which is what the commit dialog's own E2E test does. Left
+      alone: it is pre-existing and outside this work.
+
+### Step 8 verified
+
+`./test` is green (747), including a run with `GIT_EDITOR` pointed at a blocking editor. By hand
+under tmux: `E` opening the box seeded with both sides and labelled as such; clearing it and typing
+a merge of the two by hand; `Tab` then `Enter` accepting it, after which the conflict reads *edited
+by hand* and the result pane shows the typed text; `S` writing exactly that to the file, with the
+lines around the conflict untouched and no markers left; and the other seed, where choosing a side
+first and then pressing `E` fills the box with that side and says so.

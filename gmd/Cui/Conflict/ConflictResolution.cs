@@ -58,9 +58,14 @@ class ConflictResolution
             HunkChoice.OursThenTheirs => [.. hunk.Ours, .. hunk.Theirs],
             HunkChoice.TheirsThenOurs => [.. hunk.Theirs, .. hunk.Ours],
             HunkChoice.Neither => [],
-            HunkChoice.Manual => ManualTextOf(hunk.Index).Split('\n').Select(l => new FileLine(l)).ToList(),
+            HunkChoice.Manual => ToLines(ManualTextOf(hunk.Index)),
             _ => [],
         };
+
+    // Hand edited text as lines, however the editor it came from ended them. The Git layer gives
+    // them the file's own ending when it writes; here they are only drawn.
+    public static IReadOnlyList<FileLine> ToLines(string text) =>
+        text.Replace("\r\n", "\n").Split('\n').Select(l => new FileLine(l)).ToList();
 
     // The conflict at or after a row's, walking in the given direction, or -1 if there is none that
     // way. A row between conflicts has -1 as its own index, so it starts from the one after it.
