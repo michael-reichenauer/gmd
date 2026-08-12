@@ -57,8 +57,8 @@ class ConflictResolution
             HunkChoice.Theirs => hunk.Theirs,
             HunkChoice.OursThenTheirs => [.. hunk.Ours, .. hunk.Theirs],
             HunkChoice.TheirsThenOurs => [.. hunk.Theirs, .. hunk.Ours],
-            HunkChoice.Neither => [],
-            HunkChoice.Manual => ManualTextOf(hunk.Index).Split('\n').Select(l => new FileLine(l)).ToList(),
+            HunkChoice.Neither => [], // neither
+            HunkChoice.Manual => ManualTextOf(hunk.Index).Split('\n').Select(l => new FileLine(l)).ToList(), // Manual
             _ => [],
         };
 
