@@ -146,39 +146,55 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   merge that conflicts, leaves you on the target branch, which is where the 
   merge has to be finished.
 - **Resolve Conflicts** (`Enter` in the diff view):
-  Opens the conflicted file the cursor is on in the resolver, or the list of
-  them if the cursor is elsewhere. They are also under **Resolve Conflicts**
-  in the diff menu, which lists every conflicted file — including the ones the
-  diff cannot show, such as a file one side deleted or a binary file.
-  The resolver puts the two sides beside each other, titled with the names git
-  wrote into the markers (`HEAD` and `topic`, or a commit during a rebase)
-  rather than "ours" and "theirs", which mean the opposite of what you expect
-  while rebasing. Below them a pane shows what the conflict under the cursor
-  currently resolves to.
-  Within the view: `1` takes the left side, `2` the right, `3` both with the
-  left first, `4` both with the right first, `0` neither, and `U` un-decides.
-  `E` edits the result of the current conflict by hand, for the merge that is
-  neither side but something of both: a box opens holding what the conflict
-  resolves to now, or both sides if you have not chosen yet, and it says which
-  of the two it gave you. `Tab` moves from the box to the buttons, since Enter
-  in it is a newline.
-  `]` and `[` (or `N` and `P`) step between conflicts, `B` shows the common
-  ancestor as a third column — the version both sides started from, which is
-  usually what settles which change to keep. Git only records it in the file
-  when `merge.conflictStyle` is `diff3` or `zdiff3`, so otherwise gmd works it
-  out on demand from the staged versions, without touching your files. A file
-  both sides created has no ancestor, and says so. `←` `→` scroll all the
-  columns together, `A` resolves the whole file from one side or puts the
-  conflicts back, `M` opens the menu, and `S` saves and marks the file
-  resolved. Nothing is written until `S`, so closing without saving changes
-  nothing on disk — and closing with decisions unsaved asks first.
+  Opens the conflicted file the cursor is on, or the list of them if the cursor
+  is elsewhere. The same list is under **Resolve Conflicts** in the diff menu,
+  and it names every conflicted file — including those the diff cannot show,
+  such as one a side deleted, or a binary file.
+
+  The two sides are shown beside each other, titled with the names git wrote
+  into the markers (`HEAD` and `topic`, or a commit id during a rebase) rather
+  than "ours" and "theirs" — during a rebase those two mean the opposite of
+  what you would expect. A pane below shows what the conflict under the cursor
+  resolves to as you decide.
+
+-------------------------------------------------------------------------
+| Key      | Description                                                |
+| -------- | ---------------------------------------------------------- |
+| 1  2     | Take the left or the right side                            |
+| 3  4     | Take both, left first or right first                       |
+| 0        | Take neither side                                          |
+| U        | Un-decide this conflict                                    |
+| E        | Edit the result of this conflict by hand                   |
+| ]  [     | Next or previous conflict (N and P do the same)            |
+| B        | Show the version both sides started from                   |
+| A        | Whole file: take one side, or put the conflicts back       |
+| S        | Save and mark the file resolved                            |
+| M        | Open the menu, which lists all of these                    |
+| ←  →     | Scroll all the columns sideways                            |
+| Esc / Q  | Close the resolver                                         |
+-------------------------------------------------------------------------
+
+  Nothing is written until `S`, so closing without saving leaves the file as it
+  was, and closing with decisions unsaved asks first.
+
+  `B` shows the version both sides started from, which is usually what settles
+  which change to keep. Git records it in the file only when
+  `merge.conflictStyle` is `diff3` or `zdiff3`; otherwise gmd works it out on
+  demand from the staged versions, without touching your files. A file both
+  sides created has no such version, and says so.
+
+  `E` is for the merge that is neither side but something of both. A box opens
+  holding what the conflict resolves to now, or both sides if you have not
+  chosen yet, and it says which of the two it gave you. `Tab` moves from the
+  box to the buttons, since Enter inside it is a newline.
+
   A file with no text to merge is not shown in columns; it asks the one
-  question it can, and which question that is depends on which sides still
-  have the file. A binary file both sides changed asks which version to use.
-  A file only one side has — one side deleted it, or each renamed it
-  differently — asks whether to keep it or accept the deletion. A file neither
-  side has any longer can only be removed, and says so rather than offering a
-  version to keep that does not exist.
+  question it can, and which question depends on which sides still have the
+  file. A binary file both sides changed asks which version to use. A file only
+  one side has — one deleted it, or each renamed it differently — asks whether
+  to keep it or accept the deletion. A file neither side has any longer can
+  only be removed, and says so rather than offering a version that is not there.
+
 - **Continue / Skip / Abort**:
   When a merge, rebase, cherry pick or revert stops on conflicts, the repo
   menu grows a section at the top naming what is in progress, how far it has

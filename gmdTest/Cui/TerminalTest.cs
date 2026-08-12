@@ -354,6 +354,10 @@ public class TerminalTest
 
         gmd.Send("?");
         var screen = gmd.WaitFor("Gmd Help Guide");
+
+        // Note the '┃' at the right: that is the scroll bar, and its length is worked out from how
+        // long the document is — so this snapshot moves whenever gmd/doc/help.md grows or shrinks,
+        // even though nothing near the top of it changed.
         Assert.AreEqual(
             """
             ┣╯   Add beta       ╭ Help ────────────────────────────────────────────────────────────────────────╮     24-10-15 12:01
@@ -361,7 +365,7 @@ public class TerminalTest
                                 │                                                                             ┃│
                                 │### Keyboard Shortcuts                                                       ┃│
                                 │                                                                             ┃│
-                                │Here are some essential keyboard shortcuts:                                  ┃│
+                                │Here are some essential keyboard shortcuts:                                   │
             """,
             ScreenText.Rows(screen, repo.Path, 5, 6)
         );

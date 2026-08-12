@@ -2035,8 +2035,10 @@ new service rather than an extension of `DiffRows`.
 - [x] **Step 6 — the base pane.** See below.
 - [x] **Step 7 — file-level resolutions.** See below.
 - [x] **Step 8 — manual edit of a conflict region.** See below.
-- [ ] Step 9 — (optional) true inline editing, gated on a focus probe.
-- [ ] Step 10 — `gmd/doc/help.md`.
+- [ ] **Step 9 — inline editing. Deferred on purpose, not forgotten** — see the section at the
+      end, which has the measurement, the one unknown, the probe that would settle it, and a
+      cheaper change that closes most of the same gap.
+- [x] **Step 10 — documentation.** See below.
 
 ### Step 1 findings
 
@@ -2474,3 +2476,107 @@ a merge of the two by hand; `Tab` then `Enter` accepting it, after which the con
 by hand* and the result pane shows the typed text; `S` writing exactly that to the file, with the
 lines around the conflict untouched and no markers left; and the other seed, where choosing a side
 first and then pressing `E` fills the box with that side and says so.
+
+### Step 9 — inline editing, deferred
+
+**Not built, and the reasoning is here so the decision can be revisited without redoing the
+analysis.** Step 8 covers the need: `E` opens the conflict's result in a modal box and works.
+Step 9 would replace that box with editing in the result pane itself, so the two sides stay on
+screen while the merge is typed — the result `ContentView` going to `Height = 0` and a `UITextView`
+taking its rectangle and the keyboard, which is the `Height` toggle `BlameView.ToggleDetails`
+already uses.
+
+**What it would buy, measured rather than guessed.** On a 120x40 terminal with an eight line
+conflict, the Step 8 box is 100x26 centred and covers the source pane from row 8 down: all eight
+*theirs* lines are hidden and about two *ours* lines remain. So the modal does hide what is being
+merged — but the box is *seeded with both sides in full* when nothing has been chosen yet, so the
+material is in front of the user and they are pruning it rather than recalling it. The gap is
+narrower than "the sides are hidden": it is editing **after** choosing a side, where the box holds
+only that side, and editing while wanting the **common ancestor** in view.
+
+**The one unknown, which is the whole gate.** Whether `SetFocus()` gives the keyboard to a
+`UITextView` sharing a bare `Toplevel` with two `ContentView`s. Step 8 proved the *modal* case —
+that was never the doubtful half, the commit dialog had shown it already. The doubtful half is this
+configuration, which the codebase has never run and which is where the "`SetFocus()` does not seem
+to work" comment in `RepoView` and `BlameView` comes from. That comment is about code that never
+calls `SetFocus()` at all, so it is untested rather than disproven, which is exactly why it needs a
+probe and not a guess.
+
+**The probe that settles it**, half an hour: a throwaway `Toplevel` with one `ContentView` (with a
+letter key registered on it) and one `UITextView`, checking that `Tab` moves the caret in and out,
+that typing that letter into the text view does not fire the command, that the caret is visible, and
+that it is still visible after a menu has opened and closed over it. Run that before any of the work,
+because if it fails there is no Step 9 and everything built for it is wasted.
+
+**What else it would need, beyond the layout swap:**
+
+- **Key routing and a visible mode.** Every letter becomes text while editing, so `1`-`4`, `s`, `b`,
+  `n`, `p` and `q` stop being commands. Without an obvious mode marker a user presses `1` expecting
+  *use ours* and types a `1` instead. `ContentView.ProcessHotKey` returns early when it does not have
+  focus, so the routing works *if* focus really moves — which is the same unknown again.
+- **An accept key, and the obvious one is hazardous.** There are no buttons to `Tab` to inline, so it
+  needs a key; `Ctrl-S` is XOFF and freezes many terminals. `Esc` for cancel is fine.
+- **The caret after a menu.** `UIDialog.Show` ends with `SetCursorVisibility(Invisible)`, so opening
+  and closing the menu mid edit leaves the caret gone until focus re-enters the text view.
+- **Tests that depend on focus**, i.e. the kind this suite already has two flakes of.
+
+**The argument that decided it.** Step 12 records that the tmux tier was deliberately written to name
+no Terminal.Gui type so it survives the 1.x to 2.x port. Inline editing is the opposite: it would be
+the most 1.x-focus-dependent code in the repo, in a framework the project intends to leave, where
+everything else in `Cui/Conflict/` is row math that ports cleanly.
+
+**The cheaper change, if the gap is worth closing at all.** Show both sides read-only *inside* the
+edit dialog, above the box — `UIDialog.AddContentView` exists and `HelpDlg` uses it. The `UITextView`
+stays the only focused thing, so there is no focus question, and the sides are visible while typing,
+which is the whole benefit. Roughly twenty lines. Alternatively, when a side has already been chosen,
+seed the box with that side *and* the other one appended, so nothing is out of reach.
+
+### Step 10 findings
+
+`gmd/doc/help.md`, which is embedded in the binary and is the only documentation a user of gmd ever
+sees.
+
+- [x] **The help had grown by accretion, one paragraph per step, into a thirty five line block of
+      prose** — accurate and unreadable in an eighty column dialog. The resolver's keys are now a
+      table in the same style as the two the document already has, and the prose around it is four
+      short paragraphs answering the questions the table cannot: what is not written until `S`, what
+      the ancestor is and where it comes from, what `E` is for, and what happens to a file with no
+      text to merge.
+- [x] **`TestHelpDialog` asserts only the first six lines** — the title and the shortcuts heading —
+      so the body can be rewritten freely. But it broke anyway, on the **scroll bar**: its length is
+      worked out from how long the document is, so lengthening the help shortened the `┃` by one row
+      six lines from the top, where nothing else had changed. The snapshot now carries a comment
+      saying so, since the coupling is invisible from the test.
+- [x] Checked by opening the real help in the real dialog rather than by reading the markdown: the
+      table is 73 columns, which fits the 80 column dialog with its borders, and lines up with the
+      tables above it.
+
+### Step 16 verified
+
+`./test` is green (747: 700 fast, 47 E2E, plus the integration tier), and green again with
+`GIT_EDITOR` pointed at a blocking editor, which is the environment that exposed the editor hang.
+
+What was driven by hand against the built binary under tmux, over the course of the steps: a two
+file conflicted merge resolved hunk by hand and committed; a `rename/rename` merge, which produces
+the three awkward conflict kinds at once, resolved entirely inside gmd; a two step rebase stopped on
+both of its commits, continued through both from the repo menu and finished; aborts from merge,
+rebase and cherry pick; the common ancestor recovered on demand for a conflict git wrote in the
+default style, and correctly joined back up where `--diff3` would have split it; a hand written merge
+typed into the edit box and saved; commits refused both for unresolved conflicts and for markers left
+in a file marked resolved; and, the regression that started it all, a `rebase --apply` conflict
+surviving the diff view that used to destroy it.
+
+### Not done, deliberately
+
+- **Inline editing** — Step 9 above, deferred with its reasoning, its measurement and the probe that
+  would settle it.
+- **Word level highlighting inside a conflict region.** DiffPlex is already a dependency and
+  `Cui/Diff/DiffService.GetDiffSides` already does character diffs, so this is cheap to add later.
+  Note its whitespace branch tests for `RedBg`/`GreenBg` and conflict lines are `Color.Yellow`, so it
+  does not fire on them as things stand.
+- **Submodule conflicts**, which need their own UI — a choice between two commits, not two texts.
+  They fall through to the external merge tool, which is still on the diff menu.
+- **`git rerere`**, and "resolve every conflict where the two sides differ only by whitespace".
+- **A conflict list in the log view.** Conflicts are reached through the diff view, which is one
+  keystroke from the uncommitted row, and the repo menu names the operation and the count. A second
+  route was not worth the duplication.
