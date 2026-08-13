@@ -371,7 +371,7 @@ public class ConflictParserTest
     [TestMethod]
     public void TestSetBasesFillsInTheCommonAncestor()
     {
-        var file = ConflictParser.SetBases(Parse(TwoSided), [ConflictParser.ToLines("base\n")]);
+        Assert.IsTrue(ConflictParser.TrySetBases(Parse(TwoSided), [ConflictParser.ToLines("base\n")], out var file));
 
         Assert.IsTrue(file.Hunks[0].HasBase);
         Assert.AreEqual("base\n", ConflictParser.ToText(file.Hunks[0].Base));
@@ -397,7 +397,7 @@ public class ConflictParserTest
         Assert.AreEqual(1, file.Hunks.Count);
         Assert.AreEqual(2, merged.Hunks.Count, "diff3 split what the merge wrote as one");
 
-        var withBase = ConflictParser.SetBasesFrom(file, merged);
+        Assert.IsTrue(ConflictParser.TrySetBasesFrom(file, merged, out var withBase));
 
         // The common line between the two is part of the ancestor of the joined region
         Assert.AreEqual("B1\nmid\nB2\n", ConflictParser.ToText(withBase.Hunks[0].Base));
@@ -415,7 +415,7 @@ public class ConflictParserTest
                 + "b\n<<<<<<< ours\nO2\n||||||| base\nB2\n=======\nT2\n>>>>>>> theirs\nc\n"
         );
 
-        var withBase = ConflictParser.SetBasesFrom(file, merged);
+        Assert.IsTrue(ConflictParser.TrySetBasesFrom(file, merged, out var withBase));
 
         Assert.AreEqual("B1\n", ConflictParser.ToText(withBase.Hunks[0].Base));
         Assert.AreEqual("B2\n", ConflictParser.ToText(withBase.Hunks[1].Base));
@@ -428,7 +428,7 @@ public class ConflictParserTest
         var file = Parse("a\n<<<<<<< HEAD\nO1\n=======\nT1\n>>>>>>> topic\nb\n");
         var merged = Parse("a\n<<<<<<< ours\nO1\n||||||| base\n=======\nT1\n>>>>>>> theirs\nb\n");
 
-        var withBase = ConflictParser.SetBasesFrom(file, merged);
+        Assert.IsTrue(ConflictParser.TrySetBasesFrom(file, merged, out var withBase), "An empty ancestor still maps");
 
         Assert.AreEqual(0, withBase.Hunks[0].Base.Count);
         Assert.IsFalse(withBase.Hunks[0].HasBase, "So the pane says there is none rather than showing nothing");
@@ -436,13 +436,17 @@ public class ConflictParserTest
 
     // A merge of different content altogether, i.e. the file changed on disk since. Mapping it would
     // show an ancestor belonging to some other version of the file.
+    //
+    // False rather than the file unchanged, which is the difference that matters: an ancestor that
+    // could not be mapped looks exactly like one that is genuinely empty, and the caller resolving
+    // to "the ancestor" would then delete the region instead of undoing both sides' changes to it.
     [TestMethod]
     public void TestBaseIsNotMappedWhenTheOursTextDoesNotMatch()
     {
         var file = Parse("a\n<<<<<<< HEAD\nO1\n=======\nT1\n>>>>>>> topic\nb\n");
         var merged = Parse("a\nEXTRA\n<<<<<<< ours\nO1\n||||||| base\nB1\n=======\nT1\n>>>>>>> theirs\nb\n");
 
-        var withBase = ConflictParser.SetBasesFrom(file, merged);
+        Assert.IsFalse(ConflictParser.TrySetBasesFrom(file, merged, out var withBase));
 
         Assert.IsFalse(withBase.Hunks[0].HasBase);
     }
@@ -452,9 +456,12 @@ public class ConflictParserTest
     [TestMethod]
     public void TestSetBasesIsIgnoredWhenTheCountsDisagree()
     {
-        var file = ConflictParser.SetBases(
-            Parse(TwoSided),
-            [ConflictParser.ToLines("a\n"), ConflictParser.ToLines("b\n")]
+        Assert.IsFalse(
+            ConflictParser.TrySetBases(
+                Parse(TwoSided),
+                [ConflictParser.ToLines("a\n"), ConflictParser.ToLines("b\n")],
+                out var file
+            )
         );
 
         Assert.IsFalse(file.Hunks[0].HasBase);

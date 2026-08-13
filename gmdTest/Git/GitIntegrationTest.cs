@@ -1087,6 +1087,30 @@ public class GitIntegrationTest
         Assert.IsFalse(withBase.HasBase, "And the file says so, which is what the resolver refuses on");
     }
 
+    // The ancestor is recovered by re-running the merge over the index stages and matching it to the
+    // file by the lines each conflict covers, so a working tree file that has been edited since git
+    // wrote the conflicts into it can no longer be matched.
+    //
+    // That has to be an error rather than an empty ancestor. The two are indistinguishable
+    // afterwards — a conflict where both sides added lines really does have an empty one — and
+    // resolving to an ancestor that is empty deletes the region, so the quiet answer was to throw
+    // the conflict away in the name of undoing both sides' changes to it.
+    [TestMethod]
+    public async Task TestAnAncestorThatCannotBeMatchedIsAnErrorRatherThanAnEmptyOne()
+    {
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        // A line added outside the conflict, i.e. the file no longer holds the text the ancestor
+        // would be lined up against
+        repo.WriteFile("file.txt", "EDITED\n" + await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
+        var edited = Value(await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path));
+
+        var result = await repo.Git.WithBaseAsync(edited, repo.Path);
+
+        Assert.IsFalse(Try(out var _, out var e, result), "An ancestor that cannot be matched is not an answer");
+        StringAssert.Contains(e.ErrorMessage, "could not be matched to its conflicts");
+    }
+
     // Resolving to the ancestor is the one choice whose text is not in the working tree file, since
     // the default conflict style records no ancestor. ResolveAsync re-reads the file to line the
     // choices up against it, so it has to recover the ancestor into that same read.

@@ -65,6 +65,24 @@ class ConflictResolution
 
     // Hand edited text as lines, however the editor it came from ended them. The Git layer gives
     // them the file's own ending when it writes; here they are only drawn.
-    public static IReadOnlyList<FileLine> ToLines(string text) =>
-        text.Replace("\r\n", "\n").Split('\n').Select(l => new FileLine(l)).ToList();
+    //
+    // Split by the same rule the Git layer writes by — a terminator ends a line rather than
+    // starting an empty one, so no text is no lines at all. See ConflictParser.ToLines, which this
+    // cannot call: it is below the Server layer, and every line of it carries a terminator this
+    // side of the model has been narrowed of. ConflictResolutionTest pins the two together.
+    //
+    // Without the same rule, the result pane previewed one blank line where nothing would be
+    // written, so emptying the edit box — which is how a conflicted region is dropped — looked
+    // like it would leave an empty line behind.
+    public static IReadOnlyList<FileLine> ToLines(string text)
+    {
+        if (text == "")
+            return [];
+
+        var lines = text.Replace("\r\n", "\n").Split('\n').Select(l => new FileLine(l)).ToList();
+        if (lines.Count > 1 && lines[^1].Text == "")
+            lines.RemoveAt(lines.Count - 1);
+
+        return lines;
+    }
 }

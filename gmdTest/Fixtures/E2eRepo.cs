@@ -147,6 +147,31 @@ static class E2eRepo
         return repo;
     }
 
+    // The same, with two conflicts far enough apart that git keeps them as two — for the tests
+    // about resolving a file in more than one go, where one conflict cannot show anything
+    public static async Task<TempRepo> CreateWithTwoConflictsAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        lines[19] = "line 20 on dev";
+        lines[59] = "line 60 on dev";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        lines[19] = "line 20 on main";
+        lines[59] = "line 60 on main";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
+
+        await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+    }
+
     // A repository with more commits than fit on a screen, for the scrolling tests
     public static async Task<TempRepo> CreateLongAsync(int commits = 30)
     {

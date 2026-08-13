@@ -89,12 +89,21 @@ static class ConflictParser
     // usual case where the working tree file has no '|||||||' sections of its own. Matched by
     // position, so a mismatched count means the file has been edited since and the bases are left
     // alone rather than paired with the wrong conflicts.
-    public static ConflictFile SetBases(ConflictFile file, IReadOnlyList<IReadOnlyList<FileLine>> bases)
+    //
+    // False for that mismatch rather than the file unchanged: an ancestor that could not be mapped
+    // and one that is genuinely empty look identical afterwards, and the difference matters — the
+    // second is a real answer the user can resolve to, the first would silently delete the region.
+    public static bool TrySetBases(
+        ConflictFile file,
+        IReadOnlyList<IReadOnlyList<FileLine>> bases,
+        out ConflictFile withBases
+    )
     {
+        withBases = file;
         if (bases.Count != file.Hunks.Count)
-            return file;
+            return false;
 
-        return file with
+        withBases = file with
         {
             Segments = file
                 .Segments.Select(s =>
@@ -111,6 +120,8 @@ static class ConflictParser
                 )
                 .ToList(),
         };
+
+        return true;
     }
 
     // Takes the common ancestor of each conflict from a separately computed diff3 merge of the same
@@ -127,11 +138,13 @@ static class ConflictParser
     // by the lines it occupies in that reconstruction, and its ancestor is whatever the diff3 merge
     // has over the same lines — an ancestor split across two of its conflicts is joined back up,
     // together with the common text between them, which is part of the ancestor too.
-    public static ConflictFile SetBasesFrom(ConflictFile file, ConflictFile merged)
+    public static bool TrySetBasesFrom(ConflictFile file, ConflictFile merged, out ConflictFile withBases)
     {
+        withBases = file;
+
         var pieces = ToPieces(merged);
         if (pieces.Sum(p => p.Ours.Count) != OursLineCount(file))
-            return file; // Not the same three versions, so there is nothing safe to map
+            return false; // Not the same three versions, so there is nothing safe to map
 
         var bases = new List<IReadOnlyList<FileLine>>();
         var at = 0;
@@ -147,7 +160,7 @@ static class ConflictParser
             at += segment.Hunk.Ours.Count;
         }
 
-        return SetBases(file, bases);
+        return TrySetBases(file, bases, out withBases);
     }
 
     // One stretch of the diff3 merge: the lines it contributes to our version of the file, and the

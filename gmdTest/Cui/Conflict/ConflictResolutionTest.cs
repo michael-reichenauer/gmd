@@ -136,4 +136,41 @@ public class ConflictResolutionTest
 
         Assert.AreEqual("one,two", string.Join(",", resolution.ResultOf(file.Hunks[0]).Select(l => l.Text)));
     }
+
+    // Emptying the edit box is how a conflicted region is dropped altogether, which the result pane
+    // has to say in words — an empty list is what it draws "(nothing — the whole region is
+    // removed)" for. Splitting an empty text into one empty line instead previewed a blank line
+    // that would never be written.
+    [TestMethod]
+    public void TestAHandEditEmptiedOutIsNothingAtAll()
+    {
+        var file = FileWith(1);
+        var resolution = new ConflictResolution(file);
+        resolution.Set(0, HunkChoice.Manual, "");
+
+        Assert.AreEqual(0, resolution.ResultOf(file.Hunks[0]).Count);
+    }
+
+    // The result pane is a preview of what the Git layer will write, so the two have to split text
+    // into lines by the same rule — and they cannot share the code: ConflictParser is below the
+    // Server layer and every line of it carries a terminator this side of the model does not have.
+    // This is what holds them together. It is the only place a Cui test reaches into gmd.Git, and
+    // the disagreement it pins was real: "" and a trailing newline each previewed one line too many.
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("a")]
+    [DataRow("a\n")]
+    [DataRow("a\nb")]
+    [DataRow("a\nb\n")]
+    [DataRow("\n")]
+    [DataRow("a\n\n")]
+    [DataRow("\n\na")]
+    [DataRow("a\r\nb\r\n")]
+    public void TestPreviewedLinesAreTheLinesTheGitLayerWillWrite(string text)
+    {
+        var previewed = ConflictResolution.ToLines(text).Select(l => l.Text);
+        var written = gmd.Git.Private.ConflictParser.ToLines(text.Replace("\r\n", "\n")).Select(l => l.Text);
+
+        Assert.AreEqual(string.Join("|", written), string.Join("|", previewed), $"For {text.Replace("\n", "\\n")}");
+    }
 }

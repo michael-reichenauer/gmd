@@ -164,9 +164,29 @@ class ConflictService : IConflictService
 
             // Mapped by the lines each conflict covers rather than by position: '--diff3' groups
             // conflicts differently from the merge that wrote the file, so the two do not
-            // necessarily have the same number of them. See SetBasesFrom.
-            var withBases = ConflictParser.SetBasesFrom(file, ConflictParser.Parse(file.Path, file.Kind, merged));
-            return withBases with { HasBase = true };
+            // necessarily have the same number of them. See TrySetBasesFrom.
+            //
+            // An error and not 'HasBase = true' with nothing in it: the mapping only fails when the
+            // file no longer holds the text the conflicts were written against, and reporting that
+            // as an ancestor would draw every region as "nothing here" and resolve to the empty
+            // text — the file's own conflicts silently deleted, in the name of undoing both sides.
+            if (
+                !ConflictParser.TrySetBasesFrom(
+                    file,
+                    ConflictParser.Parse(file.Path, file.Kind, merged),
+                    out var withBases
+                )
+            )
+                return R.Error(
+                    $"The common ancestor of {file.Path} could not be matched to its conflicts.\n\n"
+                        + "The file has been changed since git wrote the conflicts into it, so there is\n"
+                        + "no way to tell which ancestor belongs to which conflict."
+                );
+
+            return withBases with
+            {
+                HasBase = true,
+            };
         }
         finally
         {
@@ -240,6 +260,15 @@ class ConflictService : IConflictService
         if (!Try(out var file, out var e, await GetConflictFileAsync(path, kind, wd)))
             return e;
 
+        // Before the ancestor is recovered below, not after: a file that no longer has the same
+        // conflicts fails both checks, and this is the one that says which file and what changed
+        if (file.Hunks.Count != choices.Count)
+            return R.Error(
+                $"{path} has changed on disk since it was opened "
+                    + $"({file.Hunks.Count} conflicts now, {choices.Count} before).\n\n"
+                    + "Close the resolver and open it again."
+            );
+
         // The ancestor is not in the file in the default conflict style, and the read above does not
         // recover it because nearly no resolve needs it. One that takes the ancestor does, and it is
         // recovered here rather than sent down from the view: the model up there is narrowed, and a
@@ -247,13 +276,6 @@ class ConflictService : IConflictService
         // same read the choices are lined up against.
         if (choices.Any(c => c.Choice == HunkChoice.Base) && !Try(out file, out e, await WithBaseAsync(file, wd)))
             return e;
-
-        if (file.Hunks.Count != choices.Count)
-            return R.Error(
-                $"{path} has changed on disk since it was opened "
-                    + $"({file.Hunks.Count} conflicts now, {choices.Count} before).\n\n"
-                    + "Close the resolver and open it again."
-            );
 
         foreach (var choice in choices)
         {

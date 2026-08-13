@@ -156,7 +156,7 @@ class ConflictView : IConflictView
         RegisterLetter(view, Key.p, Key.P, () => GotoHunk(-1));
         RegisterLetter(view, Key.e, Key.E, EditCurrentHunk);
         RegisterLetter(view, Key.b, Key.B, ToggleBase);
-        RegisterLetter(view, Key.s, Key.S, Save);
+        RegisterLetter(view, Key.s, Key.S, () => Save());
         RegisterLetter(view, Key.a, Key.A, ShowWholeFileMenu);
         RegisterLetter(view, Key.m, Key.M, () => ShowMainMenu());
 
@@ -417,7 +417,13 @@ class ConflictView : IConflictView
 
     // Writes the decisions and marks the file resolved. Nothing is written until this is pressed,
     // so a resolver that is closed without saving has changed nothing on disk.
-    void Save() =>
+    //
+    // A save that leaves conflicts undecided writes their markers back, so the file on disk no
+    // longer holds the conflicts this view was built from: the decided ones are stable text now,
+    // and the rest have moved up to fill the numbers. The decisions are held by conflict number, so
+    // the view is re-read rather than kept — without that a second save was refused with "the file
+    // has changed on disk" and the only way on was to close the resolver and open it again.
+    void Save(bool isClosing = false) =>
         UI.RunInBackground(async () =>
         {
             using (progress.Show())
@@ -436,7 +442,8 @@ class ConflictView : IConflictView
             }
 
             isResolved = true;
-            if (resolution.IsFullyResolved)
+            var left = resolution.UnresolvedCount;
+            if (left == 0)
             {
                 Application.RequestStop();
                 return;
@@ -444,10 +451,56 @@ class ConflictView : IConflictView
 
             UI.InfoMessage(
                 "Saved",
-                $"{file.Path} was saved and marked resolved, but {resolution.UnresolvedCount} of its "
+                $"{file.Path} was saved and marked resolved, but {left} of its "
                     + $"conflicts still have their markers in it."
             );
+
+            if (isClosing)
+            {
+                Application.RequestStop();
+                return;
+            }
+
+            await ReloadAsync();
         });
+
+    // Reads the file back off disk and starts again from what it holds now, which is what makes a
+    // partly saved file go on being resolvable. The decisions are not carried over: the ones that
+    // were saved are part of the file now, and the numbers of the ones that were not have changed.
+    async Task ReloadAsync()
+    {
+        ConflictFile reread;
+        using (progress.Show())
+        {
+            var result = await server.GetConflictFileAsync(file.Path, file.Kind, isShowBase, repoPath);
+            if (!Try(out reread!, out var e, result))
+            {
+                // There is nothing left to show the file as, so staying open would show the one it
+                // no longer is
+                UI.ErrorMessage($"Failed to re-read {file.Path}\n{e.AllErrorMessages()}");
+                Application.RequestStop();
+                return;
+            }
+        }
+
+        if (reread.Hunks.Count == 0)
+        {
+            Application.RequestStop();
+            return;
+        }
+
+        file = reread;
+        resolution = new ConflictResolution(file);
+
+        // The ancestor is recovered per read, so a pane that cannot be filled is closed rather than
+        // left drawing three empty columns
+        isShowBase = isShowBase && (file.HasBase || file.Hunks.Any(h => h.HasBase));
+
+        // The rows have moved, so where the cursor was means nothing — open on the first conflict
+        // that is left, as the view did when it opened
+        isMovedToFirstHunk = false;
+        SetRows();
+    }
 
     // Nothing is written until Save, so closing is what throws decisions away — which is asked
     // about whenever there are any, including when every conflict has been decided. That last case
@@ -482,7 +535,7 @@ class ConflictView : IConflictView
             return;
         if (choice == 1)
         {
-            Save();
+            Save(isClosing: true);
             return;
         }
 
@@ -670,7 +723,7 @@ class ConflictView : IConflictView
                 )
                 .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "B", ToggleBase)
                 .Separator()
-                .Item("Save and Mark Resolved", "S", Save)
+                .Item("Save and Mark Resolved", "S", () => Save())
                 .SubMenu("Whole File", "A", WholeFileItems())
                 .Item("Close", "Esc", Close)
         );

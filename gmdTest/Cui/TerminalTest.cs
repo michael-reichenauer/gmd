@@ -2000,6 +2000,45 @@ public class TerminalTest
         );
     }
 
+    // Saving with conflicts still undecided writes their markers back, so the file no longer holds
+    // the conflicts the view was built from — the decided one is stable text now and the rest have
+    // moved up to fill its number. The view therefore re-reads it, and this is the test that a
+    // second save then works: it used to be refused with "the file has changed on disk", leaving
+    // closing and re-opening the resolver as the only way to finish the file.
+    [TestMethod]
+    public async Task TestSavingTwiceFinishesAFileResolvedInTwoGoes()
+    {
+        using var repo = await E2eRepo.CreateWithTwoConflictsAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        // Decide only the first of the two, and save
+        gmd.Send("1");
+        gmd.WaitFor("1 still to resolve");
+        gmd.Send("S");
+        StringAssert.Contains(gmd.WaitFor("Saved"), "1 of its conflicts still have their markers in it");
+        gmd.Send("Enter");
+
+        // Re-read, so what is left is one conflict rather than the second of two
+        StringAssert.Contains(
+            gmd.WaitFor("conflict 1 of 1"),
+            "1 still to resolve",
+            "The view is the file as it is now, not as it was opened"
+        );
+
+        // ... and deciding it and saving again finishes the file rather than being refused
+        gmd.Send("2");
+        gmd.WaitFor("all resolved");
+        gmd.Send("S");
+        gmd.WaitUntilGone("─── Conflict 1");
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        Assert.IsFalse(text.Contains("<<<<<<<"), "No markers are left in it");
+        StringAssert.Contains(text, "line 20 on main", "The first conflict took ours");
+        StringAssert.Contains(text, "line 60 on dev", "and the second theirs");
+    }
+
     // The conflicts of the uncommitted merge, reached the way a user reaches them: the diff of the
     // uncommitted changes, its Resolve Conflicts menu, and the one conflicted file in it
     static void OpenTheResolver(TmuxSession gmd)
