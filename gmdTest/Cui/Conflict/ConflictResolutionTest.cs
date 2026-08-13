@@ -115,15 +115,4 @@ public class ConflictResolutionTest
 
         Assert.AreEqual("one,two", string.Join(",", resolution.ResultOf(file.Hunks[0]).Select(l => l.Text)));
     }
-
-    [TestMethod]
-    public void TestNextAndPreviousStopAtTheEnds()
-    {
-        var resolution = new ConflictResolution(FileWith(3));
-
-        Assert.AreEqual(1, resolution.NextHunk(0, 1));
-        Assert.AreEqual(-1, resolution.NextHunk(2, 1), "There is nothing after the last one");
-        Assert.AreEqual(1, resolution.NextHunk(2, -1));
-        Assert.AreEqual(-1, resolution.NextHunk(0, -1), "There is nothing before the first one");
-    }
 }

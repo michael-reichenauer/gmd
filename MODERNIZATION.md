@@ -2563,6 +2563,51 @@ typed into the edit box and saved; commits refused both for unresolved conflicts
 in a file marked resolved; and, the regression that started it all, a `rebase --apply` conflict
 surviving the diff view that used to destroy it.
 
+### Fixed after Step 16
+
+- [x] **A file with a single conflict could not be navigated to, and `]`/`[` looked like dead keys.**
+      Reported by the user. Both came from the same thing: next/previous stepped by *conflict
+      number*, from `CurrentHunk` — which answers "the conflict the cursor is in, or the nearest one
+      before it" and **falls back to the first conflict when the cursor is above them all**. So from
+      the top of a file `]` computed `0 + 1` and moved to the *second* conflict, stepping over the
+      one it was meant to reach; in a file with only one conflict there was no second, so both keys
+      did nothing at all, and the resolver opened at the top of the file with the conflict off the
+      screen and no key that would go to it. Now `ConflictRows.NextHunkRow` walks the drawn rows for
+      the next header row in the given direction, which needs no current conflict to count from and
+      makes `[` from below a conflict go back up to it. Dead `ConflictResolution.NextHunk` removed
+      with it. Pinned by `ConflictRowsTest` and, since only the E2E tier can see a view scroll, by
+      `TestConflictResolverOpensOnTheFirstConflict` and
+      `TestNextAndPreviousConflictReachTheOnlyConflict` over the new `E2eRepo.CreateWithConflictAsync`
+      fixture — an 80 line file whose one conflict is off the screen from both ends.
+- [x] **The resolver now opens on the first conflict** rather than at the top of the file. It cannot
+      be done before the dialog runs: `ScrollToShowIndex` needs the view's height and its row count,
+      and neither exists until Terminal.Gui has laid the view out and asked it for its first rows.
+      The first content fetch is that moment, so the move is posted from there to run once that draw
+      is done.
+- [x] **The resolver's letter shortcuts were registered in lower case only, and the upper case ones
+      reached the log view underneath.** Found while checking the report above, since the menu and
+      the help write the keys the way shortcuts are always written — `E`, `U`, `B`, `S`, `A`, `M`,
+      `], N`, `[, P` — and none of those did anything in the resolver. Worse than nothing: an
+      unhandled key falls through to the log view, where `P` is *push all branches* (seen as its
+      "Commit changes before pulling" error appearing over the resolver) and `U` is *pull all
+      branches* — neither a thing to do to a repository stopped mid-merge. The `q`/`Q` pair was
+      already there for exactly this reason; every letter now has both cases, via `RegisterLetter`.
+      Pinned by `TestUpperCaseShortcutsActOnTheConflict`. The suite is 764 (645 fast, 50 E2E, plus
+      the integration tier); the fast tier and all 140 conflict tests are green.
+
+      **Noticed while verifying, and not caused by any of the above: the E2E tier is flaky in the
+      devcontainer.** A full `--filter "TestCategory=E2e"` run fails three or four of its tests,
+      different ones each run, and they all pass when run alone — the failures are a blank pane with
+      *no `gmd.log` at all*, i.e. the binary never started in it. Reproduced on an unmodified `HEAD`
+      (4 of 47 failed), so it predates this work. `TestDiffContextIsSteppedPerFile` is separate and
+      worse: it fails on `HEAD` even run alone.
+
+      **The same hole is still open in the diff and blame views**, which register only their lower
+      case letters: `P` in the diff view reaches *push all branches* (verified), as does `P` in the
+      blame view, where lower case `p` is blame-previous, and `U` in the diff view reaches *pull all
+      branches* where lower case `u` is its undo menu. Not fixed here — it is a different view with
+      its own keys — but it is the same one line each.
+
 ### Not done, deliberately
 
 - **Inline editing** — Step 9 above, deferred with its reasoning, its measurement and the probe that

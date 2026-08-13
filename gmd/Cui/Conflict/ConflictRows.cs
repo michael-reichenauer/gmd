@@ -48,5 +48,22 @@ class ConflictRows
     // The row a conflict starts at, for scrolling to it
     public int IndexOfHunk(int hunkIndex) => rows.FindIndexBy(r => r.IsHunkHeader && r.HunkIndex == hunkIndex);
 
+    // The row the next or previous conflict starts at, from a row, or -1 if there is none that way.
+    // By row and not by conflict number: the cursor spends most of its time in the text between
+    // conflicts, where there is no conflict to count from — counting from the nearest one above
+    // steps over the conflict the user is looking for, and above the first conflict of a file there
+    // is nothing above at all, so a file with a single conflict had nowhere to go in either
+    // direction.
+    public int NextHunkRow(int fromRow, int step)
+    {
+        for (int i = fromRow + step; i >= 0 && i < rows.Count; i += step)
+        {
+            if (rows[i].IsHunkHeader)
+                return i;
+        }
+
+        return -1;
+    }
+
     public override string ToString() => $"Rows: {Count}";
 }

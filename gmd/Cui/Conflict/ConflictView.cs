@@ -37,6 +37,7 @@ class ConflictView : IConflictView
     int rowStartX;
     bool isShowBase;
     bool isResolved;
+    bool isMovedToFirstHunk;
 
     public ConflictView(IServer server, IProgress progress, IConflictRowService rowService)
     {
@@ -69,6 +70,7 @@ class ConflictView : IConflictView
         this.rowStartX = 0;
         this.isShowBase = false;
         this.isResolved = false;
+        this.isMovedToFirstHunk = false;
         this.resolution = new ConflictResolution(file);
 
         // A file with nothing to merge as text is a whole file choice, not a three pane view: a
@@ -134,10 +136,6 @@ class ConflictView : IConflictView
     void RegisterShortcuts(ContentView view)
     {
         view.RegisterKeyHandler(Key.Esc, Close);
-        // Both cases, as the diff and blame views do — the lower case would otherwise fall through
-        // to the log view below and quit the application
-        view.RegisterKeyHandler(Key.Q, Close);
-        view.RegisterKeyHandler(Key.q, Close);
 
         // Terminal.Gui 1.x has no Key value for these, so use the ascii code, as the diff view's
         // '+' and '-' do
@@ -146,23 +144,36 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler((Key)51, () => Choose(HunkChoice.OursThenTheirs)); // '3'
         view.RegisterKeyHandler((Key)52, () => Choose(HunkChoice.TheirsThenOurs)); // '4'
         view.RegisterKeyHandler((Key)48, () => Choose(HunkChoice.Neither)); // '0'
-        view.RegisterKeyHandler(Key.u, () => Choose(HunkChoice.None));
+
+        // Every letter in both cases. Not politeness: an unhandled key falls through to the log
+        // view below, where the upper case letters are commands of their own — 'U' pulls every
+        // branch and 'P' pushes every branch, both of them things to do to a repository that is
+        // *not* in the middle of a stopped merge. The menu and the help name these keys the way
+        // shortcuts are always written, in upper case, so those are the ones a user presses.
+        RegisterLetter(view, Key.q, Key.Q, Close);
+        RegisterLetter(view, Key.u, Key.U, () => Choose(HunkChoice.None));
+        RegisterLetter(view, Key.n, Key.N, () => GotoHunk(1));
+        RegisterLetter(view, Key.p, Key.P, () => GotoHunk(-1));
+        RegisterLetter(view, Key.e, Key.E, EditCurrentHunk);
+        RegisterLetter(view, Key.b, Key.B, ToggleBase);
+        RegisterLetter(view, Key.s, Key.S, Save);
+        RegisterLetter(view, Key.a, Key.A, ShowWholeFileMenu);
+        RegisterLetter(view, Key.m, Key.M, () => ShowMainMenu());
 
         view.RegisterKeyHandler((Key)93, () => GotoHunk(1)); // ']'
         view.RegisterKeyHandler((Key)91, () => GotoHunk(-1)); // '['
-        view.RegisterKeyHandler(Key.n, () => GotoHunk(1));
-        view.RegisterKeyHandler(Key.p, () => GotoHunk(-1));
 
-        view.RegisterKeyHandler(Key.e, EditCurrentHunk);
-        view.RegisterKeyHandler(Key.b, ToggleBase);
-        view.RegisterKeyHandler(Key.s, Save);
-        view.RegisterKeyHandler(Key.a, ShowWholeFileMenu);
-        view.RegisterKeyHandler(Key.m, () => ShowMainMenu());
         view.RegisterKeyHandler(Key.CursorLeft, () => Scroll(-1));
         view.RegisterKeyHandler(Key.CursorRight, () => Scroll(1));
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
+    }
+
+    static void RegisterLetter(ContentView view, Key lower, Key upper, OnKeyCallback action)
+    {
+        view.RegisterKeyHandler(lower, action);
+        view.RegisterKeyHandler(upper, action);
     }
 
     void SetRows()
@@ -188,6 +199,8 @@ class ConflictView : IConflictView
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
+        MoveToFirstHunkOnce();
+
         var columns = ConflictColumns.Calculate(contentWidth, isShowBase);
         var texts = rows.Rows.Skip(firstRow).Take(rowCount).Select(r => rowService.ToRowText(r, columns, rowStartX));
 
@@ -213,6 +226,22 @@ class ConflictView : IConflictView
         return (texts, lines.Count);
     }
 
+    // The first conflict is what the file was opened for, and it can be a long way down a file that
+    // is mostly text both sides agree on, so the view opens on it rather than at the top.
+    //
+    // Not done before the dialog runs: the scroll needs the view's height and its row count, and
+    // neither exists until it has been laid out and asked for its first rows — which is this call.
+    // The move is posted rather than done here, so it moves the rows after that draw rather than
+    // during it.
+    void MoveToFirstHunkOnce()
+    {
+        if (isMovedToFirstHunk)
+            return;
+
+        isMovedToFirstHunk = true;
+        UI.Post(() => GotoRow(rows.IndexOfHunk(0)));
+    }
+
     ConflictHunk? CurrentHunkOrNull()
     {
         var index = CurrentHunk;
@@ -230,13 +259,10 @@ class ConflictView : IConflictView
     }
 
     // Moves to the next or previous conflict, keeping the cursor on its header row
-    void GotoHunk(int step)
-    {
-        var next = resolution.NextHunk(CurrentHunk, step);
-        if (next == -1)
-            return;
+    void GotoHunk(int step) => GotoRow(rows.NextHunkRow(contentView.CurrentIndex, step));
 
-        var index = rows.IndexOfHunk(next);
+    void GotoRow(int index)
+    {
         if (index == -1)
             return;
 
@@ -589,8 +615,18 @@ class ConflictView : IConflictView
                 .Item("Edit by Hand ...", "E", EditCurrentHunk, () => hasHunk)
                 .Item("Un-choose", "U", () => Choose(HunkChoice.None), () => hasHunk)
                 .Separator()
-                .Item("Next Conflict", "], N", () => GotoHunk(1), () => resolution.NextHunk(CurrentHunk, 1) != -1)
-                .Item("Previous Conflict", "[, P", () => GotoHunk(-1), () => resolution.NextHunk(CurrentHunk, -1) != -1)
+                .Item(
+                    "Next Conflict",
+                    "], N",
+                    () => GotoHunk(1),
+                    () => rows.NextHunkRow(contentView.CurrentIndex, 1) != -1
+                )
+                .Item(
+                    "Previous Conflict",
+                    "[, P",
+                    () => GotoHunk(-1),
+                    () => rows.NextHunkRow(contentView.CurrentIndex, -1) != -1
+                )
                 .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "B", ToggleBase)
                 .Separator()
                 .Item("Save and Mark Resolved", "S", Save)

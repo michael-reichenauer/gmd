@@ -66,12 +66,4 @@ class ConflictResolution
     // them the file's own ending when it writes; here they are only drawn.
     public static IReadOnlyList<FileLine> ToLines(string text) =>
         text.Replace("\r\n", "\n").Split('\n').Select(l => new FileLine(l)).ToList();
-
-    // The conflict at or after a row's, walking in the given direction, or -1 if there is none that
-    // way. A row between conflicts has -1 as its own index, so it starts from the one after it.
-    public int NextHunk(int fromHunkIndex, int step)
-    {
-        var next = fromHunkIndex + step;
-        return next >= 0 && next < HunkCount ? next : -1;
-    }
 }

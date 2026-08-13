@@ -120,6 +120,33 @@ static class E2eRepo
         return repo;
     }
 
+    // A merge stopped by a conflict, i.e. the state the conflict resolver is opened in. The one
+    // conflict is in the middle of an 80 line file on purpose: it is then off the screen both from
+    // the top of the file and from the bottom of it, so a resolver that opened at the top would not
+    // be showing what it was opened for, and next/previous conflict have somewhere to move to.
+    public static async Task<TempRepo> CreateWithConflictAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        lines[39] = "line 40 on dev";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        lines[39] = "line 40 on main";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
+
+        // Fails, which is the whole point: it leaves the merge in progress with the file conflicted.
+        // No date to pin, since a merge that stops on a conflict writes no commit.
+        await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+    }
+
     // A repository with more commits than fit on a screen, for the scrolling tests
     public static async Task<TempRepo> CreateLongAsync(int commits = 30)
     {

@@ -157,6 +157,11 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   what you would expect. A pane below shows what the conflict under the cursor
   resolves to as you decide.
 
+  The whole file is shown, not just its conflicts, since the text around a
+  conflict is what tells you what it is part of. The view opens on the first
+  conflict rather than at the top of the file, and `]` and `[` move to the next
+  and previous one from wherever the cursor is.
+
 -------------------------------------------------------------------------
 | Key      | Description                                                |
 | -------- | ---------------------------------------------------------- |
