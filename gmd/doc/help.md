@@ -167,7 +167,7 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
 | -------- | ---------------------------------------------------------- |
 | 1  2     | Take the left or the right side                            |
 | 3  4     | Take both, left first or right first                       |
-| 0        | Take neither side                                          |
+| 0        | Take the common ancestor, i.e. undo both sides' changes    |
 | U        | Un-decide this conflict                                    |
 | E        | Edit the result of this conflict by hand                   |
 | ]  [     | Next or previous conflict (N and P do the same)            |
@@ -183,15 +183,19 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   was, and closing with decisions unsaved asks first.
 
   `B` shows the version both sides started from, which is usually what settles
-  which change to keep. Git records it in the file only when
-  `merge.conflictStyle` is `diff3` or `zdiff3`; otherwise gmd works it out on
-  demand from the staged versions, without touching your files. A file both
-  sides created has no such version, and says so.
+  which change to keep, and `0` resolves the conflict *to* it — the answer when
+  neither change should have happened here. Git records that version in the file
+  only when `merge.conflictStyle` is `diff3` or `zdiff3`; otherwise gmd works it
+  out on demand from the staged versions, without touching your files, and shows
+  it as it takes it. A file both sides created has no such version, and says so.
+  Where both sides added lines that were not there before, the ancestor is empty,
+  so `0` removes the region — which is also how to drop a conflict you want gone.
 
   `E` is for the merge that is neither side but something of both. A box opens
   holding what the conflict resolves to now, or both sides if you have not
-  chosen yet, and it says which of the two it gave you. `Tab` moves from the
-  box to the buttons, since Enter inside it is a newline.
+  chosen yet, and it says which of the two it gave you. Emptying the box is how
+  to delete the conflicted region outright. `Tab` moves from the box to the
+  buttons, since Enter inside it is a newline.
 
   A file with no text to merge is not shown in columns; it asks the one
   question it can, and which question depends on which sides still have the

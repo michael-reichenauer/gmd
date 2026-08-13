@@ -15,6 +15,11 @@ public record FileLine(string Text, string Eol)
 
 // What the user chose for one conflict. None means it is still a conflict, i.e. the markers stay
 // in the file, which is what keeps 'nothing chosen' and 'nothing written' the same thing.
+//
+// Base is the common ancestor, i.e. undo both sides' changes to this region. A hunk whose ancestor
+// was empty — both sides added lines where there were none — therefore resolves to nothing, which
+// is what the ancestor says. Whether an ancestor is known at all is the caller's business: see
+// WithBaseAsync and ConflictView.ChooseBase.
 public enum HunkChoice
 {
     None,
@@ -22,7 +27,7 @@ public enum HunkChoice
     Theirs,
     OursThenTheirs,
     TheirsThenOurs,
-    Neither,
+    Base,
     Manual,
 }
 
@@ -94,7 +99,15 @@ public record ConflictFile(
     // What can be offered for a file is decided from these rather than from its kind, so a command
     // that git would refuse is never put in front of the user.
     bool HasOurs = true,
-    bool HasTheirs = true
+    bool HasTheirs = true,
+    // Whether the file has a common ancestor at all, i.e. stage 1 of the merge. This is
+    // WithBaseAsync's answer and is false until it has looked, so it means "there is one" only on a
+    // file that call returned. False from it means both sides created the file.
+    //
+    // Not the same question as a hunk's HasBase, which is whether that one region had any lines in
+    // the ancestor — a conflict where both sides added lines has none, and a file can consist
+    // entirely of those while still having an ancestor.
+    bool HasBase = false
 )
 {
     public IReadOnlyList<ConflictHunk> Hunks => Segments.Select(s => s.Hunk).OfType<ConflictHunk>().ToList();

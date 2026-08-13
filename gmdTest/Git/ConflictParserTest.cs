@@ -213,7 +213,9 @@ public class ConflictParserTest
     [DataRow(HunkChoice.Theirs, "one\ntheirs\ntwo\n")]
     [DataRow(HunkChoice.OursThenTheirs, "one\nours\ntheirs\ntwo\n")]
     [DataRow(HunkChoice.TheirsThenOurs, "one\ntheirs\nours\ntwo\n")]
-    [DataRow(HunkChoice.Neither, "one\ntwo\n")]
+    // A conflict whose ancestor had no lines — both sides added them where there were none — is
+    // what the ancestor says it is: nothing, i.e. the whole region goes
+    [DataRow(HunkChoice.Base, "one\ntwo\n")]
     public void TestChoiceReplacesTheWholeConflict(HunkChoice choice, string expected)
     {
         var file = ConflictParser.SetChoice(Parse(TwoSided), 0, choice);
@@ -229,6 +231,16 @@ public class ConflictParserTest
         var file = ConflictParser.SetChoice(Parse(WithBase), 0, HunkChoice.Ours);
 
         Assert.AreEqual("one\nours\ntwo\n", ConflictParser.ToText(file));
+    }
+
+    // Taking the ancestor puts back what both sides started from, i.e. undoes both changes
+    [TestMethod]
+    public void TestChoosingTheBaseKeepsTheAncestorsLines()
+    {
+        var file = ConflictParser.SetChoice(Parse(WithBase), 0, HunkChoice.Base);
+
+        Assert.AreEqual("one\nbase\ntwo\n", ConflictParser.ToText(file));
+        Assert.AreEqual(0, file.UnresolvedCount);
     }
 
     [TestMethod]

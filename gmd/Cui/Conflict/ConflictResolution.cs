@@ -57,7 +57,8 @@ class ConflictResolution
             HunkChoice.Theirs => hunk.Theirs,
             HunkChoice.OursThenTheirs => [.. hunk.Ours, .. hunk.Theirs],
             HunkChoice.TheirsThenOurs => [.. hunk.Theirs, .. hunk.Ours],
-            HunkChoice.Neither => [],
+            // Empty when the ancestor had nothing here, i.e. both sides added lines
+            HunkChoice.Base => hunk.Base,
             HunkChoice.Manual => ToLines(ManualTextOf(hunk.Index)),
             _ => [],
         };

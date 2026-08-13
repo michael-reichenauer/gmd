@@ -1886,6 +1886,71 @@ public class TerminalTest
         StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "line 40 on dev", "'P' goes back to it");
     }
 
+    // '0' resolves a conflict to the common ancestor, i.e. undoes what both sides did to it. The
+    // ancestor is not in the file — the fixture uses git's default conflict style — so this is also
+    // the test that it is recovered on demand, and it is shown as it is taken, since a decision made
+    // from text that is not on the screen is one the user cannot check.
+    [TestMethod]
+    public async Task TestResolvingAConflictToTheCommonAncestor()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("0");
+
+        // Three panes now, with the recovered ancestor in the middle, and the pane below showing
+        // what the conflict resolves to: the line as it was before either side touched it
+        ScreenText.AssertEqual(
+            """
+            Merge  long.txt   conflict 1 of 1   all resolved
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            line 35
+            line 36
+            line 37
+            line 38
+            line 39
+            ─── Conflict 1 ── using the common ancestor
+            HEAD                                   │common ancestor                        │dev
+            line 40 on main                        │line 40                                │line 40 on dev
+            line 41
+            line 42
+            line 43
+            line 44
+            line 45                                                                                                                ┃
+            line 46                                                                                                                ┃
+            line 47                                                                                                                ┃
+            line 48                                                                                                                ┃
+            line 49                                                                                                                ┃
+            line 50                                                                                                                ┃
+            line 51                                                                                                                ┃
+            line 52                                                                                                                ┃
+            line 53                                                                                                                ┃
+            line 54                                                                                                                ┃
+            line 55                                                                                                                ┃
+            line 56                                                                                                                ┃
+            line 57
+            line 58
+            line 59
+            line 60
+            line 61
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            line 40
+            """,
+            gmd.WaitFor("all resolved"),
+            repo.Path
+        );
+
+        // And saving it writes the ancestor's line back into the file
+        gmd.Send("S");
+        gmd.WaitUntilGone("─── Conflict 1");
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        StringAssert.Contains(text, "line 39\nline 40\nline 41", "Both sides' changes are undone");
+        Assert.IsFalse(text.Contains("<<<<<<<"), "and no markers are left in it");
+    }
+
     // The conflicts of the uncommitted merge, reached the way a user reaches them: the diff of the
     // uncommitted changes, its Resolve Conflicts menu, and the one conflicted file in it
     static void OpenTheResolver(TmuxSession gmd)

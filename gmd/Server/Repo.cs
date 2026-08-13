@@ -240,7 +240,7 @@ public enum HunkChoice
     Theirs,
     OursThenTheirs,
     TheirsThenOurs,
-    Neither,
+    Base,
     Manual,
 }
 
@@ -277,7 +277,11 @@ public record ConflictFile(
     // a rename leaves a path with neither — so what the resolver can offer is decided from these
     // rather than guessed from the kind.
     bool HasOurs,
-    bool HasTheirs
+    bool HasTheirs,
+    // Whether the file has a common ancestor at all, which is only answered when one is asked for
+    // (GetConflictFileAsync with isWithBase). False from such a call means both sides created the
+    // file — not the same as a hunk's HasBase, which is whether that one region had lines in it.
+    bool HasBase = false
 )
 {
     public IReadOnlyList<ConflictHunk> Hunks => Segments.Select(s => s.Hunk).OfType<ConflictHunk>().ToList();

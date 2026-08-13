@@ -132,12 +132,14 @@ class ConflictService : IConflictService
         // Already there: the user's conflict style is 'diff3' or 'zdiff3', so git wrote it into the
         // file itself and it is aligned by construction
         if (file.Hunks.Count == 0 || file.Hunks.Any(h => h.HasBase))
-            return file;
+            return file with { HasBase = true };
 
         if (!Try(out var stages, out var e, await GetStagesAsync(file.Path, wd)))
             return e;
 
-        // An add/add conflict has no stage 1: both sides created the file, so there is no ancestor
+        // An add/add conflict has no stage 1: both sides created the file, so there is no ancestor.
+        // This is the one place that can tell that apart from an ancestor that is merely empty
+        // everywhere the file conflicts, which is why the answer is carried on the file.
         if (!stages.TryGetValue(1, out var baseSha) || !stages.ContainsKey(2) || !stages.ContainsKey(3))
             return file;
 
@@ -153,7 +155,8 @@ class ConflictService : IConflictService
             // Mapped by the lines each conflict covers rather than by position: '--diff3' groups
             // conflicts differently from the merge that wrote the file, so the two do not
             // necessarily have the same number of them. See SetBasesFrom.
-            return ConflictParser.SetBasesFrom(file, ConflictParser.Parse(file.Path, file.Kind, merged));
+            var withBases = ConflictParser.SetBasesFrom(file, ConflictParser.Parse(file.Path, file.Kind, merged));
+            return withBases with { HasBase = true };
         }
         finally
         {
@@ -225,6 +228,14 @@ class ConflictService : IConflictService
     public async Task<R> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd)
     {
         if (!Try(out var file, out var e, await GetConflictFileAsync(path, kind, wd)))
+            return e;
+
+        // The ancestor is not in the file in the default conflict style, and the read above does not
+        // recover it because nearly no resolve needs it. One that takes the ancestor does, and it is
+        // recovered here rather than sent down from the view: the model up there is narrowed, and a
+        // resolve is applied to the file as it is on disk *now*, so the text has to come from the
+        // same read the choices are lined up against.
+        if (choices.Any(c => c.Choice == HunkChoice.Base) && !Try(out file, out e, await WithBaseAsync(file, wd)))
             return e;
 
         if (file.Hunks.Count != choices.Count)

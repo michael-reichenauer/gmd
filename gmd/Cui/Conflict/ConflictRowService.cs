@@ -80,8 +80,12 @@ class ConflictRowService : IConflictRowService
 
     static string BaseLabelOf(ConflictHunk hunk)
     {
+        // Not 'no common ancestor': the file has one, or the pane would not be drawn at all — this
+        // region simply had no lines in it, because both sides added lines where there were none.
+        // Whether the file has an ancestor at all is the other question, and it is answered before
+        // anything is drawn (ConflictView.WithBase).
         if (!hunk.HasBase)
-            return "(no common ancestor)";
+            return "common ancestor (nothing here)";
 
         return hunk.BaseLabel == "" ? "common ancestor" : hunk.BaseLabel.Max(60);
     }
@@ -98,7 +102,9 @@ class ConflictRowService : IConflictRowService
             HunkChoice.TheirsThenOurs => Text.Green(
                 $"── using {hunk.TheirsLabel.Max(20)} then {hunk.OursLabel.Max(20)} "
             ),
-            HunkChoice.Neither => Text.Green("── using neither side "),
+            // Not the ancestor's own label, which is 'base' for a recovered one and whatever git
+            // wrote for a diff3 one — neither says what taking it means the way these words do
+            HunkChoice.Base => Text.Green("── using the common ancestor "),
             HunkChoice.Manual => Text.Green("── edited by hand "),
             _ => Text.Dark(""),
         };

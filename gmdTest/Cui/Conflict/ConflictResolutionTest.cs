@@ -41,13 +41,13 @@ public class ConflictResolutionTest
         var resolution = new ConflictResolution(FileWith(3));
 
         resolution.Set(0, HunkChoice.Ours);
-        resolution.Set(2, HunkChoice.Neither);
+        resolution.Set(2, HunkChoice.Base);
 
         Assert.AreEqual(1, resolution.UnresolvedCount);
         Assert.IsTrue(resolution.IsChanged);
         Assert.AreEqual(HunkChoice.Ours, resolution.ChoiceOf(0));
         Assert.AreEqual(HunkChoice.None, resolution.ChoiceOf(1));
-        Assert.AreEqual(HunkChoice.Neither, resolution.ChoiceOf(2));
+        Assert.AreEqual(HunkChoice.Base, resolution.ChoiceOf(2));
     }
 
     // Setting None is how a decision is taken back, which the un-choose key needs
@@ -95,7 +95,7 @@ public class ConflictResolutionTest
     [DataRow(HunkChoice.Theirs, "t0")]
     [DataRow(HunkChoice.OursThenTheirs, "o0,t0")]
     [DataRow(HunkChoice.TheirsThenOurs, "t0,o0")]
-    [DataRow(HunkChoice.Neither, "")]
+    [DataRow(HunkChoice.Base, "")] // this fixture's conflicts have no ancestor lines
     [DataRow(HunkChoice.None, "")]
     public void TestResultOfEachChoice(HunkChoice choice, string expected)
     {
@@ -104,6 +104,27 @@ public class ConflictResolutionTest
         resolution.Set(0, choice);
 
         Assert.AreEqual(expected, string.Join(",", resolution.ResultOf(file.Hunks[0]).Select(l => l.Text)));
+    }
+
+    // Taking the ancestor puts back what both sides started from, i.e. undoes both changes. The
+    // fixture above has no ancestor lines anywhere, so this needs a conflict that does.
+    [TestMethod]
+    public void TestResultOfTheBaseIsTheAncestorsLines()
+    {
+        var hunk = new ConflictHunk(0, "HEAD", "base", "topic", Lines("ours"), Lines("was", "here"), Lines("theirs"));
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [new ConflictSegment([], hunk)],
+            true,
+            true
+        );
+        var resolution = new ConflictResolution(file);
+
+        resolution.Set(0, HunkChoice.Base);
+
+        Assert.AreEqual("was,here", string.Join(",", resolution.ResultOf(hunk).Select(l => l.Text)));
     }
 
     [TestMethod]

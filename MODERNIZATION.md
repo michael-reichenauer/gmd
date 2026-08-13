@@ -2596,10 +2596,12 @@ surviving the diff view that used to destroy it.
       the integration tier); the fast tier and all 140 conflict tests are green.
 
       **Noticed while verifying, and not caused by any of the above: the E2E tier is flaky in the
-      devcontainer.** A full `--filter "TestCategory=E2e"` run fails three or four of its tests,
-      different ones each run, and they all pass when run alone — the failures are a blank pane with
-      *no `gmd.log` at all*, i.e. the binary never started in it. Reproduced on an unmodified `HEAD`
-      (4 of 47 failed), so it predates this work. `TestDiffContextIsSteppedPerFile` is separate and
+      devcontainer, in a mode the Step 4 note does not cover.** A full `--filter "TestCategory=E2e"`
+      run fails three or four of its tests, different ones each run, and they all pass when run
+      alone. These are not the "waited for text that was already on screen" family recorded above:
+      the screen is *blank* and there is *no `gmd.log` at all*, i.e. the binary never started in the
+      pane, and the test then times out on its first wait. Reproduced on an unmodified `HEAD` (4 of
+      47 failed), so it predates this work. `TestDiffContextIsSteppedPerFile` is separate again and
       worse: it fails on `HEAD` even run alone.
 
       **The same hole is still open in the diff and blame views**, which register only their lower
@@ -2607,6 +2609,34 @@ surviving the diff view that used to destroy it.
       blame view, where lower case `p` is blame-previous, and `U` in the diff view reaches *pull all
       branches* where lower case `u` is its undo menu. Not fixed here — it is a different view with
       its own keys — but it is the same one line each.
+- [x] **`0` is now *use the common ancestor* rather than *use neither side*.** The user's call, and
+      the right one: taking the ancestor is a merge decision the resolver could not express at all,
+      while dropping a region is already reachable by emptying the `E` box. `HunkChoice.Neither`
+      became `HunkChoice.Base`, and a hunk whose ancestor was empty — both sides added lines where
+      there were none — resolves to nothing, so the old behavior is still there where it is the
+      *ancestor's* answer rather than a separate choice.
+
+      Three things this needed beyond renaming a choice:
+
+      - **The save path had to recover the ancestor.** `ResolveAsync` re-reads the file to line the
+        choices up against what is on disk now, and that read does not recover the ancestor — the
+        default conflict style records none. It now does, but only when some choice actually is
+        `Base`, so nothing else pays the five git commands. Pinned end to end by
+        `TestResolvingToTheBaseRecoversTheAncestor` and its `diff3` twin.
+      - **"Has an ancestor" had to become a fact rather than a guess.** `ToggleBase` decided it from
+        `!file.Hunks.Any(h => h.HasBase)`, which is *wrong* for a file whose conflicts are all
+        both-sides-added: the ancestor is empty in every hunk, so a real ancestor read as none, the
+        pane refused to open and the recovery re-ran on every press. Only `WithBaseAsync` can tell
+        the two apart, since only it looks for stage 1, so it now says so on the file (`HasBase`),
+        and the view asks that. Fixes the pane's own long-standing edge case as a side effect.
+      - **The ancestor is shown as it is taken.** Pressing `0` turns the base pane on if it is off,
+        because a decision made from text that is not on the screen is one the user cannot check.
+
+      `ToggleBase` and `ChooseBase` now share `WithBase`, which is where the "fetched when first
+      asked for" comment moved to — it had drifted onto `EditCurrentHunk`, describing nothing.
+      Pinned by `TestResolvingAConflictToTheCommonAncestor`, which is the whole path: press `0` on a
+      default-style conflict, the ancestor is recovered, the three panes appear with it in the
+      middle, and `S` writes the ancestor's line back with no markers left.
 
 ### Not done, deliberately
 

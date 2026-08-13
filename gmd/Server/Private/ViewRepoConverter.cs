@@ -41,7 +41,8 @@ class ViewRepoConverter : IViewRepoConverter
             f.IsBinary,
             f.Segments.Select(ToConflictSegment).ToList(),
             f.HasOurs,
-            f.HasTheirs
+            f.HasTheirs,
+            f.HasBase
         );
 
     static ConflictSegment ToConflictSegment(Git.ConflictSegment s) =>
@@ -95,7 +96,7 @@ class ViewRepoConverter : IViewRepoConverter
             HunkChoice.Theirs => Git.HunkChoice.Theirs,
             HunkChoice.OursThenTheirs => Git.HunkChoice.OursThenTheirs,
             HunkChoice.TheirsThenOurs => Git.HunkChoice.TheirsThenOurs,
-            HunkChoice.Neither => Git.HunkChoice.Neither,
+            HunkChoice.Base => Git.HunkChoice.Base,
             HunkChoice.Manual => Git.HunkChoice.Manual,
             _ => throw Asserter.FailFast($"Unknown choice {choice}"),
         };

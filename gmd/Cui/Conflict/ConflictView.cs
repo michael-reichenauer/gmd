@@ -143,7 +143,7 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler((Key)50, () => Choose(HunkChoice.Theirs)); // '2'
         view.RegisterKeyHandler((Key)51, () => Choose(HunkChoice.OursThenTheirs)); // '3'
         view.RegisterKeyHandler((Key)52, () => Choose(HunkChoice.TheirsThenOurs)); // '4'
-        view.RegisterKeyHandler((Key)48, () => Choose(HunkChoice.Neither)); // '0'
+        view.RegisterKeyHandler((Key)48, ChooseBase); // '0'
 
         // Every letter in both cases. Not politeness: an unhandled key falls through to the log
         // view below, where the upper case letters are commands of their own — 'U' pulls every
@@ -220,7 +220,7 @@ class ConflictView : IConflictView
 
         var lines = resolution.ResultOf(hunk);
         if (lines.Count == 0)
-            return ([Text.Dark("(nothing — the conflict is dropped)")], 1);
+            return ([Text.Dark("(nothing — the whole region is removed)")], 1);
 
         var texts = lines.Skip(firstRow).Take(rowCount).Select(l => (Text)Text.White(l.Text));
         return (texts, lines.Count);
@@ -272,13 +272,11 @@ class ConflictView : IConflictView
         contentView.SetCurrentIndex(index);
     }
 
-    // The common ancestor is fetched the first time it is asked for rather than when the view opens:
-    // recovering it costs five git commands, and most conflicts are settled without ever looking at
-    // it. Once fetched it stays on the file, so toggling it off and on again is free.
     // Hand edits the result of one conflict, for the merge that is neither side but something of
-    // both. A modal box rather than editing in the view itself: Terminal.Gui's text view needs the
-    // real keyboard focus, and this is the one arrangement of it the codebase already relies on —
-    // the commit dialog is the same thing with a different label.
+    // both — and for dropping the region altogether, by emptying the box. A modal box rather than
+    // editing in the view itself: Terminal.Gui's text view needs the real keyboard focus, and this
+    // is the one arrangement of it the codebase already relies on — the commit dialog is the same
+    // thing with a different label.
     void EditCurrentHunk()
     {
         var hunk = CurrentHunkOrNull();
@@ -325,10 +323,41 @@ class ConflictView : IConflictView
             return;
         }
 
-        if (file.Hunks.Any(h => h.HasBase))
+        WithBase(() =>
         {
             isShowBase = true;
             SetRows();
+        });
+    }
+
+    // Resolves the conflict to the common ancestor, i.e. undoes what both sides did to it. The
+    // ancestor is shown as it is taken if it is not on screen already: a decision made from text the
+    // user cannot see is one they cannot check.
+    void ChooseBase()
+    {
+        var hunk = CurrentHunkOrNull();
+        if (hunk == null)
+            return;
+
+        WithBase(() =>
+        {
+            isShowBase = true;
+            // By index rather than through Choose, since the file object is replaced by the one the
+            // ancestor was recovered into, and the hunk above then belongs to the previous one
+            resolution.Set(hunk.Index, HunkChoice.Base);
+            SetRows();
+        });
+    }
+
+    // Runs the action once the file has its common ancestor, recovering it first if it does not.
+    // That is fetched when it is first asked for rather than when the view opens: it costs five git
+    // commands, and most conflicts are settled without ever wanting it. Once fetched it stays on the
+    // file, so asking again is free.
+    void WithBase(Action onBase)
+    {
+        if (file.HasBase || file.Hunks.Any(h => h.HasBase))
+        {
+            onBase();
             return;
         }
 
@@ -355,11 +384,13 @@ class ConflictView : IConflictView
                 return;
             }
 
-            if (!withBase.Hunks.Any(h => h.HasBase))
+            // The file's own flag and not 'no hunk has one': a conflict where both sides added lines
+            // has an empty ancestor, and a file can be nothing but those and still have an ancestor
+            if (!withBase.HasBase)
             {
                 UI.InfoMessage(
                     "No Common Ancestor",
-                    $"{file.Path} has no common ancestor to show.\n\n"
+                    $"{file.Path} has no common ancestor.\n\n"
                         + "This happens when both sides added the file, so there is no earlier\n"
                         + "version of it that they both started from."
                 );
@@ -367,8 +398,7 @@ class ConflictView : IConflictView
             }
 
             file = withBase;
-            isShowBase = true;
-            SetRows();
+            onBase();
         });
     }
 
@@ -611,7 +641,7 @@ class ConflictView : IConflictView
                 .Item($"Use {theirs}", "2", () => Choose(HunkChoice.Theirs), () => hasHunk)
                 .Item($"Use {ours} then {theirs}", "3", () => Choose(HunkChoice.OursThenTheirs), () => hasHunk)
                 .Item($"Use {theirs} then {ours}", "4", () => Choose(HunkChoice.TheirsThenOurs), () => hasHunk)
-                .Item("Use Neither", "0", () => Choose(HunkChoice.Neither), () => hasHunk)
+                .Item("Use the Common Ancestor", "0", ChooseBase, () => hasHunk)
                 .Item("Edit by Hand ...", "E", EditCurrentHunk, () => hasHunk)
                 .Item("Un-choose", "U", () => Choose(HunkChoice.None), () => hasHunk)
                 .Separator()

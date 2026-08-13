@@ -112,7 +112,7 @@ public class ConflictRowServiceTest
             HEAD                              │9c2f1a                            │topic
             ours                              │base                              │theirs
             ─── Conflict 2 ── unresolved ───────
-            HEAD                              │(no common ancestor)              │topic
+            HEAD                              │common ancestor (nothing here)    │topic
             o2                                │                                  │t2
             """,
             Draw(file, new ConflictResolution(file), 104, isShowBase: true)
@@ -156,6 +156,19 @@ public class ConflictRowServiceTest
         resolution.Set(0, HunkChoice.Theirs);
 
         StringAssert.Contains(Draw(file, resolution, 40), "─── Conflict 1 ── using topic");
+    }
+
+    // Taking the ancestor says so in those words rather than naming it: a recovered ancestor is
+    // labelled 'base' and a diff3 one whatever git wrote, and neither says what the choice means
+    [TestMethod]
+    public void TestHeaderOfAConflictTakenFromTheAncestor()
+    {
+        var file = FileWithOneConflict(hasBase: true);
+        var resolution = new ConflictResolution(file);
+        resolution.Set(0, HunkChoice.Base);
+
+        // Wider than the tests above: the header is cut to the view width, and these words are long
+        StringAssert.Contains(Draw(file, resolution, 60), "─── Conflict 1 ── using the common ancestor");
     }
 
     [TestMethod]

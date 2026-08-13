@@ -247,9 +247,6 @@ static class ConflictParser
                 text.Append(hunk.EndMarker.Text).Append(hunk.EndMarker.Eol);
                 return;
 
-            case HunkChoice.Neither:
-                return;
-
             default:
                 Append(text, Chosen(hunk));
                 return;
@@ -267,6 +264,9 @@ static class ConflictParser
             HunkChoice.Theirs => hunk.Theirs,
             HunkChoice.OursThenTheirs => [.. hunk.Ours, .. hunk.Theirs],
             HunkChoice.TheirsThenOurs => [.. hunk.Theirs, .. hunk.Ours],
+            // Empty when the ancestor had nothing here, i.e. both sides added lines: the region then
+            // resolves to nothing, which is exactly what taking the ancestor means
+            HunkChoice.Base => hunk.Base,
             HunkChoice.Manual => Reterminate(hunk.Manual ?? [], hunk),
             _ => (IReadOnlyList<FileLine>)[],
         };

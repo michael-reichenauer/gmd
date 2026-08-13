@@ -1023,6 +1023,49 @@ public class GitIntegrationTest
 
         Assert.AreEqual(1, withBase.Hunks.Count);
         Assert.IsFalse(withBase.Hunks[0].HasBase, "There is no common ancestor of two independent adds");
+        Assert.IsFalse(withBase.HasBase, "And the file says so, which is what the resolver refuses on");
+    }
+
+    // Resolving to the ancestor is the one choice whose text is not in the working tree file, since
+    // the default conflict style records no ancestor. ResolveAsync re-reads the file to line the
+    // choices up against it, so it has to recover the ancestor into that same read.
+    [TestMethod]
+    public async Task TestResolvingToTheBaseRecoversTheAncestor()
+    {
+        var file = await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+        Assert.IsFalse(file.Hunks[0].HasBase, "The default 'merge' style records no ancestor");
+
+        Ok(
+            await repo.Git.ResolveConflictFileAsync(
+                "file.txt",
+                ConflictKind.BothModified,
+                [new HunkResolution(0, HunkChoice.Base)],
+                repo.Path
+            )
+        );
+
+        Assert.AreEqual("a\nb\nc\n", await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(0, status.Conflicted, "And it is marked resolved");
+    }
+
+    // The same through the file the ancestor is already in, i.e. no recovery needed
+    [TestMethod]
+    public async Task TestResolvingToTheBaseOfADiff3Conflict()
+    {
+        await repo.GitAsync("config merge.conflictStyle diff3");
+        await ConflictedFileAsync("a\nb\nc\n", "a\nOURS\nc\n", "a\nTHEIRS\nc\n");
+
+        Ok(
+            await repo.Git.ResolveConflictFileAsync(
+                "file.txt",
+                ConflictKind.BothModified,
+                [new HunkResolution(0, HunkChoice.Base)],
+                repo.Path
+            )
+        );
+
+        Assert.AreEqual("a\nb\nc\n", await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
     }
 
     // A CRLF file goes through unpack-file and back as bytes, never through ICmd's stdout, which
