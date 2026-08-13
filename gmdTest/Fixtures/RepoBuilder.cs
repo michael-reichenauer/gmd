@@ -64,7 +64,7 @@ class RepoBuilder
     public static string Sid(string name) => Sha(name).Sid();
 
     public static GitStatus NoChanges =>
-        new GitStatus(0, 0, 0, 0, 0, GitOp.None, "", "", "", 0, 0, [], [], [], [], [], []);
+        new GitStatus(0, 0, 0, 0, 0, GitOp.None, "", "", "", 0, 0, true, [], [], [], [], [], []);
 
     // Adds a commit. Declare newest first. The first line of 'message' becomes the subject,
     // which is what branch names are recovered from for merge commits.
@@ -213,6 +213,7 @@ class RepoBuilder
             "",
             0,
             0,
+            true,
             [],
             [],
             [],

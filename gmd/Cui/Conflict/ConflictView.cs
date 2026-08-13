@@ -449,17 +449,28 @@ class ConflictView : IConflictView
             );
         });
 
+    // Nothing is written until Save, so closing is what throws decisions away — which is asked
+    // about whenever there are any, including when every conflict has been decided. That last case
+    // used to close without a word, and it is the most likely moment to press Esc: the file looks
+    // finished on screen, and all of it was lost.
     void Close()
     {
-        if (resolution.IsFullyResolved || !resolution.IsChanged)
+        if (resolution.IsChanged)
         {
-            if (!resolution.IsFullyResolved && resolution.HunkCount > 0 && !ConfirmLeaveUnresolved())
-                return;
-
-            Application.RequestStop();
+            AskAboutUnsavedDecisions();
             return;
         }
 
+        // Nothing decided, so there is nothing to lose — but leaving the file conflicted is still
+        // worth a word, since the operation cannot be finished until it is resolved
+        if (resolution.UnresolvedCount > 0 && !ConfirmLeaveUnresolved())
+            return;
+
+        Application.RequestStop();
+    }
+
+    void AskAboutUnsavedDecisions()
+    {
         var choice = UI.InfoMessage(
             "Unsaved Decisions",
             $"{resolution.HunkCount - resolution.UnresolvedCount} of {resolution.HunkCount} conflicts "

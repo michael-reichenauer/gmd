@@ -69,6 +69,35 @@ public class ConflictServiceTest
         Assert.AreEqual("am --abort", cmd.Calls[0].Args);
     }
 
+    // gmd's own Cherry Pick runs 'cherry-pick --no-commit', which on a conflict writes MERGE_MSG
+    // and no operation ref at all — not even CHERRY_PICK_HEAD. That reads as a merge, and
+    // 'merge --abort' answers "There is no merge to abort (MERGE_HEAD missing)", so the one abort
+    // the user needs was the one that failed. 'reset --merge' is what undoes it.
+    [TestMethod]
+    public async Task TestAbortOfAMergeWithNoMergeHeadResetsInstead()
+    {
+        WriteGitFile("MERGE_MSG", "topic\n");
+        var cmd = new FakeCmd("");
+
+        Assert.IsTrue(Try(out var e, await new ConflictService(cmd).AbortOperationAsync(wd)), $"{e}");
+
+        Assert.AreEqual("reset --merge", cmd.Calls[0].Args);
+        Assert.AreEqual(wd, cmd.Calls[0].WorkingDirectory);
+    }
+
+    // ... while a merge git did write MERGE_HEAD for is aborted the ordinary way
+    [TestMethod]
+    public async Task TestAbortOfAMergeWithAMergeHeadUsesMergeAbort()
+    {
+        WriteGitFile("MERGE_MSG", "Merge branch 'topic'\n");
+        WriteGitFile("MERGE_HEAD", "3883620149\n");
+        var cmd = new FakeCmd("");
+
+        await new ConflictService(cmd).AbortOperationAsync(wd);
+
+        Assert.AreEqual("merge --abort", cmd.Calls[0].Args);
+    }
+
     [TestMethod]
     public async Task TestAbortWithNothingInProgressIsAnErrorAndRunsNoGit()
     {
@@ -117,6 +146,50 @@ public class ConflictServiceTest
 
         Assert.IsFalse(Try(out var e, result));
         StringAssert.Contains(e.ErrorMessage, "finished by committing");
+        Assert.AreEqual(0, cmd.Calls.Count);
+    }
+
+    // And so is gmd's own 'revert --no-commit', which stages one change for the commit dialog with
+    // nothing queued behind it. Continuing it would commit it with git's own message instead of the
+    // one the user is about to be asked for.
+    [TestMethod]
+    public async Task TestContinueOfASingleRevertIsRefused()
+    {
+        WriteGitFile("REVERT_HEAD", "3883620149\n");
+        var cmd = new FakeCmd("");
+
+        var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
+
+        Assert.IsFalse(Try(out var e, result));
+        StringAssert.Contains(e.ErrorMessage, "A revert is finished by committing it");
+        Assert.AreEqual(0, cmd.Calls.Count);
+    }
+
+    // A revert of several commits is the form that really is continued, and git writes a sequencer
+    // todo only for that one
+    [TestMethod]
+    public async Task TestContinueOfARevertOfSeveralCommits()
+    {
+        WriteGitFile("REVERT_HEAD", "3883620149\n");
+        MakeGitDir("sequencer");
+        var cmd = new FakeCmd("");
+
+        Assert.IsTrue(Try(out var e, await new ConflictService(cmd).ContinueOperationAsync(wd)), $"{e}");
+
+        Assert.AreEqual("revert --continue", cmd.Calls[0].Args);
+    }
+
+    // Not "an operation is finished by committing it": with nothing in progress there is nothing
+    // to continue, which is a different answer
+    [TestMethod]
+    public async Task TestContinueWithNothingInProgressIsAnErrorAndRunsNoGit()
+    {
+        var cmd = new FakeCmd("");
+
+        var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
+
+        Assert.IsFalse(Try(out var e, result));
+        StringAssert.Contains(e.ErrorMessage, "in progress");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
 

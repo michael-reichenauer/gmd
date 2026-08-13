@@ -166,17 +166,19 @@ class CommitCommands : ICommitCommands
         return CommitResult.Committed;
     }
 
-    // A rebase, an 'am', and a cherry pick or revert started outside gmd are finished by continuing
+    // A rebase, an 'am', and a cherry pick or revert of several commits are finished by continuing
     // them, not by committing: 'git commit' makes the commit git stopped on but leaves the
     // operation mid flight, with its remaining commits never applied. So point at the command that
     // does finish it. Returns false when it has answered for the commit.
     //
-    // A merge is not one of these — committing is exactly how a merge is finished — and neither is
-    // gmd's own cherry pick, which runs '--no-commit' and so leaves no sequence to continue.
+    // Which operation it is does not decide this — whether a commit is the whole of what is left
+    // does, which is Status.IsFinishedByCommit. Testing the operation was wrong for gmd's own
+    // Undo/Revert Commit: 'git revert --no-commit' records REVERT_HEAD even when it applies
+    // cleanly, so an ordinary staged revert looked like a stopped one and its commit dialog could
+    // not be opened at all.
     bool OfferContinueInsteadOfCommit()
     {
-        var operation = repo.Repo.Status.Operation;
-        if (operation is not (GitOperation.Rebase or GitOperation.Am or GitOperation.CherryPick or GitOperation.Revert))
+        if (repo.Repo.Status.IsFinishedByCommit)
             return true;
 
         var name = repo.Cmds.OperationName();

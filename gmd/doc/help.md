@@ -214,11 +214,14 @@ is no longer active, so it is drawn in gray and its color cannot be changed.
   the next one, and it says so. **Skip This Commit** drops the commit it
   stopped on and carries on with the rest. **Abort** throws the whole
   operation away and puts the working folder back as it was.
-  A merge has no *Continue* — committing is what finishes one — and only a
-  rebase has commits to skip, so those items appear only where they apply.
-  Pressing `C` during a rebase, an `am`, or a cherry pick or revert started
-  outside gmd offers **Continue** instead: committing there would make the one
-  commit git stopped on and leave the rest of the operation unapplied.
+  *Continue* is offered for whatever a commit does not finish, and only a
+  rebase has commits to skip, so those items appear only where they apply. A
+  merge has no *Continue* — committing is what finishes one — and neither has
+  gmd's own **Cherry Pick** or **Undo Commit**, which stage one change for the
+  commit dialog with nothing queued behind it.
+  Pressing `C` during a rebase, an `am`, a cherry pick started outside gmd, or
+  a revert of several commits offers **Continue** instead: committing there
+  would make the one commit git stopped on and leave the rest unapplied.
   Both *Commit* and *Continue* check the conflicts first. A file that is still
   unresolved stops them, naming it. So does a file marked resolved that still
   contains `<<<<<<<` — marking resolved is only `git add`, and git does not

@@ -39,6 +39,15 @@ class ConflictService : IConflictService
 
     public async Task<R> AbortOperationAsync(string wd)
     {
+        // A merge with no MERGE_HEAD has no '--abort': git answers "There is no merge to abort
+        // (MERGE_HEAD missing)". That is what gmd's own Cherry Pick leaves behind when it
+        // conflicts, since 'cherry-pick --no-commit' writes only MERGE_MSG and no operation ref at
+        // all — and it is a squash merge too. 'reset --merge' is what git's own advice points at
+        // for backing out of one: it drops the conflicted merge from the index and the working
+        // tree and clears the message, while keeping changes that are not part of it.
+        if (StatusService.IsMergeWithoutHead(wd))
+            return await cmd.RunAsync("git", "reset --merge", wd);
+
         if (!Try(out var verb, out var e, OperationVerb(wd)))
             return e;
 
@@ -47,12 +56,13 @@ class ConflictService : IConflictService
 
     public async Task<R> ContinueOperationAsync(string wd)
     {
+        // Whatever a commit finishes has no '--continue' worth running. A merge has none at all,
+        // and gmd's own Cherry Pick and Undo/Revert Commit run '--no-commit', which leaves one
+        // change staged for the commit dialog — continuing one would commit it with git's own
+        // message instead. The UI offers Commit for all of these rather than this.
         var operation = StatusService.GetOperation(wd);
-
-        // A merge has no --continue: committing is what finishes it, and that is a different
-        // command with a dialog behind it, so the UI offers Commit there rather than this
-        if (operation == GitOperation.Merge)
-            return R.Error("A merge is finished by committing it, not by continuing.");
+        if (operation != GitOperation.None && StatusService.IsFinishedByCommit(wd))
+            return R.Error($"A {ToName(operation).ToLower()} is finished by committing it, not by continuing.");
 
         if (!Try(out var verb, out var e, OperationVerb(wd)))
             return e;

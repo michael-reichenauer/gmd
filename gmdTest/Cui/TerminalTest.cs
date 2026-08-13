@@ -1951,6 +1951,55 @@ public class TerminalTest
         Assert.IsFalse(text.Contains("<<<<<<<"), "and no markers are left in it");
     }
 
+    // Nothing is written until 'S', so closing is what throws decisions away — and the moment it is
+    // most likely to happen is once every conflict has been decided and the file looks finished on
+    // screen. That case used to close without a word and lose the lot, since the guard tested
+    // "not fully resolved" rather than "anything decided".
+    [TestMethod]
+    public async Task TestClosingWithEveryConflictDecidedButUnsavedAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+        gmd.Send("Escape");
+
+        StringAssert.Contains(
+            gmd.WaitFor("Unsaved Decisions"),
+            "1 of 1 conflicts have been decided but not saved",
+            "Closing with decisions unsaved asks rather than discarding them"
+        );
+
+        // 'Stay' leaves the resolver open with the decision still made
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitUntilGone("Unsaved Decisions"), "all resolved", "Still there to save");
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        StringAssert.Contains(text, "<<<<<<<", "and nothing has been written to the file");
+    }
+
+    // Nothing decided is nothing to lose, so that close is not about unsaved work — but leaving the
+    // file conflicted is still worth a word, since the merge cannot be committed until it is not
+    [TestMethod]
+    public async Task TestClosingWithNothingDecidedWarnsAboutTheConflictsInstead()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("Escape");
+
+        StringAssert.Contains(
+            gmd.WaitFor("Unresolved Conflicts"),
+            "1 of 1 conflicts are still unresolved",
+            "No decisions to lose, so it is the conflicts that are warned about"
+        );
+    }
+
     // The conflicts of the uncommitted merge, reached the way a user reaches them: the diff of the
     // uncommitted changes, its Resolve Conflicts menu, and the one conflicted file in it
     static void OpenTheResolver(TmuxSession gmd)

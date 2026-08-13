@@ -92,6 +92,7 @@ class StatusService : IStatusService
             operation.BranchName,
             operation.Step,
             operation.Total,
+            operation.IsFinishedByCommit,
             modifiedFiles.ToArray(),
             addedFiles.ToArray(),
             deletedFiles.ToArray(),
@@ -127,10 +128,13 @@ class StatusService : IStatusService
         string MergeHeadId,
         string BranchName,
         int Step,
-        int Total
+        int Total,
+        // Whether making a commit is the whole of what is left, rather than '--continue'. See the
+        // note on Status.IsFinishedByCommit.
+        bool IsFinishedByCommit
     )
     {
-        public static readonly OperationStatus None = new(GitOperation.None, "", "", "", 0, 0);
+        public static readonly OperationStatus None = new(GitOperation.None, "", "", "", 0, 0, true);
     }
 
     // Which operation git stopped part way through, probed from the files it leaves in the git dir.
@@ -163,7 +167,8 @@ class StatusService : IStatusService
                 "",
                 TrimRefsHeads(ReadFirstLine(Path_("rebase-merge", "head-name"))),
                 ReadNumber(Path_("rebase-merge", "msgnum")),
-                ReadNumber(Path_("rebase-merge", "end"))
+                ReadNumber(Path_("rebase-merge", "end")),
+                IsFinishedByCommit: false
             );
         }
 
@@ -178,10 +183,14 @@ class StatusService : IStatusService
                 "",
                 TrimRefsHeads(ReadFirstLine(Path_("rebase-apply", "head-name"))),
                 ReadNumber(Path_("rebase-apply", "next")),
-                ReadNumber(Path_("rebase-apply", "last"))
+                ReadNumber(Path_("rebase-apply", "last")),
+                IsFinishedByCommit: false
             );
         }
 
+        // A cherry pick, which is always one started outside gmd: gmd's own runs '--no-commit',
+        // and that writes no CHERRY_PICK_HEAD at all, so it never reaches here. Whatever did write
+        // one is git driving a sequence, which '--continue' is how to carry on with.
         if (File.Exists(Path_("CHERRY_PICK_HEAD")))
             return new OperationStatus(
                 GitOperation.CherryPick,
@@ -189,16 +198,39 @@ class StatusService : IStatusService
                 ReadFirstLine(Path_("CHERRY_PICK_HEAD")),
                 "",
                 0,
-                0
+                0,
+                IsFinishedByCommit: false
             );
 
+        // A revert, where the same is not true: 'revert --no-commit' *does* record REVERT_HEAD,
+        // and it records it even when the revert applies cleanly — so gmd's own Undo/Revert Commit
+        // leaves a state that looks exactly like a stopped one, with a change staged for the commit
+        // dialog and nothing to continue. The sequencer todo is what tells them apart, git writing
+        // it only for a revert of several commits, which is the form where a commit really would
+        // make one of them and leave the rest unapplied.
         if (File.Exists(Path_("REVERT_HEAD")))
-            return new OperationStatus(GitOperation.Revert, message, ReadFirstLine(Path_("REVERT_HEAD")), "", 0, 0);
+            return new OperationStatus(
+                GitOperation.Revert,
+                message,
+                ReadFirstLine(Path_("REVERT_HEAD")),
+                "",
+                0,
+                0,
+                IsFinishedByCommit: !Directory.Exists(Path_("sequencer"))
+            );
 
         // A merge, finally. MERGE_MSG rather than MERGE_HEAD, since a squash merge or a merge of an
         // unrelated ref writes only the message.
         if (message != "")
-            return new OperationStatus(GitOperation.Merge, message, ReadFirstLine(Path_("MERGE_HEAD")), "", 0, 0);
+            return new OperationStatus(
+                GitOperation.Merge,
+                message,
+                ReadFirstLine(Path_("MERGE_HEAD")),
+                "",
+                0,
+                0,
+                IsFinishedByCommit: true
+            );
 
         return OperationStatus.None;
     }
@@ -237,6 +269,20 @@ class StatusService : IStatusService
     // Which operation git is part way through, for the callers that only need that much: the two
     // 'git add .' guards below, and ConflictService deciding what '--abort' attaches to.
     internal static GitOperation GetOperation(string wd) => GetOperationStatus(wd).Operation;
+
+    // Whether committing is what finishes the operation in progress, rather than '--continue'.
+    // See the note on Status.IsFinishedByCommit.
+    internal static bool IsFinishedByCommit(string wd) => GetOperationStatus(wd).IsFinishedByCommit;
+
+    // A merge git left no MERGE_HEAD for, which 'merge --abort' cannot undo — it answers "There is
+    // no merge to abort (MERGE_HEAD missing)". That is the state gmd's own Cherry Pick leaves
+    // behind when it conflicts: 'cherry-pick --no-commit' writes only MERGE_MSG, no operation ref
+    // of any kind, so there is nothing for a '--abort' verb to attach to. Also a squash merge.
+    internal static bool IsMergeWithoutHead(string wd)
+    {
+        var operation = GetOperationStatus(wd);
+        return operation.Operation == GitOperation.Merge && operation.MergeHeadId == "";
+    }
 
     // True while git is part way through an operation it has to be told to finish or abort. What
     // this guards is 'git add .' and 'git commit -a': either would stage an unmerged path with the

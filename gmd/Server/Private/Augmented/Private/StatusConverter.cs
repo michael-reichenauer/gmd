@@ -26,6 +26,7 @@ static class StatusConverter
             s.OperationBranchName,
             s.OperationStep,
             s.OperationTotal,
+            s.IsFinishedByCommit,
             s.ModifiedFiles,
             s.AddedFiles,
             s.DeletedFiles,

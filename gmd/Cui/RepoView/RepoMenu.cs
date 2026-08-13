@@ -76,7 +76,11 @@ class RepoMenu : IRepoMenu
         // permanently greyed 'Continue Merge' would only suggest that continuing a merge is a thing
         // gmd might one day do. Contrast the diff view's More/Less Context, which are disabled
         // because they are meaningful in general and merely have nowhere to go just now.
-        var hasContinue = status.Operation != GitOperation.Merge;
+        //
+        // Continue is offered for whatever a commit does not finish, which is not the same as "not
+        // a merge": gmd's own Cherry Pick and Undo/Revert Commit run '--no-commit' and are finished
+        // by the commit dialog, so continuing one would commit it with git's message instead.
+        var hasContinue = !status.IsFinishedByCommit;
         var hasSkip = status.Operation is GitOperation.Rebase or GitOperation.Am;
 
         return Menu

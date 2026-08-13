@@ -527,6 +527,67 @@ public class GitIntegrationTest
         Assert.AreEqual(GitOperation.Merge, status.Operation);
         Assert.AreEqual(1, status.Conflicted);
         Assert.AreEqual(ConflictKind.BothModified, status.Conflicts[0].Kind);
+        Assert.IsTrue(status.IsFinishedByCommit, "There is no sequence behind it, so a commit finishes it");
+    }
+
+    // ... but it also leaves no MERGE_HEAD, so 'merge --abort' cannot undo it — it answers "There
+    // is no merge to abort (MERGE_HEAD missing)". Abort therefore has to reset instead, which is
+    // what this proves against real git: aborting gmd's own cherry pick used to be the one abort
+    // that failed, and it is the likeliest one to be reached for.
+    [TestMethod]
+    public async Task TestAbortOfGmdsOwnCherryPickPutsTheFolderBack()
+    {
+        var d1 = await TwoBranchesThatConflictAsync();
+        var head = await repo.HeadIdAsync();
+        await repo.GitAllowFailAsync($"cherry-pick --no-commit {d1}");
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".git", "MERGE_HEAD")), "Nothing for --abort to attach to");
+
+        Ok(await repo.Git.AbortOperationAsync(repo.Path));
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.AreEqual(GitOperation.None, status.Operation);
+        Assert.AreEqual(0, status.Conflicted, "The working folder is clean again");
+        Assert.AreEqual(head, await repo.HeadIdAsync());
+        Assert.AreEqual("main\n", await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")));
+    }
+
+    // gmd's own Undo/Revert Commit is 'revert --no-commit', which records REVERT_HEAD *even when it
+    // applies cleanly* — so the operation alone cannot say whether anything is left to continue.
+    // Taking it to mean "a revert is in progress, continue it" left an ordinary staged revert
+    // unable to reach the commit dialog at all.
+    [TestMethod]
+    public async Task TestGmdsOwnRevertIsFinishedByCommitting()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        var second = await repo.CommitFileAsync("file.txt", "two\n", "Second");
+        await repo.GitAsync($"revert --no-commit {second}");
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".git", "REVERT_HEAD")), "Written even with no conflict");
+        Assert.AreEqual(GitOperation.Revert, status.Operation);
+        Assert.AreEqual(0, status.Conflicted);
+        Assert.IsTrue(status.IsFinishedByCommit, "so gmd's commit dialog is what finishes it");
+    }
+
+    // The other side of that: a revert of several commits really does have to be continued, since a
+    // commit would make the one git stopped on and leave the rest unapplied. Git writes a sequencer
+    // todo only for that form, which is the fact the two are told apart by.
+    [TestMethod]
+    public async Task TestARevertOfSeveralCommitsMustBeContinued()
+    {
+        await repo.CommitFileAsync("a.txt", "one\n", "Initial");
+        var second = await repo.CommitFileAsync("a.txt", "two\n", "Second");
+        await repo.CommitFileAsync("a.txt", "three\n", "Third");
+        var last = await repo.CommitFileAsync("b.txt", "b\n", "Unrelated");
+
+        await repo.GitAllowFailAsync($"revert --no-edit {last} {second}");
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        Assert.IsTrue(Directory.Exists(Path.Join(repo.Path, ".git", "sequencer")), "The queue of what is left");
+        Assert.AreEqual(GitOperation.Revert, status.Operation);
+        Assert.AreEqual(1, status.Conflicted, "Stopped on the second one");
+        Assert.IsFalse(status.IsFinishedByCommit);
     }
 
     // A cherry-pick started outside gmd, which does record a sequence to continue or abort

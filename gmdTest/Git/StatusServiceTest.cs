@@ -423,4 +423,89 @@ public class StatusServiceTest
         Assert.AreEqual(wd, cmd.Calls[0].WorkingDirectory);
         Assert.AreEqual("status -s --porcelain --ahead-behind --untracked-files=all", cmd.Calls[0].Args);
     }
+
+    // gmd's own Undo/Revert Commit runs 'revert --no-commit', which stages one change for the
+    // commit dialog and queues nothing behind it — but records REVERT_HEAD all the same, and does
+    // so even when the revert applies cleanly. Testing the operation alone therefore said "a revert
+    // is in progress, continue it" about an ordinary staged revert, and its commit dialog could not
+    // be opened at all.
+    [TestMethod]
+    public async Task TestASingleRevertIsFinishedByCommitting()
+    {
+        WriteGitFile("REVERT_HEAD", "388362014956bb2f054d1699d4853904194e3dab\n");
+
+        var status = await GetStatusAsync("");
+
+        Assert.IsTrue(status.IsMerging, "It is still an operation in progress, so 'git add .' stays guarded");
+        Assert.IsTrue(status.IsFinishedByCommit, "but a commit is the whole of what is left of it");
+        Assert.IsTrue(StatusService.IsFinishedByCommit(wd));
+    }
+
+    // A revert of several commits does have to be continued: a commit would make the one git
+    // stopped on and leave the rest unapplied. Git writes a sequencer todo only for that form,
+    // which is what tells it apart from the single '--no-commit' one above.
+    [TestMethod]
+    public async Task TestARevertOfSeveralCommitsIsNotFinishedByCommitting()
+    {
+        WriteGitFile("REVERT_HEAD", "388362014956bb2f054d1699d4853904194e3dab\n");
+        WriteGitDirFile("sequencer", "todo", "revert 3883620 Add gamma\n");
+
+        var status = await GetStatusAsync(ConflictOutput);
+
+        Assert.IsFalse(status.IsFinishedByCommit);
+        Assert.IsFalse(StatusService.IsFinishedByCommit(wd));
+    }
+
+    // A cherry pick needs no such test: gmd's own runs '--no-commit', which writes no
+    // CHERRY_PICK_HEAD at all (see TestOperationOfGmdsOwnCherryPickIsAMerge), so anything that has
+    // one was started outside gmd and is git driving a sequence to continue.
+    [TestMethod]
+    public async Task TestACherryPickIsAlwaysContinued()
+    {
+        WriteGitFile("CHERRY_PICK_HEAD", "388362014956bb2f054d1699d4853904194e3dab\n");
+
+        Assert.IsFalse((await GetStatusAsync(ConflictOutput)).IsFinishedByCommit);
+        Assert.IsFalse(StatusService.IsFinishedByCommit(wd));
+    }
+
+    // A merge has no '--continue' at all, and a rebase or an 'am' is never finished by the commit
+    // it stopped on, however few commits are left
+    [TestMethod]
+    public async Task TestAMergeIsFinishedByCommittingButARebaseIsNot()
+    {
+        StartMerge("Merge branch 'topic'\n", "388362014956bb2f054d1699d4853904194e3dab");
+        Assert.IsTrue((await GetStatusAsync("")).IsFinishedByCommit);
+
+        WriteGitDirFile("rebase-merge", "head-name", "refs/heads/dev\n");
+        Assert.IsFalse((await GetStatusAsync("")).IsFinishedByCommit);
+    }
+
+    // Nothing in progress: there is no operation a commit could fail to finish
+    [TestMethod]
+    public async Task TestNothingInProgressIsFinishedByCommitting()
+    {
+        Assert.IsTrue((await GetStatusAsync("")).IsFinishedByCommit);
+        Assert.IsTrue(StatusService.IsFinishedByCommit(wd));
+    }
+
+    // 'merge --abort' needs MERGE_HEAD. gmd's own Cherry Pick leaves a conflict with neither that
+    // nor CHERRY_PICK_HEAD — 'cherry-pick --no-commit' writes only MERGE_MSG — so the abort has to
+    // be told apart from one git can undo with a '--abort' verb. See ConflictService.
+    [TestMethod]
+    public async Task TestAMergeWithNoMergeHeadIsRecognised()
+    {
+        StartMerge("topic\n");
+
+        Assert.AreEqual(GitOperation.Merge, (await GetStatusAsync(ConflictOutput)).Operation);
+        Assert.IsTrue(StatusService.IsMergeWithoutHead(wd));
+    }
+
+    [TestMethod]
+    public async Task TestARealMergeIsNotAMergeWithoutHead()
+    {
+        StartMerge("Merge branch 'topic'\n", "388362014956bb2f054d1699d4853904194e3dab");
+
+        Assert.AreEqual(GitOperation.Merge, (await GetStatusAsync(ConflictOutput)).Operation);
+        Assert.IsFalse(StatusService.IsMergeWithoutHead(wd));
+    }
 }

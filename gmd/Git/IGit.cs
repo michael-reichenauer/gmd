@@ -143,6 +143,13 @@ public record Status(
     string OperationBranchName,
     int OperationStep,
     int OperationTotal,
+    // Whether making a commit is the whole of what is left of the operation, rather than telling
+    // git to '--continue'. True for a merge, which has no --continue at all, and for gmd's own
+    // Cherry Pick and Undo/Revert Commit, which run '--no-commit' and leave a single change staged
+    // for the commit dialog. False for a rebase or an 'am', which replay a series and are not
+    // finished by the commit git stopped on, and for a cherry pick or revert of several commits
+    // started outside gmd, where a commit would make one of them and leave the rest unapplied.
+    bool IsFinishedByCommit,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,

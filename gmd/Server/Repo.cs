@@ -202,6 +202,9 @@ public record Status(
     string OperationBranchName,
     int OperationStep,
     int OperationTotal,
+    // See the note on the Git layer's Status: whether a commit is the whole of what is left of the
+    // operation, or whether git has to be told to '--continue' instead
+    bool IsFinishedByCommit,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
@@ -219,7 +222,7 @@ public record Status(
     public string[] ConflictsFiles => Conflicts.Select(c => c.Path).ToArray();
 
     public static Status Empty { get; } =
-        new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, [], [], [], [], [], []);
+        new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, true, [], [], [], [], [], []);
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }
