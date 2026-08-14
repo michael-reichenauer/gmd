@@ -492,7 +492,7 @@ public class StatusServiceTest
     // nor CHERRY_PICK_HEAD — 'cherry-pick --no-commit' writes only MERGE_MSG — so the abort has to
     // be told apart from one git can undo with a '--abort' verb. See ConflictService.
     [TestMethod]
-    public async Task TestAMergeWithNoMergeHeadIsRecognised()
+    public async Task TestAMergeWithNoMergeHeadIsDetected()
     {
         StartMerge("topic\n");
 
