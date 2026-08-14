@@ -27,7 +27,7 @@ class Augmenter : IAugmenter
 
     WorkRepo GetAugRepo(GitRepo gitRepo)
     {
-        var status = ToStatus(gitRepo);
+        var status = StatusConverter.ToStatus(gitRepo.Status);
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status);
 
         AddAugStashes(repo, gitRepo); // Must be done before adding augmented commits
@@ -208,27 +208,6 @@ class Augmenter : IAugmenter
             pmb.PrimaryBaseName = baseBranch.PrimaryBaseName;
             SetNamesOnPullMergeChildren(repo, baseBranch, pmb);
         });
-    }
-
-    static Status ToStatus(GitRepo repo)
-    {
-        var s = repo.Status;
-        return new Status(
-            s.Modified,
-            s.Added,
-            s.Deleted,
-            s.Conflicted,
-            s.Renamed,
-            s.IsMerging,
-            s.MergeMessage,
-            s.MergeHeadId,
-            s.ModifiedFiles,
-            s.AddedFiles,
-            s.DeletedFiles,
-            s.ConflictsFiles,
-            s.RenamedSourceFiles,
-            s.RenamedTargetFiles
-        );
     }
 
     static bool FixTruncatedParents(WorkRepo repo, bool isTruncatedNeeded, WorkCommit commit)

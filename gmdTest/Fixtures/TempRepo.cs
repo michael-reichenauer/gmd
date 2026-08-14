@@ -59,7 +59,8 @@ sealed class TempRepo : IDisposable
     {
         var logService = new LogService(cmd);
         var diffService = new DiffService(cmd);
-        var remoteService = new RemoteService(cmd);
+        var tagService = new TagService(cmd);
+        var remoteService = new RemoteService(cmd, tagService);
 
         return new gmd.Git.Private.Git(
             logService,
@@ -69,10 +70,11 @@ sealed class TempRepo : IDisposable
             diffService,
             remoteService,
             new RepoService(cmd),
-            new TagService(cmd, remoteService),
+            tagService,
             new KeyValueService(cmd),
             new StashService(cmd, logService, diffService),
             new BlameService(cmd),
+            new ConflictService(cmd),
             cmd
         );
     }
@@ -85,6 +87,10 @@ sealed class TempRepo : IDisposable
         Assert.AreEqual(0, result.ExitCode, $"'git {args}' failed:\n{result.ErrorOutput}");
         return result.Output;
     }
+
+    // As GitAsync, but for the commands that are expected to fail — creating a conflict means
+    // running a 'git merge' or 'git rebase' that stops, and those exit non-zero.
+    public async Task<string> GitAllowFailAsync(string args) => (await cmd.RunAsync("git", args, Path)).Output;
 
     public void WriteFile(string name, string text) => File.WriteAllText(IOPath.Join(Path, name), text);
 

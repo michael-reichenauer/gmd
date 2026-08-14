@@ -34,6 +34,18 @@ interface IGit
     Task<R> RebaseBranchAsync(string name, string wd);
     Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
+    Task<R> AbortOperationAsync(string wd);
+    Task<R> ContinueOperationAsync(string wd);
+    Task<R> SkipOperationAsync(string wd);
+    Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
+    Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
+    Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd);
+    Task<R> WriteConflictFileAsync(ConflictFile file, string wd);
+    Task<R> ResolveConflictFileAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
+    Task<R> MarkResolvedAsync(string path, string wd);
+    Task<R> UnresolveAsync(string path, string wd);
+    Task<R> UseWholeFileAsync(string path, bool isOurs, string wd);
+    Task<R> DeleteConflictedAsync(string path, string wd);
     Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<R> RenameBranchAsync(string oldName, string newName, string wd);
@@ -85,23 +97,75 @@ public record Branch(
     int BehindCount // Number of commits on remote branch not yet synced down to local branch
 );
 
+// What git is in the middle of, i.e. something it has stopped part way through and has to be told
+// to finish or abort. No porcelain command reports this, so it is probed from the files git leaves
+// in the git dir, which is what git's own wt_status_get_state() does.
+public enum GitOperation
+{
+    None,
+    Merge,
+    CherryPick,
+    Revert,
+    Rebase,
+    Am,
+}
+
+// How git left a path in the index, i.e. the porcelain XY code. This is the only place the kind of
+// a conflict exists, and it decides what can be offered for it: a modify/delete has no text to
+// merge, only a keep-or-delete choice, and neither side of an add/add has a common ancestor.
+public enum ConflictKind
+{
+    BothModified, // UU
+    BothAdded, // AA
+    BothDeleted, // DD
+    AddedByUs, // AU
+    AddedByThem, // UA
+    DeletedByThem, // UD
+    DeletedByUs, // DU
+}
+
+public record ConflictedFile(string Path, ConflictKind Kind)
+{
+    public override string ToString() => $"{Kind} {Path}";
+}
+
 public record Status(
     int Modified,
     int Added,
     int Deleted,
     int Conflicted,
     int Renamed,
-    bool IsMerging,
+    GitOperation Operation,
     string MergeMessage,
     string MergeHeadId,
+    // Which branch is being rebased and how far it has got, for naming the operation to the user.
+    // Empty and 0 for everything except a rebase, which is the only operation with several steps.
+    string OperationBranchName,
+    int OperationStep,
+    int OperationTotal,
+    // Whether making a commit is the whole of what is left of the operation, rather than telling
+    // git to '--continue'. True for a merge, which has no --continue at all, and for gmd's own
+    // Cherry Pick and Undo/Revert Commit, which run '--no-commit' and leave a single change staged
+    // for the commit dialog. False for a rebase or an 'am', which replay a series and are not
+    // finished by the commit git stopped on, and for a cherry pick or revert of several commits
+    // started outside gmd, where a commit would make one of them and leave the rest unapplied.
+    bool IsFinishedByCommit,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
-    string[] ConflictsFiles,
+    ConflictedFile[] Conflicts,
     string[] RenamedSourceFiles,
     string[] RenamedTargetFiles
 )
 {
+    // True while any operation is in progress, not merely a merge — the name predates rebase and
+    // cherry-pick being detected. This is what 'git add .' and 'git commit -a' have to be guarded
+    // on: either of them stages an unmerged path with whatever text the working tree holds, which
+    // resolves the conflict with the markers still in it and drops the stages for good.
+    public bool IsMerging => Operation != GitOperation.None;
+
+    public string[] ConflictsFiles => Conflicts.Select(c => c.Path).ToArray();
+
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
 }
 
@@ -164,6 +228,7 @@ enum DiffMode
     DiffSame,
     DiffConflicts,
     DiffConflictStart,
+    DiffConflictBase,
     DiffConflictSplit,
     DiffConflictEnd,
 }

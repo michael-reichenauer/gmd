@@ -1,4 +1,5 @@
 using gmd.Cui.Common;
+using gmd.Cui.Conflict;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -13,7 +14,10 @@ enum DiffResult
 
 interface IDiffView
 {
-    DiffResult Show(CommitDiff diff, string commitId, string repoPath, DiffReload reload);
+    // conflicts is what git reports as unmerged, read by the caller — only the uncommitted diff can
+    // have any. Passed in rather than read here so it is awaited off the main loop: a Terminal.Gui
+    // SynchronizationContext posts an await's continuation to that loop, so blocking it deadlocks.
+    DiffResult Show(CommitDiff diff, string commitId, string repoPath, DiffReload reload, ConflictState conflicts);
     void Show(CommitDiff[] diffs, string repoPath, DiffReload reload);
 }
 
@@ -25,6 +29,7 @@ class DiffView : IDiffView
     private readonly IProgress progress;
     private readonly IServer server;
     readonly IClipboardService clipboard;
+    readonly IConflictView conflictView;
     ContentView contentView = null!;
     CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
@@ -42,20 +47,38 @@ class DiffView : IDiffView
 
     bool IsSelected => contentView.SelectCount > 0;
 
-    public DiffView(IDiffService diffService, IProgress progress, IServer server, IClipboardService clipboard)
+    // The conflicted paths and their kinds, re-read whenever the diff is. Taken from the status
+    // rather than from the diff itself, so a conflict git wrote no markers for — a modify/delete,
+    // a binary file — is offered like any other; the diff can only see the ones with markers.
+    ConflictState conflictState = ConflictState.None;
+
+    public DiffView(
+        IDiffService diffService,
+        IProgress progress,
+        IServer server,
+        IClipboardService clipboard,
+        IConflictView conflictView
+    )
     {
         this.diffService = diffService;
         this.progress = progress;
         this.server = server;
         this.clipboard = clipboard;
+        this.conflictView = conflictView;
     }
 
-    public DiffResult Show(CommitDiff diff, string commitId, string repoPath, DiffReload reload) =>
-        Show([diff], commitId, repoPath, reload);
+    public DiffResult Show(
+        CommitDiff diff,
+        string commitId,
+        string repoPath,
+        DiffReload reload,
+        ConflictState conflicts
+    ) => Show([diff], commitId, repoPath, reload, conflicts);
 
-    public void Show(CommitDiff[] diffs, string repoPath, DiffReload reload) => Show(diffs, "", repoPath, reload);
+    public void Show(CommitDiff[] diffs, string repoPath, DiffReload reload) =>
+        Show(diffs, "", repoPath, reload, ConflictState.None);
 
-    DiffResult Show(CommitDiff[] diffs, string commitId, string repoPath, DiffReload reload)
+    DiffResult Show(CommitDiff[] diffs, string commitId, string repoPath, DiffReload reload, ConflictState conflicts)
     {
         this.diffs = diffs;
         this.reload = reload;
@@ -66,7 +89,8 @@ class DiffView : IDiffView
         this.isCommitTriggered = false;
         this.isRefreshNeeded = false;
         this.fileContext.Clear();
-        this.diffRows = diffService.ToDiffRows(diffs, fileContext);
+        this.conflictState = conflicts;
+        this.diffRows = diffService.ToDiffRows(diffs, fileContext, ConflictPaths());
 
         Toplevel diffView = new Toplevel()
         {
@@ -119,6 +143,10 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
         view.RegisterKeyHandler(Key.c, () => TriggerCommit());
 
+        // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
+        // was bound to it in this view before.
+        view.RegisterKeyHandler(Key.Enter, ResolveCurrentConflict);
+
         // More/less context around the changes of the file the cursor is on. Terminal.Gui 1.x has
         // no Key value for these, so use the ascii code, as the '?' key does in RepoViewInput.
         // '=' is '+' without the shift, which is where the key is on most layouts.
@@ -158,7 +186,8 @@ class DiffView : IDiffView
             y,
             Menu.Items.SubMenu("Scroll to", "S", scrollToItems)
                 .SubMenu("Diff File", "", diffItems)
-                .SubMenu("Merge Conflict File", "", conflictItems)
+                .SubMenu("Resolve Conflicts", "Enter", conflictItems)
+                .SubMenu("Run External Merge Tool", "", GetMergeToolItems())
                 .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
                 // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
                 .Item("Refresh", "R", () => RefreshDiff())
@@ -222,19 +251,78 @@ class DiffView : IDiffView
         return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => RunDiffTool(p))));
     }
 
-    IEnumerable<Common.MenuItem> GetConflictItems()
+    // Only the uncommitted diff can have conflicts, and only when one is actually in progress
+    IReadOnlyList<string> ConflictPaths() => conflictState.Files.Select(c => c.Path).ToList();
+
+    IEnumerable<Common.MenuItem> GetConflictItems() =>
+        Menu.Items.Items(
+            conflictState.Files.Select(c => Menu.Item(ToConflictItemText(c), "", () => ResolveConflict(c)))
+        );
+
+    // Naming the kind is the part that is not obvious: a modify/delete has no text to merge, so
+    // picking it opens a keep-or-delete question rather than the three pane view
+    static string ToConflictItemText(ConflictedFile file) =>
+        file.Kind switch
+        {
+            ConflictKind.BothModified => file.Path,
+            ConflictKind.BothAdded => $"{file.Path}  (added on both sides)",
+            ConflictKind.BothDeleted => $"{file.Path}  (deleted on both sides)",
+            ConflictKind.AddedByUs => $"{file.Path}  (added by us)",
+            ConflictKind.AddedByThem => $"{file.Path}  (added by them)",
+            ConflictKind.DeletedByThem => $"{file.Path}  (deleted by them)",
+            ConflictKind.DeletedByUs => $"{file.Path}  (deleted by us)",
+            _ => file.Path,
+        };
+
+    IEnumerable<Common.MenuItem> GetMergeToolItems() =>
+        Menu.Items.Items(conflictState.Files.Select(c => Menu.Item(c.Path, "", () => RunMergeTool(c.Path))));
+
+    // The conflicted file the cursor is on, which is what Enter resolves
+    ConflictedFile? CurrentConflict()
     {
-        if (diffs.Length > 1)
-            return Menu.Items;
+        var path = CurrentAnchor().FilePath;
+        return conflictState.Files.FirstOrDefault(c => c.Path == path);
+    }
 
-        var paths = diffs[0]
-            .FileDiffs.Where(fd => fd.DiffMode == DiffMode.DiffConflicts)
-            .Select(fd => fd.PathAfter)
-            .ToList();
-        if (!paths.Any())
-            return Menu.Items;
+    // Enter resolves the conflicted file the cursor is on. With the cursor elsewhere — above the
+    // first file, or on a file that is not conflicted — it offers the list instead of doing
+    // nothing, which would read as a dropped keystroke.
+    void ResolveCurrentConflict()
+    {
+        var conflict = CurrentConflict();
+        if (conflict != null)
+        {
+            ResolveConflict(conflict);
+            return;
+        }
 
-        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => RunMergeTool(p))));
+        if (conflictState.Files.Count > 0)
+            Menu.Show("Resolve Conflicts", Menu.Center, 2, GetConflictItems());
+    }
+
+    // Loaded here rather than inside the resolver, so the read is awaited off the main loop: a
+    // Terminal.Gui SynchronizationContext posts an await's continuation to that loop, so blocking
+    // it on a Task deadlocks the application outright
+    async void ResolveConflict(ConflictedFile conflict)
+    {
+        ConflictFile file;
+        using (progress.Show())
+        {
+            if (
+                !Try(
+                    out file!,
+                    out var e,
+                    await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath)
+                )
+            )
+            {
+                UI.ErrorMessage($"Failed to open {conflict.Path}\n{e.AllErrorMessages()}");
+                return;
+            }
+        }
+
+        if (conflictView.Show(file, conflictState.Operation, repoPath))
+            RefreshDiff();
     }
 
     void ScrollToCommit(string commitId)
@@ -399,6 +487,14 @@ class DiffView : IDiffView
                 return;
             }
 
+            // What is still conflicted may have changed, e.g. a file was just resolved, and a stale
+            // list would keep heading it 'Conflicts:' and keep offering it in the resolve menu
+            if (commitId == Repo.UncommittedId)
+            {
+                if (Try(out var state, out var _, await server.GetConflictStateAsync(repoPath)))
+                    conflictState = state;
+            }
+
             fileContext.Clear();
             SetDiffs(refreshed, anchor);
         }
@@ -411,7 +507,7 @@ class DiffView : IDiffView
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
-        diffRows = diffService.ToDiffRows(diffs, fileContext);
+        diffRows = diffService.ToDiffRows(diffs, fileContext, ConflictPaths());
 
         // The old selection covers rows that no longer hold what they did, and a copy would take
         // whatever now sits there

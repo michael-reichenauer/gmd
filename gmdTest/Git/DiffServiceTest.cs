@@ -71,6 +71,25 @@ public class DiffServiceTest
         +topicmod
         """;
 
+    // The same, from a repository whose 'merge.conflictStyle' is 'diff3' (or 'zdiff3'), which writes
+    // the common ancestor into the file between '|||||||' and '======='. Captured from real git.
+    const string Diff3ConflictOutput = """
+        diff --git a/f.txt b/f.txt
+        index ac20a56..1f371b6 100644
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -1,3 +1,9 @@
+         one
+        +<<<<<<< HEAD
+         mainboth
+        +||||||| 50cf021
+        +base
+        +=======
+        +newboth
+        +>>>>>>> topic
+         three
+        """;
+
     // A combined diff, i.e. 'git show --cc' of a merge commit, showing only what the merger wrote
     // by hand while resolving. Not a format the parser handles, and nothing produces one: every
     // gmd git command uses --first-parent.
@@ -330,6 +349,34 @@ public class DiffServiceTest
             DiffConflictSplit ======
             DiffAdded newboth
             DiffConflictEnd >>>>>> topic
+            """,
+            LinesOf(file.SectionDiffs[0])
+        );
+    }
+
+    // The 'diff3' and 'zdiff3' conflict styles write the common ancestor into the file, between
+    // '|||||||' and '======='. Without its own mode it fell through to '+' and was drawn as part of
+    // the 'ours' side, markers and all, which is what a user with one of those styles set has been
+    // seeing in the diff view all along.
+    [TestMethod]
+    public async Task TestParseDiff3ConflictMarkers()
+    {
+        var service = new DiffService(new FakeCmd(Diff3ConflictOutput));
+        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetUncommittedDiff(6, TempWd())), $"{e}");
+
+        var file = FileOf(commitDiff, "f.txt");
+        Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode);
+        Assert.AreEqual(
+            """
+            DiffSame one
+            DiffConflictStart <<<<<< HEAD
+            DiffSame mainboth
+            DiffConflictBase |||||| 50cf021
+            DiffAdded base
+            DiffConflictSplit ======
+            DiffAdded newboth
+            DiffConflictEnd >>>>>> topic
+            DiffSame three
             """,
             LinesOf(file.SectionDiffs[0])
         );

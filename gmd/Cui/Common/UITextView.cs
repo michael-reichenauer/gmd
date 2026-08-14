@@ -21,6 +21,10 @@ class UITextView : TextView
         set => base.Text = value;
     }
 
+    // The text exactly as typed. Text trims, which is what a commit message wants and what code
+    // does not: leading indentation and trailing blank lines are content there.
+    public string RawText => base.Text?.ToString() ?? "";
+
     public override Border Border
     {
         get => new Border() { };

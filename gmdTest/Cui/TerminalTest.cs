@@ -354,6 +354,10 @@ public class TerminalTest
 
         gmd.Send("?");
         var screen = gmd.WaitFor("Gmd Help Guide");
+
+        // Note the '┃' at the right: that is the scroll bar, and its length is worked out from how
+        // long the document is — so this snapshot moves whenever gmd/doc/help.md grows or shrinks,
+        // even though nothing near the top of it changed.
         Assert.AreEqual(
             """
             ┣╯   Add beta       ╭ Help ────────────────────────────────────────────────────────────────────────╮     24-10-15 12:01
@@ -361,7 +365,7 @@ public class TerminalTest
                                 │                                                                             ┃│
                                 │### Keyboard Shortcuts                                                       ┃│
                                 │                                                                             ┃│
-                                │Here are some essential keyboard shortcuts:                                  ┃│
+                                │Here are some essential keyboard shortcuts:                                   │
             """,
             ScreenText.Rows(screen, repo.Path, 5, 6)
         );
@@ -639,27 +643,28 @@ public class TerminalTest
         gmd.Send("m");
         ScreenText.AssertEqual(
             """
-            ═══════════════════════════════════════╭ Diff Menu ──────────────────────────────╮═════════════════════════════════════
-            Commit:  c00a3cc9fb5f429e9136ddb81fe75f│Scroll to                             S >│
-            Author:  Test User <test@example.com>  │Diff File                               >│
-            Date:    2024-10-15 12:02:00           │Merge Conflict File                     >│
-            Message: Change both files             │Undo/Restore Uncommitted              U >│
-                                                   │Refresh                               R  │
-            2 Files:                               │Commit                                C  │
-              Modified:    long.txt                │More Context of long.txt (15 lines)   +  │
-              Modified:    short.txt               │Less Context                          -  │
-                                                   │Focus Left Column                     ←  │
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Focus Right Column                    →  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: long.txt                     │Close                               Esc  │
-                                                   ╰─────────────────────────────────────────╯
+            ══════════════════════════════════════╭ Diff Menu ────────────────────────────────╮════════════════════════════════════
+            Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               S >│
+            Author:  Test User <test@example.com> │Diff File                                 >│
+            Date:    2024-10-15 12:02:00          │Resolve Conflicts                   Enter >│
+            Message: Change both files            │Run External Merge Tool                   >│
+                                                  │Undo/Restore Uncommitted                U >│
+            2 Files:                              │Refresh                                 R  │
+              Modified:    long.txt               │Commit                                  C  │
+              Modified:    short.txt              │More Context of long.txt (15 lines)     +  │
+                                                  │Less Context                            -  │
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Focus Left Column                       ←  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: long.txt                    │Focus Right Column                      →  │
+                                                  │Close                                 Esc  │
+            ──────────────────────────────────────╰───────────────────────────────────────────╯────────────────────────────────────
             """,
-            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 13),
+            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 14),
             repo.Path
         );
 
         // 'Less Context' is dark, i.e. disabled, while 'More Context' is white — the file is at the
         // default, so there is nothing narrower to ask for
-        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 7, 2).Split('\n');
+        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 8, 2).Split('\n');
         StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
         StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
 
@@ -1770,5 +1775,279 @@ public class TerminalTest
         );
 
         Assert.AreEqual("Add zeta", await repo.GitAsync("log --format=%s -1"), "Nothing should be rewritten");
+    }
+
+    // The conflict resolver opens on the first conflict rather than at the top of the file. A
+    // conflict is usually a long way down a file that is mostly text both sides agree on, so a view
+    // that opened at the top would be showing anything except what it was opened for.
+    [TestMethod]
+    public async Task TestConflictResolverOpensOnTheFirstConflict()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+
+        // Lines 35 to 61 of an 80 line file, i.e. the conflict, with the text around it for context
+        // and the result of it in the pane below
+        ScreenText.AssertEqual(
+            """
+            Merge  long.txt   conflict 1 of 1   1 still to resolve
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            line 35
+            line 36
+            line 37
+            line 38
+            line 39
+            ─── Conflict 1 ── unresolved ───────
+            HEAD                                                       │dev
+            line 40 on main                                            │line 40 on dev
+            line 41
+            line 42
+            line 43
+            line 44
+            line 45                                                                                                                ┃
+            line 46                                                                                                                ┃
+            line 47                                                                                                                ┃
+            line 48                                                                                                                ┃
+            line 49                                                                                                                ┃
+            line 50                                                                                                                ┃
+            line 51                                                                                                                ┃
+            line 52                                                                                                                ┃
+            line 53                                                                                                                ┃
+            line 54                                                                                                                ┃
+            line 55                                                                                                                ┃
+            line 56                                                                                                                ┃
+            line 57
+            line 58
+            line 59
+            line 60
+            line 61
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            Conflict 1 is not resolved yet — press 1, 2, 3, 4 or 0
+            """,
+            gmd.WaitFor("─── Conflict 1"),
+            repo.Path
+        );
+    }
+
+    // ']' and '[' walk to the conflict from wherever the cursor is. For a file with a single
+    // conflict that is the whole of what they do — there is no second conflict to step to — and
+    // stepping by conflict number left both keys dead in exactly the file where the conflict is
+    // hardest to find by hand.
+    [TestMethod]
+    public async Task TestNextAndPreviousConflictReachTheOnlyConflict()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        // The top of the file, from where the conflict is below the screen
+        gmd.Send("Home");
+        StringAssert.Contains(gmd.WaitUntilGone("─── Conflict 1"), "line 1", "The top of the file");
+        gmd.Send("]");
+        StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "line 40 on main", "']' goes to the one conflict");
+
+        // And the end of the file, from where it is above the screen
+        gmd.Send("End");
+        StringAssert.Contains(gmd.WaitUntilGone("─── Conflict 1"), "line 80", "The end of the file");
+        gmd.Send("[");
+        StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "line 40 on dev", "'[' goes back to it");
+    }
+
+    // The letter shortcuts are registered in both cases, which is a safety matter rather than
+    // politeness: a key the resolver does not handle falls through to the log view below, where 'U'
+    // pulls every branch and 'P' pushes every branch — neither of them a thing to do to a repository
+    // stopped in the middle of a merge. Upper case is how the menu and the help write a shortcut, so
+    // upper case is what gets pressed.
+    [TestMethod]
+    public async Task TestUpperCaseShortcutsActOnTheConflict()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        // 'U' is un-decide, and reaching the log view instead would leave this decided
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+        gmd.Send("U");
+        StringAssert.Contains(gmd.WaitFor("1 still to resolve"), "── unresolved", "'U' un-decides it");
+
+        // 'N' and 'P' are the next and previous conflict, as the menu says they are
+        gmd.Send("Home");
+        gmd.WaitUntilGone("─── Conflict 1");
+        gmd.Send("N");
+        StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "line 40 on main", "'N' goes to the conflict");
+
+        gmd.Send("End");
+        gmd.WaitUntilGone("─── Conflict 1");
+        gmd.Send("P");
+        StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "line 40 on dev", "'P' goes back to it");
+    }
+
+    // '0' resolves a conflict to the common ancestor, i.e. undoes what both sides did to it. The
+    // ancestor is not in the file — the fixture uses git's default conflict style — so this is also
+    // the test that it is recovered on demand, and it is shown as it is taken, since a decision made
+    // from text that is not on the screen is one the user cannot check.
+    [TestMethod]
+    public async Task TestResolvingAConflictToTheCommonAncestor()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("0");
+
+        // Three panes now, with the recovered ancestor in the middle, and the pane below showing
+        // what the conflict resolves to: the line as it was before either side touched it
+        ScreenText.AssertEqual(
+            """
+            Merge  long.txt   conflict 1 of 1   all resolved
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            line 35
+            line 36
+            line 37
+            line 38
+            line 39
+            ─── Conflict 1 ── using the common ancestor
+            HEAD                                   │common ancestor                        │dev
+            line 40 on main                        │line 40                                │line 40 on dev
+            line 41
+            line 42
+            line 43
+            line 44
+            line 45                                                                                                                ┃
+            line 46                                                                                                                ┃
+            line 47                                                                                                                ┃
+            line 48                                                                                                                ┃
+            line 49                                                                                                                ┃
+            line 50                                                                                                                ┃
+            line 51                                                                                                                ┃
+            line 52                                                                                                                ┃
+            line 53                                                                                                                ┃
+            line 54                                                                                                                ┃
+            line 55                                                                                                                ┃
+            line 56                                                                                                                ┃
+            line 57
+            line 58
+            line 59
+            line 60
+            line 61
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            line 40
+            """,
+            gmd.WaitFor("all resolved"),
+            repo.Path
+        );
+
+        // And saving it writes the ancestor's line back into the file
+        gmd.Send("S");
+        gmd.WaitUntilGone("─── Conflict 1");
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        StringAssert.Contains(text, "line 39\nline 40\nline 41", "Both sides' changes are undone");
+        Assert.IsFalse(text.Contains("<<<<<<<"), "and no markers are left in it");
+    }
+
+    // Nothing is written until 'S', so closing is what throws decisions away — and the moment it is
+    // most likely to happen is once every conflict has been decided and the file looks finished on
+    // screen. That case used to close without a word and lose the lot, since the guard tested
+    // "not fully resolved" rather than "anything decided".
+    [TestMethod]
+    public async Task TestClosingWithEveryConflictDecidedButUnsavedAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+        gmd.Send("Escape");
+
+        StringAssert.Contains(
+            gmd.WaitFor("Unsaved Decisions"),
+            "1 of 1 conflicts have been decided but not saved",
+            "Closing with decisions unsaved asks rather than discarding them"
+        );
+
+        // 'Stay' leaves the resolver open with the decision still made
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitUntilGone("Unsaved Decisions"), "all resolved", "Still there to save");
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        StringAssert.Contains(text, "<<<<<<<", "and nothing has been written to the file");
+    }
+
+    // Nothing decided is nothing to lose, so that close is not about unsaved work — but leaving the
+    // file conflicted is still worth a word, since the merge cannot be committed until it is not
+    [TestMethod]
+    public async Task TestClosingWithNothingDecidedWarnsAboutTheConflictsInstead()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("Escape");
+
+        StringAssert.Contains(
+            gmd.WaitFor("Unresolved Conflicts"),
+            "1 of 1 conflicts are still unresolved",
+            "No decisions to lose, so it is the conflicts that are warned about"
+        );
+    }
+
+    // Saving with conflicts still undecided writes their markers back, so the file no longer holds
+    // the conflicts the view was built from — the decided one is stable text now and the rest have
+    // moved up to fill its number. The view therefore re-reads it, and this is the test that a
+    // second save then works: it used to be refused with "the file has changed on disk", leaving
+    // closing and re-opening the resolver as the only way to finish the file.
+    [TestMethod]
+    public async Task TestSavingTwiceFinishesAFileResolvedInTwoGoes()
+    {
+        using var repo = await E2eRepo.CreateWithTwoConflictsAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        // Decide only the first of the two, and save
+        gmd.Send("1");
+        gmd.WaitFor("1 still to resolve");
+        gmd.Send("S");
+        StringAssert.Contains(gmd.WaitFor("Saved"), "1 of its conflicts still have their markers in it");
+        gmd.Send("Enter");
+
+        // Re-read, so what is left is one conflict rather than the second of two
+        StringAssert.Contains(
+            gmd.WaitFor("conflict 1 of 1"),
+            "1 still to resolve",
+            "The view is the file as it is now, not as it was opened"
+        );
+
+        // ... and deciding it and saving again finishes the file rather than being refused
+        gmd.Send("2");
+        gmd.WaitFor("all resolved");
+        gmd.Send("S");
+        gmd.WaitUntilGone("─── Conflict 1");
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        Assert.IsFalse(text.Contains("<<<<<<<"), "No markers are left in it");
+        StringAssert.Contains(text, "line 20 on main", "The first conflict took ours");
+        StringAssert.Contains(text, "line 60 on dev", "and the second theirs");
+    }
+
+    // The conflicts of the uncommitted merge, reached the way a user reaches them: the diff of the
+    // uncommitted changes, its Resolve Conflicts menu, and the one conflicted file in it
+    static void OpenTheResolver(TmuxSession gmd)
+    {
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        gmd.WaitFor("Conflicts:   long.txt");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
     }
 }

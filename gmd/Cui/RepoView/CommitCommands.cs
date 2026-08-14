@@ -131,6 +131,12 @@ class CommitCommands : ICommitCommands
     // switch back off the target branch if the merge it staged there was actually committed.
     public async Task<R<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null)
     {
+        // Before the detached head check below, which a rebase would otherwise answer with
+        // "create/switch to a branch first" — a rebase does leave HEAD detached, so that message is
+        // both true and useless: the way out is to continue the rebase, not to make a branch.
+        if (!OfferContinueInsteadOfCommit())
+            return CommitResult.Cancelled;
+
         if (!isAmend && repo.Repo.Status.IsOk)
             return CommitResult.NothingToCommit;
         if (isAmend && !repo.Repo.CurrentCommit().IsAhead)
@@ -141,6 +147,10 @@ class CommitCommands : ICommitCommands
             UI.ErrorMessage("Cannot commit in detached head state.\nPlease create/switch to a branch first.");
             return CommitResult.Cancelled;
         }
+
+        // Ahead of the dialog, so the user is not asked for a message and then refused
+        if (!await repo.Cmds.ConfirmConflictsResolvedAsync("Commit"))
+            return CommitResult.Cancelled;
 
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
@@ -154,6 +164,36 @@ class CommitCommands : ICommitCommands
         }
 
         return CommitResult.Committed;
+    }
+
+    // A rebase, an 'am', and a cherry pick or revert of several commits are finished by continuing
+    // them, not by committing: 'git commit' makes the commit git stopped on but leaves the
+    // operation mid flight, with its remaining commits never applied. So point at the command that
+    // does finish it. Returns false when it has answered for the commit.
+    //
+    // Which operation it is does not decide this — whether a commit is the whole of what is left
+    // does, which is Status.IsFinishedByCommit. Testing the operation was wrong for gmd's own
+    // Undo/Revert Commit: 'git revert --no-commit' records REVERT_HEAD even when it applies
+    // cleanly, so an ordinary staged revert looked like a stopped one and its commit dialog could
+    // not be opened at all.
+    bool OfferContinueInsteadOfCommit()
+    {
+        if (repo.Repo.Status.IsFinishedByCommit)
+            return true;
+
+        var name = repo.Cmds.OperationName();
+        var choice = UI.InfoMessage(
+            $"{name} In Progress",
+            $"A {name.ToLower()} is in progress.\n\n"
+                + $"It is finished with Continue {name}, not by committing:\n"
+                + "committing here would leave it part way through.",
+            0,
+            [$"Continue {name}", "Cancel"]
+        );
+        if (choice == 0)
+            repo.Cmds.ContinueOperation();
+
+        return false;
     }
 
     public void ShowUncommittedDiff(bool isFromCommit = false) => ShowDiff(Repo.UncommittedId, "", isFromCommit);
@@ -207,9 +247,18 @@ class CommitCommands : ICommitCommands
                 return R.Error($"Failed to get diff", e);
             }
 
+            // Only the uncommitted diff can have conflicts, and reading them here keeps the await
+            // off the main loop — see the note on IDiffView.Show
+            var conflicts = ConflictState.None;
+            if (commitId == Repo.UncommittedId && !repo.Repo.Status.IsOk)
+            {
+                if (Try(out var state, out var _, await server.GetConflictStateAsync(repo.Path)))
+                    conflicts = state;
+            }
+
             UI.Post(() =>
             {
-                var rsp = diffView.Show(diffs[0], commitId, repo.Path, reload);
+                var rsp = diffView.Show(diffs[0], commitId, repo.Path, reload, conflicts);
                 if (rsp == DiffResult.Commit && !isFromCommit)
                 {
                     RefreshAndCommit();
@@ -310,7 +359,7 @@ class CommitCommands : ICommitCommands
                 return R.Error($"Failed to diff stash {name}", e);
             }
 
-            diffView.Show(diffs[0], name, repo.Path, reload);
+            diffView.Show(diffs[0], name, repo.Path, reload, ConflictState.None);
             return R.Ok;
         });
 

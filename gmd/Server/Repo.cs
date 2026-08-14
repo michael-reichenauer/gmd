@@ -153,19 +153,62 @@ public record Tag(string Name, string CommitId);
 
 public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);
 
+// The Git layer's GitOperation / ConflictKind / ConflictedFile, as the UI sees them. Same shape,
+// converted 1:1 by ViewRepoConverter, so nothing above this layer names a gmd.Git type.
+public enum GitOperation
+{
+    None,
+    Merge,
+    CherryPick,
+    Revert,
+    Rebase,
+    Am,
+}
+
+public enum ConflictKind
+{
+    BothModified, // UU
+    BothAdded, // AA
+    BothDeleted, // DD
+    AddedByUs, // AU
+    AddedByThem, // UA
+    DeletedByThem, // UD
+    DeletedByUs, // DU
+}
+
+// What is conflicted right now and what git is in the middle of, which is one status read rather
+// than two — the operation is what names the resolver and says which side is which.
+public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile> Files)
+{
+    public static readonly ConflictState None = new ConflictState(GitOperation.None, []);
+
+    public override string ToString() => $"{Operation}: {Files.Count} conflicts";
+}
+
+public record ConflictedFile(string Path, ConflictKind Kind)
+{
+    public override string ToString() => $"{Kind} {Path}";
+}
+
 public record Status(
     int Modified,
     int Added,
     int Deleted,
     int Conflicted,
     int Renamed,
-    bool IsMerging,
+    GitOperation Operation,
     string MergeMessage,
     string MergeHeadId,
+    string OperationBranchName,
+    int OperationStep,
+    int OperationTotal,
+    // See the note on the Git layer's Status: whether a commit is the whole of what is left of the
+    // operation, or whether git has to be told to '--continue' instead
+    bool IsFinishedByCommit,
     string[] ModifiedFiles,
     string[] AddedFiles,
     string[] DeletedFiles,
-    string[] ConflictsFiles,
+    ConflictedFile[] Conflicts,
     string[] RenamedSourceFiles,
     string[] RenamedTargetFiles
 )
@@ -173,9 +216,89 @@ public record Status(
     internal bool IsOk => ChangesCount == 0 && !IsMerging;
     internal int ChangesCount => Modified + Added + Deleted + Conflicted + Renamed;
 
-    public static Status Empty { get; } = new Status(0, 0, 0, 0, 0, false, "", "", [], [], [], [], [], []);
+    // See the note on the Git layer's Status: this is any operation in progress, not just a merge
+    public bool IsMerging => Operation != GitOperation.None;
+
+    public string[] ConflictsFiles => Conflicts.Select(c => c.Path).ToArray();
+
+    public static Status Empty { get; } =
+        new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, true, [], [], [], [], [], []);
 
     public override string ToString() => $"M:{Modified},A:{Added},D:{Deleted},C:{Conflicted},R:{Renamed}";
+}
+
+// A conflicted file as the resolver shows it. Narrower than the Git layer's own model: the marker
+// lines, the BOM and the per line terminators of the file are write side concerns that stay down
+// there, so nothing here can get them wrong. What comes up is what is drawn.
+public record FileLine(string Text)
+{
+    public override string ToString() => Text;
+}
+
+// What the user chose for one conflict. None means it is still a conflict.
+public enum HunkChoice
+{
+    None,
+    Ours,
+    Theirs,
+    OursThenTheirs,
+    TheirsThenOurs,
+    Base,
+    Manual,
+}
+
+// One conflict region. The labels are the names git wrote into the markers, e.g. 'HEAD' and
+// 'topic', which is what the view titles its columns with — during a rebase 'ours' and 'theirs'
+// mean the opposite of what is expected, and these do not.
+public record ConflictHunk(
+    int Index,
+    string OursLabel,
+    string BaseLabel,
+    string TheirsLabel,
+    IReadOnlyList<FileLine> Ours,
+    IReadOnlyList<FileLine> Base,
+    IReadOnlyList<FileLine> Theirs
+)
+{
+    public bool HasBase => Base.Count > 0;
+
+    public override string ToString() => $"{Index}: {OursLabel} vs {TheirsLabel}";
+}
+
+// Either text that is not in dispute, or a conflict
+public record ConflictSegment(IReadOnlyList<FileLine> Lines, ConflictHunk? Hunk)
+{
+    public override string ToString() => Hunk?.ToString() ?? $"{Lines.Count} lines";
+}
+
+public record ConflictFile(
+    string Path,
+    ConflictKind Kind,
+    bool IsBinary,
+    IReadOnlyList<ConflictSegment> Segments,
+    // Which sides the index holds. A file one side deleted has only the other, and a rename against
+    // a rename leaves a path with neither — so what the resolver can offer is decided from these
+    // rather than guessed from the kind.
+    bool HasOurs,
+    bool HasTheirs,
+    // Whether the file has a common ancestor at all, which is only answered when one is asked for
+    // (GetConflictFileAsync with isWithBase). False from such a call means both sides created the
+    // file — not the same as a hunk's HasBase, which is whether that one region had lines in it.
+    bool HasBase = false
+)
+{
+    public IReadOnlyList<ConflictHunk> Hunks => Segments.Select(s => s.Hunk).OfType<ConflictHunk>().ToList();
+
+    public override string ToString() => $"{Path} ({Kind}): {Hunks.Count} conflicts";
+}
+
+// What the user decided for one conflict, which is all that goes back down. The file itself is not
+// sent back: the Git layer re-reads it and applies these by position, so there is nothing to
+// convert in that direction and a file that changed on disk meanwhile is caught rather than
+// silently resolved against the wrong conflicts.
+public record HunkResolution(int Index, HunkChoice Choice, string ManualText = "")
+{
+    public override string ToString() => $"{Index}: {Choice}";
 }
 
 record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs)
@@ -239,6 +362,7 @@ enum DiffMode
     DiffSame,
     DiffConflicts,
     DiffConflictStart,
+    DiffConflictBase,
     DiffConflictSplit,
     DiffConflictEnd,
 }

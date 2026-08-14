@@ -13,7 +13,7 @@ class FakeGit : IGit
 
     // For tests that only use the key/value storage below, where the status is irrelevant
     public FakeGit()
-        : this(new Status(0, 0, 0, 0, 0, false, "", "", [], [], [], [], [], [])) { }
+        : this(new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, true, [], [], [], [], [], [])) { }
 
     public string CurrentAuthor => "Test Author";
 
@@ -143,6 +143,36 @@ class FakeGit : IGit
     public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) => throw new NotSupportedException();
 
     public Task<R> CherryPickAsync(string sha, string wd) => throw new NotSupportedException();
+
+    public Task<R> AbortOperationAsync(string wd) => throw new NotSupportedException();
+
+    public Task<R> ContinueOperationAsync(string wd) => throw new NotSupportedException();
+
+    public Task<R> SkipOperationAsync(string wd) => throw new NotSupportedException();
+
+    public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) => throw new NotSupportedException();
+
+    public Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd) => throw new NotSupportedException();
+
+    public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => throw new NotSupportedException();
+
+    public Task<R> ResolveConflictFileAsync(
+        string path,
+        ConflictKind kind,
+        IReadOnlyList<HunkResolution> choices,
+        string wd
+    ) => throw new NotSupportedException();
+
+    public Task<R> MarkResolvedAsync(string path, string wd) => throw new NotSupportedException();
+
+    public Task<R> UnresolveAsync(string path, string wd) => throw new NotSupportedException();
+
+    public Task<R> UseWholeFileAsync(string path, bool isOurs, string wd) => throw new NotSupportedException();
+
+    public Task<R> DeleteConflictedAsync(string path, string wd) => throw new NotSupportedException();
 
     public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
 

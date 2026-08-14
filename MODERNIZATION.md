@@ -1585,7 +1585,7 @@ committing, amending, creating a branch, tagging, switching and merging.
         the amended sha is stable — and the time column does not move, since it shows the author
         date. The test asserts that pair explicitly, because it is the kind of thing a future git
         version could change.
-- [ ] **Bug found, not fixed — opening a repo deletes local tags that are not on the remote.**
+- [x] **Bug found here, fixed in Step 17 — opening a repo deletes local tags that are not on the remote.**
       `RemoteService.FetchAsync` (`RemoteService.cs:31`) runs
       `git fetch --force --prune --tags --prune-tags origin`, and `--prune-tags` means exactly
       "delete local tags the remote does not have". Git's own documentation warns about this
@@ -1603,19 +1603,16 @@ committing, amending, creating a branch, tagging, switching and merging.
       that a tag deleted on the server lingers locally until someone removes it by hand, which is
       what plain `git fetch` does and is a great deal better than silently deleting a local tag.
 
-      **Deliberately deferred** (2026-08-04): the maintainer wants to see whether this bites in
-      practice before changing fetch semantics for everyone, since `--prune-tags` is a flag someone
-      typed on purpose rather than an oversight. What it looks like when it does bite: a tag added
-      locally and not yet pushed disappears — on opening the repo, on `r`/`F5`, or within five
-      minutes of sitting in the log view — with no message. Everything needed to act on it is
-      above: the cause, the one-line change, and the fixture shape that reproduces it
-      (`E2eRepo.CreateWithOriginAsync` minus its `push origin v1.0`). A regression test belongs
-      with the fix.
+      Deferred on 2026-08-04 to see whether it bit in practice, since `--prune-tags` is a flag
+      someone typed on purpose rather than an oversight. Picked up on 2026-08-12 and fixed properly
+      rather than by the one-line drop above — see **Step 17**, which keeps both directions: a tag
+      the remote deleted still goes, a tag that was never pushed stays.
 
-      Consequence already taken: `E2eRepo.CreateWithOriginAsync` pushes `v1.0`, since a local only
-      tag would otherwise vanish from that fixture at whatever moment the first fetch completed —
-      i.e. this bug would have shown up as a flaky snapshot rather than as a finding, had the
-      screens been written without noticing it.
+      Consequence taken at the time and now reversed: `E2eRepo.CreateWithOriginAsync` used to push
+      `v1.0`, since a local only tag would otherwise vanish from that fixture at whatever moment the
+      first fetch completed — i.e. this bug would have shown up as a flaky snapshot rather than as a
+      finding, had the screens been written without noticing it. It no longer pushes it, which is
+      what makes those snapshots a standing check that unpushed tags survive.
 
 ### Determinism, which is where this will actually go wrong
 
@@ -1682,8 +1679,8 @@ rather than fighting flakes later:
       makes itself); the other four turned out to be mostly a lesson in the hoover.
 - [x] Amend (`a`) with an origin fixture — done, see the finding above, which also turned up the
       `--prune-tags` bug.
-- [ ] The `--prune-tags` finding above, parked on purpose until it is noticed in real use. Not a
-      question to re-open unprompted — pick it up when a local tag actually goes missing.
+- [x] The `--prune-tags` finding above — was parked until it was noticed in real use; it was, and
+      Step 17 fixes it.
 - [x] Colors, via `TmuxSession.CaptureColors()` — done, see the finding above.
 - [x] **The middle column widths — which turned out to be two arms, not one.**
       `RepoWriter.ColumnWidths` is a four way ladder, and the note this item used to carry ("the
@@ -2012,3 +2009,754 @@ file history, which is one of the views whose refresh was broken; and `Ctrl-C` p
 
 A step *below* 6 (0 or 3, "changes only") for scanning a large commit. Same shape as the rest, and
 a one line addition to `DiffContext.Levels` if it is wanted.
+
+## Step 16 — Resolve merge conflicts
+
+**Reported by the user: the diff view can *show* a conflict but there is no way to resolve one.**
+That it shows conflicts at all is incidental — `GetUncommittedDiff` skips its `git add .` while
+merging and runs `git diff HEAD`, so the markers git wrote into the working-tree file arrive as
+ordinary `+` lines, which `ParseLineDiff` recognises. The only way on is `git mergetool`, i.e. out
+of gmd. The plan is a three-way resolver (ours / base / theirs with an editable result) in a new
+`Cui/Conflict/`, entered from the diff view.
+
+The shaping finding: **that data is fine for showing and useless for writing.** It is a diff, with
+diff context, and the ours/theirs pairing in `AddSectionDiff` is a rendering heuristic over `+`
+prefixes. Resolution reads the working-tree file itself and writes the whole file back, so it is a
+new service rather than an extension of `DiffRows`.
+
+- [x] **Step 1 — operation detection, and the two bugs it fixes.** See below.
+- [x] **Step 2 — abort *and continue*.** See below.
+- [x] **Step 3 — commit gating, and routing a rebase to *Continue*.** See below.
+- [x] **Step 4 — the `ConflictFile`/`FileLine` model and the pure `ConflictParser`.** See below.
+- [x] **Step 5 — the resolver view.** See below.
+- [x] **Step 6 — the base pane.** See below.
+- [x] **Step 7 — file-level resolutions.** See below.
+- [x] **Step 8 — manual edit of a conflict region.** See below.
+- [ ] **Step 9 — inline editing. Deferred on purpose, not forgotten** — see the section at the
+      end, which has the measurement, the one unknown, the probe that would settle it, and a
+      cheaper change that closes most of the same gap.
+- [x] **Step 10 — documentation.** See below.
+
+### Step 1 findings
+
+Everything below was probed against real git (2.55) before it was written; three of the probes
+changed the design and two of them found bugs that were already shipping.
+
+- [x] **Opening the diff view during a `git rebase --apply` or `git am` conflict destroyed it.**
+      Those backends write `rebase-apply/` and **no `MERGE_MSG`**, which is the only thing
+      `IsMergeInProgress` looked at, so `GetUncommittedDiff` ran its `git add .` — staging the
+      unmerged path with the conflict markers as its content. That resolves the conflict, and the
+      `git reset` afterwards does **not** put the stages back: `git ls-files -u` drops to zero and
+      `git checkout --merge` can no longer recover it, only `--abort` can. Silent, unrecoverable,
+      and triggered by merely *looking* at the diff. The default rebase backend and cherry-pick do
+      write `MERGE_MSG`, so gmd's own rebase was safe — it needed `rebase.backend=apply`, an
+      explicit `git rebase --apply`, or `git am`. Pinned by
+      `TestDiffDuringAnApplyRebaseKeepsTheConflictUnmerged`.
+- [x] **`git commit -am` on a conflicted merge succeeds and commits the markers into history.**
+      Verified by reading `git show HEAD:f.txt` back. `-a` is `add -u` semantics, and `git add` on
+      an unmerged path *resolves* it with the working-tree content — so `-a` was a second way into
+      the same hole as `git add .`, and the old guard only ever covered the first. Both are now
+      guarded on `Operation != None`.
+- [x] **`MERGE_MSG` never meant "a merge is in progress".** A stopped rebase (merge backend) and a
+      stopped cherry-pick both write it. It is now tested for last, after the directories and the
+      `*_HEAD` files, which is the order git's own `wt_status_get_state()` uses.
+- [x] **An interactive rebase cannot be told from a plain one, so the distinction was dropped.**
+      Modern git runs both through the sequencer and writes `rebase-merge/interactive` for both —
+      a plain `git rebase main` produces it. A `RebaseInteractive` enum member was written, found
+      to be undetectable by its own test, and removed. Nothing needs it: `--continue`, `--skip` and
+      `--abort` are the same commands either way.
+- [x] **gmd's own cherry-pick reports `Merge`, and that is correct.** `BranchService` runs
+      `cherry-pick --no-commit`, which writes no `CHERRY_PICK_HEAD` at all — only `MERGE_MSG` — and
+      `git cherry-pick --abort` in that state answers "no cherry-pick or revert in progress". There
+      is genuinely no sequence to continue or abort, only a conflicted index to resolve and commit.
+      A cherry-pick started outside gmd does record one and is detected.
+      Both are pinned, so the day gmd drops `--no-commit` the test says so.
+- [x] **`.git` is a *file* in a linked worktree and in a submodule**, holding `gitdir: <path>`, and
+      that is where the operation state lives — so `Path.Join(wd, ".git")` found none of it there.
+      `GetGitDir` follows the pointer, resolving a relative one (a submodule's) against the working
+      folder. Pre-existing; every new probe would have inherited it. No extra git process: reading
+      the file is cheaper than `git rev-parse --absolute-git-dir` on every status.
+- [x] **Staging nothing made git refuse a commit it used to make.** Resolving in an external editor
+      without `git add` worked by accident before, because `-am` staged the edited file. Now git
+      answers `error: Committing is not possible because you have unmerged files` with four lines
+      of hints, so `CommitAllChangesAsync` recognises that and leads with gmd's own sentence. The
+      `git mergetool` path is unaffected — mergetool stages for you.
+- [x] **The conflict *kind* was parsed and thrown away.** All seven porcelain codes were recognised
+      only to be flattened into a list of paths, so nothing downstream could tell a modify/delete
+      (no text to merge, only keep-or-delete) from a both-modified. `Status.Conflicts` is now
+      `ConflictedFile(Path, Kind)` and `ConflictsFiles` is derived from it, one source of truth.
+- [x] `IsMerging` is kept as the name, now `Operation != GitOperation.None`, so `Status.IsOk`,
+      `Uncommitted` and the integration tests were untouched. It is a misnomer — documented at both
+      declarations rather than renamed, which would have rippled for no behavioural gain.
+- [x] `Augmenter.ToStatus` and `WorkRepoConverter.ToStatus` were byte-identical copies of the same
+      field-for-field conversion. Rather than add the new members to both, they are now one
+      `StatusConverter`, whose two enum switches fail fast on an unmapped member as
+      `ViewRepoConverter` does.
+- [x] The `Status` record is declared twice and built in four places, all compiler-enforced — the
+      change was mechanical exactly as expected, and `RepoBuilder.WithStatus(isMerging:)` became
+      `WithStatus(operation:)` in the two tests that used it.
+
+### Step 1 verified
+
+`./test` is green (561 fast + integration, 606 with E2E). Beyond the suite, driven by hand against
+the built binary under tmux with a redirected `HOME`: a normal commit including an untracked file,
+which is the path Step 1 changes for *every* user, not just users with conflicts; a conflicted
+merge, where the diff view leaves all three index stages intact, an unresolved commit is refused
+with gmd's own wording, and a hand-resolved and staged commit goes through with the resolved
+content; and a `rebase --apply` conflict — no `MERGE_MSG` on disk — where opening the diff left
+`git ls-files -u` reporting all three stages, which is the bug above.
+
+### Step 2 findings
+
+`Git/Private/ConflictService.cs` — `AbortOperationAsync`, `ContinueOperationAsync`,
+`SkipOperationAsync` — plus a self-hiding section at the head of the repo menu, wording the
+operation as e.g. `Rebase 'dev' (1 of 2)  ·  1 conflict`.
+
+- [x] **gmd could start a rebase and not finish it.** `BranchService` runs `rebase`, `rebase --onto`
+      and `cherry-pick`, and on a conflict there was no `--continue` anywhere in the codebase. For a
+      rebase "commit" is the wrong verb entirely — `git commit` makes the commit but leaves the
+      rebase mid flight with its remaining commits unapplied — so a conflicted rebase started in gmd
+      could only be finished by leaving for a console. That, rather than abort, was the real gap.
+- [x] **`--continue` opens an editor, which would hang gmd behind the terminal it owns.** The first
+      fix for this was `-c core.editor=true` on the command line, and **it was ineffective** — see
+      the Step 2 correction below.
+- [x] **Stopping again is success, not failure.** A rebase over several commits stops on each one
+      that conflicts, and `--continue` then exits non-zero with `CONFLICT` in its output — the same
+      shape as being refused because nothing was resolved (`needs merge` / `You must edit all merge
+      conflicts`). Both are non-zero, so they are told apart by what git printed, the same sniffing
+      `BranchService` already does when *starting* one, and each gets its own wording.
+- [x] **The Server methods take no operation.** `AbortOperationAsync(wd)` rather than
+      `AbortOperationAsync(operation, wd)`: the Git layer probes what is in progress itself, so the
+      UI cannot act on a stale operation and the `GitOperation` enum never has to be converted back
+      *down* through the layers — only up, which `StatusConverter` already does.
+- [x] **Only a rebase and an `am` have a commit to skip, and only a merge has no continue.** Both
+      are *omitted* rather than disabled: a permanently greyed `Continue Merge` would suggest that
+      continuing a merge is something gmd might one day do. That is the opposite of the diff view's
+      `More/Less Context`, which are disabled because they are meaningful in general and merely have
+      nowhere to go just now — the distinction is "never applies here" versus "nothing to do yet".
+- [x] `git merge --abort` after a conflicted merge, `rebase --abort`, `cherry-pick --abort` and
+      `revert --abort` all leave a clean tree at the commit they started from. Pinned per operation,
+      since this is exactly the sort of thing a git version can change.
+
+### Step 2 verified
+
+`./test` is green (630, up from 608). By hand against the built binary under tmux with a redirected
+`HOME`: a two step rebase stopped on both of its commits, driven entirely from the repo menu —
+Continue refused with gmd's wording while unresolved, then advanced 1 of 2 → 2 of 2 and said it had
+stopped on more conflicts, then finished, leaving `dev` rebased onto `main` with a clean tree and no
+rebase state; and a conflicted merge, whose menu section correctly offers only **Abort Merge**,
+confirmed first, leaving the working folder as it was.
+
+### Step 3 findings
+
+`RepoCommands.ConfirmConflictsResolvedAsync`, in front of both of the things that make a commit —
+`CommitCommands.CommitAsync` and `ContinueOperation` — plus `OfferContinueInsteadOfCommit`.
+
+- [x] **Marking a file resolved does not mean it is resolved.** Marking resolved is only `git add`,
+      and git does not look at what it stages, so a file staged with the markers still in it commits
+      `<<<<<<<` into history. Step 1's guards cannot catch this: they stop *gmd* from staging, and
+      here the user staged it deliberately — or a merge tool gave up half way. `git diff --cached
+      --check` is git's own answer, and it is what the second check runs.
+- [x] **Trusting `--check`'s exit code would refuse a commit over a trailing space.** It reports
+      whitespace problems as well as conflict markers and exits non-zero for either — verified, a
+      file with only trailing whitespace exits 2. So the *lines* are filtered for
+      `: leftover conflict marker` and the exit code is ignored. Findings go to stdout; stderr stays
+      empty, which is what tells a real failure apart from a finding. Both halves are pinned, the
+      whitespace one twice: with `FakeCmd` and against real git.
+- [x] **A rebase leaves HEAD detached, so `c` during one used to answer "Cannot commit in detached
+      head state. Please create/switch to a branch first."** True, and useless: the way out is to
+      continue the rebase, not to make a branch. The routing therefore runs *before* that check.
+- [x] **The check is skipped entirely when no operation is in progress**, so an ordinary commit runs
+      no extra git command and cannot be blocked by it. Verified by reading the log after a normal
+      commit — `diff --cached --check` does not appear.
+- [x] The gate is on `IRepoCommands` rather than duplicated, because continuing a rebase *is* how it
+      makes its commit and needs exactly the same two checks. `CommitCommands` reaches it through
+      `IViewRepo.Cmds`.
+- [x] Wording is per action: the same gate says "then commit" or "then continue" depending on which
+      called it, and the override button is `Commit Anyway` or `Continue Anyway`. The default button
+      on the marker warning is **Cancel**, since committing markers is the thing being prevented.
+- [x] `FakeCmd.Problems(output)` was added beside `Ok` and `Fail`: a command that reports problems
+      on *stdout* with a non-zero exit had no shape in the fake, and `Fail` puts its text on stderr.
+
+### Step 3 verified
+
+`./test` is green (639, up from 630). One run of the full suite failed a single E2E test which two
+later full runs and a standalone E2E run all passed — a timing flake, not tracked down further,
+noted here because it happened.
+
+By hand against the built binary under tmux with a redirected `HOME`: a file staged with the markers
+still in it, where Commit is stopped by **Conflict Markers Left** naming the file, *Show Diff* opens
+the uncommitted diff on it, and *Cancel* is the default; `c` during a rebase offering **Continue
+Rebase** rather than the detached head message; Continue then stopped by **Unresolved Conflicts**
+worded "then continue"; and after resolving, the rebase finishing from the same key, leaving `dev`
+rebased with a clean tree. Finally an ordinary commit of a modified and an untracked file, with
+trailing whitespace in one of them, going through untouched.
+
+### Step 4 findings
+
+`Git/ConflictFile.cs` (the model), `Git/Private/ConflictParser.cs` (pure, no `ICmd` and no `File`),
+and the reading, writing and per-path commands on `ConflictService`. No UI.
+
+- [x] **One line ending flag per file would be wrong.** A merge of an LF file and a CRLF file really
+      does produce a file with both, so the terminator is kept per line — `FileLine(Text, Eol)`,
+      where `Eol` is `"\r\n"`, `"\n"`, or `""` on a last line the file did not end with. Because
+      every line carries what followed it, writing back what was read needs no line ending logic at
+      all, and git's check-in conversion then applies exactly as it would to a hand edit. There is
+      no `core.autocrlf` handling anywhere in gmd as a result.
+- [x] **`ToText(Parse(x)) == x` is the test that matters**, and it is asserted byte for byte over
+      every shape a file can have: all three conflict styles, CRLF, *mixed* endings, no final
+      newline, an empty file, an empty side, markers with no labels, longer markers, and conflicts
+      at the very start and very end. Everything the resolver writes is a hunk change plus `ToText`,
+      so while that identity holds, resolving one conflict cannot rewrite the rest of the file.
+- [x] **Marker lines are kept verbatim rather than regenerated.** `.gitattributes` can set
+      `conflict-marker-size`, so a file with eleven-character markers must come back with eleven.
+      Recognition is a run of *at least* seven followed by end of line or a space, which is what
+      makes `=======x` text and `<<<<<< ` (six) text.
+- [x] **Anything that is not a complete conflict is text.** A `<<<<<<<` with no `>>>>>>>`, a
+      `>>>>>>>` with no `=======`, two starts in a row — each is kept as ordinary lines rather than
+      guessed at, which is what makes the round trip hold for a half-edited file too.
+- [x] **Git normalizes a missing final newline itself, and gmd cannot put it back.** A conflicted
+      file whose sides had no trailing newline comes out of git ending `>>>>>>> dev\n`, with a
+      newline after the last line of each side so the markers can start a line — so the missing
+      terminator is not represented in the conflict at all. Found by an integration test written
+      expecting the opposite. What gmd must not do is add one of *its* own, which the write-back
+      test and the parser round trip both pin.
+- [x] **The trailing newline repair in `Chosen` is live only for hand edited text.** Every parsed
+      block is followed by a marker line, so its last line always has a terminator; only `Manual`
+      lines can arrive without one, and without the repair the line after the conflict would be
+      joined onto the last edited line. Nearly left untested for being unreachable — it is not.
+- [x] **`:(literal)` works on `add`, `checkout` and `rm` but not on `checkout-index`**, which wants
+      a plain path (verified in Step 3's probing and again here). `--` alone does not disable
+      globbing, so a file named `a[1].txt` would otherwise match `a1.txt`; pinned by a test with
+      both files present.
+- [x] A BOM is read, remembered and written back — `File.WriteAllText` defaults to UTF-8 *without*
+      one, so a file that had a BOM would silently lose it and show as wholly changed. Decoding
+      throws rather than replacing, so a file gmd cannot represent exactly is refused instead of
+      being rewritten with `U+FFFD`.
+- [x] The model is `public` like `ConflictKind` and `ConflictedFile` beside it, rather than
+      `internal` like `CommitDiff` — a `[DataRow]` of an internal enum cannot be a public test
+      method's parameter, and the family reads better kept together.
+- [x] Step 4 stops at the Git layer: `IServer` gains nothing, because `ConflictFile` has no Server
+      mirror until Step 5 builds one alongside its converter, as `CommitDiff` has.
+
+### Step 4 verified
+
+`./test` is green (697, up from 639) — 47 pure parser tests with no fake, no repository and no
+driver, plus real-git tests for reading, writing, whole-file resolution, un-resolve, a `zdiff3`
+repository, a BOM, CRLF, and a path with glob characters in its name.
+
+**A pre-existing E2E flake was found while checking this and is *not* fixed here.**
+`TestShowAndHideBranchRoundTrip` failed once in Step 3 and once here, and passes in isolation and in
+three consecutive full runs of both this tree and an unmodified one. `TestDiffOfACommit` then failed
+once in Step 7 in the same way — so it is a family rather than one test, and the diagnosis below
+fits both: neither waits for anything that the key it just sent would *change*. The cause looks like the test
+rather than the app: it does `Send("Down")` then `WaitFor("Merge branch")`, but that text is already
+on screen before the key, so the wait is satisfied by the already-settled screen and does not
+actually wait for the key to be processed. Under load the `Left` can then be sent first and `Enter`
+act on the wrong hoover. A real wait would be one for something that *changes* — the application bar
+going from `(main)` to `(dev)` once the branch is hoovered.
+
+### Step 5 findings
+
+`gmd/Cui/Conflict/` — `ConflictColumns`, `ConflictRows`, `ConflictResolution`, `ConflictRowService`
+and `ConflictView` — entered from the diff view with `Enter`, plus the Server layer mirror of the
+conflict model and the two diff display fixes.
+
+- [x] **`.Result` on the main loop deadlocks Terminal.Gui outright.** The first build read the
+      conflicted file with `server.GetConflictFileAsync(...).Result` from a key handler; the git
+      command completed, and gmd then hung with a blank screen. Terminal.Gui installs a
+      `SynchronizationContext` that posts an `await`'s continuation to the main loop, so blocking
+      that loop on the Task means the continuation can never run. Every git call in the resolver now
+      goes through `UI.RunInBackground`, and the two loads that must happen *before* a view opens are
+      awaited by the caller and passed in — which is why `IDiffView.Show` and `IConflictView.Show`
+      take what they need rather than fetching it.
+- [x] **`new Label(x, y, text)` fixes an absolute frame, so a `Pos.AnchorEnd` assigned afterwards is
+      silently ignored** — the result pane's rule was drawn at the top of the view, over the header.
+      The object initializer form (`new Label(text) { Y = Pos.AnchorEnd(n) }`) is the one that lays
+      out, which is what `CommitDetailsView` uses.
+- [x] **`Text.ToLine(width)` is not "pad to width" — it repeats the first character**, which is how
+      the divider rules are drawn. Padding a pane with it turned a line reading `a` into a row of
+      `aaaaaaa…`. `Subtext(startX, width, isFillRest: true)` is the padding one, as the diff view's
+      columns already use.
+- [x] **A modify/delete conflict has no "theirs" to check out.** `git checkout --theirs` on a `UD`
+      path answers `does not have their version` — verified — because stage 3 does not exist. The
+      first cut offered Keep Ours / Keep Theirs / Delete It, two thirds of which would have errored
+      every time. It now asks the one question that has an answer: keep the file, or accept the
+      deletion, worded by which side did which.
+- [x] **The model is mirrored one way and the decisions travel back down, not the file.** The Server
+      `ConflictFile` is genuinely narrower — no marker lines, no BOM, no per line terminators, since
+      those are write side concerns — so it is a narrowing rather than a rename, and there is no
+      second converter to get wrong. `ResolveAsync` re-reads the file and applies the decisions by
+      position, which also makes a file that changed on disk while the resolver was open a caught
+      error instead of a silent mis-resolve.
+- [x] **The conflicted file list comes from the status, not from the diff.** A modify/delete conflict
+      whose working tree copy matches HEAD produces *no diff at all*, so it cannot appear in a diff
+      derived list however the parser is fixed. Reading `git status` is what makes it offerable —
+      and reviving the long dead `SetConflictsFilesMode` in the Git layer's parser would never have
+      worked, which is why the classification is done in `Cui/Diff/DiffService` where the status is
+      reachable.
+- [x] **`+|||||||` was not recognised at all**, so a user whose `merge.conflictStyle` is `diff3` or
+      `zdiff3` has been seeing the common ancestor drawn as part of the 'ours' side, markers and
+      all. It is now its own `DiffMode.DiffConflictBase`, drawn dark across both columns since it
+      belongs to neither. Pinned with a fixture captured from real git.
+- [x] `Enter` on a row that is not a conflicted file opens the list rather than doing nothing, which
+      would read as a dropped keystroke — the diff view's cursor starts above the first file.
+- [x] The resolver's panes have no line number gutter, unlike the diff view's. A conflict is
+      identified by its number, and the width is better spent on the code; that is also why three
+      panes fit at 92 columns rather than the 89 the plan estimated with a gutter.
+- [x] Regenerating `TestDiffContextMenuItems` was expected and needed three edits, not one: the menu
+      grew by a row so the window had to grow with it, the last row is the *diff's* rule with the
+      menu's corner on top of it rather than the corner alone, and the `More/Less Context` color
+      check moved down a row. Raw string literals also require every line to carry the closing
+      delimiter's indentation, so a pasted-in screen row fails to compile until it is indented.
+
+### Step 5 verified
+
+`./test` is green (724). By hand against the built binary under tmux with a redirected `HOME`, on a
+repository with both a text conflict and a modify/delete: the diff menu listing both, the second
+named `gone.txt  (deleted by them)`; the resolver drawing the two sides titled `HEAD` and `dev` with
+the result pane below; `3` combining both sides, which the header, the conflict title and the result
+pane all reflect; `S` writing exactly that and staging it; the modify/delete asking whether to keep
+the file or accept the deletion; and the whole merge then committing to a clean tree with the file
+holding both sides in order.
+
+### Step 6 findings
+
+`ConflictService.WithBaseAsync` recovers the common ancestor of each conflict, and `b` in the
+resolver fetches it the first time it is asked for. Step 5 already drew the third column; this is
+what fills it for the default conflict style, which records no ancestor in the file.
+
+- [x] **`--diff3` changes how git *groups* conflicts, not just whether it records the ancestor.**
+      This is the "silently wrong" risk the plan named, and it is far more common than expected: two
+      changes with a single common line between them come back from `git merge` as **one** conflict
+      and from `merge-file --diff3` as **two**, split at that line. Pairing them in order would show
+      the second ancestor against the first conflict. The first probe missed it entirely because its
+      conflicts were twenty lines apart, where there is nothing to group.
+- [x] **So the ancestor is mapped by content, not by position.** What is the same in both is the
+      *ours* text — choosing our side at every conflict reconstructs our version of the file however
+      the conflicts were grouped — so each conflict is located by the lines it occupies in that
+      reconstruction and takes whatever the diff3 merge has over the same lines. An ancestor split
+      across two of its conflicts is joined back up, together with the common text between them,
+      which is part of the ancestor too. `ConflictParser.SetBasesFrom`, pinned both as a unit test
+      and against real git.
+- [x] **`git checkout-index --temp` writes to the worktree root whatever its cwd** — `--prefix` does
+      not redirect it and neither does running from a subdirectory — and those files then show up as
+      untracked in the very status gmd is displaying. **`git unpack-file` does respect the cwd**, so
+      it is used instead, pointed at a scratch folder inside the git dir. Nothing ever appears in the
+      user's working tree; pinned by a test that compares `git status` before and after.
+- [x] **A pane count that the row and the layout disagree on drops a whole side.** The rows are built
+      once from what the user asked for, but the widths are worked out per draw and drop the ancestor
+      on a narrow view — and taking the first *n* panes of a three pane row then drew `HEAD | common
+      ancestor` with **theirs missing altogether**. It is the middle pane that has to go. The mirror
+      of this was also live: a conflict whose ancestor is legitimately empty rendered two panes
+      inside a three pane layout, putting its 'theirs' under the ancestor column. Both are tested.
+- [x] The fetch is lazy and cached: five git commands is too much to spend on every open when most
+      conflicts are settled without ever looking at the ancestor, and once fetched it stays on the
+      file so toggling costs nothing. A file that gained or lost conflicts in the meantime is caught
+      rather than re-pointing the decisions at different conflicts.
+- [x] An add/add conflict has no stage 1, so there is no ancestor to show — the pane says so in
+      words rather than appearing broken, and the per conflict label reads `(no common ancestor)`.
+- [x] The scratch folder is removed in a `finally`, as `KeyValueService` does for its temp file.
+
+### Step 6 verified
+
+`./test` is green (736). By hand under tmux with a redirected `HOME`: `b` on a default-style conflict
+fetching the ancestor and drawing three columns, with `alpha`/`middle`/`beta` correctly joined back
+up for a region git wrote as one and diff3 would have split; the working tree and `git status`
+untouched throughout and no scratch folder left; toggling off and on again running no further git
+commands; narrowing to 80 columns dropping the ancestor while keeping both sides, and widening back
+to 120 bringing it back; and a conflict resolved and saved with the pane open.
+
+One thing that looked like a bug and was not: a keystroke sent immediately after `tmux
+resize-window` is dropped, so a resolve appeared to save nothing. That is the "never send a key into
+a screen that has not settled" trap in this document, on the driving side rather than in the app.
+
+### Step 2 correction — the editor guard was in the wrong place
+
+**Reported by the user: `./test` hangs.** It hung for them and passed here, several times over, which
+is the shape of a bug that reads the environment.
+
+- [x] **`GIT_EDITOR` takes precedence over `core.editor`, so `-c core.editor=true` prevented
+      nothing** for anyone who has it set — and VS Code sets it, to `code --wait`. `git rebase
+      --continue` then waits for an editor that gmd, owning the terminal, never lets appear. Proven
+      rather than reasoned about: `GIT_EDITOR='sleep 300' git -c core.editor=true var GIT_EDITOR`
+      answers `sleep 300`, and the same command against a real blocking editor sat until it was
+      killed.
+- [x] **This was invisible here because the development shell already had `GIT_EDITOR=true` set**,
+      i.e. the environment was quietly supplying the very thing being tested. Every run passed, and
+      the two `TempRepo` folders the user's hung run left behind — both stopped mid rebase with the
+      file staged, exactly where `--continue` is called — were what identified it.
+- [x] **It is fixed in `Cmd`, not in the command**: `NeverOpenAnEditor` puts `GIT_EDITOR=true` and
+      `GIT_SEQUENCE_EDITOR=true` into the environment of every process gmd starts. That is the only
+      place it can be done reliably, and it is right for all of them rather than for one command —
+      gmd owns the terminal, so no child of it may ever open an editor. The `-c core.editor=true` is
+      gone rather than kept as a second line of defence: it implied a protection it did not give.
+- [x] **The regression test sets a genuinely blocking editor** (`sleep 300`) into the test process's
+      own environment and fails if the call has not returned in thirty seconds. Confirmed to fail
+      without the fix, with the message `'rebase --continue' hung waiting for an editor`.
+- [x] The whole suite was then run once more with `GIT_EDITOR` pointed at that blocking editor, i.e.
+      under the conditions that hung for the user: 737 green.
+
+**The app was affected, not only the tests.** *Continue Rebase* from the repo menu would have hung
+gmd outright, with nothing on screen to say why, for any user with `GIT_EDITOR` set.
+
+### Step 7 findings
+
+What a file with no text to merge can be resolved to, decided from the sides that actually exist.
+
+- [x] **The options were derived from the conflict's kind, and that was wrong for four of the seven.**
+      `git checkout --theirs` on a path the other side deleted answers `does not have their version`,
+      so every offer of it was a command git would refuse. Step 5 fixed this by hand for `UD`/`DU`;
+      `AU`, `UA` and `DD` had the same hole. They are now decided from stages 2 and 3 of the index —
+      `ConflictFile.HasOurs` / `HasTheirs` — which covers all seven kinds and anything odd besides.
+- [x] **For `DD` the button did the opposite of what it said.** Both sides had removed the path, so
+      there was no version to keep, and *Keep the File* would have run `git add` — which for a path
+      with no working file **records the deletion**. It now offers only *Accept the Deletion*, and
+      says why: renamed on one side, or renamed differently on each.
+- [x] **`rename/rename` is how to reach the rare kinds**, and it produces all three at once: renaming
+      one file to two different names gives `AU` for our name, `UA` for theirs and `DD` for the old
+      one. Trying to make a `DD` the obvious way does not work — two sides deleting a file
+      identically is not a conflict at all, git merges it cleanly.
+- [x] The three shapes the dialog can take are now: **which side** (both exist — a binary file both
+      sides changed), **keep or delete** (one exists), and **accept the deletion** (neither does).
+      The explanatory sentence still names which side did what, since 'ours' and 'theirs' is exactly
+      the wrong way round to say it for a delete.
+- [x] Reading the stages costs one `git ls-files -u` per file opened, which also feeds the base pane.
+      Worth it for a dialog that cannot offer an impossible command.
+- [x] A binary conflict does have both sides in the index — it is `UU` with all three stages — so it
+      is a straight choice of version, and `checkout --ours/--theirs` restores it byte for byte.
+
+### Step 7 verified
+
+`./test` is green (744), including a run with `GIT_EDITOR` pointed at a blocking editor. By hand
+under tmux: a `rename/rename` merge, which is the hardest kind gmd can be shown, resolved entirely
+inside it — the three conflicts listed and named by kind, the old name offering only *Accept the
+Deletion*, each new name offering keep or delete with the right side named, and the merge then
+committed to a clean tree with both files present.
+
+`TestDiffOfACommit` failed once during this step and passed in isolation, in an E2E only run, and in
+two further full runs. It is the same flake family as `TestShowAndHideBranchRoundTrip`, recorded in
+Step 4 and still deliberately not fixed.
+
+### Step 8 findings
+
+`E` in the resolver opens the current conflict's result in a modal box, for the merge that is
+neither side but something of both.
+
+- [x] **Hand edited text arrives with the editor's line endings, not the file's.** A Terminal.Gui
+      `TextView` joins its lines with `Environment.NewLine`, which is CRLF on Windows whatever the
+      file is — so an edit would have converted the region and shown the whole file as changed.
+      Every manual line is re-terminated from the `<<<<<<<` marker, which is the reliable source of
+      the file's own ending: it always has a terminator, where `>>>>>>>` has none when the conflict
+      ends the file. That end-of-file case is then restored on the last line.
+- [x] **`UITextView.Text` trims**, which is right for a commit message and wrong for code, where
+      leading indentation and trailing blank lines are content. `RawText` was added beside it and is
+      what the resolver reads.
+- [x] **The box says where its text came from**, because two seeds are useful and picking silently
+      would be a surprise: what the conflict resolves to now if a side has been chosen, so `1` then
+      `E` means "ours, but tweaked", and otherwise both sides in order, which is the usual starting
+      point for a merge written by hand.
+- [x] **The focus question Step 9 was gated on is answered: a `TextView` in a modal `UIDialog` takes
+      the keyboard normally** — typing, `Ctrl-K`, and `Tab` to the buttons all work, driven through
+      tmux against the built binary. What that settles is only the *modal* case, which is the one the
+      commit dialog already proved; it says nothing about a text view sharing a `Toplevel` with two
+      `ContentView`s, which is what Step 9 would need.
+- [x] `Ctrl-O` is documented in the help as activating OK but is not bound anywhere — dialogs are
+      accepted with `Tab` then `Enter`, which is what the commit dialog's own E2E test does. Left
+      alone: it is pre-existing and outside this work.
+
+### Step 8 verified
+
+`./test` is green (747), including a run with `GIT_EDITOR` pointed at a blocking editor. By hand
+under tmux: `E` opening the box seeded with both sides and labelled as such; clearing it and typing
+a merge of the two by hand; `Tab` then `Enter` accepting it, after which the conflict reads *edited
+by hand* and the result pane shows the typed text; `S` writing exactly that to the file, with the
+lines around the conflict untouched and no markers left; and the other seed, where choosing a side
+first and then pressing `E` fills the box with that side and says so.
+
+### Step 9 — inline editing, deferred
+
+**Not built, and the reasoning is here so the decision can be revisited without redoing the
+analysis.** Step 8 covers the need: `E` opens the conflict's result in a modal box and works.
+Step 9 would replace that box with editing in the result pane itself, so the two sides stay on
+screen while the merge is typed — the result `ContentView` going to `Height = 0` and a `UITextView`
+taking its rectangle and the keyboard, which is the `Height` toggle `BlameView.ToggleDetails`
+already uses.
+
+**What it would buy, measured rather than guessed.** On a 120x40 terminal with an eight line
+conflict, the Step 8 box is 100x26 centred and covers the source pane from row 8 down: all eight
+*theirs* lines are hidden and about two *ours* lines remain. So the modal does hide what is being
+merged — but the box is *seeded with both sides in full* when nothing has been chosen yet, so the
+material is in front of the user and they are pruning it rather than recalling it. The gap is
+narrower than "the sides are hidden": it is editing **after** choosing a side, where the box holds
+only that side, and editing while wanting the **common ancestor** in view.
+
+**The one unknown, which is the whole gate.** Whether `SetFocus()` gives the keyboard to a
+`UITextView` sharing a bare `Toplevel` with two `ContentView`s. Step 8 proved the *modal* case —
+that was never the doubtful half, the commit dialog had shown it already. The doubtful half is this
+configuration, which the codebase has never run and which is where the "`SetFocus()` does not seem
+to work" comment in `RepoView` and `BlameView` comes from. That comment is about code that never
+calls `SetFocus()` at all, so it is untested rather than disproven, which is exactly why it needs a
+probe and not a guess.
+
+**The probe that settles it**, half an hour: a throwaway `Toplevel` with one `ContentView` (with a
+letter key registered on it) and one `UITextView`, checking that `Tab` moves the caret in and out,
+that typing that letter into the text view does not fire the command, that the caret is visible, and
+that it is still visible after a menu has opened and closed over it. Run that before any of the work,
+because if it fails there is no Step 9 and everything built for it is wasted.
+
+**What else it would need, beyond the layout swap:**
+
+- **Key routing and a visible mode.** Every letter becomes text while editing, so `1`-`4`, `s`, `b`,
+  `n`, `p` and `q` stop being commands. Without an obvious mode marker a user presses `1` expecting
+  *use ours* and types a `1` instead. `ContentView.ProcessHotKey` returns early when it does not have
+  focus, so the routing works *if* focus really moves — which is the same unknown again.
+- **An accept key, and the obvious one is hazardous.** There are no buttons to `Tab` to inline, so it
+  needs a key; `Ctrl-S` is XOFF and freezes many terminals. `Esc` for cancel is fine.
+- **The caret after a menu.** `UIDialog.Show` ends with `SetCursorVisibility(Invisible)`, so opening
+  and closing the menu mid edit leaves the caret gone until focus re-enters the text view.
+- **Tests that depend on focus**, i.e. the kind this suite already has two flakes of.
+
+**The argument that decided it.** Step 12 records that the tmux tier was deliberately written to name
+no Terminal.Gui type so it survives the 1.x to 2.x port. Inline editing is the opposite: it would be
+the most 1.x-focus-dependent code in the repo, in a framework the project intends to leave, where
+everything else in `Cui/Conflict/` is row math that ports cleanly.
+
+**The cheaper change, if the gap is worth closing at all.** Show both sides read-only *inside* the
+edit dialog, above the box — `UIDialog.AddContentView` exists and `HelpDlg` uses it. The `UITextView`
+stays the only focused thing, so there is no focus question, and the sides are visible while typing,
+which is the whole benefit. Roughly twenty lines. Alternatively, when a side has already been chosen,
+seed the box with that side *and* the other one appended, so nothing is out of reach.
+
+### Step 10 findings
+
+`gmd/doc/help.md`, which is embedded in the binary and is the only documentation a user of gmd ever
+sees.
+
+- [x] **The help had grown by accretion, one paragraph per step, into a thirty five line block of
+      prose** — accurate and unreadable in an eighty column dialog. The resolver's keys are now a
+      table in the same style as the two the document already has, and the prose around it is four
+      short paragraphs answering the questions the table cannot: what is not written until `S`, what
+      the ancestor is and where it comes from, what `E` is for, and what happens to a file with no
+      text to merge.
+- [x] **`TestHelpDialog` asserts only the first six lines** — the title and the shortcuts heading —
+      so the body can be rewritten freely. But it broke anyway, on the **scroll bar**: its length is
+      worked out from how long the document is, so lengthening the help shortened the `┃` by one row
+      six lines from the top, where nothing else had changed. The snapshot now carries a comment
+      saying so, since the coupling is invisible from the test.
+- [x] Checked by opening the real help in the real dialog rather than by reading the markdown: the
+      table is 73 columns, which fits the 80 column dialog with its borders, and lines up with the
+      tables above it.
+
+### Step 16 verified
+
+`./test` is green (747: 700 fast, 47 E2E, plus the integration tier), and green again with
+`GIT_EDITOR` pointed at a blocking editor, which is the environment that exposed the editor hang.
+
+What was driven by hand against the built binary under tmux, over the course of the steps: a two
+file conflicted merge resolved hunk by hand and committed; a `rename/rename` merge, which produces
+the three awkward conflict kinds at once, resolved entirely inside gmd; a two step rebase stopped on
+both of its commits, continued through both from the repo menu and finished; aborts from merge,
+rebase and cherry pick; the common ancestor recovered on demand for a conflict git wrote in the
+default style, and correctly joined back up where `--diff3` would have split it; a hand written merge
+typed into the edit box and saved; commits refused both for unresolved conflicts and for markers left
+in a file marked resolved; and, the regression that started it all, a `rebase --apply` conflict
+surviving the diff view that used to destroy it.
+
+### Fixed after Step 16
+
+- [x] **A file with a single conflict could not be navigated to, and `]`/`[` looked like dead keys.**
+      Reported by the user. Both came from the same thing: next/previous stepped by *conflict
+      number*, from `CurrentHunk` — which answers "the conflict the cursor is in, or the nearest one
+      before it" and **falls back to the first conflict when the cursor is above them all**. So from
+      the top of a file `]` computed `0 + 1` and moved to the *second* conflict, stepping over the
+      one it was meant to reach; in a file with only one conflict there was no second, so both keys
+      did nothing at all, and the resolver opened at the top of the file with the conflict off the
+      screen and no key that would go to it. Now `ConflictRows.NextHunkRow` walks the drawn rows for
+      the next header row in the given direction, which needs no current conflict to count from and
+      makes `[` from below a conflict go back up to it. Dead `ConflictResolution.NextHunk` removed
+      with it. Pinned by `ConflictRowsTest` and, since only the E2E tier can see a view scroll, by
+      `TestConflictResolverOpensOnTheFirstConflict` and
+      `TestNextAndPreviousConflictReachTheOnlyConflict` over the new `E2eRepo.CreateWithConflictAsync`
+      fixture — an 80 line file whose one conflict is off the screen from both ends.
+- [x] **The resolver now opens on the first conflict** rather than at the top of the file. It cannot
+      be done before the dialog runs: `ScrollToShowIndex` needs the view's height and its row count,
+      and neither exists until Terminal.Gui has laid the view out and asked it for its first rows.
+      The first content fetch is that moment, so the move is posted from there to run once that draw
+      is done.
+- [x] **The resolver's letter shortcuts were registered in lower case only, and the upper case ones
+      reached the log view underneath.** Found while checking the report above, since the menu and
+      the help write the keys the way shortcuts are always written — `E`, `U`, `B`, `S`, `A`, `M`,
+      `], N`, `[, P` — and none of those did anything in the resolver. Worse than nothing: an
+      unhandled key falls through to the log view, where `P` is *push all branches* (seen as its
+      "Commit changes before pulling" error appearing over the resolver) and `U` is *pull all
+      branches* — neither a thing to do to a repository stopped mid-merge. The `q`/`Q` pair was
+      already there for exactly this reason; every letter now has both cases, via `RegisterLetter`.
+      Pinned by `TestUpperCaseShortcutsActOnTheConflict`. The suite is 764 (645 fast, 50 E2E, plus
+      the integration tier); the fast tier and all 140 conflict tests are green.
+
+      **Noticed while verifying, and not caused by any of the above: the E2E tier is flaky in the
+      devcontainer, in a mode the Step 4 note does not cover.** A full `--filter "TestCategory=E2e"`
+      run fails three or four of its tests, different ones each run, and they all pass when run
+      alone. These are not the "waited for text that was already on screen" family recorded above:
+      the screen is *blank* and there is *no `gmd.log` at all*, i.e. the binary never started in the
+      pane, and the test then times out on its first wait. Reproduced on an unmodified `HEAD` (4 of
+      47 failed), so it predates this work. `TestDiffContextIsSteppedPerFile` is separate again and
+      worse: it fails on `HEAD` even run alone.
+
+      **The same hole is still open in the diff and blame views**, which register only their lower
+      case letters: `P` in the diff view reaches *push all branches* (verified), as does `P` in the
+      blame view, where lower case `p` is blame-previous, and `U` in the diff view reaches *pull all
+      branches* where lower case `u` is its undo menu. Not fixed here — it is a different view with
+      its own keys — but it is the same one line each.
+- [x] **`0` is now *use the common ancestor* rather than *use neither side*.** The user's call, and
+      the right one: taking the ancestor is a merge decision the resolver could not express at all,
+      while dropping a region is already reachable by emptying the `E` box. `HunkChoice.Neither`
+      became `HunkChoice.Base`, and a hunk whose ancestor was empty — both sides added lines where
+      there were none — resolves to nothing, so the old behavior is still there where it is the
+      *ancestor's* answer rather than a separate choice.
+
+      Three things this needed beyond renaming a choice:
+
+      - **The save path had to recover the ancestor.** `ResolveAsync` re-reads the file to line the
+        choices up against what is on disk now, and that read does not recover the ancestor — the
+        default conflict style records none. It now does, but only when some choice actually is
+        `Base`, so nothing else pays the five git commands. Pinned end to end by
+        `TestResolvingToTheBaseRecoversTheAncestor` and its `diff3` twin.
+      - **"Has an ancestor" had to become a fact rather than a guess.** `ToggleBase` decided it from
+        `!file.Hunks.Any(h => h.HasBase)`, which is *wrong* for a file whose conflicts are all
+        both-sides-added: the ancestor is empty in every hunk, so a real ancestor read as none, the
+        pane refused to open and the recovery re-ran on every press. Only `WithBaseAsync` can tell
+        the two apart, since only it looks for stage 1, so it now says so on the file (`HasBase`),
+        and the view asks that. Fixes the pane's own long-standing edge case as a side effect.
+      - **The ancestor is shown as it is taken.** Pressing `0` turns the base pane on if it is off,
+        because a decision made from text that is not on the screen is one the user cannot check.
+
+      `ToggleBase` and `ChooseBase` now share `WithBase`, which is where the "fetched when first
+      asked for" comment moved to — it had drifted onto `EditCurrentHunk`, describing nothing.
+      Pinned by `TestResolvingAConflictToTheCommonAncestor`, which is the whole path: press `0` on a
+      default-style conflict, the ancestor is recovered, the three panes appear with it in the
+      middle, and `S` writes the ancestor's line back with no markers left.
+
+### Not done, deliberately
+
+- **Inline editing** — Step 9 above, deferred with its reasoning, its measurement and the probe that
+  would settle it.
+- **Word level highlighting inside a conflict region.** DiffPlex is already a dependency and
+  `Cui/Diff/DiffService.GetDiffSides` already does character diffs, so this is cheap to add later.
+  Note its whitespace branch tests for `RedBg`/`GreenBg` and conflict lines are `Color.Yellow`, so it
+  does not fire on them as things stand.
+- **Submodule conflicts**, which need their own UI — a choice between two commits, not two texts.
+  They fall through to the external merge tool, which is still on the diff menu.
+- **`git rerere`**, and "resolve every conflict where the two sides differ only by whitespace".
+- **A conflict list in the log view.** Conflicts are reached through the diff view, which is one
+  keystroke from the uncommitted row, and the repo menu names the operation and the count. A second
+  route was not worth the duplication.
+
+## Step 17 — Stop a fetch deleting local tags ✅ done
+
+**The Step 12 finding, picked up because it bit in practice.** Opening a repo deleted local tags
+that were not on the remote, silently and with no undo — `RemoteService.FetchAsync` ran
+`git fetch … --prune-tags`, and `RepoView` fetches on open, on `r`/`F5` and every five minutes.
+
+The reason it was parked rather than fixed by dropping the flag is that both directions matter and
+`--prune-tags` gets one of them right: drop it and a tag deleted on the server lingers locally, and
+can be published again. So the question was never "which side loses", it was that git cannot answer
+it.
+
+**The root cause, which names the fix: tags have no remote-tracking namespace.** A branch has
+`refs/remotes/origin/*`, a record of what the remote had at the last fetch, which is exactly how
+`--prune` tells a branch the remote deleted from one that was never pushed. Tags are fetched
+straight into the shared `refs/tags/*`, so `--prune-tags` has only one question it can ask — "is it
+on the remote right now" — and both cases answer no. The information is not hidden, it does not
+exist. So the fix is to make it exist.
+
+- [x] **The fetch mirrors the remote's tags into gmd's own tracking namespace**, `refs/gmdtags/origin/*`:
+
+      `fetch --force --prune --tags origin +refs/tags/*:refs/gmdtags/origin/*`
+
+      replacing `fetch --force --prune --tags --prune-tags origin`. `--tags` still creates the local
+      tags, `--prune` still prunes the remote branches — and now the mirror as well, because it is
+      fetched by an explicit refspec.
+- [x] **`TagService.PruneDeletedRemoteTagsAsync` is the rule.** The mirror is read before the fetch
+      and again after it, and a local tag is deleted only if it was in the mirror before and is not
+      there after, i.e. gmd has seen it on the remote and the remote has since dropped it. Two cases
+      are left alone, and they are the ones `--prune-tags` got wrong: a tag that was never in the
+      mirror (never pushed), and one that no longer points where it did when it was seen (re-tagged
+      locally, so the local ref is no longer the remote's).
+- [x] **Safe to turn on, with no flag day.** The mirror starts empty, so the first fetch after
+      upgrading deletes nothing and merely seeds it; from the second fetch on the rule has a record
+      to work from. It can never delete a tag it has not observed. The one cost is that a tag deleted
+      on the remote *before* gmd first ran this lingers, since it was never in the mirror — a one-off
+      residue at the upgrade, not an ongoing behavior.
+- [x] **Every deletion is logged with its object id**, so `~/gmd.log` holds `git tag <name> <id>`,
+      which is how it is put back. The old code did not know it had happened at all.
+
+### Findings
+
+Everything below was probed against real git 2.55 before any of it was written, since the whole
+design rests on what `--prune` does to a namespace fetched by an explicit refspec.
+
+- [x] **`--prune` does prune the mirror namespace.** This was the load-bearing assumption and the
+      reason to probe first: git's documentation says tags fetched by an *explicit refspec* are
+      subject to pruning, as opposed to the auto-following that `--tags` does — and it holds.
+      `- [deleted] (none) -> refs/gmdtags/origin/v1` is what a tag deleted on the remote looks like.
+      Without `--prune` the stale mirror ref survives, so the flag is load-bearing too.
+- [x] **One command does all three, which was not expected.** The plan for this step was a second,
+      parallel fetch for the mirror, on the assumption that a command-line refspec suppresses the
+      configured `+refs/heads/*:refs/remotes/origin/*`. It does not: with only the tag refspec on the
+      command line git still updated *and* pruned the remote-tracking branches. So this is one fetch,
+      one connection, no `remote.origin.fetch` config written into the user's repo, and no change
+      above `gmd/Git/` at all — `IGit`, `FakeGit` and every layer above are untouched.
+- [x] **The mirror is invisible to everything gmd reads.** `show-ref --dereference --tags`
+      (`GetTagsAsync`) and `branch -vv --no-color --no-abbrev --all` (`GetBranchesAsync`) both limit
+      themselves to `refs/tags/` and `refs/heads`+`refs/remotes`, so no duplicate tag or phantom
+      branch reaches the model. Checked by running both against a repo with the mirror populated.
+- [ ] Noted, no action: **`git log --all` does include the mirror**, `--all` meaning every ref under
+      `refs/`, and `GitLog.cs:24` uses it. Confirmed with a commit reachable only through a mirror
+      ref. It makes no practical difference — `--tags` creates a local tag for every remote tag, so
+      `refs/tags` covers the mirror, and the only way to diverge is to delete a local tag while the
+      remote still has it, which the next fetch undoes anyway. Written down because it is the kind of
+      thing that would otherwise be discovered as "why is this commit in my log".
+- [x] **`--prune-tags` is inert once the refspec is there.** Found by checking that the new
+      regression tests actually regress: with `--prune-tags` added back *alongside* the refspec they
+      still passed, i.e. the never-pushed tag survived. Against the original command line
+      (`--prune-tags`, no refspec) both fail. So the refspec is what does the work and the flag is
+      the thing that must not be there alone — the exact argument string is pinned by
+      `RemoteServiceTest.TestFetchPrunesBranchesAndMirrorsRemoteTags`.
+- [x] **`for-each-ref` rather than `show-ref` for reading the two namespaces.** It strips the
+      namespace prefix off the name (`--format="%(objectname) %(refname:strip=3)"`, and a tag name may
+      itself contain `/`, so the depth is what has to be stripped) and does not repeat an annotated
+      tag as a peeled `^{}` line the way `--dereference` does — the quirk `ParseTags` works around.
+      Both sides of the comparison are the ref's own value, i.e. the tag object of an annotated tag
+      rather than the commit, which is what makes one comparison cover both tag kinds.
+- [x] **`TagService` had an unused `IRemoteService` field**, injected and never read. Removed, which
+      is also what let the dependency go the other way: `RemoteService` now takes `ITagService`, so
+      the whole mechanism sits in the git layer where the git knowledge belongs, and no caller of
+      `FetchAsync` needs to know tags have a tracking namespace.
+
+### Verified
+
+`./test` is green (757, up from 747: 9 new `FakeCmd` tests and 2 new integration tests).
+
+The two integration tests are the ones that matter, since it is git that decides what `--prune`
+removes and canned output cannot catch that: `TestFetchDeletesTagsTheRemoteDeletedAndKeepsUnpushedOnes`
+pushes two tags, fetches to observe them, then deletes one on the remote and creates a third locally,
+and asserts after the second fetch that exactly the deleted one is gone.
+`TestFetchKeepsATagThatWasRetaggedLocally` covers the re-tag guard. Both were checked to fail against
+the original `--prune-tags` command line, not merely to pass against the new one.
+
+The end-to-end tier now carries the standing check: `E2eRepo.CreateWithOriginAsync` no longer pushes
+`v1.0`, so every snapshot in `TerminalTest` that shows that tag is a test that the real binary, doing
+a real fetch against a real remote, leaves an unpushed tag alone.
+
+### Not done, deliberately
+
+- **Marking local-only tags in the log view.** The mirror makes "this tag is not on the remote"
+  knowable, and showing it is the honest answer to the other half of the dilemma — you would see a
+  tag is unpublished, or stale, before acting on it. It is a UI change with its own design question
+  (a color? a marker? the details pane?), so it does not belong in a fix for silent data loss.
+- **Pruning tags for remotes other than `origin`.** Everything in `RemoteService` is hardcoded to
+  `origin` already; this follows that rather than widening it.
+- **Cleaning up the mirror when a remote is removed.** The refs are harmless and tiny, and the
+  namespace is gmd's own, so nothing else trips over them.

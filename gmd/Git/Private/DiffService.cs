@@ -53,8 +53,14 @@ class DiffService : IDiffService
     {
         // To be able to include renamed and added files in uncommitted diff, we first
         // stage all and after diff, the stage is reset.
+        //
+        // Never while an operation is in progress: 'git add .' stages an unmerged path with the
+        // conflict markers as its content, which resolves the conflict, and the 'git reset' below
+        // does not put the stages back. This used to test for .git/MERGE_MSG, which a rebase with
+        // the --apply backend and 'git am' do not write — so merely opening the diff during one of
+        // those destroyed the conflict with no way back but 'git rebase --abort'.
         var needReset = false;
-        if (!StatusService.IsMergeInProgress(wd))
+        if (!StatusService.IsOperationInProgress(wd))
         {
             if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd)))
                 return err;
@@ -436,6 +442,13 @@ class DiffService : IDiffService
         if (lines[i].StartsWith("+<<<<<<<"))
         {
             return (new LineDiff(DiffMode.DiffConflictStart, AsConflictLine(lines[i++])), i, true);
+        }
+        // The common ancestor section of the 'diff3' and 'zdiff3' conflict styles. Without this
+        // it falls through to '+' and is drawn as part of the 'ours' side, which is what a user
+        // with one of those styles set has been seeing.
+        if (lines[i].StartsWith("+|||||||"))
+        {
+            return (new LineDiff(DiffMode.DiffConflictBase, AsConflictLine(lines[i++])), i, true);
         }
         if (lines[i].StartsWith("+======="))
         {

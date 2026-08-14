@@ -311,7 +311,7 @@ class BlameView : IBlameView
         }
 
         // A read only view two dialogs deep cannot usefully act on the result, so it is ignored
-        diffView.Show(diffs![0], row.Commit.Id, repo.Path, reload);
+        diffView.Show(diffs![0], row.Commit.Id, repo.Path, reload, ConflictState.None);
         contentView.SetNeedsDisplay();
     }
 

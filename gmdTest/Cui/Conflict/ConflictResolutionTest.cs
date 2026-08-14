@@ -1,0 +1,176 @@
+using gmd.Cui.Conflict;
+using gmd.Server;
+
+namespace gmdTest.Cui.Conflict;
+
+// What the user has decided, kept out of the view so it can be tested without a terminal — the
+// same reason ContentScroll and Hoover exist.
+[TestClass]
+public class ConflictResolutionTest
+{
+    static FileLine[] Lines(params string[] texts) => texts.Select(t => new FileLine(t)).ToArray();
+
+    static ConflictFile FileWith(int hunkCount)
+    {
+        var segments = new List<ConflictSegment>();
+        for (int i = 0; i < hunkCount; i++)
+        {
+            segments.Add(new ConflictSegment(Lines($"before {i}"), null));
+            segments.Add(
+                new ConflictSegment([], new ConflictHunk(i, "HEAD", "", "topic", Lines($"o{i}"), [], Lines($"t{i}")))
+            );
+        }
+
+        return new ConflictFile("f.txt", ConflictKind.BothModified, false, segments, true, true);
+    }
+
+    [TestMethod]
+    public void TestNothingIsResolvedToStartWith()
+    {
+        var resolution = new ConflictResolution(FileWith(3));
+
+        Assert.AreEqual(3, resolution.HunkCount);
+        Assert.AreEqual(3, resolution.UnresolvedCount);
+        Assert.IsFalse(resolution.IsFullyResolved);
+        Assert.IsFalse(resolution.IsChanged);
+    }
+
+    [TestMethod]
+    public void TestChoosingCountsDown()
+    {
+        var resolution = new ConflictResolution(FileWith(3));
+
+        resolution.Set(0, HunkChoice.Ours);
+        resolution.Set(2, HunkChoice.Base);
+
+        Assert.AreEqual(1, resolution.UnresolvedCount);
+        Assert.IsTrue(resolution.IsChanged);
+        Assert.AreEqual(HunkChoice.Ours, resolution.ChoiceOf(0));
+        Assert.AreEqual(HunkChoice.None, resolution.ChoiceOf(1));
+        Assert.AreEqual(HunkChoice.Base, resolution.ChoiceOf(2));
+    }
+
+    // Setting None is how a decision is taken back, which the un-choose key needs
+    [TestMethod]
+    public void TestChoosingNoneUndoesTheDecision()
+    {
+        var resolution = new ConflictResolution(FileWith(1));
+        resolution.Set(0, HunkChoice.Manual, "edited");
+
+        resolution.Set(0, HunkChoice.None);
+
+        Assert.AreEqual(1, resolution.UnresolvedCount);
+        Assert.AreEqual("", resolution.ManualTextOf(0));
+    }
+
+    // Choosing a side after editing by hand must not leave the edit behind to be written
+    [TestMethod]
+    public void TestChoosingASideForgetsTheHandEdit()
+    {
+        var resolution = new ConflictResolution(FileWith(1));
+        resolution.Set(0, HunkChoice.Manual, "edited");
+
+        resolution.Set(0, HunkChoice.Ours);
+
+        Assert.AreEqual("", resolution.ManualTextOf(0));
+        Assert.AreEqual("", resolution.ToResolutions()[0].ManualText);
+    }
+
+    // Every conflict is sent, decided or not: the count is what the Git layer checks the file
+    // against, so a file that changed on disk is caught rather than resolved by position
+    [TestMethod]
+    public void TestResolutionsCoverEveryConflictInOrder()
+    {
+        var resolution = new ConflictResolution(FileWith(3));
+        resolution.Set(1, HunkChoice.Theirs);
+
+        var resolutions = resolution.ToResolutions();
+
+        Assert.AreEqual(3, resolutions.Count);
+        Assert.AreEqual("0: None, 1: Theirs, 2: None", string.Join(", ", resolutions));
+    }
+
+    [TestMethod]
+    [DataRow(HunkChoice.Ours, "o0")]
+    [DataRow(HunkChoice.Theirs, "t0")]
+    [DataRow(HunkChoice.OursThenTheirs, "o0,t0")]
+    [DataRow(HunkChoice.TheirsThenOurs, "t0,o0")]
+    [DataRow(HunkChoice.Base, "")] // this fixture's conflicts have no ancestor lines
+    [DataRow(HunkChoice.None, "")]
+    public void TestResultOfEachChoice(HunkChoice choice, string expected)
+    {
+        var file = FileWith(1);
+        var resolution = new ConflictResolution(file);
+        resolution.Set(0, choice);
+
+        Assert.AreEqual(expected, string.Join(",", resolution.ResultOf(file.Hunks[0]).Select(l => l.Text)));
+    }
+
+    // Taking the ancestor puts back what both sides started from, i.e. undoes both changes. The
+    // fixture above has no ancestor lines anywhere, so this needs a conflict that does.
+    [TestMethod]
+    public void TestResultOfTheBaseIsTheAncestorsLines()
+    {
+        var hunk = new ConflictHunk(0, "HEAD", "base", "topic", Lines("ours"), Lines("was", "here"), Lines("theirs"));
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [new ConflictSegment([], hunk)],
+            true,
+            true
+        );
+        var resolution = new ConflictResolution(file);
+
+        resolution.Set(0, HunkChoice.Base);
+
+        Assert.AreEqual("was,here", string.Join(",", resolution.ResultOf(hunk).Select(l => l.Text)));
+    }
+
+    [TestMethod]
+    public void TestResultOfAHandEdit()
+    {
+        var file = FileWith(1);
+        var resolution = new ConflictResolution(file);
+        resolution.Set(0, HunkChoice.Manual, "one\ntwo");
+
+        Assert.AreEqual("one,two", string.Join(",", resolution.ResultOf(file.Hunks[0]).Select(l => l.Text)));
+    }
+
+    // Emptying the edit box is how a conflicted region is dropped altogether, which the result pane
+    // has to say in words — an empty list is what it draws "(nothing — the whole region is
+    // removed)" for. Splitting an empty text into one empty line instead previewed a blank line
+    // that would never be written.
+    [TestMethod]
+    public void TestAHandEditEmptiedOutIsNothingAtAll()
+    {
+        var file = FileWith(1);
+        var resolution = new ConflictResolution(file);
+        resolution.Set(0, HunkChoice.Manual, "");
+
+        Assert.AreEqual(0, resolution.ResultOf(file.Hunks[0]).Count);
+    }
+
+    // The result pane is a preview of what the Git layer will write, so the two have to split text
+    // into lines by the same rule — and they cannot share the code: ConflictParser is below the
+    // Server layer and every line of it carries a terminator this side of the model does not have.
+    // This is what holds them together. It is the only place a Cui test reaches into gmd.Git, and
+    // the disagreement it pins was real: "" and a trailing newline each previewed one line too many.
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("a")]
+    [DataRow("a\n")]
+    [DataRow("a\nb")]
+    [DataRow("a\nb\n")]
+    [DataRow("\n")]
+    [DataRow("a\n\n")]
+    [DataRow("\n\na")]
+    [DataRow("a\r\nb\r\n")]
+    public void TestPreviewedLinesAreTheLinesTheGitLayerWillWrite(string text)
+    {
+        var previewed = ConflictResolution.ToLines(text).Select(l => l.Text);
+        var written = gmd.Git.Private.ConflictParser.ToLines(text.Replace("\r\n", "\n")).Select(l => l.Text);
+
+        Assert.AreEqual(string.Join("|", written), string.Join("|", previewed), $"For {text.Replace("\n", "\\n")}");
+    }
+}

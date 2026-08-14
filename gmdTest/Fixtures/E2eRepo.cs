@@ -82,12 +82,12 @@ static class E2eRepo
         await repo.AddOriginAsync();
         await repo.GitAsync("push -q --set-upstream origin main");
 
-        // The tag has to be pushed as well, and not for tidiness: gmd fetches with --prune-tags
-        // (RemoteService.cs), which deletes local tags that are not on the remote, so a local only
-        // tag disappears from this fixture at whatever moment the first fetch completes. Pushing
-        // it is what keeps these screens stable. See the finding in MODERNIZATION.md, Step 12.
-        await repo.GitAsync("push -q origin v1.0");
-
+        // Note what is deliberately *not* done here: v1.0 is not pushed. It used to have to be,
+        // since gmd fetched with --prune-tags, which deletes every local tag the remote does not
+        // have — so the tag vanished from this fixture at whatever moment the first fetch completed
+        // and the screens flaked. That is fixed (Step 17), and leaving the tag unpushed is what
+        // keeps these screens honest about it: if unpushed tags are ever deleted again, the tag
+        // disappears from the snapshots below.
         await repo.CommitFileAtAsync("zeta.txt", "zeta\n", "Add zeta", TempRepo.BaseTime.AddMinutes(7));
 
         return repo;
@@ -116,6 +116,58 @@ static class E2eRepo
         repo.WriteFile("long.txt", string.Join("\n", lines) + "\n");
         repo.WriteFile("short.txt", "one\nTWO\n");
         await repo.CommitAtAsync("Change both files", t.AddMinutes(2));
+
+        return repo;
+    }
+
+    // A merge stopped by a conflict, i.e. the state the conflict resolver is opened in. The one
+    // conflict is in the middle of an 80 line file on purpose: it is then off the screen both from
+    // the top of the file and from the bottom of it, so a resolver that opened at the top would not
+    // be showing what it was opened for, and next/previous conflict have somewhere to move to.
+    public static async Task<TempRepo> CreateWithConflictAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        lines[39] = "line 40 on dev";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        lines[39] = "line 40 on main";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
+
+        // Fails, which is the whole point: it leaves the merge in progress with the file conflicted.
+        // No date to pin, since a merge that stops on a conflict writes no commit.
+        await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+    }
+
+    // The same, with two conflicts far enough apart that git keeps them as two — for the tests
+    // about resolving a file in more than one go, where one conflict cannot show anything
+    public static async Task<TempRepo> CreateWithTwoConflictsAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        lines[19] = "line 20 on dev";
+        lines[59] = "line 60 on dev";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        lines[19] = "line 20 on main";
+        lines[59] = "line 60 on main";
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
+
+        await repo.GitAllowFailAsync("merge dev");
 
         return repo;
     }

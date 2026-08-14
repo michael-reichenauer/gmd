@@ -96,6 +96,7 @@ class Cmd : ICmd
         try
         {
             Log.Debug($"Start: {cmdText} (0ms)] ...");
+
             var outputLines = new List<string>();
             var errorLines = new List<string>();
 
@@ -116,6 +117,7 @@ class Cmd : ICmd
 
             using (process)
             {
+                NeverOpenAnEditor(process.StartInfo);
                 if (workingDirectory != "")
                 {
                     process.StartInfo.WorkingDirectory = workingDirectory;
@@ -154,6 +156,23 @@ class Cmd : ICmd
             Log.Error($"Failed: {cmdText} {t}]\n{e.Message}");
             return new CmdResult(cmdText, -1, "", e.Message);
         }
+    }
+
+    // Stops git from ever launching an editor in a child process.
+    //
+    // gmd owns the terminal, so an editor started behind it would hang the application outright with
+    // nothing on screen to say why — 'git rebase --continue', 'cherry-pick --continue' and
+    // 'revert --continue' all open one to confirm the commit message.
+    //
+    // It has to be the environment and not '-c core.editor=...' on the command line, because
+    // GIT_EDITOR takes precedence over core.editor: a user whose GIT_EDITOR is set (VS Code sets it
+    // to 'code --wait') would have gmd freeze however the command was configured. 'true' exits 0
+    // without writing, which git reads as "the message is fine as it stands"; git runs the editor
+    // through a shell, which is bundled on Windows, so it holds there too.
+    static void NeverOpenAnEditor(ProcessStartInfo info)
+    {
+        info.Environment["GIT_EDITOR"] = "true";
+        info.Environment["GIT_SEQUENCE_EDITOR"] = "true"; // The todo list of an interactive rebase
     }
 
     // Runs a command that gets its input on stdin, e.g. a clipboard tool, and waits for it to
