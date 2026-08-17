@@ -12,6 +12,9 @@ interface IFilterDlg
 class FilterDlg : IFilterDlg
 {
     const int MaxResults = 5000;
+
+    // The dialog's own height, i.e. how far down the log view has to move to stay clear of it
+    const int DialogHeight = 3;
     readonly IServer server;
     readonly IBranchColorService branchColorService;
 
@@ -46,8 +49,13 @@ class FilterDlg : IFilterDlg
         dlg = new UIDialog(
             "Filter Commits",
             Dim.Fill() + 1,
-            3,
+            DialogHeight,
             OnDialogKey,
+            // X = -1 pushes the dialog's left border off screen, so its content lines up with the
+            // log view below it. Y = -1 pins it to the top: Terminal.Gui clamps a Toplevel's Y to
+            // the screen, so it lands on row 0 rather than the bottom it would otherwise be
+            // centered at — but that also means the top border cannot be hidden the way the left
+            // one is, which is what Show() has to work around.
             options =>
             {
                 options.X = -1;
@@ -71,7 +79,21 @@ class FilterDlg : IFilterDlg
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());
 
-        dlg.Show(filterField);
+        // The dialog is drawn over the top of the log view and needs one row more than it has to
+        // cover: its border, its one content row and its border again, against the two rows of
+        // application bar. So its bottom border lands on the log view's first row. Move the log
+        // view down for as long as the dialog is up, or the topmost result is never visible — and
+        // a filter matching a single commit looks like it matched none.
+        var orgY = commitsView.Y;
+        commitsView.Y = DialogHeight;
+        try
+        {
+            dlg.Show(filterField);
+        }
+        finally
+        {
+            commitsView.Y = orgY;
+        }
 
         return selectedCommit;
     }

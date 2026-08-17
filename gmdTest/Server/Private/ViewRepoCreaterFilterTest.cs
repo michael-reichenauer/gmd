@@ -1,6 +1,8 @@
 using gmd.Server;
 using gmdTest.Fixtures;
 
+// cSpell:ignore zzzznothing
+
 namespace gmdTest.Server.Private;
 
 // Filtering the commits, i.e. what the filter dialog shows while the user types. A filter is

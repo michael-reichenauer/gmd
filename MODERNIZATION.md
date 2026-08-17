@@ -2882,20 +2882,29 @@ matching nothing now yields the placeholder row rather than a count of zero.
       `<none>`. That is why the function builds a one commit, one branch repo rather than reusing
       the caller's. Now pinned by asserting `BranchByName` contains `<none>`, which is the lookup
       `FilterDlg.cs:197` does for every row it draws.
-- [x] **A second bug, found while verifying the first end to end: the filter dialog is drawn over
-      the log view's first row, so the topmost result is never visible.** The dialog is created at
-      `Y = -1` with height 3 (`FilterDlg.cs:46-56`), covering screen rows 1-3, and the log view's
-      first commit row is screen row 3. Measured in a throwaway repo of two commits: with an empty
-      filter the app bar says `2 commits, 1 branches` and only the *second* commit is drawn; with a
-      filter matching exactly one commit, nothing is drawn at all.
+- [x] **Fixed a second bug, found only because the first was verified end to end: the filter
+      dialog was drawn over the log view's first row, so the topmost result was never visible.**
+      The dialog is three rows — its border, its one content row and its border again — over an
+      application bar that is two, so its bottom border landed on `commitsView`, which sits at
+      `Y = 2`. Measured in a throwaway repo of two commits: with an empty filter the app bar said
+      `2 commits, 1 branches` and only the *second* commit was drawn; with a filter matching
+      exactly one commit, nothing was drawn at all, which is indistinguishable from no match.
 
-      **The existing snapshot already encodes it** — `TestFilterCommits` shows an app bar reading
-      `3 commits, 2 branches` above only two rows.
+      **The existing snapshot already encoded it** — `TestFilterCommits` expected an app bar
+      reading `3 commits, 2 branches` above only two rows. It now shows all three.
 
-      Not fixed here: it is a layout question of its own (shorten the dialog, move the log view down
-      while filtering, or scroll the results by one), and it is not what this step is about. It is
-      also why the new end-to-end test asserts the *app bar* rather than the row: `(<none>)` and
-      `ffffff` are the placeholder repo reaching the UI, which is what the fix above is worth.
+      Fixed in `FilterDlg.Show`: the log view moves to `Y = 3` for as long as the dialog is up and
+      is restored in a `finally`. `Height` is `Dim.Fill()`, so it simply ends a row earlier. That
+      is the contained fix — the alternative, making the dialog two rows, costs it its border.
+
+      **`Y = -1` on the dialog is not dead code, though it reads like it.** Removing it does not
+      leave the dialog at the top: Terminal.Gui centers a `Dialog` it is not told where to put, so
+      it drops to the bottom of the screen. `Y = -1` means "as high as possible" and is clamped to
+      row 0. Only `X = -1` genuinely pushes a border off screen, which is why the vertical case
+      needed the layout change rather than a matching trick. Verified by removing it and reading
+      the screen, not by reasoning about Terminal.Gui.
+
+      `FilterDlg` is the only dialog positioned this way, so nothing else is affected.
 - [x] **Noted, no action: a term is matched against every field at once**, so filtering on `dev`
       returns both the commit on branch `dev` and the merge commit whose subject names it. Sensible
       for a search box, surprising if read as "filter by branch"; pinned either way.
@@ -2910,5 +2919,11 @@ than throwing, since the menus read them in their constructors but only call the
 
 ### Verified
 
-`./test` — 842 passed, including the 53 end-to-end tmux tests, so the production change moved no
-screen snapshot. `dotnet csharpier check .` clean over 232 files.
+`./test` — 842 passed, including the 53 end-to-end tmux tests. `dotnet csharpier check .` clean over
+232 files.
+
+Both fixes were checked in the running binary under tmux before being believed, which is how the
+second one was found at all: the unit tests for the first were green while the row still never
+reached the screen. The end-to-end test now asserts the row itself, with its time masked — it is a
+virtual commit, so it carries `DateTime.Now` rather than a commit date, exactly as the uncommitted
+row does.

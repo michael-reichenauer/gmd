@@ -824,6 +824,7 @@ public class TerminalTest
             Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
             Gmd 3 commits, 2 branches, 4e73d2 (main)                                      Search: dev                          ] X │
             ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
              ╰╊   More dev work                                                          (dev) af3ee6 Test User      24-10-15 12:03
               ┗   Work on dev                                                                  d997ad Test User      24-10-15 12:02
             """,
@@ -832,16 +833,13 @@ public class TerminalTest
         );
     }
 
-    // A filter matching nothing now produces the '<... No commits matching filter ...>' repo
-    // rather than an empty one — ViewRepoCreater built that repo all along and discarded it.
-    // The app bar is what shows it arrived: '(<none>)' is its virtual branch and 'ffffff' its
-    // virtual commit, and the counts read 0 because the dialog does not count that row.
-    //
-    // The row itself is not on screen, and that is a *different* bug: the dialog is drawn over
-    // the log view's first row, so the topmost result is always hidden. TestFilterCommits shows
-    // the same thing — its app bar says 3 commits above only 2 rows.
+    // A filter matching nothing says so in a row of its own rather than emptying the list.
+    // Regression test for two bugs that hid it: ViewRepoCreater built that row all along and
+    // discarded it (ViewRepoCreater.cs:73), and the dialog was drawn over the log view's first
+    // row, so even once it was returned it was covered. Note the counts still read 0 — the row
+    // is on the virtual '<none>' branch, which the dialog counts as neither commit nor branch.
     [TestMethod]
-    public async Task TestFilterWithNoMatchesShowsTheNoMatchesRepo()
+    public async Task TestFilterWithNoMatchesSaysSo()
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
@@ -851,14 +849,19 @@ public class TerminalTest
         gmd.WaitFor("Filter Commits");
         gmd.SendText("zzzznothing");
 
-        ScreenText.AssertEqual(
+        // The row is virtual, so its time is DateTime.Now rather than a commit date and has to be
+        // masked, exactly as the uncommitted row's is
+        Assert.AreEqual(
             """
             Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
             Gmd 0 commits, 0 branches, ffffff (<none>)                                    Search: zzzznothing                  ] X │
             ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+            ┏   <... No commits matching filter ...>                                 (~<none>) ffffff                NN-NN-NN NN:NN
             """,
-            gmd.WaitFor("(<none>)"),
-            repo.Path
+            ScreenText.MaskTimes(
+                ScreenText.Of(gmd.WaitFor("No commits matching filter"), repo.Path),
+                "No commits matching"
+            )
         );
     }
 
