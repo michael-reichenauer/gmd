@@ -433,7 +433,13 @@ class CommitCommands : ICommitCommands
             if (c1.BranchName != c2.BranchName)
                 return R.Error("Commits are not on the same branch");
             var branch = repo.Repo.BranchByName[c1.BranchName];
-            if (!branch.IsLocalCurrent)
+
+            // Both flags, as 'Uncommit until' asks it in CommitMenu. IsLocalCurrent is only ever
+            // set on a *remote* branch whose local branch is current (Augmenter.cs), so asking for
+            // it alone refused every commit that had not been pushed yet — the local branch never
+            // carries the flag. Which was the wrong way round: the commits it did allow were the
+            // ones already published.
+            if (!branch.IsCurrent && !branch.IsLocalCurrent)
                 return R.Error("Commits not on current branch");
 
             var commits = new List<Commit>();
@@ -451,7 +457,7 @@ class CommitCommands : ICommitCommands
 
             if (!Try(out var e, await server.SquashCommits(repo.Repo, id1, id2, message)))
             {
-                return R.Error($"Failed to undo commit", e);
+                return R.Error("Failed to squash commits", e);
             }
             repo.RepoView.ClearSelection();
 

@@ -1124,6 +1124,163 @@ public class TerminalTest
         );
     }
 
+    // Cherry-picking a commit from another branch onto the current one. It runs with --no-commit
+    // and hands what it staged to the commit dialog, which is why the dialog opens with the picked
+    // commit's message already in it.
+    //
+    // 'Up' first: the cursor opens on the current branch's tip, and cherry-pick is only offered for
+    // a commit that is not on the current branch (rb != cb). One move up is 'Add gamma' on main,
+    // and it is a move that lands there whether the cursor started on row 0 or row 1.
+    //
+    // Then seven moves down to it. The menu opens on 'Commit Diff ...' — with nothing to commit,
+    // 'Commit ...' and 'Amend ...' are both disabled and Menu.Show starts on the first that is not.
+    [TestMethod]
+    public async Task TestCherryPickACommitFromAnotherBranch()
+    {
+        using var repo = await E2eRepo.CreateWithUnmergedBranchAsync();
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
+        gmd.WaitFor("Work on dev");
+
+        gmd.Send("Up");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Cherry Pick Commit to dev");
+        for (var i = 0; i < 7; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        // The dialog arrives filled in with the message of the commit being picked
+        gmd.WaitFor("Add gamma, 1 uncommitted changes");
+        gmd.Send("Enter");
+
+        // 'dev' now has its own copy of the commit, with an id of its own, and main still has the
+        // original — the same subject on two branches is what a cherry-pick looks like
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+              ┣ ● Add gamma                                                            (● dev) b03776 Test User      24-10-15 12:03
+            ┣ ┃   Add gamma                                                             (main) de2e9a Test User      24-10-15 12:02
+            ┃╭┺   Work on dev                                                                  ee3602 Test User      24-10-15 12:01
+            ┗╯    Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("uncommitted"),
+            repo.Path
+        );
+
+        Assert.AreEqual(
+            """
+            Add gamma
+            Work on dev
+            Initial
+            """,
+            await repo.GitAsync("log --format=%s")
+        );
+    }
+
+    // Squashing a range of commits into one. The range is a shift-selection of two rows, which is
+    // what puts the ids into the menu item's own text and is what enables it at all.
+    [TestMethod]
+    public async Task TestSquashTwoCommitsIntoOne()
+    {
+        using var repo = await E2eRepo.CreatePushedPlainCommitsAsync(4);
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(4));
+        gmd.WaitFor("Commit number 00");
+
+        gmd.Send("S-Down");
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit Diff ...");
+        for (var i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+
+        // The item names the range it would squash, which is how it says a selection was picked up
+        gmd.WaitFor("Squash c02add...8332dd");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Squash c02add...8332dd on 'main'");
+        gmd.Send("Enter");
+
+        // The two are now one, and the branch has diverged from its remote: one commit ahead of
+        // origin and two behind it, since the originals are still the remote's. Which is the
+        // clearest possible illustration of why squashing pushed commits is the wrong way round.
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main, ▼2, ▲1                                               (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺ ●▲Commit number 02                                                    (● main) 96a909 Test User      24-10-15 12:04
+            ┣│   ▼Commit number 03                                                    (^/main) c02add Test User      24-10-15 12:03
+            ┣│   ▼Commit number 02                                                             8332dd Test User      24-10-15 12:02
+            ┣╯    Commit number 01                                                             5692a8 Test User      24-10-15 12:01
+            ┗     Commit number 00                                                             a823b7 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("▲"),
+            repo.Path
+        );
+
+        Assert.AreEqual(
+            """
+            Commit number 02
+            Commit number 01
+            Commit number 00
+            """,
+            await repo.GitAsync("log --format=%s"),
+            "The top two commits are one, keeping the older of the two messages"
+        );
+    }
+
+    // Regression test: squashing commits that have not been pushed. This used to be refused, with
+    // "Commits not on current branch", because the guard asked for 'IsLocalCurrent' alone — a flag
+    // only ever set on a *remote* branch whose local branch is current (Augmenter.cs:63). A commit
+    // that has not been pushed belongs to the local branch, which never carries it.
+    //
+    // Which was the wrong way round: the commits it did allow were the ones already published.
+    [TestMethod]
+    public async Task TestSquashCommitsThatHaveNotBeenPushed()
+    {
+        using var repo = await E2eRepo.CreateLongAsync(4);
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(4));
+        gmd.WaitFor("Commit number 00");
+
+        gmd.Send("S-Down");
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit Diff ...");
+        for (var i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("Squash c02add...8332dd");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Squash c02add...8332dd on 'main'");
+        gmd.Send("Enter");
+
+        // With no remote there is nothing left behind, so the two rows simply become one
+        gmd.WaitUntilGone("Commit number 03");
+        Assert.AreEqual(
+            """
+            Commit number 02
+            Commit number 01
+            Commit number 00
+            """,
+            await repo.GitAsync("log --format=%s")
+        );
+    }
+
     // The quit keys are registered on the log view, so a dialog above it has to swallow them or
     // typing a 'q' into a text field would quit gmd. Worth pinning rather than assuming, since
     // it is what makes registering both cases of the key safe.

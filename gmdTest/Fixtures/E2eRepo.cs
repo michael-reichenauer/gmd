@@ -125,6 +125,32 @@ static class E2eRepo
         return repo;
     }
 
+    // A branch that was never merged, with 'dev' checked out and 'main' one commit ahead of where
+    // it branched off. Cherry-pick is only offered for a commit that is not on the current branch
+    // (CommitMenu checks rb != cb), and 'main' is always shown whatever the current branch is, so
+    // its commit is on screen and under the cursor without having to open a branch first.
+    //
+    //     main   Add gamma      12:02   <- not on dev, the one to pick
+    //     dev    Work on dev    12:01   <- current
+    //     main   Initial        12:00
+    public static async Task<TempRepo> CreateWithUnmergedBranchAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\n", "Initial", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        await repo.CommitFileAtAsync("dev.txt", "one\n", "Work on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("gamma.txt", "gamma\n", "Add gamma", t.AddMinutes(2));
+
+        await repo.GitAsync("checkout -q dev");
+
+        return repo;
+    }
+
     // Two commits changing one line in the middle of a 40 line file, plus a two line file beside
     // it. Every file of the fixtures above is one or two lines long, so the whole file is already
     // drawn at the default 6 lines of context and asking for more would change nothing on screen —
@@ -200,6 +226,19 @@ static class E2eRepo
         await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
 
         await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+    }
+
+    // Plain commits on a branch that is fully pushed, for squashing them together. Everything is
+    // pushed on purpose: a commit belongs to the remote branch once it is on it, and squash refuses
+    // a commit whose branch is not IsLocalCurrent — a flag only a remote branch ever carries.
+    public static async Task<TempRepo> CreatePushedPlainCommitsAsync(int commits = 4)
+    {
+        var repo = await CreateLongAsync(commits);
+
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q --set-upstream origin main");
 
         return repo;
     }

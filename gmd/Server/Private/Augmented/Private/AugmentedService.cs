@@ -181,7 +181,11 @@ class AugmentedService : IAugmentedService
             if (c1.BranchName != c2.BranchName)
                 return R.Error("Commits are not on the same branch");
             var branch = repo.BranchByName[c1.BranchName];
-            if (!branch.IsLocalCurrent)
+
+            // Both flags: IsLocalCurrent is only ever set on a *remote* branch whose local branch
+            // is current, so asking for it alone refused every commit that had not been pushed yet.
+            // The same check is made before the dialog is shown, in CommitCommands.SquashCommits.
+            if (!branch.IsCurrent && !branch.IsLocalCurrent)
                 return R.Error("Commits not on current branch");
 
             // Create a backup branch (in case of errors)

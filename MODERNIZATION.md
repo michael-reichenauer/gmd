@@ -2835,8 +2835,8 @@ deciding half can be tested: `BlameService` has 18 tests and the conflict classe
 - [x] **`RepoWriter` has no unit test** — done, see Step 20.
 - [x] **`CommitCommands.CanUncommitLastCommit` looks wrong** — confirmed and fixed, see Step 21.
 - [x] **`BranchMenu` and `RepoMenu` item lists are snapshot-able** — done, see Step 21.
-- [x] End-to-end: stash, delete branch, uncommit and push/pull — done, see Step 22. Cherry-pick,
-      squash and undo-uncommitted-files are still only menu labels.
+- [x] End-to-end: stash, delete branch, uncommit, push/pull, cherry-pick and squash — done, see
+      Steps 22 and 23. Undo-uncommitted-files is still only a menu label.
 
 ---
 
@@ -3099,10 +3099,9 @@ has no working tree to commit in, and a second clone would be a second temp fold
       there afterwards: the fixture deliberately never pushes it, so this is a second standing check
       on the Step 17 fix, from the push side rather than the fetch side.
 
-### Not done, deliberately
+### Not done here
 
-- **Cherry-pick and squash**, which the survey ranked below the above. Squash also needs a
-  Shift+Down range, which the copy tests already show how to drive.
+- **Cherry-pick and squash** were picked up straight afterwards — see Step 23.
 - **Undo/restore uncommitted files**, the third item of the Undo sub menu.
 - **Clone, open repo, the main menu and the config dialog**, each of which needs a fixture of its
   own and most of which have a cheaper unit-level substitute.
@@ -3113,3 +3112,65 @@ has no working tree to commit in, and a second clone would be a second temp fold
 `./test` — 899 passed. The end-to-end tier was then run twice more on its own, 61 passed each time,
 to check that six new tests had not made it less steady. `dotnet csharpier check .` clean over 235
 files.
+
+---
+
+## Step 23 — Cherry-pick and squash, and the squash they were hiding ✅ done
+
+The last two write flows from the survey. **3 tests**, two fixtures, and a bug in two places.
+Suite is now 902, with the end-to-end tier at 64.
+
+- `TestCherryPickACommitFromAnotherBranch` — picks `main`'s commit onto `dev` and asserts both
+  branches end up with the same subject on different ids, which is what a cherry-pick looks like.
+- `TestSquashTwoCommitsIntoOne` — on a fully pushed branch.
+- `TestSquashCommitsThatHaveNotBeenPushed` — the regression test for the bug below.
+
+Fixtures: `E2eRepo.CreateWithUnmergedBranchAsync` (a branch that was never merged, with `dev`
+current and `main` one commit ahead of the branch point — cherry-pick is only offered for a commit
+that is *not* on the current branch, and `main` is always shown, so its commit is under the cursor
+without opening a branch first) and `CreatePushedPlainCommitsAsync`.
+
+### The bug
+
+`SquashCommits` refused any commit whose branch was not `IsLocalCurrent`:
+
+```csharp
+if (!branch.IsLocalCurrent)
+    return R.Error("Commits not on current branch");
+```
+
+`IsLocalCurrent` is only ever set on a **remote** branch whose local branch is current
+(`Augmenter.cs:63`). A commit that has not been pushed belongs to the *local* branch, which never
+carries the flag — so **squashing commits before pushing them was refused**, while squashing
+commits that were already published went through. Exactly the wrong way round.
+
+`Uncommit until`, two lines away in `CommitMenu`, asks the same question properly as
+`IsCurrent || IsLocalCurrent`. Both copies of the guard now do the same.
+
+### Findings
+
+- [x] **The guard is written out twice**, once in `CommitCommands.SquashCommits` before the dialog
+      and once in `AugmentedService.SquashCommits` before the work, along with the two checks above
+      it. Fixing only the first got the dialog open and then failed at the second, which is how the
+      duplicate was found at all. Both are fixed; worth knowing they exist as a pair.
+- [x] **Fixed on the way: the squash error said "Failed to undo commit".** A copy-paste from the
+      undo command above it, and what a user saw when a squash failed. Now "Failed to squash
+      commits".
+- [x] **Squashing pushed commits leaves the branch diverged**, one ahead and two behind, since the
+      originals are still the remote's. `TestSquashTwoCommitsIntoOne` asserts that screen, which is
+      the clearest illustration of why the guard was the wrong way round.
+- [x] **Two `S-Down` are needed to select a range, not one.** One shift-down leaves `i2 - i1 == 0`,
+      so `GetRebaseMenuItems` computes an empty range and the item reads a bare "Squash" and is
+      disabled. The item naming its own range is the readout for whether a selection was picked up,
+      and both squash tests wait for `Squash <sid>...<sid>` rather than for "Squash".
+- [x] **Cherry-pick runs with `--no-commit` and hands over to the commit dialog**, which opens with
+      the picked commit's message already in it — so the flow is menu, then dialog, then the commit.
+      The dates come from `StartGmd(commitTime:)`, without which the new commit's id moves with the
+      clock.
+
+### Verified
+
+`./test` — 902 passed. The end-to-end tier was run again on its own, 64 passed.
+`dotnet csharpier check .` clean over 235 files. The fix was watched happening in the running
+binary: before it, confirming the squash dialog gave "Failed to undo commit, Commits not on current
+branch"; after it, the two commits become one.
