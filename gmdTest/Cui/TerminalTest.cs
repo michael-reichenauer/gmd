@@ -832,6 +832,36 @@ public class TerminalTest
         );
     }
 
+    // A filter matching nothing now produces the '<... No commits matching filter ...>' repo
+    // rather than an empty one — ViewRepoCreater built that repo all along and discarded it.
+    // The app bar is what shows it arrived: '(<none>)' is its virtual branch and 'ffffff' its
+    // virtual commit, and the counts read 0 because the dialog does not count that row.
+    //
+    // The row itself is not on screen, and that is a *different* bug: the dialog is drawn over
+    // the log view's first row, so the topmost result is always hidden. TestFilterCommits shows
+    // the same thing — its app bar says 3 commits above only 2 rows.
+    [TestMethod]
+    public async Task TestFilterWithNoMatchesShowsTheNoMatchesRepo()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+        gmd.SendText("zzzznothing");
+
+        ScreenText.AssertEqual(
+            """
+            Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+            Gmd 0 commits, 0 branches, ffffff (<none>)                                    Search: zzzznothing                  ] X │
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+            """,
+            gmd.WaitFor("(<none>)"),
+            repo.Path
+        );
+    }
+
     // The quit keys are registered on the log view, so a dialog above it has to swallow them or
     // typing a 'q' into a text field would quit gmd. Worth pinning rather than assuming, since
     // it is what makes registering both cases of the key safe.

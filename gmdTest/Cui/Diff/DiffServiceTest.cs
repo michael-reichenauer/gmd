@@ -3,6 +3,9 @@ using gmd.Server;
 using gmdTest.Fixtures;
 using CuiDiffService = gmd.Cui.Diff.DiffService;
 
+// The color pictures below are one letter per rune, so they spell nothing
+// cSpell:ignore DCWWW DRYYYY DGYYYYYY
+
 namespace gmdTest.Cui.Diff;
 
 [TestClass]

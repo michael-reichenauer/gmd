@@ -265,6 +265,11 @@ class RepoBuilder
     public async Task<Repo> ViewRepoAsync(ShowBranches show, int count = 1, params string[] showBranches) =>
         NewViewRepoCreater().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches, show, count);
 
+    // The view repo the filter dialog renders, i.e. only the commits matching the filter, on the
+    // branches those commits are on. The default count is what FilterDlg passes.
+    public async Task<Repo> FilteredViewRepoAsync(string filter, int maxCount = 5000) =>
+        NewViewRepoCreater().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount);
+
     // The real server layer, with git, the file monitor and the config faked out. Needed for the
     // branch show/hide commands, which work on an already created view repo.
     public IServer NewServer() =>

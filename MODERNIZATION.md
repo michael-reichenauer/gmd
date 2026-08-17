@@ -2831,11 +2831,7 @@ deciding half can be tested: `BlameService` has 18 tests and the conflict classe
 
 ### Next, from the same survey
 
-- [ ] **The commit filter has no tests at all** — nothing references `GetFilteredRepoAsync` or
-      `GetFilteredViewRepoAsync`. Quoted phrases, AND terms, the eight fields searched, `$` and `*`.
-      **And it holds a bug:** `ViewRepoCreater.cs:73` calls `EmptyFilteredRepo(repo, filter)` and
-      **discards the result**, so the `<... No commits matching filter ...>` row never reaches the
-      UI — even though `FilterDlg.cs:91` and `:204` both special-case `BranchName != "<none>"`.
+- [x] **The commit filter has no tests at all** — done, see Step 19.
 - [ ] **`RepoWriter` has no unit test**, only four end-to-end width snapshots. Needs a
       `FakeViewRepo`, which is small: `ToPage` reads only `repo.Repo` and `repo.Graph`.
 - [ ] **`CommitCommands.CanUncommitLastCommit` looks wrong.** `Status.IsOk && c.IsAhead || (!b.IsRemote
@@ -2846,3 +2842,73 @@ deciding half can be tested: `BlameService` has 18 tests and the conflict classe
       `ICommitMenu` exposes only `Show`, so its builders would need widening first.
 - [ ] End-to-end: stash, delete branch, undo/uncommit, cherry-pick, squash and push/pull are
       **only menu labels** in the current snapshots — none is exercised.
+
+---
+
+## Step 19 — Test the commit filter, and stop discarding the no-matches row ✅ done
+
+Nothing in `gmdTest/` referenced `GetFilteredRepoAsync` or `GetFilteredViewRepoAsync`, so the
+feature behind the `f` key had no unit coverage at all — `ViewRepoCreaterTest`'s 12 tests are about
+the branches the user chose to show, and the end-to-end tier had a single `TestFilterCommits`.
+
+**17 tests in the new `gmdTest/Server/Private/ViewRepoCreaterFilterTest.cs`**, plus
+`RepoBuilder.FilteredViewRepoAsync(filter, maxCount = 5000)` — the default is what `FilterDlg`
+passes. Suite is now 712 fast, 75 integration, 53 E2E.
+
+They pin: a term matching the subject, author, short id, branch name, tag or ISO date;
+case-insensitivity; every term having to match, though not in the same field; a quoted phrase
+matching as a whole where the same words unquoted match apart; the uncommitted commit being
+searchable like any other; `maxCount` capping; the branches of the matched commits arriving with
+their ancestors; the filter being carried on the repo; `$` (the branches the user set) and `*`
+(the ambiguous tips).
+
+### The bug it was written for
+
+`ViewRepoCreater.cs:73` called `EmptyFilteredRepo(repo, filter)` and **discarded its return value**,
+so the `<... No commits matching filter ...>` row it builds never reached the dialog. Fixed by
+returning it. The dialog was already written for that row — `FilterDlg.cs:91` refuses to select a
+commit on branch `<none>` and `FilterDlg.cs:204` leaves it out of the counts — which is what makes
+the discard a slip rather than a design.
+
+Landed as characterization first (pinning the empty view, with the defect named in the comment) and
+then as the one word fix with the test flipped, so the diff shows the behavior changing. Flipping it
+also corrected a second assertion that had been written against the buggy behavior: a filter
+matching nothing now yields the placeholder row rather than a count of zero.
+
+### Findings
+
+- [x] **`EmptyFilteredRepo` hands `ToViewRepo` a repo of its own, and has to.** `ToViewRepo` indexes
+      `branchIndexByName[b.Name]` for every view branch, so passing the real repo would throw on
+      `<none>`. That is why the function builds a one commit, one branch repo rather than reusing
+      the caller's. Now pinned by asserting `BranchByName` contains `<none>`, which is the lookup
+      `FilterDlg.cs:197` does for every row it draws.
+- [x] **A second bug, found while verifying the first end to end: the filter dialog is drawn over
+      the log view's first row, so the topmost result is never visible.** The dialog is created at
+      `Y = -1` with height 3 (`FilterDlg.cs:46-56`), covering screen rows 1-3, and the log view's
+      first commit row is screen row 3. Measured in a throwaway repo of two commits: with an empty
+      filter the app bar says `2 commits, 1 branches` and only the *second* commit is drawn; with a
+      filter matching exactly one commit, nothing is drawn at all.
+
+      **The existing snapshot already encodes it** — `TestFilterCommits` shows an app bar reading
+      `3 commits, 2 branches` above only two rows.
+
+      Not fixed here: it is a layout question of its own (shorten the dialog, move the log view down
+      while filtering, or scroll the results by one), and it is not what this step is about. It is
+      also why the new end-to-end test asserts the *app bar* rather than the row: `(<none>)` and
+      `ffffff` are the placeholder repo reaching the UI, which is what the fix above is worth.
+- [x] **Noted, no action: a term is matched against every field at once**, so filtering on `dev`
+      returns both the commit on branch `dev` and the merge commit whose subject names it. Sensible
+      for a search box, surprising if read as "filter by branch"; pinned either way.
+
+### Built early, for Step 20
+
+`gmdTest/Fixtures/FakeViewRepo.cs` — the `IViewRepo` double. Written here rather than in its own
+step because it was the only way to tell whether `RepoWriter` or the view was dropping the row (it
+was neither: `ToPage` returns the row, and `OnGetContent` hands it to `ContentView` — the dialog
+simply covers it). `ToPage` reads only `Repo` and `Graph`; the command properties are `null` rather
+than throwing, since the menus read them in their constructors but only call them from an `Action`.
+
+### Verified
+
+`./test` — 842 passed, including the 53 end-to-end tmux tests, so the production change moved no
+screen snapshot. `dotnet csharpier check .` clean over 232 files.
