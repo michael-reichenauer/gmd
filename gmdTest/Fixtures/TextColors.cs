@@ -48,9 +48,17 @@ static class TextColors
 
     static bool HasBackground(Color color) => color.Background != Terminal.Gui.Color.Black;
 
+    // The exact pair first, so the two background colors keep their own letters, then the
+    // foreground alone. The fallback is what makes a highlighted or selected row readable: those
+    // keep their foreground and only swap the background, which is not a pair listed above and
+    // would otherwise render as a row of '?'. Assert the background itself to see the highlight.
     static char LetterOf(Color color)
     {
-        var known = Letters.FirstOrDefault(c => c.Color == color);
-        return known.Letter != '\0' ? known.Letter : '?';
+        var exact = Letters.FirstOrDefault(c => c.Color == color);
+        if (exact.Letter != '\0')
+            return exact.Letter;
+
+        var foreground = Letters.FirstOrDefault(c => c.Color.Foreground == color.Foreground);
+        return foreground.Letter != '\0' ? foreground.Letter : '?';
     }
 }

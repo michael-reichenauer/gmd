@@ -2832,8 +2832,7 @@ deciding half can be tested: `BlameService` has 18 tests and the conflict classe
 ### Next, from the same survey
 
 - [x] **The commit filter has no tests at all** — done, see Step 19.
-- [ ] **`RepoWriter` has no unit test**, only four end-to-end width snapshots. Needs a
-      `FakeViewRepo`, which is small: `ToPage` reads only `repo.Repo` and `repo.Graph`.
+- [x] **`RepoWriter` has no unit test** — done, see Step 20.
 - [ ] **`CommitCommands.CanUncommitLastCommit` looks wrong.** `Status.IsOk && c.IsAhead || (!b.IsRemote
       && b.RemoteName == "")` — `&&` binds tighter, so a local-only branch offers the command with
       uncommitted changes present, unlike the sibling `CanUndoCommit() => Status.IsOk`.
@@ -2927,3 +2926,59 @@ second one was found at all: the unit tests for the first were green while the r
 reached the screen. The end-to-end test now asserts the row itself, with its time masked — it is a
 virtual commit, so it carries `DateTime.Now` rather than a commit date, exactly as the uncommitted
 row does.
+
+---
+
+## Step 20 — Test the log row rendering ✅ done
+
+`RepoWriter` is 440 lines with no Terminal.Gui in it and had no unit test at all: the only thing
+covering it was four end-to-end width snapshots, which cost seconds each and reach one repo shape.
+
+**30 tests in the new `gmdTest/Cui/RepoView/RepoWriterTest.cs`**, on the `FakeViewRepo` built during
+Step 19. Suite is now 742 fast, 75 integration, 55 E2E — 872 in total.
+
+They pin: the full width row as a picture; all four arms of `ColumnWidths` at the width each one
+starts and ends at; the subject's `┅` when it is cut; the window the view asks for (`firstRow`,
+`count`, a count past the end, a current index past either end, a count of zero, a repo with
+nothing in view); the markers (`●` current, `*` detached, `▲`/`▼` ahead and behind with the colours
+that go with them, `©` uncommitted, `ß` stash, `|` selected); the seven shapes of branch tip
+(`(^)(● main)` combined, `(^/main)` and `(● main)` diverged, local only, `(~branch)` inferred,
+`(~ambiguous)`, `(● DETACHED)`); tags after the tips; and the highlight and selection.
+
+### Findings
+
+- [x] **Confirmed, and now pinned: a cut sid, author or time is not marked as cut.** `Txt`
+      (`RepoWriter.cs:328`) truncates with a plain `text[..width]`, so at `timeWidth` 9 the time
+      `24-10-15 12:00` is drawn as `24-10-15` and reads as though it were meant to be a date, and
+      the author `Test Author` becomes `Test Auth`. The subject column does it properly —
+      `WriteSubText` adds the `┅` that `gmd/doc/help.md` documents. Left as characterization: the
+      marker costs a column the narrow arms have already run out of.
+- [x] **The highlight and the selection are put on the columns after the graph, not on the row.**
+      The graph is built into its own `TextBuilder` and the two are joined at the end, so the graph
+      keeps its branch colours on the terminal's own background while the rest of the row is lifted
+      onto the highlight. Worth knowing before reading a colour snapshot of a current row.
+- [x] **A highlighted row colours its spaces, an ordinary one does not.** Which is correct — the
+      highlight *is* a background, so a blank on it is visible — but it means the same row gives two
+      different colour pictures depending on whether it is the current one. The ahead/behind test
+      hoovers a branch to turn the highlight off rather than asserting around it.
+- [x] **`TextColors` now falls back from the exact colour pair to the foreground alone.** Without
+      it every highlighted or selected row came back as a row of `?`, since those keep their
+      foreground and swap only the background — a pair the table does not list. The exact match is
+      still tried first, so the diff's two background colours keep their own `-` and `+`. The 88
+      existing graph and diff colour assertions are unchanged by it.
+- [x] **The arm boundaries are asserted at both ends, and the fixture's graph width with them.**
+      `commitWidth = width + 1 - (graphWidth + 3)`, so a change to the fixture would otherwise move
+      every width test quietly into a neighbouring arm. `TestTheFixtureGraphIsFourColumnsWide` is
+      there to fail first and loudly if that happens. Measured against this fixture the arms are:
+
+      | `commitWidth` | width | sid | author | time |
+      | --- | --- | --- | --- | --- |
+      | < 70 | ≤ 75 | — | — | — |
+      | 70–99 | 76–105 | — | 10 | 9 |
+      | 100–109 | 106–115 | 7 | 10 | 9 |
+      | ≥ 110 | ≥ 116 | 7 | 15 | 15 |
+
+### Verified
+
+`./test` — 872 passed, including the 55 end-to-end tmux tests. `dotnet csharpier check .` clean over
+233 files. No production file was touched.
