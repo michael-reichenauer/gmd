@@ -68,6 +68,21 @@ static class E2eRepo
         return repo;
     }
 
+    // The same shape with the changes already stashed, i.e. a clean working tree and one stash on
+    // top of it. The stash is what puts the 'ß' on the commit it was made on and the count in the
+    // application bar, and it is what the pop and drop menus have something to list.
+    //
+    // A stash is a commit, so it has a time of its own — but nothing draws it, only the marker and
+    // the message, so there is no date to pin here.
+    public static async Task<TempRepo> CreateWithStashAsync()
+    {
+        var repo = await CreateWithChangesAsync();
+
+        await repo.GitAsync("stash push -u -m \"stashed work\"");
+
+        return repo;
+    }
+
     // The same shape with an 'origin' remote next door, everything pushed to it except one commit
     // on top. That last part is the point: amend is only offered for a commit that is still ahead
     // of the remote (CommitCommands.Commit checks CurrentCommit().IsAhead), i.e. one that has not
@@ -89,6 +104,23 @@ static class E2eRepo
         // keeps these screens honest about it: if unpushed tags are ever deleted again, the tag
         // disappears from the snapshots below.
         await repo.CommitFileAtAsync("zeta.txt", "zeta\n", "Add zeta", TempRepo.BaseTime.AddMinutes(7));
+
+        return repo;
+    }
+
+    // The mirror of the above: everything is pushed and then the local branch is moved back a
+    // commit, so origin has one the local branch has not got. That is what draws the behind marker
+    // and gives 'Pull/Update' something to do.
+    //
+    // Moving the local branch back rather than committing on the remote is the cheap way to get
+    // there: a bare repository has no working tree to commit in, and a second clone would be a
+    // second temp folder to clean up.
+    public static async Task<TempRepo> CreateBehindOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("reset -q --hard HEAD~1");
 
         return repo;
     }

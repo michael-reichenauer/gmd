@@ -2835,8 +2835,8 @@ deciding half can be tested: `BlameService` has 18 tests and the conflict classe
 - [x] **`RepoWriter` has no unit test** — done, see Step 20.
 - [x] **`CommitCommands.CanUncommitLastCommit` looks wrong** — confirmed and fixed, see Step 21.
 - [x] **`BranchMenu` and `RepoMenu` item lists are snapshot-able** — done, see Step 21.
-- [ ] End-to-end: stash, delete branch, undo/uncommit, cherry-pick, squash and push/pull are
-      **only menu labels** in the current snapshots — none is exercised.
+- [x] End-to-end: stash, delete branch, uncommit and push/pull — done, see Step 22. Cherry-pick,
+      squash and undo-uncommitted-files are still only menu labels.
 
 ---
 
@@ -3046,3 +3046,70 @@ screen snapshot. `dotnet csharpier check .` clean over 235 files.
 The fix was also read off the running binary: in a repo on a branch with no remote and one modified
 file, **Uncommit** is now drawn in the dark of a disabled item (`ESC[90m`) beside **Undo Commit**,
 where the enabled items around it are bright white (`ESC[97m`).
+
+---
+
+## Step 22 — End-to-end tests for the flows that write ✅ done
+
+Everything that *reads* was covered by the 55 end-to-end tests. Several things that *write* were
+not: stash, delete branch, undo and uncommit, cherry-pick, squash and push and pull appeared only as
+labels inside menu snapshots, and squash appeared nowhere at all.
+
+**6 tests added**, in the order the survey ranked them — 899 in total, with the end-to-end tier at
+61 and about 2.7 minutes.
+
+- Stash and stash pop, through the menu and the message dialog. `WriteBlankOrStash` and the `ß`
+  had no cover at any tier before this.
+- Delete branch, one item below the rename that was already tested.
+- Uncommit the last commit, i.e. the `git reset HEAD~1` behind the predicate Step 21 fixed.
+- Push and pull the current branch, which are also the only cover the ahead and behind markers and
+  the split branch tips have at this tier.
+
+Two fixtures: `E2eRepo.CreateWithStashAsync` and `CreateBehindOriginAsync`. The second moves the
+local branch back a commit after pushing rather than committing on the remote — a bare repository
+has no working tree to commit in, and a second clone would be a second temp folder to clean up.
+
+### Findings
+
+- [x] **The recorded flakes did not reproduce.** Six full runs and three extra runs of the tier
+      alone, all green, including `TestDiffContextIsSteppedPerFile` three times on its own. Its 15
+      seconds are honest polling — it sends a lot of keys, and every `WaitForStable` costs three
+      captures. Nothing was "fixed" here, because nothing failed; recorded so the next person does
+      not go looking for a flake that is no longer biting.
+- [x] **The prescribed remedy for the flake family cannot be applied to the test it was written
+      for, and the reason is a documented trap.** The advice was to wait for something that
+      *changes* rather than for text already on screen — but in `TestShowAndHideBranchRoundTrip`
+      the two keys are a cursor move and a hoover move, and neither changes anything drawn: the
+      current row is only a highlight, which is a background, and **the application bar does not
+      follow the hoover**, which `CLAUDE.md` already warns about. Waiting for `(dev)` after the
+      `Left` times out against an application bar still reading `(main)`.
+
+      So both waits are now `WaitForStable()`, which is what `WaitFor` of already-present text was
+      doing anyway — the change is that the wait no longer *looks* stronger than it is, and the
+      comment says why nothing stronger exists.
+- [x] **The menu move counts really do move with the repo, and it bit while writing these.**
+      Reaching `Stash` in the commit menu is four moves with a dirty working tree and three with a
+      clean one — `Commit ...` and `Amend ...` are both disabled when there is nothing to commit,
+      and `Menu.Show` starts the cursor on the first item that is not, so the walk starts a row
+      lower as well as skipping less. Both counts carry a comment saying which repo state they
+      belong to.
+- [x] **`Uncommit` is two moves, not four, on a clean tree**, for the same reason — the menu opens
+      with the cursor already on `Commit Diff ...`.
+- [x] **Pushing a branch leaves its tags alone.** `TestPushTheCurrentBranch` asserts `v1.0` is still
+      there afterwards: the fixture deliberately never pushes it, so this is a second standing check
+      on the Step 17 fix, from the push side rather than the fetch side.
+
+### Not done, deliberately
+
+- **Cherry-pick and squash**, which the survey ranked below the above. Squash also needs a
+  Shift+Down range, which the copy tests already show how to drive.
+- **Undo/restore uncommitted files**, the third item of the Undo sub menu.
+- **Clone, open repo, the main menu and the config dialog**, each of which needs a fixture of its
+  own and most of which have a cheaper unit-level substitute.
+- **Mouse interaction**, still the open item from Step 12.
+
+### Verified
+
+`./test` — 899 passed. The end-to-end tier was then run twice more on its own, 61 passed each time,
+to check that six new tests had not made it less steady. `dotnet csharpier check .` clean over 235
+files.
