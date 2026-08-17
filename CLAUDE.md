@@ -18,10 +18,10 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ```bash
 ./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
 ./test [args]    # dotnet test gmdTest/gmdTest.csproj "$@"
-                 #   --filter "TestCategory!=Integration"  fast tests only (~0.4 s)
+                 #   --filter "TestCategory!=Integration"  fast tests only (~670 tests, ~1 s)
                  #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests
 ./build          # full release: test + package audit + publish all platforms (slow)
-./build -l       # linux only (much faster; use this for local verification)
+./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
 ./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 ./installtools   # devcontainer setup: tools, dotnet local tools, git hooks
@@ -32,11 +32,9 @@ Faster inner loop for verification: `dotnet build gmd.sln` and `./test`.
 ### Running the TUI from a non-interactive shell
 
 gmd is a full-screen curses app, so it needs a pty: started from a shell with no terminal it will
-not run at all. There are two ways in, and they answer different questions.
-
-**tmux — the real binary, and the one to use.** tmux parses the escape sequences and keeps a screen
-model, so `capture-pane` hands back the rendered screen as plain text, which is what makes it
-assertable. Installed by `./installtools`.
+not run at all. tmux is the way in — it parses the escape sequences and keeps a screen model, so
+`capture-pane` hands back the rendered screen as plain text, which is what makes it assertable.
+Installed by `./installtools`.
 
 ```bash
 tmux new-session -d -s gmd -x 120 -y 40 -c /path/to/some/repo  gmd/bin/Debug/net10.0/gmd
@@ -60,16 +58,14 @@ commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well: `Bui
 only recognizes `gmd.dll` and `dotnet`, so the *built binary is not a dev instance* and really does
 call the GitHub releases API on startup.
 
-**`script` — the fallback when tmux is missing.** `script -qfc "stty rows 45 cols 140; <cmd>"
-/dev/null` gives a pty and records the raw byte stream. That stream is redraw *traffic*, not a
-screen, so it reads as a smear of partial updates and is poor to assert on. Fine for "does it start
-and not crash", and for measuring CPU; use tmux for anything about what is on screen.
+`script -qfc "stty rows 45 cols 140; <cmd>" /dev/null` is the fallback when tmux is missing: a pty,
+but only the raw byte stream, which is redraw *traffic* rather than a screen and so is poor to
+assert on. Fine for "does it start and not crash", and for measuring CPU — which needs the delta of
+`utime+stime` from `/proc/<pid>/stat` over a window, since `ps %cpu` averages over the whole process
+lifetime and hides a spin that starts late.
 
-Measuring CPU needs the delta of `utime+stime` from `/proc/<pid>/stat` over a window — `ps %cpu` is
-the average over the whole process lifetime, which hides a spin that starts late.
-
-**The same thing, as tests.** All of the above is packaged as `TmuxSession` (`gmdTest/Fixtures/`),
-and the tests are `gmdTest/Cui/TerminalTest.cs` — see the Testing section below.
+All of the above is packaged as `TmuxSession` (`gmdTest/Fixtures/`) and driven by
+`gmdTest/Cui/TerminalTest.cs` — see the Testing section.
 
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
 sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
@@ -91,7 +87,7 @@ gmd/Server/        Repo model the UI consumes (view repo = filtered/shown subset
     ↓ IAugmentedService
 gmd/Server/Private/Augmented/   Infers commit→branch assignment + branch hierarchy
     ↓ IGit
-gmd/Git/           One service per git area (log, branch, status, diff, remote, stash, tag…)
+gmd/Git/           One service per git area (log, branch, status, diff, blame, conflict, remote…)
     ↓ ICmd
 gmd/Utils/Cmd.cs   Process launcher for the `git` executable
 ```
@@ -124,33 +120,60 @@ Key types and flow:
   What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
-  Commands are grouped into `RepoCommands` / `BranchCommands` / `CommitCommands`, menus into
-  `*Menu.cs`.
+  Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
+  `BranchPushPullCommands`, `CommitCommands`, run through `CommandRunner`), menus into `*Menu.cs`.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
-  diff, menus, dialogs). Rows are either handed to the constructor or fetched while drawing through
-  a `GetContentCallback`, so a large repo is never materialized as text. Where it is scrolled to
-  (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with no view, so
-  they are unit testable — keep new logic there rather than in the view.
+  diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
+  drawing through a `GetContentCallback`, so a large repo is never materialized as text. Where it is
+  scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
+  no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
   `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally.
-- `Utils/ClipboardService.cs` — copying, which has no one answer: it tries a chain of writers in
-  order and takes the first that works (`pbcopy`; `wl-copy` / `xclip` / `xsel`, each only when the
-  display server it talks to is actually there; `clip.exe`; the Win32 API in
-  `WindowsClipboard.cs`), falling back to OSC 52 (`TerminalClipboard.cs`), which is the only one
-  that reaches the user's clipboard over ssh or from a container. Tools get the text on stdin
-  through `ICmd.CommandWithStdin`, which — unlike `Command` — never waits for the child's output
-  streams, because `xclip` and friends fork a helper that inherits them and would otherwise hang
-  gmd (dotnet/runtime#27128). A copy that fails must say so at the call site.
+- `Utils/ClipboardService.cs` — copying, which has no one answer: a chain of writers tried in order,
+  first one that works wins (`pbcopy`; `wl-copy`/`xclip`/`xsel`, each only when its display server
+  is actually there; `clip.exe`; `WindowsClipboard.cs`), falling back to OSC 52
+  (`TerminalClipboard.cs`) — the only one that reaches the clipboard over ssh or from a container.
+  Tools get the text through `ICmd.CommandWithStdin`, which unlike `Command` never waits for the
+  child's output streams: `xclip` and friends fork a helper that inherits them and would otherwise
+  hang gmd (dotnet/runtime#27128). A copy that fails must say so at the call site.
+
+### The three side views: diff, blame, conflict
+
+Each is its own folder under `Cui/`, and each splits the same way: the view drives Terminal.Gui, and
+everything that is layout or decision-making sits beside it as a plain class with no view, so it is
+unit testable — `*Rows`, `*Columns`, `ConflictResolution`.
+
+- **`Cui/Diff/`** — `DiffService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
+  `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
+  context larger than any file, since git has no "all". `DiffReload` is a delegate the view is given
+  rather than a commit id: it is opened from six places using five different git commands, and
+  assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
+- **`Cui/Blame/`** — `BlameService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
+  lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
+  math, and steps detail down as the terminal narrows.
+- **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
+  per hunk; it never builds file text, the decisions go back down to be applied. `IConflictView.Show`
+  is deliberately **synchronous** — a Terminal.Gui `SynchronizationContext` posts an await's
+  continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
+  why the caller (`DiffView`) loads the file.
+
+Below the UI, `Git/ConflictFile.cs` is the model (a `FileLine` keeps its own terminator, so a file
+round trips byte for byte however it is written), `ConflictParser` parses and re-emits it, and
+`ConflictService` runs the git side — abort / continue / skip a stopped merge, rebase, cherry-pick,
+revert or am. The parser's invariant is `ToText(Parse(x)) == x` byte for byte, for every shape a file
+can have (mixed line endings, no final newline, a BOM, all three conflict styles); everything the
+resolver writes goes through it, so that identity is what stops resolving one conflict from
+rewriting the rest of the file.
 
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
-it references Terminal.Gui. The one thing a lower layer needs from the UI is its main loop, and
-that goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an event on the UI
-thread, `RunPeriodically` for a timer, implemented by `MainThread` (`Cui/Common/`) over `UI`.
-`FileMonitor` is its only user. Keep it that way: if a lower layer needs something else from the
-UI, widen that interface rather than reaching up. Nothing outside `Cui/` names a Terminal.Gui type
-at all — `Utils/Clipboard.cs` was the last one, and Step 11 rewrote it.
+`gmd/Cui/` references Terminal.Gui (`gmd/Program.cs`, the entry point, does — it is the composition
+root, above the layers). The one thing a lower layer needs from the UI is its main loop, and that
+goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an event on the UI thread,
+`RunPeriodically` for a timer, implemented by `MainThread` (`Cui/Common/`) over `UI`. `FileMonitor`
+is its only user. Keep it that way: if a lower layer needs something else from the UI, widen that
+interface rather than reaching up.
 
 ### Dependency injection
 
@@ -201,18 +224,12 @@ error state was never checked, so always go through `Try`.
 is the single source of truth for layout (line breaks, spacing, wrapping, `using` order), and
 it also formats `.csproj` files. Settings are in `.csharpierrc` (`printWidth` is **120** — the
 default 100 would explode this codebase's one-line delegation methods into one parameter per
-line).
+line); `.csharpierignore` and `.gitignore` are both honored, so `obj/`/`bin/` are skipped.
 
-It runs in four places:
-
-| Where | How |
-| --- | --- |
-| On save in VS Code | `.vscode/settings.json` → `editor.formatOnSave` + the `csharpier.csharpier-vscode` extension |
-| On build | the `CSharpier.MsBuild` package in both `.csproj` files |
-| On commit | `.git/hooks/pre-commit` (installed from `gmd/tools/pre-commit-sample`) |
-| In CI | an explicit `dotnet csharpier check .` step before `./build` |
-
-The MSBuild integration behaves differently per configuration, which matters:
+It runs in four places: on save in VS Code (`editor.formatOnSave` + the `csharpier-vscode`
+extension), on build (the `CSharpier.MsBuild` package in both `.csproj` files), on commit
+(`.git/hooks/pre-commit`, from `gmd/tools/pre-commit-sample`), and in CI. The MSBuild integration
+behaves differently per configuration, which matters:
 
 - **Debug** — *formats* the sources in place before compiling. A `dotnet build` can therefore
   modify files in the working tree. This is intended.
@@ -222,15 +239,12 @@ The MSBuild integration behaves differently per configuration, which matters:
   check.
 - Escape hatch: `dotnet build -p:CSharpier_Bypass=true`.
 
-CSharpier is a local dotnet tool pinned in `.config/dotnet-tools.json`. If `dotnet csharpier`
-is not found, run `dotnet tool restore`. Run it manually with `dotnet csharpier format .` or
-`dotnet csharpier check .`. It honors `.gitignore`, so `obj/`/`bin/` are skipped.
-
+CSharpier is a local dotnet tool pinned in `.config/dotnet-tools.json`; run `dotnet tool restore`
+if `dotnet csharpier` is not found, then `dotnet csharpier format .` / `check .`.
 `.editorconfig` deliberately contains **no** whitespace or wrapping rules — only naming rules
-and non-layout code style, so it cannot conflict with CSharpier.
-
-Note that C# raw string literals (`$"""…"""`) are indentation-normalized against their closing
-delimiter, so CSharpier re-indenting one does not change the string's value.
+and non-layout code style, so it cannot conflict with CSharpier. C# raw string literals
+(`$"""…"""`) are indentation-normalized against their closing delimiter, so re-indenting one does
+not change the string's value.
 
 ### Style as found in this codebase
 
@@ -242,7 +256,7 @@ delimiter, so CSharpier re-indenting one does not change the string's value.
   and `return [];` rather than `new List<string>()` / `new string[0]`. Most of the codebase
   predates C# 12 and still uses the old form; it is being migrated gradually rather than in one
   sweep, so expect both styles to coexist. The relevant analyzers (IDE0028, IDE0300–IDE0305) are
-  enabled as suggestions, so the IDE will point out remaining sites as you work in a file.
+  enabled as suggestions in `.editorconfig`, so the IDE will point out remaining sites as you work.
 - Expression-bodied one-line members are used heavily for delegation (see `Git.cs`).
 - Nullable reference types and implicit usings are **on**; `gmd/Usings.cs` holds the global
   usings and `[assembly: InternalsVisibleTo("gmdTest")]` (so tests can reach `internal` types).
@@ -268,8 +282,10 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 
 ## Testing
 
-MSTest 3.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout. Growing this suite is
-an explicit goal — see `MODERNIZATION.md` for what is planned next.
+MSTest 4.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout — put a test at the path
+mirroring its subject, e.g. `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`. Tests that
+need a real repository use `TempRepo`; **never** run git against this working tree. Growing this
+suite is an explicit goal — see `MODERNIZATION.md` for what is planned next.
 
 There are five pieces of test infrastructure; use them rather than inventing a sixth way.
 
@@ -299,7 +315,8 @@ chose to show — by building the real `AugmentedService` and `ViewRepoCreater` 
 `gmdTest/Fixtures/` (`FakeGit`, `FakeFileMonitor`, `FakeMetaDataService`, `FakeRepoConfig`).
 `FakeGit` implements only the members the pipeline reaches and throws on the rest, so a test that
 starts depending on git fails loudly. `builder.Config` is the in-memory `IRepoConfig`, for tests
-that set branch colors or branch order.
+that set branch colors or branch order. (`FakeMainThread` is separate — it stands in for `UI` in
+`FileMonitorTest`, which drives the timer tick by hand.)
 
 **`GraphText`** (`gmdTest/Fixtures/`) draws the graph of a view repo as plain text, so the
 expected value is a picture that can be reviewed by looking at it:
@@ -349,23 +366,23 @@ await repo.GitAsync("reset --hard HEAD~1");         // raw git, for what IGit ha
 ```
 
 The repository is deleted on `Dispose`, and nothing outside its temp folder is ever touched —
-`Dispose` refuses to delete a path it did not create. Both integration test classes
-(`GitIntegrationTest`, `AugmentedServiceIntegrationTest`) carry `[TestCategory("Integration")]`,
-so `./test --filter "TestCategory!=Integration"` runs only the fast tests. `./test` passes its
-arguments on to `dotnet test`.
+`Dispose` refuses to delete a path it did not create. `GitIntegrationTest` and
+`AugmentedServiceIntegrationTest` both carry `[TestCategory("Integration")]`, which is what the
+fast filter in Commands excludes.
 
-`CommitFileAtAsync` / `CommitAtAsync` / `GitAt` commit with the author *and* committer dates pinned.
-Use them for any fixture whose drawn output is asserted: it fixes the time column, makes the commit
-ids reproducible (a commit object is just its tree, parents, identity, dates and message), and —
-the part that is not cosmetic — removes the row-order flake, since `git log --all --date-order`
-orders by commit date and has nothing to break a tie with. They go around `IGit` because `ICmd`
-cannot pass environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committer date.
+`CommitFileAtAsync` / `CommitAtAsync` / `GitAt` pin the author *and* committer dates. Use them for
+any fixture whose drawn output is asserted: they fix the time column, make the commit ids
+reproducible (a commit object is just its tree, parents, identity, dates and message), and — the
+part that is not cosmetic — remove the row-order flake, since `git log --all --date-order` orders by
+commit date and has nothing to break a tie with. They go around `IGit` because `ICmd` cannot pass
+environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committer date.
 
 **`TmuxSession`** (`gmdTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real
 pty. tmux keeps a screen model, so `capture-pane` gives back the rendered screen, and that is what
 is asserted — the drawing, the layout, the key dispatch and the dialogs, none of which anything
 else in the suite reaches. It names no Terminal.Gui type, deliberately, so it is as valid against a
-2.x build as a 1.x one. `ScreenText` normalizes a capture and `E2eRepo` builds the fixture repo:
+2.x build as a 1.x one. `ScreenText` normalizes a capture, `TempHome` isolates the home directory
+and `E2eRepo` builds the fixture repo:
 
 ```csharp
 using var repo = await E2eRepo.CreateAsync();
@@ -387,10 +404,9 @@ filter above excludes them. Seven things they do that matter, and that a new tes
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
   under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
 - **An empty `DISPLAY`, `WAYLAND_DISPLAY` and `WSL_DISTRO_NAME`**, so gmd finds no clipboard tool it
-  can reach and copies through the terminal instead (OSC 52). Two reasons, and the second is not
-  cosmetic: `set-clipboard on` makes tmux keep the sequence as a buffer, which `gmd.Clipboard()`
-  reads back — the only way to assert a copy — and on a developer's desktop a copy would otherwise
-  land on their real clipboard and overwrite it.
+  can reach and copies through the terminal instead (OSC 52). `set-clipboard on` then makes tmux
+  keep the sequence as a buffer, which `gmd.Clipboard()` reads back — the only way to assert a copy
+  — and a copy on a developer's desktop no longer overwrites their real clipboard.
 - **`TZ=UTC` and `LC_ALL=C.UTF-8`**, since the time column is local time formatted with the current
   culture, and the UI is drawn with `● ┣ ┅ Ϙ`.
 - **A private tmux server** (`-L <socket> -f <conf>`, socket inside the temp home) so the
@@ -406,60 +422,50 @@ filter above excludes them. Seven things they do that matter, and that a new tes
   inherits, so the commit it makes has a fixed sha and time and is asserted rather than masked —
   what `CommitFileAtAsync` does for fixture commits. Opt in per test: it pins every commit of that
   session to one second, and two of those have nothing to order them by. `E2eRepo` has
-  `CreateWithChangesAsync` for a working tree with something to commit, and the uncommitted row's
-  own time is `DateTime.Now`, so that one row goes through `ScreenText.MaskTimes`.
+  `CreateWithChangesAsync` for a working tree with something to commit; the uncommitted row's own
+  time is `DateTime.Now`, so that one row goes through `ScreenText.MaskTimes`.
 
-Three traps worth knowing before adding one: **`Escape` in the log view quits the app**, so never
-send a "safety" Escape; a modal dialog is drawn *over* the log view rather than replacing it, so the
-rows behind it still match whatever `WaitFor` is looking for — use `WaitUntilGone` to mean "closed";
-and for the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application
-bar does not tell you what the hoover is on** — it is set both by the hoover and by the current
-row's branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read
-the `Branch: <name>` menu title instead; that is the only readout from outside. Expect the hoover to
-stay where it was after a command, not to follow what appeared: after `Enter` opens a branch it is
-still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
+Five traps worth knowing before adding one:
+
+- **`Escape` in the log view quits the app** — never send a "safety" Escape.
+- A modal dialog is drawn *over* the log view rather than replacing it, so the rows behind it still
+  match whatever `WaitFor` is looking for. Use `WaitUntilGone` to mean "closed".
+- For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application bar
+  does not tell you what the hoover is on** — it is set both by the hoover and by the current row's
+  branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read the
+  `Branch: <name>` menu title; that is the only readout from outside. And expect the hoover to stay
+  where it was after a command rather than follow what appeared: after `Enter` opens a branch it is
+  still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
+- **One key per `Send` when driving a menu**, with a `WaitForStable` after each. `Send("Down",
+  "Down", …)` in one call loses keys — a menu redraw drops whatever was sent behind it, so five
+  arrived as three, and a miscounted menu runs the wrong command. Same "never send a key into a
+  screen that has not settled" rule, and it applies even though no git command is running.
+- **Count menu moves against the *fixture*, not the menu source.** `OnCursorDown` skips disabled
+  items, so the same item is a different number of moves in a repo with a remote than in one
+  without. `TerminalTest.TestRenameBranch` is five moves for that reason.
+
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
 
-Driving a **menu** adds two more. `Send("Down", "Down", …)` in one call loses keys — a menu redraw
-drops whatever was sent behind it, so five arrived as three — which makes a miscounted menu run the
-wrong command. Send one key per `Send`, with a `WaitForStable` after each; that is the same "never
-send a key into a screen that has not settled" rule, and it applies to a menu even though no git
-command is running. And count the moves against the *fixture*, not the menu source: `OnCursorDown`
-skips disabled items, so the same item is a different number of moves in a repo with a remote than
-in one without. `TerminalTest.TestRenameBranch` is five moves for that reason.
-
 Other things to know:
 
-- Put a test at the path mirroring its subject, e.g.
-  `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`.
-- `gmdTest/Usings.cs` provides the global usings (`Assert`, `Try`, `Log`).
+- `gmdTest/Usings.cs` provides the global usings (`Assert`, `Try`, `Log`), and `internal` types are
+  visible to tests, so services can be constructed directly (`new BranchNameService()`) — no DI.
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
-  (`[AssemblyInitialize]`) before anything can log. Without it `./test` truncated the developer's
-  `~/gmd.log`, since any test that runs a git command goes through `Cmd`, which logs, and
-  `ConfigLogger` truncates the log on first use. So a test cannot read or write the real home, and
-  `~/gmd.log` during a test run is at `/tmp/gmdTest-home-*/gmd.log`.
-- `internal` types are visible to tests, so services can be constructed directly
-  (`new BranchNameService()`) — no DI container needed.
+  (`[AssemblyInitialize]`) before anything can log — otherwise `./test` truncates the developer's
+  `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
+  `ConfigLogger` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:
-  `Augmenter` → `BranchStructureService` → its three stage services → `BranchNameService`, whose
-  only dependency is the one before it, and `Converter` has none at all.
+  `Augmenter` → `BranchStructureService` → its three stage services → `BranchNameService`.
   `RepoBuilder.NewAugmenter()` wires the lot up, so use that rather than repeating it.
-- `Text.ToString()` flattens styled output to a plain string, which is how `GraphText` snapshots
-  `GraphWriter` output as ASCII art without a Terminal.Gui driver.
-- Tests that need a real repository use `TempRepo`; **never** run git commands against this
-  working tree.
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `MenuDimensions` and `MenuRows` exist.
-- **A driver is available in the box, and drawing is testable with no terminal.** Terminal.Gui ships
-  a public `FakeDriver`, and `Application.Init(new FakeDriver(), null)` succeeds headlessly —
-  `FakeDriver.Contents` is then the rendered cell grid, `[row, col, 0]` being the rune and
-  `[row, col, 1]` the attribute, so both the drawn text *and* its colors can be asserted. Verified
-  against 1.19.0 by a standalone probe; not adopted by the suite yet, and note `FakeMainLoop` is
-  `internal`, so pass `null` as the main-loop driver rather than trying to construct one. See the
-  Step 3 finding in `MODERNIZATION.md`.
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `MenuDimensions`, `MenuRows`,
+  `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
+  string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
+- Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
+  terminal — not adopted by the suite yet; see the Step 3 finding in `MODERNIZATION.md` first.
 - Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates
   `CultureInfo.DefaultThreadCurrentCulture`, so enabling parallel execution would need care.
 
@@ -469,8 +475,8 @@ inference pipeline, write the failing test first; both have already hidden real 
 
 For the inference pipeline the tests are **characterization** tests: they pin down what the code
 actually does, not what it ought to do. Do not guess the expected values — discover them, then
-assert. The quickest way is a throwaway test that dumps the result and fails, e.g.
-`Assert.Fail(dumpOfEveryCommitAndBranch)`, read the real output, write the assertions, delete the
+assert. The quickest way is a throwaway test that dumps the result and fails
+(`Assert.Fail(dumpOfEveryCommitAndBranch)`), read the real output, write the assertions, delete the
 probe. Guessing produces tests that encode a bug as correct, or that fail for the wrong reason.
 `Console.WriteLine` in a test is swallowed by the default logger, hence dumping via the failure
 message.
@@ -487,6 +493,11 @@ message.
   components are derived from build time in `Build.cs`.
 - **A Debug build rewrites source files** (CSharpier formatting — see above). Do not be
   surprised by a dirty working tree after `dotnet build`.
+- **No git process gmd starts can open an editor.** `Cmd.NeverOpenAnEditor` forces `GIT_EDITOR`
+  and `GIT_SEQUENCE_EDITOR` on every process started through `Cmd.Command`, which is every git
+  call, because a `rebase --continue` opening the user's editor would hang gmd behind the terminal
+  it owns. It is done there and not per command line because `GIT_EDITOR` beats
+  `-c core.editor=…`, so a flag is silently ineffective for any user who has that set.
 - **`gmdSetup.exe` is a prebuilt binary committed to the repo**
   (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
@@ -495,7 +506,8 @@ message.
   drop it from the release workflow.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
-- `NoWarn` in `gmd.csproj` suppresses `IDE0090;CA1825`.
+- `.git-blame-ignore-revs` lists the bulk reformat commits; `./installtools` points
+  `blame.ignoreRevsFile` at it.
 - `Utils/GlobPatterns/` is vendored third-party-style code. CSharpier formats it like
   everything else, but do not restructure its logic; `.editorconfig` keeps analyzers quiet there.
 
