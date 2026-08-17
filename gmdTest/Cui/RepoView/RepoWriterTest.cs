@@ -157,13 +157,13 @@ public class RepoWriterTest
     public async Task TestAheadAndBehindCommitsAreMarkedAndColored()
     {
         // Hoovering a branch turns the current row's highlight off, which would otherwise give the
-        // top row a background and colour its spaces along with its text
+        // top row a background and color its spaces along with its text
         var rows = Rows(await Diverged(), 120, hooverBranch: "main", hooverIndex: 0);
 
         StringAssert.Contains(rows[0].ToString(), "▼Remote work");
         StringAssert.Contains(rows[1].ToString(), "▲Local work");
 
-        // The subject takes the colour of its marker: bright blue behind, bright green ahead
+        // The subject takes the color of its marker: bright blue behind, bright green ahead
         StringAssert.Contains(TextColors.Of(rows[0]), "bbbbbbb bbbb");
         StringAssert.Contains(TextColors.Of(rows[1]), "gggggg gggg");
     }
@@ -285,7 +285,7 @@ public class RepoWriterTest
     }
 
     // The highlight is put on the subject, sid, author and time, not on the row: the graph is
-    // built separately and the two are joined afterwards, so the graph keeps its branch colours on
+    // built separately and the two are joined afterwards, so the graph keeps its branch colors on
     // the terminal's own background while the rest of the row is lifted onto the highlight
     [TestMethod]
     public async Task TestTheGraphColumnIsNotHighlightedWithItsRow()

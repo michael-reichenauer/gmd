@@ -191,6 +191,9 @@ class RepoBuilder
         return this;
     }
 
+    // The operation parameters are what names a stopped operation to the user: which branch is
+    // being rebased and how far it has got, and whether a commit is all that is left of it (true
+    // for a merge, false for a rebase, which has to be told to carry on).
     public RepoBuilder WithStatus(
         int modified = 0,
         int added = 0,
@@ -198,7 +201,11 @@ class RepoBuilder
         int conflicted = 0,
         GitOp operation = GitOp.None,
         string mergeMessage = "",
-        string mergeHeadCommit = ""
+        string mergeHeadCommit = "",
+        string operationBranchName = "",
+        int operationStep = 0,
+        int operationTotal = 0,
+        bool isFinishedByCommit = true
     )
     {
         status = new GitStatus(
@@ -210,10 +217,10 @@ class RepoBuilder
             operation,
             mergeMessage,
             mergeHeadCommit == "" ? "" : Sha(mergeHeadCommit),
-            "",
-            0,
-            0,
-            true,
+            operationBranchName,
+            operationStep,
+            operationTotal,
+            isFinishedByCommit,
             [],
             [],
             [],

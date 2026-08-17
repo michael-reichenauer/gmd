@@ -467,7 +467,12 @@ class CommitCommands : ICommitCommands
 
         var c = repo.Repo.ViewCommits[0];
         var b = repo.Repo.BranchByName[repo.Repo.ViewCommits[0].BranchName];
-        return repo.Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
+
+        // The clean tree is required of both halves, not just of 'is ahead'. Without the
+        // parentheses '&&' binds tighter than '||', so a branch that was never pushed offered this
+        // with changes in the tree — and with changes the top row is the virtual uncommitted commit
+        // rather than a commit, so the reset would have taken back a row the user was not on.
+        return repo.Repo.Status.IsOk && (c.IsAhead || (!b.IsRemote && b.RemoteName == ""));
     }
 
     public void UndoUncommittedFile(string path) =>

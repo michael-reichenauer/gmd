@@ -2833,12 +2833,8 @@ deciding half can be tested: `BlameService` has 18 tests and the conflict classe
 
 - [x] **The commit filter has no tests at all** — done, see Step 19.
 - [x] **`RepoWriter` has no unit test** — done, see Step 20.
-- [ ] **`CommitCommands.CanUncommitLastCommit` looks wrong.** `Status.IsOk && c.IsAhead || (!b.IsRemote
-      && b.RemoteName == "")` — `&&` binds tighter, so a local-only branch offers the command with
-      uncommitted changes present, unlike the sibling `CanUndoCommit() => Status.IsOk`.
-      Characterize first.
-- [ ] **`BranchMenu` and `RepoMenu` item lists are snapshot-able** (`MenuItem` has `Title`/`IsDisabled`);
-      `ICommitMenu` exposes only `Show`, so its builders would need widening first.
+- [x] **`CommitCommands.CanUncommitLastCommit` looks wrong** — confirmed and fixed, see Step 21.
+- [x] **`BranchMenu` and `RepoMenu` item lists are snapshot-able** — done, see Step 21.
 - [ ] End-to-end: stash, delete branch, undo/uncommit, cherry-pick, squash and push/pull are
       **only menu labels** in the current snapshots — none is exercised.
 
@@ -2940,7 +2936,7 @@ Step 19. Suite is now 742 fast, 75 integration, 55 E2E — 872 in total.
 They pin: the full width row as a picture; all four arms of `ColumnWidths` at the width each one
 starts and ends at; the subject's `┅` when it is cut; the window the view asks for (`firstRow`,
 `count`, a count past the end, a current index past either end, a count of zero, a repo with
-nothing in view); the markers (`●` current, `*` detached, `▲`/`▼` ahead and behind with the colours
+nothing in view); the markers (`●` current, `*` detached, `▲`/`▼` ahead and behind with the colors
 that go with them, `©` uncommitted, `ß` stash, `|` selected); the seven shapes of branch tip
 (`(^)(● main)` combined, `(^/main)` and `(● main)` diverged, local only, `(~branch)` inferred,
 `(~ambiguous)`, `(● DETACHED)`); tags after the tips; and the highlight and selection.
@@ -2955,17 +2951,17 @@ that go with them, `©` uncommitted, `ß` stash, `|` selected); the seven shapes
       marker costs a column the narrow arms have already run out of.
 - [x] **The highlight and the selection are put on the columns after the graph, not on the row.**
       The graph is built into its own `TextBuilder` and the two are joined at the end, so the graph
-      keeps its branch colours on the terminal's own background while the rest of the row is lifted
-      onto the highlight. Worth knowing before reading a colour snapshot of a current row.
-- [x] **A highlighted row colours its spaces, an ordinary one does not.** Which is correct — the
+      keeps its branch colors on the terminal's own background while the rest of the row is lifted
+      onto the highlight. Worth knowing before reading a color snapshot of a current row.
+- [x] **A highlighted row colors its spaces, an ordinary one does not.** Which is correct — the
       highlight *is* a background, so a blank on it is visible — but it means the same row gives two
-      different colour pictures depending on whether it is the current one. The ahead/behind test
+      different color pictures depending on whether it is the current one. The ahead/behind test
       hoovers a branch to turn the highlight off rather than asserting around it.
-- [x] **`TextColors` now falls back from the exact colour pair to the foreground alone.** Without
+- [x] **`TextColors` now falls back from the exact color pair to the foreground alone.** Without
       it every highlighted or selected row came back as a row of `?`, since those keep their
       foreground and swap only the background — a pair the table does not list. The exact match is
-      still tried first, so the diff's two background colours keep their own `-` and `+`. The 88
-      existing graph and diff colour assertions are unchanged by it.
+      still tried first, so the diff's two background colors keep their own `-` and `+`. The 88
+      existing graph and diff color assertions are unchanged by it.
 - [x] **The arm boundaries are asserted at both ends, and the fixture's graph width with them.**
       `commitWidth = width + 1 - (graphWidth + 3)`, so a change to the fixture would otherwise move
       every width test quietly into a neighbouring arm. `TestTheFixtureGraphIsFourColumnsWide` is
@@ -2982,3 +2978,71 @@ that go with them, `©` uncommitted, `ß` stash, `|` selected); the seven shapes
 
 `./test` — 872 passed, including the 55 end-to-end tmux tests. `dotnet csharpier check .` clean over
 233 files. No production file was touched.
+
+---
+
+## Step 21 — Test the menu predicates and the menus they grey out ✅ done
+
+`gmd/Cui/RepoView/` had 16 product files against 3 test files. The predicates that decide what the
+menus offer had no tests, and what is greyed matters more than it looks: `Menu.OnCursorDown` skips a
+disabled item, so a wrong predicate silently moves every item below it — which is why the
+end-to-end menu tests have to count their moves against the fixture rather than the source.
+
+**8 tests in `gmdTest/Cui/RepoView/CommitCommandsTest.cs`** and **13 in
+`gmdTest/Cui/RepoView/MenuItemsTest.cs`**. Suite is now 763 fast, 75 integration, 55 E2E — 893.
+
+`RepoBuilder.WithStatus` gained the four operation parameters (`operationBranchName`,
+`operationStep`, `operationTotal`, `isFinishedByCommit`), without which a stopped operation cannot
+be built and `GetOperationItems` has nothing to say.
+
+### The bug it was written for
+
+`CanUncommitLastCommit` read
+
+```csharp
+return repo.Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
+```
+
+`&&` binds tighter than `||`, so the clean working tree was only required of the *is ahead* half. A
+branch that was never pushed skipped the check entirely and offered **Uncommit** with changes in the
+tree — while its sibling `CanUndoCommit`, a plain `Status.IsOk`, refused on the same repo. And with
+changes in the tree the top row is not a commit at all but the virtual uncommitted one, so the
+`git reset HEAD~1` behind it would have taken back a row the user was not pointing at.
+
+Landed as characterization first, then as the parentheses with the test flipped.
+
+### Findings
+
+- [x] **Noted, no action: a repo with no commits still offers Uncommit.** The `no commits in view`
+      guard does not catch it, because an empty repo has a virtual commit standing in for the ones
+      it has not got, on a branch with no remote — so the second half of the predicate is true and
+      the parentheses do not change it. Git refuses the reset, so the cost is an item that should
+      have been grey. Pinned by `TestARepoWithNoCommitsStillOffersUncommit`.
+- [x] **The menus are cheaper to construct than they look.** `BranchMenu` and `RepoMenu` read
+      `repo.BranchCmds` / `repo.CommitCmds` in their constructors but only *call* a command from the
+      `Action` a user picks, and every `canExecute` closes over the repo rather than over a command.
+      `RepoMenu` does call `OperationName()` and `OperationSummary()` while building, but both read
+      nothing but `repo.Repo.Status`, so `RepoCommands` constructs with `null!` for the ten
+      dependencies it does not reach. No command doubles were needed.
+- [x] **`GetShowBranchItems` is the one that needs a real server**, for `GetCommitBranches` — which
+      is a pure function of the repo, so `RepoBuilder.NewServer()` serves. `FakeViewRepo` takes an
+      optional `IServer` for exactly this and throws when it is asked without one.
+- [x] **Pinned, and the reason the class exists: the same menu is a different number of key presses
+      deep depending on the branch.** The branch menu has 15 enabled items for another branch and 8
+      for the current one, out of the same 17. `TestHowMuchIsEnabledDependsOnTheBranch` makes that
+      an executable fact rather than a warning in a comment.
+- [x] **`ICommitMenu` exposes only `Show` and `ShowStashMenu`**, so the commit menu's own item
+      builders cannot be snapshotted without widening them. Left alone — the `Can*` predicates it
+      greys on are covered directly, which was the part worth having.
+- [x] **A `MenuSeparator` reports itself as disabled**, since it is built with
+      `CanExecute = () => false`. The fixture draws it as a separator rather than as a greyed item,
+      which is what `Menu` does with it too.
+
+### Verified
+
+`./test` — 893 passed, including the 55 end-to-end tmux tests, so the production change moved no
+screen snapshot. `dotnet csharpier check .` clean over 235 files.
+
+The fix was also read off the running binary: in a repo on a branch with no remote and one modified
+file, **Uncommit** is now drawn in the dark of a disabled item (`ESC[90m`) beside **Undo Commit**,
+where the enabled items around it are bright white (`ESC[97m`).

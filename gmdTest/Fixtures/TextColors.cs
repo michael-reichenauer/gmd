@@ -36,7 +36,7 @@ static class TextColors
 
     // A blank rune keeps its space, so the letters line up below the runes they belong to — but
     // only where the color is a foreground on the default background. A space carrying a
-    // background colour is the whole point of the mark: it is how a diff shows a changed indent
+    // background color is the whole point of the mark: it is how a diff shows a changed indent
     // or a trailing space, which the text itself cannot show at all. Those keep their letter.
     public static string Of(Text text) =>
         string.Concat(
