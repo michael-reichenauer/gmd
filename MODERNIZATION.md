@@ -2760,3 +2760,89 @@ a real fetch against a real remote, leaves an unpushed tag alone.
   `origin` already; this follows that rather than widening it.
 - **Cleaning up the mirror when a remote is removed.** The refs are harmless and tiny, and the
   namespace is gmd's own, so nothing else trips over them.
+
+---
+
+## Step 18 — Test the diff body rendering ✅ done
+
+**From a coverage survey of the whole suite against the whole product.** The git layer and the
+augmentation pipeline are well covered; the gaps are in `gmd/Cui/` rendering and commands. The
+largest of them was the diff.
+
+`gmdTest/Cui/Diff/DiffServiceTest.cs` did call `ToDiffRows`, which made it look covered — but the
+only assertions were on file-header text and on `FindClosestLineIndex`. **`DiffRow.Right` was never
+touched by any test in the repo, and `DiffRowMode` was never asserted.** So the whole side-by-side
+rendering rested on about five end-to-end screen snapshots: `AddBlocks` (the left/right pairing and
+the `░` filler), `GetDiffSides` (the DiffPlex character diff, which is DiffPlex's only use in the
+codebase, plus the `RedBg`/`GreenBg` whitespace marking), `AddCommitSummery`,
+`AddDiffFileNamesSummery`, `ToColorText`, `ToDiffModeText` and `AsConflicted`.
+
+That made the diff the odd one out among the three side views, whose split exists precisely so the
+deciding half can be tested: `BlameService` has 18 tests and the conflict classes 28 between them.
+
+**25 tests, appended to the existing file.** Suite is now 695 fast, 75 integration, 52 E2E.
+
+### What was built
+
+- **`gmdTest/Fixtures/DiffText.cs`** — the diff's rows as a picture, the mirror of `GraphText`.
+  `Of` is the whole diff, `BodyOf` just the first file's section (between the two `─` rules), and
+  `ColorsOf`/`BodyColorsOf` give one letter per rune lined up underneath. `BodyRowsOf` is the same
+  slice as `DiffRow`s, for the assertions that are about numbers rather than the picture.
+- **`gmdTest/Fixtures/TextColors.cs`** — the color-letter mapping, lifted out of `GraphText`, which
+  now delegates to it. `GraphText`'s nine letters are unchanged; the bright variants and the two
+  background colors are new.
+
+### Findings
+
+- [x] **`NoLine` had to be collapsed to render at all.** `DiffService.NoLine` is 300 `░` runes, so
+      a picture containing one is unreadable. `DiffText` recognises it **by identity**, which is
+      what `DiffView` itself does (`DiffView.cs:636-687`), and draws one rune.
+- [x] **A space-preserving color picture cannot show a background.** The first cut of `TextColors`
+      copied `GraphText`'s rule that a blank rune stays blank, which is right for a graph. It made
+      the diff's whitespace marking invisible — the changed indent and the trailing space are
+      *only* a background on spaces, which is the entire point of them. The rule is now "blank
+      stays blank unless the color carries a background", which leaves every graph snapshot
+      unchanged (no graph color has one) and makes `   DC  ++W` say what it should.
+- [x] **A trailing-space change is the one row whose two pictures differ in length.** The text is
+      `   1┃x` on both sides and the marking is `   DCW` against `   DCW++`. Pinned in
+      `TestATrailingSpaceChangeIsMarkedThoughTheTextLooksIdentical`, because it is the case where
+      reading the text alone tells you nothing.
+- [x] **Noted, no action: a binary file is headed `Modified:`.** `ToDiffModeText` has a
+      `Renamed:` special case for `IsRenamed && !SectionDiffs.Any()` but no matching one for
+      `IsBinary`, so a binary file falls through to its `DiffMode` and is drawn as
+      `Modified: a.bin  (Binary)`. Only the `(Binary)` suffix and the dark color say otherwise.
+      Pinned as characterization rather than changed.
+- [x] **Noted, no action: marking a file as unmerged takes it out of the one-column arm.**
+      `AsConflicted` rewrites `DiffMode` to `DiffConflicts`, so the "whole file added, use one
+      column" branch in `AddSectionDiff` stops matching and the same file is redrawn side by side
+      against a `░` filler. Sensible — a conflict has two sides — but it is a second effect of a
+      function named for re-heading, so it is now pinned by `TestAnUnmergedFileIsNoLongerDrawnInOneColumn`.
+- [x] **The character diff finds shared runes inside words, which reads oddly.** `hello world` →
+      `hello there` marks `wo`/`th`, keeps the shared `r`, then marks `ld`/`e`. Correct, and under
+      the four-block limit so it is drawn that way. The tests use `the quick fox` → `the slow fox`
+      instead, which marks one word each side and shows the intent; the limit itself is covered
+      separately by `TestALineWithManyDifferencesIsMarkedWhole`.
+
+### Verified
+
+`./test --filter "TestCategory!=Integration"` — 695 passed. `./test --filter
+"TestCategory=Integration&TestCategory!=E2e"` — 75 passed. `dotnet csharpier check .` clean over
+230 files. No production file was touched, so the end-to-end tier cannot be affected by this step.
+
+### Next, from the same survey
+
+- [ ] **The commit filter has no tests at all** — nothing references `GetFilteredRepoAsync` or
+      `GetFilteredViewRepoAsync`. Quoted phrases, AND terms, the eight fields searched, `$` and `*`.
+      **And it holds a bug:** `ViewRepoCreater.cs:73` calls `EmptyFilteredRepo(repo, filter)` and
+      **discards the result**, so the `<... No commits matching filter ...>` row never reaches the
+      UI — even though `FilterDlg.cs:91` and `:204` both special-case `BranchName != "<none>"`.
+- [ ] **`RepoWriter` has no unit test**, only four end-to-end width snapshots. Needs a
+      `FakeViewRepo`, which is small: `ToPage` reads only `repo.Repo` and `repo.Graph`.
+- [ ] **`CommitCommands.CanUncommitLastCommit` looks wrong.** `Status.IsOk && c.IsAhead || (!b.IsRemote
+      && b.RemoteName == "")` — `&&` binds tighter, so a local-only branch offers the command with
+      uncommitted changes present, unlike the sibling `CanUndoCommit() => Status.IsOk`.
+      Characterize first.
+- [ ] **`BranchMenu` and `RepoMenu` item lists are snapshot-able** (`MenuItem` has `Title`/`IsDisabled`);
+      `ICommitMenu` exposes only `Show`, so its builders would need widening first.
+- [ ] End-to-end: stash, delete branch, undo/uncommit, cherry-pick, squash and push/pull are
+      **only menu labels** in the current snapshots — none is exercised.
