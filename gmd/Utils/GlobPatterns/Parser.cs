@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 
-
 namespace gmd.Utils.GlobPatterns
 {
     class Parser
@@ -113,9 +112,9 @@ namespace gmd.Utils.GlobPatterns
                     return this.ParseWildcard();
                 default:
                     throw new Exception(
-                        "Unable to parse SubSegment. " +
-                        "   Expected one of Identifier | CharacterSet | LiteralSet | CharacterWildcard | Wildcard. " +
-                        $"Found: {this._currentToken.Kind}"
+                        "Unable to parse SubSegment. "
+                            + "   Expected one of Identifier | CharacterSet | LiteralSet | CharacterWildcard | Wildcard. "
+                            + $"Found: {this._currentToken.Kind}"
                     );
             }
         }
@@ -135,10 +134,7 @@ namespace gmd.Utils.GlobPatterns
         // DirectorySegment := SubSegment SubSegment*
         private Segment ParseDirectorySegment()
         {
-            var items = new List<SubSegment>
-            {
-                this.ParseSubSegment()
-            };
+            var items = new List<SubSegment> { this.ParseSubSegment() };
 
             while (true)
             {
@@ -204,7 +200,9 @@ namespace gmd.Utils.GlobPatterns
         public GlobNode Parse()
         {
             if (this._scanner == null)
-                throw new InvalidOperationException("Scanner was not initialized. Ensure you are passing a pattern to Parse.");
+                throw new InvalidOperationException(
+                    "Scanner was not initialized. Ensure you are passing a pattern to Parse."
+                );
 
             Tree path;
 

@@ -17,14 +17,12 @@ class KeyValueService : IKeyValueService
         this.cmd = cmd;
     }
 
-
     public async Task<R<string>> GetValueAsync(string key, string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync(
-            "git", $"cat-file -p {KeyRef(key)}", wd, true, true))) return e;
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true)))
+            return e;
         return output;
     }
-
 
     public async Task<R> SetValueAsync(string key, string value, string wd)
     {
@@ -32,22 +30,24 @@ class KeyValueService : IKeyValueService
         try
         {
             // Store the temp file with key value in the git database (returns an object id)
-            if (!Try(out var e, () => File.WriteAllText(path, value))) return e;
-            if (!Try(out var objectId, out e, await cmd.RunAsync(
-                "git", $"hash-object -w \"{path}\"", wd, true, true))) return e;
+            if (!Try(out var e, () => File.WriteAllText(path, value)))
+                return e;
+            if (!Try(out var objectId, out e, await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true, true)))
+                return e;
             objectId = objectId.Trim();
 
             // Add a ref pointer to the stored object for easier retrieval
-            if (!Try(out e, await cmd.RunAsync("git", $"update-ref {KeyRef(key)} {objectId}", wd, true))) return e;
+            if (!Try(out e, await cmd.RunAsync("git", $"update-ref {KeyRef(key)} {objectId}", wd, true)))
+                return e;
         }
         finally
         {
-            if (!Try(out var e, () => File.Delete(path))) Log.Warn($"{e}");
+            if (!Try(out var e, () => File.Delete(path)))
+                Log.Warn($"{e}");
         }
 
         return R.Ok;
     }
-
 
     public async Task<R> PushValueAsync(string key, string wd)
     {
@@ -64,7 +64,6 @@ class KeyValueService : IKeyValueService
         var args = $"fetch origin {refs}";
         return await cmd.RunAsync("git", args, wd, true, true);
     }
-
 
     string KeyRef(string key) => $"refs/gmd-metadata-key-value/{key}";
 

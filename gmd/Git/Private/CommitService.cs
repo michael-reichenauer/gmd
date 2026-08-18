@@ -27,19 +27,44 @@ class CommitService : ICommitService
         // Encode '"' chars
         message = message.Replace("\"", "\\\"");
 
-        if (!StatusService.IsMergeInProgress(wd))
+        // While an operation is in progress its result is already staged, and both of the ways of
+        // staging here would stage an unmerged path with the conflict markers as its content —
+        // 'git commit -am' on a conflicted merge succeeds and commits '<<<<<<<' into history. So
+        // stage nothing and commit what the operation and the user have already staged.
+        //
+        // The test used to be for .git/MERGE_MSG, which a rebase with the --apply backend and
+        // 'git am' do not write, so those went down the staging path.
+        var isOperationInProgress = StatusService.IsOperationInProgress(wd);
+        if (!isOperationInProgress)
         {
-            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd))) return e;
+            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd)))
+                return e;
         }
 
         var amendText = isAmend ? " --amend" : "";
-        return await cmd.RunAsync("git", $"commit{amendText} -am \"{message}\"", wd);
+        var allText = isOperationInProgress ? "" : "a";
+        var result = await cmd.RunAsync("git", $"commit{amendText} -{allText}m \"{message}\"", wd);
+
+        // Staging nothing means git now refuses a commit that it used to make, so say what to do
+        // about it in gmd's own words rather than passing on 'error: Committing is not possible
+        // because you have unmerged files' with four lines of git hints under it.
+        if (result.IsResultError && IsUnmergedFiles(result))
+            return R.Error(
+                "Cannot commit while there are unresolved conflicts.\n\n"
+                    + "Resolve each conflicted file and mark it resolved, then commit.",
+                result
+            );
+
+        return result;
     }
 
+    static bool IsUnmergedFiles(CmdResult result) =>
+        result.ErrorOutput.Contains("unmerged files") || result.ErrorOutput.Contains("unresolved conflict");
 
     public async Task<R> UndoAllUncommittedChangesAsync(string wd)
     {
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd))) return e;
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd)))
+            return e;
 
         return await cmd.RunAsync("git", "clean -fd", wd);
     }
@@ -53,7 +78,8 @@ class CommitService : ICommitService
             {
                 // Was an unknown (new/added) file, we just remove it
                 var fullPath = Path.Combine(wd, path);
-                if (!Try(out e, () => File.Delete(fullPath))) return R.Error("Failed to reset", e);
+                if (!Try(out e, () => File.Delete(fullPath)))
+                    return R.Error("Failed to reset", e);
                 Log.Info($"File '{path}' (new/added) was removed");
                 return R.Ok;
             }
@@ -66,7 +92,8 @@ class CommitService : ICommitService
 
     public async Task<R> CleanWorkingFolderAsync(string wd)
     {
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd))) return e;
+        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd)))
+            return e;
 
         return await cmd.RunAsync("git", "clean -fxd", wd);
     }
@@ -91,7 +118,6 @@ class CommitService : ICommitService
     {
         return await cmd.RunAsync("git", $"reset --hard {id}", wd);
     }
-
 
     static bool IsFileUnknown(ErrorResult error, string path)
     {

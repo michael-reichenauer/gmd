@@ -1,5 +1,3 @@
-using gmd.Cui.RepoView;
-
 namespace gmd.Server;
 
 enum ShowBranches
@@ -24,14 +22,27 @@ interface IServer
     IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = false);
     IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount);
 
-    Repo ShowBranch(Repo repo, string branchName, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
+    Repo ShowBranch(
+        Repo repo,
+        string branchName,
+        bool includeAmbiguous,
+        ShowBranches show = ShowBranches.Specified,
+        int count = 1
+    );
     Repo HideBranch(Repo repo, string name, bool hideAllBranches = false);
     Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<R> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<R> CreateBranchFromBranchAsync(Repo serverRepo, string newBranchName, string sourceBranch, bool isCheckout, string repoPath);
+    Task<R> CreateBranchFromBranchAsync(
+        Repo serverRepo,
+        string newBranchName,
+        string sourceBranch,
+        bool isCheckout,
+        string repoPath
+    );
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
     Task<R> StashAsync(string message, string wd);
     Task<R> StashPopAsync(string name, string wd);
 
@@ -39,12 +50,14 @@ interface IServer
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R> FetchAsync(string wd);
     Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, string wd);
-    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, string wd);
-    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, string wd);
-    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, string wd);
+    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<R<Blame>> GetBlameAsync(string path, string reference, string wd);
+    Task<R<CommitDiff>> GetPreviewMergeDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
     Task<R> RunDiffToolAsync(string path, string wd);
     Task<R> RunMergeToolAsync(string path, string wd);
+
     //Task<R<string>> GetFileTextAsync(string path, string wd);
 
     Task<R> PushBranchAsync(string name, string wd);
@@ -53,9 +66,21 @@ interface IServer
     Task<R> PullBranchAsync(string name, string wd);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
+    Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
     Task<R> RebaseBranchAsync(Repo repo, string branchName);
     Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<R> CherryPickAsync(string sha, string wd);
+    Task<R> AbortOperationAsync(string wd);
+    Task<R> ContinueOperationAsync(string wd);
+    Task<R> SkipOperationAsync(string wd);
+    Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
+    Task<R<ConflictState>> GetConflictStateAsync(string wd);
+    Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, bool isWithBase, string wd);
+    Task<R> ResolveConflictFileAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
+    Task<R> UnresolveAsync(string path, string wd);
+    Task<R> UseWholeFileAsync(string path, bool isOurs, string wd);
+    Task<R> KeepConflictedFileAsync(string path, string wd);
+    Task<R> DeleteConflictedAsync(string path, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);
@@ -66,7 +91,7 @@ interface IServer
     Task<R> UncommitUntilCommitAsync(string id, string wd);
     Task<R> CloneAsync(string uri, string path, string wd);
     Task<R> InitRepoAsync(string path, string wd);
-    Task<R<CommitDiff>> GetStashDiffAsync(string name, string wd);
+    Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<R> StashDropAsync(string name, string wd);
     Task<R<string>> GetChangeLogAsync();
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
@@ -77,4 +102,3 @@ interface IServer
 }
 
 internal record ChangeEvent(DateTime TimeStamp);
-

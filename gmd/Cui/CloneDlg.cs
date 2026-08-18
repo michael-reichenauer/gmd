@@ -13,12 +13,9 @@ class CloneDlg : ICloneDlg
 
     UITextField? path;
 
-
     public R<(string, string)> Show(IReadOnlyList<string> recentParentFolders)
     {
-        var basePath = recentParentFolders.Any() ?
-            recentParentFolders[0] + Path.DirectorySeparatorChar :
-            "";
+        var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
 
         var dlg = new UIDialog("Clone Repo", width + 4, 8);
 
@@ -29,45 +26,52 @@ class CloneDlg : ICloneDlg
         dlg.AddLabel(1, 2, "Path:");
         path = dlg.AddInputField(7, 2, width - 16, basePath, InputMarkers.None);
 
-        dlg.AddButton(width - 9, 2, "Browse", () =>
-        {
-            FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-            if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "") return;
-            SetBrowsedPath(uri.Text, path);
-        });
+        dlg.AddButton(
+            width - 9,
+            2,
+            "Browse",
+            () =>
+            {
+                FolderBrowseDlg browseDlg = new FolderBrowseDlg();
+                if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "")
+                    return;
+                SetBrowsedPath(uri.Text, path);
+            }
+        );
 
         dlg.Validate(() => uri.Text != "", "Empty uri is not allowed");
         dlg.Validate(() => path.Text != "", "Empty path is not allowed");
 
-        if (!dlg.ShowOkCancel(uri)) return R.Error();
+        if (!dlg.ShowOkCancel(uri))
+            return R.Error();
 
         return (uri.Text, path.Text);
     }
 
-
     // Update path field when uri changes
     void UpdatePath(string basePath, string uri)
     {
-        if (!basePath.EndsWith(Path.DirectorySeparatorChar)) return;
+        if (!basePath.EndsWith(Path.DirectorySeparatorChar))
+            return;
 
-        if (!Try(out var name, TryParseRepoName(uri))) return;
+        if (!Try(out var name, TryParseRepoName(uri)))
+            return;
 
         UpdatePathField(basePath, name);
     }
-
 
     // Update path after user has browsed target folders
     void SetBrowsedPath(string uri, string path)
     {
         path = path.Trim();
 
-        if (!Try(out var name, TryParseRepoName(uri))) return;
+        if (!Try(out var name, TryParseRepoName(uri)))
+            return;
 
         string basePath = path + Path.DirectorySeparatorChar;
 
         UpdatePathField(basePath, name);
     }
-
 
     void UpdatePathField(string basePath, string name)
     {
@@ -87,14 +91,13 @@ class CloneDlg : ICloneDlg
         this.path!.SetNeedsDisplay();
     }
 
-
     // Try to extract git repo name
     static R<string> TryParseRepoName(string uri)
     {
         var i = uri.LastIndexOf('/');
-        if (i == -1) return R.Error();
+        if (i == -1)
+            return R.Error();
 
         return uri[(i + 1)..].Trim().TrimSuffix(".git").Replace("%20", "");
     }
 }
-

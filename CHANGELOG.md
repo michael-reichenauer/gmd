@@ -1,10 +1,29 @@
 # Change Log for Gmd
 --------------------
 
-125 releases:
+126 releases:
 
-## [Current] - 2026-07-25
-- Adjust installtools to include some more tools
+## [Current] - 2026-08-18
+- Modernized codebase
+- Fixed 100% CPU usage on linux/max by updating Terminal.Gui to 1.19.0
+- Added support for e2e terminnal testing
+- Fixed issue with key 'q' and 'p' in log view
+- Copy text refactor, works on more platforms
+- Show deleted (non-active) branches as gray
+- Added progress to upgrading the app
+- Added support for rename branch
+- Added 'Branches' sub menu to commit menu
+- Move file history menu item to repo menu
+- Implement 'Merge to' functionality
+- Implement 'blame' support
+- Added support for adjusting diff context size
+- Added support for conflict handling
+- Fixed issue with local only tag beeing pruned
+- Added more unit and e2e ui tests
+- Fixed some bugs
+
+## [v0.91.1364.357] - 2026-07-25
+- New version- Adjust installtools to include some more tools
 
 ## [v0.91.1119.391] - 2025-11-22
 - Fixed path

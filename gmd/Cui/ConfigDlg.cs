@@ -22,7 +22,6 @@ class ConfigDlg : IConfigDlg
         this.updater = updater;
     }
 
-
     public void Show(string repoPath)
     {
         int width = 60;
@@ -33,7 +32,12 @@ class ConfigDlg : IConfigDlg
 
         // Repo specific config
         dlg.AddLabel(1, 0, $"Repo '{repoPath}':");
-        var isSyncMetaData = dlg.AddCheckBox(1, 1, "Push/Sync branch structure metadata to server", repoConf.SyncMetaData);
+        var isSyncMetaData = dlg.AddCheckBox(
+            1,
+            1,
+            "Push/Sync branch structure metadata to server",
+            repoConf.SyncMetaData
+        );
 
         // General config
         dlg.AddLine(1, 3, width - 2);
@@ -65,7 +69,8 @@ class ConfigDlg : IConfigDlg
 
     static void UpdatePathVariable(bool isAddGmdToPath)
     {
-        if (Build.IsDevInstance() || !Build.IsWindows) return;
+        if (Build.IsDevInstance() || !Build.IsWindows)
+            return;
 
         if (isAddGmdToPath)
         {
@@ -86,10 +91,10 @@ class ConfigDlg : IConfigDlg
         return parts.FirstOrDefault(p => p.ToUpper() == folderPath) != null;
     }
 
-
     static void AddGmdToPathVariable()
     {
-        if (IsGmdAddedToPathVariable()) return;
+        if (IsGmdAddedToPathVariable())
+            return;
 
         string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!;
         string pathVariable = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
@@ -103,17 +108,19 @@ class ConfigDlg : IConfigDlg
         {
             // Add to path for Linux and Mac
             UI.InfoMessage("Not implemented yet", "Add gmd to PATH environment variable");
-
         }
 
-        UI.InfoMessage("Gmd", "Added gmd to PATH environment variable\n\n" +
-            "You need to restart running terminals for the change to take effect");
+        UI.InfoMessage(
+            "Gmd",
+            "Added gmd to PATH environment variable\n\n"
+                + "You need to restart running terminals for the change to take effect"
+        );
     }
-
 
     static void RemoveGmdFromPathVariable()
     {
-        if (!IsGmdAddedToPathVariable()) return;
+        if (!IsGmdAddedToPathVariable())
+            return;
 
         string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!.ToUpper();
 
@@ -131,10 +138,12 @@ class ConfigDlg : IConfigDlg
             UI.InfoMessage("Not implemented yet", "Remove gmd from PATH environment variable");
         }
 
-        UI.InfoMessage("Gmd", "Removed gmd to PATH environment variable\n\n" +
-            "You need to restart running terminals for the change to take effect");
+        UI.InfoMessage(
+            "Gmd",
+            "Removed gmd to PATH environment variable\n\n"
+                + "You need to restart running terminals for the change to take effect"
+        );
     }
-
 
     //       if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
     //         {
@@ -150,5 +159,3 @@ class ConfigDlg : IConfigDlg
     // {
     //     name = "gmd_windows";
 }
-
-

@@ -29,14 +29,11 @@ class AboutDlg : IAboutDlg
         var gitVersion = config.GitVersion;
 
         var msg =
-            $"Version: {gmdVersion.Txt()} ({gmdSha}) \n" +
-            $"Built:   {gmdBuildTime}\n" +
-            (isAvailable ?
-                $"Updates: {latest.Txt} {typeText} is available\n" :
-                "Updates: Is latest version\n") +
-            $"Git:     {gitVersion} ";
+            $"Version: {gmdVersion.Txt()} ({gmdSha}) \n"
+            + $"Built:   {gmdBuildTime}\n"
+            + (isAvailable ? $"Updates: {latest.Txt} {typeText} is available\n" : "Updates: Is latest version\n")
+            + $"Git:     {gitVersion} ";
 
         UI.InfoMessage("About", msg);
     }
 }
-

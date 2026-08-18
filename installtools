@@ -19,8 +19,16 @@ echo "Installing xsel ..."
 sudo apt install -q xsel -y 1>/dev/null
 
 echo ""
+echo "Installing tmux (drives the TUI in tests and for manual verification) ..."
+sudo apt install -q tmux -y 1>/dev/null
+
+echo ""
 echo "setting working folder as safe in git config ..."
 git config --global --add safe.directory /workspaces/gmd
+
+echo ""
+echo "Ignoring bulk reformat commits in git blame ..."
+git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 echo ""
 echo "Adding dotnet tools to PATH ..."
@@ -34,12 +42,21 @@ curl -fsSL https://claude.ai/install.sh | bash
 
 echo ""
 echo "Install gmd ..."
-curl curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
+
+echo ""
+echo "Restore dotnet local tools (CSharpier) ..."
+dotnet tool restore
 
 echo ""
 echo "Install git post commit hook ..."
 cp ./gmd/tools/post-commit-sample ./.git/hooks/post-commit
 chmod +x ./.git/hooks/post-commit
+
+echo ""
+echo "Install git pre commit hook (CSharpier formatting) ..."
+cp ./gmd/tools/pre-commit-sample ./.git/hooks/pre-commit
+chmod +x ./.git/hooks/pre-commit
 
 echo ""
 echo "Done"

@@ -1,25 +1,80 @@
 name: Build and release
 
 on:
+  # Every branch, so a push always gets tested and a failure always reaches the author,
+  # without needing an open pull request. '**' rather than '*', since branch names here
+  # contain slashes.
   push:
-    branches: [main, dev]
+    branches: ['**']
   pull_request:
     branches: [main, dev]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
 
+# Needed to create releases and upload assets
+permissions:
+  contents: write
+
 jobs:
+  # Anything that is not a release, i.e. a push to a branch other than main/dev and any pull
+  # request, gets format check, tests and a linux-only publish. Feedback does not wait for the
+  # four self-contained ReadyToRun publishes of the release job below, whose output would only
+  # be thrown away here. Exactly one of the two jobs runs for any event.
+  test_job:
+    if: github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    name: Test and Linux Build Job
+
+    # This job only builds and tests, so it drops the write permission the release job needs.
+    # Nothing here can create a release even if a step is added carelessly later.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      # The end-to-end UI tests drive the built binary in a tmux pane (gmdTest/Fixtures/
+      # TmuxSession.cs), and they fail rather than skip when tmux is missing, deliberately, so
+      # that this tier cannot quietly stop running. ubuntu-latest ships tmux today but nothing
+      # pins that, so install it if the image ever drops it. Free when it is already there.
+      - name: Ensure tmux (end-to-end UI tests)
+        run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
+
+      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # CSharpier.MsBuild, which would hide unformatted code from the Release check.
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+
+      # './build -l' runs the tests first and then publishes linux-x64 and linux-arm64 only,
+      # so a Release publish is still exercised, just not for all four platforms. The
+      # 'BUILD_TIME'/'BUILD_SHA' placeholders in gmd/Build.cs are deliberately left as they
+      # are, since nothing is released from here and the tests hold either way.
+      - name: Test and build (linux only)
+        run: ./build -l
+
+  # Push to main/dev, which publishes a release, plus a manual run from the Actions tab on any
+  # branch, which is the way to check the windows and macOS packaging without merging. A manual
+  # run only publishes if it is on main/dev, which the 'isPublish' output below decides.
   build_test_release_job:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     name: Build, Test and Release Job
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
-      # Update .env and manifest file with current build time and git sha id to support
-      # version handling of the web site to automatically upgrade to latest version faster
+      # Inject current build time and git sha into gmd/Build.cs, which uses them for
+      # version handling and to let the built-in updater detect newer versions.
       - name: Update git sha and build time
         shell: bash
         run: |
@@ -29,10 +84,21 @@ jobs:
           sed -i "s/BUILD_SHA/${{github.sha}}/g" gmd/Build.cs
           git log -3 --format=full
 
-      - name: Setup .NET Core SDK
-        uses: actions/setup-dotnet@v3
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '7.x'
+          dotnet-version: '10.x'
+
+      # See the same step in test_job above
+      - name: Ensure tmux (end-to-end UI tests)
+        run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
+
+      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # CSharpier.MsBuild, which would hide unformatted code from the Release check.
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
 
       - name: Build & Test
         id: build
@@ -45,103 +111,30 @@ jobs:
           echo "isPreRelease=${{ github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
           echo "isPublish=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        id: create_release
+      # 'gmd_linux' is a copy of the x64 binary kept under the original asset name, since
+      # the built-in updater falls back to it (see gmd/Installation/Updater.cs).
+      - name: Prepare release assets
         if: steps.build.outputs.isPublish == 'true'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cp gmd_linux_x64 gmd_linux
+
+      # 'target_commitish' is where the new tag is created, and it must be set: it defaults to
+      # the repository default branch ('main'), so without it every dev pre-release tagged the
+      # tip of main rather than the dev commit that triggered the run. github.sha is that commit
+      # for a push, and the tip of the chosen branch for a manual run.
+      - name: Create release and upload assets
+        if: steps.build.outputs.isPublish == 'true'
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.build.outputs.version }}
-          release_name: Version ${{ steps.build.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Version ${{ steps.build.outputs.version }}
           draft: false
-          prerelease: ${{steps.build.outputs.isPreRelease == 'true'}}
+          prerelease: ${{ steps.build.outputs.isPreRelease == 'true' }}
           body: ${{ github.event.head_commit.message }} </br>[Change log](https://github.com/michael-reichenauer/gmd/blob/main/CHANGELOG.md)
-
-      - name: Upload Linux artifact x64
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_linux_x64
-          asset_name: gmd_linux_x64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux artifact arm64
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_linux_arm64
-          asset_name: gmd_linux_arm64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux artifact
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_linux_x64
-          asset_name: gmd_linux
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows artifact
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_windows
-          asset_name: gmd_windows
-          asset_content_type: application/octet-stream
-
-      - name: Upload OSX/Mac arm64 artifact
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd_osx_arm64
-          asset_name: gmd_osx_arm64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows setup file
-        if: steps.build.outputs.isPublish == 'true'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gmd/Installation/installer/gmdSetup.exe
-          asset_name: gmdSetup.exe
-          asset_content_type: application/octet-stream
-
-      # - name: Upload Windows artifact (gmd.exe zipped)
-      #   if: steps.check-branch.outputs.isRelease == 'true'
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ github.token }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ./gmd.zip
-      #     asset_name: gmd.zip
-      #     asset_content_type: application/octet-stream
-
-      # - name: Upload Windows artifact (old name)
-      #   if: steps.check-branch.outputs.isRelease == 'true'
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ github.token }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ./gmd_windows
-      #     asset_name: gmd.exe
-      #     asset_content_type: application/octet-stream
+          files: |
+            gmd_linux_x64
+            gmd_linux_arm64
+            gmd_linux
+            gmd_windows
+            gmd_osx_arm64
+            gmd/Installation/installer/gmdSetup.exe

@@ -1,6 +1,5 @@
 namespace gmd.Common;
 
-
 [SingleInstance]
 class Config
 {
@@ -13,16 +12,15 @@ class Config
     public bool AllowPreview { get; set; } = false;
 
     // Values managed by app
-    public List<string> RecentFolders { get; set; } = new List<string>();
+    public List<string> RecentFolders { get; set; } = [];
     public Releases Releases { get; set; } = new Releases();
     public string GitVersion { get; set; } = "";
-
 
     // Constructor used when deserializing Config, the values are copied to the single instance
     // by the IConfigService
     public Config() { }
 
-    // Constructor used by Dependency Injection for this single instance 
+    // Constructor used by Dependency Injection for this single instance
     public Config(Lazy<IConfigService> configService) => this.configService = configService;
 
     public void Set(Action<Config> set) => configService?.Value.Set(set);
@@ -30,12 +28,11 @@ class Config
     internal void Init() => configService?.Value.Get();
 }
 
-
 public class Release
 {
     public string Version { get; set; } = "";
     public bool IsPreview { get; set; } = false;
-    public Asset[] Assets { get; set; } = new Asset[0];
+    public Asset[] Assets { get; set; } = [];
 }
 
 public class Asset
@@ -54,7 +51,8 @@ public class Releases
 
     public bool IsUpdateAvailable()
     {
-        if (Build.IsDevInstance()) return false;
+        if (Build.IsDevInstance())
+            return false;
 
         string v1Text = LatestVersion;
         string v2Text = Build.Version().ToString();
@@ -71,15 +69,15 @@ public class Releases
     }
 }
 
-// Some Config utility functions, these are not part of the Config class because Config 
+// Some Config utility functions, these are not part of the Config class because Config
 // is dto serializable, and should be kept as simple as possible
 internal static class ConfigExtensions
 {
     // ResentParentFolders returns the most recent working folders parents
     internal static IReadOnlyList<string> ResentParentFolders(this Config config) =>
-        config.RecentFolders
-        .Select(f => Path.GetDirectoryName(f)!)
-        .Distinct()
-        .Where(f => f != null && Directory.Exists(f))
-        .ToList();
+        config
+            .RecentFolders.Select(f => Path.GetDirectoryName(f)!)
+            .Distinct()
+            .Where(f => f != null && Directory.Exists(f))
+            .ToList();
 }

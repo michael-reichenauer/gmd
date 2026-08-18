@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-
 namespace System
 {
     public class FatalExceptionEventArgs : EventArgs
@@ -10,7 +9,6 @@ namespace System
         public string Message { get; }
 
         public Exception Exception { get; }
-
 
         public FatalExceptionEventArgs(string message, Exception exception)
         {
@@ -54,9 +52,7 @@ namespace System
             typeof(TypeInitializationException),
         };
 
-
         public static event EventHandler<FatalExceptionEventArgs>? FatalException;
-
 
         public static bool IsNotFatal(this Exception e)
         {

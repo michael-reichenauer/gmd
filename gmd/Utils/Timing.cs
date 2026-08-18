@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-
 namespace gmd.Utils;
 
 // Measure time and log it.
@@ -16,11 +15,7 @@ public class Timing : IDisposable
     TimeSpan lastTimeSpan = TimeSpan.Zero;
     int count = 0;
 
-    private Timing(
-        string msg,
-        string memberName,
-        string sourceFilePath,
-        int sourceLineNumber)
+    private Timing(string msg, string memberName, string sourceFilePath, int sourceLineNumber)
     {
         stopwatch = new Stopwatch();
         stopwatch.Start();
@@ -30,11 +25,12 @@ public class Timing : IDisposable
         this.msgSourceLineNumber = sourceLineNumber;
     }
 
-    public static Timing Start(string msg = "",
+    public static Timing Start(
+        string msg = "",
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0) => new Timing(
-            msg, memberName, sourceFilePath, sourceLineNumber);
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) => new Timing(msg, memberName, sourceFilePath, sourceLineNumber);
 
     public void Dispose()
     {
@@ -48,7 +44,6 @@ public class Timing : IDisposable
         return stopwatch.Elapsed;
     }
 
-
     public TimeSpan Elapsed
     {
         get
@@ -60,11 +55,10 @@ public class Timing : IDisposable
 
     public long ElapsedMs => (long)Elapsed.TotalMilliseconds;
 
-    public string ElapsedText => ElapsedMs < 1000
-        ? $"{ElapsedMs}ms" : ElapsedMs < 60 * 1000
-        ? $"{Elapsed.Seconds}s, {Elapsed.Milliseconds}ms"
+    public string ElapsedText =>
+        ElapsedMs < 1000 ? $"{ElapsedMs}ms"
+        : ElapsedMs < 60 * 1000 ? $"{Elapsed.Seconds}s, {Elapsed.Milliseconds}ms"
         : $"{Elapsed.Hours}:{Elapsed.Minutes}:{Elapsed.Seconds}:{Elapsed.Milliseconds}";
-
 
     public TimeSpan Diff
     {
@@ -77,35 +71,32 @@ public class Timing : IDisposable
 
     public long DiffMs => (long)Diff.TotalMilliseconds;
 
-
     public void Log(
         string message,
         StopParameter stopParameter = default(StopParameter),
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0)
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
     {
         count++;
 
-        Utils.Logging.Log.Info(
-            $"{count}: {message}: {this}", memberName, sourceFilePath, sourceLineNumber);
+        Utils.Logging.Log.Info($"{count}: {message}: {this}", memberName, sourceFilePath, sourceLineNumber);
     }
 
     public void Log(
         StopParameter stopParameter = default(StopParameter),
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0)
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
     {
         count++;
 
         Utils.Logging.Log.Info($"At {count}: {this}", memberName, sourceFilePath, sourceLineNumber);
     }
 
-
     public override string ToString() => count == 0 ? $"({ElapsedText})" : $"{DiffMs}ms ({ElapsedText})";
 
-    public struct StopParameter
-    {
-    }
+    public struct StopParameter { }
 }

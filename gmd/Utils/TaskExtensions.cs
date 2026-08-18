@@ -3,7 +3,6 @@ namespace System.Threading.Tasks;
 
 public static class TaskExtensions
 {
-
     // Provides a workaround for async functions that have no built-in cancellation support.
     // This functions should only be used as a last resort. It does not cancel the original, call
     // it only provides cancellation support for the caller.
@@ -21,7 +20,6 @@ public static class TaskExtensions
 
         return await task;
     }
-
 
     // Provides a workaround for async functions that have no built-in cancellation support.
     // This functions should only be used as a last resort. It does not cancel the original, call
@@ -46,9 +44,9 @@ public static class TaskExtensions
     {
         task.ContinueWith(
             FailedBackgroundTask,
-            TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted);
+            TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted
+        );
     }
-
 
     private static void FailedBackgroundTask(Task task)
     {
@@ -56,4 +54,3 @@ public static class TaskExtensions
         ExceptionHandling.OnBackgroundTaskException(e);
     }
 }
-

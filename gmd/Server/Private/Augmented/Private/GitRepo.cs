@@ -1,10 +1,8 @@
-
-
-using GitCommit = gmd.Git.Commit;
 using GitBranch = gmd.Git.Branch;
-using GitTag = gmd.Git.Tag;
-using GitStatus = gmd.Git.Status;
+using GitCommit = gmd.Git.Commit;
 using GitStash = gmd.Git.Stash;
+using GitStatus = gmd.Git.Status;
+using GitTag = gmd.Git.Tag;
 
 namespace gmd.Server.Private.Augmented.Private;
 
@@ -19,7 +17,8 @@ class GitRepo
         GitStatus status,
         MetaData metaData,
         IReadOnlyList<GitStash> stashes,
-        bool isTruncated)
+        bool isTruncated
+    )
     {
         TimeStamp = timeStamp;
         Path = path;
@@ -42,6 +41,6 @@ class GitRepo
     public IReadOnlyList<GitStash> Stashes { get; }
     public bool IsTruncated { get; }
 
-    public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";
+    public override string ToString() =>
+        $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";
 }
-

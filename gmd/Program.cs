@@ -1,8 +1,8 @@
-﻿using Terminal.Gui;
+﻿using gmd.Common;
 using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
-using gmd.Common;
+using Terminal.Gui;
 
 namespace gmd;
 
@@ -58,10 +58,10 @@ class Program
 
         Application.Init();
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
-        UI.HideCursor();                     // Hide cursor to avoid flickering
-        Application.Driver.Checked = '◙';    // '■'; // ▣';      // Checked box characters 
-        Application.Driver.UnChecked = '□';  // '□'; //▢';
-        Application.Driver.Stipple = ' ';    // The scrollbar background character
+        UI.HideCursor(); // Hide cursor to avoid flickering
+        Application.Driver.Checked = '◙'; // '■'; // ▣';      // Checked box characters
+        Application.Driver.UnChecked = '□'; // '□'; //▢';
+        Application.Driver.Stipple = ' '; // The scrollbar background character
 
         Application.Top.Add(mainView.View);
 
@@ -70,14 +70,12 @@ class Program
         Application.Shutdown();
     }
 
-
     bool HandleUIMainLoopError(Exception e)
     {
         Log.Exception(e, "Error in UI main loop");
         ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
     }
-
 
     async Task LogProgramInfoAsync()
     {
@@ -100,4 +98,3 @@ class Program
         config.Set(s => s.GitVersion = gitVersion ?? "");
     }
 }
-

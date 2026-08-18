@@ -1,6 +1,5 @@
 using Terminal.Gui;
 
-
 namespace gmd.Cui.Common;
 
 interface IProgress
@@ -8,26 +7,16 @@ interface IProgress
     Disposable Show(bool isShowImmediately = false);
 }
 
-
 // cspell:ignore Wakeup
 [SingleInstance]
 class Progress : IProgress
 {
     const int defaultInitialDelay = 800;
-    const int progressWidth = 6;
-    static readonly ColorScheme colorScheme = new ColorScheme()
-    {
-        Normal = Color.Magenta,
-        Focus = Color.Magenta,
-        HotNormal = Color.Magenta,
-        HotFocus = Color.Magenta,
-        Disabled = Color.Magenta,
-    };
 
     Timer? progressTimer;
     int count = 0;
     Toplevel? currentParentView;
-    View? progressView;
+    Marquee? marquee;
 
     public Disposable Show(bool isShowImmediately = false)
     {
@@ -40,52 +29,34 @@ class Progress : IProgress
         int initialDelay = isShowImmediately ? 0 : defaultInitialDelay;
         count++;
         if (count > 1)
-        {   // Already started
+        { // Already started
             return;
         }
 
-        var progressBar = new ProgressBar()
-        {
-            X = 1,
-            Y = 0,
-            Width = progressWidth,
-            ProgressBarStyle = ProgressBarStyle.MarqueeBlocks,
-            SegmentCharacter = '●',
-            BidirectionalMarquee = true,
-            ColorScheme = colorScheme,
-        };
-
-        // The left and right [] marks
-        var leftMark = new Label(0, 0, "[") { ColorScheme = colorScheme };
-        var rightMark = new Label(progressWidth + 1, 0, "]") { ColorScheme = colorScheme };
-
-        progressView = new View()
-        {
-            X = 5,
-            Y = 0,
-            Width = progressWidth + 3,
-            Height = 1,
-            ColorScheme = colorScheme,
-            Visible = false,
-        };
-
-        progressView.Add(leftMark, progressBar, rightMark);
+        // One column wider than the marquee itself, to keep a blank between it and the repo path
+        marquee = new Marquee(5, 0, Marquee.TotalWidth + 1, isVisible: false);
 
         bool isFirst = true;
-        progressTimer = new Timer(_ =>
-        {
-            if (progressView == null) return;
-            if (isFirst)
+        progressTimer = new Timer(
+            _ =>
             {
-                isFirst = false;
-                progressView.Visible = true;
-            }
-            progressBar.Pulse();
-            Application.MainLoop.Driver.Wakeup();
-        }, null, initialDelay, 100);
+                if (marquee == null)
+                    return;
+                if (isFirst)
+                {
+                    isFirst = false;
+                    marquee.IsVisible = true;
+                }
+                marquee.Pulse();
+                Application.MainLoop.Driver.Wakeup();
+            },
+            null,
+            initialDelay,
+            100
+        );
 
         currentParentView = Application.Current;
-        currentParentView.Add(progressView);
+        currentParentView.Add(marquee.View);
 
         UI.SetActions(() => Deactivated(), () => Activated());
         UI.StopInput();
@@ -93,9 +64,9 @@ class Progress : IProgress
 
     private void Activated()
     {
-        if (progressView != null)
+        if (marquee != null)
         {
-            progressView.Visible = true;
+            marquee.IsVisible = true;
         }
 
         progressTimer?.Change(200, 100);
@@ -104,9 +75,9 @@ class Progress : IProgress
     private void Deactivated()
     {
         progressTimer?.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
-        if (progressView != null)
+        if (marquee != null)
         {
-            progressView.Visible = false;
+            marquee.IsVisible = false;
         }
     }
 
@@ -114,7 +85,7 @@ class Progress : IProgress
     {
         count--;
         if (count > 0)
-        {   // Not yet the last stop
+        { // Not yet the last stop
             return;
         }
 
@@ -123,9 +94,9 @@ class Progress : IProgress
             progressTimer.Dispose();
             progressTimer = null;
         }
-        currentParentView!.Remove(progressView);
+        currentParentView!.Remove(marquee!.View);
         currentParentView = null;
-        progressView = null;
+        marquee = null;
         UI.SetActions(null, null);
         UI.StartInput();
     }

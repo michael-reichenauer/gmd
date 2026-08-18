@@ -13,7 +13,7 @@ class GraphWriter : IGraphWriter
     {
         var text = new TextBuilder();
         var row = graph.GetRow(index);
-        int rowLength = Math.Min(graph.RowLength, (maxWidth + 1) / 2);  // +1 to ensure /2 get correct column length
+        int rowLength = Math.Min(graph.RowLength, (maxWidth + 1) / 2); // +1 to ensure /2 get correct column length
         for (int i = 0; i < rowLength; i++)
         {
             // Colors
@@ -23,9 +23,7 @@ class GraphWriter : IGraphWriter
             var passColor = column.PassColor;
 
             // Draw connect runes (left of the branch)
-            if (column.ConnectSign == Sign.Pass &&
-                passColor != Color.Black &&
-                passColor != Color.White)
+            if (column.ConnectSign == Sign.Pass && passColor != Color.Black && passColor != Color.White)
             {
                 connectColor = passColor;
             }
@@ -35,16 +33,15 @@ class GraphWriter : IGraphWriter
             }
 
             // First column does not have a left connect rune, so skip it
-            if (i > 0) text.Color(connectColor, ConnectRune(column.ConnectSign));
+            if (i > 0)
+                text.Color(connectColor, ConnectRune(column.ConnectSign));
 
             if (graph.HasMore && i == rowLength - 1)
-            {   // Last column is the More, which only has connection (no branch rune)
+            { // Last column is the More, which only has connection (no branch rune)
                 continue;
             }
             // Draw the branch rune
-            if (column.BranchSign == Sign.Pass &&
-                passColor != Color.Black &&
-                passColor != Color.White)
+            if (column.BranchSign == Sign.Pass && passColor != Color.Black && passColor != Color.White)
             {
                 branchColor = passColor;
             }
@@ -64,7 +61,7 @@ class GraphWriter : IGraphWriter
 
         if (isHighlightBranch && isCurrentIndex)
         {
-            return column.BranchColor with { Background = Color.White };  // Current branch and current index
+            return column.BranchColor with { Background = Color.White }; // Current branch and current index
         }
         if (isHighlightBranch)
         {
@@ -74,44 +71,58 @@ class GraphWriter : IGraphWriter
         return column.BranchColor;
     }
 
-
     static string BranchRune(Sign bm)
     {
         // commit of a branch with only one commit (tip==bottom)
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom)
-            && bm.HasFlag(Sign.ActiveTip) && HasLeft(bm)) return "┺";
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && bm.HasFlag(Sign.ActiveTip) && HasLeft(bm))
+            return "┺";
 
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && HasLeft(bm)) return "╼";
-        if (bm.HasFlag(Sign.Bottom) && bm.HasFlag(Sign.ActiveTip)) return "┗";
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.Bottom) && HasLeft(bm))
+            return "╼";
+        if (bm.HasFlag(Sign.Bottom) && bm.HasFlag(Sign.ActiveTip))
+            return "┗";
 
         // commit is tip
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && HasLeft(bm)) return "╊";
-        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip)) return "┣";
-        if (bm.HasFlag(Sign.Tip) && HasLeft(bm)) return "┲";
-        if (bm.HasFlag(Sign.Tip)) return "┏";
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip) && HasLeft(bm))
+            return "╊";
+        if (bm.HasFlag(Sign.Tip) && bm.HasFlag(Sign.ActiveTip))
+            return "┣";
+        if (bm.HasFlag(Sign.Tip) && HasLeft(bm))
+            return "┲";
+        if (bm.HasFlag(Sign.Tip))
+            return "┏";
 
         // commit is bottom
 
-        if (bm.HasFlag(Sign.Bottom) && HasRight(bm)) return "┗";
-        if (bm.HasFlag(Sign.Bottom) && HasLeft(bm)) return "┺";
-        if (bm.HasFlag(Sign.Bottom)) return "┗";
+        if (bm.HasFlag(Sign.Bottom) && HasRight(bm))
+            return "┗";
+        if (bm.HasFlag(Sign.Bottom) && HasLeft(bm))
+            return "┺";
+        if (bm.HasFlag(Sign.Bottom))
+            return "┗";
 
         // commit is within branch
-        if (bm.HasFlag(Sign.Commit) && HasLeft(bm)) return "╊";
-        if (bm.HasFlag(Sign.Commit)) return "┣";
+        if (bm.HasFlag(Sign.Commit) && HasLeft(bm))
+            return "╊";
+        if (bm.HasFlag(Sign.Commit))
+            return "┣";
 
         // commit is not part of branch
-        if (bm.HasFlag(Sign.BLine) && HasLeft(bm)) return "╂";
-        if (bm.HasFlag(Sign.BLine)) return "┃";
-        if (bm.HasFlag(Sign.Resolve)) return "Φ";
+        if (bm.HasFlag(Sign.BLine) && HasLeft(bm))
+            return "╂";
+        if (bm.HasFlag(Sign.BLine))
+            return "┃";
+        if (bm.HasFlag(Sign.Resolve))
+            return "Φ";
 
-        if (bm == Sign.Pass) return "─";
-        if (bm == Sign.Blank) return " ";
+        if (bm == Sign.Pass)
+            return "─";
+        if (bm == Sign.Blank)
+            return " ";
 
         Log.Warn($"Unknown branch rune {bm}");
         return "*";
     }
-
 
     static string ConnectRune(Sign bm)
     {
@@ -187,9 +198,7 @@ class GraphWriter : IGraphWriter
 
     static bool HasLeft(Sign bm)
     {
-        return bm.HasFlag(Sign.BranchToLeft) ||
-            bm.HasFlag(Sign.MergeFromLeft) ||
-            bm.HasFlag(Sign.Pass);
+        return bm.HasFlag(Sign.BranchToLeft) || bm.HasFlag(Sign.MergeFromLeft) || bm.HasFlag(Sign.Pass);
     }
 
     static bool HasRight(Sign bm)
@@ -197,4 +206,3 @@ class GraphWriter : IGraphWriter
         return bm.HasFlag(Sign.MergeFromRight);
     }
 }
-

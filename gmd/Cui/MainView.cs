@@ -38,7 +38,9 @@ partial class MainView : IMainView
         IServer server,
         IProgress progress,
         IAboutDlg aboutDlg,
-        IUpdater updater) : base()
+        IUpdater updater
+    )
+        : base()
     {
         this.repoView = repoView;
         this.git = git;
@@ -62,14 +64,20 @@ partial class MainView : IMainView
         Colors.Error = ColorSchemes.ErrorDialog;
         Colors.Menu = ColorSchemes.Menu;
 
-        var mainView = new MainViewWrapper(OnReady) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), ColorScheme = ColorSchemes.Window };
+        var mainView = new MainViewWrapper(OnReady)
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            ColorScheme = ColorSchemes.Window,
+        };
 
         mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView);
         repoView.View.SetFocus();
 
         return mainView;
     }
-
 
     void OnReady()
     {
@@ -85,7 +93,7 @@ partial class MainView : IMainView
         // path = "/workspaces/gmd/tmp/Dependitor";
         // path = "/workspaces/GitMind";
         // path = "/workspaces/kal kl/gmd-3";
-        // path = "/workspaces/gmd-1";  
+        // path = "/workspaces/gmd-1";
         // path = "/workspaces/vscode";
         // path = "/workspaces/Dependinator-1";
         // path = "/workspaces/empty";
@@ -94,7 +102,7 @@ partial class MainView : IMainView
         if (!Try(out var rootPath, out var e, git.RootPath(path)) || IsShowMainMenu)
         {
             if (path != "")
-            {   // User specified an invalid folder on command line
+            { // User specified an invalid folder on command line
                 UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
             }
 
@@ -119,64 +127,67 @@ partial class MainView : IMainView
         return path;
     }
 
-
     void ShowMainMenu()
     {
         Log.Info("Show main menu");
         Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu());
 
         if (!config.Releases.IsUpdateAvailable())
-        {   // Check for update ...
-            updater.CheckUpdateAvailableAsync().ContinueWith(t =>
-            {
-                UI.Post(async () =>
+        { // Check for update ...
+            updater
+                .CheckUpdateAvailableAsync()
+                .ContinueWith(t =>
                 {
-                    if (!config.Releases.IsUpdateAvailable()) return;  // No update available
+                    UI.Post(async () =>
+                    {
+                        if (!config.Releases.IsUpdateAvailable())
+                            return; // No update available
 
-                    // Update is available, show menu again, which now will show the update available menu item
-                    await menu.CloseAsync();
-                    UI.Post(() => ShowMainMenu());
+                        // Update is available, show menu again, which now will show the update available menu item
+                        await menu.CloseAsync();
+                        UI.Post(() => ShowMainMenu());
+                    });
                 });
-            });
         }
 
-        menu.Show(Menu.Items
-            .Items(GetNewReleaseItems())
-            .Items(GetRecentRepoItems())
-            .Separator()
-            .Item("Browse ...", "", () => ShowBrowseDialog())
-            .Item("Clone ...", "", () => ShowCloneDlg())
-            .Item("Init ...", "", () => ShowInitRepoDlg())
-            .Item("Help ...", "", () => ShowHelp())
-            .Item("About ...", "", () => ShowAbout())
-            .Item("Quit", "Esc ", () => Application.RequestStop()));
+        menu.Show(
+            Menu.Items.Items(GetNewReleaseItems())
+                .Items(GetRecentRepoItems())
+                .Separator()
+                .Item("Browse ...", "", () => ShowBrowseDialog())
+                .Item("Clone ...", "", () => ShowCloneDlg())
+                .Item("Init ...", "", () => ShowInitRepoDlg())
+                .Item("Help ...", "", () => ShowHelp())
+                .Item("About ...", "", () => ShowAbout())
+                .Item("Quit", "Esc ", () => Application.RequestStop())
+        );
     }
-
 
     IEnumerable<MenuItem> GetNewReleaseItems()
     {
-        if (!config.Releases.IsUpdateAvailable()) return Menu.Items;
+        if (!config.Releases.IsUpdateAvailable())
+            return Menu.Items;
 
-        return Menu.Items
-           .Separator("New Release Available !!!")
-           .Item("Update to Latest Version ...", "", () => UpdateRelease().RunInBackground())
-           .Separator();
+        return Menu
+            .Items.Separator("New Release Available !!!")
+            .Item("Update to Latest Version ...", "", () => UpdateRelease().RunInBackground())
+            .Separator();
     }
-
 
     public async Task UpdateRelease()
     {
         var releases = config.Releases;
         var latest = Version.Parse(releases.LatestVersion);
         var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg = $"A new release is available.\n\n" +
-            $"Current Version: {Build.Version().Txt()}\n" +
-            $"Built:           {Build.Time().Iso()}\n\n" +
-            $"New Version:     {latest.Txt()} {typeText}\n" +
-            $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n" +
-            "Do you want to update?";
+        string msg =
+            $"A new release is available.\n\n"
+            + $"Current Version: {Build.Version().Txt()}\n"
+            + $"Built:           {Build.Time().Iso()}\n\n"
+            + $"New Version:     {latest.Txt()} {typeText}\n"
+            + $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n"
+            + "Do you want to update?";
 
-        var button = UI.InfoMessage("New Release", msg, new[] { "Yes", "No" });
+        var button = UI.InfoMessage("New Release", msg, ["Yes", "No"]);
         if (button != 0)
         {
             Log.Info($"Skip update");
@@ -187,7 +198,13 @@ partial class MainView : IMainView
         Log.Info($"Updating release ...");
         using (progress.Show())
         {
-            if (!Try(out var _, out var e, await updater.UpdateAsync()))
+            var updateTask = updater.UpdateAsync();
+            UI.ShowMessageWhile(
+                "Updating",
+                $"Updating to version {latest.Txt()},\nthis might take a while ...",
+                updateTask
+            );
+            if (!Try(out var _, out var e, await updateTask))
             {
                 UI.ErrorMessage($"Failed to update:\n{e}");
                 ShowMainMenu();
@@ -205,7 +222,6 @@ partial class MainView : IMainView
         Application.RequestStop();
     }
 
-
     private void ShowAbout()
     {
         aboutDlg.Show();
@@ -219,11 +235,10 @@ partial class MainView : IMainView
     }
 
     IEnumerable<MenuItem> GetRecentRepoItems() =>
-        config.RecentFolders
-            .Where(Directory.Exists)
+        config
+            .RecentFolders.Where(Directory.Exists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
             .Take(Config.MaxRecentFolders);
-
 
     void ShowRepo(string path)
     {
@@ -291,7 +306,6 @@ partial class MainView : IMainView
 
         ShowRepo(path);
     }
-
 
     // A workaround to get notifications once view is ready
     class MainViewWrapper : Toplevel

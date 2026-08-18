@@ -23,7 +23,8 @@ class AddTagDlg : IAddTagDlg
 
         dlg.Validate(() => name.Text != "", "Empty tag name");
 
-        if (!dlg.ShowOkCancel(name)) return R.Error();
+        if (!dlg.ShowOkCancel(name))
+            return R.Error();
 
         return new TagInfo(name.Text, message.Text);
     }

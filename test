@@ -1,3 +1,9 @@
 #!/bin/bash
 
-dotnet test gmdTest/gmdTest.csproj -v quiet --nologo -l:"console;verbosity=normal"
+# Any arguments are passed on to 'dotnet test', e.g. to skip the tests that run real git:
+#   ./test --filter "TestCategory!=Integration"
+#
+# '-tl:false' disables the MSBuild terminal logger, which the .NET 10 SDK turns on by default
+# in an interactive terminal. It swallows the console test logger output entirely, so without
+# this the run prints nothing at all when stdout is a terminal (but everything when piped).
+dotnet test gmdTest/gmdTest.csproj -tl:false -v quiet --nologo -l:"console;verbosity=normal" "$@"

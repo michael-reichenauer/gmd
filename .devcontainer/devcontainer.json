@@ -1,17 +1,28 @@
 {
 	"name": "C# (.NET)",
-	"image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
+	"image": "mcr.microsoft.com/devcontainers/dotnet:10.0",
 	"customizations": {
 		"vscode": {
 			// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
 				"ms-dotnettools.csharp",
+				"csharpier.csharpier-vscode",
 				"mhutchie.git-graph",
 				"streetsidesoftware.code-spell-checker"
 			]
 		}
 	},
-	"postCreateCommand": "dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj",
+	// Keep Claude Code's state — settings, session history, plans and memory — across container
+	// rebuilds. Only /workspaces is a real volume; everything else, including /home/vscode, lives on
+	// the container's overlay layer and is wiped when the container is rebuilt.
+	// Note this persists Claude's *state*, not the CLI itself: the binary installs to
+	// ~/.local/share/claude, so ./installtools is still needed after a rebuild (as it is for tmux,
+	// mc and lnav anyway).
+	"mounts": ["source=gmd-claude-home,target=/home/vscode/.claude,type=volume"],
+	// The chown is required, not defensive: Docker creates a named volume root-owned when the image
+	// has no directory at the mount point, and the base image has no /home/vscode/.claude — so
+	// without this the vscode user cannot write to its own Claude directory.
+	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"
 }

@@ -1,10 +1,10 @@
 namespace gmd.Server.Private.Augmented;
 
-// AugmentedRepoService returns augmented repos of git repo information, The augmentations 
-// adds information not available in git directly, but can be inferred by parsing the 
-// git information. 
+// AugmentedRepoService returns augmented repos of git repo information, The augmentations
+// adds information not available in git directly, but can be inferred by parsing the
+// git information.
 // Examples of augmentation is which branch a commits belongs to and the hierarchical structure
-// of branches. 
+// of branches.
 interface IAugmentedService
 {
     // RepoChange events when git repo changes like new commit, new branches, ...
@@ -21,14 +21,22 @@ interface IAugmentedService
 
     Task<R> FetchAsync(string path);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<R> CreateBranchFromBranchAsync(Repo augmentedRepo, string newBranchName, string sourceBranch, bool isCheckout, string wd);
+    Task<R> CreateBranchFromBranchAsync(
+        Repo augmentedRepo,
+        string newBranchName,
+        string sourceBranch,
+        bool isCheckout,
+        string wd
+    );
     Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
 
     Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<R> UnresolveAmbiguityAsync(Repo augmentedRepo, string commitId);
     Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
     Task<R> PushMetaDataAsync(string wd);
     Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
+    Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
     Task<R> RebaseBranchAsync(Repo repo, string name);
     Task<R> SwitchToAsync(Repo repo, string branchName);
     Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);

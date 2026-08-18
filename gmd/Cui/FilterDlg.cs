@@ -12,6 +12,9 @@ interface IFilterDlg
 class FilterDlg : IFilterDlg
 {
     const int MaxResults = 5000;
+
+    // The dialog's own height, i.e. how far down the log view has to move to stay clear of it
+    const int DialogHeight = 3;
     readonly IServer server;
     readonly IBranchColorService branchColorService;
 
@@ -19,7 +22,7 @@ class FilterDlg : IFilterDlg
     UITextField filterField = null!;
     UILabel statusLabel = null!;
 
-    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = new Dictionary<MouseFlags, OnMouseCallback>();
+    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = [];
     Action<Repo> onRepoChanged = null!;
     Server.Repo orgRepo = null!;
     Server.Repo currentRepo = null!;
@@ -29,13 +32,11 @@ class FilterDlg : IFilterDlg
     Text repoInfo = Text.Empty;
     int closeX = 0;
 
-
     internal FilterDlg(IServer server, IBranchColorService branchColorService)
     {
         this.server = server;
         this.branchColorService = branchColorService;
     }
-
 
     public R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
@@ -45,7 +46,22 @@ class FilterDlg : IFilterDlg
         this.onRepoChanged = onRepoChanged;
         this.resultsView = commitsView;
 
-        dlg = new UIDialog("Filter Commits", Dim.Fill() + 1, 3, OnDialogKey, options => { options.X = -1; options.Y = -1; });
+        dlg = new UIDialog(
+            "Filter Commits",
+            Dim.Fill() + 1,
+            DialogHeight,
+            OnDialogKey,
+            // X = -1 pushes the dialog's left border off screen, so its content lines up with the
+            // log view below it. Y = -1 pins it to the top: Terminal.Gui clamps a Toplevel's Y to
+            // the screen, so it lands on row 0 rather than the bottom it would otherwise be
+            // centered at — but that also means the top border cannot be hidden the way the left
+            // one is, which is what Show() has to work around.
+            options =>
+            {
+                options.X = -1;
+                options.Y = -1;
+            }
+        );
         dlg.RegisterMouseHandler(OnMouseEvent);
 
         dlg.AddLabel(0, 0, Text.BrightMagenta(" Gmd"));
@@ -56,19 +72,33 @@ class FilterDlg : IFilterDlg
         closeX = searchLabelX + 8 + 29 + 2;
         var closeButton = dlg.AddLabel(closeX, 0, Text.White("X"));
 
-        filterField.KeyUp += (k) => OnFilterFieldKeyUp(k);    // Update results and select commit on keys
+        filterField.KeyUp += (k) => OnFilterFieldKeyUp(k); // Update results and select commit on keys
 
         statusLabel = dlg.AddLabel(5, 0);
 
         // Initializes results with current repo commits
         UI.Post(() => UpdateFilteredResults().RunInBackground());
 
-        dlg.Show(filterField);
+        // The dialog is drawn over the top of the log view and needs one row more than it has to
+        // cover: its border, its one content row and its border again, against the two rows of
+        // application bar. So its bottom border lands on the log view's first row. Move the log
+        // view down for as long as the dialog is up, or the topmost result is never visible — and
+        // a filter matching a single commit looks like it matched none.
+        var orgY = commitsView.Y;
+        commitsView.Y = DialogHeight;
+        try
+        {
+            dlg.Show(filterField);
+        }
+        finally
+        {
+            commitsView.Y = orgY;
+        }
 
         return selectedCommit;
     }
 
-    // User pressed key in filter field, update results 
+    // User pressed key in filter field, update results
     void OnFilterFieldKeyUp(View.KeyEventEventArgs e)
     {
         UpdateFilteredResults().RunInBackground();
@@ -78,7 +108,7 @@ class FilterDlg : IFilterDlg
     bool OnDialogKey(Key key)
     {
         if (key == Key.Enter)
-        {   // User selected commit from list
+        { // User selected commit from list
             var commit = currentRepo.ViewCommits[resultsView.CurrentIndex];
             if (commit.BranchName != "<none>")
                 this.selectedCommit = commit;
@@ -91,7 +121,6 @@ class FilterDlg : IFilterDlg
         ShowCommitInfo();
         return rsp;
     }
-
 
     bool StepUpDownInResultList(Key key)
     {
@@ -121,7 +150,6 @@ class FilterDlg : IFilterDlg
         return false;
     }
 
-
     // Support scrolling with mouse wheel (see ContentView.cs for details)
     bool OnMouseEvent(MouseEvent ev)
     {
@@ -131,7 +159,6 @@ class FilterDlg : IFilterDlg
             dlg.Close();
             return true;
         }
-
 
         if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
         {
@@ -153,20 +180,23 @@ class FilterDlg : IFilterDlg
         return false;
     }
 
-
     async Task UpdateFilteredResults()
     {
         var filter = filterField.Text.Trim();
-        if (filter == currentFilter) return;
+        if (filter == currentFilter)
+            return;
         currentFilter = filter;
 
-        if (filter != "" && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults)))
-        {   // Got new filtered repo, update results
+        if (
+            filter != ""
+            && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults))
+        )
+        { // Got new filtered repo, update results
             currentRepo = filteredRepo;
             resultsView.MoveToTop();
         }
         else
-        {   // Restore original repo
+        { // Restore original repo
             currentRepo = orgRepo;
         }
 
@@ -175,7 +205,6 @@ class FilterDlg : IFilterDlg
         onRepoChanged(currentRepo);
     }
 
-
     void ShowCommitInfo()
     {
         var index = resultsView.CurrentIndex;
@@ -183,7 +212,8 @@ class FilterDlg : IFilterDlg
         {
             statusLabel.Text = repoInfo;
             return;
-        };
+        }
+        ;
 
         var commit = currentRepo.ViewCommits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];
@@ -191,15 +221,14 @@ class FilterDlg : IFilterDlg
         statusLabel.Text = Text.Add(repoInfo).Cyan($" {commit.Sid}").Color(color, $" ({branch.NiceNameUnique})");
     }
 
-
     Text GetRepoInfo()
     {
         var commitCount = currentRepo.ViewCommits.Count(c => c.BranchName != "<none>");
-        var branchCount = currentRepo.ViewCommits.Select(c => c.BranchPrimaryName).Where(b => b != "<none>").Distinct().Count();
+        var branchCount = currentRepo
+            .ViewCommits.Select(c => c.BranchPrimaryName)
+            .Where(b => b != "<none>")
+            .Distinct()
+            .Count();
         return Text.Dark($"{commitCount} commits, {branchCount} branches,");
     }
 }
-
-
-
-

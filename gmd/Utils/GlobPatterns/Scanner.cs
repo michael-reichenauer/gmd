@@ -1,6 +1,5 @@
 ﻿using System;
 
-
 namespace gmd.Utils.GlobPatterns
 {
     class Scanner
@@ -74,7 +73,15 @@ namespace gmd.Utils.GlobPatterns
                 return TakeIdentifier();
             }
 
-            if (IsNumeric(current) || current == '_' || current == '$' || current == '~' || current == '(' || current == ')' || current == ' ')
+            if (
+                IsNumeric(current)
+                || current == '_'
+                || current == '$'
+                || current == '~'
+                || current == '('
+                || current == ')'
+                || current == ' '
+            )
             {
                 return TakeIdentifier();
             }
@@ -124,13 +131,14 @@ namespace gmd.Utils.GlobPatterns
                     return TokenKind.PathSeparator;
 
                 default:
-                    throw new Exception("Unable to scan for next token. Stuck on '" + (char)this._currentCharacter + "'");
+                    throw new Exception(
+                        "Unable to scan for next token. Stuck on '" + (char)this._currentCharacter + "'"
+                    );
             }
         }
 
         private TokenKind TakeIdentifier()
         {
-
             while (IsIdentifierCharacter((char)this._currentCharacter))
             {
                 this.TakeIt();
@@ -139,7 +147,8 @@ namespace gmd.Utils.GlobPatterns
             return TokenKind.Identifier;
         }
 
-        private static bool IsIdentifierCharacter(char c) => char.IsLetter(c) || IsNumeric(c) || c == '_' || c == '$' || c == '~' || c == '(' || c == ')' || c == ' ';
+        private static bool IsIdentifierCharacter(char c) =>
+            char.IsLetter(c) || IsNumeric(c) || c == '_' || c == '$' || c == '~' || c == '(' || c == ')' || c == ' ';
 
         private static bool IsNumeric(char c) => char.IsDigit(c) || c == '.' || c == '-';
     }

@@ -39,7 +39,8 @@ class ViewRepo : IViewRepo
         Func<IViewRepo, IRepoView, ICommitCommands> newCommitCommands,
         Func<IViewRepo, IRepoView, IBranchCommands> newBranchCommands,
         IGraphCreater graphService,
-        IServer server)
+        IServer server
+    )
     {
         this.repoView = repoView;
         this.serverRepo = serverRepo;
@@ -65,12 +66,9 @@ class ViewRepo : IViewRepo
     public Commit RowCommit => serverRepo.ViewCommits[CurrentIndex];
     public Branch RowBranch => serverRepo.BranchByName[RowCommit.BranchName];
 
-
     public int CurrentIndex => Math.Min(repoView.CurrentIndex, serverRepo.ViewCommits.Count - 1);
 
-    public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
-        server.GetCommitBranches(Repo, RowCommit.Id, isAll);
+    public IReadOnlyList<Branch> GetCommitBranches(bool isAll) => server.GetCommitBranches(Repo, RowCommit.Id, isAll);
 
     public string CurrentAuthor => server.CurrentAuthor;
 }
-

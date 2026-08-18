@@ -1,7 +1,5 @@
-
 using gmd.Cui.Common;
 using Terminal.Gui;
-using Clipboard = gmd.Utils.Clipboard;
 
 interface IUnicodeSetsDlg
 {
@@ -11,8 +9,16 @@ interface IUnicodeSetsDlg
 class UnicodeSetsDlg : IUnicodeSetsDlg
 {
     record Set(string Name, int start, int end);
+
+    readonly IClipboardService clipboard;
+
     IReadOnlyList<Text> content = null!;
     ContentView contentView = null!;
+
+    public UnicodeSetsDlg(IClipboardService clipboard)
+    {
+        this.clipboard = clipboard;
+    }
 
     public void Show()
     {
@@ -33,14 +39,16 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
     {
         var text = contentView.CopySelectedText();
         Log.Info($"Copy: '{text}'");
-        Clipboard.Set(text);
+        if (!Try(out var e, clipboard.Set(text)))
+            UI.ErrorMessage(e.AllErrorMessages());
     }
 
-    // Returns a list of texts of all the characters in each set in batches 
+    // Returns a list of texts of all the characters in each set in batches
     // Not all sets are included, only those most likely to be useful
     IReadOnlyList<Text> GetContent()
     {
-        var sets = new List<Set>(){
+        var sets = new List<Set>()
+        {
             new Set("Basic Latin", 0x0020, 0x007E),
             new Set("Latin-1 Supplement", 0x0080, 0x00FF),
             new Set("Box Drawing", 0x2500, 0x257F),
@@ -55,13 +63,11 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
             new Set("Miscellaneous Mathematical Symbols-B", 0x2980, 0x29FF),
             new Set("Supplemental Mathematical Operators", 0x2A00, 0x2AFF),
             new Set("Miscellaneous Symbols and Arrows", 0x2B00, 0x2BFF),
-
             new Set("CJK Compatibility Forms", 0xFE30, 0xFE4F),
             new Set("CJK Symbols and Punctuation", 0x3000, 0x303F),
             new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
             new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
             new Set("Alchemical Symbols", 0x1F700, 0x1F77F),
-
             new Set("Latin Extended-A", 0x0100, 0x017F),
             new Set("Latin Extended-B", 0x0180, 0x024F),
             new Set("Latin Extended Additional", 0x1E00, 0x1EFF),
@@ -72,14 +78,12 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
             new Set("Latin Extended-G", 0xA7F2, 0xA7FF),
             new Set("IPA Extensions", 0x0250, 0x02AF),
             new Set("Spacing Modifier Letters", 0x02B0, 0x02FF),
-
             new Set("Greek and Coptic", 0x0370, 0x03FF),
             new Set("Greek Extended", 0x1F00, 0x1FFF),
             new Set("Cyrillic", 0x0400, 0x04FF),
             new Set("Cyrillic Supplement", 0x0500, 0x052F),
             new Set("Cyrillic Extended-A", 0x2DE0, 0x2DFF),
             new Set("Cyrillic Extended-B", 0xA640, 0xA69F),
-
             new Set("Unified Canadian Aboriginal Syllabics Extended", 0x18B0, 0x18FF),
             new Set("Unified Canadian Aboriginal Syllabics", 0x1400, 0x167F),
             new Set("Ogham", 0x1680, 0x169F),
@@ -98,7 +102,6 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
             new Set("Optical Character Recognition", 0x2440, 0x245F),
             new Set("Enclosed Alphanumerics", 0x2460, 0x24FF),
             new Set("Braille Patterns", 0x2800, 0x28FF),
-           
 
             // Strange characters
             // new Set("Armenian", 0x0530, 0x058F),
@@ -180,7 +183,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
                 var rowChars = new List<char>();
                 for (int j = i; j < i + charsPerRow; j++)
                 {
-                    var c = j <= set.end ? (char)j : ' ';  // Fill out the end of the row with spaces
+                    var c = j <= set.end ? (char)j : ' '; // Fill out the end of the row with spaces
                     rowChars.Add(c);
                     rowChars.Add(' ');
                 }
@@ -188,7 +191,8 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
                 // Add the row of characters with border sides
                 var codeText = Text.Dark($"{i:X4}").Dark("│ ");
                 allRows.Add(Text.Dark(" │").Add(codeText).White(string.Join("", rowChars.ToArray())).Dark("│"));
-                if (i + charsPerRow <= set.end) allRows.Add(Text.Dark(" ├─").Dark(borderLine).Dark("┤"));
+                if (i + charsPerRow <= set.end)
+                    allRows.Add(Text.Dark(" ├─").Dark(borderLine).Dark("┤"));
             }
 
             // Bottom border
@@ -198,4 +202,3 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
         return allRows;
     }
 }
-

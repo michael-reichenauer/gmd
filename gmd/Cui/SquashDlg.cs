@@ -1,7 +1,7 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
 using gmd.Cui.RepoView;
 using gmd.Server;
+using Terminal.Gui;
 
 namespace gmd.Cui;
 
@@ -9,7 +9,6 @@ interface ISquashDlg
 {
     bool Show(IViewRepo repo, IReadOnlyList<Server.Commit> commits, out string message);
 }
-
 
 class SquashDlg : ISquashDlg
 {
@@ -39,9 +38,7 @@ class SquashDlg : ISquashDlg
         return dlg.IsOK;
     }
 
-    string GetRange(IReadOnlyList<Commit> commits) =>
-        $"{commits.First().Sid}...{commits.Last().Sid}";
-
+    string GetRange(IReadOnlyList<Commit> commits) => $"{commits.First().Sid}...{commits.Last().Sid}";
 
     static (string, string) ParseMessage(string msg)
     {
@@ -71,7 +68,8 @@ class SquashDlg : ISquashDlg
 
     private string GetCombinedMessages(IReadOnlyList<Commit> commits)
     {
-        if (commits == null || commits.Count == 0) return "";
+        if (commits == null || commits.Count == 0)
+            return "";
 
         return commits.Reverse().Select(c => c.Message).Join("\n-----\n");
     }
@@ -96,6 +94,4 @@ class SquashDlg : ISquashDlg
 
         return msgText;
     }
-
 }
-

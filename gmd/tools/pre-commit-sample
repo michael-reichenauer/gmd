@@ -1,0 +1,30 @@
+#!/bin/sh
+
+# Formats staged C# files with CSharpier before the commit is created, so that
+# formatting never lands unformatted in history.
+#
+# Installed by './installtools' (copies this to .git/hooks/pre-commit).
+# Skip a single commit with: git commit --no-verify
+
+# Only consider staged files that still exist (Added/Copied/Modified/Renamed)
+staged_cs_files=$(git diff --cached --name-only --diff-filter=ACMR -z | tr '\0' '\n' | grep '\.cs$')
+
+if [ -z "$staged_cs_files" ]; then
+    exit 0
+fi
+
+if ! dotnet tool run csharpier --version >/dev/null 2>&1; then
+    echo "pre-commit: CSharpier not available, run 'dotnet tool restore'. Skipping formatting."
+    exit 0
+fi
+
+echo "$staged_cs_files" | while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    dotnet tool run csharpier format "$file" >/dev/null 2>&1 || {
+        echo "pre-commit: CSharpier failed on $file (syntax error?), committing as is."
+        continue
+    }
+    git add -- "$file"
+done
+
+exit 0
