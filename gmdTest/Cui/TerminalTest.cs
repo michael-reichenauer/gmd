@@ -471,11 +471,18 @@ public class TerminalTest
         using var gmd = TmuxSession.StartGmd(repo);
         var before = gmd.WaitFor("Initial");
 
-        // Down to the merge commit, left to hoover the branch it merged in, enter to show it
+        // Down to the merge commit, left to hoover the branch it merged in, enter to show it.
+        //
+        // Both waits are for the screen to settle rather than for any text, and that is as strong
+        // as this one gets: neither key changes anything drawn. Moving the current row only moves a
+        // highlight, which is a background, and moving the hoover shows nowhere at all — the
+        // application bar keeps naming 'main' until the branch is actually shown. So there is no
+        // 'wait for what changed' to use here, and WaitFor("Merge branch") would only have looked
+        // like one, since that text is already on screen before the first key.
         gmd.Send("Down");
-        gmd.WaitFor("Merge branch");
+        gmd.WaitForStable();
         gmd.Send("Left");
-        gmd.WaitFor("Merge branch");
+        gmd.WaitForStable();
         gmd.Send("Enter");
 
         ScreenText.AssertEqual(
@@ -824,11 +831,453 @@ public class TerminalTest
             Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
             Gmd 3 commits, 2 branches, 4e73d2 (main)                                      Search: dev                          ] X │
             ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
              ╰╊   More dev work                                                          (dev) af3ee6 Test User      24-10-15 12:03
               ┗   Work on dev                                                                  d997ad Test User      24-10-15 12:02
             """,
             gmd.WaitFor("More dev work"),
             repo.Path
+        );
+    }
+
+    // A filter matching nothing says so in a row of its own rather than emptying the list.
+    // Regression test for two bugs that hid it: ViewRepoCreater built that row all along and
+    // discarded it (ViewRepoCreater.cs:73), and the dialog was drawn over the log view's first
+    // row, so even once it was returned it was covered. Note the counts still read 0 — the row
+    // is on the virtual '<none>' branch, which the dialog counts as neither commit nor branch.
+    [TestMethod]
+    public async Task TestFilterWithNoMatchesSaysSo()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+        gmd.SendText("zzzznothing");
+
+        // The row is virtual, so its time is DateTime.Now rather than a commit date and has to be
+        // masked, exactly as the uncommitted row's is
+        Assert.AreEqual(
+            """
+            Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+            Gmd 0 commits, 0 branches, ffffff (<none>)                                    Search: zzzznothing                  ] X │
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+            ┏   <... No commits matching filter ...>                                 (~<none>) ffffff                NN-NN-NN NN:NN
+            """,
+            ScreenText.MaskTimes(
+                ScreenText.Of(gmd.WaitFor("No commits matching filter"), repo.Path),
+                "No commits matching"
+            )
+        );
+    }
+
+    // Stashing, i.e. the menu, the dialog behind it and what the log view says afterwards. The
+    // 'ß' is drawn nowhere else, so this is the only cover WriteBlankOrStash has at any tier.
+    //
+    // Four moves down to 'Stash' rather than five: 'Amend ...' is disabled without a remote to be
+    // ahead of, and OnCursorDown skips it. With a clean tree it is three, since 'Stash Changes'
+    // being disabled changes what is enabled above as well — see TestStashPopBringsTheChangesBack.
+    [TestMethod]
+    public async Task TestStashPutsTheChangesAsideAndMarksTheCommit()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        for (int i = 0; i < 4; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("Stash Changes");
+        gmd.Send("Enter");
+        gmd.WaitFor("Stash Message");
+        gmd.SendText("stashed work");
+        gmd.Send("Enter");
+
+        // The uncommitted row is gone, the tree is clean, and the commit it was stashed on carries
+        // the 'ß'. The application bar counts it too, where the change count used to be.
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main, ß1                                                   (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣ ß● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
+            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
+            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
+            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("uncommitted"),
+            repo.Path
+        );
+
+        Assert.AreEqual("stash@{0}: On main: stashed work", await repo.GitAsync("stash list"));
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "The working tree is clean again");
+    }
+
+    // And back again. Three moves rather than four, since a clean tree disables 'Stash Changes',
+    // which is also why 'Stash Pop' is where the cursor lands when the sub menu opens.
+    [TestMethod]
+    public async Task TestStashPopBringsTheChangesBack()
+    {
+        using var repo = await E2eRepo.CreateWithStashAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        for (int i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("Stash Pop");
+        gmd.Send("Right");
+        gmd.WaitFor("stashed work");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("uncommitted");
+        Assert.AreEqual("", await repo.GitAsync("stash list"), "The stash is gone once it is popped");
+        Assert.AreEqual(
+            """
+             M alpha.txt
+            ?? epsilon.txt
+            """,
+            await repo.GitAsync("status --porcelain"),
+            "Both the modified file and the untracked one come back"
+        );
+    }
+
+    // Deleting a branch, which is one item below the rename above and so one move further down
+    [TestMethod]
+    public async Task TestDeleteBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Branch: dev");
+        for (var i = 0; i < 7; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        gmd.WaitFor("Delete Branch");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Delete Branch");
+        StringAssert.DoesNotMatch(
+            await repo.GitAsync("branch --list"),
+            new System.Text.RegularExpressions.Regex(@"\bdev\b"),
+            "The branch is gone from git"
+        );
+    }
+
+    // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
+    // working tree. Reached through the commit menu's Undo sub menu.
+    //
+    // On a clean tree the menu opens with the cursor already on 'Commit Diff ...' — 'Commit ...'
+    // and 'Amend ...' are both disabled, and Menu.Show starts on the first item that is not — so
+    // 'Undo' is one move away rather than three.
+    [TestMethod]
+    public async Task TestUncommitTheLastCommit()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("Uncommit");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        // The commit is gone and what it added is back in the working tree as an untracked file
+        gmd.WaitFor("uncommitted");
+        Assert.AreEqual("Merge branch 'dev' into main", await repo.GitAsync("log --format=%s -1"));
+        Assert.AreEqual("?? delta.txt", await repo.GitAsync("status --porcelain"));
+    }
+
+    // Pushing the current branch with 'p'. The fixture has one commit that is not on the remote,
+    // so before the push the local and remote branches are on different commits and each names
+    // itself — '(^/main)' on the remote's tip and '(● main)' on the local one — and the commit
+    // between them carries the bright green '▲'. Afterwards they are back on the same commit and
+    // are drawn as the one combined '(^)(● main)' tip.
+    //
+    // This is the only test here that pushes, so it is also the only cover the ahead markers and
+    // the split branch tips have at this tier.
+    [TestMethod]
+    public async Task TestPushTheCurrentBranch()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺ ●▲Add zeta                                                            (● main) 4dd1e9 Test User      24-10-15 12:07
+            ┣╯    Add delta                                                     (^/main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitForStable(),
+            repo.Path
+        );
+
+        gmd.Send("p");
+
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣─┺ ● Add zeta                                                         (^)(● main) 4dd1e9 Test User      24-10-15 12:07
+            ┣     Add delta                                                             [v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("▲"),
+            repo.Path
+        );
+
+        Assert.AreEqual(
+            await repo.GitAsync("rev-parse main"),
+            await repo.GitAsync("rev-parse origin/main"),
+            "The remote branch is on the commit the local one is"
+        );
+
+        // v1.0 is still there, and still unpushed: pushing a branch does not push its tags,
+        // and the fetch that follows no longer prunes the ones the remote has not got
+        Assert.AreEqual("v1.0", await repo.GitAsync("tag --list"));
+    }
+
+    // Pulling with 'u', the mirror of the push above: origin has a commit the local branch has
+    // not got, so it is drawn bright blue with the '▼' behind marker until it is pulled in.
+    [TestMethod]
+    public async Task TestPullTheCurrentBranch()
+    {
+        using var repo = await E2eRepo.CreateBehindOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main, ▼1                                                   (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣    ▼Add zeta                                                            (^/main) 4dd1e9 Test User      24-10-15 12:07
+            ┣─┺ ● Add delta                                                     (● main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitForStable(),
+            repo.Path
+        );
+
+        gmd.Send("u");
+
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣─┺ ● Add zeta                                                         (^)(● main) 4dd1e9 Test User      24-10-15 12:07
+            ┣     Add delta                                                             [v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
+            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
+            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
+            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("▼"),
+            repo.Path
+        );
+
+        Assert.AreEqual(
+            await repo.GitAsync("rev-parse origin/main"),
+            await repo.GitAsync("rev-parse main"),
+            "The local branch has caught up with the remote"
+        );
+    }
+
+    // Cherry-picking a commit from another branch onto the current one. It runs with --no-commit
+    // and hands what it staged to the commit dialog, which is why the dialog opens with the picked
+    // commit's message already in it.
+    //
+    // 'Up' first: the cursor opens on the current branch's tip, and cherry-pick is only offered for
+    // a commit that is not on the current branch (rb != cb). One move up is 'Add gamma' on main,
+    // and it is a move that lands there whether the cursor started on row 0 or row 1.
+    //
+    // Then seven moves down to it. The menu opens on 'Commit Diff ...' — with nothing to commit,
+    // 'Commit ...' and 'Amend ...' are both disabled and Menu.Show starts on the first that is not.
+    [TestMethod]
+    public async Task TestCherryPickACommitFromAnotherBranch()
+    {
+        using var repo = await E2eRepo.CreateWithUnmergedBranchAsync();
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
+        gmd.WaitFor("Work on dev");
+
+        gmd.Send("Up");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Cherry Pick Commit to dev");
+        for (var i = 0; i < 7; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        // The dialog arrives filled in with the message of the commit being picked
+        gmd.WaitFor("Add gamma, 1 uncommitted changes");
+        gmd.Send("Enter");
+
+        // 'dev' now has its own copy of the commit, with an id of its own, and main still has the
+        // original — the same subject on two branches is what a cherry-pick looks like
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+              ┣ ● Add gamma                                                            (● dev) b03776 Test User      24-10-15 12:03
+            ┣ ┃   Add gamma                                                             (main) de2e9a Test User      24-10-15 12:02
+            ┃╭┺   Work on dev                                                                  ee3602 Test User      24-10-15 12:01
+            ┗╯    Initial                                                                      9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("uncommitted"),
+            repo.Path
+        );
+
+        Assert.AreEqual(
+            """
+            Add gamma
+            Work on dev
+            Initial
+            """,
+            await repo.GitAsync("log --format=%s")
+        );
+    }
+
+    // Squashing a range of commits into one. The range is a shift-selection of two rows, which is
+    // what puts the ids into the menu item's own text and is what enables it at all.
+    [TestMethod]
+    public async Task TestSquashTwoCommitsIntoOne()
+    {
+        using var repo = await E2eRepo.CreatePushedPlainCommitsAsync(4);
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(4));
+        gmd.WaitFor("Commit number 00");
+
+        gmd.Send("S-Down");
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit Diff ...");
+        for (var i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+
+        // The item names the range it would squash, which is how it says a selection was picked up
+        gmd.WaitFor("Squash c02add...8332dd");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Squash c02add...8332dd on 'main'");
+        gmd.Send("Enter");
+
+        // The two are now one, and the branch has diverged from its remote: one commit ahead of
+        // origin and two behind it, since the originals are still the remote's. Which is the
+        // clearest possible illustration of why squashing pushed commits is the wrong way round.
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main, ▼2, ▲1                                               (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺ ●▲Commit number 02                                                    (● main) 96a909 Test User      24-10-15 12:04
+            ┣│   ▼Commit number 03                                                    (^/main) c02add Test User      24-10-15 12:03
+            ┣│   ▼Commit number 02                                                             8332dd Test User      24-10-15 12:02
+            ┣╯    Commit number 01                                                             5692a8 Test User      24-10-15 12:01
+            ┗     Commit number 00                                                             a823b7 Test User      24-10-15 12:00
+            """,
+            gmd.WaitFor("▲"),
+            repo.Path
+        );
+
+        Assert.AreEqual(
+            """
+            Commit number 02
+            Commit number 01
+            Commit number 00
+            """,
+            await repo.GitAsync("log --format=%s"),
+            "The top two commits are one, keeping the older of the two messages"
+        );
+    }
+
+    // Regression test: squashing commits that have not been pushed. This used to be refused, with
+    // "Commits not on current branch", because the guard asked for 'IsLocalCurrent' alone — a flag
+    // only ever set on a *remote* branch whose local branch is current (Augmenter.cs:63). A commit
+    // that has not been pushed belongs to the local branch, which never carries it.
+    //
+    // Which was the wrong way round: the commits it did allow were the ones already published.
+    [TestMethod]
+    public async Task TestSquashCommitsThatHaveNotBeenPushed()
+    {
+        using var repo = await E2eRepo.CreateLongAsync(4);
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(4));
+        gmd.WaitFor("Commit number 00");
+
+        gmd.Send("S-Down");
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit Diff ...");
+        for (var i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("Squash c02add...8332dd");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Squash c02add...8332dd on 'main'");
+        gmd.Send("Enter");
+
+        // With no remote there is nothing left behind, so the two rows simply become one
+        gmd.WaitUntilGone("Commit number 03");
+        Assert.AreEqual(
+            """
+            Commit number 02
+            Commit number 01
+            Commit number 00
+            """,
+            await repo.GitAsync("log --format=%s")
         );
     }
 

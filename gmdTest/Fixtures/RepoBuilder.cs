@@ -191,6 +191,9 @@ class RepoBuilder
         return this;
     }
 
+    // The operation parameters are what names a stopped operation to the user: which branch is
+    // being rebased and how far it has got, and whether a commit is all that is left of it (true
+    // for a merge, false for a rebase, which has to be told to carry on).
     public RepoBuilder WithStatus(
         int modified = 0,
         int added = 0,
@@ -198,7 +201,11 @@ class RepoBuilder
         int conflicted = 0,
         GitOp operation = GitOp.None,
         string mergeMessage = "",
-        string mergeHeadCommit = ""
+        string mergeHeadCommit = "",
+        string operationBranchName = "",
+        int operationStep = 0,
+        int operationTotal = 0,
+        bool isFinishedByCommit = true
     )
     {
         status = new GitStatus(
@@ -210,10 +217,10 @@ class RepoBuilder
             operation,
             mergeMessage,
             mergeHeadCommit == "" ? "" : Sha(mergeHeadCommit),
-            "",
-            0,
-            0,
-            true,
+            operationBranchName,
+            operationStep,
+            operationTotal,
+            isFinishedByCommit,
             [],
             [],
             [],
@@ -264,6 +271,11 @@ class RepoBuilder
     // The view repo for one of the show-all modes, e.g. all active branches
     public async Task<Repo> ViewRepoAsync(ShowBranches show, int count = 1, params string[] showBranches) =>
         NewViewRepoCreater().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches, show, count);
+
+    // The view repo the filter dialog renders, i.e. only the commits matching the filter, on the
+    // branches those commits are on. The default count is what FilterDlg passes.
+    public async Task<Repo> FilteredViewRepoAsync(string filter, int maxCount = 5000) =>
+        NewViewRepoCreater().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount);
 
     // The real server layer, with git, the file monitor and the config faked out. Needed for the
     // branch show/hide commands, which work on an already created view repo.

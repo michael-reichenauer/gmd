@@ -2760,3 +2760,417 @@ a real fetch against a real remote, leaves an unpushed tag alone.
   `origin` already; this follows that rather than widening it.
 - **Cleaning up the mirror when a remote is removed.** The refs are harmless and tiny, and the
   namespace is gmd's own, so nothing else trips over them.
+
+---
+
+## Step 18 — Test the diff body rendering ✅ done
+
+**From a coverage survey of the whole suite against the whole product.** The git layer and the
+augmentation pipeline are well covered; the gaps are in `gmd/Cui/` rendering and commands. The
+largest of them was the diff.
+
+`gmdTest/Cui/Diff/DiffServiceTest.cs` did call `ToDiffRows`, which made it look covered — but the
+only assertions were on file-header text and on `FindClosestLineIndex`. **`DiffRow.Right` was never
+touched by any test in the repo, and `DiffRowMode` was never asserted.** So the whole side-by-side
+rendering rested on about five end-to-end screen snapshots: `AddBlocks` (the left/right pairing and
+the `░` filler), `GetDiffSides` (the DiffPlex character diff, which is DiffPlex's only use in the
+codebase, plus the `RedBg`/`GreenBg` whitespace marking), `AddCommitSummery`,
+`AddDiffFileNamesSummery`, `ToColorText`, `ToDiffModeText` and `AsConflicted`.
+
+That made the diff the odd one out among the three side views, whose split exists precisely so the
+deciding half can be tested: `BlameService` has 18 tests and the conflict classes 28 between them.
+
+**25 tests, appended to the existing file.** Suite is now 695 fast, 75 integration, 52 E2E.
+
+### What was built
+
+- **`gmdTest/Fixtures/DiffText.cs`** — the diff's rows as a picture, the mirror of `GraphText`.
+  `Of` is the whole diff, `BodyOf` just the first file's section (between the two `─` rules), and
+  `ColorsOf`/`BodyColorsOf` give one letter per rune lined up underneath. `BodyRowsOf` is the same
+  slice as `DiffRow`s, for the assertions that are about numbers rather than the picture.
+- **`gmdTest/Fixtures/TextColors.cs`** — the color-letter mapping, lifted out of `GraphText`, which
+  now delegates to it. `GraphText`'s nine letters are unchanged; the bright variants and the two
+  background colors are new.
+
+### Findings
+
+- [x] **`NoLine` had to be collapsed to render at all.** `DiffService.NoLine` is 300 `░` runes, so
+      a picture containing one is unreadable. `DiffText` recognises it **by identity**, which is
+      what `DiffView` itself does (`DiffView.cs:636-687`), and draws one rune.
+- [x] **A space-preserving color picture cannot show a background.** The first cut of `TextColors`
+      copied `GraphText`'s rule that a blank rune stays blank, which is right for a graph. It made
+      the diff's whitespace marking invisible — the changed indent and the trailing space are
+      *only* a background on spaces, which is the entire point of them. The rule is now "blank
+      stays blank unless the color carries a background", which leaves every graph snapshot
+      unchanged (no graph color has one) and makes `   DC  ++W` say what it should.
+- [x] **A trailing-space change is the one row whose two pictures differ in length.** The text is
+      `   1┃x` on both sides and the marking is `   DCW` against `   DCW++`. Pinned in
+      `TestATrailingSpaceChangeIsMarkedThoughTheTextLooksIdentical`, because it is the case where
+      reading the text alone tells you nothing.
+- [x] **Noted, no action: a binary file is headed `Modified:`.** `ToDiffModeText` has a
+      `Renamed:` special case for `IsRenamed && !SectionDiffs.Any()` but no matching one for
+      `IsBinary`, so a binary file falls through to its `DiffMode` and is drawn as
+      `Modified: a.bin  (Binary)`. Only the `(Binary)` suffix and the dark color say otherwise.
+      Pinned as characterization rather than changed.
+- [x] **Noted, no action: marking a file as unmerged takes it out of the one-column arm.**
+      `AsConflicted` rewrites `DiffMode` to `DiffConflicts`, so the "whole file added, use one
+      column" branch in `AddSectionDiff` stops matching and the same file is redrawn side by side
+      against a `░` filler. Sensible — a conflict has two sides — but it is a second effect of a
+      function named for re-heading, so it is now pinned by `TestAnUnmergedFileIsNoLongerDrawnInOneColumn`.
+- [x] **The character diff finds shared runes inside words, which reads oddly.** `hello world` →
+      `hello there` marks `wo`/`th`, keeps the shared `r`, then marks `ld`/`e`. Correct, and under
+      the four-block limit so it is drawn that way. The tests use `the quick fox` → `the slow fox`
+      instead, which marks one word each side and shows the intent; the limit itself is covered
+      separately by `TestALineWithManyDifferencesIsMarkedWhole`.
+
+### Verified
+
+`./test --filter "TestCategory!=Integration"` — 695 passed. `./test --filter
+"TestCategory=Integration&TestCategory!=E2e"` — 75 passed. `dotnet csharpier check .` clean over
+230 files. No production file was touched, so the end-to-end tier cannot be affected by this step.
+
+### Next, from the same survey
+
+- [x] **The commit filter has no tests at all** — done, see Step 19.
+- [x] **`RepoWriter` has no unit test** — done, see Step 20.
+- [x] **`CommitCommands.CanUncommitLastCommit` looks wrong** — confirmed and fixed, see Step 21.
+- [x] **`BranchMenu` and `RepoMenu` item lists are snapshot-able** — done, see Step 21.
+- [x] End-to-end: stash, delete branch, uncommit, push/pull, cherry-pick and squash — done, see
+      Steps 22 and 23. Undo-uncommitted-files is still only a menu label.
+
+---
+
+## Step 19 — Test the commit filter, and stop discarding the no-matches row ✅ done
+
+Nothing in `gmdTest/` referenced `GetFilteredRepoAsync` or `GetFilteredViewRepoAsync`, so the
+feature behind the `f` key had no unit coverage at all — `ViewRepoCreaterTest`'s 12 tests are about
+the branches the user chose to show, and the end-to-end tier had a single `TestFilterCommits`.
+
+**17 tests in the new `gmdTest/Server/Private/ViewRepoCreaterFilterTest.cs`**, plus
+`RepoBuilder.FilteredViewRepoAsync(filter, maxCount = 5000)` — the default is what `FilterDlg`
+passes. Suite is now 712 fast, 75 integration, 53 E2E.
+
+They pin: a term matching the subject, author, short id, branch name, tag or ISO date;
+case-insensitivity; every term having to match, though not in the same field; a quoted phrase
+matching as a whole where the same words unquoted match apart; the uncommitted commit being
+searchable like any other; `maxCount` capping; the branches of the matched commits arriving with
+their ancestors; the filter being carried on the repo; `$` (the branches the user set) and `*`
+(the ambiguous tips).
+
+### The bug it was written for
+
+`ViewRepoCreater.cs:73` called `EmptyFilteredRepo(repo, filter)` and **discarded its return value**,
+so the `<... No commits matching filter ...>` row it builds never reached the dialog. Fixed by
+returning it. The dialog was already written for that row — `FilterDlg.cs:91` refuses to select a
+commit on branch `<none>` and `FilterDlg.cs:204` leaves it out of the counts — which is what makes
+the discard a slip rather than a design.
+
+Landed as characterization first (pinning the empty view, with the defect named in the comment) and
+then as the one word fix with the test flipped, so the diff shows the behavior changing. Flipping it
+also corrected a second assertion that had been written against the buggy behavior: a filter
+matching nothing now yields the placeholder row rather than a count of zero.
+
+### Findings
+
+- [x] **`EmptyFilteredRepo` hands `ToViewRepo` a repo of its own, and has to.** `ToViewRepo` indexes
+      `branchIndexByName[b.Name]` for every view branch, so passing the real repo would throw on
+      `<none>`. That is why the function builds a one commit, one branch repo rather than reusing
+      the caller's. Now pinned by asserting `BranchByName` contains `<none>`, which is the lookup
+      `FilterDlg.cs:197` does for every row it draws.
+- [x] **Fixed a second bug, found only because the first was verified end to end: the filter
+      dialog was drawn over the log view's first row, so the topmost result was never visible.**
+      The dialog is three rows — its border, its one content row and its border again — over an
+      application bar that is two, so its bottom border landed on `commitsView`, which sits at
+      `Y = 2`. Measured in a throwaway repo of two commits: with an empty filter the app bar said
+      `2 commits, 1 branches` and only the *second* commit was drawn; with a filter matching
+      exactly one commit, nothing was drawn at all, which is indistinguishable from no match.
+
+      **The existing snapshot already encoded it** — `TestFilterCommits` expected an app bar
+      reading `3 commits, 2 branches` above only two rows. It now shows all three.
+
+      Fixed in `FilterDlg.Show`: the log view moves to `Y = 3` for as long as the dialog is up and
+      is restored in a `finally`. `Height` is `Dim.Fill()`, so it simply ends a row earlier. That
+      is the contained fix — the alternative, making the dialog two rows, costs it its border.
+
+      **`Y = -1` on the dialog is not dead code, though it reads like it.** Removing it does not
+      leave the dialog at the top: Terminal.Gui centers a `Dialog` it is not told where to put, so
+      it drops to the bottom of the screen. `Y = -1` means "as high as possible" and is clamped to
+      row 0. Only `X = -1` genuinely pushes a border off screen, which is why the vertical case
+      needed the layout change rather than a matching trick. Verified by removing it and reading
+      the screen, not by reasoning about Terminal.Gui.
+
+      `FilterDlg` is the only dialog positioned this way, so nothing else is affected.
+- [x] **Noted, no action: a term is matched against every field at once**, so filtering on `dev`
+      returns both the commit on branch `dev` and the merge commit whose subject names it. Sensible
+      for a search box, surprising if read as "filter by branch"; pinned either way.
+
+### Built early, for Step 20
+
+`gmdTest/Fixtures/FakeViewRepo.cs` — the `IViewRepo` double. Written here rather than in its own
+step because it was the only way to tell whether `RepoWriter` or the view was dropping the row (it
+was neither: `ToPage` returns the row, and `OnGetContent` hands it to `ContentView` — the dialog
+simply covers it). `ToPage` reads only `Repo` and `Graph`; the command properties are `null` rather
+than throwing, since the menus read them in their constructors but only call them from an `Action`.
+
+### Verified
+
+`./test` — 842 passed, including the 53 end-to-end tmux tests. `dotnet csharpier check .` clean over
+232 files.
+
+Both fixes were checked in the running binary under tmux before being believed, which is how the
+second one was found at all: the unit tests for the first were green while the row still never
+reached the screen. The end-to-end test now asserts the row itself, with its time masked — it is a
+virtual commit, so it carries `DateTime.Now` rather than a commit date, exactly as the uncommitted
+row does.
+
+---
+
+## Step 20 — Test the log row rendering ✅ done
+
+`RepoWriter` is 440 lines with no Terminal.Gui in it and had no unit test at all: the only thing
+covering it was four end-to-end width snapshots, which cost seconds each and reach one repo shape.
+
+**30 tests in the new `gmdTest/Cui/RepoView/RepoWriterTest.cs`**, on the `FakeViewRepo` built during
+Step 19. Suite is now 742 fast, 75 integration, 55 E2E — 872 in total.
+
+They pin: the full width row as a picture; all four arms of `ColumnWidths` at the width each one
+starts and ends at; the subject's `┅` when it is cut; the window the view asks for (`firstRow`,
+`count`, a count past the end, a current index past either end, a count of zero, a repo with
+nothing in view); the markers (`●` current, `*` detached, `▲`/`▼` ahead and behind with the colors
+that go with them, `©` uncommitted, `ß` stash, `|` selected); the seven shapes of branch tip
+(`(^)(● main)` combined, `(^/main)` and `(● main)` diverged, local only, `(~branch)` inferred,
+`(~ambiguous)`, `(● DETACHED)`); tags after the tips; and the highlight and selection.
+
+### Findings
+
+- [x] **Confirmed, and now pinned: a cut sid, author or time is not marked as cut.** `Txt`
+      (`RepoWriter.cs:328`) truncates with a plain `text[..width]`, so at `timeWidth` 9 the time
+      `24-10-15 12:00` is drawn as `24-10-15` and reads as though it were meant to be a date, and
+      the author `Test Author` becomes `Test Auth`. The subject column does it properly —
+      `WriteSubText` adds the `┅` that `gmd/doc/help.md` documents. Left as characterization: the
+      marker costs a column the narrow arms have already run out of.
+- [x] **The highlight and the selection are put on the columns after the graph, not on the row.**
+      The graph is built into its own `TextBuilder` and the two are joined at the end, so the graph
+      keeps its branch colors on the terminal's own background while the rest of the row is lifted
+      onto the highlight. Worth knowing before reading a color snapshot of a current row.
+- [x] **A highlighted row colors its spaces, an ordinary one does not.** Which is correct — the
+      highlight *is* a background, so a blank on it is visible — but it means the same row gives two
+      different color pictures depending on whether it is the current one. The ahead/behind test
+      hoovers a branch to turn the highlight off rather than asserting around it.
+- [x] **`TextColors` now falls back from the exact color pair to the foreground alone.** Without
+      it every highlighted or selected row came back as a row of `?`, since those keep their
+      foreground and swap only the background — a pair the table does not list. The exact match is
+      still tried first, so the diff's two background colors keep their own `-` and `+`. The 88
+      existing graph and diff color assertions are unchanged by it.
+- [x] **The arm boundaries are asserted at both ends, and the fixture's graph width with them.**
+      `commitWidth = width + 1 - (graphWidth + 3)`, so a change to the fixture would otherwise move
+      every width test quietly into a neighbouring arm. `TestTheFixtureGraphIsFourColumnsWide` is
+      there to fail first and loudly if that happens. Measured against this fixture the arms are:
+
+      | `commitWidth` | width | sid | author | time |
+      | --- | --- | --- | --- | --- |
+      | < 70 | ≤ 75 | — | — | — |
+      | 70–99 | 76–105 | — | 10 | 9 |
+      | 100–109 | 106–115 | 7 | 10 | 9 |
+      | ≥ 110 | ≥ 116 | 7 | 15 | 15 |
+
+### Verified
+
+`./test` — 872 passed, including the 55 end-to-end tmux tests. `dotnet csharpier check .` clean over
+233 files. No production file was touched.
+
+---
+
+## Step 21 — Test the menu predicates and the menus they grey out ✅ done
+
+`gmd/Cui/RepoView/` had 16 product files against 3 test files. The predicates that decide what the
+menus offer had no tests, and what is greyed matters more than it looks: `Menu.OnCursorDown` skips a
+disabled item, so a wrong predicate silently moves every item below it — which is why the
+end-to-end menu tests have to count their moves against the fixture rather than the source.
+
+**8 tests in `gmdTest/Cui/RepoView/CommitCommandsTest.cs`** and **13 in
+`gmdTest/Cui/RepoView/MenuItemsTest.cs`**. Suite is now 763 fast, 75 integration, 55 E2E — 893.
+
+`RepoBuilder.WithStatus` gained the four operation parameters (`operationBranchName`,
+`operationStep`, `operationTotal`, `isFinishedByCommit`), without which a stopped operation cannot
+be built and `GetOperationItems` has nothing to say.
+
+### The bug it was written for
+
+`CanUncommitLastCommit` read
+
+```csharp
+return repo.Repo.Status.IsOk && c.IsAhead || (!b.IsRemote && b.RemoteName == "");
+```
+
+`&&` binds tighter than `||`, so the clean working tree was only required of the *is ahead* half. A
+branch that was never pushed skipped the check entirely and offered **Uncommit** with changes in the
+tree — while its sibling `CanUndoCommit`, a plain `Status.IsOk`, refused on the same repo. And with
+changes in the tree the top row is not a commit at all but the virtual uncommitted one, so the
+`git reset HEAD~1` behind it would have taken back a row the user was not pointing at.
+
+Landed as characterization first, then as the parentheses with the test flipped.
+
+### Findings
+
+- [x] **Noted, no action: a repo with no commits still offers Uncommit.** The `no commits in view`
+      guard does not catch it, because an empty repo has a virtual commit standing in for the ones
+      it has not got, on a branch with no remote — so the second half of the predicate is true and
+      the parentheses do not change it. Git refuses the reset, so the cost is an item that should
+      have been grey. Pinned by `TestARepoWithNoCommitsStillOffersUncommit`.
+- [x] **The menus are cheaper to construct than they look.** `BranchMenu` and `RepoMenu` read
+      `repo.BranchCmds` / `repo.CommitCmds` in their constructors but only *call* a command from the
+      `Action` a user picks, and every `canExecute` closes over the repo rather than over a command.
+      `RepoMenu` does call `OperationName()` and `OperationSummary()` while building, but both read
+      nothing but `repo.Repo.Status`, so `RepoCommands` constructs with `null!` for the ten
+      dependencies it does not reach. No command doubles were needed.
+- [x] **`GetShowBranchItems` is the one that needs a real server**, for `GetCommitBranches` — which
+      is a pure function of the repo, so `RepoBuilder.NewServer()` serves. `FakeViewRepo` takes an
+      optional `IServer` for exactly this and throws when it is asked without one.
+- [x] **Pinned, and the reason the class exists: the same menu is a different number of key presses
+      deep depending on the branch.** The branch menu has 15 enabled items for another branch and 8
+      for the current one, out of the same 17. `TestHowMuchIsEnabledDependsOnTheBranch` makes that
+      an executable fact rather than a warning in a comment.
+- [x] **`ICommitMenu` exposes only `Show` and `ShowStashMenu`**, so the commit menu's own item
+      builders cannot be snapshotted without widening them. Left alone — the `Can*` predicates it
+      greys on are covered directly, which was the part worth having.
+- [x] **A `MenuSeparator` reports itself as disabled**, since it is built with
+      `CanExecute = () => false`. The fixture draws it as a separator rather than as a greyed item,
+      which is what `Menu` does with it too.
+
+### Verified
+
+`./test` — 893 passed, including the 55 end-to-end tmux tests, so the production change moved no
+screen snapshot. `dotnet csharpier check .` clean over 235 files.
+
+The fix was also read off the running binary: in a repo on a branch with no remote and one modified
+file, **Uncommit** is now drawn in the dark of a disabled item (`ESC[90m`) beside **Undo Commit**,
+where the enabled items around it are bright white (`ESC[97m`).
+
+---
+
+## Step 22 — End-to-end tests for the flows that write ✅ done
+
+Everything that *reads* was covered by the 55 end-to-end tests. Several things that *write* were
+not: stash, delete branch, undo and uncommit, cherry-pick, squash and push and pull appeared only as
+labels inside menu snapshots, and squash appeared nowhere at all.
+
+**6 tests added**, in the order the survey ranked them — 899 in total, with the end-to-end tier at
+61 and about 2.7 minutes.
+
+- Stash and stash pop, through the menu and the message dialog. `WriteBlankOrStash` and the `ß`
+  had no cover at any tier before this.
+- Delete branch, one item below the rename that was already tested.
+- Uncommit the last commit, i.e. the `git reset HEAD~1` behind the predicate Step 21 fixed.
+- Push and pull the current branch, which are also the only cover the ahead and behind markers and
+  the split branch tips have at this tier.
+
+Two fixtures: `E2eRepo.CreateWithStashAsync` and `CreateBehindOriginAsync`. The second moves the
+local branch back a commit after pushing rather than committing on the remote — a bare repository
+has no working tree to commit in, and a second clone would be a second temp folder to clean up.
+
+### Findings
+
+- [x] **The recorded flakes did not reproduce.** Six full runs and three extra runs of the tier
+      alone, all green, including `TestDiffContextIsSteppedPerFile` three times on its own. Its 15
+      seconds are honest polling — it sends a lot of keys, and every `WaitForStable` costs three
+      captures. Nothing was "fixed" here, because nothing failed; recorded so the next person does
+      not go looking for a flake that is no longer biting.
+- [x] **The prescribed remedy for the flake family cannot be applied to the test it was written
+      for, and the reason is a documented trap.** The advice was to wait for something that
+      *changes* rather than for text already on screen — but in `TestShowAndHideBranchRoundTrip`
+      the two keys are a cursor move and a hoover move, and neither changes anything drawn: the
+      current row is only a highlight, which is a background, and **the application bar does not
+      follow the hoover**, which `CLAUDE.md` already warns about. Waiting for `(dev)` after the
+      `Left` times out against an application bar still reading `(main)`.
+
+      So both waits are now `WaitForStable()`, which is what `WaitFor` of already-present text was
+      doing anyway — the change is that the wait no longer *looks* stronger than it is, and the
+      comment says why nothing stronger exists.
+- [x] **The menu move counts really do move with the repo, and it bit while writing these.**
+      Reaching `Stash` in the commit menu is four moves with a dirty working tree and three with a
+      clean one — `Commit ...` and `Amend ...` are both disabled when there is nothing to commit,
+      and `Menu.Show` starts the cursor on the first item that is not, so the walk starts a row
+      lower as well as skipping less. Both counts carry a comment saying which repo state they
+      belong to.
+- [x] **`Uncommit` is two moves, not four, on a clean tree**, for the same reason — the menu opens
+      with the cursor already on `Commit Diff ...`.
+- [x] **Pushing a branch leaves its tags alone.** `TestPushTheCurrentBranch` asserts `v1.0` is still
+      there afterwards: the fixture deliberately never pushes it, so this is a second standing check
+      on the Step 17 fix, from the push side rather than the fetch side.
+
+### Not done here
+
+- **Cherry-pick and squash** were picked up straight afterwards — see Step 23.
+- **Undo/restore uncommitted files**, the third item of the Undo sub menu.
+- **Clone, open repo, the main menu and the config dialog**, each of which needs a fixture of its
+  own and most of which have a cheaper unit-level substitute.
+- **Mouse interaction**, still the open item from Step 12.
+
+### Verified
+
+`./test` — 899 passed. The end-to-end tier was then run twice more on its own, 61 passed each time,
+to check that six new tests had not made it less steady. `dotnet csharpier check .` clean over 235
+files.
+
+---
+
+## Step 23 — Cherry-pick and squash, and the squash they were hiding ✅ done
+
+The last two write flows from the survey. **3 tests**, two fixtures, and a bug in two places.
+Suite is now 902, with the end-to-end tier at 64.
+
+- `TestCherryPickACommitFromAnotherBranch` — picks `main`'s commit onto `dev` and asserts both
+  branches end up with the same subject on different ids, which is what a cherry-pick looks like.
+- `TestSquashTwoCommitsIntoOne` — on a fully pushed branch.
+- `TestSquashCommitsThatHaveNotBeenPushed` — the regression test for the bug below.
+
+Fixtures: `E2eRepo.CreateWithUnmergedBranchAsync` (a branch that was never merged, with `dev`
+current and `main` one commit ahead of the branch point — cherry-pick is only offered for a commit
+that is *not* on the current branch, and `main` is always shown, so its commit is under the cursor
+without opening a branch first) and `CreatePushedPlainCommitsAsync`.
+
+### The bug
+
+`SquashCommits` refused any commit whose branch was not `IsLocalCurrent`:
+
+```csharp
+if (!branch.IsLocalCurrent)
+    return R.Error("Commits not on current branch");
+```
+
+`IsLocalCurrent` is only ever set on a **remote** branch whose local branch is current
+(`Augmenter.cs:63`). A commit that has not been pushed belongs to the *local* branch, which never
+carries the flag — so **squashing commits before pushing them was refused**, while squashing
+commits that were already published went through. Exactly the wrong way round.
+
+`Uncommit until`, two lines away in `CommitMenu`, asks the same question properly as
+`IsCurrent || IsLocalCurrent`. Both copies of the guard now do the same.
+
+### Findings
+
+- [x] **The guard is written out twice**, once in `CommitCommands.SquashCommits` before the dialog
+      and once in `AugmentedService.SquashCommits` before the work, along with the two checks above
+      it. Fixing only the first got the dialog open and then failed at the second, which is how the
+      duplicate was found at all. Both are fixed; worth knowing they exist as a pair.
+- [x] **Fixed on the way: the squash error said "Failed to undo commit".** A copy-paste from the
+      undo command above it, and what a user saw when a squash failed. Now "Failed to squash
+      commits".
+- [x] **Squashing pushed commits leaves the branch diverged**, one ahead and two behind, since the
+      originals are still the remote's. `TestSquashTwoCommitsIntoOne` asserts that screen, which is
+      the clearest illustration of why the guard was the wrong way round.
+- [x] **Two `S-Down` are needed to select a range, not one.** One shift-down leaves `i2 - i1 == 0`,
+      so `GetRebaseMenuItems` computes an empty range and the item reads a bare "Squash" and is
+      disabled. The item naming its own range is the readout for whether a selection was picked up,
+      and both squash tests wait for `Squash <sid>...<sid>` rather than for "Squash".
+- [x] **Cherry-pick runs with `--no-commit` and hands over to the commit dialog**, which opens with
+      the picked commit's message already in it — so the flow is menu, then dialog, then the commit.
+      The dates come from `StartGmd(commitTime:)`, without which the new commit's id moves with the
+      clock.
+
+### Verified
+
+`./test` — 902 passed. The end-to-end tier was run again on its own, 64 passed.
+`dotnet csharpier check .` clean over 235 files. The fix was watched happening in the running
+binary: before it, confirming the squash dialog gave "Failed to undo commit, Commits not on current
+branch"; after it, the two commits become one.

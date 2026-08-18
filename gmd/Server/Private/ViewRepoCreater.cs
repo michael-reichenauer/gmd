@@ -70,7 +70,7 @@ class ViewRepoCreater : IViewRepoCreater
             }
 
             if (!filteredCommits.Any())
-                EmptyFilteredRepo(repo, filter);
+                return EmptyFilteredRepo(repo, filter);
 
             // Get all branch names for the filtered commits
             var filteredBranchNames = filteredCommits.Select(c => c.BranchName).Distinct().ToList();

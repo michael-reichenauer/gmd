@@ -68,6 +68,21 @@ static class E2eRepo
         return repo;
     }
 
+    // The same shape with the changes already stashed, i.e. a clean working tree and one stash on
+    // top of it. The stash is what puts the 'ß' on the commit it was made on and the count in the
+    // application bar, and it is what the pop and drop menus have something to list.
+    //
+    // A stash is a commit, so it has a time of its own — but nothing draws it, only the marker and
+    // the message, so there is no date to pin here.
+    public static async Task<TempRepo> CreateWithStashAsync()
+    {
+        var repo = await CreateWithChangesAsync();
+
+        await repo.GitAsync("stash push -u -m \"stashed work\"");
+
+        return repo;
+    }
+
     // The same shape with an 'origin' remote next door, everything pushed to it except one commit
     // on top. That last part is the point: amend is only offered for a commit that is still ahead
     // of the remote (CommitCommands.Commit checks CurrentCommit().IsAhead), i.e. one that has not
@@ -89,6 +104,49 @@ static class E2eRepo
         // keeps these screens honest about it: if unpushed tags are ever deleted again, the tag
         // disappears from the snapshots below.
         await repo.CommitFileAtAsync("zeta.txt", "zeta\n", "Add zeta", TempRepo.BaseTime.AddMinutes(7));
+
+        return repo;
+    }
+
+    // The mirror of the above: everything is pushed and then the local branch is moved back a
+    // commit, so origin has one the local branch has not got. That is what draws the behind marker
+    // and gives 'Pull/Update' something to do.
+    //
+    // Moving the local branch back rather than committing on the remote is the cheap way to get
+    // there: a bare repository has no working tree to commit in, and a second clone would be a
+    // second temp folder to clean up.
+    public static async Task<TempRepo> CreateBehindOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("reset -q --hard HEAD~1");
+
+        return repo;
+    }
+
+    // A branch that was never merged, with 'dev' checked out and 'main' one commit ahead of where
+    // it branched off. Cherry-pick is only offered for a commit that is not on the current branch
+    // (CommitMenu checks rb != cb), and 'main' is always shown whatever the current branch is, so
+    // its commit is on screen and under the cursor without having to open a branch first.
+    //
+    //     main   Add gamma      12:02   <- not on dev, the one to pick
+    //     dev    Work on dev    12:01   <- current
+    //     main   Initial        12:00
+    public static async Task<TempRepo> CreateWithUnmergedBranchAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\n", "Initial", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        await repo.CommitFileAtAsync("dev.txt", "one\n", "Work on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("gamma.txt", "gamma\n", "Add gamma", t.AddMinutes(2));
+
+        await repo.GitAsync("checkout -q dev");
 
         return repo;
     }
@@ -168,6 +226,19 @@ static class E2eRepo
         await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
 
         await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+    }
+
+    // Plain commits on a branch that is fully pushed, for squashing them together. Everything is
+    // pushed on purpose: a commit belongs to the remote branch once it is on it, and squash refuses
+    // a commit whose branch is not IsLocalCurrent — a flag only a remote branch ever carries.
+    public static async Task<TempRepo> CreatePushedPlainCommitsAsync(int commits = 4)
+    {
+        var repo = await CreateLongAsync(commits);
+
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q --set-upstream origin main");
 
         return repo;
     }
