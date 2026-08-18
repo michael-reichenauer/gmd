@@ -113,6 +113,27 @@ public class MenuItemsTest
         );
     }
 
+    // The order is the current branch, then the branch it was branched from and so on, and the
+    // rest by name after those, rather than the order the graph happens to draw them in
+    [TestMethod]
+    public async Task TestTheShownBranchesStartWithTheCurrentBranchAndItsAncestors()
+    {
+        var view = await ViewOf(BranchedFixture(), "dev", "feature", "alpha");
+
+        Assert.AreEqual(
+            """
+            ●   dev >
+                main >
+                alpha >
+                feature >
+            ---
+            Show/Open Branch >  [Shift →]
+            Hide All Branches
+            """,
+            Items(BranchMenuOf(view).GetShownBranchesItems())
+        );
+    }
+
     // The ways of choosing a branch to show: the branches of the commit the cursor is on, then the
     // sub menus of all of them
     [TestMethod]
@@ -266,6 +287,20 @@ public class MenuItemsTest
             new Config(),
             null!
         );
+
+    // 'dev' is current and branched from 'main', 'feature' from 'dev' and 'alpha' from 'main',
+    // so the branch order the graph draws is not the order the chain of the current branch is
+    static RepoBuilder BranchedFixture() =>
+        new RepoBuilder()
+            .Commit("f1", "Work on feature", "d1")
+            .Commit("a1", "Work on alpha", "c2")
+            .Commit("d1", "Work on dev", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2")
+            .LocalBranch("dev", "d1", isCurrent: true)
+            .LocalBranch("feature", "f1")
+            .LocalBranch("alpha", "a1");
 
     static RepoBuilder Fixture() =>
         new RepoBuilder()

@@ -375,18 +375,14 @@ class BranchMenu : IBranchMenu
                     .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
             );
 
-    // Ordered left to right as the graph draws them, so the list reads as the graph does. The chain
-    // is deliberately left deferred (a lazy Select): Menu.Show calls Children.Any() on every submenu
-    // of the level it opens, so only the first branch's menu is built while the commit menu is
-    // shown, the rest when the user opens the Branches submenu.
+    // The branch the user is on first, then the branch it was branched from, and so on up to the
+    // main branch, since that chain is what an operation is usually about; the remaining shown
+    // branches follow in name order. The items are deliberately left deferred (a lazy Select):
+    // Menu.Show calls Children.Any() on every submenu of the level it opens, so only the first
+    // branch's menu is built while the commit menu is shown, the rest when the user opens the
+    // Branches submenu.
     IEnumerable<MenuItem> GetShownBranchesSubMenus() =>
-        repo
-            .Graph.GetPageBranches(0, repo.Repo.ViewCommits.Count - 1)
-            .Select(gb => gb.B)
-            .DistinctBy(b => b.PrimaryName)
-            // DistinctBy keeps whichever of a local/remote pair comes first, so resolve to the
-            // primary branch, which is the one the menu is built for.
-            .Select(b => repo.Repo.BranchByName[b.PrimaryName])
+        GetShownBranchesInMenuOrder()
             .Select(b =>
                 Menu.SubMenu(
                     // Every branch here is shown, so the 'o' shown icon would carry no information
@@ -395,6 +391,44 @@ class BranchMenu : IBranchMenu
                     GetBranchMenuItems(b.PrimaryName, true)
                 )
             );
+
+    // The branches the graph draws, as the primary branches the menu is built for, ordered current
+    // branch, its ancestors nearest first, then the rest by name.
+    IEnumerable<Branch> GetShownBranchesInMenuOrder()
+    {
+        var rank = GetCurrentBranchChainRanks();
+        return repo
+            .Graph.GetPageBranches(0, repo.Repo.ViewCommits.Count - 1)
+            .Select(gb => gb.B)
+            .DistinctBy(b => b.PrimaryName)
+            // DistinctBy keeps whichever of a local/remote pair comes first, so resolve to the
+            // primary branch, which is the one the menu is built for.
+            .Select(b => repo.Repo.BranchByName[b.PrimaryName])
+            .OrderBy(b => rank.TryGetValue(b.PrimaryName, out var r) ? r : int.MaxValue)
+            .ThenBy(b => b.NiceNameUnique);
+    }
+
+    // The current branch and its ancestors, by primary name and by how far up the chain they are.
+    // AncestorNames is already ordered parent, grandparent and so on. A local branch has its remote
+    // as parent, so a local/remote pair yields the same primary name twice; the first, i.e. the
+    // nearest, is the rank that counts.
+    IReadOnlyDictionary<string, int> GetCurrentBranchChainRanks()
+    {
+        var ranks = new Dictionary<string, int>();
+        var current = repo.Repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
+        if (current == null)
+            return ranks; // No current branch (e.g. an empty repo)
+
+        foreach (var name in current.AncestorNames.Prepend(current.Name))
+        {
+            if (!repo.Repo.BranchByName.TryGetValue(name, out var b))
+                continue;
+            if (!ranks.ContainsKey(b.PrimaryName))
+                ranks[b.PrimaryName] = ranks.Count;
+        }
+
+        return ranks;
+    }
 
     void ShowBranch(Branch b) => cmds.ShowBranch(b.Name, false);
 
