@@ -6,6 +6,13 @@ maintain, and updating the toolchain. Organized into steps small enough to revie
 Mark items `[x]` as they land. Add new findings under the step they belong to rather than at the
 end, so related work stays together.
 
+<!--
+  Words that exist only in this document: a calendar name, a branch name from one real repo, and a
+  filename typo quoted as the thing that got fixed. Deliberately kept out of the shared cSpell.words
+  in .vscode/settings.json — "Servis" there would hide a genuine misspelling anywhere else.
+  cSpell:ignore Qura fixmergeline Servis
+-->
+
 ---
 
 ## Step 0 — Toolchain and formatting ✅ done
