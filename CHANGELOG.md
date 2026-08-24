@@ -1,9 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-126 releases:
+127 releases:
 
-## [Current] - 2026-08-18
+## [Current] - 2026-08-24
+- Fixed spell warnings
+
+## [v0.91.1388.1436] - 2026-08-19
 - Modernized codebase
 - Fixed 100% CPU usage on linux/max by updating Terminal.Gui to 1.19.0
 - Added support for e2e terminnal testing
