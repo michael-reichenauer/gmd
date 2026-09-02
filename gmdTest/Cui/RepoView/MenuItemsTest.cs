@@ -240,6 +240,27 @@ public class MenuItemsTest
         StringAssert.Contains(items, "Push All Branches  [Shift-P]  (disabled)");
     }
 
+    // 'Pull/Update' is a fetch for a branch that is not current, and git only fast-forwards one,
+    // so a diverged branch cannot be updated from here at all and is greyed out. Offering it was
+    // the bug: the fetch was rejected as non fast-forward every time.
+    [TestMethod]
+    public async Task TestADivergedBranchThatIsNotCurrentCanNotBePulled()
+    {
+        var items = Items(BranchMenuOf(await ViewOf(DivergedFixture(), "dev")).GetBranchMenuItems("dev"));
+
+        StringAssert.Contains(items, "Pull/Update  [U]  (disabled)");
+    }
+
+    // The current branch is pulled with 'git pull', which merges rather than fast-forwards, so the
+    // same diverged branch is offered when it is the one checked out
+    [TestMethod]
+    public async Task TestADivergedCurrentBranchCanBePulled()
+    {
+        var items = Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetBranchMenuItems("main"));
+
+        StringAssert.Contains(items, "Pull/Update  [U]\n");
+    }
+
     [TestMethod]
     public async Task TestNoNewReleaseAddsNothingToTheMenu()
     {
@@ -301,6 +322,26 @@ public class MenuItemsTest
             .LocalBranch("dev", "d1", isCurrent: true)
             .LocalBranch("feature", "f1")
             .LocalBranch("alpha", "a1");
+
+    // 'dev' has a local and a remote commit both, i.e. the branch a fetch cannot fast-forward.
+    // 'main' is current and synced, so 'dev' is diverged without being the current branch.
+    static RepoBuilder DivergedFixture() =>
+        new RepoBuilder()
+            .Commit("d2", "Dev local", "c2")
+            .Commit("d1", "Dev remote", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2", remoteTipCommit: "d1", ahead: 1, behind: 1);
+
+    // The same divergence, on the current branch this time
+    static RepoBuilder DivergedCurrentFixture() =>
+        new RepoBuilder()
+            .Commit("l1", "Local 1", "c2")
+            .Commit("r1", "Remote 1", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "r1", ahead: 1, behind: 1);
 
     static RepoBuilder Fixture() =>
         new RepoBuilder()

@@ -75,6 +75,10 @@ that can be pulled or pushed.
 Use menu options or the `P` and `U` keys to synchronize. 
 `Shift-P` and `Shift-U` keys can push or update all displayed branches.
 
+A branch with both unpulled and unpushed commits cannot be pushed, nor updated
+by `Shift-U`, which only fast-forwards the branches it is not on. Switch to the
+branch and pull it (`U`) to merge the two sides.
+
 ### Current Commit/Branch
 
 Symbols:

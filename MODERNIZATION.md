@@ -3181,3 +3181,73 @@ commits that were already published went through. Exactly the wrong way round.
 `dotnet csharpier check .` clean over 235 files. The fix was watched happening in the running
 binary: before it, confirming the squash dialog gave "Failed to undo commit, Commits not on current
 branch"; after it, the two commits become one.
+
+## Step 24 — 'Pull All Branches' and the diverged branch it choked on ✅ done
+
+Reported by a user: pull all used to pull down every branch that had remote commits not yet
+pulled, and no longer does. Not a regression — `PullAllBranches` had been behaviourally unchanged since `d9b8f7d`
+(2024-04-16), and `git fetch origin <b>:<b>` has been the pull command since 2022 — but the
+failure they described is real and reproduces every time.
+
+### The bug
+
+Pull-all selected branches it had no way to pull:
+
+- `BranchesToPull` filtered on `b.HasRemoteOnly` alone, so a **diverged** branch — remote-only and
+  local-only commits both — was in the list. `BranchesToPush` directly above it has always carried
+  the matching `&& !b.HasRemoteOnly` guard, for exactly the reason the pull side lacked one.
+- A branch that is not current is pulled with `git fetch origin <b>:<b>`
+  (`RemoteService.PullBranchAsync`), which only fast-forwards. Git rejects a diverged branch:
+  `! [rejected] <b> -> <b> (non-fast-forward)`.
+- The loop then did `return R.Error(...)` on the first failure, so **every branch after the
+  diverged one went unpulled**, with an error box as the only sign.
+
+Order decided the damage. A repo with `aaa` (ahead 1, behind 1) and `zzz` (behind 1) both shown:
+`Shift-U` put up `Failed to pull branch origin/aaa … non-fast-forward` and `zzz`, a plain
+fast-forward, was never reached. To the user, pull-all does nothing but show an error.
+
+The current branch was never affected: it is pulled separately with `git pull`, which merges, so a
+diverged current branch is fine. That asymmetry is the whole of it — the same word, "pull", is two
+different git commands depending on whether gmd is standing on the branch.
+
+### The fix
+
+`BranchesToPull` takes behind-only branches, restoring the symmetry with `BranchesToPush`, and
+`DivergedBranchesToPull` beside it names the ones left out. The loop now tries every branch and
+reports what failed once at the end, so one bad branch cannot skip the rest. The skipped branches
+are named in a message rather than passed over in silence — they keep their `▼` marker, since the
+application bar counts behind *commits*, so saying nothing would look exactly like the old bug.
+
+The branch menu's single-branch `Pull/Update` ran the same fetch, so it is fixed with it: greyed
+out for a diverged branch that is not current, and routed to `PullCurrentBranch` — i.e. `git pull`
+— when it is the current one, where it used to fetch into a checked-out branch.
+
+### Findings
+
+- [x] **The behaviour had a test asserting it was intended.** `TestPullAllTakesTheRemoteBranches…`
+      pinned `origin/div` as something pull-all takes, with a comment reading "pulling is what
+      resolves it". True of the current branch, false of every other one — a characterization test
+      that rationalized what it found. Worth remembering when reading the rest of them: they record
+      behaviour, not intent.
+- [x] **The `Mixed()` fixture had no branch that was behind without being current**, so "the
+      diverged branch is skipped" and "nothing was pulled at all" looked the same. It now has
+      `old`, and that is what the assertion turns on.
+- [x] **The branch menu's `Pull/Update` was broken for the current branch too**, in a way nothing
+      had noticed: it ran the same fetch, and `git fetch origin main:main` with `main` checked out
+      is refused outright — `fatal: refusing to fetch into branch 'refs/heads/main' checked out at`
+      (confirmed against git 2.55.0). It now calls `PullCurrentBranch`, i.e. `git pull`, which is
+      what the `u` key has always done.
+- [x] **Not fixed here: pull-all only ever considers `ViewBranches`.** A branch that is behind but
+      not shown is never pulled, and is not counted in the `▼` marker either, so nothing on screen
+      says it exists. Long-standing and arguably right given that gmd is built around choosing what
+      is shown — `help.md` already says "all displayed branches" — but it is the other half of what
+      the user could have been seeing.
+- [x] **`IBranchCommands.CanPull()` and `CanPushCurrentBranch()` have no callers.** The menus ask
+      the branch flags directly. Left alone rather than widen this diff.
+
+### Verified
+
+`./test` — 907 passed, the end-to-end tier 65 of them. `dotnet csharpier check .` clean.
+The regression test was checked against the unfixed selector: without `&& !b.HasLocalOnly` it
+fails with the error box it is there to prevent. And watched in the running binary — the `aaa`/`zzz`
+repo above now pulls `zzz`, names `aaa` as skipped, and shows no error.

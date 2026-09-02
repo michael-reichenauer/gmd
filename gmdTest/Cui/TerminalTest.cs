@@ -1124,6 +1124,89 @@ public class TerminalTest
         );
     }
 
+    // 'Shift-U' updates every branch it can and says which it could not. A branch that is not
+    // current is updated with a fetch, and git rejects that for a diverged branch, which used to
+    // abort the whole command: every branch after it in the list went unpulled, with an error box
+    // as the only sign. Here 'main' is the diverged one and 'dev' the plain fast-forward.
+    [TestMethod]
+    public async Task TestPullAllBranchesSkipsTheDivergedBranch()
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Main local");
+
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●work, ▼2, ▲1                                               (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺      ▲Main local                                                                   (main) 801397 Test User 24-10-15
+            ┣│       ▼Main remote                                                                (^/main) 292075 Test User 24-10-15
+            ┃│  ┣    ▼Work remote                                                                (^/work) ff355b Test User 24-10-15
+            ┃│ ╭┺─┺ ● Work on work                                                               (● work) 1d4a58 Test User 24-10-15
+            ┣┴─╯      Add zeta                                                                            4dd1e9 Test User 24-10-15
+            ┣         Add delta                                                                    [v1.0] 17d85b Test User 24-10-15
+            ┣╮        Merge branch 'dev' into main                                                        4e73d2 Test User 24-10-15
+            ┣         Add gamma                                                                           4a15fb Test User 24-10-15
+            ┣╯        Add beta                                                                            dd7891 Test User 24-10-15
+            ┗         Initial                                                                             9dc406 Test User 24-10-15
+            """,
+            gmd.WaitForStable(),
+            repo.Path
+        );
+
+        gmd.Send("U");
+
+        // The diverged branch is named rather than passed over: it keeps its '▼' marker, so
+        // silence would look exactly like the pull having failed
+        var message = gmd.WaitFor("Pull/Update All Branches");
+        Assert.AreEqual(
+            """
+                                  ╭ Pull/Update All Branches ───────────────────────────────────────────────╮
+                                  │These branches have both local and remote commits, which an update of all│
+                                  │branches cannot merge, since it only fast-forwards a branch it is not on.│
+                                  │Switch to the branch and pull it to merge:                               │
+                                  │                                                                         │
+                                  │  main                                                                   │
+                                  │                                                                         │
+                                  │                                [◦ OK ◦]                                 │
+                                  ╰─────────────────────────────────────────────────────────────────────────╯
+            """,
+            ScreenText.Rows(message, repo.Path, 15, 9)
+        );
+
+        gmd.Send("Enter");
+
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●work, ▼1, ▲1                                               (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺      ▲Main local                                                                   (main) 801397 Test User 24-10-15
+            ┣│       ▼Main remote                                                                (^/main) 292075 Test User 24-10-15
+            ┃│  ┣─┺ ● Work remote                                                             (^)(● work) ff355b Test User 24-10-15
+            ┃│ ╭┺     Work on work                                                                        1d4a58 Test User 24-10-15
+            ┣┴─╯      Add zeta                                                                            4dd1e9 Test User 24-10-15
+            ┣         Add delta                                                                    [v1.0] 17d85b Test User 24-10-15
+            ┣╮        Merge branch 'dev' into main                                                        4e73d2 Test User 24-10-15
+            ┣         Add gamma                                                                           4a15fb Test User 24-10-15
+            ┣╯        Add beta                                                                            dd7891 Test User 24-10-15
+            ┗         Initial                                                                             9dc406 Test User 24-10-15
+            """,
+            gmd.WaitUntilGone("Pull/Update All Branches"),
+            repo.Path
+        );
+
+        Assert.AreEqual(
+            await repo.GitAsync("rev-parse origin/work"),
+            await repo.GitAsync("rev-parse work"),
+            "The behind branch was pulled"
+        );
+        Assert.AreNotEqual(
+            await repo.GitAsync("rev-parse origin/main"),
+            await repo.GitAsync("rev-parse main"),
+            "The diverged branch was left as it was"
+        );
+    }
+
     // Cherry-picking a commit from another branch onto the current one. It runs with --no-commit
     // and hands what it staged to the commit dialog, which is why the dialog opens with the picked
     // commit's message already in it.

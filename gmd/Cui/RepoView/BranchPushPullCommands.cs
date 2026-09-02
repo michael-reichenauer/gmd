@@ -188,19 +188,31 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
             }
 
-            var branches = BranchesToPull(repo.Repo, currentRemoteName);
+            var branches = BranchesToPull(repo.Repo, currentRemoteName).ToList();
+            // Read before the refresh below, so both lists come from the same shown repo
+            var diverged = DivergedBranchesToPull(repo.Repo, currentRemoteName).ToList();
 
             Log.Info($"Pull {string.Join(", ", branches)}");
+
+            // Every branch is tried and what failed is reported once at the end. Stopping at the
+            // first failure left every branch after it unpulled, with nothing to say they had
+            // been skipped.
+            var failed = new List<string>();
             foreach (var b in branches)
             {
                 if (!Try(out var e, await server.PullBranchAsync(b.Name, repo.Path)))
                 {
-                    Refresh();
-                    return R.Error($"Failed to pull branch {b.Name}", e);
+                    failed.Add($"{b.NiceNameUnique}: {e.AllErrorMessages()}");
                 }
             }
 
             Refresh();
+
+            if (failed.Any())
+                return R.Error($"Failed to pull:\n{string.Join("\n", failed)}");
+            if (diverged.Any())
+                ShowDivergedMessage(diverged);
+
             return R.Ok;
         });
 
@@ -255,14 +267,49 @@ class BranchPushPullCommands : IBranchPushPullCommands
     internal static IEnumerable<Branch> BranchesToPush(Repo repo) =>
         repo.ViewBranches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly).DistinctBy(b => b.PrimaryName);
 
-    // The branches 'pull all branches' pulls, i.e. the remote branches that are not the current
-    // branch, which has already been pulled by then
+    // The branches 'pull all branches' pulls, i.e. the remote branches that are behind only and
+    // are not the current branch, which has already been pulled by then. A diverged branch is left
+    // out for the same reason BranchesToPush leaves one out: a branch that is not current is
+    // pulled with 'git fetch origin <b>:<b>', which git rejects as non fast-forward. Merging the
+    // two sides means switching to the branch, so DivergedBranchesToPull reports those instead.
     internal static IEnumerable<Branch> BranchesToPull(Repo repo, string currentRemoteName) =>
         repo
             .ViewBranches.Where(b =>
-                b.Name != currentRemoteName && b.IsRemote && !b.IsLocalCurrent && !b.IsCurrent && b.HasRemoteOnly
+                b.Name != currentRemoteName
+                && b.IsRemote
+                && !b.IsLocalCurrent
+                && !b.IsCurrent
+                && b.HasRemoteOnly
+                && !b.HasLocalOnly
             )
             .DistinctBy(b => b.PrimaryName);
+
+    // The branches 'pull all branches' has to leave alone, i.e. the ones BranchesToPull drops for
+    // being diverged. Same predicate, opposite on that one flag.
+    internal static IEnumerable<Branch> DivergedBranchesToPull(Repo repo, string currentRemoteName) =>
+        repo
+            .ViewBranches.Where(b =>
+                b.Name != currentRemoteName
+                && b.IsRemote
+                && !b.IsLocalCurrent
+                && !b.IsCurrent
+                && b.HasRemoteOnly
+                && b.HasLocalOnly
+            )
+            .DistinctBy(b => b.PrimaryName);
+
+    // Said out loud rather than passed over in silence: a diverged branch keeps its '▼' marker
+    // after an update of all branches, which without this looks like the update having failed.
+    static void ShowDivergedMessage(IReadOnlyList<Branch> diverged)
+    {
+        var names = string.Join("\n", diverged.Select(b => $"  {b.NiceNameUnique}"));
+        UI.InfoMessage(
+            "Pull/Update All Branches",
+            "These branches have both local and remote commits, which an update of all\n"
+                + "branches cannot merge, since it only fast-forwards a branch it is not on.\n"
+                + $"Switch to the branch and pull it to merge:\n\n{names}"
+        );
+    }
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 

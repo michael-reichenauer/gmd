@@ -97,7 +97,21 @@ class BranchMenu : IBranchMenu
             .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems())
             .SubMenu("Rebase and push on", "", GetRebaseFromItems(b))
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
-            .Item("Pull/Update", "U", () => cmds.PullBranch(branchName), () => b.HasRemoteOnly && isStatusOK)
+            // The current branch is pulled with 'git pull', which merges, so it can be pulled even
+            // when diverged. Any other branch is updated with a fetch, which only fast-forwards,
+            // so a diverged one can only be pulled by switching to it first.
+            .Item(
+                "Pull/Update",
+                "U",
+                () =>
+                {
+                    if (isCurrent)
+                        cmds.PullCurrentBranch();
+                    else
+                        cmds.PullBranch(branchName);
+                },
+                () => b.HasRemoteOnly && isStatusOK && (isCurrent || !b.HasLocalOnly)
+            )
             .Item(
                 "Push",
                 "P",

@@ -125,6 +125,48 @@ static class E2eRepo
         return repo;
     }
 
+    // Two branches that need pulling in different ways, which is what 'pull all branches' has to
+    // tell apart: 'work' is current and behind only, so a pull fast-forwards it, while 'main' has
+    // a local and a remote commit both. A branch that is not current is updated with
+    // 'git fetch origin <b>:<b>', which git rejects as non fast-forward for a diverged branch, so
+    // 'main' can only be pulled by switching to it.
+    //
+    // The branch is 'work' rather than 'dev' because the base fixture already has a 'dev'. 'main'
+    // needs no showing: ViewRepoCreater always includes it, so both are on screen with no menu to
+    // navigate.
+    //
+    //     main   Main local     (ahead)    12:11   <- diverged, cannot be fetched
+    //     main   Main remote    (behind)   12:10
+    //     work   Work remote    (behind)   12:09   <- current, a plain fast-forward
+    //     work   Work on work              12:08
+    //     main   Add zeta                  12:07
+    public static async Task<TempRepo> CreateWithDivergedMainAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+        var t = TempRepo.BaseTime;
+
+        await repo.GitAsync("push -q origin main");
+
+        // 'work' behind by one: pushed, then moved back a commit, as CreateBehindOriginAsync does
+        await repo.GitAsync("checkout -q -b work");
+        await repo.CommitFileAtAsync("work.txt", "work\n", "Work on work", t.AddMinutes(8));
+        await repo.GitAsync("push -q --set-upstream origin work");
+        await repo.CommitFileAtAsync("work.txt", "work\nmore\n", "Work remote", t.AddMinutes(9));
+        await repo.GitAsync("push -q origin work");
+        await repo.GitAsync("reset -q --hard HEAD~1");
+
+        // 'main' diverged: the same move back, and then a local commit on top of it
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("main2.txt", "remote\n", "Main remote", t.AddMinutes(10));
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("reset -q --hard HEAD~1");
+        await repo.CommitFileAtAsync("main3.txt", "local\n", "Main local", t.AddMinutes(11));
+
+        await repo.GitAsync("checkout -q work");
+
+        return repo;
+    }
+
     // A branch that was never merged, with 'dev' checked out and 'main' one commit ahead of where
     // it branched off. Cherry-pick is only offered for a commit that is not on the current branch
     // (CommitMenu checks rb != cb), and 'main' is always shown whatever the current branch is, so
