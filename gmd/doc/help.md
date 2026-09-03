@@ -55,7 +55,8 @@ between branches using the `←` and `→` keys and open the branch-specific
 menu with `M` when a branch is highlighted. The same menu is also reachable 
 without highlighting a branch first, under **Branches** in the commit menu: 
 it lists every branch currently shown in the graph, the current branch and 
-its parent branches first, and below them the options to show/hide branches.
+its parent branches first, and below them the options to show/hide branches 
+and to pull/update or push all branches.
 
 ### Indicators for Hidden Branches
 

@@ -290,27 +290,31 @@ public class TerminalTest
 
         // The two shown branches, left to right as the graph draws them, with the '●' marking the
         // current one. Both are submenus, so both carry the '>'. Below the separator, the items
-        // that change which branches are shown at all.
+        // that change which branches are shown at all, and the ones that pull and push them all.
         gmd.Send("Right");
         var branches = gmd.WaitForStable();
         Assert.AreEqual(
             """
                      │Full File History ...                │
                      │Blame File ...                       │
-                     │─────────────────────────────────────│╭ Branches ─────────────────╮
-                     │Branches                            >││●   main                  >│
-                     │Repo Menu                           >││    dev                   >│
-                     ╰─────────────────────────────────────╯│───────────────────────────│
-                                                            │Show/Open Branch  Shift → >│
-                                                            │Hide All Branches          │
-                                                            ╰───────────────────────────╯
+                     │─────────────────────────────────────│╭ Branches ────────────────────────╮
+                     │Branches                            >││●   main                         >│
+                     │Repo Menu                           >││    dev                          >│
+                     ╰─────────────────────────────────────╯│──────────────────────────────────│
+                                                            │Show/Open Branch         Shift → >│
+                                                            │Hide All Branches                 │
+                                                            │Pull/Update All Branches Shift-U  │
+                                                            │Push All Branches        Shift-P  │
+                                                            ╰──────────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 19, 9)
+            ScreenText.Rows(branches, repo.Path, 19, 11)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
-        // the branch menu, built with isLimited so it has no 'Show/Open Branch' or 'Repo Menu' of
-        // its own to recurse into.
+        // the branch menu, built with isLimited so it has no 'Show/Open Branch', 'Pull/Update All
+        // Branches', 'Push All Branches' or 'Repo Menu' of its own, since the menus it is under
+        // already offer those. The Branches menu is too wide to leave room for it on the right in
+        // 120 columns, so it opens on the left, over the commit menu.
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");
@@ -318,27 +322,25 @@ public class TerminalTest
             """
                      │Full File History ...                │
                      │Blame File ...                       │
-                     │─────────────────────────────────────│╭ Branches ─────────────────╮
-                     │Branches                            >││●   main                  >│╭ dev ───────────────────────────────────╮
-                     │Repo Menu                           >││    dev                   >││Switch/Checkout to Branch            S  │
-                     ╰─────────────────────────────────────╯│───────────────────────────││Merge to main                        E  │
-                                                            │Show/Open Branch  Shift → >││Merge from main                Shift-E  │
-                                                            │Hide All Branches          ││Rebase and push on                     >│
-                                                            ╰───────────────────────────╯│Hide Branch                          H  │
-                                                                                         │Pull/Update                          U  │
-                                                                                         │Push                                 P  │
-                                                                                         │Create Branch ...                    B  │
-                                                                                         │Rename Branch ...                       │
-                                                                                         │Delete Branch ...                       │
-                                                                                         │Diff Branch to                       D >│
-                                                                                         │Change Branch Color                  G  │
-                                                                                         │────────────────────────────────────────│
-                                                                                         │Pull/Update All Branches       Shift-U  │
-                                                                                         │Push All Branches              Shift-P  │
-                                                                                         │Set Commit Branch Manually ...          │
-                                                                                         ╰────────────────────────────────────────╯
+                     │─────────────────────────────────────│╭ Branches ────────────────────────╮
+                  ╭ dev ───────────────────────────────────╮│●   main                         >│
+                  │Switch/Checkout to Branch            S  ││    dev                          >│
+                  │Merge to main                        E  ││──────────────────────────────────│
+                  │Merge from main                Shift-E  ││Show/Open Branch         Shift → >│
+                  │Rebase and push on                     >││Hide All Branches                 │
+                  │Hide Branch                          H  ││Pull/Update All Branches Shift-U  │
+                  │Pull/Update                          U  ││Push All Branches        Shift-P  │
+                  │Push                                 P  │╰──────────────────────────────────╯
+                  │Create Branch ...                    B  │
+                  │Rename Branch ...                       │
+                  │Delete Branch ...                       │
+                  │Diff Branch to                       D >│
+                  │Change Branch Color                  G  │
+                  │────────────────────────────────────────│
+                  │Set Commit Branch Manually ...          │
+                  ╰────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 19, 21)
+            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 19, 19)
         );
     }
 

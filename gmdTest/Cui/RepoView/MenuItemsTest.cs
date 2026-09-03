@@ -74,7 +74,8 @@ public class MenuItemsTest
         );
     }
 
-    // The same menu shown from somewhere that already offers those ways out of it
+    // The same menu shown from the Branches sub menu, which already offers these at its root, next
+    // to the repo menu
     [TestMethod]
     public async Task TestTheLimitedBranchMenuDropsTheWaysOutOfIt()
     {
@@ -82,7 +83,10 @@ public class MenuItemsTest
 
         var dropped = Titles(menu.GetBranchMenuItems("dev")).Except(Titles(menu.GetBranchMenuItems("dev", true)));
 
-        CollectionAssert.AreEqual(new[] { "Show/Open Branch", "Repo Menu" }, dropped.ToArray());
+        CollectionAssert.AreEqual(
+            new[] { "Show/Open Branch", "Pull/Update All Branches", "Push All Branches", "Repo Menu" },
+            dropped.ToArray()
+        );
     }
 
     // The point of the class comment: the same menu is a different number of key presses away from
@@ -108,6 +112,8 @@ public class MenuItemsTest
             ---
             Show/Open Branch >  [Shift →]
             Hide All Branches
+            Pull/Update All Branches  [Shift-U]
+            Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(view).GetShownBranchesItems())
         );
@@ -129,6 +135,8 @@ public class MenuItemsTest
             ---
             Show/Open Branch >  [Shift →]
             Hide All Branches
+            Pull/Update All Branches  [Shift-U]
+            Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(view).GetShownBranchesItems())
         );
@@ -238,6 +246,16 @@ public class MenuItemsTest
 
         StringAssert.Contains(items, "Pull/Update All Branches  [Shift-U]  (disabled)");
         StringAssert.Contains(items, "Push All Branches  [Shift-P]  (disabled)");
+    }
+
+    // The same two under Branches in the commit menu, where a push of everything is greyed out
+    // the same way, while an update of all branches is a fetch and so is left alone
+    [TestMethod]
+    public async Task TestUncommittedChangesDisableThePushAllItemOfTheShownBranches()
+    {
+        var items = Items(BranchMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetShownBranchesItems());
+
+        StringAssert.Contains(items, "Pull/Update All Branches  [Shift-U]\nPush All Branches  [Shift-P]  (disabled)");
     }
 
     // 'Pull/Update' is a fetch for a branch that is not current, and git only fast-forwards one,
