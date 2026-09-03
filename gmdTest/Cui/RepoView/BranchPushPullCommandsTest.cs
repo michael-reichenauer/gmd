@@ -8,8 +8,9 @@ namespace gmdTest.Cui.RepoView;
 // act on. These are plain functions of the shown repo, i.e. of the HasLocalOnly / HasRemoteOnly
 // flags ViewRepoCreater sets, so they are testable without a view.
 //
-// The case that matters most is the diverged branch, which has both flags: it can be pulled but
-// not pushed, since git rejects a push that is not a fast-forward.
+// The case that matters most is the diverged branch, which has both flags. The current branch can
+// be pulled but not pushed, since git rejects a push that is not a fast-forward; any other branch
+// can be neither, since gmd updates one it is not on with a fetch, which only fast-forwards.
 [TestClass]
 public class BranchPushPullCommandsTest
 {
@@ -47,7 +48,9 @@ public class BranchPushPullCommandsTest
     }
 
     // The reason for the '&& !b.HasRemoteOnly' in CanPush: a diverged branch has to be pulled
-    // first, so offering a push would only produce a rejected push
+    // first, so offering a push would only produce a rejected push. Pulling one works here because
+    // it is the *current* branch, which goes through 'git pull' and so merges the two sides; a
+    // diverged branch that is not current is a different case, see TestPullAllLeavesOutTheDivergedBranch.
     [TestMethod]
     public async Task TestDivergedBranchCanBePulledButNotPushed()
     {
@@ -97,16 +100,31 @@ public class BranchPushPullCommandsTest
         );
     }
 
-    // 'Pull all branches' does take a diverged branch, unlike push, since pulling is what resolves
-    // it. It leaves the current branch out, which PullAllBranches has already pulled by then.
+    // 'Pull all branches' takes the branches that are behind only. It leaves the current branch
+    // out, which PullAllBranches has already pulled by then, and the diverged one, which a fetch
+    // cannot fast-forward. 'old' being here is the point of the test: one diverged branch used to
+    // fail the whole command, so every branch after it went unpulled.
     [TestMethod]
     public async Task TestPullAllTakesTheRemoteBranchesThatAreBehindExceptTheCurrent()
     {
         var repo = await Mixed().ViewRepoAsync(ShowBranches.AllActive);
 
         CollectionAssert.AreEqual(
-            new[] { "origin/div" },
+            new[] { "origin/old" },
             BranchPushPullCommands.BranchesToPull(repo, "origin/main").Select(b => b.Name).ToArray()
+        );
+    }
+
+    // The branches pull all has to leave alone, which it reports rather than passing over: a
+    // diverged branch keeps its behind marker, so silence would look like the pull having failed
+    [TestMethod]
+    public async Task TestPullAllLeavesOutTheDivergedBranch()
+    {
+        var repo = await Mixed().ViewRepoAsync(ShowBranches.AllActive);
+
+        CollectionAssert.AreEqual(
+            new[] { "origin/div" },
+            BranchPushPullCommands.DivergedBranchesToPull(repo, "origin/main").Select(b => b.Name).ToArray()
         );
     }
 
@@ -156,10 +174,13 @@ public class BranchPushPullCommandsTest
             .Commit("c1", "Initial")
             .LocalBranch("main", "c2", isCurrent: true);
 
-    // main is the current branch and behind, dev and feat are ahead, and div is diverged, i.e. one
-    // branch for each of the four cases push all and pull all have to tell apart
+    // main is the current branch and behind, dev and feat are ahead, div is diverged and old is
+    // behind without being current, i.e. one branch for each case push all and pull all have to
+    // tell apart. 'old' is what tells "the diverged branch is skipped" apart from "nothing was
+    // pulled at all".
     static RepoBuilder Mixed() =>
         new RepoBuilder()
+            .Commit("o1", "Old remote", "c2")
             .Commit("v2", "Div local", "c2")
             .Commit("v1", "Div remote", "c2")
             .Commit("f1", "Feat work", "c2")
@@ -170,5 +191,6 @@ public class BranchPushPullCommandsTest
             .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "r1", behind: 1)
             .BranchWithRemote("dev", "d1", remoteTipCommit: "c2", ahead: 1)
             .BranchWithRemote("feat", "f1", remoteTipCommit: "c2", ahead: 1)
-            .BranchWithRemote("div", "v2", remoteTipCommit: "v1", ahead: 1, behind: 1);
+            .BranchWithRemote("div", "v2", remoteTipCommit: "v1", ahead: 1, behind: 1)
+            .BranchWithRemote("old", "c2", remoteTipCommit: "o1", behind: 1);
 }

@@ -40,7 +40,13 @@ class RemoteService : IRemoteService
         // only means no local tag is pruned this time.
         var tracked = (await tagService.GetTrackedRemoteTagsAsync(wd)).Or(new Dictionary<string, string>());
 
-        var args = $"fetch --force --prune --tags origin {TagService.FetchRefSpec}";
+        // The branches have to be named as well: a refspec on the command line replaces the
+        // configured remote.origin.fetch ones rather than adding to them, so given the tag mirror
+        // alone the fetch updated tags and nothing else, and origin/* never moved. The configured
+        // refspecs are passed along rather than assuming +refs/heads/*:refs/remotes/origin/*, so a
+        // single-branch clone stays one, and --prune prunes exactly what a plain fetch would.
+        var refSpecs = (await GetConfiguredFetchRefSpecsAsync(wd)).Append(TagService.FetchRefSpec);
+        var args = $"fetch --force --prune --tags origin {string.Join(' ', refSpecs)}";
         if (!Try(out var _, out var e, await cmd.RunAsync("git", args, wd, true)))
             return e;
 
@@ -49,6 +55,17 @@ class RemoteService : IRemoteService
             Log.Warn($"Failed to prune deleted remote tags, {pe}");
 
         return R.Ok;
+    }
+
+    // The refspecs 'git fetch origin' uses when given none, i.e. remote.origin.fetch, of which there
+    // can be several. None when the remote is not configured; the fetch then fails as it always has.
+    async Task<IReadOnlyList<string>> GetConfiguredFetchRefSpecsAsync(string wd)
+    {
+        var args = "config --get-all remote.origin.fetch";
+        if (!Try(out var output, await cmd.RunAsync("git", args, wd, true, true)))
+            return [];
+
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     public async Task<R> PushBranchAsync(string name, string wd)

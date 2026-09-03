@@ -1,9 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-127 releases:
+128 releases:
 
-## [Current] - 2026-08-24
+## [Current] - 2026-09-03
+- Fixed issue with "Pull/Update All" for branches
+- Move some Branches menu items
+- Fixed fetch issue, did not really update and fetch
+
+## [v0.91.1394.267] - 2026-08-24
 - Fixed spell warnings
 
 ## [v0.91.1388.1436] - 2026-08-19

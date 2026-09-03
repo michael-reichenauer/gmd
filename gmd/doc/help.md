@@ -55,7 +55,8 @@ between branches using the `←` and `→` keys and open the branch-specific
 menu with `M` when a branch is highlighted. The same menu is also reachable 
 without highlighting a branch first, under **Branches** in the commit menu: 
 it lists every branch currently shown in the graph, the current branch and 
-its parent branches first, and below them the options to show/hide branches.
+its parent branches first, and below them the options to show/hide branches 
+and to pull/update or push all branches.
 
 ### Indicators for Hidden Branches
 
@@ -74,6 +75,10 @@ that can be pulled or pushed.
 
 Use menu options or the `P` and `U` keys to synchronize. 
 `Shift-P` and `Shift-U` keys can push or update all displayed branches.
+
+A branch with both unpulled and unpushed commits cannot be pushed, nor updated
+by `Shift-U`, which only fast-forwards the branches it is not on. Switch to the
+branch and pull it (`U`) to merge the two sides.
 
 ### Current Commit/Branch
 
