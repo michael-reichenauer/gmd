@@ -23,7 +23,9 @@ class TagService : ITagService
     // disappears from the mirror is one the remote deleted, and a tag that was never in it was never
     // on the remote. FetchRefSpec is what RemoteService.FetchAsync passes to fetch it, and 'fetch
     // --prune' prunes this namespace because it is fetched by an explicit refspec (verified against
-    // git 2.55; auto-followed tags are not pruned, which is what --prune-tags exists for).
+    // git 2.55; auto-followed tags are not pruned, which is what --prune-tags exists for). It goes on
+    // the command line together with the configured branch refspecs, since naming one refspec there
+    // switches the configured ones off — on its own it fetched tags and nothing else.
     internal const string TrackedRemoteTagsRef = "refs/gmdtags/origin/";
     internal const string FetchRefSpec = "+refs/tags/*:" + TrackedRemoteTagsRef + "*";
 

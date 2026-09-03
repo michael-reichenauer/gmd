@@ -67,6 +67,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Copy: macOS had none at all, Linux required `xsel`, and `xclip`'s forked helper hung the UI for
   as long as the text stayed on the clipboard. Rewritten as a chain of writers ending in OSC 52.
 - Opening a repo deleted local tags that were not on the remote (`fetch --prune-tags`).
+- The fix for that stopped the fetch from fetching branches at all: a refspec on the command line
+  replaces `remote.origin.fetch` rather than adding to it, so `r` and the five-minute fetch updated
+  tags only, and a new remote commit showed up only when something else happened to fetch.
 - Opening the diff view during a `rebase --apply` or `am` conflict staged the markers and destroyed
   the conflict; `commit -a` committed markers into history. Both are now guarded on any operation.
 - `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
@@ -191,7 +194,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   "deleted on the remote". `refs/gmdtags/origin/*` is gmd's own record of what the remote had, and
   a local tag is deleted only if it was there and is gone. `git log --all` includes the mirror,
   harmlessly. `--prune` does prune a namespace fetched by an explicit refspec, which the whole
-  design rests on.
+  design rests on — and an explicit refspec *replaces* `remote.<name>.fetch` rather than adding to
+  it, so the configured refspecs are read and passed along with the mirror, or nothing but tags
+  is fetched. A canned test cannot catch either; `GitIntegrationTest` has one for each.
 - `git add` and `commit -a` on an unmerged path *resolve* it with whatever is in the working tree.
   `rebase --apply` and `am` write no `MERGE_MSG`, and `MERGE_MSG` alone never meant "merging" — a
   stopped rebase and cherry-pick write it too. Detect the operation in the order git's own

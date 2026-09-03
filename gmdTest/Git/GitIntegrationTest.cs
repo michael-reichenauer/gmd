@@ -237,6 +237,45 @@ public class GitIntegrationTest
         Assert.AreNotEqual(main.TipID, branches.First(b => b.Name == "origin/main").TipID);
     }
 
+    // That a fetch moves the remote-tracking branches at all. It stopped doing so when the tag
+    // mirror below was put on the command line: git then fetches only what the command line names
+    // and ignores remote.origin.fetch, so tags were fetched and origin/* never moved — and every
+    // canned test still passed, since a canned test can only pin the command line. This is the
+    // canary for that: the remote moves and origin/main has to follow, and a branch deleted on the
+    // remote has to go, which is what --prune is there for.
+    [TestMethod]
+    public async Task TestFetchMovesAndPrunesRemoteBranches()
+    {
+        async Task<string> BranchNames() =>
+            string.Join(", ", Value(await repo.Git.GetBranchesAsync(repo.Path)).Select(b => b.Name));
+
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        await repo.AddOriginAsync();
+        Ok(await repo.Git.PushBranchAsync("main", repo.Path));
+        Ok(await repo.Git.CreateBranchAsync("feature", false, repo.Path));
+        Ok(await repo.Git.PushBranchAsync("feature", repo.Path));
+
+        // Someone else pushes a commit to main and deletes feature. It is done from here, so the
+        // remote-tracking refs are then put back to what they were, since a push moves them just as
+        // a fetch would, and the fetch under test is what has to catch up with the remote.
+        var c2 = await repo.CommitFileAsync("file.txt", "two\n", "Second");
+        Ok(await repo.Git.PushBranchAsync("main", repo.Path));
+        Ok(await repo.Git.DeleteRemoteBranchAsync("feature", repo.Path));
+        await repo.GitAsync($"update-ref refs/remotes/origin/main {c1}");
+        await repo.GitAsync($"update-ref refs/remotes/origin/feature {c1}");
+        Assert.AreEqual(
+            "feature, main, origin/feature, origin/main",
+            await BranchNames(),
+            "The remote has moved on, and this repo has not noticed yet"
+        );
+
+        Ok(await repo.Git.FetchAsync(repo.Path));
+
+        Assert.AreEqual("feature, main, origin/main", await BranchNames(), "origin/feature was deleted on the remote");
+        var originMain = Value(await repo.Git.GetBranchesAsync(repo.Path)).First(b => b.Name == "origin/main");
+        Assert.AreEqual(c2, originMain.TipID, "origin/main follows the remote");
+    }
+
     // What a fetch does to tags, which is the one thing here that cannot be tested with canned
     // output: it is git that decides what --prune removes from the tracking namespace, and the
     // whole mechanism rests on that. gmd used to fetch with --prune-tags, which deletes every local
