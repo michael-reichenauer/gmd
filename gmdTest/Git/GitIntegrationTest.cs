@@ -340,8 +340,8 @@ public class GitIntegrationTest
         Assert.AreEqual("Merge branch 'dev'", status.MergeMessage);
         Assert.AreEqual(d1, status.MergeHeadId);
 
-        // The merged in file is staged as an add, which is counted as modified. See the Step 4
-        // finding in MODERNIZATION.md, this pins that the counts are visibly the ones described.
+        // The merged in file is staged as an add, which is counted as modified. See the open issues
+        // in MODERNIZATION.md; this pins that the counts are visibly the ones described.
         Assert.AreEqual("M:1,A:0,D:0,C:0,R:0", status.ToString());
         CollectionAssert.AreEqual(new[] { "dev.txt" }, status.ModifiedFiles);
 

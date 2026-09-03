@@ -135,8 +135,8 @@ class FileMonitor : IFileMonitor
             // never removed. That is deliberate — it is the debounce clock, and there is nothing to
             // stop it for. It does mean the main loop always has a timeout pending and so never
             // blocks indefinitely, which looks like a culprit when profiling idle CPU. It is not:
-            // one wakeup a second is not a spin. See the 1.19.0 item in MODERNIZATION.md Step 9 for
-            // what the real one was.
+            // one wakeup a second is not a spin. See the Terminal.Gui 1.17.1 finding in
+            // MODERNIZATION.md for what the real one was.
             mainThread.RunPeriodically(TimeSpan.FromSeconds(1), OnTimer);
             isTimerStarted = true;
         }

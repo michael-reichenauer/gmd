@@ -285,7 +285,7 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 MSTest 4.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout — put a test at the path
 mirroring its subject, e.g. `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`. Tests that
 need a real repository use `TempRepo`; **never** run git against this working tree. Growing this
-suite is an explicit goal — see `MODERNIZATION.md` for what is planned next.
+suite is an explicit goal — see the open issues in `MODERNIZATION.md`.
 
 There are five pieces of test infrastructure; use them rather than inventing a sixth way.
 
@@ -465,7 +465,7 @@ Other things to know:
   `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
   string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
-  terminal — not adopted by the suite yet; see the Step 3 finding in `MODERNIZATION.md` first.
+  terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
 - Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates
   `CultureInfo.DefaultThreadCurrentCulture`, so enabling parallel execution would need care.
 
@@ -513,9 +513,9 @@ message.
 
 ## Working agreements
 
-- **`MODERNIZATION.md` is the running plan** for this work — the ordered, step-by-step checklist
-  of what is done and what is next. Read it before starting anything substantial, and tick items
-  off / add findings there as work lands.
+- **`MODERNIZATION.md` holds the open issues and the findings** from the modernization work: what
+  is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the way.
+  Read it before starting anything substantial, and add to it (or close items) as work lands.
 - Modernizing this codebase, fixing bugs, adding tests and improving maintainability is the
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
