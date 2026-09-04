@@ -258,6 +258,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `Cmd.Command` trims the whole output, so a final empty line disappears, and it waits for the
   child's pipes, which a forking helper such as `xclip` inherits — hence `CommandWithStdin`.
 - `FileMonitor`'s debounce is a sliding window: a folder written to continuously never raises.
+- Coloring inside a text input: `TextView.SetNormalColor(List<Rune> line, int idx)` is called per
+  rune per redraw with the live line object (no row index — cache by reference), but not for the
+  caret or a selection, and `ContentsChanged`, not `TextChanged`, is what fires as the user types.
+  `TextField` has no such hook: overdraw after `base.Redraw`, which is synchronous, from
+  `ScrollOffset`, then `PositionCursor()`. `Attribute` is foreground and background only, so a
+  misspelling is red rather than underlined. `Menu.Show` takes screen coordinates and
+  `ViewToScreen` is internal; `ScreenToView(0, 0)` negated is a view's screen origin. The 2.x port
+  has its own `IAutocomplete` and text-run attributes, which is where `UITextView`/`UITextField`'s
+  spell coloring goes then.
 - Terminal.Gui 1.17.1 pinned a core from launch on Linux and macOS: `UnixMainLoop` drained the
   wrong end of its wakeup pipe, so `poll()` reported readable forever. Fixed upstream in 1.18.0
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.

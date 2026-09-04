@@ -42,6 +42,27 @@ static class Files
 
     public static R<string> GetEmbeddedFileContentText(string name)
     {
+        if (!Try(out var stream, out var e, GetEmbeddedFileStream(name)))
+            return e;
+
+        try
+        {
+            using (stream)
+            {
+                using StreamReader reader = new StreamReader(stream);
+                return reader.ReadToEnd();
+            }
+        }
+        catch (Exception ex)
+        {
+            return R.Error(ex);
+        }
+    }
+
+    // Opens an embedded resource as a stream, for content that is not text or is too large to
+    // want as one string (the spell check dictionary). The caller disposes the stream.
+    public static R<Stream> GetEmbeddedFileStream(string name)
+    {
         try
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
@@ -53,11 +74,7 @@ static class Files
             if (stream == null)
                 return R.Error($"Embedded file '{name}'");
 
-            using (stream)
-            {
-                using StreamReader reader = new StreamReader(stream);
-                return reader.ReadToEnd();
-            }
+            return stream;
         }
         catch (Exception e)
         {

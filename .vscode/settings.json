@@ -14,6 +14,9 @@
   // endings in them. Masking just the escape leaves the real word to be checked normally.
   "cSpell.ignoreRegExpList": ["\\\\[nrt]"],
 
+  // The spell check dictionary gmd embeds is 50k words, most of them "unknown" to cSpell.
+  "cSpell.ignorePaths": ["gmd/doc/spelling/**"],
+
   "cSpell.words": [
     "addboth",
     "apphost",

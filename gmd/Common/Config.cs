@@ -10,6 +10,9 @@ class Config
     public bool CheckUpdates { get; set; } = true;
     public bool AutoUpdate { get; set; } = false;
     public bool AllowPreview { get; set; } = false;
+    public bool SpellCheck { get; set; } = true;
+    public List<string> SpellWords { get; set; } = []; // Words added to the dictionary by the user
+    public string SpellDictionary { get; set; } = ""; // Optional path to a Hunspell .dic (with its .aff beside it)
 
     // Values managed by app
     public List<string> RecentFolders { get; set; } = [];

@@ -1,3 +1,4 @@
+using gmd.Common.Spelling;
 using gmd.Cui.Common;
 
 namespace gmd.Cui;
@@ -11,6 +12,13 @@ interface IAddTagDlg
 
 class AddTagDlg : IAddTagDlg
 {
+    readonly ISpellChecker spellChecker;
+
+    internal AddTagDlg(ISpellChecker spellChecker)
+    {
+        this.spellChecker = spellChecker;
+    }
+
     public R<TagInfo> Show()
     {
         var dlg = new UIDialog("Add Tag", 60, 13);
@@ -19,7 +27,7 @@ class AddTagDlg : IAddTagDlg
         var name = dlg.AddTextField(1, 1, 25);
 
         dlg.AddLabel(1, 3, "Message:");
-        var message = dlg.AddMultiLineInputView(1, 5, 56, 4, "");
+        var message = dlg.AddMultiLineInputView(1, 5, 56, 4, "", spellChecker);
 
         dlg.Validate(() => name.Text != "", "Empty tag name");
 
