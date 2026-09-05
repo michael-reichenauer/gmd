@@ -13,7 +13,13 @@ record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
 
 record Indexes(int from, int into, int direction);
 
+// Parses merge commit subjects to recover the branch names git no longer has, and remembers what
+// it found: ParseCommitSubject is called by one stage of the pipeline (CommitGraphService) and the
+// names are looked up by the later stages (CommitBranchService, CommitBranchRules), so all of them
+// must share the one instance holding the cache. Hence the single instance: resolved per consumer,
+// the later stages would each get an empty cache and every deleted branch would lose its name.
 // cspell:ignore erged
+[SingleInstance]
 class BranchNameService : IBranchNameService
 {
     readonly Dictionary<string, FromInto> parsedCommits = [];
@@ -132,6 +138,12 @@ class BranchNameService : IBranchNameService
         }
         var match = matches[0];
 
+        if (IsMatchMergeCommit(match))
+        { // 'git merge <sha>' writes "Merge commit '<sha>' into x". A commit id is not a branch, so
+            // it says nothing about the branch the merged commit was on, only about the target
+            return new FromInto(From: "", Into: TrimBranchName(match.Groups[indexes.into].Value), false, false);
+        }
+
         if (IsMatchPullMerge(match))
         {
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
@@ -205,6 +217,11 @@ class BranchNameService : IBranchNameService
 
         return false;
     }
+
+    // "Merge commit '<sha>'" names a commit rather than a branch, which is what git writes when a
+    // commit is merged by id
+    static bool IsMatchMergeCommit(Match match) =>
+        match.Groups["keyword"].Value.Equals("commit", StringComparison.OrdinalIgnoreCase);
 
     bool IsMatchPullRequest(Match match)
     {

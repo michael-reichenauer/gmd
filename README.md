@@ -86,3 +86,10 @@ Use the provided build script to test and build for all platforms:
 ```bash
 > ./build      # (or '> Build.bat' on Windows)
 ```
+
+## Third-party components
+- [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) (MIT) — the console UI toolkit.
+- [WeCantSpell.Hunspell](https://github.com/aarondandy/WeCantSpell.Hunspell) (MPL 2.0 / LGPL / GPL
+  tri-license, used under MPL 2.0) — the managed Hunspell port that spell checks commit messages.
+- The [SCOWL](http://wordlist.aspell.net) en_US Hunspell dictionary (MIT/BSD, see
+  `gmd/doc/spelling/en_US.license`), embedded in the binary.

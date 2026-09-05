@@ -1,3 +1,4 @@
+using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmd.Cui.RepoView;
 using gmd.Server;
@@ -12,8 +13,14 @@ interface ICommitDlg
 
 class CommitDlg : ICommitDlg
 {
+    readonly ISpellChecker spellChecker;
     IReadOnlyList<Server.Commit>? commits;
     UITextView message = null!;
+
+    internal CommitDlg(ISpellChecker spellChecker)
+    {
+        this.spellChecker = spellChecker;
+    }
 
     public bool Show(IViewRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
     {
@@ -34,9 +41,9 @@ class CommitDlg : ICommitDlg
         var dlg = new UIDialog(title, 74, 18, (key) => OnKey(repo, key));
 
         dlg.AddLabel(1, 0, $"{title} {filesCount} changes on '{branchName}':");
-        var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both);
+        var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both, spellChecker);
 
-        message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart);
+        message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart, spellChecker);
         dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
 
         dlg.ShowOkCancel(subject);

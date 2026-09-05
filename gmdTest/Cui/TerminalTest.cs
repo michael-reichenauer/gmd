@@ -1626,6 +1626,121 @@ public class TerminalTest
         Assert.AreEqual("Add epsilon\n\nSome body text", await repo.GitAsync("log --format=%B -1"));
     }
 
+    // Misspelled words in the commit dialog are drawn in red: in the subject field, which has no
+    // per character color hook and is overdrawn, and in the body, which has one. The word the
+    // caret is still at the end of is being typed and is left alone until it is finished. F7 opens
+    // the suggestions for the misspelled word at or after the caret, Enter on one replaces the
+    // word, and Ctrl+G is the same key — with nothing misspelled after the caret it wraps around.
+    [TestMethod]
+    public async Task TestCommitDialogSpellCheck()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.SendText("Fix resonable issu");
+        gmd.WaitFor("Fix resonable issu");
+        Assert.AreEqual(
+            "                       -DWWW rrrrrrrrr WWWW                                D                    m",
+            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1),
+            "'resonable' is red, 'issu' is still being typed"
+        );
+
+        gmd.SendText(" ");
+        gmd.WaitForStable();
+        Assert.AreEqual(
+            "                       -DWWW rrrrrrrrr rrrr                                D                    m",
+            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1),
+            "The space finished 'issu'"
+        );
+
+        gmd.Send("Tab"); // Into the message body
+        gmd.WaitForStable();
+        gmd.SendText("Sumerize the brnach");
+        gmd.WaitFor("Sumerize the brnach");
+        gmd.Send("Left"); // The caret into 'brnach' rather than at its end, so it is not being typed
+        gmd.WaitForStable();
+        Assert.AreEqual(
+            "                       -Drrrrrrrr WWW rrrrrr                                                   Dm",
+            ScreenText.ColorRows(gmd.CaptureColors(), 16, 1)
+        );
+
+        gmd.Send("F7");
+        ScreenText.AssertEqual(
+            """
+                                   ││Sumerize the brnach                                                   ││
+                                   ││             ╭ Spelling ─────────────────╮                            ││
+                                   ││             │branch                     │                            ││
+                                   ││             │breach                     │                            ││
+                                   ││             │broach                     │                            ││
+                                   ││             │───────────────────────────│                            ││
+                                   ││             │Add 'brnach' to dictionary │                            ││
+                                   ││             │Ignore                     │                            ││
+            """,
+            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 16, 8)
+        );
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Sumerize the branch");
+        Assert.AreEqual(
+            "                       -Drrrrrrrr WWW WWWWWW                                                   Dm",
+            ScreenText.ColorRows(gmd.CaptureColors(), 16, 1)
+        );
+
+        gmd.Send("C-g");
+        ScreenText.AssertEqual(
+            """
+                                   ││Sumerize the branch                                                   ││
+                                   ││╭ Spelling ───────────────────╮                                       ││
+                                   │││Mesmerizer                   │                                       ││
+                                   │││Summarize                    │                                       ││
+            """,
+            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 16, 4)
+        );
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Spelling");
+    }
+
+    // 'Add to dictionary' teaches the checker a word for good: it stops being red at once, and it
+    // is saved in the config, so it is still known in the next session. The menu is driven with
+    // End and Up rather than counted Downs, since how many suggestions a word gets is the
+    // dictionary's business.
+    [TestMethod]
+    public async Task TestCommitDialogAddWordToDictionary()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.SendText("Add gmd to the list");
+        gmd.WaitFor("Add gmd to the list");
+        Assert.AreEqual(
+            "                       -DWWW rrr WW WWW WWWW                               D                    m",
+            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
+        );
+
+        gmd.Send("C-g");
+        gmd.WaitFor("Add 'gmd' to dictionary");
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Up");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Spelling");
+        Assert.AreEqual(
+            "                       -DWWW WWW WW WWW WWWW                               D                    m",
+            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
+        );
+
+        var config = File.ReadAllText(Path.Join(gmd.Home, ".gmdconfig"));
+        StringAssert.Contains(config, "\"SpellWords\"");
+        StringAssert.Contains(config, "\"gmd\"");
+    }
+
     // Ctrl-D in the commit dialog shows the diff of what is about to be committed, i.e. reviewing
     // the changes without losing the message already typed. It is also the only path to the
     // uncommitted diff, which is a different screen from a commit diff — it has no commit id or

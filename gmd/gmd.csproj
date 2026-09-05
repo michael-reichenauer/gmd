@@ -13,6 +13,7 @@
     <PackageReference Include="Autofac" Version="9.3.2" />
     <PackageReference Include="DiffPlex" Version="1.9.0" />
     <PackageReference Include="Terminal.Gui" Version="1.19.0" />
+    <PackageReference Include="WeCantSpell.Hunspell" Version="7.0.1" />
 
     <!-- Formats sources on build (Debug) and fails the build if unformatted (Release).
          Set CSharpier_Bypass=true to skip. -->
@@ -24,5 +25,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="doc/help.md" />
+    <!-- The spell check dictionary (SCOWL en_US, see doc/spelling/en_US.license). LogicalName pins the
+         resource names rather than relying on how the folder path is mangled into one. -->
+    <EmbeddedResource Include="doc/spelling/en_US.dic" LogicalName="gmd.doc.spelling.en_US.dic" />
+    <EmbeddedResource Include="doc/spelling/en_US.aff" LogicalName="gmd.doc.spelling.en_US.aff" />
   </ItemGroup>
 </Project>

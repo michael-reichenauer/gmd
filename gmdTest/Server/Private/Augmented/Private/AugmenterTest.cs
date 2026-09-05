@@ -125,6 +125,47 @@ public class AugmenterTest
         Assert.AreEqual("origin/main", branch.ParentBranch?.Name);
     }
 
+    // The same recovery, but with the pipeline wired the way the app wires it: resolved from the
+    // Autofac container rather than built by hand in RepoBuilder. The merge subjects are parsed
+    // by one stage of the pipeline and the names looked up by another, through a stateful
+    // BranchNameService, so all the stages must be given the same instance. When the container
+    // handed each stage its own, every deleted branch lost its name and became "branch(n)".
+    [TestMethod]
+    public async Task TestDeletedBranchIsRecoveredWhenResolvedFromContainer()
+    {
+        var builder = new RepoBuilder()
+            .Commit("c3", "Merge branch 'gone' into main", "c2", "d1")
+            .Commit("d1", "Work on gone", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true);
+
+        var di = new DependencyInjection();
+        di.RegisterAllAssemblyTypes();
+        var repo = await di.Resolve<IAugmenter>().GetAugRepoAsync(builder.ToGitRepo());
+
+        Assert.AreEqual($"gone:{RepoBuilder.Sid("d1")}", BranchOf(repo, "d1"));
+    }
+
+    // A commit merged by id ('git merge <sha>') gets a subject naming the commit rather than a
+    // branch, so the merged commit keeps the generic deleted-branch name instead of being named
+    // after the id, while the merge commit is still known to be on the branch it was merged into.
+    [TestMethod]
+    public async Task TestCommitMergedByIdIsNotNamedAfterTheId()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", $"Merge commit '{RepoBuilder.Sha("d1")}' into main", "c2", "d1")
+            .Commit("d1", "Work on no branch", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"branch:{RepoBuilder.Sid("d1")}", BranchOf(repo, "d1"));
+        Assert.AreEqual("branch", repo.Branches[BranchOf(repo, "d1")].NiceName);
+        Assert.IsTrue(CommitOf(repo, "c3").IsLikely, "'into main' still says which branch the merge is on");
+    }
+
     // A pull merge is remote commits merged into the local branch. The parents are swapped so
     // the local commits look merged into the remote branch, which keeps the remote branch's
     // commit order stable. The local commits end up on their own pull merge branch.

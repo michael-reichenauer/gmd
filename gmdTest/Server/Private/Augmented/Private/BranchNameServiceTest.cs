@@ -89,6 +89,19 @@ public class BranchNameServiceTest
         Assert.AreEqual(new FromInto("", "", false, false), Parse(""));
     }
 
+    // 'git merge <sha>' writes "Merge commit '<sha>'". A commit id is not a branch name, so it
+    // says nothing about which branch the merged commit was on, only which branch it was merged
+    // into.
+    [TestMethod]
+    public void TestMergeCommitNamesOnlyTheTargetBranch()
+    {
+        Assert.AreEqual(
+            new FromInto("", "dev", false, false),
+            Parse("Merge commit '60b16d764ac1e5d3f579693248f6ffe35da20beb' into dev")
+        );
+        Assert.AreEqual(new FromInto("", "", false, false), Parse("Merge commit '60b16d7'"));
+    }
+
     // Dots are common in branch names, e.g. release branches. A git ref can neither start nor end
     // with a dot, so a name is never read past a sentence ending.
     [TestMethod]

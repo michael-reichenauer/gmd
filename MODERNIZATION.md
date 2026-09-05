@@ -88,6 +88,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
   user-assigned commit's `Φ` lost its white; `diff3`-style conflicts drew the ancestor as part of
   "ours"; the resolver's `]` / `[` skipped the first conflict and its upper-case shortcuts fell
   through to the log view, where `P` is push all.
+- Every deleted branch was named `branch(n)` instead of the name recovered from its merge subject
+  (`Merge branch 'x' into dev` no longer gave `x`): the split of `BranchStructureService` gave three
+  stages a dependency on the stateful `BranchNameService`, and the container, resolving per
+  dependency, handed each stage its own empty cache. It is `[SingleInstance]` now, and one pipeline
+  test resolves from the real container.
+- A commit merged by id (`git merge <sha>`, subject `Merge commit '<sha>' into dev`) was recovered
+  as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
+  the subject still says which branch the merge is on, but nothing about where the merged commit
+  was. Verified on this repo's history: one branch renamed to `branch`, nothing else moved.
 
 ---
 
@@ -229,6 +238,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Characterization tests record behavior, not intent. The pull-all test pinned the diverged-branch
   bug with a comment rationalizing it. The bar for the pipeline is a before/after dump over a real
   repo, not a green suite.
+- A before/after dump through the test wiring cannot see a wiring bug: `RepoBuilder` shares one
+  `BranchNameService` between the stages, so the split that lost every deleted branch's name was
+  verified as pure movement and still landed broken. Anything stateful the stages share must be
+  `[SingleInstance]`, and the pipeline keeps one test that resolves from the container.
 
 **Terminal.Gui 1.x and the UI**
 
@@ -258,9 +271,22 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `Cmd.Command` trims the whole output, so a final empty line disappears, and it waits for the
   child's pipes, which a forking helper such as `xclip` inherits — hence `CommandWithStdin`.
 - `FileMonitor`'s debounce is a sliding window: a folder written to continuously never raises.
+- Coloring inside a text input: `TextView.SetNormalColor(List<Rune> line, int idx)` is called per
+  rune per redraw with the live line object (no row index — cache by reference), but not for the
+  caret or a selection, and `ContentsChanged`, not `TextChanged`, is what fires as the user types.
+  `TextField` has no such hook: overdraw after `base.Redraw`, which is synchronous, from
+  `ScrollOffset`, then `PositionCursor()`. `Attribute` is foreground and background only, so a
+  misspelling is red rather than underlined. `Menu.Show` takes screen coordinates and
+  `ViewToScreen` is internal; `ScreenToView(0, 0)` negated is a view's screen origin. The 2.x port
+  has its own `IAutocomplete` and text-run attributes, which is where `UITextView`/`UITextField`'s
+  spell coloring goes then.
 - Terminal.Gui 1.17.1 pinned a core from launch on Linux and macOS: `UnixMainLoop` drained the
   wrong end of its wakeup pipe, so `poll()` reported readable forever. Fixed upstream in 1.18.0
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.
 - The .NET 10 SDK's terminal logger swallows VSTest output entirely, so `-tl:false` is passed
   everywhere. `Build.IsDevInstance()` is false for the built binary, which therefore really does
   call the GitHub releases API unless `CheckUpdates` is off.
+- A raw string literal keeps the line endings of its source file, so a CRLF checkout on Windows
+  turned every multi-line expected value in the tests into `\r\n` and failed 80 of them, the tag
+  parser's included (`TrimSuffix("^{}")` no longer matched). `.gitattributes` now checks out LF on
+  every platform and CSharpier writes LF, which a Debug build applies before compiling.

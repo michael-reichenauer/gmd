@@ -184,7 +184,10 @@ Consequences to remember:
 - **New classes are auto-registered** — no registration code to write. Add a constructor
   that takes the interfaces you need.
 - Mark a type `[SingleInstance]` (the attribute in `DependencyInjection.cs`) for singletons.
-  Services holding state or events (`Git`, `Server`, `AugmentedService`, `Config`) do.
+  Services holding state or events (`Git`, `Server`, `AugmentedService`, `Config`) do. Everything
+  else is a new instance per consumer, so a stateful type several classes share (`BranchNameService`,
+  whose parse cache three pipeline stages read) silently becomes one copy each unless it is marked —
+  and `RepoBuilder` wires such classes by hand, so the tests do not catch it.
 - Internal and non-public constructors are found via a custom `DefaultConstructorFinder`,
   so `internal` constructors are fine.
 - Because registration is by convention, a type implementing an interface that already has
@@ -225,6 +228,10 @@ is the single source of truth for layout (line breaks, spacing, wrapping, `using
 it also formats `.csproj` files. Settings are in `.csharpierrc` (`printWidth` is **120** — the
 default 100 would explode this codebase's one-line delegation methods into one parameter per
 line); `.csharpierignore` and `.gitignore` are both honored, so `obj/`/`bin/` are skipped.
+`endOfLine` is `lf`, and `.gitattributes` checks out LF on every platform, because a raw string
+literal keeps the line endings of its source file: with a CRLF checkout every multi-line expected
+value in the tests becomes `\r\n`, and some 80 of them fail on Windows. A Debug build repairs such
+a tree, since the format pass rewrites the endings before compiling.
 
 It runs in four places: on save in VS Code (`editor.formatOnSave` + the `csharpier-vscode`
 extension), on build (the `CSharpier.MsBuild` package in both `.csproj` files), on commit

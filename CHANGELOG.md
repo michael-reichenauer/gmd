@@ -1,9 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-128 releases:
+129 releases:
 
-## [Current] - 2026-09-03
+## [Current] - 2026-09-05
+- Added spell-check support for text fields in commit, tag, ...
+- Fixed issue how branches are determined
+
+## [v0.91.1404.491] - 2026-09-03
 - Fixed issue with "Pull/Update All" for branches
 - Move some Branches menu items
 - Fixed fetch issue, did not really update and fetch
