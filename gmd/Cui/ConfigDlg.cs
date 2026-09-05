@@ -46,7 +46,8 @@ class ConfigDlg : IConfigDlg
         var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", config.CheckUpdates);
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", config.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", config.AllowPreview);
-        var isAddGmdToPath = dlg.AddCheckBox(1, 8, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
+        var isSpellCheck = dlg.AddCheckBox(1, 8, "Spell check commit messages", config.SpellCheck);
+        var isAddGmdToPath = dlg.AddCheckBox(1, 9, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
         isAddGmdToPath.Visible = !Build.IsDevInstance() && Build.IsWindows;
 
         if (dlg.ShowOkCancel())
@@ -60,6 +61,7 @@ class ConfigDlg : IConfigDlg
                 c.CheckUpdates = isCheckUpdates.Checked;
                 c.AutoUpdate = isAutoUpdate.Checked;
                 c.AllowPreview = isAllowPreview.Checked;
+                c.SpellCheck = isSpellCheck.Checked;
             });
 
             UpdatePathVariable(isAddGmdToPath.Checked);

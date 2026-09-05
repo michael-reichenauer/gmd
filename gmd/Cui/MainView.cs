@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmd.Cui.RepoView;
 using gmd.Git;
@@ -26,6 +27,7 @@ partial class MainView : IMainView
     readonly IProgress progress;
     readonly IAboutDlg aboutDlg;
     readonly IUpdater updater;
+    readonly ISpellChecker spellChecker;
     readonly Lazy<View> toplevel;
 
     public MainView(
@@ -38,7 +40,8 @@ partial class MainView : IMainView
         IServer server,
         IProgress progress,
         IAboutDlg aboutDlg,
-        IUpdater updater
+        IUpdater updater,
+        ISpellChecker spellChecker
     )
         : base()
     {
@@ -52,6 +55,7 @@ partial class MainView : IMainView
         this.progress = progress;
         this.aboutDlg = aboutDlg;
         this.updater = updater;
+        this.spellChecker = spellChecker;
         toplevel = new Lazy<View>(CreateView);
     }
 
@@ -83,6 +87,7 @@ partial class MainView : IMainView
     {
         Threading.SetUp();
         config.Init();
+        spellChecker.WarmUp(); // Loads the dictionary, with the user's words from the config just read
 
         string path = GetWorkingFolder();
         // Environment.CurrentDirectory = "/workspaces";

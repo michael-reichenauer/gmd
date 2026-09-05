@@ -3,6 +3,9 @@
 ###############################################################################
 * text=auto
 
+# The embedded spell check dictionary: 50k lines of data, a diff of it is never wanted.
+gmd/doc/spelling/*.dic -diff
+
 
 ###############################################################################
 # Set default behavior for command prompt diff.

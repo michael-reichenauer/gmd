@@ -1,3 +1,4 @@
+using gmd.Common.Spelling;
 using Terminal.Gui;
 
 namespace gmd.Cui.Common;
@@ -91,9 +92,20 @@ class UIDialog
         return textField;
     }
 
-    internal UITextField AddInputField(int x, int y, int w, string text = "", InputMarkers markers = InputMarkers.Right)
+    internal UITextField AddInputField(
+        int x,
+        int y,
+        int w,
+        string text = "",
+        InputMarkers markers = InputMarkers.Right,
+        ISpellChecker? spellChecker = null
+    )
     {
-        var textField = new UITextField(x, y, w, text) { ColorScheme = ColorSchemes.TextField };
+        var textField = new UITextField(x, y, w, text)
+        {
+            ColorScheme = ColorSchemes.TextField,
+            SpellChecker = spellChecker,
+        };
         views.Add(textField);
 
         if (markers == InputMarkers.Left || markers == InputMarkers.Both)
@@ -110,7 +122,14 @@ class UIDialog
         return textField;
     }
 
-    internal UITextView AddMultiLineInputView(int x, int y, int w, int h, string text)
+    internal UITextView AddMultiLineInputView(
+        int x,
+        int y,
+        int w,
+        int h,
+        string text,
+        ISpellChecker? spellChecker = null
+    )
     {
         var textView = new UITextView()
         {
@@ -120,6 +139,7 @@ class UIDialog
             Height = h,
             Text = text,
             ColorScheme = ColorSchemes.TextField,
+            SpellChecker = spellChecker,
         };
         views.Add(textView);
 
