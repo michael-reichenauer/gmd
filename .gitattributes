@@ -1,7 +1,14 @@
 ###############################################################################
 # Set default behavior to automatically normalize line endings.
+#
+# Checked out with LF on every platform, Windows included: the tests assert drawn output against
+# raw string literals, and a raw string literal keeps the line endings of its source file, so a
+# CRLF checkout turns every multi-line expected value into "\r\n" and fails some 80 tests.
 ###############################################################################
-* text=auto
+* text=auto eol=lf
+
+# cmd.exe is the one reader that wants CRLF
+*.bat text eol=crlf
 
 # The embedded spell check dictionary: 50k lines of data, a diff of it is never wanted.
 gmd/doc/spelling/*.dic -diff

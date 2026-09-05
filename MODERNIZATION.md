@@ -286,3 +286,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - The .NET 10 SDK's terminal logger swallows VSTest output entirely, so `-tl:false` is passed
   everywhere. `Build.IsDevInstance()` is false for the built binary, which therefore really does
   call the GitHub releases API unless `CheckUpdates` is off.
+- A raw string literal keeps the line endings of its source file, so a CRLF checkout on Windows
+  turned every multi-line expected value in the tests into `\r\n` and failed 80 of them, the tag
+  parser's included (`TrimSuffix("^{}")` no longer matched). `.gitattributes` now checks out LF on
+  every platform and CSharpier writes LF, which a Debug build applies before compiling.

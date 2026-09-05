@@ -228,6 +228,10 @@ is the single source of truth for layout (line breaks, spacing, wrapping, `using
 it also formats `.csproj` files. Settings are in `.csharpierrc` (`printWidth` is **120** — the
 default 100 would explode this codebase's one-line delegation methods into one parameter per
 line); `.csharpierignore` and `.gitignore` are both honored, so `obj/`/`bin/` are skipped.
+`endOfLine` is `lf`, and `.gitattributes` checks out LF on every platform, because a raw string
+literal keeps the line endings of its source file: with a CRLF checkout every multi-line expected
+value in the tests becomes `\r\n`, and some 80 of them fail on Windows. A Debug build repairs such
+a tree, since the format pass rewrites the endings before compiling.
 
 It runs in four places: on save in VS Code (`editor.formatOnSave` + the `csharpier-vscode`
 extension), on build (the `CSharpier.MsBuild` package in both `.csproj` files), on commit
