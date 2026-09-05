@@ -125,6 +125,28 @@ public class AugmenterTest
         Assert.AreEqual("origin/main", branch.ParentBranch?.Name);
     }
 
+    // The same recovery, but with the pipeline wired the way the app wires it: resolved from the
+    // Autofac container rather than built by hand in RepoBuilder. The merge subjects are parsed
+    // by one stage of the pipeline and the names looked up by another, through a stateful
+    // BranchNameService, so all the stages must be given the same instance. When the container
+    // handed each stage its own, every deleted branch lost its name and became "branch(n)".
+    [TestMethod]
+    public async Task TestDeletedBranchIsRecoveredWhenResolvedFromContainer()
+    {
+        var builder = new RepoBuilder()
+            .Commit("c3", "Merge branch 'gone' into main", "c2", "d1")
+            .Commit("d1", "Work on gone", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true);
+
+        var di = new DependencyInjection();
+        di.RegisterAllAssemblyTypes();
+        var repo = await di.Resolve<IAugmenter>().GetAugRepoAsync(builder.ToGitRepo());
+
+        Assert.AreEqual($"gone:{RepoBuilder.Sid("d1")}", BranchOf(repo, "d1"));
+    }
+
     // A pull merge is remote commits merged into the local branch. The parents are swapped so
     // the local commits look merged into the remote branch, which keeps the remote branch's
     // commit order stable. The local commits end up on their own pull merge branch.

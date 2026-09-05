@@ -88,6 +88,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   user-assigned commit's `Φ` lost its white; `diff3`-style conflicts drew the ancestor as part of
   "ours"; the resolver's `]` / `[` skipped the first conflict and its upper-case shortcuts fell
   through to the log view, where `P` is push all.
+- Every deleted branch was named `branch(n)` instead of the name recovered from its merge subject
+  (`Merge branch 'x' into dev` no longer gave `x`): the split of `BranchStructureService` gave three
+  stages a dependency on the stateful `BranchNameService`, and the container, resolving per
+  dependency, handed each stage its own empty cache. It is `[SingleInstance]` now, and one pipeline
+  test resolves from the real container.
 
 ---
 
@@ -229,6 +234,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Characterization tests record behavior, not intent. The pull-all test pinned the diverged-branch
   bug with a comment rationalizing it. The bar for the pipeline is a before/after dump over a real
   repo, not a green suite.
+- A before/after dump through the test wiring cannot see a wiring bug: `RepoBuilder` shares one
+  `BranchNameService` between the stages, so the split that lost every deleted branch's name was
+  verified as pure movement and still landed broken. Anything stateful the stages share must be
+  `[SingleInstance]`, and the pipeline keeps one test that resolves from the container.
 
 **Terminal.Gui 1.x and the UI**
 

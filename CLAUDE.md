@@ -184,7 +184,10 @@ Consequences to remember:
 - **New classes are auto-registered** — no registration code to write. Add a constructor
   that takes the interfaces you need.
 - Mark a type `[SingleInstance]` (the attribute in `DependencyInjection.cs`) for singletons.
-  Services holding state or events (`Git`, `Server`, `AugmentedService`, `Config`) do.
+  Services holding state or events (`Git`, `Server`, `AugmentedService`, `Config`) do. Everything
+  else is a new instance per consumer, so a stateful type several classes share (`BranchNameService`,
+  whose parse cache three pipeline stages read) silently becomes one copy each unless it is marked —
+  and `RepoBuilder` wires such classes by hand, so the tests do not catch it.
 - Internal and non-public constructors are found via a custom `DefaultConstructorFinder`,
   so `internal` constructors are fine.
 - Because registration is by convention, a type implementing an interface that already has
