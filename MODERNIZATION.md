@@ -93,6 +93,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   stages a dependency on the stateful `BranchNameService`, and the container, resolving per
   dependency, handed each stage its own empty cache. It is `[SingleInstance]` now, and one pipeline
   test resolves from the real container.
+- A commit merged by id (`git merge <sha>`, subject `Merge commit '<sha>' into dev`) was recovered
+  as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
+  the subject still says which branch the merge is on, but nothing about where the merged commit
+  was. Verified on this repo's history: one branch renamed to `branch`, nothing else moved.
 
 ---
 

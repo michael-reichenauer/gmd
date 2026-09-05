@@ -138,6 +138,12 @@ class BranchNameService : IBranchNameService
         }
         var match = matches[0];
 
+        if (IsMatchMergeCommit(match))
+        { // 'git merge <sha>' writes "Merge commit '<sha>' into x". A commit id is not a branch, so
+            // it says nothing about the branch the merged commit was on, only about the target
+            return new FromInto(From: "", Into: TrimBranchName(match.Groups[indexes.into].Value), false, false);
+        }
+
         if (IsMatchPullMerge(match))
         {
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
@@ -211,6 +217,11 @@ class BranchNameService : IBranchNameService
 
         return false;
     }
+
+    // "Merge commit '<sha>'" names a commit rather than a branch, which is what git writes when a
+    // commit is merged by id
+    static bool IsMatchMergeCommit(Match match) =>
+        match.Groups["keyword"].Value.Equals("commit", StringComparison.OrdinalIgnoreCase);
 
     bool IsMatchPullRequest(Match match)
     {
