@@ -42,6 +42,96 @@ public class GitIntegrationTest
         Assert.AreEqual(repo.Path, Value(repo.Git.RootPath(subFolder)));
     }
 
+    // A linked worktree has a '.git' file rather than a folder, and is a root of its own
+    [TestMethod]
+    public async Task TestRootPathIsFoundFromInsideALinkedWorktree()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var worktree = await repo.AddWorktreeAsync("dev");
+        var subFolder = Path.Join(worktree, "sub");
+        Directory.CreateDirectory(subFolder);
+
+        Assert.AreEqual(worktree, Value(repo.Git.RootPath(subFolder)));
+        Assert.AreEqual(repo.Path, Value(repo.Git.RootPath(repo.Path)), "The main worktree is unchanged");
+    }
+
+    // The worktree round trip, and the one thing canned output cannot pin: that git marks the
+    // branch a worktree holds with '+' — seen from the main worktree and from the linked one
+    [TestMethod]
+    public async Task TestWorktreeAddListAndRemoveRoundTrip()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var path = repo.WorktreePath("dev");
+
+        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        repo.TrackFolder(path);
+
+        var worktrees = Value(await repo.Git.GetWorktreesAsync(repo.Path));
+        Assert.AreEqual(2, worktrees.Count);
+        Assert.IsTrue(worktrees[0].IsMain);
+        Assert.AreEqual(repo.Path, worktrees[0].Path);
+        Assert.AreEqual("main", worktrees[0].Branch);
+        Assert.IsFalse(worktrees[1].IsMain);
+        Assert.AreEqual(path, worktrees[1].Path);
+        Assert.AreEqual("dev", worktrees[1].Branch);
+        Assert.AreEqual(await repo.HeadIdAsync(), worktrees[1].HeadId);
+        Assert.IsFalse(worktrees[1].IsLocked);
+        Assert.IsFalse(worktrees[1].IsPrunable);
+
+        var fromMain = Value(await repo.Git.GetBranchesAsync(repo.Path));
+        Assert.IsTrue(fromMain.First(b => b.Name == "dev").IsCheckedOutElsewhere);
+        Assert.IsFalse(fromMain.First(b => b.Name == "main").IsCheckedOutElsewhere);
+        var fromWorktree = Value(await repo.Git.GetBranchesAsync(path));
+        Assert.IsTrue(fromWorktree.First(b => b.Name == "main").IsCheckedOutElsewhere);
+        Assert.IsTrue(fromWorktree.First(b => b.Name == "dev").IsCurrent);
+
+        // Uncommitted changes in the worktree: refused unless forced
+        File.WriteAllText(Path.Join(path, "new.txt"), "text\n");
+        Assert.IsFalse(Try(out e, await repo.Git.RemoveWorktreeAsync(path, false, repo.Path)));
+        StringAssert.Contains(e.ErrorMessage, "--force");
+        Assert.IsTrue(Try(out e, await repo.Git.RemoveWorktreeAsync(path, true, repo.Path)), $"{e}");
+
+        Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
+        Assert.IsFalse(Directory.Exists(path));
+        Assert.IsFalse(
+            Value(await repo.Git.GetBranchesAsync(repo.Path)).First(b => b.Name == "dev").IsCheckedOutElsewhere
+        );
+    }
+
+    // A worktree whose folder was deleted by hand is still registered, as prunable, until pruned
+    [TestMethod]
+    public async Task TestWorktreeWithAMissingFolderIsPrunable()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var path = await repo.AddWorktreeAsync("dev");
+        Directory.Delete(path, true);
+
+        var worktrees = Value(await repo.Git.GetWorktreesAsync(repo.Path));
+        Assert.AreEqual(2, worktrees.Count);
+        Assert.IsTrue(worktrees[1].IsPrunable);
+        Assert.AreNotEqual("", worktrees[1].PruneReason);
+
+        Assert.IsTrue(Try(out var e, await repo.Git.PruneWorktreesAsync(repo.Path)), $"{e}");
+
+        Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
+    }
+
+    [TestMethod]
+    public async Task TestIgnoredWorktreeFolders()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var folders = new[] { ".claude/worktrees", ".worktrees" };
+
+        Assert.AreEqual(0, Value(await repo.Git.GetIgnoredPathsAsync(folders, repo.Path)).Count);
+
+        repo.WriteFile(".gitignore", ".worktrees/\n");
+
+        CollectionAssert.AreEqual(
+            new[] { ".worktrees" },
+            Value(await repo.Git.GetIgnoredPathsAsync(folders, repo.Path)).ToArray()
+        );
+    }
+
     [TestMethod]
     public async Task TestLogRoundTrip()
     {

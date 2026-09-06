@@ -30,7 +30,10 @@ class WorkRepoConverter : IWorkRepoConverter
             workRepo.Stashes.ToList(),
             workRepo.Status,
             ""
-        );
+        )
+        {
+            Worktrees = workRepo.Worktrees.ToList(),
+        };
     }
 
     public Status ToStatus(GitStatus gitStatus) => StatusConverter.ToStatus(gitStatus);
@@ -86,6 +89,7 @@ class WorkRepoConverter : IWorkRepoConverter
             IsRemote: b.IsRemote,
             RemoteName: b.RemoteName,
             LocalName: b.LocalName,
+            WorktreePath: b.WorktreePath,
             ParentBranchName: b.ParentBranch?.Name ?? "",
             PullMergeParentBranchName: b.PullMergeParentBranch?.Name ?? "",
             IsInView: false,

@@ -209,6 +209,23 @@ public class ViewRepoCreaterTest
         );
     }
 
+    // The worktrees ride along into the view repo, and into the filtered one — both of which are
+    // built from scratch rather than with 'with', so they would silently drop them
+    [TestMethod]
+    public async Task TestWorktreesAreKeptByTheViewRepoAndTheFilteredRepo()
+    {
+        var builder = ThreeBranches().Worktree("/test/repo-dev", "dev", changes: 3);
+
+        var repo = await builder.ViewRepoAsync("dev");
+        Assert.AreEqual(2, repo.Worktrees.Count);
+        Assert.AreEqual(3, repo.Worktrees[1].ChangesCount);
+        Assert.AreEqual("/test/repo-dev", repo.BranchByName["dev"].WorktreePath);
+        Assert.AreEqual("/test/repo-dev", repo.WorktreePathOf(repo.BranchByName["origin/dev"]));
+
+        var filtered = await builder.FilteredViewRepoAsync("Initial");
+        Assert.AreEqual(2, filtered.Worktrees.Count);
+    }
+
     static RepoBuilder ThreeBranches() =>
         new RepoBuilder()
             .Commit("c5", "Merge branch 'feat' into main", "c4", "f1")

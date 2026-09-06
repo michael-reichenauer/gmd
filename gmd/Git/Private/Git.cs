@@ -17,6 +17,7 @@ internal class Git : IGit
     readonly IStashService stashService;
     readonly IBlameService blameService;
     readonly IConflictService conflictService;
+    readonly IWorktreeService worktreeService;
     readonly ICmd cmd;
 
     public Git(
@@ -32,9 +33,11 @@ internal class Git : IGit
         IStashService stashService,
         IBlameService blameService,
         IConflictService conflictService,
+        IWorktreeService worktreeService,
         ICmd cmd
     )
     {
+        this.worktreeService = worktreeService;
         this.logService = logService;
         this.branchService = branchService;
         this.statusService = statusService;
@@ -227,6 +230,21 @@ internal class Git : IGit
 
     public Task<R> DeleteRemoteTagAsync(string name, string wd) => remoteService.DeleteRemoteTagAsync(name, wd);
 
+    public Task<R<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) => worktreeService.ListAsync(wd);
+
+    public Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd) =>
+        isNewBranch
+            ? worktreeService.AddNewBranchAsync(path, branchName, startPoint, wd)
+            : worktreeService.AddAsync(path, branchName, wd);
+
+    public Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd) =>
+        worktreeService.RemoveAsync(path, isForce, wd);
+
+    public Task<R> PruneWorktreesAsync(string wd) => worktreeService.PruneAsync(wd);
+
+    public Task<R<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
+        worktreeService.GetIgnoredAsync(paths, wd);
+
     public async Task<R<string>> Version()
     {
         if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true, true)))
@@ -243,40 +261,12 @@ internal class Git : IGit
         CurrentAuthor = output.Trim();
     }
 
+    // The root of the working tree a folder is in. A linked worktree is a root of its own, even
+    // when nested inside the main repository's folder — see GitDir.
     public static R<string> RootPathDir(string path)
     {
-        if (path == "")
-        {
-            path = Directory.GetCurrentDirectory();
-        }
-
-        if (!Directory.Exists(path))
-        {
-            return R.Error($"Folder does not exist: '{path}'");
-        }
-
-        var current = path.TrimSuffix("/").TrimSuffix("\\");
-        if (path.EndsWith(".git"))
-        {
-            current = IOPath.GetDirectoryName(path) ?? path;
-        }
-
-        while (true)
-        {
-            string gitRepoPath = IOPath.Join(current, ".git");
-            if (Directory.Exists(gitRepoPath))
-            {
-                return current;
-            }
-            string parent = IOPath.GetDirectoryName(current) ?? current;
-            if (parent == current)
-            {
-                // Reached top/root volume folder
-                break;
-            }
-            current = parent;
-        }
-
-        return R.Error($"No '.git' folder was found in:\n'{path}'\n or in any parent folders.");
+        if (!Try(out var gitDir, out var e, GitDir.Find(path)))
+            return e;
+        return gitDir.RootPath;
     }
 }

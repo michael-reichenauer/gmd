@@ -272,6 +272,8 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // out for the same reason BranchesToPush leaves one out: a branch that is not current is
     // pulled with 'git fetch origin <b>:<b>', which git rejects as non fast-forward. Merging the
     // two sides means switching to the branch, so DivergedBranchesToPull reports those instead.
+    // A branch checked out in another worktree is left out as well: git refuses to move it from
+    // here, that worktree has to pull it.
     internal static IEnumerable<Branch> BranchesToPull(Repo repo, string currentRemoteName) =>
         repo
             .ViewBranches.Where(b =>
@@ -281,6 +283,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 && !b.IsCurrent
                 && b.HasRemoteOnly
                 && !b.HasLocalOnly
+                && repo.WorktreePathOf(b) == ""
             )
             .DistinctBy(b => b.PrimaryName);
 
@@ -295,6 +298,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 && !b.IsCurrent
                 && b.HasRemoteOnly
                 && b.HasLocalOnly
+                && repo.WorktreePathOf(b) == ""
             )
             .DistinctBy(b => b.PrimaryName);
 

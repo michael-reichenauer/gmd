@@ -237,27 +237,9 @@ class StatusService : IStatusService
 
     // The real git dir of the working folder. Usually '<wd>/.git', but in a linked worktree and in
     // a submodule '.git' is a *file* holding 'gitdir: <path>' — and that is where the operation
-    // state lives, so joining '.git' blindly would find none of it there.
-    internal static string GetGitDir(string wd)
-    {
-        var path = Path.Join(wd, ".git");
-        if (Directory.Exists(path))
-            return path;
-        if (!File.Exists(path))
-            return "";
-
-        if (!Try(out var text, out var _, () => File.ReadAllText(path)))
-            return "";
-
-        var gitDir = text.Split('\n')[0].Trim();
-        if (!gitDir.StartsWith("gitdir:"))
-            return "";
-
-        gitDir = gitDir["gitdir:".Length..].Trim();
-
-        // A submodule's pointer is relative to the folder holding the '.git' file
-        return Path.IsPathRooted(gitDir) ? gitDir : Path.GetFullPath(Path.Join(wd, gitDir));
-    }
+    // state lives, so joining '.git' blindly would find none of it there. Empty if there is none.
+    internal static string GetGitDir(string wd) =>
+        Try(out var gitDir, out var _, GitDir.Resolve(wd)) ? gitDir.GitDirPath : "";
 
     static string ReadFirstLine(string path) =>
         Try(out var text, out var _, () => File.ReadAllText(path)) ? text.Split('\n')[0].Trim() : "";
