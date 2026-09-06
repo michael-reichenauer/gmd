@@ -21,7 +21,15 @@ class FakeGit : IGit
     public Task<R<Status>> GetStatusAsync(string wd) =>
         Task.FromResult<R<Status>>(StatusByPath.TryGetValue(wd, out var s) ? s : status);
 
+    // The lock-free read the other worktrees get; which folders were read that way is recorded
+    public Task<R<Status>> GetStatusWithoutLocksAsync(string wd)
+    {
+        StatusWithoutLocksPaths.Add(wd);
+        return GetStatusAsync(wd);
+    }
+
     public Dictionary<string, Status> StatusByPath { get; } = [];
+    public List<string> StatusWithoutLocksPaths { get; } = [];
 
     // The worktrees 'git worktree list' would report, and every worktree write made, in order
     public List<Worktree> Worktrees { get; } = [];

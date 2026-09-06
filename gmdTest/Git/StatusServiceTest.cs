@@ -424,6 +424,24 @@ public class StatusServiceTest
         Assert.AreEqual("status -s --porcelain --ahead-behind --untracked-files=all", cmd.Calls[0].Args);
     }
 
+    // The read for a worktree someone else is working in must not take that worktree's index
+    // lock, which a plain status does while it writes the refreshed index back
+    [TestMethod]
+    public async Task TestStatusWithoutLocksAsksGitToTakeNone()
+    {
+        var cmd = new FakeCmd("");
+        var service = new StatusService(cmd);
+
+        await service.GetStatusWithoutLocksAsync(wd);
+
+        Assert.AreEqual(1, cmd.Calls.Count);
+        Assert.AreEqual(wd, cmd.Calls[0].WorkingDirectory);
+        Assert.AreEqual(
+            "--no-optional-locks status -s --porcelain --ahead-behind --untracked-files=all",
+            cmd.Calls[0].Args
+        );
+    }
+
     // gmd's own Undo/Revert Commit runs 'revert --no-commit', which stages one change for the
     // commit dialog and queues nothing behind it — but records REVERT_HEAD all the same, and does
     // so even when the revert applies cleanly. Testing the operation alone therefore said "a revert

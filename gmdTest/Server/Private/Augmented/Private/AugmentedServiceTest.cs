@@ -73,6 +73,11 @@ public class AugmentedServiceTest
         Assert.IsTrue(updated.Worktrees[1].IsLocked);
         Assert.AreSame(repo.AllBranches, updated.AllBranches, "Nothing but the worktrees is touched");
         Assert.AreSame(repo.ViewCommits, updated.ViewCommits);
+        CollectionAssert.AreEqual(
+            new[] { Dev },
+            git.StatusWithoutLocksPaths,
+            "The other worktree is read without taking its index lock, and the current one is not read at all"
+        );
     }
 
     // A worktree that appeared since is listed, and one that went is gone; only the status of the

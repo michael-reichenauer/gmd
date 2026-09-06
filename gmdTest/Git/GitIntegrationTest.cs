@@ -98,6 +98,32 @@ public class GitIntegrationTest
         );
     }
 
+    // The other worktrees are read with '--no-optional-locks', which neither takes the index lock
+    // a commit run there would fail on, nor rewrites the index. The control is a plain status,
+    // which does write it once a tracked file's stat data is stale, that being what the flag is for.
+    [TestMethod]
+    public async Task TestStatusWithoutLocksLeavesTheOtherWorktreesIndexAlone()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var path = repo.WorktreePath("dev");
+        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        repo.TrackFolder(path);
+
+        // Same content, different stat data: a refresh finds the file unchanged and writes the
+        // new stat data back to the index, unless told not to
+        var file = Path.Join(path, "file.txt");
+        File.SetLastWriteTimeUtc(file, File.GetLastWriteTimeUtc(file).AddMinutes(-1));
+        var index = Path.Join(Value(GitDir.Resolve(path)).GitDirPath, "index");
+        var before = File.ReadAllBytes(index);
+
+        var status = Value(await repo.Git.GetStatusWithoutLocksAsync(path));
+        Assert.AreEqual(0, status.Modified);
+        CollectionAssert.AreEqual(before, File.ReadAllBytes(index), "The lock-free read wrote the index");
+
+        Value(await repo.Git.GetStatusAsync(path));
+        CollectionAssert.AreNotEqual(before, File.ReadAllBytes(index), "The plain status did not write the index");
+    }
+
     // A worktree whose folder was deleted by hand is still registered, as prunable, until pruned
     [TestMethod]
     public async Task TestWorktreeWithAMissingFolderIsPrunable()

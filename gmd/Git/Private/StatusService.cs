@@ -3,10 +3,13 @@ namespace gmd.Git.Private;
 interface IStatusService
 {
     Task<R<Status>> GetStatusAsync(string wd);
+    Task<R<Status>> GetStatusWithoutLocksAsync(string wd);
 }
 
 class StatusService : IStatusService
 {
+    const string StatusArgs = "status -s --porcelain --ahead-behind --untracked-files=all";
+
     private readonly ICmd cmd;
 
     public StatusService(ICmd cmd)
@@ -14,10 +17,17 @@ class StatusService : IStatusService
         this.cmd = cmd;
     }
 
-    public async Task<R<Status>> GetStatusAsync(string wd)
+    public Task<R<Status>> GetStatusAsync(string wd) => GetStatusAsync("", wd);
+
+    // For a worktree someone else is working in. A plain 'git status' refreshes the index and
+    // writes it back, holding 'index.lock' while it does, and a 'git add' or 'commit' run there
+    // at that moment fails on the lock. '--no-optional-locks' skips the write, so the read leaves
+    // no trace in the other worktree.
+    public Task<R<Status>> GetStatusWithoutLocksAsync(string wd) => GetStatusAsync("--no-optional-locks ", wd);
+
+    async Task<R<Status>> GetStatusAsync(string options, string wd)
     {
-        var args = "status -s --porcelain --ahead-behind --untracked-files=all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", options + StatusArgs, wd)))
             return e;
 
         return Parse(output, wd);

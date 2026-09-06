@@ -11,6 +11,9 @@ interface IGit
     Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<R<Status>> GetStatusAsync(string wd);
+
+    // The status of a worktree someone else is working in, read without taking its index lock
+    Task<R<Status>> GetStatusWithoutLocksAsync(string wd);
     Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);

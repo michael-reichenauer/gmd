@@ -46,8 +46,9 @@ class FileMonitor : IFileMonitor
         System.IO.NotifyFilters.LastWrite | System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.DirectoryName;
 
     // What another worktree writes that says its checkout changed: which commit it is on, where
-    // it is, and whether it is locked. Its index and logs are written by every 'git status' run
-    // there, which is not a change of anything this repo shows.
+    // it is, and whether it is locked. Its index and logs are written by whatever runs git there,
+    // which is not a change of anything this repo shows (gmd's own reads of it take no locks and
+    // write nothing).
     static readonly string[] WorktreeStateFiles = [GitHeadFile, "gitdir", "locked"];
 
     readonly FileSystemWatcher workFolderWatcher = new FileSystemWatcher();

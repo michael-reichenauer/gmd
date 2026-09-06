@@ -73,6 +73,8 @@ internal class Git : IGit
 
     public Task<R<Status>> GetStatusAsync(string wd) => statusService.GetStatusAsync(wd);
 
+    public Task<R<Status>> GetStatusWithoutLocksAsync(string wd) => statusService.GetStatusWithoutLocksAsync(wd);
+
     public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         commitService.CommitAllChangesAsync(message, isAmend, wd);
 

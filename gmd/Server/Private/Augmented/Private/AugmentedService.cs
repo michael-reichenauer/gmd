@@ -266,7 +266,9 @@ class AugmentedService : IAugmentedService
 
     // The number of uncommitted changes in each of the other worktrees, read in parallel. Only
     // the ones that can be read: a worktree whose folder is gone has no status, and neither has
-    // a bare one. A status that fails is left out, which the UI shows as unknown.
+    // a bare one. A status that fails is left out, which the UI shows as unknown. Read without
+    // locks: someone else is working in those folders, and a plain status would hold their index
+    // lock while it rewrote their index, long enough for a commit there to fail on it.
     async Task<IReadOnlyDictionary<string, int>> GetWorktreeChangesAsync(
         IReadOnlyList<Git.Worktree> worktrees,
         string path
@@ -275,7 +277,7 @@ class AugmentedService : IAugmentedService
         var others = worktrees
             .Where(w => !w.IsPrunable && !w.IsBare && !Files.IsSamePath(w.Path, path) && Directory.Exists(w.Path))
             .ToList();
-        var tasks = others.Select(w => git.GetStatusAsync(w.Path)).ToList();
+        var tasks = others.Select(w => git.GetStatusWithoutLocksAsync(w.Path)).ToList();
         await Task.WhenAll(tasks);
 
         var changes = new Dictionary<string, int>();

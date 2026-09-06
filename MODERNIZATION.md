@@ -252,9 +252,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   joins lines with `\n` and trims, neither of which touches a NUL. `check-ignore` answers for a
   folder that does not exist only when the path has a trailing `/`, since a folder-only pattern
   (`x/`) cannot otherwise know it is asking about a folder. Git refuses to check out, delete or
-  `fetch b:b` a branch held by any worktree, a prunable one included, until it is pruned. Every
-  `git status` run in another worktree rewrites that worktree's `index`, so it is not a signal of a
-  change there, and a plain edit does not touch it.
+  `fetch b:b` a branch held by any worktree, a prunable one included, until it is pruned. A plain
+  `git status` run in another worktree rewrites that worktree's `index`, holding its `index.lock`
+  on the way, which a `git add` or `commit` run there at that moment fails on; `--no-optional-locks`
+  reads without either, and is what gmd's reads of the other worktrees use. So the `index` is not a
+  signal of a change in a worktree, and a plain edit does not touch it.
 
 **Inference**
 
