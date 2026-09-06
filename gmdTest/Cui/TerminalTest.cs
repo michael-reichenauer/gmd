@@ -1,3 +1,8 @@
+// The spell check tests type misspelled words on purpose, and the filter test a word that must
+// match nothing. Ignored here rather than added to the dictionary, so that the rest of the file is
+// still spell checked.
+// cspell:ignore resonable issu Sumerize brnach zzzznothing
+
 using gmdTest.Fixtures;
 
 namespace gmdTest.Cui;
