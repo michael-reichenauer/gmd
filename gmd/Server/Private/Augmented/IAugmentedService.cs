@@ -19,6 +19,12 @@ interface IAugmentedService
     // UpdateRepoStatusAsync returns the repo with new fresh git status ...
     Task<R<Repo>> UpdateRepoStatusAsync(Repo augRepo);
 
+    // The repo with the worktrees re-read: which exist, and the uncommitted changes of each
+    Task<R<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo);
+    Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
+    Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd);
+    Task<R> PruneWorktreesAsync(string wd);
+
     Task<R> FetchAsync(string path);
     Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
     Task<R> CreateBranchFromBranchAsync(

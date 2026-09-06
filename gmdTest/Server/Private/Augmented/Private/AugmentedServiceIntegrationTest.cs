@@ -98,6 +98,43 @@ public class AugmentedServiceIntegrationTest
         );
     }
 
+    // A linked worktree, seen from the main worktree and from inside it: which one the repo was
+    // read from, which branch the other holds, and its uncommitted changes
+    [TestMethod]
+    public async Task TestWorktreesOfARealRepo()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", false, repo.Path)), $"Git failed: {e}");
+        var worktree = await repo.AddWorktreeAsync("dev", "dev");
+        File.WriteAllText(Path.Join(worktree, "new.txt"), "new\n");
+
+        var augRepo = await AugmentedRepoAsync();
+
+        Assert.AreEqual(2, augRepo.Worktrees.Count);
+        var main = augRepo.Worktrees[0];
+        Assert.IsTrue(main.IsMain);
+        Assert.IsTrue(main.IsCurrent);
+        Assert.AreEqual("main", main.Branch);
+        var dev = augRepo.Worktrees[1];
+        Assert.AreEqual(worktree, dev.Path);
+        Assert.AreEqual("dev", dev.Branch);
+        Assert.IsFalse(dev.IsCurrent);
+        Assert.AreEqual(1, dev.ChangesCount);
+        Assert.AreEqual(worktree, augRepo.BranchByName["dev"].WorktreePath);
+        Assert.AreEqual("", augRepo.BranchByName["main"].WorktreePath);
+
+        // From inside the worktree it is the other way around, and the changes are its status
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        Assert.IsTrue(Try(out var fromWorktree, out e, await service.GetRepoAsync(worktree)), $"Augment failed: {e}");
+        Assert.AreEqual(worktree, fromWorktree.Path);
+        Assert.IsFalse(fromWorktree.Worktrees[0].IsCurrent);
+        Assert.IsTrue(fromWorktree.Worktrees[1].IsCurrent);
+        Assert.AreEqual(repo.Path, fromWorktree.BranchByName["main"].WorktreePath);
+        Assert.AreEqual("", fromWorktree.BranchByName["dev"].WorktreePath);
+        Assert.AreEqual("dev", fromWorktree.CurrentBranch().Name);
+        Assert.AreEqual("1 uncommitted changes", fromWorktree.AllCommits[0].Subject);
+    }
+
     // 'Merge to' is the one write operation that moves HEAD twice, so what it leaves behind is
     // asserted against real git rather than against a fake: the target checked out, the merge
     // staged but not committed, and the commits the caller needs for the commit dialog.

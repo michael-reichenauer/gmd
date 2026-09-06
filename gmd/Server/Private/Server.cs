@@ -381,6 +381,21 @@ class Server : IServer
 
     public Task<R> DeleteRemoteBranchAsync(string name, string wd) => git.DeleteRemoteBranchAsync(name, wd);
 
+    // The worktrees need nothing of the inferred model, so they go straight through, except that
+    // the writes pause the file monitor in the augmented service like the other writes do
+    public Task<R<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo) => augmentedService.GetUpdatedWorktreesRepoAsync(repo);
+
+    public Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd) =>
+        augmentedService.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd);
+
+    public Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd) =>
+        augmentedService.RemoveWorktreeAsync(path, isForce, wd);
+
+    public Task<R> PruneWorktreesAsync(string wd) => augmentedService.PruneWorktreesAsync(wd);
+
+    public Task<R<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
+        git.GetIgnoredPathsAsync(paths, wd);
+
     public Task<R> UndoAllUncommittedChangesAsync(string wd) => git.UndoAllUncommittedChangesAsync(wd);
 
     public Task<R> UndoUncommittedFileAsync(string path, string wd) => git.UndoUncommittedFileAsync(path, wd);

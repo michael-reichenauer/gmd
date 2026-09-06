@@ -17,7 +17,37 @@ class FakeGit : IGit
 
     public string CurrentAuthor => "Test Author";
 
-    public Task<R<Status>> GetStatusAsync(string wd) => Task.FromResult<R<Status>>(status);
+    // The status of the repo, or of another worktree's folder when one is set for that path
+    public Task<R<Status>> GetStatusAsync(string wd) =>
+        Task.FromResult<R<Status>>(StatusByPath.TryGetValue(wd, out var s) ? s : status);
+
+    public Dictionary<string, Status> StatusByPath { get; } = [];
+
+    // The worktrees 'git worktree list' would report, and every worktree write made, in order
+    public List<Worktree> Worktrees { get; } = [];
+
+    public List<string> WorktreeCalls { get; } = [];
+
+    public Task<R<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) =>
+        Task.FromResult<R<IReadOnlyList<Worktree>>>(Worktrees.ToList());
+
+    public Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd)
+    {
+        WorktreeCalls.Add($"add {path} {branchName} {(isNewBranch ? "new" : "existing")} {startPoint}".TrimEnd());
+        return Task.FromResult(R.Ok);
+    }
+
+    public Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd)
+    {
+        WorktreeCalls.Add($"remove {path}{(isForce ? " --force" : "")}");
+        return Task.FromResult(R.Ok);
+    }
+
+    public Task<R> PruneWorktreesAsync(string wd)
+    {
+        WorktreeCalls.Add("prune");
+        return Task.FromResult(R.Ok);
+    }
 
     // The git key/value storage, i.e. the 'refs/gmd-metadata-key-value/<key>' refs MetaDataService
     // stores the user's branch choices in. Values is what this repo has, RemoteValues what the
@@ -71,6 +101,9 @@ class FakeGit : IGit
 
     // The rest of IGit is not reachable from the pipeline the tests drive
     public R<string> RootPath(string path) => throw new NotSupportedException();
+
+    public Task<R<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
+        throw new NotSupportedException();
 
     public Task<R<string>> Version() => throw new NotSupportedException();
 

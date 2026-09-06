@@ -59,6 +59,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   continue and skip from the repo menu; a two or three pane resolver with the common ancestor
   recovered on demand; hand-edited hunks; file-level choices for delete, add and binary conflicts;
   and commit gating that refuses unresolved files and leftover markers.
+- Worktrees: gmd opens inside a linked worktree; a branch checked out in another worktree carries
+  `⌂` and `S` opens that folder instead of a checkout git would refuse; `⌂N` in the top bar counts
+  the other worktrees and turns yellow when one has uncommitted changes (re-read every thirty
+  seconds, since their folders are not watched); a dialog (`W`) lists them with changes, in use
+  (locked), missing (prunable) and merged, and adds (beside the repo, in Claude Code's
+  `.claude/worktrees/` or in `.worktrees/`, the two inside the repo added to `.gitignore`),
+  removes (with the branch, force for uncommitted changes) and prunes them. One `.gmdconfig` per
+  repository, in the common git dir, shared by every worktree.
 
 **Bugs fixed** (the ones a user could hit; all have regression tests)
 
@@ -125,6 +133,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   subject column does); a binary file is headed `Modified:`; a staged added file is counted as
   modified (only the sum is ever shown, and a `--no-commit` merge stages its files, so every merge
   shows it); `FileSize` never shows a fraction; a stash message is cut at its first `:`.
+- Worktrees, deliberately left out of v1: no unlock of a locked worktree (a second `--force`),
+  no bulk clean-up, no auto-prune; the stash list is the repository's and so shows stashes made
+  in other worktrees; other worktrees' folders are not watched, so their change counts are up to
+  thirty seconds behind; a submodule's `.git` file now makes it a root of its own too, which is right
+  but new; the worktree dialog needs about 80 columns.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
   hardware. Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
@@ -227,6 +240,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   without it. A pathspec-filtered diff loses rename detection, so a per-file re-diff must fetch the
   whole commit or name both paths. `GIT_EDITOR` beats `-c core.editor`, and a dev shell that
   already sets `GIT_EDITOR=true` hides exactly that.
+- Worktrees. A linked worktree's `.git` is a *file* (`gitdir: <main>/.git/worktrees/<name>`);
+  HEAD, the index and a stopped operation live there, refs and objects in the common dir that its
+  `commondir` file points at (a submodule has the same file and no `commondir`). Resolve it in one
+  place (`GitDir`); joining `.git` blindly wrote the repo config into a file and FailFasted. `git
+  branch -vv` prefixes a branch checked out in another worktree with `+` — a regex anchored on
+  `\*?\s+` did not match the line, and the branch *vanished* rather than losing its marker — and
+  prints the worktree path in parenthesis before the upstream, which has to be stepped over or the
+  upstream is lost. `worktree list --porcelain -z` ends each attribute with NUL and each record
+  with a second one, and prints lock reasons verbatim where the non-`z` form C-quotes them; `Cmd`
+  joins lines with `\n` and trims, neither of which touches a NUL. `check-ignore` answers for a
+  folder that does not exist only when the path has a trailing `/`, since a folder-only pattern
+  (`x/`) cannot otherwise know it is asking about a folder. Git refuses to check out, delete or
+  `fetch b:b` a branch held by any worktree, a prunable one included, until it is pruned. Every
+  `git status` run in another worktree rewrites that worktree's `index`, so it is not a signal of a
+  change there, and a plain edit does not touch it.
 
 **Inference**
 

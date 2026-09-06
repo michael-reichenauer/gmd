@@ -29,6 +29,7 @@ public class MenuItemsTest
             Pull/Update  [U]  (disabled)
             Push  [P]
             Create Branch ...  [B]
+            Create Worktree ...
             Rename Branch ...
             Delete Branch ...
             Diff Branch to >  [D]
@@ -59,6 +60,7 @@ public class MenuItemsTest
             Pull/Update  [U]  (disabled)
             Push  [P]
             Create Branch ...  [B]
+            Create Worktree ...
             Rename Branch ...  (disabled)
             Delete Branch ...  (disabled)
             Diff Branch to >  [D]  (disabled)
@@ -72,6 +74,61 @@ public class MenuItemsTest
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main"))
         );
+    }
+
+    // A branch checked out in another worktree can be neither checked out, pulled, merged into
+    // nor deleted from here, git refuses each of those; so the switch item opens that worktree
+    // instead, and the rest is greyed out. Merging it *into* the current branch is fine.
+    [TestMethod]
+    public async Task TestABranchInAnotherWorktreeOffersOpeningItAndLittleThatMovesIt()
+    {
+        Assert.AreEqual(
+            """
+            Open Worktree /home/me/repo-dev  [S]
+            Merge to main  [E]
+            Merge from main  [Shift-E]  (disabled)
+            Rebase and push on >  (disabled)
+            Hide Branch  [H]
+            Pull/Update  [U]  (disabled)
+            Push  [P]
+            Create Branch ...  [B]
+            Create Worktree ...
+            Rename Branch ...
+            Delete Branch ...  (disabled)
+            Diff Branch to >  [D]
+            Change Branch Color  [G]
+            ---
+            Show/Open Branch >  [Shift →]
+            Pull/Update All Branches  [Shift-U]
+            Push All Branches  [Shift-P]
+            Set Commit Branch Manually ...
+            Repo Menu >
+            """,
+            Items(BranchMenuOf(await ViewOf(Fixture().Worktree("/home/me/repo-dev", "dev"))).GetBranchMenuItems("dev"))
+        );
+    }
+
+    // A long path keeps its end, which is what tells worktrees apart
+    [TestMethod]
+    public async Task TestALongWorktreePathIsCutFromTheStart()
+    {
+        var path = "/home/someone/projects/repository/.claude/worktrees/dev";
+        var items = Items(BranchMenuOf(await ViewOf(Fixture().Worktree(path, "dev"))).GetBranchMenuItems("dev"));
+
+        StringAssert.StartsWith(items, "Open Worktree ┅pository/.claude/worktrees/dev  [S]\n");
+    }
+
+    // From the current branch's side: it can merge from the held branch, but not to it, since
+    // that would check it out
+    [TestMethod]
+    public async Task TestTheCurrentBranchCanMergeFromButNotToABranchInAnotherWorktree()
+    {
+        var view = await ViewOf(Fixture().Worktree("/home/me/repo-dev", "dev"), "dev");
+
+        var items = Items(BranchMenuOf(view).GetBranchMenuItems("main"));
+
+        StringAssert.Contains(items, "Merge from >  [E]\n");
+        StringAssert.Contains(items, "Merge to >  [Shift-E]  (disabled)");
     }
 
     // The same menu shown from the Branches sub menu, which already offers these at its root, next
@@ -96,8 +153,8 @@ public class MenuItemsTest
     {
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
-        Assert.AreEqual(15, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(8, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(16, EnabledCount(menu.GetBranchMenuItems("dev")));
+        Assert.AreEqual(9, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -228,6 +285,7 @@ public class MenuItemsTest
             Search/Filter ...  [F]
             Refresh/Reload  [R]
             Clean/Restore Working Folder
+            Worktrees ...  [W]
             Open/Clone/Init Repo >  [O]
             Config ...
             Help ...  [?, F1]

@@ -73,6 +73,11 @@ interface IGit
     Task<R> PushTagAsync(string name, string wd);
     Task<R> DeleteRemoteTagAsync(string name, string wd);
     Task<R> ResetHardUntilCommitAsync(string id, string wd);
+    Task<R<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd);
+    Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
+    Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd);
+    Task<R> PruneWorktreesAsync(string wd);
+    Task<R<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd);
 }
 
 public record Commit(
@@ -94,7 +99,26 @@ public record Branch(
     string RemoteName, // The remote name for a local branch
     bool IsDetached,
     int AheadCount, // Number of commits on local branch not yet synced up to remote branch
-    int BehindCount // Number of commits on remote branch not yet synced down to local branch
+    int BehindCount, // Number of commits on remote branch not yet synced down to local branch
+    // Checked out in another worktree of this repository (the '+' marker of 'git branch'), so it
+    // can be neither checked out here nor deleted. Which worktree is answered by the worktree list.
+    bool IsCheckedOutElsewhere = false
+);
+
+// A worktree of the repository, i.e. a folder with a checkout, as 'git worktree list' reports it.
+// The main worktree is the repository's own folder; the others are linked to it and share its
+// refs and objects, while each has its own HEAD, index and uncommitted changes.
+public record Worktree(
+    string Path,
+    string HeadId,
+    string Branch, // Empty when detached or bare
+    bool IsMain,
+    bool IsBare,
+    bool IsDetached,
+    bool IsLocked, // Locked against removal and pruning, e.g. by a tool while it is using it
+    string LockReason,
+    bool IsPrunable, // The folder is gone, so 'git worktree prune' would forget it
+    string PruneReason
 );
 
 // What git is in the middle of, i.e. something it has stopped part way through and has to be told

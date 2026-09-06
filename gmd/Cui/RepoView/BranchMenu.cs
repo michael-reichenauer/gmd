@@ -78,7 +78,8 @@ class BranchMenu : IBranchMenu
             .Item(GetSwitchToBranchItem(branchName))
             // Both directions, worded from the branch this menu is for: 'to' merges it into the
             // named branch, 'from' merges the named branch into it. Merging into a branch that is
-            // not current means checking it out on the way, so it is only offered for a git branch.
+            // not current means checking it out on the way, so it is only offered for a git branch,
+            // and not for one checked out in another worktree, which git refuses to check out.
             .Item(
                 !isCurrent,
                 $"Merge to {currentName}",
@@ -91,7 +92,7 @@ class BranchMenu : IBranchMenu
                 $"Merge from {currentName}",
                 "Shift-E",
                 () => cmds.MergeToBranch(LocalName(b)),
-                () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK && b.IsGitBranch
+                () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK && b.IsGitBranch && !IsInWorktree(b)
             )
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
             .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems())
@@ -99,7 +100,8 @@ class BranchMenu : IBranchMenu
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
             // The current branch is pulled with 'git pull', which merges, so it can be pulled even
             // when diverged. Any other branch is updated with a fetch, which only fast-forwards,
-            // so a diverged one can only be pulled by switching to it first.
+            // so a diverged one can only be pulled by switching to it first. A branch checked out
+            // in another worktree cannot be pulled from here at all, git refuses to move it.
             .Item(
                 "Pull/Update",
                 "U",
@@ -110,7 +112,7 @@ class BranchMenu : IBranchMenu
                     else
                         cmds.PullBranch(branchName);
                 },
-                () => b.HasRemoteOnly && isStatusOK && (isCurrent || !b.HasLocalOnly)
+                () => b.HasRemoteOnly && isStatusOK && (isCurrent || !b.HasLocalOnly) && !IsInWorktree(b)
             )
             .Item(
                 "Push",
@@ -119,6 +121,9 @@ class BranchMenu : IBranchMenu
                 () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK
             )
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
+            // A folder with this branch checked out, or with a new branch started from it when it
+            // is checked out already (here or in another worktree)
+            .Item("Create Worktree ...", "", () => cmds.CreateWorktree(b.Name), () => b.IsGitBranch)
             .Item(
                 "Rename Branch ...",
                 "",
@@ -132,7 +137,8 @@ class BranchMenu : IBranchMenu
                 "Delete Branch ...",
                 "",
                 () => cmds.DeleteBranch(b.Name),
-                () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent
+                // Nor a branch checked out in another worktree, which git refuses to delete
+                () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent && !IsInWorktree(b)
             )
             .SubMenu("Diff Branch to", "D", GetBranchDiffItems(branchName))
             .Item(
@@ -153,12 +159,22 @@ class BranchMenu : IBranchMenu
             .SubMenu(!isLimited, "Repo Menu", "", repoMenu.GetRepoMenuItems());
     }
 
+    // A branch checked out in another worktree cannot be checked out here, git refuses, so the
+    // same key opens that worktree instead — the command does the redirect, since the S key and
+    // a double click reach it without this menu; the item only says what will happen
     MenuItem GetSwitchToBranchItem(string branchName)
     {
         var currentName = repo.Repo.CurrentBranch().PrimaryName;
         var branch = repo.Repo.BranchByName[branchName];
         if (branch.LocalName != "")
             branchName = branch.LocalName;
+
+        var worktreePath = repo.Repo.WorktreePathOf(branch);
+        if (worktreePath != "")
+        {
+            return Menu.Item($"Open Worktree {ShortPath(worktreePath)}", "S", () => cmds.SwitchTo(branchName));
+        }
+
         return Menu.Item(
             "Switch/Checkout to Branch",
             "S",
@@ -167,15 +183,21 @@ class BranchMenu : IBranchMenu
         );
     }
 
+    bool IsInWorktree(Branch branch) => repo.Repo.WorktreePathOf(branch) != "";
+
+    // The end of a path, which is what tells worktrees apart; the start is the same for all
+    static string ShortPath(string path) => path.Length <= 30 ? path : $"┅{path[^30..]}";
+
     IEnumerable<MenuItem> GetMergeFromItems() =>
         GetMergeBranches().Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
 
     // The other direction: the current branch is merged into the picked one. The picked branch is
     // checked out on the way, so it has to be one git still has, else SwitchToAsync would recreate
-    // it, and it is the local branch of a pair that is named.
+    // it, and not one checked out in another worktree, and it is the local branch of a pair that
+    // is named.
     IEnumerable<MenuItem> GetMergeToItems() =>
         GetMergeBranches()
-            .Where(b => b.IsGitBranch)
+            .Where(b => b.IsGitBranch && !IsInWorktree(b))
             .Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeToBranch(LocalName(b))));
 
     // The branches a merge can involve, i.e. all shown branches except the current one, which is

@@ -83,6 +83,11 @@ interface IServer
     Task<R> DeleteConflictedAsync(string path, string wd);
     Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
     Task<R> DeleteRemoteBranchAsync(string name, string wd);
+    Task<R<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo);
+    Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
+    Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd);
+    Task<R> PruneWorktreesAsync(string wd);
+    Task<R<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd);
     Task<R> UndoAllUncommittedChangesAsync(string wd);
     Task<R> UndoUncommittedFileAsync(string path, string wd);
     Task<R> CleanWorkingFolderAsync(string wd);

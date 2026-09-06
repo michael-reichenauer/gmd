@@ -76,6 +76,79 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    // Only the worktrees are re-read, i.e. the list and the status of each of the others; the
+    // branches keep the worktree paths they have, since a worktree appearing or going is a repo
+    // change the file monitor reloads everything for. Which worktree is the current one does not
+    // change between two reads of the same repo, so it is kept from the last one.
+    public async Task<R<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo)
+    {
+        if (!Try(out var gitWorktrees, out var e, await git.GetWorktreesAsync(repo.Path)))
+            return e;
+        var changes = await GetWorktreeChangesAsync(gitWorktrees, repo.Path);
+
+        var currentPath = repo.Worktrees.FirstOrDefault(w => w.IsCurrent)?.Path ?? repo.Path;
+        var worktrees = gitWorktrees
+            .Select(w =>
+            {
+                var isCurrent = Files.IsSamePath(w.Path, currentPath);
+                var count =
+                    isCurrent ? repo.Status.ChangesCount
+                    : changes.TryGetValue(w.Path, out var n) ? n
+                    : -1;
+                return new Worktree(
+                    w.Path,
+                    w.Branch,
+                    w.HeadId,
+                    w.IsMain,
+                    isCurrent,
+                    w.IsDetached,
+                    w.IsLocked,
+                    w.LockReason,
+                    w.IsPrunable,
+                    w.PruneReason,
+                    count
+                );
+            })
+            .ToList();
+
+        return repo with
+        {
+            Worktrees = worktrees,
+        };
+    }
+
+    // The worktree writes pause the file monitor like the other writes do: adding one writes into
+    // the common dir's 'worktrees/', which is watched, and that reload is made by the caller
+    public async Task<R> AddWorktreeAsync(
+        string path,
+        string branchName,
+        bool isNewBranch,
+        string startPoint,
+        string wd
+    )
+    {
+        using (fileMonitor.Pause())
+        {
+            return await git.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd);
+        }
+    }
+
+    public async Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            return await git.RemoveWorktreeAsync(path, isForce, wd);
+        }
+    }
+
+    public async Task<R> PruneWorktreesAsync(string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            return await git.PruneWorktreesAsync(wd);
+        }
+    }
+
     public async Task<R> FetchAsync(string path)
     {
         // using (Timing.Start("Fetched"))
@@ -143,7 +216,8 @@ class AugmentedService : IAugmentedService
         var statusTask = git.GetStatusAsync(path);
         var metaDataTask = metaDataService.GetMetaDataAsync(path);
         var stashesTask = git.GetStashesAsync(path);
-        await Task.WhenAll(logTask, branchesTask, tagsTask, statusTask, metaDataTask, stashesTask);
+        var worktreesTask = git.GetWorktreesAsync(path);
+        await Task.WhenAll(logTask, branchesTask, tagsTask, statusTask, metaDataTask, stashesTask, worktreesTask);
 
         // Check all tasks for errors
         if (!Try(out var log, out var e, logTask.Result))
@@ -159,16 +233,70 @@ class AugmentedService : IAugmentedService
         if (!Try(out var stashes, out e, stashesTask.Result))
             return e;
 
+        // The worktrees are extra: a git too old to list them must not keep the repo from opening
+        if (!Try(out var worktrees, out e, worktreesTask.Result))
+        {
+            Log.Warn($"Failed to list worktrees, {e}");
+            worktrees = [];
+        }
+        var worktreeChanges = await GetWorktreeChangesAsync(worktrees, path);
+
         var isTruncated = log.Count == maxCommitCount;
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
 
         // Combine all git info into one git repo info object
-        var gitRepo = new GitRepo(timeStamp, path, log, branches, tags, status, metaData, stashes, isTruncated);
+        var gitRepo = new GitRepo(
+            timeStamp,
+            path,
+            log,
+            branches,
+            tags,
+            status,
+            metaData,
+            stashes,
+            isTruncated,
+            worktrees,
+            worktreeChanges
+        );
         Log.Info($"GitRepo {t} {gitRepo}");
 
         return gitRepo;
     }
+
+    // The number of uncommitted changes in each of the other worktrees, read in parallel. Only
+    // the ones that can be read: a worktree whose folder is gone has no status, and neither has
+    // a bare one. A status that fails is left out, which the UI shows as unknown.
+    async Task<IReadOnlyDictionary<string, int>> GetWorktreeChangesAsync(
+        IReadOnlyList<Git.Worktree> worktrees,
+        string path
+    )
+    {
+        var others = worktrees
+            .Where(w => !w.IsPrunable && !w.IsBare && !Files.IsSamePath(w.Path, path) && Directory.Exists(w.Path))
+            .ToList();
+        var tasks = others.Select(w => git.GetStatusAsync(w.Path)).ToList();
+        await Task.WhenAll(tasks);
+
+        var changes = new Dictionary<string, int>();
+        others.ForEach(
+            (w, i) =>
+            {
+                if (Try(out var status, out var e, tasks[i].Result))
+                    changes[w.Path] =
+                        status.Modified + status.Added + status.Deleted + status.Conflicted + status.Renamed;
+                else
+                    Log.Warn($"Failed to get status of worktree {w.Path}, {e}");
+            }
+        );
+        return changes;
+    }
+
+    // The folders of the other worktrees, which the file monitor must not take changes in as
+    // changes of this one — a worktree nested inside the working folder would otherwise refresh
+    // the status here for every file written there
+    static IReadOnlyList<string> OtherWorktreeFolders(GitRepo gitRepo) =>
+        gitRepo.Worktrees.Where(w => !Files.IsSamePath(w.Path, gitRepo.Path)).Select(w => w.Path).ToList();
 
     public async Task<R> SquashCommits(Repo repo, string id1, string id2, string message)
     {
@@ -336,7 +464,7 @@ class AugmentedService : IAugmentedService
     // GetAugmentedRepoAsync returns an augmented git repo, and monitors working folder changes
     async Task<R<Repo>> GetAugmentedRepoAsync(GitRepo gitRepo)
     {
-        fileMonitor.Monitor(gitRepo.Path);
+        fileMonitor.Monitor(gitRepo.Path, OtherWorktreeFolders(gitRepo));
 
         Timing t = Timing.Start();
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo);

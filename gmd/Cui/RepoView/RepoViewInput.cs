@@ -112,6 +112,7 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.e, OnKeyE);
         commitsView.RegisterKeyHandler(Key.E, OnKeyShiftE);
         commitsView.RegisterKeyHandler(Key.h, () => BranchCmds.HideBranch(GetBranchName()));
+        commitsView.RegisterKeyHandler(Key.w, () => BranchCmds.ShowWorktrees());
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
         commitsView.RegisterKeyHandler(Key.Tab, host.ToggleDetailsFocus);
@@ -198,6 +199,9 @@ class RepoViewInput
                 break;
             case ApplicationBarItem.Stash:
                 Menus.ShowStashMenu(x - 5, y);
+                break;
+            case ApplicationBarItem.Worktrees:
+                BranchCmds.ShowWorktrees();
                 break;
             case ApplicationBarItem.Search:
                 Cmd.SearchFilterRepo();

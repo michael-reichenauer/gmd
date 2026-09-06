@@ -22,6 +22,7 @@ Here are some essential keyboard shortcuts:
 | ? / F1   | Open this help page                                        |
 | Shift+↑↓ | Select commit rows in the log and diff views               |
 | Ctrl+C   | Copy the selected rows to the clipboard                    |
+| W        | Open the worktrees dialog                                   |
 -------------------------------------------------------------------------
 *More shortcuts are visible within the application menus.*
 
@@ -46,6 +47,7 @@ Here are some essential keyboard shortcuts:
 | ╂┸     | Synced remote and local branch tips                          |
 | ┌ │ └  | Blame lines from the same commit (see 'Blame File ...')      |
 | ╺      | A blame run of one single line                               |
+| ⌂      | Branch checked out in another worktree (see Worktrees)        |
 -------------------------------------------------------------------------
 
 
@@ -96,6 +98,39 @@ shortened, and the full names can be viewed in the commit details
 (toggled with `Enter`).
 The symbol `~` highlights a deleted but still accessible branch. Such a branch
 is no longer active, so it is drawn in gray and its color cannot be changed.
+
+
+## Worktrees
+
+A worktree is a folder with a checkout of the repository. The repository's
+own folder is the main worktree; `git worktree add` (or Claude Code's
+`--worktree`) adds linked ones, which share the commits and branches but each
+have their own checked out branch and uncommitted changes. Gmd shows one
+worktree at a time: what is shown, committed, diffed and pushed is the folder
+gmd was started in, or opened since.
+
+- `⌂` after a branch tip means that branch is checked out in another
+  worktree. Git allows a branch in one worktree only, so it cannot be checked
+  out, pulled or deleted from here; the `S` key opens that worktree instead
+  of switching to the branch.
+- `⌂N` in the top bar counts the other worktrees. It turns yellow when one of
+  them has uncommitted changes, which is checked every thirty seconds.
+- `W` opens the worktrees dialog: one row per worktree with its branch,
+  changes, whether it is in use (locked, e.g. by a running Claude Code
+  session) or missing (its folder is gone), and whether its branch is merged.
+  From there a worktree can be opened (`Enter`), added, removed or pruned,
+  and its path copied.
+- **Add...** creates a worktree for an existing branch or a new one, beside
+  the repository (`<repo>-<branch>`), in Claude Code's `.claude/worktrees/`
+  or in `.worktrees/`. The two inside the repository are added to
+  `.gitignore`, else the main worktree shows them as untracked files.
+- **Remove...** removes a worktree and offers to delete its branch with it,
+  checked when the branch is merged. Uncommitted changes in the worktree are
+  only discarded with *Force*. A worktree in use cannot be removed.
+- **Prune** forgets the worktrees whose folders were deleted by hand.
+
+Every worktree of a repository shares one gmd config: which branches are
+shown, their colors and their order.
 
 
 ## Noteworthy Commands:

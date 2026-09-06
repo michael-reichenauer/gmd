@@ -128,6 +128,20 @@ public class BranchPushPullCommandsTest
         );
     }
 
+    // A branch checked out in another worktree is left alone as well, and silently: git refuses
+    // to move it from here, and that worktree will pull it itself
+    [TestMethod]
+    public async Task TestPullAllLeavesOutABranchCheckedOutInAnotherWorktree()
+    {
+        var repo = await Mixed().Worktree("/test/repo-old", "old").ViewRepoAsync(ShowBranches.AllActive);
+
+        Assert.AreEqual(0, BranchPushPullCommands.BranchesToPull(repo, "origin/main").Count());
+        CollectionAssert.AreEqual(
+            new[] { "origin/div" },
+            BranchPushPullCommands.DivergedBranchesToPull(repo, "origin/main").Select(b => b.Name).ToArray()
+        );
+    }
+
     // The status is the callers' check, not the branch lists'
     [TestMethod]
     public async Task TestPushAllBranchListIgnoresUncommittedChanges()

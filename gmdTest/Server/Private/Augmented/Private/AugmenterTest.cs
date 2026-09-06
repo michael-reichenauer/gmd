@@ -33,6 +33,82 @@ public class AugmenterTest
         Assert.AreEqual("main", repo.Branches["origin/main"].LocalName);
     }
 
+    // A branch checked out in another worktree carries the folder it is checked out in, so the
+    // UI can open that folder instead of a checkout git would refuse. The worktree this repo was
+    // read from is told apart by its path, and its own branch carries nothing.
+    [TestMethod]
+    public async Task TestBranchInAnotherWorktreeCarriesItsPath()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .BranchWithRemote("dev", "d1")
+            .Worktree("/test/repo-dev", "dev", changes: 2)
+            .AugmentAsync();
+
+        Assert.AreEqual("/test/repo-dev", repo.Branches["dev"].WorktreePath);
+        Assert.AreEqual("", repo.Branches["main"].WorktreePath);
+        Assert.AreEqual("", repo.Branches["origin/dev"].WorktreePath, "A remote branch is not checked out anywhere");
+
+        Assert.AreEqual("/test/repo, /test/repo-dev", string.Join(", ", repo.Worktrees.Select(w => w.Path)));
+        var main = repo.Worktrees[0];
+        Assert.IsTrue(main.IsMain);
+        Assert.IsTrue(main.IsCurrent);
+        Assert.AreEqual("main", main.Branch);
+        Assert.AreEqual(0, main.ChangesCount, "The current worktree's changes are the repo's status");
+        var dev = repo.Worktrees[1];
+        Assert.IsFalse(dev.IsMain);
+        Assert.IsFalse(dev.IsCurrent);
+        Assert.AreEqual("dev", dev.Branch);
+        Assert.AreEqual(2, dev.ChangesCount);
+    }
+
+    // What the other worktrees can be in: locked (in use), prunable (folder gone, but the branch
+    // is still held until pruned) and detached (holding no branch at all)
+    [TestMethod]
+    public async Task TestWorktreesCarryTheirState()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "c1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .LocalBranch("main", "c1", isCurrent: true)
+            .LocalBranch("dev", "d1")
+            .LocalBranch("feat", "f1")
+            .Worktree("/test/repo-dev", "dev", isLocked: true, lockReason: "claude session 42")
+            .Worktree("/test/repo-feat", "feat", isPrunable: true)
+            .Worktree("/test/repo-detached", "", isDetached: true)
+            .AugmentAsync();
+
+        var dev = repo.Worktrees[1];
+        Assert.IsTrue(dev.IsLocked);
+        Assert.AreEqual("claude session 42", dev.LockReason);
+        Assert.AreEqual(0, dev.ChangesCount);
+
+        var feat = repo.Worktrees[2];
+        Assert.IsTrue(feat.IsPrunable);
+        Assert.AreEqual(-1, feat.ChangesCount, "A missing folder has no status to read");
+        Assert.AreEqual("/test/repo-feat", repo.Branches["feat"].WorktreePath, "Held until pruned");
+
+        var detached = repo.Worktrees[3];
+        Assert.IsTrue(detached.IsDetached);
+        Assert.AreEqual("", detached.Branch);
+        Assert.IsFalse(repo.Branches.Values.Any(b => b.WorktreePath == "/test/repo-detached"));
+    }
+
+    // Without worktrees there is still the one, the repo itself
+    [TestMethod]
+    public async Task TestARepoWithoutLinkedWorktreesListsNone()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c1", "Initial")
+            .LocalBranch("main", "c1", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual(0, repo.Worktrees.Count, "RepoBuilder declares none unless asked, like an old git");
+    }
+
     // A branch with no corresponding remote branch is its own primary
     [TestMethod]
     public async Task TestLocalOnlyBranchIsItsOwnPrimary()
