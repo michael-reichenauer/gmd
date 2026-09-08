@@ -1876,6 +1876,8 @@ public class TerminalTest
 
         StringAssert.Contains(gmd.WaitUntilGone("uncommitted changes"), "Add epsilon");
         Assert.AreEqual("Add epsilon\n\nSome body text", await repo.GitAsync("log --format=%B -1"));
+        // The log view has no caret, so the dialog's must not outlive it
+        Assert.IsFalse(gmd.IsCursorVisible, "The caret should be hidden again once the dialog has closed");
     }
 
     // Misspelled words in the commit dialog are drawn in red: in the subject field, which has no
@@ -1940,6 +1942,10 @@ public class TerminalTest
             "                       -Drrrrrrrr WWW WWWWWW                                                   Dm",
             ScreenText.ColorRows(gmd.CaptureColors(), 16, 1)
         );
+        // The caret is back once the menu has closed, right after the replaced word. The menu had
+        // hidden it, and closing a modal used to leave it hidden until focus moved away and back.
+        Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the spelling menu closed");
+        Assert.AreEqual((44, 16), gmd.CursorPosition, "The caret should be right after the replaced word");
 
         gmd.Send("C-g");
         ScreenText.AssertEqual(
@@ -1953,6 +1959,7 @@ public class TerminalTest
         );
         gmd.Send("Escape");
         gmd.WaitUntilGone("Spelling");
+        Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the spelling menu was escaped");
     }
 
     // 'Add to dictionary' teaches the checker a word for good: it stops being red at once, and it

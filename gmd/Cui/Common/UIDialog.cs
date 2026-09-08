@@ -333,12 +333,6 @@ class UIDialog
         onAfterAdd?.Invoke();
         setViewFocused?.SetFocus();
 
-        // Application.Driver.GetCursorVisibility(out var cursorVisible);
-        // if (setViewFocused is TextView || setViewFocused is TextField)
-        // {
-        //     Application.Driver.SetCursorVisibility(CursorVisibility.Default);
-        // }
-
         if (onMouse != null)
             Application.GrabMouse(dlg);
 
@@ -356,9 +350,23 @@ class UIDialog
         UI.RunDialog(dlg);
         if (onMouse != null)
             Application.UngrabMouse();
-        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+        RestoreCursor();
         done.TrySetResult(true);
         return IsOK;
+    }
+
+    // A closed modal leaves the cursor as it had it: shown if it had a text input, hidden if it was
+    // a menu. Terminal.Gui then re-enters the view that has focus underneath, which shows the
+    // cursor for a text input but does nothing for a view with no cursor of its own, e.g. the log
+    // view when a commit dialog closed over it. So the cursor is hidden first, and the focused view
+    // is then re-entered, the path Tab takes into it, so that a text input shows it again, as after
+    // the spelling menu closed over the commit dialog. An unconditional hide here is what used to
+    // leave the caret gone until focus moved away and back.
+    static void RestoreCursor()
+    {
+        UI.HideCursor();
+        var focused = Application.Current?.MostFocused;
+        focused?.OnEnter(focused);
     }
 
     internal void Validate(Func<bool> IsValid, string errorMsg)

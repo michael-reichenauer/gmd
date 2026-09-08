@@ -144,6 +144,21 @@ sealed class TmuxSession : IDisposable
         return "";
     }
 
+    // Whether the terminal cursor is shown, which is how a focused text input shows its caret;
+    // the log view and the menus hide it. tmux tracks the visibility the app sets, as it does
+    // the screen, so this is what the user sees rather than what the app believes it asked for.
+    public bool IsCursorVisible => Display("#{cursor_flag}") == "1";
+
+    // Where the cursor is, in pane coordinates, i.e. where the caret of a focused text input is
+    public (int X, int Y) CursorPosition
+    {
+        get
+        {
+            var parts = Display("#{cursor_x},#{cursor_y}").Split(',');
+            return (int.Parse(parts[0]), int.Parse(parts[1]));
+        }
+    }
+
     // Sends keys, e.g. "q", "Down", "Escape", "S-Right". The screen must have settled first, see
     // StableCount.
     public void Send(params string[] keys) => Tmux(["send-keys", "-t", "gmd", .. keys]);
