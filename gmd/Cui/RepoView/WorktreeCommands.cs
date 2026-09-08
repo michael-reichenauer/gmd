@@ -171,16 +171,18 @@ class WorktreeCommands : IWorktreeCommands
             return false;
         config.Set(c => c.WorktreeLocation = rsp.Location.ToString());
 
-        if (rsp.IgnoreFolder != "" && !Try(out e, () => AppendToGitIgnore(mainRoot, rsp.IgnoreFolder)))
-            return R.Error("Failed to add the folder to .gitignore", e);
-
         if (
             !Try(
                 out e,
-                await server.AddWorktreeAsync(rsp.Path, rsp.BranchName, rsp.IsNewBranch, rsp.StartPoint, current.Path)
+                await AddAndIgnoreAsync(
+                    rsp,
+                    mainRoot,
+                    () =>
+                        server.AddWorktreeAsync(rsp.Path, rsp.BranchName, rsp.IsNewBranch, rsp.StartPoint, current.Path)
+                )
             )
         )
-            return R.Error($"Failed to create worktree at {rsp.Path}", e);
+            return e;
 
         if (rsp.IsOpen)
         {
@@ -191,6 +193,21 @@ class WorktreeCommands : IWorktreeCommands
 
         await repoView.RefreshAsync(rsp.BranchName);
         return false;
+    }
+
+    // The worktree first, and the line in .gitignore only once it exists: a worktree git refuses
+    // then leaves no line behind for a folder that never came to be, and a line that cannot be
+    // written afterwards is reported as that, since the worktree is there to be used. The add is
+    // a delegate so the order is testable without the server.
+    internal static async Task<R> AddAndIgnoreAsync(AddWorktreeResult rsp, string mainRoot, Func<Task<R>> addWorktree)
+    {
+        if (!Try(out var e, await addWorktree()))
+            return R.Error($"Failed to create worktree at {rsp.Path}", e);
+
+        if (rsp.IgnoreFolder != "" && !Try(out e, () => AppendToGitIgnore(mainRoot, rsp.IgnoreFolder)))
+            return R.Error($"Worktree created at {rsp.Path},\nbut failed to add {rsp.IgnoreFolder}/ to .gitignore", e);
+
+        return R.Ok;
     }
 
     // The folder line goes at the end of the main worktree's .gitignore, on a line of its own
