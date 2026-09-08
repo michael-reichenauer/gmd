@@ -76,7 +76,9 @@ class AugmentedService : IAugmentedService
         }
     }
 
-    // Only the worktrees are re-read, i.e. the list and the status of each of the others; the
+    // The worktrees read on their own: the list, and the status of each of the others, which a
+    // freshly read repo does not have (its counts are unknown until this is called), so that a
+    // status run in another worktree never delays showing this one. Only the worktrees change; the
     // branches keep the worktree paths they have, since a worktree appearing or going is a repo
     // change the file monitor reloads everything for. Which worktree is the current one does not
     // change between two reads of the same repo, so it is kept from the last one.
@@ -233,13 +235,15 @@ class AugmentedService : IAugmentedService
         if (!Try(out var stashes, out e, stashesTask.Result))
             return e;
 
-        // The worktrees are extra: a git too old to list them must not keep the repo from opening
+        // The worktrees are extra: a git too old to list them must not keep the repo from opening.
+        // Only the list is read here. The changes of the other worktrees are a status run in each
+        // of their folders, and that is read after the repo is shown (GetUpdatedWorktreesRepoAsync)
+        // rather than before, so a cold index in a large worktree cannot delay showing this one.
         if (!Try(out var worktrees, out e, worktreesTask.Result))
         {
             Log.Warn($"Failed to list worktrees, {e}");
             worktrees = [];
         }
-        var worktreeChanges = await GetWorktreeChangesAsync(worktrees, path);
 
         var isTruncated = log.Count == maxCommitCount;
         if (log.Count == 0)
@@ -256,8 +260,7 @@ class AugmentedService : IAugmentedService
             metaData,
             stashes,
             isTruncated,
-            worktrees,
-            worktreeChanges
+            worktrees
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 

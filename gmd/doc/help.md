@@ -114,7 +114,8 @@ gmd was started in, or opened since.
   out, pulled or deleted from here; the `S` key opens that worktree instead
   of switching to the branch.
 - `⌂N` in the top bar counts the other worktrees. It turns yellow when one of
-  them has uncommitted changes, which is checked every thirty seconds.
+  them has uncommitted changes, which is checked right after the repository is
+  read and every thirty seconds after that.
 - `W` opens the worktrees dialog: one row per worktree with its branch,
   changes, whether it is in use (locked, e.g. by a running Claude Code
   session) or missing (its folder is gone), and whether its branch is merged.

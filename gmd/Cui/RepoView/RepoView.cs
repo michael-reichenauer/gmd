@@ -48,7 +48,9 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     // How often the other worktrees' changes are re-read. Their folders are not watched — a
     // worktree nested in this one is even excluded from the watcher, so a build there cannot storm
-    // this gmd — so this is what turns the top bar marker yellow while someone edits in one.
+    // this gmd — so this is what turns the top bar marker yellow while someone edits in one. They
+    // are also read once right after a repo is shown: the repo is read without them, so that a
+    // status run in a large worktree never delays showing it, and this fills them in moments later.
     static readonly TimeSpan worktreeStatusInterval = TimeSpan.FromSeconds(30);
 
     readonly IServer server;
@@ -316,7 +318,8 @@ class RepoView : IRepoView, IRepoViewInputHost
         ShowUpdatedStatusRepoAsync().RunInBackground();
     }
 
-    // The timer tick: only while there are other worktrees, and never over an update in progress
+    // The timer tick, and the read after a repo is shown: only while there are other worktrees,
+    // and never over an update in progress
     void UpdateWorktreesStatus()
     {
         UI.AssertOnUIThread();
@@ -377,6 +380,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
+            UpdateWorktreesStatus();
             return R.Ok;
         }
     }
@@ -402,6 +406,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             }
 
             ShowRepo(viewRepo);
+            UpdateWorktreesStatus();
 
             if (commitId != "")
             {

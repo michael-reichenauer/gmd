@@ -172,6 +172,25 @@ public class TerminalTest
         Assert.AreEqual('Y', ColorOfMarker(gmd), "Yellow once the worktree has changes");
     }
 
+    // A worktree that already has changes when gmd starts: the marker is yellow within moments.
+    // The other worktrees are read right after the repo is shown, not with it (so a slow status
+    // there never delays the repo) and not thirty seconds later by the first periodic re-read.
+    [TestMethod]
+    public async Task TestWorktreeMarkerIsYellowSoonAfterStartupWhenAWorktreeHasChanges()
+    {
+        using var repo = await E2eRepo.CreateWithWorktreeAsync();
+        File.WriteAllText(Path.Join(repo.WorktreePath("dev"), "new.txt"), "new\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("⌂1");
+
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (ColorOfMarker(gmd) != 'Y' && DateTime.UtcNow < deadline)
+        {
+            Thread.Sleep(200);
+        }
+        Assert.AreEqual('Y', ColorOfMarker(gmd), "Yellow soon after startup, not after the first periodic re-read");
+    }
+
     // Creating a worktree for a branch from its menu: the dialog proposes a folder beside the repo
     // named after it and the branch, and opening the new worktree is the default, so gmd ends up
     // in it with 'dev' current. The proposed folder is exactly TempRepo.WorktreePath("dev"), so

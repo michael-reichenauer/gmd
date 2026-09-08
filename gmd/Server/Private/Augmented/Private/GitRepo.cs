@@ -47,7 +47,9 @@ class GitRepo
     public bool IsTruncated { get; }
 
     // The worktrees of the repository, and the number of uncommitted changes in each of the
-    // others, by path (a worktree not in the dictionary could not be read)
+    // others, by path. A worktree not in the dictionary is unknown: the changes are not read with
+    // the repo but after it is shown, so a freshly read repo has none, and one whose status
+    // failed is left out.
     public IReadOnlyList<GitWorktree> Worktrees { get; }
     public IReadOnlyDictionary<string, int> WorktreeChanges { get; }
 

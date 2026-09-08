@@ -119,12 +119,18 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual(worktree, dev.Path);
         Assert.AreEqual("dev", dev.Branch);
         Assert.IsFalse(dev.IsCurrent);
-        Assert.AreEqual(1, dev.ChangesCount);
+        Assert.AreEqual(-1, dev.ChangesCount, "The other worktrees' changes are not read with the repo");
         Assert.AreEqual(worktree, augRepo.BranchByName["dev"].WorktreePath);
         Assert.AreEqual("", augRepo.BranchByName["main"].WorktreePath);
 
-        // From inside the worktree it is the other way around, and the changes are its status
+        // Their changes are read on their own, after the repo is shown, so a status run in a
+        // large worktree never delays showing this one
         var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        Assert.IsTrue(Try(out var updated, out e, await service.GetUpdatedWorktreesRepoAsync(augRepo)), $"{e}");
+        Assert.AreEqual(1, updated.Worktrees[1].ChangesCount);
+        Assert.AreEqual(0, updated.Worktrees[0].ChangesCount, "The current worktree's changes are the repo's status");
+
+        // From inside the worktree it is the other way around, and the changes are its status
         Assert.IsTrue(Try(out var fromWorktree, out e, await service.GetRepoAsync(worktree)), $"Augment failed: {e}");
         Assert.AreEqual(worktree, fromWorktree.Path);
         Assert.IsFalse(fromWorktree.Worktrees[0].IsCurrent);

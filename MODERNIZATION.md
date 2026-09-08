@@ -61,8 +61,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   and commit gating that refuses unresolved files and leftover markers.
 - Worktrees: gmd opens inside a linked worktree; a branch checked out in another worktree carries
   `⌂` and `S` opens that folder instead of a checkout git would refuse; `⌂N` in the top bar counts
-  the other worktrees and turns yellow when one has uncommitted changes (re-read every thirty
-  seconds, since their folders are not watched); a dialog (`W`) lists them with changes, in use
+  the other worktrees and turns yellow when one has uncommitted changes (read after the repo is
+  shown, so a slow status in a large worktree never delays it, and re-read every thirty seconds,
+  since their folders are not watched); a dialog (`W`) lists them with changes, in use
   (locked), missing (prunable) and merged, and adds (beside the repo, in Claude Code's
   `.claude/worktrees/` or in `.worktrees/`, the two inside the repo added to `.gitignore`),
   removes (with the branch, force for uncommitted changes) and prunes them. One `.gmdconfig` per
