@@ -198,7 +198,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Two end-to-end flake modes were seen and neither reproduced when chased: a `WaitFor` satisfied
   by text already on screen, so the key just sent is not actually waited for; and, in the
   devcontainer only, a blank pane with no `gmd.log` at all — the binary never started. Nine
-  consecutive full runs were green afterwards. Recorded so nobody hunts a flake that is not biting.
+  consecutive full runs were green afterwards. Seen once more on 2026-09-09
+  (`TestRemoveWorktreeAndItsBranchFromTheDialog`, the `Kind    Branch` wait after `w`), and again
+  not reproduced: a full rerun and 21 runs of the worktree tests were green. Recorded so nobody
+  hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The throwaway `$HOME` is Unix only; a Windows test run still truncates `~/gmd.log`. The terminal
@@ -292,6 +295,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `UI.EnableInput` captures and restores `RootKeyEvent`. If progress reaches zero while a dialog is
   open, the restore puts back "swallow everything" and input is dead for good — keep the dialog
   inside the command's `Do`.
+- `Application.Begin` brings the subview holding the focus to the front of the toplevel
+  (`EnsuresTopOnFront`), so a view added to `Application.Top` after the main view — the progress
+  marquee — is behind it once any dialog has run. `Progress.Activated` fronts it again, and only once
+  the marquee's own toplevel is current, since the activate hook fires for a dialog over a dialog
+  too. Before that, a commit showed no progress where a push, which opens no dialog, did.
 - `new Label(x, y, text)` fixes an absolute frame and ignores a later `Pos.AnchorEnd`; use the
   initializer form. `Text.ToLine(width)` repeats the first character,
   `Subtext(…, isFillRest: true)` pads. There is no `Key` for `+` / `-` / `=`; cast the ascii code.

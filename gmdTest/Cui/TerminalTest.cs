@@ -1518,6 +1518,67 @@ public class TerminalTest
         );
     }
 
+    // The progress marquee while the commit runs. A push always showed it, and a commit ran under
+    // the same progress, but closing the commit dialog in between left the marquee behind the
+    // application bar (see Progress.Activated), so a long commit looked like a hung gmd. The commit
+    // is slowed down by a pre-commit hook that sleeps, which is what a big commit does to git.
+    [TestMethod]
+    public async Task TestCommitShowsProgressWhileGitWorks()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        await SlowDownCommitsAsync(repo, seconds: 5);
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(7));
+        gmd.WaitFor("Initial");
+
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+        gmd.SendText("Add epsilon");
+        gmd.WaitFor("Add epsilon");
+        gmd.Send("Enter");
+
+        // The marquee pulses over the start of the repo path on the application bar, so the screen
+        // is read the moment it shows rather than once it has settled, which it does not while the
+        // marquee moves. The uncommitted row still being there is what says the commit is in
+        // flight, i.e. that the marquee is for it and not for the refresh after it.
+        var working = gmd.WaitForMoving(IsMarqueeShown, "the progress marquee");
+        StringAssert.Contains(working, "uncommitted changes");
+
+        // Once the commit is through the marquee is gone and the commit is at the top
+        ScreenText.AssertEqual(
+            """
+             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣  ● Add epsilon                                                          (● main) 2d0391 Test User      24-10-15 12:07
+            ┣    Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
+            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
+            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
+            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            """,
+            gmd.WaitUntilGone("uncommitted changes"),
+            repo.Path
+        );
+    }
+
+    // Whether the application bar shows the progress marquee: '[' and ']' with the moving '●'
+    // blocks between them, where the repo path otherwise starts
+    static bool IsMarqueeShown(string screen) =>
+        System.Text.RegularExpressions.Regex.IsMatch(screen.Split('\n')[0], @"^ Gmd \[[ ●]{6}\] ");
+
+    // Makes every commit in the repo take at least this long, by a pre-commit hook that sleeps.
+    // The fixture points core.hooksPath at a folder that does not exist, so that the developer's
+    // own hooks cannot run; this points it at one inside .git, where 'git add .' cannot pick the
+    // hook up as a file to commit.
+    static async Task SlowDownCommitsAsync(TempRepo repo, int seconds)
+    {
+        var hooks = Path.Join(repo.Path, ".git", "slow-hooks");
+        Directory.CreateDirectory(hooks);
+        var hook = Path.Join(hooks, "pre-commit");
+        File.WriteAllText(hook, $"#!/bin/sh\nsleep {seconds}\n");
+        File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        await repo.GitAsync($"config core.hooksPath \"{hooks}\"");
+    }
+
     // Squashing a range of commits into one. The range is a shift-selection of two rows, which is
     // what puts the ids into the menu item's own text and is what enables it at all.
     [TestMethod]

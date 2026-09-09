@@ -118,6 +118,28 @@ sealed class TmuxSession : IDisposable
     // Polls until the screen has simply stopped changing
     public string WaitForStable(int timeoutMs = DefaultTimeoutMs) => Poll(_ => true, "the screen to settle", timeoutMs);
 
+    // Polls until the screen matches and returns it as it was at that moment, without waiting for
+    // it to settle. The one wait that does not, because what it is for is something that moves:
+    // the progress marquee is redrawn every 100 ms for as long as a git command runs, so a screen
+    // showing it never settles and WaitFor would time out on it. Never send a key after this one
+    // alone, see StableCount.
+    public string WaitForMoving(Func<string, bool> isMatch, string what, int timeoutMs = DefaultTimeoutMs)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var screen = "";
+        while (DateTime.UtcNow < deadline)
+        {
+            screen = Capture();
+            if (isMatch(screen))
+                return screen;
+
+            Thread.Sleep(PollMs);
+        }
+
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for {what}\n{Diagnostics(screen)}");
+        return screen;
+    }
+
     // What gmd has copied, i.e. the text of the OSC 52 sequence tmux received, kept as a buffer
     // because of set-clipboard above. Empty until something has been copied.
     public string Clipboard()
