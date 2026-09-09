@@ -71,7 +71,10 @@ class SpellChecker : ISpellChecker
 
         wordList.Value.Add(word);
         isMisspelledCache.Clear();
-        if (!config.SpellWords.Contains(word, StringComparer.OrdinalIgnoreCase))
+        // Saved as typed and compared as typed: Hunspell takes a capitalized entry as a proper noun,
+        // so 'Worktree' does not make 'worktree' known, and 'worktree' added over it has to be saved
+        // too, or it is misspelled again on the next start
+        if (!config.SpellWords.Contains(word))
             config.Set(c => c.SpellWords.Add(word));
     }
 

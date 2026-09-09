@@ -33,6 +33,9 @@ sealed class TempRepo : IDisposable
 
     string originPath = "";
 
+    // Folders beside the repo that this fixture created (linked worktrees), deleted on Dispose
+    readonly List<string> trackedFolders = [];
+
     TempRepo(string path)
     {
         Path = path;
@@ -75,6 +78,7 @@ sealed class TempRepo : IDisposable
             new StashService(cmd, logService, diffService),
             new BlameService(cmd),
             new ConflictService(cmd),
+            new WorktreeService(cmd),
             cmd
         );
     }
@@ -180,8 +184,29 @@ sealed class TempRepo : IDisposable
         await GitAsync($"remote add origin \"{originPath}\"");
     }
 
+    // Where AddWorktreeAsync puts a linked worktree: beside the repo, named after it so the
+    // Dispose guard accepts the folder
+    public string WorktreePath(string name) => $"{Path}-{name}";
+
+    // Adds a linked worktree beside this repo, on a new branch named as the worktree unless an
+    // existing branch is given. Returns its path, which is a working folder in its own right.
+    public async Task<string> AddWorktreeAsync(string name, string? branch = null)
+    {
+        var path = WorktreePath(name);
+        var args = branch == null ? $"worktree add -b {name} \"{path}\"" : $"worktree add \"{path}\" {branch}";
+        await GitAsync(args);
+        TrackFolder(path);
+        return path;
+    }
+
+    // Registers a folder beside the repo for deletion on Dispose, for worktrees something other
+    // than this fixture created (gmd itself, in an end-to-end test). The Dispose guard still
+    // applies: only a temp folder named like this repo is ever deleted.
+    public void TrackFolder(string path) => trackedFolders.Add(path);
+
     public void Dispose()
     {
+        trackedFolders.ForEach(DeleteFolder);
         DeleteFolder(Path);
         if (originPath != "")
             DeleteFolder(originPath);

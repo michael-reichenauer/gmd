@@ -75,19 +75,7 @@ class CloneDlg : ICloneDlg
 
     void UpdatePathField(string basePath, string name)
     {
-        var newName = name;
-        var path = Path.Combine(basePath, newName);
-        for (int i = 1; i < 50; i++)
-        {
-            if (!Directory.Exists(path) && !File.Exists(path))
-            {
-                break;
-            }
-            newName = $"{name}-{i}";
-            path = Path.Combine(basePath, newName);
-        }
-
-        this.path!.Text = path;
+        this.path!.Text = Files.UniqueFolderPath(basePath, name);
         this.path!.SetNeedsDisplay();
     }
 

@@ -46,6 +46,13 @@ class RepoView : IRepoView, IRepoViewInputHost
     static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
     static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
 
+    // How often the other worktrees' changes are re-read. Their folders are not watched — a
+    // worktree nested in this one is even excluded from the watcher, so a build there cannot storm
+    // this gmd — so this is what turns the top bar marker yellow while someone edits in one. They
+    // are also read once right after a repo is shown: the repo is read without them, so that a
+    // status run in a large worktree never delays showing it, and this fills them in moments later.
+    static readonly TimeSpan worktreeStatusInterval = TimeSpan.FromSeconds(30);
+
     readonly IServer server;
     readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
     readonly Func<IViewRepo, IRepoViewMenus> newMenuService;
@@ -146,6 +153,14 @@ class RepoView : IRepoView, IRepoViewInputHost
         if (!Try(out var e, await ShowRepoAsync(path)))
             return e;
         UI.AddTimeout(fetchInterval, (_) => FetchFromRemote());
+        UI.AddTimeout(
+            worktreeStatusInterval,
+            (_) =>
+            {
+                UpdateWorktreesStatus();
+                return true;
+            }
+        );
         updater.StartCheckUpdatesRegularly().RunInBackground();
 
         input.Register();
@@ -303,6 +318,36 @@ class RepoView : IRepoView, IRepoViewInputHost
         ShowUpdatedStatusRepoAsync().RunInBackground();
     }
 
+    // The timer tick, and the read after a repo is shown: only while there are other worktrees,
+    // and never over an update in progress
+    void UpdateWorktreesStatus()
+    {
+        UI.AssertOnUIThread();
+        if (isStatusUpdateInProgress || isRepoUpdateInProgress)
+            return;
+        if (!repo.Repo.OtherWorktrees().Any())
+            return;
+
+        ShowUpdatedWorktreesRepoAsync().RunInBackground();
+    }
+
+    // No progress shown, nothing is waited for; and the repo is only replaced when a worktree
+    // changed, so an idle gmd is not redrawn every tick
+    async Task ShowUpdatedWorktreesRepoAsync()
+    {
+        var shown = repo.Repo;
+        if (!Try(out var viewRepo, out var e, await server.GetUpdatedWorktreesRepoAsync(shown)))
+        {
+            Log.Warn($"Failed to update worktrees, {e}");
+            return;
+        }
+        if (repo.Repo != shown || viewRepo.Worktrees.SequenceEqual(shown.Worktrees))
+            return;
+
+        ShowRepo(viewRepo);
+        Log.Info($"Showed updated worktrees {viewRepo}");
+    }
+
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         // The current row can have moved without the hoover following it, e.g. when a command
@@ -335,6 +380,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
+            UpdateWorktreesStatus();
             return R.Ok;
         }
     }
@@ -360,6 +406,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             }
 
             ShowRepo(viewRepo);
+            UpdateWorktreesStatus();
 
             if (commitId != "")
             {

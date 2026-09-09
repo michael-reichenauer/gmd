@@ -221,6 +221,9 @@ class ViewRepoConverter : IViewRepoConverter
             repo.Stashes,
             repo.Status,
             filter
-        );
+        )
+        {
+            Worktrees = repo.Worktrees,
+        };
     }
 }

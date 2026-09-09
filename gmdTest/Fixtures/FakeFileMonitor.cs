@@ -19,9 +19,16 @@ class FakeFileMonitor : IFileMonitor
         remove { }
     }
 
-    public void Monitor(string workingFolder) { }
+    public void Monitor(string workingFolder, IReadOnlyList<string> excludedFolders) { }
 
-    public IDisposable Pause() => new NotPaused();
+    // How many times the monitor was paused, i.e. how many writes held it
+    public int PauseCount { get; private set; }
+
+    public IDisposable Pause()
+    {
+        PauseCount++;
+        return new NotPaused();
+    }
 
     public void SetReadRepoTime(DateTime time) { }
 

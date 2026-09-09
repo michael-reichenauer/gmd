@@ -14,6 +14,10 @@ interface IBranchCommands
     void SwitchTo(string branchName);
     void SwitchToCommit();
 
+    void ShowWorktrees();
+    void CreateWorktree(string branchName);
+    void OpenWorktree(string path);
+
     void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
     void DiffBranchesBranch(string branchName1, string branchName2);
 
@@ -58,6 +62,7 @@ class BranchCommands : IBranchCommands
     readonly IRepoConfig repoConfig;
     readonly IBranchCreateCommands createCmds;
     readonly IBranchPushPullCommands pushPullCmds;
+    readonly IWorktreeCommands worktreeCmds;
 
     public BranchCommands(
         IViewRepo repo,
@@ -69,9 +74,11 @@ class BranchCommands : IBranchCommands
         ISetBranchDlg setBranchDlg,
         IRepoConfig repoConfig,
         Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
-        Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands
+        Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands,
+        Func<IViewRepo, IRepoView, IWorktreeCommands> newWorktreeCommands
     )
     {
+        this.worktreeCmds = newWorktreeCommands(repo, repoView);
         this.repo = repo;
         this.progress = progress;
         this.repoView = repoView;
@@ -166,9 +173,19 @@ class BranchCommands : IBranchCommands
         SetRepo(newRepo);
     }
 
+    // A branch checked out in another worktree cannot be checked out here, git refuses, so the
+    // folder it is checked out in is opened instead. Done here rather than in the menu, since the
+    // S key and a double click switch without going through the menu.
     public void SwitchTo(string branchName) =>
         Do(async () =>
         {
+            if (repo.Repo.BranchByName.TryGetValue(branchName, out var branch))
+            {
+                var worktreePath = repo.Repo.WorktreePathOf(branch);
+                if (worktreePath != "")
+                    return await OpenWorktreeAsync(worktreePath);
+            }
+
             if (!Try(out var e, await server.SwitchToAsync(repo.Repo, branchName)))
             {
                 return R.Error($"Failed to switch to {branchName}", e);
@@ -177,6 +194,15 @@ class BranchCommands : IBranchCommands
             Refresh(branchName);
             return R.Ok;
         });
+
+    // The worktrees: the dialog, and opening another worktree, i.e. showing that folder
+    public void ShowWorktrees() => worktreeCmds.ShowWorktrees();
+
+    public void CreateWorktree(string branchName) => worktreeCmds.CreateWorktree(branchName);
+
+    public void OpenWorktree(string path) => worktreeCmds.OpenWorktree(path);
+
+    Task<R> OpenWorktreeAsync(string path) => worktreeCmds.OpenWorktreeAsync(path);
 
     public void MergeBranch(string branchName) =>
         Do(async () =>

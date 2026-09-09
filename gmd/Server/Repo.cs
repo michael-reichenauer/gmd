@@ -47,6 +47,9 @@ record Repo
     public Status Status { get; init; }
     public string Filter { get; }
 
+    // Every worktree of the repository, the one this repo was read from included (IsCurrent)
+    public IReadOnlyList<Worktree> Worktrees { get; init; } = [];
+
     public static Repo Empty { get; } =
         new Repo(
             "",
@@ -124,6 +127,7 @@ public record Branch(
     bool IsRemote,
     string RemoteName,
     string LocalName,
+    string WorktreePath, // The folder this branch is checked out in, when that is another worktree
     // Augmented properties
     bool IsInView,
     bool IsGitBranch,
@@ -152,6 +156,28 @@ public record Branch(
 public record Tag(string Name, string CommitId);
 
 public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);
+
+// A worktree of the repository, i.e. a folder with a checkout of it. The main worktree is the
+// repository's own folder; the others are linked to it and share its commits and branches, while
+// each has its own checked out branch and uncommitted changes.
+public record Worktree(
+    string Path,
+    string Branch, // Empty when detached
+    string HeadId,
+    bool IsMain,
+    bool IsCurrent, // The worktree this repo was read from, i.e. the one gmd is running in
+    bool IsDetached,
+    bool IsLocked, // Locked against removal, e.g. by a tool while it is using it (Claude Code does)
+    string LockReason,
+    bool IsPrunable, // The folder is gone, so only 'prune' is left
+    string PruneReason,
+    int ChangesCount // Uncommitted changes, -1 when not read (missing folder, or the status failed)
+)
+{
+    public bool HasChanges => ChangesCount > 0;
+
+    public override string ToString() => $"{Path} ({(IsDetached ? "detached" : Branch)})";
+}
 
 // The Git layer's GitOperation / ConflictKind / ConflictedFile, as the UI sees them. Same shape,
 // converted 1:1 by ViewRepoConverter, so nothing above this layer names a gmd.Git type.

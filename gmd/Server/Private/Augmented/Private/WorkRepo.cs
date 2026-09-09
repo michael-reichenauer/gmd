@@ -16,6 +16,7 @@ class WorkRepo
     public Dictionary<string, Tag> TagById { get; } = [];
     public List<Stash> Stashes { get; } = [];
     public Dictionary<string, Stash> StashById { get; } = [];
+    public List<Worktree> Worktrees { get; } = [];
 
     public WorkRepo(DateTime timeStamp, string path, Status status)
     {
@@ -102,8 +103,10 @@ internal class WorkBranch
     public bool IsDetached { get; }
     public bool IsRemoteMissing { get; }
     public bool IsCurrent { get; }
+    public bool IsCheckedOutElsewhere { get; } // The '+' of 'git branch': held by another worktree
 
     // Augmented properties
+    public string WorktreePath { get; set; } = ""; // The other worktree holding this branch, if any
     public string PrimaryName { get; set; } // The name of main/primary branch related branch (remote if both local and remote)
     public string PrimaryBaseName { get; set; } = ""; // a name based on first commit and parent commit
     public string NiceName { get; set; } = ""; // Nice name (might not be unique)
@@ -141,6 +144,7 @@ internal class WorkBranch
         TipID = b.TipID;
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
+        IsCheckedOutElsewhere = b.IsCheckedOutElsewhere;
         IsRemote = b.IsRemote;
         IsDetached = b.IsDetached;
         RemoteName = b.RemoteName;

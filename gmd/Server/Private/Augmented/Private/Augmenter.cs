@@ -32,6 +32,7 @@ class Augmenter : IAugmenter
 
         AddAugStashes(repo, gitRepo); // Must be done before adding augmented commits
         AddAugBranches(repo, gitRepo);
+        AddAugWorktrees(repo, gitRepo); // After the branches, which it marks
         AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
         SetCommitHasStash(repo);
@@ -78,6 +79,66 @@ class Augmenter : IAugmenter
                 b.RelatedBranches.Add(b); // Adds itself to related branches
             }
         }
+    }
+
+    // The worktrees of the repository, and which of them holds each branch. The one the repo was
+    // read from is found by its path, or failing that (a symlinked temp folder, a different
+    // spelling of the drive) by holding the current branch; every other worktree's branch is
+    // marked with the folder it is checked out in, which is what the UI acts on.
+    static void AddAugWorktrees(WorkRepo repo, GitRepo gitRepo)
+    {
+        var current = CurrentWorktree(repo, gitRepo);
+        foreach (var w in gitRepo.Worktrees)
+        {
+            var isCurrent = w == current;
+            var changes =
+                isCurrent ? repo.Status.ChangesCount
+                : gitRepo.WorktreeChanges.TryGetValue(w.Path, out var count) ? count
+                : -1;
+            repo.Worktrees.Add(
+                new Worktree(
+                    w.Path,
+                    w.Branch,
+                    w.HeadId,
+                    w.IsMain,
+                    isCurrent,
+                    w.IsDetached,
+                    w.IsLocked,
+                    w.LockReason,
+                    w.IsPrunable,
+                    w.PruneReason,
+                    changes
+                )
+            );
+
+            if (!isCurrent && w.Branch != "" && repo.Branches.TryGetValue(w.Branch, out var branch))
+            {
+                branch.WorktreePath = w.Path;
+            }
+        }
+
+        // 'git branch' and 'git worktree list' are two readings of the same state, taken a moment
+        // apart, so they can disagree; the list is what is acted on, this only says so in the log
+        foreach (
+            var b in repo.Branches.Values.Where(b => !b.IsRemote && b.IsCheckedOutElsewhere != (b.WorktreePath != ""))
+        )
+        {
+            Log.Warn($"Branch {b.Name} checked out elsewhere: {b.IsCheckedOutElsewhere}, worktree: '{b.WorktreePath}'");
+        }
+    }
+
+    static Git.Worktree? CurrentWorktree(WorkRepo repo, GitRepo gitRepo)
+    {
+        var byPath = gitRepo.Worktrees.FirstOrDefault(w => Files.IsSamePath(w.Path, gitRepo.Path));
+        if (byPath != null)
+            return byPath;
+
+        var currentBranch = repo.Branches.Values.FirstOrDefault(b => b.IsCurrent);
+        if (currentBranch == null)
+            return null;
+        if (currentBranch.IsDetached)
+            return gitRepo.Worktrees.FirstOrDefault(w => w.IsDetached && w.HeadId == currentBranch.TipID);
+        return gitRepo.Worktrees.FirstOrDefault(w => w.Branch == currentBranch.Name);
     }
 
     static void AddAugCommits(WorkRepo repo, GitRepo gitRepo)

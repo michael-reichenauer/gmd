@@ -1,5 +1,7 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Cui.RepoView;
+using gmd.Server;
 using Terminal.Gui;
 
 namespace gmd.Cui;
@@ -14,6 +16,7 @@ enum ApplicationBarItem
     Behind,
     Ahead,
     Stash,
+    Worktrees,
     Space,
     BranchName,
     Search,
@@ -148,7 +151,23 @@ class ApplicationBar : View, IApplicationBar
             aheadCount > 0 ? Common.Text.Dark(", ").Green("▲").Dark($"{aheadCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Stash] =
             stashCount > 0 ? Common.Text.Dark(", ").White("ß").Dark($"{stashCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Worktrees] = GetWorktrees(repo);
         UpdateView();
+    }
+
+    // The other worktrees of the repository, i.e. the other folders with a checkout of it. Yellow
+    // when one of them has uncommitted changes, like the status marker is for this one.
+    static Text GetWorktrees(Server.Repo repo)
+    {
+        var others = repo.OtherWorktrees();
+        if (others.Count == 0)
+            return Common.Text.Empty;
+
+        var text = Common.Text.Dark(", ");
+        text = others.Any(w => w.HasChanges)
+            ? text.Yellow(RepoWriter.WorktreeMarker)
+            : text.White(RepoWriter.WorktreeMarker);
+        return text.Dark($"{others.Count}");
     }
 
     public void SetBranch(GraphBranch branch)

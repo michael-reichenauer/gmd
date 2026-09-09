@@ -3,10 +3,13 @@ namespace gmd.Git.Private;
 interface IStatusService
 {
     Task<R<Status>> GetStatusAsync(string wd);
+    Task<R<Status>> GetStatusWithoutLocksAsync(string wd);
 }
 
 class StatusService : IStatusService
 {
+    const string StatusArgs = "status -s --porcelain --ahead-behind --untracked-files=all";
+
     private readonly ICmd cmd;
 
     public StatusService(ICmd cmd)
@@ -14,10 +17,17 @@ class StatusService : IStatusService
         this.cmd = cmd;
     }
 
-    public async Task<R<Status>> GetStatusAsync(string wd)
+    public Task<R<Status>> GetStatusAsync(string wd) => GetStatusAsync("", wd);
+
+    // For a worktree someone else is working in. A plain 'git status' refreshes the index and
+    // writes it back, holding 'index.lock' while it does, and a 'git add' or 'commit' run there
+    // at that moment fails on the lock. '--no-optional-locks' skips the write, so the read leaves
+    // no trace in the other worktree.
+    public Task<R<Status>> GetStatusWithoutLocksAsync(string wd) => GetStatusAsync("--no-optional-locks ", wd);
+
+    async Task<R<Status>> GetStatusAsync(string options, string wd)
     {
-        var args = "status -s --porcelain --ahead-behind --untracked-files=all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+        if (!Try(out var output, out var e, await cmd.RunAsync("git", options + StatusArgs, wd)))
             return e;
 
         return Parse(output, wd);
@@ -237,27 +247,9 @@ class StatusService : IStatusService
 
     // The real git dir of the working folder. Usually '<wd>/.git', but in a linked worktree and in
     // a submodule '.git' is a *file* holding 'gitdir: <path>' — and that is where the operation
-    // state lives, so joining '.git' blindly would find none of it there.
-    internal static string GetGitDir(string wd)
-    {
-        var path = Path.Join(wd, ".git");
-        if (Directory.Exists(path))
-            return path;
-        if (!File.Exists(path))
-            return "";
-
-        if (!Try(out var text, out var _, () => File.ReadAllText(path)))
-            return "";
-
-        var gitDir = text.Split('\n')[0].Trim();
-        if (!gitDir.StartsWith("gitdir:"))
-            return "";
-
-        gitDir = gitDir["gitdir:".Length..].Trim();
-
-        // A submodule's pointer is relative to the folder holding the '.git' file
-        return Path.IsPathRooted(gitDir) ? gitDir : Path.GetFullPath(Path.Join(wd, gitDir));
-    }
+    // state lives, so joining '.git' blindly would find none of it there. Empty if there is none.
+    internal static string GetGitDir(string wd) =>
+        Try(out var gitDir, out var _, GitDir.Resolve(wd)) ? gitDir.GitDirPath : "";
 
     static string ReadFirstLine(string path) =>
         Try(out var text, out var _, () => File.ReadAllText(path)) ? text.Split('\n')[0].Trim() : "";

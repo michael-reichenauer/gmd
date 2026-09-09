@@ -42,6 +42,122 @@ public class GitIntegrationTest
         Assert.AreEqual(repo.Path, Value(repo.Git.RootPath(subFolder)));
     }
 
+    // A linked worktree has a '.git' file rather than a folder, and is a root of its own
+    [TestMethod]
+    public async Task TestRootPathIsFoundFromInsideALinkedWorktree()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var worktree = await repo.AddWorktreeAsync("dev");
+        var subFolder = Path.Join(worktree, "sub");
+        Directory.CreateDirectory(subFolder);
+
+        Assert.AreEqual(worktree, Value(repo.Git.RootPath(subFolder)));
+        Assert.AreEqual(repo.Path, Value(repo.Git.RootPath(repo.Path)), "The main worktree is unchanged");
+    }
+
+    // The worktree round trip, and the one thing canned output cannot pin: that git marks the
+    // branch a worktree holds with '+' — seen from the main worktree and from the linked one
+    [TestMethod]
+    public async Task TestWorktreeAddListAndRemoveRoundTrip()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var path = repo.WorktreePath("dev");
+
+        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        repo.TrackFolder(path);
+
+        var worktrees = Value(await repo.Git.GetWorktreesAsync(repo.Path));
+        Assert.AreEqual(2, worktrees.Count);
+        Assert.IsTrue(worktrees[0].IsMain);
+        Assert.AreEqual(repo.Path, worktrees[0].Path);
+        Assert.AreEqual("main", worktrees[0].Branch);
+        Assert.IsFalse(worktrees[1].IsMain);
+        Assert.AreEqual(path, worktrees[1].Path);
+        Assert.AreEqual("dev", worktrees[1].Branch);
+        Assert.AreEqual(await repo.HeadIdAsync(), worktrees[1].HeadId);
+        Assert.IsFalse(worktrees[1].IsLocked);
+        Assert.IsFalse(worktrees[1].IsPrunable);
+
+        var fromMain = Value(await repo.Git.GetBranchesAsync(repo.Path));
+        Assert.IsTrue(fromMain.First(b => b.Name == "dev").IsCheckedOutElsewhere);
+        Assert.IsFalse(fromMain.First(b => b.Name == "main").IsCheckedOutElsewhere);
+        var fromWorktree = Value(await repo.Git.GetBranchesAsync(path));
+        Assert.IsTrue(fromWorktree.First(b => b.Name == "main").IsCheckedOutElsewhere);
+        Assert.IsTrue(fromWorktree.First(b => b.Name == "dev").IsCurrent);
+
+        // Uncommitted changes in the worktree: refused unless forced
+        File.WriteAllText(Path.Join(path, "new.txt"), "text\n");
+        Assert.IsFalse(Try(out e, await repo.Git.RemoveWorktreeAsync(path, false, repo.Path)));
+        StringAssert.Contains(e.ErrorMessage, "--force");
+        Assert.IsTrue(Try(out e, await repo.Git.RemoveWorktreeAsync(path, true, repo.Path)), $"{e}");
+
+        Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
+        Assert.IsFalse(Directory.Exists(path));
+        Assert.IsFalse(
+            Value(await repo.Git.GetBranchesAsync(repo.Path)).First(b => b.Name == "dev").IsCheckedOutElsewhere
+        );
+    }
+
+    // The other worktrees are read with '--no-optional-locks', which neither takes the index lock
+    // a commit run there would fail on, nor rewrites the index. The control is a plain status,
+    // which does write it once a tracked file's stat data is stale, that being what the flag is for.
+    [TestMethod]
+    public async Task TestStatusWithoutLocksLeavesTheOtherWorktreesIndexAlone()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var path = repo.WorktreePath("dev");
+        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        repo.TrackFolder(path);
+
+        // Same content, different stat data: a refresh finds the file unchanged and writes the
+        // new stat data back to the index, unless told not to
+        var file = Path.Join(path, "file.txt");
+        File.SetLastWriteTimeUtc(file, File.GetLastWriteTimeUtc(file).AddMinutes(-1));
+        var index = Path.Join(Value(GitDir.Resolve(path)).GitDirPath, "index");
+        var before = File.ReadAllBytes(index);
+
+        var status = Value(await repo.Git.GetStatusWithoutLocksAsync(path));
+        Assert.AreEqual(0, status.Modified);
+        CollectionAssert.AreEqual(before, File.ReadAllBytes(index), "The lock-free read wrote the index");
+
+        Value(await repo.Git.GetStatusAsync(path));
+        CollectionAssert.AreNotEqual(before, File.ReadAllBytes(index), "The plain status did not write the index");
+    }
+
+    // A worktree whose folder was deleted by hand is still registered, as prunable, until pruned
+    [TestMethod]
+    public async Task TestWorktreeWithAMissingFolderIsPrunable()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var path = await repo.AddWorktreeAsync("dev");
+        Directory.Delete(path, true);
+
+        var worktrees = Value(await repo.Git.GetWorktreesAsync(repo.Path));
+        Assert.AreEqual(2, worktrees.Count);
+        Assert.IsTrue(worktrees[1].IsPrunable);
+        Assert.AreNotEqual("", worktrees[1].PruneReason);
+
+        Assert.IsTrue(Try(out var e, await repo.Git.PruneWorktreesAsync(repo.Path)), $"{e}");
+
+        Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
+    }
+
+    [TestMethod]
+    public async Task TestIgnoredWorktreeFolders()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var folders = new[] { ".claude/worktrees", ".worktrees" };
+
+        Assert.AreEqual(0, Value(await repo.Git.GetIgnoredPathsAsync(folders, repo.Path)).Count);
+
+        repo.WriteFile(".gitignore", ".worktrees/\n");
+
+        CollectionAssert.AreEqual(
+            new[] { ".worktrees" },
+            Value(await repo.Git.GetIgnoredPathsAsync(folders, repo.Path)).ToArray()
+        );
+    }
+
     [TestMethod]
     public async Task TestLogRoundTrip()
     {

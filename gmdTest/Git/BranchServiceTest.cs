@@ -41,6 +41,17 @@ public class BranchServiceTest
           topic                       1cc81b2b82bfc31a090f6f13df8468ad042cfe9a Topic change
         """;
 
+    // A branch checked out in another worktree is marked '+' where the current branch has '*',
+    // and has the worktree's path after the commit id. Here 'dev' and 'topic' are checked out in
+    // linked worktrees while this worktree has 'main'.
+    const string WorktreeOutput = """
+        + dev                         b6bb1a5f0b1fc17a9ca2bdb6a932c84124e61b1f (/home/me/repo-dev) [origin/dev: ahead 2] Dev work
+        * main                        8ec7ceea6c4e13464c9cee83fccda637a66a1023 [origin/main] Initial
+        + topic                       1cc81b2b82bfc31a090f6f13df8468ad042cfe9a (/home/me/repo/.claude/worktrees/topic) Topic change
+          remotes/origin/dev          b6bb1a5f0b1fc17a9ca2bdb6a932c84124e61b1f Dev work
+          remotes/origin/main         8ec7ceea6c4e13464c9cee83fccda637a66a1023 Initial
+        """;
+
     static async Task<IReadOnlyList<gmd.Git.Branch>> GetBranchesAsync(string output)
     {
         var service = new BranchService(new FakeCmd(output));
@@ -103,6 +114,37 @@ public class BranchServiceTest
         Assert.AreEqual(1, current.Count);
         Assert.AreEqual("main", current[0].Name);
         Assert.AreEqual("8ec7ceea6c4e13464c9cee83fccda637a66a1023", current[0].TipID);
+    }
+
+    // The '+' line used to fail the whole regex, so the branch vanished from the list rather than
+    // merely losing its marker — and with it the branch assignment of every commit on it.
+    [TestMethod]
+    public async Task TestParseBranchCheckedOutInAnotherWorktreeIsKeptAndFlagged()
+    {
+        var branches = await GetBranchesAsync(WorktreeOutput);
+
+        CollectionAssert.AreEqual(
+            new[] { "dev", "main", "topic", "origin/dev", "origin/main" },
+            branches.Select(b => b.Name).ToArray()
+        );
+
+        var dev = branches.First(b => b.Name == "dev");
+        Assert.IsTrue(dev.IsCheckedOutElsewhere);
+        Assert.IsFalse(dev.IsCurrent, "Checked out elsewhere is not current here");
+        Assert.IsFalse(dev.IsRemote);
+        Assert.AreEqual("origin/dev", dev.RemoteName, "The upstream follows the worktree path");
+        Assert.AreEqual(2, dev.AheadCount);
+        Assert.AreEqual("b6bb1a5f0b1fc17a9ca2bdb6a932c84124e61b1f", dev.TipID);
+
+        var topic = branches.First(b => b.Name == "topic");
+        Assert.IsTrue(topic.IsCheckedOutElsewhere);
+        Assert.AreEqual("", topic.RemoteName, "No upstream, the path is not mistaken for one");
+        Assert.AreEqual("1cc81b2b82bfc31a090f6f13df8468ad042cfe9a", topic.TipID);
+
+        var main = branches.First(b => b.Name == "main");
+        Assert.IsTrue(main.IsCurrent);
+        Assert.IsFalse(main.IsCheckedOutElsewhere);
+        Assert.AreEqual("origin/main", main.RemoteName);
     }
 
     [TestMethod]

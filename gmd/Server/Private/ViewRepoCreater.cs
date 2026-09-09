@@ -178,6 +178,7 @@ class ViewRepoCreater : IViewRepoCreater
             false,
             "",
             "",
+            "",
             true,
             false,
             false,
@@ -215,7 +216,10 @@ class ViewRepoCreater : IViewRepoCreater
             new List<Stash>(),
             Status.Empty,
             filter
-        );
+        )
+        {
+            Worktrees = repo.Worktrees,
+        };
 
         // Convert to a view repo
         viewCommits = [commit];

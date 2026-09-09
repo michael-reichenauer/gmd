@@ -118,6 +118,28 @@ sealed class TmuxSession : IDisposable
     // Polls until the screen has simply stopped changing
     public string WaitForStable(int timeoutMs = DefaultTimeoutMs) => Poll(_ => true, "the screen to settle", timeoutMs);
 
+    // Polls until the screen matches and returns it as it was at that moment, without waiting for
+    // it to settle. The one wait that does not, because what it is for is something that moves:
+    // the progress marquee is redrawn every 100 ms for as long as a git command runs, so a screen
+    // showing it never settles and WaitFor would time out on it. Never send a key after this one
+    // alone, see StableCount.
+    public string WaitForMoving(Func<string, bool> isMatch, string what, int timeoutMs = DefaultTimeoutMs)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var screen = "";
+        while (DateTime.UtcNow < deadline)
+        {
+            screen = Capture();
+            if (isMatch(screen))
+                return screen;
+
+            Thread.Sleep(PollMs);
+        }
+
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for {what}\n{Diagnostics(screen)}");
+        return screen;
+    }
+
     // What gmd has copied, i.e. the text of the OSC 52 sequence tmux received, kept as a buffer
     // because of set-clipboard above. Empty until something has been copied.
     public string Clipboard()
@@ -142,6 +164,21 @@ sealed class TmuxSession : IDisposable
 
         Assert.Fail($"Timed out after {timeoutMs} ms waiting for something to be copied\n{Diagnostics(Capture())}");
         return "";
+    }
+
+    // Whether the terminal cursor is shown, which is how a focused text input shows its caret;
+    // the log view and the menus hide it. tmux tracks the visibility the app sets, as it does
+    // the screen, so this is what the user sees rather than what the app believes it asked for.
+    public bool IsCursorVisible => Display("#{cursor_flag}") == "1";
+
+    // Where the cursor is, in pane coordinates, i.e. where the caret of a focused text input is
+    public (int X, int Y) CursorPosition
+    {
+        get
+        {
+            var parts = Display("#{cursor_x},#{cursor_y}").Split(',');
+            return (int.Parse(parts[0]), int.Parse(parts[1]));
+        }
     }
 
     // Sends keys, e.g. "q", "Down", "Escape", "S-Right". The screen must have settled first, see

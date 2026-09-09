@@ -16,6 +16,7 @@ class Config
 
     // Values managed by app
     public List<string> RecentFolders { get; set; } = [];
+    public string WorktreeLocation { get; set; } = ""; // The last picked place for a new worktree
     public Releases Releases { get; set; } = new Releases();
     public string GitVersion { get; set; } = "";
 

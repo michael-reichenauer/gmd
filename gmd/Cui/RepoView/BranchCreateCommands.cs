@@ -239,8 +239,7 @@ class BranchCreateCommands : IBranchCreateCommands
 
             if (rsp.IsRemote && remoteBranch != null)
             {
-                var tip = repo.Repo.CommitById[remoteBranch.TipId];
-                if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == remoteBranch.Name)
+                if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(remoteBranch))
                 {
                     return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
                 }
@@ -254,8 +253,7 @@ class BranchCreateCommands : IBranchCreateCommands
 
             if (rsp.IsLocal && localBranch != null)
             {
-                var tip = repo.Repo.CommitById[localBranch.TipId];
-                if (!tip.AllChildIds.Any() && !rsp.IsForce && tip.BranchName == localBranch.Name)
+                if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(localBranch))
                 {
                     return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
                 }

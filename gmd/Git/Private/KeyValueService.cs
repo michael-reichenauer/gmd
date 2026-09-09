@@ -67,9 +67,13 @@ class KeyValueService : IKeyValueService
 
     string KeyRef(string key) => $"refs/gmd-metadata-key-value/{key}";
 
+    // A scratch file inside the git dir, which git ignores. In a linked worktree '.git' is a file,
+    // so the dir has to be resolved rather than joined; the per-worktree dir is fine for this, and
+    // keeps two gmds on one repository from ever sharing a scratch folder.
     string TmpFilePath(string wd)
     {
         var name = Path.GetRandomFileName();
-        return Path.Join(wd, ".git", $"gmd.tmp.{name}");
+        var gitDir = Try(out var info, out var _, GitDir.Resolve(wd)) ? info.GitDirPath : Path.Join(wd, ".git");
+        return Path.Join(gitDir, $"gmd.tmp.{name}");
     }
 }

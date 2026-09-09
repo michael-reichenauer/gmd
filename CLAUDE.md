@@ -404,6 +404,8 @@ Colors are assertable too: `gmd.CaptureColors()` keeps them as ANSI, and `Screen
 as `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for its
 bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black). `BackgroundRows`
 is how the current row's highlight is reached, that being a background rather than a foreground.
+So is the cursor: `gmd.IsCursorVisible` and `gmd.CursorPosition` come from tmux's pane state, which
+is how "the caret is back in the text field after the menu closed" is asserted.
 
 Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
 filter above excludes them. Seven things they do that matter, and that a new test must keep doing:

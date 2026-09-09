@@ -3,7 +3,10 @@ using Terminal.Gui;
 namespace gmd.Cui.Common;
 
 // A text input field with a drop down list of suggestions, shown by the down arrow key or by
-// clicking the '▼' marker that UIDialog.AddComboTextField adds next to the field.
+// clicking the '▼' marker that UIDialog.AddComboTextField adds next to the field. While the list
+// is open it has the focus, so the arrow keys move in it, Enter (or a click) picks the item and
+// Esc closes it; the field gets the focus back either way. A pick raises ItemSelected, since it
+// changes the text without a key reaching the field.
 class UIComboTextField : TextField
 {
     private readonly int w;
@@ -16,6 +19,9 @@ class UIComboTextField : TextField
     private List<string> items = [];
     IReadOnlyList<Text> itemTexts = new List<Text>();
     bool isShowList = false;
+
+    // Raised when an item is picked from the list and has become the text
+    public event Action? ItemSelected;
 
     internal UIComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
         : base(x, y, w, text)
@@ -92,24 +98,11 @@ class UIComboTextField : TextField
             .ToList();
 
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
+        listView.RegisterKeyHandler(Key.Enter, () => SelectItem(listView.CurrentIndex));
+        listView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => SelectItem(y + listView.FirstIndex));
 
-        listView.RegisterKeyHandler(
-            Key.Enter,
-            () =>
-            { // User select some item
-                if (itemTexts.Count > 0)
-                {
-                    UI.Post(() =>
-                    {
-                        this.Text = items[listView.CurrentIndex].ToString().Trim();
-                        this.CursorPosition = this.Text.Length;
-                    });
-                }
-                ;
-
-                CloseListView();
-            }
-        );
+        // Tabbing away from the open list would otherwise leave it lying on the dialog
+        listView.Leave += _ => CloseListView();
 
         listView.IsShowCursor = false;
         listView.IsScrollMode = false;
@@ -122,20 +115,40 @@ class UIComboTextField : TextField
         borderSides.ForEach(bs => dlg.Add(bs));
         dlg.Add(borderBottom);
         dlg.Add(listView);
+
+        // Start on the item the field already names, and take the keys until closed
+        listView.SetCurrentIndex(Math.Max(0, items.IndexOf(Text)));
+        listView.SetFocus();
         dlg.SetNeedsDisplay();
+    }
+
+    void SelectItem(int index)
+    {
+        if (index >= 0 && index < items.Count)
+        {
+            Text = items[index].Trim();
+            CursorPosition = Text.Length;
+        }
+        CloseListView();
+        if (index >= 0 && index < items.Count)
+            ItemSelected?.Invoke();
     }
 
     void CloseListView()
     {
+        if (!isShowList)
+            return;
+        isShowList = false;
+
         Dialog dlg = (Dialog)this.SuperView.SuperView;
         dlg.Remove(listView);
 
         dlg.Remove(borderTop);
         borderSides.ForEach(bs => dlg.Remove(bs));
         dlg.Remove(borderBottom);
-        dlg.SetNeedsDisplay();
 
-        this.isShowList = false;
+        SetFocus();
+        dlg.SetNeedsDisplay();
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)

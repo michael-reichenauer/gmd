@@ -8,6 +8,7 @@ using GitOp = gmd.Git.GitOperation;
 using GitStash = gmd.Git.Stash;
 using GitStatus = gmd.Git.Status;
 using GitTag = gmd.Git.Tag;
+using GitWorktree = gmd.Git.Worktree;
 using ServerImpl = gmd.Server.Private.Server;
 
 namespace gmdTest.Fixtures;
@@ -44,6 +45,8 @@ class RepoBuilder
     readonly List<GitTag> tags = [];
     readonly List<GitStash> stashes = [];
     readonly MetaData metaData = new MetaData();
+    readonly List<GitWorktree> worktrees = [];
+    readonly Dictionary<string, int> worktreeChanges = [];
 
     GitStatus status = NoChanges;
     bool isTruncated = false;
@@ -92,16 +95,30 @@ class RepoBuilder
     }
 
     // A local branch. 'remoteName' is the name of its corresponding remote branch, if any.
+    // 'isCheckedOutElsewhere' is what git reports for a branch checked out in another worktree.
     public RepoBuilder LocalBranch(
         string name,
         string tipCommit,
         bool isCurrent = false,
         string remoteName = "",
         int ahead = 0,
-        int behind = 0
+        int behind = 0,
+        bool isCheckedOutElsewhere = false
     )
     {
-        branches.Add(new GitBranch(name, Sha(tipCommit), isCurrent, false, remoteName, false, ahead, behind));
+        branches.Add(
+            new GitBranch(
+                name,
+                Sha(tipCommit),
+                isCurrent,
+                false,
+                remoteName,
+                false,
+                ahead,
+                behind,
+                isCheckedOutElsewhere
+            )
+        );
         return this;
     }
 
@@ -237,8 +254,81 @@ class RepoBuilder
         return this;
     }
 
+    // A linked worktree of the repo, at 'worktreePath' with 'branch' checked out — which must be
+    // a declared local branch, and is then marked as git marks it, i.e. checked out elsewhere.
+    // 'changes' is its number of uncommitted changes; -1 means it could not be read. The main
+    // worktree (the repo itself, at its path) is added by itself as soon as any is declared.
+    public RepoBuilder Worktree(
+        string worktreePath,
+        string branch,
+        int changes = 0,
+        bool isLocked = false,
+        string lockReason = "",
+        bool isPrunable = false,
+        bool isDetached = false
+    )
+    {
+        var tipId = branches.FirstOrDefault(b => b.Name == branch)?.TipID ?? "";
+        worktrees.Add(
+            new GitWorktree(
+                worktreePath,
+                tipId,
+                isDetached ? "" : branch,
+                IsMain: false,
+                IsBare: false,
+                isDetached,
+                isLocked,
+                lockReason,
+                isPrunable,
+                isPrunable ? "gitdir file points to non-existent location" : ""
+            )
+        );
+        if (!isPrunable)
+            worktreeChanges[worktreePath] = changes;
+        if (!isDetached)
+        {
+            var i = branches.FindIndex(b => b.Name == branch && !b.IsRemote);
+            if (i >= 0)
+                branches[i] = branches[i] with { IsCheckedOutElsewhere = true };
+        }
+        return this;
+    }
+
     public GitRepo ToGitRepo() =>
-        new GitRepo(BaseTime, path, commits, branches, tags, status, metaData, stashes, isTruncated);
+        new GitRepo(
+            BaseTime,
+            path,
+            commits,
+            branches,
+            tags,
+            status,
+            metaData,
+            stashes,
+            isTruncated,
+            AllWorktrees(),
+            worktreeChanges
+        );
+
+    // The main worktree first, as git lists it, on the current branch
+    IReadOnlyList<GitWorktree> AllWorktrees()
+    {
+        if (worktrees.Count == 0)
+            return [];
+        var current = branches.FirstOrDefault(b => b.IsCurrent);
+        var main = new GitWorktree(
+            path,
+            current?.TipID ?? "",
+            current?.IsDetached == true ? "" : current?.Name ?? "",
+            IsMain: true,
+            IsBare: false,
+            IsDetached: current?.IsDetached == true,
+            IsLocked: false,
+            LockReason: "",
+            IsPrunable: false,
+            PruneReason: ""
+        );
+        return [main, .. worktrees];
+    }
 
     // Runs the real augmentation pipeline (branch inference, hierarchy, view names)
     public Task<WorkRepo> AugmentAsync() => NewAugmenter().GetAugRepoAsync(ToGitRepo());
@@ -306,9 +396,16 @@ class RepoBuilder
     // this is used just for the steps the service itself adds.
     AugmentedService NewAugmentedService() => NewAugmentedService(NewGit(), new FakeMetaDataService(metaData));
 
-    public static AugmentedService NewAugmentedService(IGit git, IMetaDataService metaDataService)
+    public static AugmentedService NewAugmentedService(IGit git, IMetaDataService metaDataService) =>
+        NewAugmentedService(git, metaDataService, new FakeFileMonitor());
+
+    // With the file monitor given, for a test asserting that a write pauses it
+    public static AugmentedService NewAugmentedService(
+        IGit git,
+        IMetaDataService metaDataService,
+        IFileMonitor fileMonitor
+    )
     {
-        var fileMonitor = new FakeFileMonitor();
         return new AugmentedService(
             git,
             NewAugmenter(),

@@ -44,7 +44,7 @@ public class FileMonitorTest
 
         // Starts the timer, so every test below ticks through the real registered callback. The
         // folder does not have to exist, see TestMonitorStartsTheTimerEvenIfTheFolderIsNotARepo.
-        monitor.Monitor("/no/such/folder");
+        monitor.Monitor("/no/such/folder", []);
     }
 
     [TestMethod]
@@ -56,7 +56,7 @@ public class FileMonitorTest
         Assert.AreEqual(TimeSpan.FromSeconds(1), mainThread.Interval);
 
         // Monitoring another folder reuses the one timer
-        monitor.Monitor("/no/such/other/folder");
+        monitor.Monitor("/no/such/other/folder", []);
         Assert.AreEqual(1, mainThread.PeriodicCount);
     }
 
@@ -193,6 +193,161 @@ public class FileMonitorTest
         now += pastDelay;
         mainThread.Tick();
         Assert.AreEqual(0, repoEvents.Count);
+    }
+
+    // The repository layouts below are written by hand, like GitDirTest does, so no git is needed.
+    // 'main' is a main worktree, 'main-dev' a linked worktree of it, and 'main/.claude/worktrees/x'
+    // a linked worktree nested inside the main one, where Claude Code puts its own.
+    string root = "";
+    string Main => Path.Join(root, "main");
+    string MainGitDir => Path.Join(Main, ".git");
+
+    string CreateMain()
+    {
+        root = Path.Join(Path.GetTempPath(), $"gmdTest-monitor-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Join(MainGitDir, "refs", "heads"));
+        return Main;
+    }
+
+    string CreateLinkedWorktree(string path, string name)
+    {
+        var gitDir = Path.Join(MainGitDir, "worktrees", name);
+        Directory.CreateDirectory(gitDir);
+        File.WriteAllText(Path.Join(gitDir, "commondir"), "../..\n");
+        File.WriteAllText(Path.Join(gitDir, "HEAD"), "ref: refs/heads/dev\n");
+        Directory.CreateDirectory(path);
+        File.WriteAllText(Path.Join(path, ".git"), $"gitdir: {gitDir}\n");
+        return path;
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        if (root != "" && Directory.Exists(root))
+            Directory.Delete(root, true);
+    }
+
+    // The main worktree keeps everything under '.git', so its refs are watched from there. A
+    // linked worktree has its refs in the main repository's '.git' and its HEAD in a folder of
+    // its own under it, so three folders are watched: the working folder, the common dir and the
+    // worktree's git dir.
+    [TestMethod]
+    public void TestMainAndLinkedWorktreesWatchTheirGitDirs()
+    {
+        var main = CreateMain();
+        var worktree = CreateLinkedWorktree(Path.Join(root, "main-dev"), "dev");
+
+        monitor.Monitor(main, []);
+        CollectionAssert.AreEqual(new[] { main, MainGitDir }, monitor.WatchedPaths.ToArray());
+
+        monitor.Monitor(worktree, []);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                worktree,
+                Path.GetFullPath(MainGitDir),
+                Path.GetFullPath(Path.Join(MainGitDir, "worktrees", "dev")),
+            },
+            monitor.WatchedPaths.ToArray()
+        );
+    }
+
+    // A worktree nested inside the working folder is another checkout, with another status, so
+    // what is written there is not a change here — it would otherwise re-read this status for
+    // every file a build in that worktree writes
+    [TestMethod]
+    public void TestChangesInsideAnExcludedFolderAreNotFileChanges()
+    {
+        var main = CreateMain();
+        var nested = Path.Join(main, ".claude", "worktrees", "x");
+        monitor.Monitor(main, [nested]);
+
+        monitor.WorkingFolderChange(
+            Path.Join(nested, "a.txt"),
+            ".claude/worktrees/x/a.txt",
+            WatcherChangeTypes.Changed
+        );
+        now += pastDelay;
+        mainThread.Tick();
+        Assert.AreEqual(0, fileEvents.Count);
+
+        monitor.WorkingFolderChange(Path.Join(main, "a.txt"), "a.txt", WatcherChangeTypes.Changed);
+        now += pastDelay;
+        mainThread.Tick();
+        Assert.AreEqual(1, fileEvents.Count);
+    }
+
+    // The nested worktrees are re-read with the repo, so they are taken even when the folder is
+    // the one already being watched
+    [TestMethod]
+    public void TestExcludedFoldersAreUpdatedForTheFolderAlreadyWatched()
+    {
+        var main = CreateMain();
+        var nested = Path.Join(main, ".claude", "worktrees", "x");
+        monitor.Monitor(main, []);
+        monitor.Monitor(main, [nested]);
+
+        monitor.WorkingFolderChange(
+            Path.Join(nested, "a.txt"),
+            ".claude/worktrees/x/a.txt",
+            WatcherChangeTypes.Changed
+        );
+        now += pastDelay;
+        mainThread.Tick();
+        Assert.AreEqual(0, fileEvents.Count);
+    }
+
+    // In a linked worktree '.git' is a file git rewrites when the worktree is moved; in the main
+    // worktree it is a folder whose timestamp changes whenever git writes into it
+    [TestMethod]
+    public void TestTheGitFileOfALinkedWorktreeIsARepoChangeButTheGitFolderIsNot()
+    {
+        var main = CreateMain();
+        var worktree = CreateLinkedWorktree(Path.Join(root, "main-dev"), "dev");
+
+        monitor.WorkingFolderChange(Path.Join(main, ".git"), ".git", WatcherChangeTypes.Changed);
+        now += pastDelay;
+        mainThread.Tick();
+        Assert.AreEqual(0, repoEvents.Count);
+
+        monitor.WorkingFolderChange(Path.Join(worktree, ".git"), ".git", WatcherChangeTypes.Changed);
+        now += pastDelay;
+        mainThread.Tick();
+        Assert.AreEqual(1, repoEvents.Count);
+    }
+
+    // What the common dir watcher raises on: a ref, the main worktree's HEAD, and of another
+    // worktree only what says what it has checked out — its index is rewritten by every
+    // 'git status' run there, which would otherwise re-read this repo each time
+    [TestMethod]
+    public void TestOnlyRefsAndOtherWorktreesCheckoutStateAreRepoChangesInTheCommonDir()
+    {
+        void Change(string path, WatcherChangeTypes type = WatcherChangeTypes.Changed) =>
+            monitor.CommonDirChange("/main/.git/" + path, path, type);
+        int Raised()
+        {
+            now += pastDelay;
+            mainThread.Tick();
+            return repoEvents.Count;
+        }
+
+        Change("index");
+        Change("worktrees/y/index");
+        Change("worktrees/y/logs/HEAD");
+        Change("worktrees/y/ORIG_HEAD");
+        Change("objects/ab/cdef");
+        Assert.AreEqual(0, Raised());
+
+        Change("refs/heads/main");
+        Assert.AreEqual(1, Raised());
+        Change("HEAD");
+        Assert.AreEqual(2, Raised());
+        Change("worktrees/y/HEAD");
+        Assert.AreEqual(3, Raised());
+        Change("worktrees/y/locked", WatcherChangeTypes.Created);
+        Assert.AreEqual(4, Raised());
+        Change("worktrees/y", WatcherChangeTypes.Deleted);
+        Assert.AreEqual(5, Raised());
     }
 
     // The point of IMainThread: the timer runs on whichever thread the main loop uses, but the

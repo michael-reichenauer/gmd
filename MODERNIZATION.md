@@ -59,6 +59,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
   continue and skip from the repo menu; a two or three pane resolver with the common ancestor
   recovered on demand; hand-edited hunks; file-level choices for delete, add and binary conflicts;
   and commit gating that refuses unresolved files and leftover markers.
+- Worktrees: gmd opens inside a linked worktree; a branch checked out in another worktree carries
+  `⌂` and `S` opens that folder instead of a checkout git would refuse; `⌂N` in the top bar counts
+  the other worktrees and turns yellow when one has uncommitted changes (read after the repo is
+  shown, so a slow status in a large worktree never delays it, and re-read every thirty seconds,
+  since their folders are not watched); a dialog (`W`) lists them with changes, in use
+  (locked), missing (prunable) and merged, and adds (beside the repo, in Claude Code's
+  `.claude/worktrees/` or in `.worktrees/`, the two inside the repo added to `.gitignore`),
+  removes (with the branch, force for uncommitted changes) and prunes them. One `.gmdconfig` per
+  repository, in the common git dir, shared by every worktree.
 
 **Bugs fixed** (the ones a user could hit; all have regression tests)
 
@@ -125,6 +134,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
   subject column does); a binary file is headed `Modified:`; a staged added file is counted as
   modified (only the sum is ever shown, and a `--no-commit` merge stages its files, so every merge
   shows it); `FileSize` never shows a fraction; a stash message is cut at its first `:`.
+- Worktrees, deliberately left out of v1: no unlock of a locked worktree (a second `--force`),
+  no bulk clean-up, no auto-prune; the stash list is the repository's and so shows stashes made
+  in other worktrees; other worktrees' folders are not watched, so their change counts are up to
+  thirty seconds behind; a submodule's `.git` file now makes it a root of its own too, which is right
+  but new; the worktree dialog needs about 80 columns.
+- `FileStore` caches each file per process and never re-reads it, so with two gmd instances open
+  (one per worktree, say) every write of `~/.gmdconfig` — the recent folders on each repo open, the
+  git version on start, the update check, a word added to the spelling dictionary — is the writer's
+  stale copy plus its own change, and whichever instance writes last drops what the others saved.
+  `<repo>/.git/.gmdconfig` goes through the same store, so the same holds for a repo opened twice.
+  Re-read the file before writing, or merge the lists.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
   hardware. Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
@@ -178,7 +198,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Two end-to-end flake modes were seen and neither reproduced when chased: a `WaitFor` satisfied
   by text already on screen, so the key just sent is not actually waited for; and, in the
   devcontainer only, a blank pane with no `gmd.log` at all — the binary never started. Nine
-  consecutive full runs were green afterwards. Recorded so nobody hunts a flake that is not biting.
+  consecutive full runs were green afterwards. Seen once more on 2026-09-09
+  (`TestRemoveWorktreeAndItsBranchFromTheDialog`, the `Kind    Branch` wait after `w`), and again
+  not reproduced: a full rerun and 21 runs of the worktree tests were green. Recorded so nobody
+  hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The throwaway `$HOME` is Unix only; a Windows test run still truncates `~/gmd.log`. The terminal
@@ -227,6 +250,23 @@ Add new open issues and findings here as work lands; keep them short and drop th
   without it. A pathspec-filtered diff loses rename detection, so a per-file re-diff must fetch the
   whole commit or name both paths. `GIT_EDITOR` beats `-c core.editor`, and a dev shell that
   already sets `GIT_EDITOR=true` hides exactly that.
+- Worktrees. A linked worktree's `.git` is a *file* (`gitdir: <main>/.git/worktrees/<name>`);
+  HEAD, the index and a stopped operation live there, refs and objects in the common dir that its
+  `commondir` file points at (a submodule has the same file and no `commondir`). Resolve it in one
+  place (`GitDir`); joining `.git` blindly wrote the repo config into a file and FailFasted. `git
+  branch -vv` prefixes a branch checked out in another worktree with `+` — a regex anchored on
+  `\*?\s+` did not match the line, and the branch *vanished* rather than losing its marker — and
+  prints the worktree path in parenthesis before the upstream, which has to be stepped over or the
+  upstream is lost. `worktree list --porcelain -z` ends each attribute with NUL and each record
+  with a second one, and prints lock reasons verbatim where the non-`z` form C-quotes them; `Cmd`
+  joins lines with `\n` and trims, neither of which touches a NUL. `check-ignore` answers for a
+  folder that does not exist only when the path has a trailing `/`, since a folder-only pattern
+  (`x/`) cannot otherwise know it is asking about a folder. Git refuses to check out, delete or
+  `fetch b:b` a branch held by any worktree, a prunable one included, until it is pruned. A plain
+  `git status` run in another worktree rewrites that worktree's `index`, holding its `index.lock`
+  on the way, which a `git add` or `commit` run there at that moment fails on; `--no-optional-locks`
+  reads without either, and is what gmd's reads of the other worktrees use. So the `index` is not a
+  signal of a change in a worktree, and a plain edit does not touch it.
 
 **Inference**
 
@@ -255,6 +295,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `UI.EnableInput` captures and restores `RootKeyEvent`. If progress reaches zero while a dialog is
   open, the restore puts back "swallow everything" and input is dead for good — keep the dialog
   inside the command's `Do`.
+- `Application.Begin` brings the subview holding the focus to the front of the toplevel
+  (`EnsuresTopOnFront`), so a view added to `Application.Top` after the main view — the progress
+  marquee — is behind it once any dialog has run. `Progress.Activated` fronts it again, and only once
+  the marquee's own toplevel is current, since the activate hook fires for a dialog over a dialog
+  too. Before that, a commit showed no progress where a push, which opens no dialog, did.
 - `new Label(x, y, text)` fixes an absolute frame and ignores a later `Pos.AnchorEnd`; use the
   initializer form. `Text.ToLine(width)` repeats the first character,
   `Subtext(…, isFillRest: true)` pads. There is no `Key` for `+` / `-` / `=`; cast the ascii code.

@@ -1,22 +1,25 @@
 {
   "dotnet.defaultSolution": "gmd.sln",
-
   // CSharpier owns all C# formatting. It runs on save here, on build via the
   // CSharpier.MsBuild package, and on commit via the pre-commit hook.
   "editor.formatOnSave": true,
   "[csharp]": {
     "editor.defaultFormatter": "csharpier.csharpier-vscode"
   },
-
   // The escape in a string literal is not part of the word after it. Without this, '"a\nbeta"'
   // is spell checked as 'nbeta' and '"\taddboth.txt"' as 'taddboth' — which is most of the
   // conflict tests, since their fixtures are files written out as one literal with the line
   // endings in them. Masking just the escape leaves the real word to be checked normally.
-  "cSpell.ignoreRegExpList": ["\\\\[nrt]"],
-
+  "cSpell.ignoreRegExpList": [
+    "\\\\[nrt]",
+    // A color row of the drawing tests (ScreenText.ColorRows, GraphText.ColorsOf) is one letter
+    // per cell, 'DWWW rrrr WWWW', and only ever those letters, which no word is.
+    "\\b[RGYBMCDWrgybmcw]{4,}\\b"
+  ],
   // The spell check dictionary gmd embeds is 50k words, most of them "unknown" to cSpell.
-  "cSpell.ignorePaths": ["gmd/doc/spelling/**"],
-
+  "cSpell.ignorePaths": [
+    "gmd/doc/spelling/**"
+  ],
   "cSpell.words": [
     "addboth",
     "apphost",
@@ -87,6 +90,7 @@
     "unapplied",
     "unchosen",
     "Uncommit",
+    "Uncommitting",
     "Ungrab",
     "uninstallation",
     "unmerged",
@@ -100,6 +104,7 @@
     "ustring",
     "wakeup",
     "worktree",
+    "worktrees",
     "xclip",
     "XOFF",
     "xsel",

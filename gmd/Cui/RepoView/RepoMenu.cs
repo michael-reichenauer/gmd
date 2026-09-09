@@ -50,6 +50,7 @@ class RepoMenu : IRepoMenu
             .Item("Search/Filter ...", "F", () => cmds.SearchFilterRepo())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
+            .Item("Worktrees ...", "W", () => repo.BranchCmds.ShowWorktrees())
             .SubMenu("Open/Clone/Init Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => configDlg.Show(repo.Repo.Path))
             .Item("Help ...", "?, F1", () => cmds.ShowHelp())

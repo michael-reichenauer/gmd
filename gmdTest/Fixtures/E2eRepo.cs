@@ -51,6 +51,16 @@ static class E2eRepo
         return repo;
     }
 
+    // The same shape with 'dev' checked out in a linked worktree beside the repo, at
+    // repo.WorktreePath("dev"). Seen from the main worktree 'dev' is held by another folder; seen
+    // from inside that folder 'dev' is current and 'main' is the one held elsewhere.
+    public static async Task<TempRepo> CreateWithWorktreeAsync()
+    {
+        var repo = await CreateAsync();
+        await repo.AddWorktreeAsync("dev", "dev");
+        return repo;
+    }
+
     // The same shape with uncommitted changes on top: one tracked file modified and one new file
     // added, so the log view draws the uncommitted row, the application bar the change count, and
     // the commit dialog has two changes to report.

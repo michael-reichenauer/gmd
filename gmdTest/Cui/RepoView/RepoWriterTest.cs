@@ -232,6 +232,55 @@ public class RepoWriterTest
         StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 120), "(● main)");
     }
 
+    // A branch checked out in another worktree is marked with the folder glyph where the current
+    // one has its dot, whether it names itself alone or together with its remote
+    [TestMethod]
+    public async Task TestABranchInAnotherWorktreeIsMarkedWithTheWorktreeGlyph()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature", "c1")
+            .Commit("d1", "Work", "c1")
+            .Commit("c1", "Initial")
+            .LocalBranch("main", "c1", isCurrent: true)
+            .BranchWithRemote("dev", "d1")
+            .LocalBranch("feat", "f1")
+            .Worktree("/test/repo-dev", "dev")
+            .Worktree("/test/repo-feat", "feat")
+            .ViewRepoAsync(ShowBranches.AllActive);
+
+        var page = Page(new FakeViewRepo(repo), 120);
+
+        StringAssert.Contains(page, "(⌂ feat)");
+        StringAssert.Contains(page, "(^)(⌂ dev)");
+        StringAssert.Contains(page, "(● main)");
+
+        // And in the margin, where the current commit has its dot
+        StringAssert.Contains(page, "⌂ Feature");
+        StringAssert.Contains(page, "⌂ Work");
+        StringAssert.Contains(page, "● Initial");
+    }
+
+    // The margin says what is checked out: here, or in another worktree, or neither
+    [TestMethod]
+    public async Task TestTheMarginMarksTheCommitCheckedOutInAnotherWorktree()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d1", "Work", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .LocalBranch("main", "c2", isCurrent: true)
+            .LocalBranch("dev", "d1")
+            .Worktree("/test/repo-dev", "dev")
+            .ViewRepoAsync(ShowBranches.AllActive);
+
+        var rows = Page(new FakeViewRepo(repo), 120).Split('\n');
+
+        StringAssert.Contains(rows[0], "⌂ Work");
+        StringAssert.Contains(rows[1], "● Second");
+        Assert.IsFalse(rows[2].Contains('⌂'), "Nothing is checked out at Initial");
+        Assert.IsFalse(rows[2].Contains('●'));
+    }
+
     // A branch git no longer has, inferred rather than read, is named with a '~'
     [TestMethod]
     public async Task TestABranchGitNoLongerHasIsNamedWithATilde()

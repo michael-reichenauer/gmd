@@ -22,6 +22,10 @@ class RepoWriter : IRepoWriter
 {
     const int markersWidth = 3; //  1 current marker and 1 ahead/behind and one space
 
+    // Marks a branch checked out in another worktree, i.e. another folder; the top bar counts the
+    // other worktrees with it too. A house, for the folder the branch lives in.
+    public const string WorktreeMarker = "⌂";
+
     readonly IBranchColorService branchColorService;
     readonly IGraphWriter graphWriter;
 
@@ -74,7 +78,14 @@ class RepoWriter : IRepoWriter
             var graphText = new TextBuilder();
             WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
             WriteBlankOrStash(graphText, c);
-            WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached, isSelected);
+            WriteCheckoutMarker(
+                graphText,
+                c,
+                isUncommitted,
+                isBranchDetached,
+                isSelected,
+                IsTipInOtherWorktree(repo, c)
+            );
             WriteAheadBehindMarker(graphText, c);
 
             var text = new TextBuilder();
@@ -155,12 +166,16 @@ class RepoWriter : IRepoWriter
         text.Black(" ");
     }
 
-    static void WriteCurrentMarker(
+    // The checkout column: which commit is checked out here ('●', or '*' when detached) and which
+    // are checked out in other worktrees ('⌂'), so a worktree's commit stands out in the margin as
+    // well as in its tip. A selection takes the column over.
+    static void WriteCheckoutMarker(
         TextBuilder text,
         Commit c,
         bool isUncommitted,
         bool isBranchDetached,
-        bool isSelected
+        bool isSelected,
+        bool isInOtherWorktree
     )
     {
         if (isSelected)
@@ -178,9 +193,20 @@ class RepoWriter : IRepoWriter
             text.White("●");
             return;
         }
+        if (isInOtherWorktree)
+        {
+            text.White(WorktreeMarker);
+            return;
+        }
 
         text.Black(" ");
     }
+
+    // Whether the commit is the tip of a branch checked out in another worktree
+    static bool IsTipInOtherWorktree(IViewRepo repo, Commit c) =>
+        c.BranchTips.Any(name =>
+            repo.Repo.BranchByName.TryGetValue(name, out var branch) && repo.Repo.WorktreePathOf(branch) != ""
+        );
 
     static void WriteAheadBehindMarker(TextBuilder text, Commit c)
     {
@@ -360,6 +386,13 @@ class RepoWriter : IRepoWriter
             string branchName = b.ShortNiceUniqueName();
             var color = branchColorService.GetColor(repo.Repo, b);
 
+            // The current branch is marked '●', and a branch checked out in another worktree '⌂',
+            // the folder it lives in — the same glyph the top bar counts the other worktrees with
+            var marker =
+                b.IsCurrent ? "● "
+                : repo.Repo.WorktreePathOf(b) != "" ? $"{WorktreeMarker} "
+                : "";
+
             if (b.IsGitBranch)
             {
                 if (b.IsRemote)
@@ -373,6 +406,10 @@ class RepoWriter : IRepoWriter
                             if (local.IsCurrent)
                             {
                                 tipText.Color(color, $"(^)(").White("● ").Color(color, $"{branchName})");
+                            }
+                            else if (marker != "")
+                            {
+                                tipText.Color(color, $"(^)(").White(marker).Color(color, $"{branchName})");
                             }
                             else
                             {
@@ -400,9 +437,9 @@ class RepoWriter : IRepoWriter
                         }
                         else
                         { // Local branch on different commit as remote, remote will add itself
-                            if (b.IsCurrent)
+                            if (marker != "")
                             {
-                                tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
+                                tipText.Color(color, $"(").White(marker).Color(color, $"{branchName})");
                             }
                             else
                             {
@@ -412,9 +449,9 @@ class RepoWriter : IRepoWriter
                     }
                     else
                     { // Only local branch (no remote branch)
-                        if (b.IsCurrent)
+                        if (marker != "")
                         {
-                            tipText.Color(color, $"(").White("● ").Color(color, $"{branchName})");
+                            tipText.Color(color, $"(").White(marker).Color(color, $"{branchName})");
                         }
                         else
                         {

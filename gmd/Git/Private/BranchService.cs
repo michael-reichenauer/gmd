@@ -22,13 +22,21 @@ class BranchService : IBranchService
 
     // Parses one line of 'git branch -vv --no-color --no-abbrev --all', e.g.
     //   '* main   8ec7cee… [origin/main: ahead 1, behind 2] Subject'
+    // The first column is '*' for the current branch, '+' for a branch checked out in another
+    // worktree, else a space. The '+' has to be matched: a line the regex does not match is not a
+    // branch without a marker, it is no branch at all, and that silently dropped every branch a
+    // linked worktree had checked out. Such a line also has the worktree's path in parenthesis
+    // after the commit id, before the upstream, which has to be stepped over for the upstream to
+    // be read at all:
+    //   '+ dev    b6bb1a5… (/home/me/repo-dev) [origin/dev: ahead 1] Subject'
     // A detached HEAD has a parenthesized pseudo name instead of a branch name. Git writes it as
     // '(HEAD detached at|from <ref>)', or as '(no branch…)' while rebasing or bisecting. The forms
     // are matched explicitly rather than as any '(…)', since a git ref name may contain parenthesis.
     // Groups are named, so adding one does not shift the others (they used to be read by index).
     static readonly string regexpText =
-        @"(?im)^(?<current>\*)?\s+(?:\((?<detached>HEAD\sdetached\s(?:at|from)\s\S+|no\sbranch[^)]*)\)|(?<name>\S+))"
+        @"(?im)^(?:(?<current>\*)|(?<worktree>\+))?\s+(?:\((?<detached>HEAD\sdetached\s(?:at|from)\s\S+|no\sbranch[^)]*)\)|(?<name>\S+))"
         + @"\s+(?<tip>\S+)(?:\s+)?"
+        + @"(?:\((?<worktreepath>.+?)\)\s+)?"
         + @"(?:\[(?<remote>\S+)(?::\s)?(?:ahead\s(?<ahead>\d+))?(?:,\s)?(?:behind\s(?<behind>\d+))?(?<gone>gone)?\])?"
         + @"(?:\s+)?(?<subject>.+)?";
     static readonly Regex BranchesRegEx = new Regex(
@@ -142,6 +150,7 @@ class BranchService : IBranchService
     Branch ToBranch(Match match)
     {
         bool isCurrent = match.Groups["current"].Success;
+        bool isCheckedOutElsewhere = match.Groups["worktree"].Success;
         bool isDetached = match.Groups["detached"].Success;
 
         // The ref a detached HEAD points at is not kept, all detached states share one name
@@ -166,7 +175,17 @@ class BranchService : IBranchService
         int.TryParse(match.Groups["ahead"].Value, out int aheadCount);
         int.TryParse(match.Groups["behind"].Value, out int behindCount);
 
-        return new Branch(name, tipId, isCurrent, isRemote, remoteName, isDetached, aheadCount, behindCount);
+        return new Branch(
+            name,
+            tipId,
+            isCurrent,
+            isRemote,
+            remoteName,
+            isDetached,
+            aheadCount,
+            behindCount,
+            isCheckedOutElsewhere
+        );
     }
 
     // IsNormalBranch returns true if branch is normal and not a pointer branch, i.e. the

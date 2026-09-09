@@ -76,6 +76,31 @@ public class KeyValueServiceTest
         Assert.AreEqual($"update-ref {KeyRef} objectid123", cmd.Calls[1].Args, "The object id is trimmed");
     }
 
+    // In a linked worktree '.git' is a file pointing at the real git dir, so the temp file has to
+    // go there — joining '.git' blindly would try to write inside a file
+    [TestMethod]
+    public async Task TestSetValueWritesItsTempFileInTheRealGitDirWhenDotGitIsAFile()
+    {
+        var realGitDir = Path.Join(wd, "real-git-dir");
+        Directory.CreateDirectory(realGitDir);
+        Directory.Delete(Path.Join(wd, ".git"), true);
+        File.WriteAllText(Path.Join(wd, ".git"), $"gitdir: {realGitDir}\n");
+        var tempPath = "";
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+            {
+                if (args.StartsWith("hash-object"))
+                    tempPath = args[(args.IndexOf('"') + 1)..].TrimSuffix("\"");
+                return FakeCmd.Ok("objectid123\n");
+            }
+        );
+
+        Assert.IsTrue(Try(out var e, await new KeyValueService(cmd).SetValueAsync("data", "the value", wd)), $"{e}");
+
+        Assert.AreEqual(Path.GetFullPath(realGitDir), Path.GetDirectoryName(tempPath));
+        Assert.AreEqual(0, Directory.GetFiles(realGitDir).Length, "The temp file is removed");
+    }
+
     // The temp file must not be left behind in .git
     [TestMethod]
     public async Task TestSetValueRemovesItsTempFile()

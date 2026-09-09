@@ -1,9 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-129 releases:
+130 releases:
 
-## [Current] - 2026-09-05
+## [Current] - 2026-09-09
+- Added git Worktree support
+- Fixed issue with missing cursor after spell error fix in commits
+- Fixed progress for commit
+
+## [v0.91.1406.461] - 2026-09-05
 - Added spell-check support for text fields in commit, tag, ...
 - Fixed issue how branches are determined
 

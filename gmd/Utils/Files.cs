@@ -5,6 +5,39 @@ namespace gmd.Utils;
 // Some file utility functions missing in .NET
 static class Files
 {
+    // Whether two paths name the same folder, spelled however: relative or not, with or without
+    // a trailing separator, and in either case where the file system does not care about case.
+    // Symbolic links are not followed.
+    public static bool IsSamePath(string path1, string path2) =>
+        string.Equals(NormalizedPath(path1), NormalizedPath(path2), PathComparison);
+
+    static string NormalizedPath(string path) =>
+        Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+    static readonly StringComparison PathComparison =
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+    // A path for a new folder named 'name' in 'parent', numbered '-1', '-2', ... if the name is
+    // taken, so a dialog can propose a folder that does not exist yet
+    public static string UniqueFolderPath(string parent, string name)
+    {
+        var newName = name;
+        var path = Path.Combine(parent, newName);
+        for (int i = 1; i < 50; i++)
+        {
+            if (!Directory.Exists(path) && !File.Exists(path))
+            {
+                break;
+            }
+            newName = $"{name}-{i}";
+            path = Path.Combine(parent, newName);
+        }
+
+        return path;
+    }
+
     public static bool IsLarger(string path, int maxSize)
     {
         try
