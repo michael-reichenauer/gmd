@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Common.Spelling;
+using gmdTest.Fixtures;
 
 namespace gmdTest.Common.Spelling;
 
@@ -85,5 +86,39 @@ public class SpellCheckerTest
         Assert.IsFalse(checker.IsEnabled);
         Assert.IsFalse(checker.IsMisspelled("resonable"));
         Assert.AreEqual(0, checker.Suggest("resonable").Count);
+    }
+
+    [TestMethod]
+    public void TestAddedWordIsSavedOnce()
+    {
+        var config = new FakeConfigService().Config;
+        var checker = new SpellChecker(config);
+
+        checker.AddToDictionary("gmd");
+        checker.AddToDictionary("gmd");
+
+        Assert.AreEqual("gmd", string.Join(",", config.SpellWords));
+    }
+
+    // Regression: 'Worktree' was added at the start of a sentence, which Hunspell takes as a proper
+    // noun, so 'worktree' was still misspelled and the user added that too. It was known for the rest
+    // of the session but never saved, the duplicate check ignoring case, so it was misspelled again
+    // on the next start.
+    [TestMethod]
+    public void TestLowercaseWordAddedOverCapitalizedIsSaved()
+    {
+        var config = new FakeConfigService(c => c.SpellWords.Add("Worktree")).Config;
+        var checker = new SpellChecker(config);
+        Assert.IsFalse(checker.IsMisspelled("Worktree"));
+        Assert.IsTrue(checker.IsMisspelled("worktree"));
+
+        checker.AddToDictionary("worktree");
+
+        Assert.IsFalse(checker.IsMisspelled("worktree"));
+        Assert.AreEqual("Worktree,worktree", string.Join(",", config.SpellWords));
+
+        // The next start loads the saved words, and must still know it
+        var restarted = new SpellChecker(new Config { SpellWords = config.SpellWords });
+        Assert.IsFalse(restarted.IsMisspelled("worktree"));
     }
 }

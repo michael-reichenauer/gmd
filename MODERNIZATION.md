@@ -139,6 +139,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   in other worktrees; other worktrees' folders are not watched, so their change counts are up to
   thirty seconds behind; a submodule's `.git` file now makes it a root of its own too, which is right
   but new; the worktree dialog needs about 80 columns.
+- `FileStore` caches each file per process and never re-reads it, so with two gmd instances open
+  (one per worktree, say) every write of `~/.gmdconfig` — the recent folders on each repo open, the
+  git version on start, the update check, a word added to the spelling dictionary — is the writer's
+  stale copy plus its own change, and whichever instance writes last drops what the others saved.
+  `<repo>/.git/.gmdconfig` goes through the same store, so the same holds for a repo opened twice.
+  Re-read the file before writing, or merge the lists.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
   hardware. Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
