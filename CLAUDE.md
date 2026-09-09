@@ -40,7 +40,7 @@ Installed by `./installtools`.
 tmux new-session -d -s gmd -x 120 -y 40 -c /path/to/some/repo  gmd/bin/Debug/net10.0/gmd
 until tmux capture-pane -t gmd -p | grep -q "uncommitted"; do sleep 1; done  # wait, never sleep blind
 tmux capture-pane -t gmd -p        # the rendered screen, as the user sees it
-tmux capture-pane -t gmd -p -e     # ... with the colors kept as ANSI
+tmux capture-pane -t gmd -p -e     # ... with the colors kept as ANSI..
 tmux send-keys -t gmd d            # press a key; Escape is `tmux send-keys -t gmd Escape`
 tmux kill-session -t gmd
 ```
