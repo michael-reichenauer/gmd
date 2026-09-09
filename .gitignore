@@ -345,4 +345,3 @@ ASALocalRun/
 
 # Keep installer
 !gmdSetup.exe
-.worktrees/
