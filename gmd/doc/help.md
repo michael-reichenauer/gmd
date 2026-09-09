@@ -47,7 +47,7 @@ Here are some essential keyboard shortcuts:
 | ╂┸     | Synced remote and local branch tips                          |
 | ┌ │ └  | Blame lines from the same commit (see 'Blame File ...')      |
 | ╺      | A blame run of one single line                               |
-| ⌂      | Branch checked out in another worktree (see Worktrees)        |
+| ⌂      | Commit and branch checked out in another worktree              |
 -------------------------------------------------------------------------
 
 
@@ -90,6 +90,7 @@ Symbols:
 - '●' marks the current commit and branch.
 - '©' denotes uncommitted changes and a yellow subject (red if conflicts).
 - '*' indicates a detached current commit.
+- '⌂' marks a commit and branch checked out in another worktree.
 
 ### Branch Tips
 
@@ -109,8 +110,8 @@ have their own checked out branch and uncommitted changes. Gmd shows one
 worktree at a time: what is shown, committed, diffed and pushed is the folder
 gmd was started in, or opened since.
 
-- `⌂` after a branch tip means that branch is checked out in another
-  worktree. Git allows a branch in one worktree only, so it cannot be checked
+- `⌂` in the margin and after a branch tip means that branch is checked out
+  in another worktree. Git allows a branch in one worktree only, so it cannot be checked
   out, pulled or deleted from here; the `S` key opens that worktree instead
   of switching to the branch.
 - `⌂N` in the top bar counts the other worktrees. It turns yellow when one of

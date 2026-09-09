@@ -55,7 +55,7 @@ public class TerminalTest
     }
 
     // Started inside a linked worktree: 'dev' is current there, 'main' is held by the main folder
-    // and marked so in its tip, and the top bar counts the one other worktree
+    // and marked so in the margin and in its tip, and the top bar counts the one other worktree
     [TestMethod]
     public async Task TestStartupInsideALinkedWorktree()
     {
@@ -67,7 +67,7 @@ public class TerminalTest
             """
              Gmd {repo}, ●dev, ⌂1                                                    (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣     Add delta                                                     (⌂ main)[v1.0] 17d85b Test User      24-10-15 12:06
+            ┣   ⌂ Add delta                                                     (⌂ main)[v1.0] 17d85b Test User      24-10-15 12:06
             ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
             ┣│    Add gamma                                                                    4a15fb Test User      24-10-15 12:04
             ┃╰╊ ● More dev work                                                        (● dev) af3ee6 Test User      24-10-15 12:03
