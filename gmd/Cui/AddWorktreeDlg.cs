@@ -126,6 +126,11 @@ class AddWorktreeDlg : IAddWorktreeDlg
             UpdatePath();
             UpdateHint();
         };
+        branch.ItemSelected += () =>
+        {
+            UpdatePath();
+            UpdateHint();
+        };
 
         dlg.Validate(() => BranchText() != "", "Empty branch name");
         dlg.Validate(

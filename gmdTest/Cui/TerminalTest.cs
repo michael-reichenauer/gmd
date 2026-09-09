@@ -259,6 +259,52 @@ public class TerminalTest
         Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".gitignore")), "Beside the repo, nothing to ignore");
     }
 
+    // The branch drop-down of the create dialog: Down opens the list on the branch the field names,
+    // the arrow keys move in it, Enter picks. Picking 'main', which is checked out here, is what
+    // the hint says, and the path follows the pick.
+    [TestMethod]
+    public async Task TestCreateWorktreeDialogBranchDropDown()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Branch: dev");
+        for (var i = 0; i < 6; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        gmd.WaitFor("Existing branch");
+
+        // Open the list (on 'dev'), move to 'main', pick it
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        var picked = gmd.WaitFor("Already checked out at");
+        StringAssert.Contains(picked, "Branch:│main");
+        StringAssert.Contains(picked, "{repo}-main".Replace("{repo}", repo.Path));
+        Assert.IsFalse(picked.Contains("├"), "The list is closed again");
+
+        // Escape closes the dialog rather than the log view, since the field has the focus back
+        gmd.Send("Escape");
+        StringAssert.Contains(gmd.WaitUntilGone("Create Worktree"), "Add delta");
+    }
+
     // Removing a worktree from the dialog, with its branch: 'r' is the Remove action's key while
     // the list has the focus, and the branch box is offered checked since 'dev' is merged into main
     [TestMethod]
