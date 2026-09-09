@@ -78,7 +78,14 @@ class RepoWriter : IRepoWriter
             var graphText = new TextBuilder();
             WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
             WriteBlankOrStash(graphText, c);
-            WriteCurrentMarker(graphText, c, isUncommitted, isBranchDetached, isSelected);
+            WriteCheckoutMarker(
+                graphText,
+                c,
+                isUncommitted,
+                isBranchDetached,
+                isSelected,
+                IsTipInOtherWorktree(repo, c)
+            );
             WriteAheadBehindMarker(graphText, c);
 
             var text = new TextBuilder();
@@ -159,12 +166,16 @@ class RepoWriter : IRepoWriter
         text.Black(" ");
     }
 
-    static void WriteCurrentMarker(
+    // The checkout column: which commit is checked out here ('●', or '*' when detached) and which
+    // are checked out in other worktrees ('⌂'), so a worktree's commit stands out in the margin as
+    // well as in its tip. A selection takes the column over.
+    static void WriteCheckoutMarker(
         TextBuilder text,
         Commit c,
         bool isUncommitted,
         bool isBranchDetached,
-        bool isSelected
+        bool isSelected,
+        bool isInOtherWorktree
     )
     {
         if (isSelected)
@@ -182,9 +193,20 @@ class RepoWriter : IRepoWriter
             text.White("●");
             return;
         }
+        if (isInOtherWorktree)
+        {
+            text.White(WorktreeMarker);
+            return;
+        }
 
         text.Black(" ");
     }
+
+    // Whether the commit is the tip of a branch checked out in another worktree
+    static bool IsTipInOtherWorktree(IViewRepo repo, Commit c) =>
+        c.BranchTips.Any(name =>
+            repo.Repo.BranchByName.TryGetValue(name, out var branch) && repo.Repo.WorktreePathOf(branch) != ""
+        );
 
     static void WriteAheadBehindMarker(TextBuilder text, Commit c)
     {
