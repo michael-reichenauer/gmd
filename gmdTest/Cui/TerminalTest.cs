@@ -1621,7 +1621,8 @@ public class TerminalTest
         Directory.CreateDirectory(hooks);
         var hook = Path.Join(hooks, "pre-commit");
         File.WriteAllText(hook, $"#!/bin/sh\nsleep {seconds}\n");
-        File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         await repo.GitAsync($"config core.hooksPath \"{hooks}\"");
     }
 
