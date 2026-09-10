@@ -1,6 +1,8 @@
 using gmd.Installation;
 using gmd.Server;
 
+namespace gmd.Common;
+
 record CommandResult(bool IsCommand, int ExitCode);
 
 // Handles command line options commands instead of running the UI
