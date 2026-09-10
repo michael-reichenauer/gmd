@@ -1,10 +1,46 @@
 # Change Log for Gmd
 --------------------
 
-125 releases:
+130 releases:
 
-## [Current] - 2026-07-25
-- Adjust installtools to include some more tools
+## [Current] - 2026-09-09
+- Added git Worktree support
+- Fixed issue with missing cursor after spell error fix in commits
+- Fixed progress for commit
+
+## [v0.91.1406.461] - 2026-09-05
+- Added spell-check support for text fields in commit, tag, ...
+- Fixed issue how branches are determined
+
+## [v0.91.1404.491] - 2026-09-03
+- Fixed issue with "Pull/Update All" for branches
+- Move some Branches menu items
+- Fixed fetch issue, did not really update and fetch
+
+## [v0.91.1394.267] - 2026-08-24
+- Fixed spell warnings
+
+## [v0.91.1388.1436] - 2026-08-19
+- Modernized codebase
+- Fixed 100% CPU usage on linux/max by updating Terminal.Gui to 1.19.0
+- Added support for e2e terminnal testing
+- Fixed issue with key 'q' and 'p' in log view
+- Copy text refactor, works on more platforms
+- Show deleted (non-active) branches as gray
+- Added progress to upgrading the app
+- Added support for rename branch
+- Added 'Branches' sub menu to commit menu
+- Move file history menu item to repo menu
+- Implement 'Merge to' functionality
+- Implement 'blame' support
+- Added support for adjusting diff context size
+- Added support for conflict handling
+- Fixed issue with local only tag beeing pruned
+- Added more unit and e2e ui tests
+- Fixed some bugs
+
+## [v0.91.1364.357] - 2026-07-25
+- New version- Adjust installtools to include some more tools
 
 ## [v0.91.1119.391] - 2025-11-22
 - Fixed path

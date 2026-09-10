@@ -1,6 +1,8 @@
 using gmd.Cui.Common;
 using Terminal.Gui;
 
+namespace gmd.Cui;
+
 interface IUnicodeSetsDlg
 {
     void Show();
