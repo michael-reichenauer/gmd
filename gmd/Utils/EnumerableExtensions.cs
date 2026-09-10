@@ -1,4 +1,4 @@
-namespace System.Linq;
+namespace gmd.Utils;
 
 // Some useful IEnumerable extensions that are missing in .NET
 public static class EnumerableExtensions

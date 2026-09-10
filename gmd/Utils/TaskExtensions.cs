@@ -1,5 +1,4 @@
-// ReSharper disable once CheckNamespace
-namespace System.Threading.Tasks;
+namespace gmd.Utils;
 
 public static class TaskExtensions
 {
