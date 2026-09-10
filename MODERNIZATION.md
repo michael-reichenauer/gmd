@@ -325,6 +325,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `ViewToScreen` is internal; `ScreenToView(0, 0)` negated is a view's screen origin. The 2.x port
   has its own `IAutocomplete` and text-run attributes, which is where `UITextView`/`UITextField`'s
   spell coloring goes then.
+- A `TextView` or `TextField` has a context menu of its own (Select All, Copy, Paste, Undo …),
+  opened from inside `MouseEvent` on `Button3Clicked` and from `ProcessKey` on Shift+F10, so replacing
+  it means catching both before `base` and swallowing `Button3Pressed`/`Released` too. The edit
+  actions behind it are not public: an item runs one by its bound key (`GetKeyFromCommand` +
+  `ProcessKey`), and the bindings differ between the two views (Alt+C copies in a `TextView`,
+  Ctrl+C in a `TextField`). Ctrl+G is `DeleteAll` in a `TextView`, which is why the context menu
+  leaves that one out. `TextContextMenu` is where this lives.
+- A mouse event goes to the last-added subview whose frame holds the point, and nowhere else: a
+  `BorderView` added over a text view or a list (it covers the whole rectangle, drawing only its
+  edges) took every click, so the commit message body and the bordered lists never saw the mouse.
+  `UIDialog.AddBorderView(view, …)` now inserts the border under the view it frames.
 - Terminal.Gui 1.17.1 pinned a core from launch on Linux and macOS: `UnixMainLoop` drained the
   wrong end of its wakeup pipe, so `poll()` reported readable forever. Fixed upstream in 1.18.0
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.

@@ -17,6 +17,7 @@ Here are some essential keyboard shortcuts:
 | D        | Display commit diff                                        |
 | Ctrl+D   | Show commit diff within commit dialog                      |
 | F7       | Spelling suggestions in commit dialog (also Ctrl+G)        |
+| Shift+F10| Text input menu: spelling, copy, paste (also right-click)  |
 | Enter    | Show commit details                                        |
 | Ctrl+O   | Activate 'OK' buttons in dialogs                           |
 | ? / F1   | Open this help page                                        |

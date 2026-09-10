@@ -2070,6 +2070,116 @@ public class TerminalTest
         Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the spelling menu was escaped");
     }
 
+    // A right click or Shift+F10 in a text input opens gmd's own context menu in place of the one
+    // Terminal.Gui has for it: the spelling suggestions on top when the caret is on a misspelled
+    // word, otherwise the way to them with its key, which is how F7 gets discovered, and then the
+    // edit actions with the keys the input binds them to. Only the key can be sent through tmux,
+    // so it is what pins the menu; the right click shares the code.
+    [TestMethod]
+    public async Task TestCommitDialogContextMenu()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+
+        // The subject field is a TextField, which binds other keys to the edit actions than the
+        // body does. The caret is after 'issue', off the misspelled word, so the spelling part is
+        // the way to the suggestions.
+        gmd.SendText("Fix resonable issue");
+        gmd.WaitFor("Fix resonable issue");
+        gmd.Send("S-F10");
+        ScreenText.AssertEqual(
+            """
+                                   │[Fix resonable issue                               ]                    │
+                                   │┌───────────────────╭ Edit ─────────────────────────╮──────────────────┐│
+                                   ││                   │Spelling Suggestions ...     F7│                  ││
+                                   ││                   │───────────────────────────────│                  ││
+                                   ││                   │Select All               Ctrl-T│                  ││
+                                   ││                   │Copy                     Ctrl-C│                  ││
+                                   ││                   │Cut                      Ctrl-X│                  ││
+                                   ││                   │Paste                    Ctrl-V│                  ││
+                                   ││                   │Undo                     Ctrl-Z│                  ││
+                                   ││                   │Redo                     Ctrl-Y│                  ││
+                                   ││                   ╰───────────────────────────────╯                  ││
+            """,
+            ScreenText.Rows(gmd.WaitFor("Select All"), repo.Path, 14, 11)
+        );
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Select All");
+        Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the menu was escaped");
+
+        gmd.Send("Tab"); // Into the message body
+        gmd.WaitForStable();
+        gmd.SendText("Sumerize the brnach");
+        gmd.WaitFor("Sumerize the brnach");
+        gmd.Send("Left"); // The caret into 'brnach'
+        gmd.WaitForStable();
+
+        // On a misspelled word the suggestions come first, and the menu hangs under the word
+        gmd.Send("S-F10");
+        ScreenText.AssertEqual(
+            """
+                                   ││Sumerize the brnach                                                   ││
+                                   ││             ╭ Spelling ───────────────────────╮                      ││
+                                   ││             │branch                           │                      ││
+                                   ││             │breach                           │                      ││
+                                   ││             │broach                           │                      ││
+                                   ││             │Add 'brnach' to dictionary       │                      ││
+                                   ││             │─────────────────────────────────│                      ││
+                                   ││             │Select All                 Ctrl-T│                      ││
+                                   ││             │Copy                        Alt-C│                      ││
+                                   ││             │Cut                         Alt-W│                      ││
+                                   │└─────────────│Paste                      Ctrl-Y│──────────────────────┘│
+                                   │              │Undo                       Ctrl-Z│                       │
+                                   ╰──────────────│Redo                       Ctrl-R│───────────────────────╯
+                                                  ╰─────────────────────────────────╯
+            """,
+            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 16, 14)
+        );
+
+        gmd.Send("Enter"); // The first suggestion replaces the word
+        gmd.WaitFor("Sumerize the branch");
+        Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the menu closed");
+
+        // Off a misspelled word, the menu is the edit menu with the way to the suggestions on top
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("S-F10");
+        ScreenText.AssertEqual(
+            """
+                                   ││Sumerize the branch                                                   ││
+                                   ││                   ╭ Edit ─────────────────────────╮                  ││
+                                   ││                   │Spelling Suggestions ...     F7│                  ││
+                                   ││                   │───────────────────────────────│                  ││
+                                   ││                   │Select All               Ctrl-T│                  ││
+                                   ││                   │Copy                      Alt-C│                  ││
+                                   ││                   │Cut                       Alt-W│                  ││
+                                   ││                   │Paste                    Ctrl-Y│                  ││
+                                   ││                   │Undo                     Ctrl-Z│                  ││
+                                   ││                   │Redo                     Ctrl-R│                  ││
+                                   │└───────────────────╰───────────────────────────────╯──────────────────┘│
+            """,
+            ScreenText.Rows(gmd.WaitFor("Spelling Suggestions"), repo.Path, 16, 11)
+        );
+
+        // ... which does what F7 does: the misspelled word at or after the caret, wrapping around
+        gmd.Send("Enter");
+        ScreenText.AssertEqual(
+            """
+                                   ││Sumerize the branch                                                   ││
+                                   ││╭ Spelling ───────────────────╮                                       ││
+                                   │││Mesmerizer                   │                                       ││
+                                   │││Summarize                    │                                       ││
+            """,
+            ScreenText.Rows(gmd.WaitFor("Summarize"), repo.Path, 16, 4)
+        );
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Summarize");
+        Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the spelling menu was escaped");
+    }
+
     // 'Add to dictionary' teaches the checker a word for good: it stops being red at once, and it
     // is saved in the config, so it is still known in the next session. The menu is driven with
     // End and Up rather than counted Downs, since how many suggestions a word gets is the

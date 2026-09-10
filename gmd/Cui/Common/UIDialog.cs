@@ -39,6 +39,10 @@ class UIDialog
 
     Dialog dlg = null!;
 
+    // The views in the order they are added to the dialog, which is the order a mouse event finds
+    // them in, last first
+    internal IReadOnlyList<View> Views => views;
+
     internal UIDialog(
         string title,
         Dim width,
@@ -238,8 +242,15 @@ class UIDialog
         return checkBox;
     }
 
-    internal BorderView AddBorderView(View view, Color color) =>
-        AddBorderView(view.X - 1, view.Y - 1, view.Width + 2, view.Height + 2, color);
+    // The border goes under the view it frames: the last view added is the one a mouse event finds,
+    // and a border covers the whole rectangle, so one added over a text view took every click
+    internal BorderView AddBorderView(View view, Color color)
+    {
+        var borderView = AddBorderView(view.X - 1, view.Y - 1, view.Width + 2, view.Height + 2, color);
+        views.Remove(borderView);
+        views.Insert(Math.Max(0, views.IndexOf(view)), borderView);
+        return borderView;
+    }
 
     internal BorderView AddBorderView(Pos x, Pos y, Dim w, Dim h, Color color)
     {
