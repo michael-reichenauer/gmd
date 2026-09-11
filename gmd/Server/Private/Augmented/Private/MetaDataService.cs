@@ -105,7 +105,13 @@ class MetaDataService : IMetaDataService
         ;
 
         //Log.Info($"Metadata:\n{json}");
-        if (!Try(out var data, out e, () => JsonSerializer.Deserialize<MetaData>(json)))
+        if (
+            !Try(
+                out var data,
+                out e,
+                () => JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value")
+            )
+        )
             return e;
         //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
         return data;
@@ -223,7 +229,7 @@ class MetaDataService : IMetaDataService
         return R.Ok;
     }
 
-    bool IsNoLocalKey(ErrorResult e) => e.ErrorMessage.Contains("Not a valid object name");
+    bool IsNoLocalKey(Error e) => e.Message.Contains("Not a valid object name");
 
-    bool IsNoRemoteKey(ErrorResult e) => e.ErrorMessage.Contains("couldn't find remote ref");
+    bool IsNoRemoteKey(Error e) => e.Message.Contains("couldn't find remote ref");
 }

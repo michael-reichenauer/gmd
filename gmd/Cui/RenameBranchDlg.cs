@@ -33,7 +33,7 @@ class RenameBranchDlg : IRenameBranchDlg
         );
 
         if (!dlg.ShowOkCancel(name))
-            return R.Error();
+            return new Error();
 
         return name.Text;
     }

@@ -25,7 +25,7 @@ class CreateBranchDlg : ICreateBranchDlg
         dlg.Validate(() => name.Text != "", "Empty branch name");
 
         if (!dlg.ShowOkCancel(name))
-            return R.Error();
+            return new Error();
 
         return new CreateBranchResult(name.Text, isCheckout.Checked, isPublish.Checked);
     }

@@ -42,7 +42,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
         var text = contentView.CopySelectedText();
         Log.Info($"Copy: '{text}'");
         if (!Try(out var e, clipboard.Set(text)))
-            UI.ErrorMessage(e.AllErrorMessages());
+            UI.ErrorMessage(e.AllMessages());
     }
 
     // Returns a list of texts of all the characters in each set in batches

@@ -59,20 +59,20 @@ class BranchCreateCommands : IBranchCreateCommands
 
                 if (!Try(out var e, await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout, repo.Path)))
                 {
-                    return R.Error($"Failed to create branch {rsp.Name}", e);
+                    return new Error($"Failed to create branch {rsp.Name}", e);
                 }
                 branchName = rsp.Name;
 
                 if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, repo.Path)))
                 {
                     // The push error could be that repo has no remote origin, (local only)
-                    if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                    if (e.Message.Contains("'origin' does not appear to be a git repository"))
                     { // The push error is that repo has no remote origin, (local repo only)
                         // I.e. no remote repo to push to, lets just ignore the push error
                         return R.Ok;
                     }
 
-                    return R.Error($"Failed to push branch {branchName} to remote server", e);
+                    return new Error($"Failed to push branch {branchName} to remote server", e);
                 }
 
                 return R.Ok;
@@ -104,19 +104,19 @@ class BranchCreateCommands : IBranchCreateCommands
                     )
                 )
                 {
-                    return R.Error($"Failed to create branch {rsp.Name}", e);
+                    return new Error($"Failed to create branch {rsp.Name}", e);
                 }
                 branchName = rsp.Name;
 
                 if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(branchName, repo.Path)))
                 { // The push error could be that repo has no remote origin, (local only)
-                    if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                    if (e.Message.Contains("'origin' does not appear to be a git repository"))
                     { // The push error is that repo has no remote origin, (local repo only)
                         // I.e. no remote repo to push to, lets just ignore the push error
                         return R.Ok;
                     }
 
-                    return R.Error($"Failed to push branch {branchName} to remote server", e);
+                    return new Error($"Failed to push branch {branchName} to remote server", e);
                 }
 
                 return R.Ok;
@@ -152,18 +152,18 @@ class BranchCreateCommands : IBranchCreateCommands
                     )
                 )
                 {
-                    return R.Error($"Failed to create branch {rsp.Name}", e);
+                    return new Error($"Failed to create branch {rsp.Name}", e);
                 }
                 branchName = rsp.Name;
 
                 if (rsp.IsPush && !Try(out e, await server.PushBranchAsync(rsp.Name, repo.Path)))
                 { // The push error could be that repo has no remote origin, (local only)
-                    if (e.ErrorMessage.Contains("'origin' does not appear to be a git repository"))
+                    if (e.Message.Contains("'origin' does not appear to be a git repository"))
                     { // The push error is that repo has no remote origin, (local repo only)
                         // I.e. no remote repo to push to, lets just ignore the push error
                         return R.Ok;
                     }
-                    return R.Error($"Failed to push branch {rsp.Name} to remote server", e);
+                    return new Error($"Failed to push branch {rsp.Name} to remote server", e);
                 }
 
                 return R.Ok;
@@ -186,7 +186,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 var (localBranch, remoteBranch) = LocalAndRemoteBranch(name);
                 if (localBranch == null)
                 {
-                    return R.Error($"Branch {name} has no local branch to rename");
+                    return new Error($"Branch {name} has no local branch to rename");
                 }
 
                 var existingNames = repo.Repo.AllBranches.Where(b => b.IsGitBranch).Select(b => b.Name).ToList();
@@ -196,7 +196,7 @@ class BranchCreateCommands : IBranchCreateCommands
 
                 if (!Try(out var e, await server.RenameBranchAsync(localBranch.Name, rsp, repo.Path)))
                 {
-                    return R.Error($"Failed to rename branch {oldName} to {rsp}", e);
+                    return new Error($"Failed to rename branch {oldName} to {rsp}", e);
                 }
                 newName = rsp;
                 MigrateRepoConfigNames(oldName, rsp);
@@ -209,12 +209,12 @@ class BranchCreateCommands : IBranchCreateCommands
                 // git leaves the renamed branch tracking the old remote branch.
                 if (!Try(out e, await server.PushBranchAsync(rsp, repo.Path)))
                 {
-                    return R.Error($"Renamed local branch, but failed to push {rsp} to remote server", e);
+                    return new Error($"Renamed local branch, but failed to push {rsp} to remote server", e);
                 }
 
                 if (!Try(out e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repo.Path)))
                 {
-                    return R.Error($"Renamed branch and pushed {rsp},\nbut failed to delete {remoteBranch.Name}", e);
+                    return new Error($"Renamed branch and pushed {rsp},\nbut failed to delete {remoteBranch.Name}", e);
                 }
 
                 return R.Ok;
@@ -241,12 +241,12 @@ class BranchCreateCommands : IBranchCreateCommands
             {
                 if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(remoteBranch))
                 {
-                    return R.Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
+                    return new Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
                 }
 
                 if (!Try(out var e, await server.DeleteRemoteBranchAsync(remoteBranch.Name, repo.Path)))
                 {
-                    return R.Error($"Failed to delete remote branch {remoteBranch.Name}", e);
+                    return new Error($"Failed to delete remote branch {remoteBranch.Name}", e);
                 }
                 newName = remoteBranch.PrimaryBaseName;
             }
@@ -255,11 +255,11 @@ class BranchCreateCommands : IBranchCreateCommands
             {
                 if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(localBranch))
                 {
-                    return R.Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
+                    return new Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
                 }
                 if (!Try(out var e, await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repo.Path)))
                 {
-                    return R.Error($"Failed to delete local branch {localBranch.Name}", e);
+                    return new Error($"Failed to delete local branch {localBranch.Name}", e);
                 }
                 newName = localBranch.PrimaryBaseName;
             }

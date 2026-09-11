@@ -188,7 +188,7 @@ class BranchCommands : IBranchCommands
 
             if (!Try(out var e, await server.SwitchToAsync(repo.Repo, branchName)))
             {
-                return R.Error($"Failed to switch to {branchName}", e);
+                return new Error($"Failed to switch to {branchName}", e);
             }
 
             Refresh(branchName);
@@ -208,7 +208,7 @@ class BranchCommands : IBranchCommands
         Do(async () =>
         {
             if (!Try(out var commits, out var e, await server.MergeBranchAsync(repo.Repo, branchName)))
-                return R.Error($"Failed to merge branch {branchName}", e);
+                return new Error($"Failed to merge branch {branchName}", e);
 
             RefreshAndCommit("", "", commits);
             return R.Ok;
@@ -229,7 +229,7 @@ class BranchCommands : IBranchCommands
             if (!Try(out var commits, out var e, await server.MergeToBranchAsync(serverRepo, targetName)))
             { // Left where it stopped, i.e. on the target if the merge conflicted, so show that
                 await repoView.RefreshAsync(targetName);
-                return R.Error($"Failed to merge '{source}' into '{targetName}'", e);
+                return new Error($"Failed to merge '{source}' into '{targetName}'", e);
             }
 
             // Every refresh here names the target, since the branch HEAD just moved to is not
@@ -239,7 +239,7 @@ class BranchCommands : IBranchCommands
             // The commit commands of the refreshed view, since the merge replaced the repo
             // snapshot, and the dialog is seeded from the merge message git just wrote
             if (!Try(out var result, out e, await repoView.ViewRepo.CommitCmds.CommitAsync(false, commits)))
-                return R.Error($"Failed to commit the merge on '{targetName}'", e);
+                return new Error($"Failed to commit the merge on '{targetName}'", e);
 
             if (result == CommitResult.Cancelled)
             { // The merge is still staged, and git cannot check out over it
@@ -249,7 +249,7 @@ class BranchCommands : IBranchCommands
             }
 
             if (!Try(out e, await server.SwitchToAsync(serverRepo, sourceName)))
-                return R.Error($"Merged '{source}' into '{targetName}', but failed to switch back", e);
+                return new Error($"Merged '{source}' into '{targetName}', but failed to switch back", e);
 
             await repoView.RefreshAsync(sourceName);
 
@@ -272,7 +272,7 @@ class BranchCommands : IBranchCommands
             }
 
             if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, onto)))
-                return R.Error($"Failed to rebase branch {onto}", e);
+                return new Error($"Failed to rebase branch {onto}", e);
 
             Refresh();
             return R.Ok;
@@ -288,14 +288,14 @@ class BranchCommands : IBranchCommands
             var sha1 = branch1.TipId;
             var sha2 = branch2.TipId;
             if (sha1 == Repo.UncommittedId || sha2 == Repo.UncommittedId)
-                return R.Error("Cannot diff while uncommitted changes");
+                return new Error("Cannot diff while uncommitted changes");
 
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
             if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
             {
-                return R.Error($"Failed to get diff", e);
+                return new Error($"Failed to get diff", e);
             }
 
             diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
@@ -310,7 +310,7 @@ class BranchCommands : IBranchCommands
             var sha1 = branch.TipId;
             var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.Repo.CurrentBranch().TipId;
             if (sha2 == Repo.UncommittedId)
-                return R.Error("Cannot diff while uncommitted changes");
+                return new Error("Cannot diff while uncommitted changes");
 
             if (isSwitchOrder)
             {
@@ -325,7 +325,7 @@ class BranchCommands : IBranchCommands
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha1, sha2, message, n, repo.Path));
             if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
             {
-                return R.Error($"Failed to get diff", e);
+                return new Error($"Failed to get diff", e);
             }
 
             diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
@@ -347,7 +347,7 @@ class BranchCommands : IBranchCommands
         {
             var commit = repo.RowCommit;
             if (commit.IsUncommitted)
-                return R.Error($"Not a valid commit");
+                return new Error($"Not a valid commit");
 
             var branch = repo.Repo.BranchByName[commit.BranchName];
 
@@ -365,14 +365,14 @@ class BranchCommands : IBranchCommands
             {
                 if (!Try(out var e, await server.SetBranchManuallyAsync(repo.Repo, commit.Id, name ?? "")))
                 {
-                    return R.Error($"Failed to set branch name manually", e);
+                    return new Error($"Failed to set branch name manually", e);
                 }
             }
             else if (commit.IsBranchSetByUser)
             { // name is empty, lets unset name (if set)
                 if (!Try(out var ee, await server.UnresolveAmbiguityAsync(repo.Repo, commit.Id)))
                 {
-                    return R.Error($"Failed to unresolve ambiguity", ee);
+                    return new Error($"Failed to unresolve ambiguity", ee);
                 }
             }
 
@@ -419,7 +419,7 @@ class BranchCommands : IBranchCommands
             var commit = repo.RowCommit;
             if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, repo.Path)))
             {
-                return R.Error($"Failed to switch to commit {commit.Id}", e);
+                return new Error($"Failed to switch to commit {commit.Id}", e);
             }
 
             Refresh();

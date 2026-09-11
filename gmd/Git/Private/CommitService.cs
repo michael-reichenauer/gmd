@@ -48,18 +48,18 @@ class CommitService : ICommitService
         // Staging nothing means git now refuses a commit that it used to make, so say what to do
         // about it in gmd's own words rather than passing on 'error: Committing is not possible
         // because you have unmerged files' with four lines of git hints under it.
-        if (result.IsResultError && IsUnmergedFiles(result))
-            return R.Error(
+        if (result is CmdError cmdError && IsUnmergedFiles(cmdError))
+            return new Error(
                 "Cannot commit while there are unresolved conflicts.\n\n"
                     + "Resolve each conflicted file and mark it resolved, then commit.",
-                result
+                cmdError
             );
 
         return result;
     }
 
-    static bool IsUnmergedFiles(CmdResult result) =>
-        result.ErrorOutput.Contains("unmerged files") || result.ErrorOutput.Contains("unresolved conflict");
+    static bool IsUnmergedFiles(CmdError error) =>
+        error.ErrorOutput.Contains("unmerged files") || error.ErrorOutput.Contains("unresolved conflict");
 
     public async Task<R> UndoAllUncommittedChangesAsync(string wd)
     {
@@ -79,12 +79,12 @@ class CommitService : ICommitService
                 // Was an unknown (new/added) file, we just remove it
                 var fullPath = Path.Combine(wd, path);
                 if (!Try(out e, () => File.Delete(fullPath)))
-                    return R.Error("Failed to reset", e);
+                    return new Error("Failed to reset", e);
                 Log.Info($"File '{path}' (new/added) was removed");
                 return R.Ok;
             }
 
-            return R.Error("Failed to reset", e);
+            return new Error("Failed to reset", e);
         }
 
         return R.Ok;
@@ -119,9 +119,9 @@ class CommitService : ICommitService
         return await cmd.RunAsync("git", $"reset --hard {id}", wd);
     }
 
-    static bool IsFileUnknown(ErrorResult error, string path)
+    static bool IsFileUnknown(Error error, string path)
     {
         var msg = $"error: pathspec '{path}' did not match any file(s) known";
-        return error.ErrorMessage.StartsWith(msg);
+        return error.Message.StartsWith(msg);
     }
 }

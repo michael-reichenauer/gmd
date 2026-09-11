@@ -31,7 +31,7 @@ internal static class GitDir
 
         if (!Directory.Exists(path))
         {
-            return R.Error($"Folder does not exist: '{path}'");
+            return new Error($"Folder does not exist: '{path}'");
         }
 
         var current = path.TrimSuffix("/").TrimSuffix("\\");
@@ -56,7 +56,7 @@ internal static class GitDir
             current = parent;
         }
 
-        return R.Error($"No '.git' folder was found in:\n'{path}'\n or in any parent folders.");
+        return new Error($"No '.git' folder was found in:\n'{path}'\n or in any parent folders.");
     }
 
     // Resolves the git dirs of a known working tree root
@@ -70,13 +70,13 @@ internal static class GitDir
 
         if (!File.Exists(gitPath))
         {
-            return R.Error($"No '.git' folder was found in:\n'{rootPath}'");
+            return new Error($"No '.git' folder was found in:\n'{rootPath}'");
         }
 
         var pointer = ReadFirstLine(gitPath);
         if (!pointer.StartsWith(GitDirPrefix))
         {
-            return R.Error($"Not a git dir pointer: '{gitPath}'");
+            return new Error($"Not a git dir pointer: '{gitPath}'");
         }
 
         // The pointer is relative to the folder holding the '.git' file (a submodule's is)

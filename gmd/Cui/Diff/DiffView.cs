@@ -316,7 +316,7 @@ class DiffView : IDiffView
                 )
             )
             {
-                UI.ErrorMessage($"Failed to open {conflict.Path}\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to open {conflict.Path}\n{e.AllMessages()}");
                 return;
             }
         }
@@ -343,7 +343,7 @@ class DiffView : IDiffView
         UI.RunInBackground(async () =>
         {
             if (!Try(out var e, await server.RunDiffToolAsync(path, repoPath)))
-                UI.ErrorMessage($"Failed to run diff tool\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to run diff tool\n{e.AllMessages()}");
         });
     }
 
@@ -352,7 +352,7 @@ class DiffView : IDiffView
         UI.RunInBackground(async () =>
         {
             if (!Try(out var e, await server.RunMergeToolAsync(path, repoPath)))
-                UI.ErrorMessage($"Failed to run merger tool\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to run merger tool\n{e.AllMessages()}");
 
             RefreshDiff();
         });
@@ -387,7 +387,7 @@ class DiffView : IDiffView
             {
                 if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
                 {
-                    UI.ErrorMessage($"Failed to undo file:\n{path}\n{e.AllErrorMessages()}");
+                    UI.ErrorMessage($"Failed to undo file:\n{path}\n{e.AllMessages()}");
                 }
             }
         }
@@ -401,7 +401,7 @@ class DiffView : IDiffView
         {
             if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
             {
-                UI.ErrorMessage($"Failed to undo file\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to undo file\n{e.AllMessages()}");
             }
         }
 
@@ -414,7 +414,7 @@ class DiffView : IDiffView
         {
             if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(repoPath)))
             {
-                UI.ErrorMessage($"Failed to undo all changes\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to undo all changes\n{e.AllMessages()}");
             }
         }
 
@@ -435,7 +435,7 @@ class DiffView : IDiffView
         {
             if (!Try(out var fetched, out var e, await reload(wanted)))
             {
-                UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
                 return;
             }
 
@@ -483,7 +483,7 @@ class DiffView : IDiffView
         {
             if (!Try(out var refreshed, out var e, await reload(DiffContext.Default)))
             {
-                UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
                 return;
             }
 
@@ -690,7 +690,7 @@ class DiffView : IDiffView
 
         if (!Try(out var e, clipboard.Set(text)))
         {
-            UI.ErrorMessage(e.AllErrorMessages());
+            UI.ErrorMessage(e.AllMessages());
         }
 
         contentView.ClearSelection();

@@ -60,14 +60,13 @@ class WorktreeService : IWorktreeService
             return new List<string>();
 
         var args = "check-ignore -- " + string.Join(' ', paths.Select(p => $"\"{p.TrimSuffix("/")}/\""));
-        var rsp = await cmd.RunAsync("git", args, wd, true, true);
-        if (rsp.IsResultError)
-        {
-            // Exit code 1 is git's answer that none of them is ignored
-            if (rsp.ExitCode == 1)
-                return new List<string>();
-            return R.Error("Failed to check ignored paths", rsp);
-        }
+        var rsp = await cmd.RunRawAsync("git", args, wd, true, true);
+
+        // Exit code 1 is git's answer that none of them is ignored
+        if (rsp.ExitCode == 1)
+            return new List<string>();
+        if (!rsp.IsOk)
+            return new Error("Failed to check ignored paths", new CmdError(rsp));
 
         return rsp
             .Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)

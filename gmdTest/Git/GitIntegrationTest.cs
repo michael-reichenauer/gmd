@@ -88,7 +88,7 @@ public class GitIntegrationTest
         // Uncommitted changes in the worktree: refused unless forced
         File.WriteAllText(Path.Join(path, "new.txt"), "text\n");
         Assert.IsFalse(Try(out e, await repo.Git.RemoveWorktreeAsync(path, false, repo.Path)));
-        StringAssert.Contains(e.ErrorMessage, "--force");
+        StringAssert.Contains(e.Message, "--force");
         Assert.IsTrue(Try(out e, await repo.Git.RemoveWorktreeAsync(path, true, repo.Path)), $"{e}");
 
         Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
@@ -547,8 +547,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.MergeBranchAsync("dev", repo.Path);
 
-        Assert.IsTrue(result.IsResultError, "Both branches changed the same line");
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "Merge Conflicts!");
+        var error = AssertError(result, "Both branches changed the same line");
+        StringAssert.Contains(error.Message, "Merge Conflicts!");
 
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual("M:0,A:0,D:0,C:1,R:0", status.ToString());
@@ -629,8 +629,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.CommitAllChangesAsync("Merge branch 'dev'", false, repo.Path);
 
-        Assert.IsTrue(result.IsResultError, "Git refuses to commit while a path is unmerged");
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "unresolved conflicts");
+        var error = AssertError(result, "Git refuses to commit while a path is unmerged");
+        StringAssert.Contains(error.Message, "unresolved conflicts");
         Assert.AreEqual(headBefore, await repo.HeadIdAsync(), "No commit was made");
     }
 
@@ -646,8 +646,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.CommitAllChangesAsync("Merge branch 'dev'", false, repo.Path);
 
-        Assert.IsTrue(result.IsResultError, "The path is still unmerged until it is staged");
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "mark it resolved");
+        var error = AssertError(result, "The path is still unmerged until it is staged");
+        StringAssert.Contains(error.Message, "mark it resolved");
     }
 
     // ... and once it is staged, which is what 'git mergetool' does for you, the commit goes through
@@ -910,8 +910,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.ContinueOperationAsync(repo.Path);
 
-        Assert.IsTrue(result.IsResultError);
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "unresolved conflicts");
+        var error = AssertError(result);
+        StringAssert.Contains(error.Message, "unresolved conflicts");
     }
 
     // A rebase over two commits that conflicts twice: continuing gets past the first and stops on
@@ -932,8 +932,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.ContinueOperationAsync(repo.Path);
 
-        Assert.IsTrue(result.IsResultError);
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "stopped on more conflicts");
+        var error = AssertError(result);
+        StringAssert.Contains(error.Message, "stopped on more conflicts");
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual(GitOperation.Rebase, status.Operation, "Still rebasing, now on the second commit");
         Assert.AreEqual(2, status.OperationStep);
@@ -1263,7 +1263,7 @@ public class GitIntegrationTest
         var result = await repo.Git.WithBaseAsync(edited, repo.Path);
 
         Assert.IsFalse(Try(out var _, out var e, result), "An ancestor that cannot be matched is not an answer");
-        StringAssert.Contains(e.ErrorMessage, "could not be matched to its conflicts");
+        StringAssert.Contains(e.Message, "could not be matched to its conflicts");
     }
 
     // Resolving to the ancestor is the one choice whose text is not in the working tree file, since
@@ -1586,10 +1586,7 @@ public class GitIntegrationTest
 
     // Unwraps a result, failing the test with the git error if the command failed
     static T Value<T>(R<T> result)
-    {
-        Assert.IsTrue(Try(out var value, out var e, result), $"Git failed: {e}");
-        return value;
-    }
+        where T : notnull => AssertOk(result, "Git failed");
 
-    static void Ok(R result) => Assert.IsTrue(Try(out var e, result), $"Git failed: {e}");
+    static void Ok(R result) => AssertOk(result, "Git failed");
 }

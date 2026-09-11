@@ -33,7 +33,7 @@ public class WorktreeCommandsTest
         var result = await WorktreeCommands.AddAndIgnoreAsync(Request(".worktrees"), root, Refused);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "Failed to create worktree");
+        StringAssert.Contains(e.Message, "Failed to create worktree");
         Assert.IsFalse(File.Exists(Path.Join(root, ".gitignore")), "No worktree was made, so nothing is ignored");
     }
 
@@ -85,8 +85,8 @@ public class WorktreeCommandsTest
         var result = await WorktreeCommands.AddAndIgnoreAsync(Request(".worktrees"), missingRoot, Ok);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "Worktree created");
-        StringAssert.Contains(e.ErrorMessage, ".gitignore");
+        StringAssert.Contains(e.Message, "Worktree created");
+        StringAssert.Contains(e.Message, ".gitignore");
     }
 
     // A request for a worktree inside the repository, with the folder to ignore for it (or none)
@@ -95,5 +95,5 @@ public class WorktreeCommandsTest
 
     static Task<R> Ok() => Task.FromResult(R.Ok);
 
-    static Task<R> Refused() => Task.FromResult<R>(R.Error("fatal: invalid reference: dev"));
+    static Task<R> Refused() => Task.FromResult<R>(new Error("fatal: invalid reference: dev"));
 }

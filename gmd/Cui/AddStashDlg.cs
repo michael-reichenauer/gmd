@@ -16,7 +16,7 @@ class AddStashDlg : IAddStashDlg
         var name = dlg.AddTextField(1, 1, 40, "");
 
         if (!dlg.ShowOkCancel(name))
-            return R.Error();
+            return new Error();
 
         return name.Text.Trim();
     }

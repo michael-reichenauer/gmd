@@ -201,7 +201,7 @@ public class WorktreeServiceTest
         var result = await new WorktreeService(cmd).RemoveAsync("/home/me/repo-dev", false, "/wd");
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "use --force");
+        StringAssert.Contains(e.Message, "use --force");
     }
 
     [TestMethod]

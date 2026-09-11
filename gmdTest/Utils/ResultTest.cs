@@ -2,134 +2,135 @@ using System.Text.RegularExpressions;
 
 namespace gmdTest.Utils;
 
-// R/R<T> and Try are how every fallible operation in gmd reports failure; exceptions are for bugs.
-// These pin the contract the whole codebase is written against.
+// R and R<T> are how every fallible operation in gmd reports failure; exceptions are for bugs.
+// These pin the contract the whole codebase is written against: a result is a union of its value
+// (or Success) and an Error, and is matched on the case type.
 [TestClass]
 public class ResultTest
 {
     [TestMethod]
-    public void TestOkValue()
+    public void TestValueCase()
     {
-        Assert.IsTrue(Try(out var value, out var e, Divide(10, 2)), $"{e}");
-        Assert.AreEqual(5, value);
+        var result = Divide(10, 2);
+
+        Assert.IsTrue(result is int);
+        Assert.IsTrue(result is int value && value == 5);
+        Assert.AreEqual(5, AssertOk(result));
     }
 
     [TestMethod]
-    public void TestErrorValue()
+    public void TestErrorCase()
     {
-        Assert.IsFalse(Try(out var value, out var e, Divide(10, 0)));
-        Assert.AreEqual(0, value, "The value is default when there is an error");
-        Assert.AreEqual("Cannot divide by zero", e.ErrorMessage);
+        var result = Divide(10, 0);
+
+        Assert.IsTrue(result is Error);
+        Assert.AreEqual("Cannot divide by zero", AssertError(result).Message);
     }
 
-    // The overload used where the error itself does not matter
+    // A switch over a result is exhaustive with its two cases; no discard arm is needed, and a
+    // missing arm is a build error (CS8509)
     [TestMethod]
-    public void TestTryIgnoringTheError()
+    public void TestSwitchIsExhaustive()
     {
-        Assert.IsTrue(Try(out var value, Divide(10, 2)));
-        Assert.AreEqual(5, value);
-        Assert.IsFalse(Try(out var _, Divide(10, 0)));
+        static string Describe(R<int> result) =>
+            result switch
+            {
+                int value => $"value {value}",
+                Error e => $"error {e.Message}",
+            };
+
+        Assert.AreEqual("value 5", Describe(Divide(10, 2)));
+        Assert.AreEqual("error Cannot divide by zero", Describe(Divide(10, 0)));
+
+        static string DescribeOutcome(R result) =>
+            result switch
+            {
+                Success => "ok",
+                Error e => e.Message,
+            };
+
+        Assert.AreEqual("ok", DescribeOutcome(Validate("dev")));
+        Assert.AreEqual("Empty name", DescribeOutcome(Validate("")));
+    }
+
+    // The propagation idiom: the pattern binds the value, and when there is none the error is
+    // returned as it is, so the original message survives all the way up
+    [TestMethod]
+    public void TestGuardBindsTheValueOrReturnsTheError()
+    {
+        Assert.AreEqual(5, AssertOk(Outer(2)));
+        Assert.AreEqual("Cannot divide by zero", AssertError(Outer(0)).Message);
     }
 
     // R without a value, i.e. an operation that either succeeds or fails
     [TestMethod]
     public void TestResultWithoutValue()
     {
-        Assert.IsTrue(Try(out var e, Validate("dev")), $"{e}");
-        Assert.IsFalse(Try(out var e2, Validate("")));
-        Assert.AreEqual("Empty name", e2.ErrorMessage);
+        Assert.IsTrue(Validate("dev") is Success);
+        Assert.IsTrue(Validate("") is Error);
+        Assert.AreEqual("Empty name", AssertError(Validate("")).Message);
 
-        Assert.IsTrue(Try(Validate("dev")));
-        Assert.IsFalse(Try(Validate("")));
-    }
-
-    [TestMethod]
-    public void TestOk()
-    {
-        bool isOk = R.Ok;
-
-        Assert.IsTrue(Try(R.Ok));
-        Assert.IsTrue(isOk);
+        Assert.IsTrue(R.Ok is Success);
         Assert.AreEqual("OK", R.Ok.ToString());
     }
 
-    // The idiom used everywhere: an error from a called function is returned as is, so the
-    // original message survives all the way up
-    [TestMethod]
-    public void TestErrorPropagates()
-    {
-        Assert.IsFalse(Try(out var _, out var e, Outer(0)));
-        Assert.AreEqual("Cannot divide by zero", e.ErrorMessage);
-    }
-
-    // ... and wrapping adds a message without losing the inner one
+    // Wrapping adds a message without losing the inner one
     [TestMethod]
     public void TestWrappedErrorKeepsTheInnerMessages()
     {
-        Assert.IsFalse(Try(out var _, out var e, OuterWrapping(0)));
+        var e = AssertError(OuterWrapping(0));
 
-        Assert.AreEqual("Failed to calculate", e.ErrorMessage);
-        Assert.AreEqual("Failed to calculate,\nCannot divide by zero", e.AllErrorMessages());
+        Assert.AreEqual("Failed to calculate", e.Message);
+        Assert.AreEqual("Cannot divide by zero", e.Inner!.Message);
+        Assert.AreEqual("Failed to calculate,\nCannot divide by zero", e.AllMessages());
         Assert.AreEqual("Error: Failed to calculate", e.ToString());
     }
 
-    // R.Error captures where it was created, since the exception it wraps is never thrown and so
-    // has no stack of its own
+    // An error wrapping an exception carries the exception's message chain as well
+    [TestMethod]
+    public void TestErrorFromAnException()
+    {
+        var inner = new IOException("disk full");
+
+        var wrapping = new Error("Failed to save", new InvalidOperationException("write failed", inner));
+        Assert.AreEqual("Failed to save", wrapping.Message);
+        Assert.AreEqual("Failed to save,\nwrite failed,\ndisk full", wrapping.AllMessages());
+
+        var fromException = new Error(new InvalidOperationException("boom", inner));
+        Assert.AreEqual("boom", fromException.Message);
+        Assert.AreEqual("boom,\ndisk full", fromException.AllMessages(), "The exception's own message is not repeated");
+    }
+
+    // An error records where it was created, since nothing is thrown and so there is no stack
     [TestMethod]
     public void TestErrorCapturesTheCallerFileAndLine()
     {
-        var error = R.Error("failed");
+        var error = new Error("failed");
 
-        var stack = error.GetResultException().StackTrace ?? "";
         StringAssert.Matches(
-            stack,
-            new Regex($@"ResultTest\.cs\(\d+\){nameof(TestErrorCapturesTheCallerFileAndLine)}"),
-            $"Caller info missing from '{stack}'"
+            error.Origin,
+            new Regex($@"ResultTest\.cs\(\d+\) {nameof(TestErrorCapturesTheCallerFileAndLine)}"),
+            $"Caller info missing from '{error.Origin}'"
         );
     }
 
-    // Reading the value without having checked for an error is a bug in the caller, so it fails
-    // fast rather than returning a default value that would then travel on
+    // Reading the error of a result that holds a value is a bug in the caller, so it fails fast,
+    // which is reported through Asserter, which the running program logs and shows
     [TestMethod]
-    public void TestGetResultValueFailsFastWhenTheErrorWasNeverChecked()
+    public void TestErrorOfAValueFailsFast()
     {
         R<int> result = 5;
-
-        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
-        {
-            result.GetResultValue();
-        });
-        StringAssert.Contains(e.Message, "IsError or IsOk was never checked");
-    }
-
-    [TestMethod]
-    public void TestGetResultValueFailsFastOnAnError()
-    {
-        R<int> result = R.Error("the failure");
-
-        Assert.IsTrue(result.IsResultError, "Checked, so this is not the never-checked fail fast");
-        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
-        {
-            result.GetResultValue();
-        });
-        StringAssert.Contains(e.Message, "the failure");
-    }
-
-    // A fail fast is reported through Asserter, which the running program logs and shows
-    [TestMethod]
-    public void TestFailFastRaisesTheAsserterEvent()
-    {
         var raised = 0;
         void OnAssert(object? s, AsserterEventArgs e) => raised++;
 
         Asserter.AssertOccurred += OnAssert;
         try
         {
-            R<int> result = 5;
-            Assert.ThrowsExactly<InvalidOperationException>(() =>
+            var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
             {
-                result.GetResultValue();
+                _ = result.Error;
             });
+            StringAssert.Contains(e.Message, "Result is not an error");
         }
         finally
         {
@@ -137,49 +138,6 @@ public class ResultTest
         }
 
         Assert.AreEqual(1, raised);
-    }
-
-    // Or is the way to read a value without checking, since it checks on the caller's behalf
-    [TestMethod]
-    public void TestOr()
-    {
-        Assert.AreEqual(5, Divide(10, 2).Or(42));
-        Assert.AreEqual(42, Divide(10, 0).Or(42));
-    }
-
-    // Returning a value or an error is just 'return value' / 'return R.Error(...)', which is
-    // these conversions
-    [TestMethod]
-    public void TestImplicitConversions()
-    {
-        R<int> fromValue = 5;
-        Assert.IsTrue(Try(out var value, fromValue));
-        Assert.AreEqual(5, value);
-
-        R<int> fromError = R.Error("an error");
-        Assert.IsFalse(Try(out var _, fromError));
-
-        R<int> fromException = new InvalidOperationException("an exception");
-        Assert.IsFalse(Try(out var _, out var e, fromException));
-        Assert.AreEqual("an exception", e.ErrorMessage);
-
-        R rFromException = new InvalidOperationException("an exception");
-        Assert.IsFalse(Try(out var _, rFromException));
-    }
-
-    // R and R<T> convert to bool, so a result can be used directly in a condition
-    [TestMethod]
-    public void TestBoolConversion()
-    {
-        bool okValue = Divide(10, 2);
-        bool errorValue = Divide(10, 0);
-        bool ok = Validate("dev");
-        bool error = Validate("");
-
-        Assert.IsTrue(okValue);
-        Assert.IsFalse(errorValue);
-        Assert.IsTrue(ok);
-        Assert.IsFalse(error);
     }
 
     // A null value is not an error, it is a bug in the function that returned it
@@ -194,36 +152,61 @@ public class ResultTest
         });
     }
 
+    // Returning a value or an error is just 'return value' / 'return new Error(...)', which is
+    // these conversions
     [TestMethod]
-    public void TestErrorOfANonErrorFailsFast()
+    public void TestImplicitConversions()
     {
-        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
-        {
-            R.Error(R.Ok);
-        });
-        StringAssert.Contains(e.Message, "Was no error error");
+        R<int> fromValue = 5;
+        Assert.AreEqual(5, AssertOk(fromValue));
+
+        R<int> fromError = new Error("an error");
+        Assert.AreEqual("an error", AssertError(fromError).Message);
+
+        R outcomeOfValue = Divide(10, 2);
+        Assert.IsTrue(outcomeOfValue is Success, "Dropping the value keeps the outcome");
+
+        R outcomeOfError = Divide(10, 0);
+        Assert.AreEqual("Cannot divide by zero", AssertError(outcomeOfError).Message);
     }
 
-    // Try also wraps a throwing API into an R, which is how the file and process calls are used
+    // A bool value is a value like any other: a result never converts to bool itself, so there is
+    // no mistaking "is ok" for "is true"
     [TestMethod]
-    public void TestTryWrapsAThrowingFunc()
+    public void TestBoolValue()
     {
-        Assert.IsTrue(Try(out var value, out var e, () => int.Parse("42")), $"{e}");
-        Assert.AreEqual(42, value);
+        R<bool> isFalse = false;
 
-        Assert.IsFalse(Try(out var _, out var e2, () => int.Parse("not a number")));
-        StringAssert.Contains(e2.ErrorMessage, "not in a correct format");
+        Assert.IsTrue(isFalse is bool value && !value);
+        Assert.IsFalse(AssertOk(isFalse));
+    }
+
+    // Catch turns a throwing API into a result, which is how the file and process calls are used
+    [TestMethod]
+    public void TestCatchWrapsAThrowingFunc()
+    {
+        Assert.AreEqual(42, AssertOk(R.Catch(() => int.Parse("42"))));
+
+        var e = AssertError(R.Catch(() => int.Parse("not a number")));
+        StringAssert.Contains(e.Message, "not in a correct format");
+        Assert.IsInstanceOfType<FormatException>(e.Exception);
+        StringAssert.Contains(e.Origin, nameof(TestCatchWrapsAThrowingFunc), "The origin is the caller, not Catch");
     }
 
     [TestMethod]
-    public void TestTryWrapsAThrowingAction()
+    public void TestCatchWrapsAThrowingAction()
     {
         var didRun = false;
-        Assert.IsTrue(Try(out var e, () => didRun = true), $"{e}");
+        AssertOk(
+            R.Catch(() =>
+            {
+                didRun = true;
+            })
+        );
         Assert.IsTrue(didRun);
 
-        Assert.IsFalse(Try(out var e2, () => throw new InvalidOperationException("boom")));
-        Assert.AreEqual("boom", e2.ErrorMessage);
+        var e = AssertError(R.Catch(() => throw new InvalidOperationException("boom")));
+        Assert.AreEqual("boom", e.Message);
     }
 
     [TestMethod]
@@ -232,35 +215,36 @@ public class ResultTest
         Assert.AreEqual("5", Divide(10, 2).ToString(), "An ok result is its value");
         Assert.AreEqual("Error: Cannot divide by zero", Divide(10, 0).ToString());
         Assert.AreEqual("OK", Validate("dev").ToString());
-
-        StringAssert.StartsWith(Divide(10, 0).ToString(true), "Error: Cannot divide by zero\n");
+        Assert.AreEqual("Error: Empty name", Validate("").ToString());
     }
 
     static R<int> Divide(int a, int b)
     {
         if (b == 0)
-            return R.Error("Cannot divide by zero");
+            return new Error("Cannot divide by zero");
         return a / b;
     }
 
     static R Validate(string name)
     {
         if (name == "")
-            return R.Error("Empty name");
+            return new Error("Empty name");
         return R.Ok;
     }
 
     static R<int> Outer(int b)
     {
-        if (!Try(out var value, out var e, Divide(10, b)))
-            return e;
+        var result = Divide(10, b);
+        if (result is not int value)
+            return result.Error;
         return value;
     }
 
     static R<int> OuterWrapping(int b)
     {
-        if (!Try(out var value, out var e, Divide(10, b)))
-            return R.Error("Failed to calculate", e);
+        var result = Divide(10, b);
+        if (result is not int value)
+            return new Error("Failed to calculate", result.Error);
         return value;
     }
 }

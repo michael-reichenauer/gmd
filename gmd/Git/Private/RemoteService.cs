@@ -38,7 +38,9 @@ class RemoteService : IRemoteService
     {
         // Read before the fetch, since the fetch is what updates it. An error is not fatal here, it
         // only means no local tag is pruned this time.
-        var tracked = (await tagService.GetTrackedRemoteTagsAsync(wd)).Or(new Dictionary<string, string>());
+        var tracked = await tagService.GetTrackedRemoteTagsAsync(wd) is IReadOnlyDictionary<string, string> tags
+            ? tags
+            : new Dictionary<string, string>();
 
         // The branches have to be named as well: a refspec on the command line replaces the
         // configured remote.origin.fetch ones rather than adding to them, so given the tag mirror

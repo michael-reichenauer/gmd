@@ -43,7 +43,7 @@ class CloneDlg : ICloneDlg
         dlg.Validate(() => path.Text != "", "Empty path is not allowed");
 
         if (!dlg.ShowOkCancel(uri))
-            return R.Error();
+            return new Error();
 
         return (uri.Text, path.Text);
     }
@@ -84,7 +84,7 @@ class CloneDlg : ICloneDlg
     {
         var i = uri.LastIndexOf('/');
         if (i == -1)
-            return R.Error();
+            return new Error();
 
         return uri[(i + 1)..].Trim().TrimSuffix(".git").Replace("%20", "");
     }

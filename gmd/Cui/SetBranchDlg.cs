@@ -22,7 +22,7 @@ class SetBranchDlg : ISetBranchDlg
     )
     {
         if (possibleBranches.Count == 0)
-            return R.Error();
+            return new Error();
 
         (var width, var height) = (50, 22);
         (var x, var y, var w, var h) = (1, 5, width - 5, height - 12);
@@ -69,7 +69,7 @@ class SetBranchDlg : ISetBranchDlg
 
         View focusView = items.Any() ? listView : nameField;
         if (!dlg.ShowOkCancel(focusView) && !isUnsetClicked)
-            return R.Error();
+            return new Error();
         return nameField.Text;
     }
 }

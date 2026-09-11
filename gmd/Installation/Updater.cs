@@ -162,7 +162,7 @@ class Updater : IUpdater
         if (!Try(out var release, out var e, await GetRemoteInfoAsync()))
         {
             Log.Info($"Failed to get remote info, {e}");
-            return R.Error($"Failed to get remote info, {e}");
+            return new Error($"Failed to get remote info, {e}");
         }
 
         if (release.Version == "")
@@ -224,7 +224,7 @@ class Updater : IUpdater
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Exception(e, "Failed install new file");
-            return R.Error("Failed to install new file", e);
+            return new Error("Failed to install new file", e);
         }
     }
 
@@ -236,7 +236,7 @@ class Updater : IUpdater
             (string downloadUrl, string version) = SelectBinaryPath();
             if (downloadUrl == "")
             {
-                return R.Error("No binary available");
+                return new Error("No binary available");
             }
 
             var targetPath = GetDownloadFilePath(version);
@@ -256,7 +256,7 @@ class Updater : IUpdater
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Exception(e, "Failed to download latest binary");
-            return R.Error("Failed to download latest binary", e);
+            return new Error("Failed to download latest binary", e);
         }
     }
 
@@ -401,7 +401,7 @@ class Updater : IUpdater
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Exception(e, "Failed to download latest setup");
-            return R.Error("Failed to download latest setup", e);
+            return new Error("Failed to download latest setup", e);
         }
     }
 

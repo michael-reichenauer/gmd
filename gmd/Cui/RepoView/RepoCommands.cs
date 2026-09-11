@@ -92,7 +92,7 @@ class RepoCommands : IRepoCommands
         {
             if (!Try(out var e, await repoView.ShowRepoAsync(path)))
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {path}", e);
             }
             return R.Ok;
         });
@@ -106,7 +106,7 @@ class RepoCommands : IRepoCommands
 
             if (!Try(out var e, await repoView.ShowRepoAsync(path)))
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {path}", e);
             }
             return R.Ok;
         });
@@ -124,12 +124,12 @@ class RepoCommands : IRepoCommands
 
             if (!Try(out e, await server.CloneAsync(uri, path, repo.Path)))
             {
-                return R.Error($"Failed to clone", e);
+                return new Error($"Failed to clone", e);
             }
 
             if (!Try(out e, await repoView.ShowRepoAsync(path)))
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {path}", e);
             }
             return R.Ok;
         });
@@ -142,12 +142,12 @@ class RepoCommands : IRepoCommands
 
             if (!Try(out e, await server.InitRepoAsync(path, repo.Path)))
             {
-                return R.Error($"Failed to init repo", e);
+                return new Error($"Failed to init repo", e);
             }
 
             if (!Try(out e, await repoView.ShowRepoAsync(path)))
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {path}", e);
             }
             return R.Ok;
         });
@@ -165,7 +165,7 @@ class RepoCommands : IRepoCommands
         {
             if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(repo.Path)))
             {
-                return R.Error($"Failed to undo all changes", e);
+                return new Error($"Failed to undo all changes", e);
             }
 
             Refresh();
@@ -189,7 +189,7 @@ class RepoCommands : IRepoCommands
 
             if (!Try(out var e, await server.CleanWorkingFolderAsync(repo.Path)))
             {
-                return R.Error($"Failed to clean working folder", e);
+                return new Error($"Failed to clean working folder", e);
             }
 
             Refresh();
@@ -299,7 +299,7 @@ class RepoCommands : IRepoCommands
                 return R.Ok;
 
             if (!Try(out var e, await server.AbortOperationAsync(repo.Path)))
-                return R.Error($"Failed to abort {name.ToLower()}", e);
+                return new Error($"Failed to abort {name.ToLower()}", e);
 
             Refresh();
             return R.Ok;
@@ -317,7 +317,7 @@ class RepoCommands : IRepoCommands
             if (!Try(out var e, await server.ContinueOperationAsync(repo.Path)))
             {
                 Refresh(); // It may have got further before stopping again, so show where it is now
-                return R.Error($"Failed to continue {OperationName().ToLower()}", e);
+                return new Error($"Failed to continue {OperationName().ToLower()}", e);
             }
 
             Refresh();
@@ -342,7 +342,7 @@ class RepoCommands : IRepoCommands
             if (!Try(out var e, await server.SkipOperationAsync(repo.Path)))
             {
                 Refresh();
-                return R.Error($"Failed to skip commit", e);
+                return new Error($"Failed to skip commit", e);
             }
 
             Refresh();
@@ -394,7 +394,7 @@ class RepoCommands : IRepoCommands
             await Task.Yield();
             var commit = repo.RowCommit;
             if (!Try(out var e, clipboard.Set(commit.Id)))
-                return R.Error("Failed to copy the commit id", e);
+                return new Error("Failed to copy the commit id", e);
 
             return R.Ok;
         });
@@ -405,7 +405,7 @@ class RepoCommands : IRepoCommands
             await Task.Yield();
             var commit = repo.RowCommit;
             if (!Try(out var e, clipboard.Set(commit.Message.TrimEnd())))
-                return R.Error("Failed to copy the commit message", e);
+                return new Error("Failed to copy the commit message", e);
 
             return R.Ok;
         });

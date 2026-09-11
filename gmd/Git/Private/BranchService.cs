@@ -101,9 +101,9 @@ class BranchService : IBranchService
     {
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }
@@ -112,9 +112,9 @@ class BranchService : IBranchService
     {
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }
@@ -123,9 +123,9 @@ class BranchService : IBranchService
     {
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --onto {newBase} {oldBase}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }
@@ -133,9 +133,9 @@ class BranchService : IBranchService
     public async Task<R> CherryPickAsync(string sha, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }

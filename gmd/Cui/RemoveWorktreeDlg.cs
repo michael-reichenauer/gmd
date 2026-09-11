@@ -38,7 +38,7 @@ class RemoveWorktreeDlg : IRemoveWorktreeDlg
         );
 
         if (!dlg.ShowOkCancel())
-            return R.Error();
+            return new Error();
 
         return new RemoveWorktreeResult(deleteBranch.Checked && worktree.Branch != "", force.Checked);
     }

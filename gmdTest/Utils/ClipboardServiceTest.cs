@@ -137,12 +137,12 @@ public class ClipboardServiceTest
     public void TestFailureNamesEveryToolTriedAndWhatToInstall()
     {
         var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("Error: Can't open display"));
-        var terminal = new FakeTerminalClipboard(R.Error("No /dev/tty"));
+        var terminal = new FakeTerminalClipboard(new Error("No /dev/tty"));
         var clipboard = new ClipboardService(cmd, terminal);
 
         Assert.IsFalse(Try(out var e, clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0")))));
 
-        var message = e.AllErrorMessages();
+        var message = e.AllMessages();
         StringAssert.Contains(message, "xclip -selection clipboard: Error: Can't open display");
         StringAssert.Contains(message, "xsel --input --clipboard: Error: Can't open display");
         StringAssert.Contains(message, "OSC 52 (the terminal): No /dev/tty");

@@ -369,7 +369,7 @@ class ConflictView : IConflictView
                 var result = await server.GetConflictFileAsync(file.Path, file.Kind, true, repoPath);
                 if (!Try(out withBase!, out var e, result))
                 {
-                    UI.ErrorMessage($"Failed to get the common ancestor\n{e.AllErrorMessages()}");
+                    UI.ErrorMessage($"Failed to get the common ancestor\n{e.AllMessages()}");
                     return;
                 }
             }
@@ -436,7 +436,7 @@ class ConflictView : IConflictView
                 );
                 if (!Try(out var e, result))
                 {
-                    UI.ErrorMessage($"Failed to resolve {file.Path}\n{e.AllErrorMessages()}");
+                    UI.ErrorMessage($"Failed to resolve {file.Path}\n{e.AllMessages()}");
                     return;
                 }
             }
@@ -477,7 +477,7 @@ class ConflictView : IConflictView
             {
                 // There is nothing left to show the file as, so staying open would show the one it
                 // no longer is
-                UI.ErrorMessage($"Failed to re-read {file.Path}\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to re-read {file.Path}\n{e.AllMessages()}");
                 Application.RequestStop();
                 return;
             }
@@ -681,7 +681,7 @@ class ConflictView : IConflictView
             {
                 if (!Try(out var e, await action()))
                 {
-                    UI.ErrorMessage($"Failed\n{e.AllErrorMessages()}");
+                    UI.ErrorMessage($"Failed\n{e.AllMessages()}");
                     return;
                 }
             }

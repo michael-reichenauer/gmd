@@ -34,18 +34,18 @@ class TerminalClipboard : ITerminalClipboard
     public R Set(string text)
     {
         if (Build.IsWindows)
-            return R.Error("OSC 52 is only used on Unix, where the terminal can be written to directly");
+            return new Error("OSC 52 is only used on Unix, where the terminal can be written to directly");
 
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(text));
         if (encoded.Length > MaxEncodedLength)
-            return R.Error($"Too much text for the terminal to copy ({encoded.Length} > {MaxEncodedLength} bytes)");
+            return new Error($"Too much text for the terminal to copy ({encoded.Length} > {MaxEncodedLength} bytes)");
 
         // ESC ] 52 ; c ; <base64> BEL, where 'c' selects the clipboard (as opposed to the primary
         // selection) and BEL terminates the string, which more terminals accept than ST does.
         var sequence = $"\u001b]52;c;{encoded}\u0007";
 
         if (!Try(out var e, () => Write(sequence)))
-            return R.Error($"Failed to write to {TtyPath}", e);
+            return new Error($"Failed to write to {TtyPath}", e);
 
         return R.Ok;
     }

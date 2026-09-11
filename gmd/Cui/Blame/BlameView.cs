@@ -305,7 +305,7 @@ class BlameView : IBlameView
         {
             if (!Try(out diffs, out var e, await reload(DiffContext.Default)))
             {
-                UI.ErrorMessage($"Failed to get diff\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
                 return;
             }
         }
@@ -353,7 +353,7 @@ class BlameView : IBlameView
         {
             if (!Try(out newBlame, out var e, await server.GetBlameAsync(path, reference, repo.Path)))
             {
-                UI.ErrorMessage($"Failed to blame {path}\n{e.AllErrorMessages()}");
+                UI.ErrorMessage($"Failed to blame {path}\n{e.AllMessages()}");
                 return false;
             }
         }
@@ -381,7 +381,7 @@ class BlameView : IBlameView
         );
 
         if (!Try(out var e, clipboard.Set(text)))
-            UI.ErrorMessage(e.AllErrorMessages());
+            UI.ErrorMessage(e.AllMessages());
 
         contentView.ClearSelection();
     }
@@ -393,7 +393,7 @@ class BlameView : IBlameView
             return;
 
         if (!Try(out var e, clipboard.Set(row.Commit.Id)))
-            UI.ErrorMessage(e.AllErrorMessages());
+            UI.ErrorMessage(e.AllMessages());
     }
 
     void ShowMainMenu(int x = Menu.Center, int y = 0)

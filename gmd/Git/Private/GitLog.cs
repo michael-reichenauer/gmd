@@ -85,7 +85,7 @@ internal class LogService : ILogService
         var rowParts = row.Split('|');
         if (rowParts.Length < 6)
         {
-            return R.Error($"failed to parse git commit {row}");
+            return new Error($"failed to parse git commit {row}");
         }
 
         var id = rowParts[0];

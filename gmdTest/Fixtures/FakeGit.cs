@@ -76,7 +76,7 @@ class FakeGit : IGit
                 ? value
                 // The message git gives for a ref that does not exist, which MetaDataService reads
                 // as 'no local value yet' rather than as a failure
-                : R.Error($"fatal: Not a valid object name refs/gmd-metadata-key-value/{key}")
+                : new Error($"fatal: Not a valid object name refs/gmd-metadata-key-value/{key}")
         );
     }
 
@@ -91,7 +91,7 @@ class FakeGit : IGit
     {
         ValueCalls.Add($"push {key}");
         if (!Values.TryGetValue(key, out var value))
-            return Task.FromResult<R>(R.Error("error: src refspec does not match any"));
+            return Task.FromResult<R>(new Error("error: src refspec does not match any"));
 
         RemoteValues[key] = value;
         return Task.FromResult(R.Ok);
@@ -101,7 +101,7 @@ class FakeGit : IGit
     {
         ValueCalls.Add($"pull {key}");
         if (!RemoteValues.TryGetValue(key, out var value))
-            return Task.FromResult<R>(R.Error($"fatal: couldn't find remote ref {key}"));
+            return Task.FromResult<R>(new Error($"fatal: couldn't find remote ref {key}"));
 
         Values[key] = value;
         return Task.FromResult(R.Ok);

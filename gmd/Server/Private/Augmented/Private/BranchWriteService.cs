@@ -193,9 +193,9 @@ class BranchWriteService : IBranchWriteService
             // a failed checkout has not moved HEAD at all, while a conflicting merge has, and the
             // conflict then has to be resolved on the target branch.
             if (!Try(out var e, await SwitchToAsync(repo, targetName)))
-                return R.Error($"Failed to switch to '{targetName}'", e);
+                return new Error($"Failed to switch to '{targetName}'", e);
             if (!Try(out e, await git.MergeBranchAsync(mergeName, repo.Path)))
-                return R.Error($"Failed to merge '{mergeName}' while on '{targetName}'", e);
+                return new Error($"Failed to merge '{mergeName}' while on '{targetName}'", e);
 
             // Now on the target branch, so this is the commits the merge brings in. An empty list
             // means the target was already up to date, i.e. the merge did nothing.

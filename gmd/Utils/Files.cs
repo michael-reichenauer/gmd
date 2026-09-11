@@ -88,7 +88,7 @@ static class Files
         }
         catch (Exception ex)
         {
-            return R.Error(ex);
+            return new Error(ex);
         }
     }
 
@@ -100,18 +100,18 @@ static class Files
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             if (assembly == null)
-                return R.Error("No GetExecutingAssembly");
+                return new Error("No GetExecutingAssembly");
 
             // var names = asm.GetManifestResourceNames();
             var stream = assembly.GetManifestResourceStream(name);
             if (stream == null)
-                return R.Error($"Embedded file '{name}'");
+                return new Error($"Embedded file '{name}'");
 
             return stream;
         }
         catch (Exception e)
         {
-            return R.Error(e);
+            return new Error(e);
         }
     }
 
@@ -151,7 +151,7 @@ static class Files
         }
         catch (Exception e)
         {
-            return R.Error(e);
+            return new Error(e);
         }
     }
 }

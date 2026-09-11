@@ -28,7 +28,7 @@ class FilterDlg : IFilterDlg
     Server.Repo currentRepo = null!;
     string currentFilter = null!;
     ContentView resultsView = null!;
-    R<Server.Commit> selectedCommit = R.Error("No commit selected");
+    R<Server.Commit> selectedCommit = new Error("No commit selected");
     Text repoInfo = Text.Empty;
     int closeX = 0;
 

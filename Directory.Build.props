@@ -5,5 +5,7 @@
          net10.0, so the union attribute is polyfilled in gmd/Utils/UnionPolyfill.cs. 'preview' until
          .NET 11 is released (November 2026), then '15'. -->
     <LangVersion>preview</LangVersion>
+    <!-- A switch over a result that does not handle both of its cases is a bug, not a warning -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS8509</WarningsAsErrors>
   </PropertyGroup>
 </Project>

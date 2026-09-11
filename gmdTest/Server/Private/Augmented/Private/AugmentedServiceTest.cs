@@ -31,10 +31,7 @@ public class AugmentedServiceTest
     }
 
     static T Value<T>(R<T> result)
-    {
-        Assert.IsTrue(Try(out var value, out var e, result), $"{e}");
-        return value;
-    }
+        where T : notnull => AssertOk(result);
 
     GitWorktree MainWorktree() =>
         new GitWorktree(Main, RepoBuilder.Sha("c1"), "main", true, false, false, false, "", false, "");

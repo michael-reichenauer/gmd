@@ -33,7 +33,7 @@ class DiffService : IDiffService
             return e;
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
-            return R.Error("Failed to parse diff");
+            return new Error("Failed to parse diff");
 
         return commitDiffs[0];
     }
@@ -72,7 +72,7 @@ class DiffService : IDiffService
             + $" --find-renames --unified={contextLines} HEAD";
         if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
         { // The diff failed, reset the 'git add .' if needed
-            if (e.ErrorMessage.Contains("ambiguous argument 'HEAD': unknown revision"))
+            if (e.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
             {
                 if (!Try(out output, out e, await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd)))
                 {
@@ -101,7 +101,7 @@ class DiffService : IDiffService
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (!commitDiffs.Any())
         {
-            return R.Error("Failed to parse diff");
+            return new Error("Failed to parse diff");
         }
 
         return commitDiffs[0] with
@@ -119,7 +119,7 @@ class DiffService : IDiffService
         var commitDiffs = ParseCommitDiffs(output, path, false);
         if (!commitDiffs.Any())
         {
-            return R.Error("Failed to parse diff");
+            return new Error("Failed to parse diff");
         }
 
         return commitDiffs.ToArray();

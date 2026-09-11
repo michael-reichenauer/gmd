@@ -25,13 +25,13 @@ class BlameService : IBlameService
         var args = $"blame --porcelain {rev}-- \"{path}\"";
 
         var result = await cmd.RunAsync("git", args, wd, true);
-        if (result.ErrorOutput.Contains(MissingIgnoreRevsError))
+        if (result is CmdError cmdError && cmdError.ErrorOutput.Contains(MissingIgnoreRevsError))
         {
             // The repo's 'blame.ignoreRevsFile' names a file that is not there, which git treats as
             // fatal rather than as 'nothing to ignore'. Honoring that config is right, since it is
             // what git blame and the hosting sites do, but a missing text file should not cost the
             // whole view, so retry once with the setting cleared (an empty value clears the list).
-            Log.Warn($"blame.ignoreRevsFile could not be read, blaming without it: {result.ErrorOutput}");
+            Log.Warn($"blame.ignoreRevsFile could not be read, blaming without it: {cmdError.ErrorOutput}");
             result = await cmd.RunAsync("git", $"-c blame.ignoreRevsFile= {args}", wd);
         }
 
@@ -85,9 +85,9 @@ class BlameService : IBlameService
     {
         var parts = line.Split(' ');
         if (parts.Length < 3 || parts[0].Length != 40)
-            return R.Error($"Failed to parse blame header '{line}'");
+            return new Error($"Failed to parse blame header '{line}'");
         if (!int.TryParse(parts[1], out var originalLineNbr) || !int.TryParse(parts[2], out var finalLineNbr))
-            return R.Error($"Failed to parse blame header line numbers '{line}'");
+            return new Error($"Failed to parse blame header line numbers '{line}'");
 
         return (parts[0], originalLineNbr, finalLineNbr);
     }

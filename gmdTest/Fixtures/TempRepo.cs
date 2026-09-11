@@ -87,14 +87,14 @@ sealed class TempRepo : IDisposable
     // Fails the test if git does.
     public async Task<string> GitAsync(string args)
     {
-        var result = await cmd.RunAsync("git", args, Path);
+        var result = await cmd.RunRawAsync("git", args, Path);
         Assert.AreEqual(0, result.ExitCode, $"'git {args}' failed:\n{result.ErrorOutput}");
         return result.Output;
     }
 
     // As GitAsync, but for the commands that are expected to fail — creating a conflict means
     // running a 'git merge' or 'git rebase' that stops, and those exit non-zero.
-    public async Task<string> GitAllowFailAsync(string args) => (await cmd.RunAsync("git", args, Path)).Output;
+    public async Task<string> GitAllowFailAsync(string args) => (await cmd.RunRawAsync("git", args, Path)).Output;
 
     public void WriteFile(string name, string text) => File.WriteAllText(IOPath.Join(Path, name), text);
 
@@ -178,7 +178,7 @@ sealed class TempRepo : IDisposable
     public async Task AddOriginAsync()
     {
         originPath = Path + "-origin";
-        var result = await cmd.RunAsync("git", $"init --bare \"{originPath}\"", "");
+        var result = await cmd.RunRawAsync("git", $"init --bare \"{originPath}\"", "");
         Assert.AreEqual(0, result.ExitCode, $"'git init --bare' failed:\n{result.ErrorOutput}");
 
         await GitAsync($"remote add origin \"{originPath}\"");

@@ -44,7 +44,7 @@ public class FileBrowseDlg
         );
 
         if (selectedPath == "")
-            return R.Error();
+            return new Error();
 
         return selectedPath;
     }

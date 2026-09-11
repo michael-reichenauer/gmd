@@ -105,7 +105,7 @@ class WorktreesDlg : IWorktreesDlg
         UpdateForSelected();
 
         dlg.Show(list);
-        return choice != null ? choice : R.Error();
+        return choice != null ? choice : new Error();
     }
 
     Color ColorOf(Repo repo, Worktree w) =>

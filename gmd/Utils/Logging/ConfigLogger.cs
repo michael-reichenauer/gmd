@@ -62,7 +62,7 @@ static class ConfigLogger
             ?? "";
         prefixLength = rootPath.Length + 1;
         if (!Try(out var e, () => File.WriteAllText(LogPath, "")))
-            throw Asserter.FailFast(e.ErrorMessage);
+            throw Asserter.FailFast(e.Message);
     }
 
     static void LogDone(

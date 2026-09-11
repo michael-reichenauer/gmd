@@ -37,7 +37,7 @@ class InitRepoDlg : IInitRepoDlg
         dlg.Validate(() => pathField.Text != "", "Empty path is not allowed");
 
         if (!dlg.ShowOkCancel(pathField))
-            return R.Error();
+            return new Error();
 
         return pathField.Text;
     }

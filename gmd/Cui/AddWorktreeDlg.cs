@@ -148,7 +148,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
         UpdateIgnore();
 
         if (!dlg.ShowOkCancel(branch))
-            return R.Error();
+            return new Error();
 
         var isNew = IsNew();
         var ignoreFolder = ignore.Visible && ignore.Checked ? WorktreeLocations.IgnoreFolder(location) : "";

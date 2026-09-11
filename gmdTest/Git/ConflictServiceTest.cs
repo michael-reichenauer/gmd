@@ -145,7 +145,7 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "finished by committing");
+        StringAssert.Contains(e.Message, "finished by committing");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
 
@@ -161,7 +161,7 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "A revert is finished by committing it");
+        StringAssert.Contains(e.Message, "A revert is finished by committing it");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
 
@@ -189,7 +189,7 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "in progress");
+        StringAssert.Contains(e.Message, "in progress");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
 
@@ -214,7 +214,7 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).SkipOperationAsync(wd);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "no commit to skip");
+        StringAssert.Contains(e.Message, "no commit to skip");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
 
@@ -229,7 +229,7 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "stopped on more conflicts");
+        StringAssert.Contains(e.Message, "stopped on more conflicts");
     }
 
     // 'git diff --cached --check' reports whitespace problems as well as conflict markers, and
@@ -316,6 +316,6 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
         Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "unresolved conflicts");
+        StringAssert.Contains(e.Message, "unresolved conflicts");
     }
 }

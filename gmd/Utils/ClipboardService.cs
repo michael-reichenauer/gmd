@@ -52,12 +52,12 @@ class ClipboardService : IClipboardService
                 return R.Ok;
             }
 
-            failures.Add($"  {writer.Name}: {FirstLine(e.AllErrorMessages())}");
+            failures.Add($"  {writer.Name}: {FirstLine(e.AllMessages())}");
         }
 
         var message = $"Failed to copy to the clipboard.\n{failures.Join("\n")}\n{InstallHint(os)}";
         Log.Warn(message);
-        return R.Error(message);
+        return new Error(message);
     }
 
     // The ways to set the clipboard on this platform, in the order they are tried

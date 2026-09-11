@@ -10,7 +10,7 @@ record CmdCall(string Path, string Args, string WorkingDirectory, string Stdin =
 // Use like e.g.:
 //     var cmd = new FakeCmd(gitLogOutput);
 //     var log = new LogService(cmd);
-//     Assert.IsTrue(Try(out var commits, await log.GetLogAsync(100, "/wd")));
+//     var commits = AssertOk(await log.GetLogAsync(100, "/wd"));
 //     Assert.AreEqual("git", cmd.Calls[0].Path);
 class FakeCmd : ICmd
 {
@@ -26,29 +26,23 @@ class FakeCmd : ICmd
     // All calls made, in order, so tests can assert which git commands were run
     public List<CmdCall> Calls { get; } = [];
 
-    public static CmdResult Ok(string output) => new CmdResult("fake-cmd", output, "");
+    public static CmdResult Ok(string output) => new("fake-cmd", output, "");
 
-    public static CmdResult Fail(string errorOutput, int exitCode = 1) =>
-        new CmdResult("fake-cmd", exitCode, "", errorOutput);
+    public static CmdResult Fail(string errorOutput, int exitCode = 1) => new("fake-cmd", exitCode, "", errorOutput);
 
     // A non-zero exit whose findings are on stdout and whose stderr is empty, which is what a
     // command that reports problems rather than failing looks like — 'git diff --check' is one.
-    public static CmdResult Problems(string output, int exitCode = 2) =>
-        new CmdResult("fake-cmd", exitCode, output, "");
+    public static CmdResult Problems(string output, int exitCode = 2) => new("fake-cmd", exitCode, output, "");
 
-    public CmdResult Command(
+    public R<string> Command(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false
-    )
-    {
-        Calls.Add(new CmdCall(path, args, workingDirectory));
-        return respond(path, args, workingDirectory);
-    }
+    ) => CommandRaw(path, args, workingDirectory).ToResult();
 
-    public Task<CmdResult> RunAsync(
+    public Task<R<string>> RunAsync(
         string path,
         string args,
         string workingDirectory,
@@ -56,9 +50,23 @@ class FakeCmd : ICmd
         bool skipLog = false
     ) => Task.FromResult(Command(path, args, workingDirectory, skipLogError, skipLog));
 
-    public CmdResult CommandWithStdin(string path, string args, string stdinText)
+    public Task<CmdResult> RunRawAsync(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false
+    ) => Task.FromResult(CommandRaw(path, args, workingDirectory));
+
+    public R<string> CommandWithStdin(string path, string args, string stdinText)
     {
         Calls.Add(new CmdCall(path, args, "", stdinText));
-        return respond(path, args, "");
+        return respond(path, args, "").ToResult();
+    }
+
+    CmdResult CommandRaw(string path, string args, string workingDirectory)
+    {
+        Calls.Add(new CmdCall(path, args, workingDirectory));
+        return respond(path, args, workingDirectory);
     }
 }

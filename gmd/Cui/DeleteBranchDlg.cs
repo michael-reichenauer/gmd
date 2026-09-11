@@ -25,7 +25,7 @@ class DeleteBranchDlg : IDeleteBranchDlg
         var isForceCheck = dlg.AddCheckBox(1, 4, "Force Delete", false);
 
         if (!dlg.ShowOkCancel())
-            return R.Error();
+            return new Error();
 
         return new DeleteBranchResult(isLocalCheck.Checked, isRemoteCheck.Checked, isForceCheck.Checked);
     }

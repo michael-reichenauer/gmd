@@ -40,11 +40,11 @@ class BranchPushPullCommands : IBranchPushPullCommands
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
             if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pushing");
+                return new Error("Commit changes before pushing");
             if (branch == null)
-                return R.Error("No current branch to push");
+                return new Error("No current branch to push");
             if (!branch.HasLocalOnly)
-                return R.Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
+                return new Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
 
             if (branch.RemoteName != "")
             { // Cannot push local branch if remote needs to be pulled first
@@ -75,13 +75,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
                 if (!Try(out var ee, await server.PushCurrentBranchAsync(true, repo.Path)))
                 {
-                    return R.Error($"Failed to push branch:\n{branch.Name}", ee);
+                    return new Error($"Failed to push branch:\n{branch.Name}", ee);
                 }
             }
 
             if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
             {
-                return R.Error($"Failed to push branch:\n{branch.Name}", e);
+                return new Error($"Failed to push branch:\n{branch.Name}", e);
             }
 
             Refresh();
@@ -95,7 +95,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
             if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
             {
-                return R.Error($"Failed to publish branch:\n{branch.Name}", e);
+                return new Error($"Failed to publish branch:\n{branch.Name}", e);
             }
 
             Refresh();
@@ -107,7 +107,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             if (!Try(out var e, await server.PushBranchAsync(name, repo.Path)))
             {
-                return R.Error($"Failed to push branch:\n{name}", e);
+                return new Error($"Failed to push branch:\n{name}", e);
             }
 
             Refresh();
@@ -118,9 +118,9 @@ class BranchPushPullCommands : IBranchPushPullCommands
         Do(async () =>
         {
             if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pulling");
+                return new Error("Commit changes before pulling");
             if (!CanPush())
-                return R.Error("No local changes to push");
+                return new Error("No local changes to push");
 
             var branches = BranchesToPush(repo.Repo);
 
@@ -129,7 +129,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 if (!Try(out var e, await server.PushBranchAsync(b.Name, repo.Path)))
                 {
                     Refresh();
-                    return R.Error($"Failed to push branch {b.Name}", e);
+                    return new Error($"Failed to push branch {b.Name}", e);
                 }
             }
 
@@ -142,19 +142,19 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
             if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pulling");
+                return new Error("Commit changes before pulling");
             if (branch == null)
-                return R.Error("No current branch to pull");
+                return new Error("No current branch to pull");
             if (branch.RemoteName == "")
-                return R.Error("No current remote branch to pull");
+                return new Error("No current remote branch to pull");
 
             var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
             if (remoteBranch == null || !remoteBranch.HasRemoteOnly)
-                return R.Error("No remote changes on current branch to pull");
+                return new Error("No remote changes on current branch to pull");
 
             if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
             {
-                return R.Error($"Failed to pull current branch", e);
+                return new Error($"Failed to pull current branch", e);
             }
 
             Refresh();
@@ -166,7 +166,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             if (!Try(out var e, await server.PullBranchAsync(name, repo.Path)))
             {
-                return R.Error($"Failed to pull branch {name}", e);
+                return new Error($"Failed to pull branch {name}", e);
             }
 
             Refresh();
@@ -183,7 +183,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 // Need to treat current branch separately
                 if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
                 {
-                    return R.Error($"Failed to pull current branch", e);
+                    return new Error($"Failed to pull current branch", e);
                 }
                 currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
             }
@@ -202,14 +202,14 @@ class BranchPushPullCommands : IBranchPushPullCommands
             {
                 if (!Try(out var e, await server.PullBranchAsync(b.Name, repo.Path)))
                 {
-                    failed.Add($"{b.NiceNameUnique}: {e.AllErrorMessages()}");
+                    failed.Add($"{b.NiceNameUnique}: {e.AllMessages()}");
                 }
             }
 
             Refresh();
 
             if (failed.Any())
-                return R.Error($"Failed to pull:\n{string.Join("\n", failed)}");
+                return new Error($"Failed to pull:\n{string.Join("\n", failed)}");
             if (diverged.Any())
                 ShowDivergedMessage(diverged);
 

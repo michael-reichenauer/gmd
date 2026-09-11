@@ -47,6 +47,22 @@ public static class TaskExtensions
         );
     }
 
+    // A task whose result is an R is not faulted when that result is an error, so the overload
+    // above would drop the error silently. This one logs it.
+    public static void RunInBackground(this Task<R> task)
+    {
+        task.ContinueWith(
+            t =>
+            {
+                if (t.IsFaulted)
+                    FailedBackgroundTask(t);
+                else if (t.IsCompletedSuccessfully && t.Result is Error e)
+                    Log.Warn($"Background task failed: {e.AllMessages()}");
+            },
+            TaskContinuationOptions.ExecuteSynchronously
+        );
+    }
+
     private static void FailedBackgroundTask(Task task)
     {
         var e = new InvalidOperationException("RunInBackground task failed", task.Exception);

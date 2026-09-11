@@ -1,310 +1,268 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace gmd.Utils;
 
-// Result contains a few Try methods that return either a value or an error for functions
-// that return a R or R<T> type. This makes it possible to avoid using exceptions for flow control.
-// There are two Try methods that converts functions that can throw exceptions to functions that
-// return a R or R<T> type instead.
-// It is very convenient to declare a 'global using static gmd.Utils.Result;' in the global Usings.cs file.
-// Use like e.g.:
-// if (!Try(() => File.ReadAllText(path));
-public static class Result
+// Every fallible operation returns an R or an R<T>: a union of its value (or Success) and an Error,
+// matched on the case type. Exceptions are for bugs, not for flow control.
+//
+//   var result = await git.GetStatusAsync(wd);
+//   if (result is not Status status) return result.Error;
+//   ... status is a Status from here on
+//
+//   if (await git.SetValueAsync(key, json, wd) is Error e) return e;
+//
+//   return await server.PullAsync(name, wd) switch
+//   {
+//       Success => R.Ok,
+//       Error e => new Error("Failed to pull", e),
+//   };
+//
+//   var tags = await git.GetTagsAsync(wd) is IReadOnlyList<Tag> t ? t : [];
+//
+// R and R<T> are custom unions in the C# 15 sense: a struct with the [Union] attribute, one public
+// constructor per case type and an object Value. So a switch over one is exhaustive without a
+// discard arm (a missing arm is a build error), and a pattern applies to the contained value rather
+// than to the struct. The attribute is polyfilled while the target framework is net10.0, see
+// UnionPolyfill.cs.
+
+// The failure case of R and R<T>: a message, where it was created, and optionally the error or the
+// exception it wraps.
+public class Error
 {
-    // Returns true if the function returns a value, false if it returns an error.
-    // The value and the error are returned in the out parameter values.
-    // Use like e.g.:
-    // if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd))) return e;
-    public static bool Try<T>([NotNullWhen(true)] out T? value, [NotNullWhen(false)] out ErrorResult? e, R<T> result)
-    {
-        return R.Try(out value, out e, result);
-    }
-
-    // Returns true if the action/function succeeds, false if it returns an error.
-    // if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path))) return e;
-    public static bool Try([NotNullWhen(false)] out ErrorResult? e, R result)
-    {
-        return R.Try(out e, result);
-    }
-
-    // Returns true if the function returns a value, false if it returns an error.
-    // Use when the error value should be ignored.
-    // The value is returned in the out parameter values.
-    // Use like e.g.:
-    // if (!Try(out var output, await cmd.RunAsync("git", args, wd))) return e;
-    public static bool Try<T>([NotNullWhen(true)] out T? value, R<T> result)
-    {
-        return R.Try(out value, result);
-    }
-
-    // Returns true if the action/function succeeds, false if it returns an error.
-    // Use when the error value should be ignored.
-    // if (!Try(await git.SetValueAsync(metaDataKey, json, path))) return e;
-    public static bool Try(R result)
-    {
-        return R.Try(result);
-    }
-
-    // Returns true if the function returns a value, false if it throws an exception.
-    // This functions converts a function that can throw an exception to a function that returns a R<T> type instead.
-    // if (!Try(out string? text, out e, () => File.ReadAllText(tempFileName))) return e;
-    public static bool Try<T>([NotNullWhen(true)] out T? value, [NotNullWhen(false)] out ErrorResult? e, Func<T> func)
-    {
-        try
-        {
-            value = func()!;
-            e = null;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            e = R.Error(ex);
-            value = default;
-            return false;
-        }
-    }
-
-    // Returns true if the action succeeds, false if it throws an exception.
-    // This functions converts an action that can throw an exception to a action that returns a R type instead.
-    // if (!Try(out var e, () => File.Move(sourcePath, targetPath))) return e;
-    public static bool Try([NotNullWhen(false)] out ErrorResult? e, Action action)
-    {
-        try
-        {
-            action();
-            e = null;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            e = R.Error(ex);
-            return false;
-        }
-    }
-}
-
-// R and R<T> are a result types that can be used to return either a value or an error.
-// The R and R<t> are used together with the Try methods in the Result class.
-// The R and R<T> types are used to avoid using exceptions for flow control.
-// Se the Result class for more information.
-public class R
-{
-    protected static readonly Exception NoError = new Exception("No error");
-    protected static readonly Exception NoValueError = new Exception("No value");
-
-    protected R(Exception e)
-    {
-        resultException = e;
-    }
-
-    public static R Ok = Error(NoError);
-
-    public static bool Try<T>([NotNullWhen(true)] out T? value, [NotNullWhen(false)] out ErrorResult? e, R<T> result)
-    {
-        if (result.IsResultError)
-        {
-            value = default;
-            e = result.GetResultError();
-            return false;
-        }
-
-        value = result.GetResultValue()!;
-        e = default;
-        return true;
-    }
-
-    public static bool Try<T>([NotNullWhen(true)] out T? value, R<T> result)
-    {
-        if (result.IsResultError)
-        {
-            value = default;
-            return false;
-        }
-
-        value = result.GetResultValue()!;
-        return true;
-    }
-
-    public static bool Try([NotNullWhen(false)] out ErrorResult? e, R result)
-    {
-        if (result.IsResultError)
-        {
-            e = result.GetResultError();
-            return false;
-        }
-
-        e = default;
-        return true;
-    }
-
-    public static bool Try(R result)
-    {
-        if (result.IsResultError)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    public static ErrorResult Error(
+    public Error(
         string message = "",
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
-    ) => new ErrorResult(new Exception(message), memberName, sourceFilePath, sourceLineNumber);
+    )
+        : this(message, null, null, memberName, sourceFilePath, sourceLineNumber) { }
 
-    public static ErrorResult Error(
+    public Error(
         string message,
-        Exception e,
+        Error inner,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
-    ) => new ErrorResult(new Exception(message, e), memberName, sourceFilePath, sourceLineNumber);
+    )
+        : this(message, inner, null, memberName, sourceFilePath, sourceLineNumber) { }
 
-    public static ErrorResult Error(
+    public Error(
         string message,
-        R errorResult,
+        Exception exception,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
-    ) =>
-        new ErrorResult(
-            new Exception(message, errorResult.GetResultException()),
-            memberName,
-            sourceFilePath,
-            sourceLineNumber
-        );
+    )
+        : this(message, null, exception, memberName, sourceFilePath, sourceLineNumber) { }
 
-    public static ErrorResult Error(
-        R errorResult,
+    public Error(
+        Exception exception,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
-    ) =>
-        errorResult.IsResultError
-            ? new ErrorResult(errorResult.GetResultException(), memberName, sourceFilePath, sourceLineNumber)
-            : throw Asserter.FailFast("Was no error error");
+    )
+        : this(exception.Message, null, exception, memberName, sourceFilePath, sourceLineNumber) { }
 
-    public static ErrorResult Error(
-        Exception e,
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0
-    ) => new ErrorResult(e, memberName, sourceFilePath, sourceLineNumber);
-
-    internal string ErrorMessage =>
-        IsResultError ? resultException.Message : throw Asserter.FailFast("Result was not an error");
-
-    internal ErrorResult GetResultError() =>
-        IsResultError ? Error(resultException) : throw Asserter.FailFast("Result was not an error");
-
-    internal Exception GetResultException() => resultException;
-
-    public static implicit operator R(Exception e) => Error(e);
-
-    public static implicit operator bool(R r) => r.IsOk;
-
-    public override string ToString() => IsOk ? "OK" : $"Error: {resultException.Message}";
-
-    public string ToString(bool includeStack) => IsOk ? "OK" : $"Error: {AllErrorMessages()}\n{resultException}";
-
-    internal bool IsResultError
+    Error(
+        string message,
+        Error? inner,
+        Exception? exception,
+        string memberName,
+        string sourceFilePath,
+        int sourceLineNumber
+    )
     {
-        get
-        {
-            isErrorChecked = true;
-            return resultException != NoError;
-        }
+        Message = message;
+        Inner = inner;
+        Exception = exception;
+        Origin = $"{sourceFilePath}({sourceLineNumber}) {memberName}";
     }
 
-    protected Exception resultException;
+    public string Message { get; }
 
-    // protected Error Error => IsResultError ? Error(resultException) : throw Asserter.FailFast("Result was not an error");
-    protected bool IsOk => !IsResultError;
-    protected bool isErrorChecked = false;
+    // The error this one wraps, if any
+    public Error? Inner { get; }
 
-    internal string AllErrorMessages() => string.Join(",\n", AllMessageLines());
+    // The exception this one wraps, if any
+    public Exception? Exception { get; }
 
-    private IEnumerable<string> AllMessageLines()
+    // The file, line and member that created the error, since nothing is thrown and so there is no
+    // stack trace to tell
+    public string Origin { get; }
+
+    // This message and every wrapped one, outermost first, which is what a dialog shows
+    public string AllMessages() => string.Join(",\n", Messages());
+
+    IEnumerable<string> Messages()
     {
-        yield return resultException.Message;
+        yield return Message;
 
-        Exception? inner = resultException.InnerException;
-        while (inner != null)
+        if (Inner != null)
         {
-            yield return inner.Message;
-            inner = inner.InnerException;
+            foreach (var message in Inner.Messages())
+                yield return message;
         }
+
+        // An error created from an exception already has that exception's message as its own
+        var exception = Exception;
+        if (exception != null && exception.Message == Message)
+            exception = exception.InnerException;
+
+        for (; exception != null; exception = exception.InnerException)
+            yield return exception.Message;
     }
+
+    public override string ToString() => $"Error: {Message}";
 }
 
-public class R<T> : R
+// The success case of R
+public sealed class Success
 {
-    private readonly T? storedValue = default;
+    public static readonly Success Instance = new();
 
-    protected R(T value)
-        : base(NoError) => this.storedValue = value;
+    Success() { }
 
-    protected R(Exception error)
-        : base(error) { }
-
-    public T GetResultValue() =>
-        isErrorChecked
-            ? IsOk
-                ? storedValue!
-                : throw Asserter.FailFast(resultException.ToString())
-            : throw Asserter.FailFast("IsError or IsOk was never checked");
-
-    public T Or(T defaultValue) => IsResultError ? defaultValue : GetResultValue();
-
-    public override string ToString() => IsOk ? (storedValue?.ToString() ?? "") : base.ToString();
-
-    public static implicit operator R<T>(Exception e) => new R<T>(e);
-
-    public static implicit operator R<T>(ErrorResult error) => new R<T>(error.GetResultException());
-
-    public static implicit operator bool(R<T> r) => r.IsOk;
-
-    public static implicit operator R<T>(T value)
-    {
-        if (value == null)
-        {
-            throw Asserter.FailFast("Value cannot be null");
-        }
-
-        return new R<T>(value);
-    }
+    public override string ToString() => "OK";
 }
 
-public class ErrorResult : R
+// The result of an operation that either succeeds or fails: Success or Error
+[Union]
+public readonly struct R : IUnion
 {
-    internal ErrorResult(Exception e, string memberName, string sourceFilePath, int sourceLineNumber)
-        : base(AddStackTrace(e, ToStackTrace(memberName, sourceFilePath, sourceLineNumber))) { }
+    readonly object? value;
 
-    private ErrorResult(Exception e, string stackTrace)
-        : base(AddStackTrace(e, stackTrace)) { }
+    public R(Success success) => value = success;
 
-    private static string ToStackTrace(string memberName, string sourceFilePath, int sourceLineNumber) =>
-        $"at {sourceFilePath}({sourceLineNumber}){memberName}";
+    public R(Error error) => value = error;
 
-    private static Exception AddStackTrace(Exception exception, string stackTrace)
+    public static readonly R Ok = new(Success.Instance);
+
+    public object? Value => value;
+
+    public bool HasValue => value is not null;
+
+    public bool TryGetValue([MaybeNullWhen(false)] out Success success)
     {
-        if (stackTrace == null)
+        success = value as Success;
+        return success is not null;
+    }
+
+    public bool TryGetValue([MaybeNullWhen(false)] out Error error)
+    {
+        error = value as Error;
+        return error is not null;
+    }
+
+    public static implicit operator R(Error error) => new(error);
+
+    // Runs an action that reports failure by throwing, e.g. a file API, and returns the exception
+    // as an error. Every exception is caught, the fatal ones included, since bad input to such an
+    // API surfaces as an ArgumentException or an InvalidOperationException.
+    //
+    //   if (R.Catch(() => File.Move(source, target)) is Error e) return e;
+    public static R Catch(
+        Action action,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
+    {
+        try
         {
-            return exception;
+            action();
+            return Ok;
+        }
+        catch (Exception e)
+        {
+            return new Error(e, memberName, sourceFilePath, sourceLineNumber);
+        }
+    }
+
+    // Runs a function that reports failure by throwing and returns its value, or the exception as
+    // an error.
+    //
+    //   var text = R.Catch(() => File.ReadAllText(path));
+    //   if (text is not string content) return text.Error;
+    public static R<T> Catch<T>(
+        Func<T> func,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
+        where T : notnull
+    {
+        try
+        {
+            return func();
+        }
+        catch (Exception e)
+        {
+            return new Error(e, memberName, sourceFilePath, sourceLineNumber);
+        }
+    }
+
+    public override string ToString() =>
+        value switch
+        {
+            Error e => e.ToString(),
+            Success => "OK",
+            _ => "Unset",
+        };
+}
+
+// The result of an operation that either produces a value or fails: T or Error
+[Union]
+public readonly struct R<T> : IUnion
+    where T : notnull
+{
+    readonly object? value;
+
+    // A null value is not an error, it is a bug in the function returning it
+    public R(T value) => this.value = value ?? throw Asserter.FailFast("Value cannot be null");
+
+    public R(Error error) => value = error;
+
+    public object? Value => value;
+
+    public bool HasValue => value is not null;
+
+    public bool TryGetValue([MaybeNullWhen(false)] out T value)
+    {
+        if (this.value is T t)
+        {
+            value = t;
+            return true;
         }
 
-        FieldInfo? field = typeof(Exception).GetField(
-            "_remoteStackTraceString",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-
-        string? stack = (string?)field?.GetValue(exception);
-        stackTrace = string.IsNullOrEmpty(stack) ? stackTrace : $"{stackTrace}\n{stack}";
-        field?.SetValue(exception, stackTrace);
-        return exception;
+        value = default;
+        return false;
     }
+
+    public bool TryGetValue([MaybeNullWhen(false)] out Error error)
+    {
+        error = value as Error;
+        return error is not null;
+    }
+
+    // The error of a result already known to be one, i.e. right after a pattern ruled out the
+    // value; reading it on a value is a bug in the caller:
+    //
+    //   if (result is not Status status) return result.Error;
+    public Error Error => value as Error ?? throw Asserter.FailFast("Result is not an error");
+
+    public static implicit operator R<T>(T value) => new(value);
+
+    public static implicit operator R<T>(Error error) => new(error);
+
+    // Dropping the value keeps the outcome
+    public static implicit operator R(R<T> result) => result.value is Error e ? new R(e) : R.Ok;
+
+    public override string ToString() =>
+        value switch
+        {
+            Error e => e.ToString(),
+            null => "Unset",
+            _ => value.ToString() ?? "",
+        };
 }

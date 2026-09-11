@@ -14,7 +14,7 @@ static class CommandRunner
             {
                 if (!Try(out var e, await action()))
                 {
-                    UI.ErrorMessage($"{e.AllErrorMessages()}");
+                    UI.ErrorMessage($"{e.AllMessages()}");
                 }
             }
         });

@@ -62,7 +62,7 @@ class ConflictService : IConflictService
         // message instead. The UI offers Commit for all of these rather than this.
         var operation = StatusService.GetOperation(wd);
         if (operation != GitOperation.None && StatusService.IsFinishedByCommit(wd))
-            return R.Error($"A {ToName(operation).ToLower()} is finished by committing it, not by continuing.");
+            return new Error($"A {ToName(operation).ToLower()} is finished by committing it, not by continuing.");
 
         if (!Try(out var verb, out var e, OperationVerb(wd)))
             return e;
@@ -76,7 +76,7 @@ class ConflictService : IConflictService
 
         // Only the two that replay a series of commits have anything to skip
         if (operation != GitOperation.Rebase && operation != GitOperation.Am)
-            return R.Error($"{ToName(operation)} has no commit to skip.");
+            return new Error($"{ToName(operation)} has no commit to skip.");
 
         if (!Try(out var verb, out var e, OperationVerb(wd)))
             return e;
@@ -112,7 +112,7 @@ class ConflictService : IConflictService
             return new ConflictFile(path, kind, true, false, [], hasOurs, hasTheirs);
 
         if (!Try(out var bytes, out e, () => File.ReadAllBytes(fullPath)))
-            return R.Error($"Failed to read {path}", e);
+            return new Error($"Failed to read {path}", e);
 
         var hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
 
@@ -120,7 +120,7 @@ class ConflictService : IConflictService
         // of being silently rewritten with U+FFFD where it could not decode
         var encoding = new UTF8Encoding(false, true);
         if (!Try(out var text, out e, () => encoding.GetString(bytes, hasBom ? 3 : 0, bytes.Length - (hasBom ? 3 : 0))))
-            return R.Error($"{path} is not UTF-8 text, so it cannot be resolved here", e);
+            return new Error($"{path} is not UTF-8 text, so it cannot be resolved here", e);
 
         var parsed = ConflictParser.Parse(path, kind, text, hasBom);
         return parsed with { HasOurs = hasOurs, HasTheirs = hasTheirs };
@@ -155,7 +155,7 @@ class ConflictService : IConflictService
 
         var tempDir = System.IO.Path.Join(StatusService.GetGitDir(wd), $"gmd-conflict-{Guid.NewGuid():N}");
         if (!Try(out e, () => Directory.CreateDirectory(tempDir)))
-            return R.Error("Failed to create a scratch folder", e);
+            return new Error("Failed to create a scratch folder", e);
 
         try
         {
@@ -177,7 +177,7 @@ class ConflictService : IConflictService
                     out var withBases
                 )
             )
-                return R.Error(
+                return new Error(
                     $"The common ancestor of {file.Path} could not be matched to its conflicts.\n\n"
                         + "The file has been changed since git wrote the conflicts into it, so there is\n"
                         + "no way to tell which ancestor belongs to which conflict."
@@ -235,7 +235,7 @@ class ConflictService : IConflictService
 
         var mergedPath = System.IO.Path.Join(tempDir, oursFile);
         if (!Try(out var text, out e, () => File.ReadAllText(mergedPath)))
-            return R.Error("Failed to read the merged file", e);
+            return new Error("Failed to read the merged file", e);
 
         return text;
     }
@@ -263,7 +263,7 @@ class ConflictService : IConflictService
         // Before the ancestor is recovered below, not after: a file that no longer has the same
         // conflicts fails both checks, and this is the one that says which file and what changed
         if (file.Hunks.Count != choices.Count)
-            return R.Error(
+            return new Error(
                 $"{path} has changed on disk since it was opened "
                     + $"({file.Hunks.Count} conflicts now, {choices.Count} before).\n\n"
                     + "Close the resolver and open it again."
@@ -292,14 +292,14 @@ class ConflictService : IConflictService
     public async Task<R> WriteAsync(ConflictFile file, string wd)
     {
         if (file.IsBinary)
-            return R.Error($"{file.Path} is binary, so there is no text to write");
+            return new Error($"{file.Path} is binary, so there is no text to write");
 
         var fullPath = System.IO.Path.Join(wd, file.Path);
         var text = ConflictParser.ToText(file);
 
         // File.WriteAllText defaults to UTF-8 without a BOM, so a file that had one would lose it
         if (!Try(out var e, () => File.WriteAllText(fullPath, text, new UTF8Encoding(file.HasBom))))
-            return R.Error($"Failed to write {file.Path}", e);
+            return new Error($"Failed to write {file.Path}", e);
 
         return await MarkResolvedAsync(file.Path, wd);
     }
@@ -341,9 +341,9 @@ class ConflictService : IConflictService
     // space. Findings go to stdout; a real failure is what puts anything on stderr.
     public async Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd)
     {
-        var result = await cmd.RunAsync("git", "diff --cached --check", wd, skipLogError: true);
+        var result = await cmd.RunRawAsync("git", "diff --cached --check", wd, skipLogError: true);
         if (result.ErrorOutput != "")
-            return R.Error($"Failed to check for conflict markers\n{result.ErrorOutput}");
+            return new Error($"Failed to check for conflict markers\n{result.ErrorOutput}");
 
         return result
             .Output.Split('\n')
@@ -375,7 +375,7 @@ class ConflictService : IConflictService
             GitOperation.Revert => "revert",
             GitOperation.Rebase => "rebase",
             GitOperation.Am => "am",
-            _ => R.Error("No merge, rebase, cherry pick or revert is in progress."),
+            _ => new Error("No merge, rebase, cherry pick or revert is in progress."),
         };
     }
 
@@ -394,22 +394,22 @@ class ConflictService : IConflictService
     // normal shape of a rebase over several commits, and it can be refused because the conflict the
     // operation stopped on has not been resolved. Both come back as a non-zero exit, so they are
     // told apart by what git printed — the same sniffing BranchService does when starting one.
-    static R ToResult(CmdResult result, string verb)
+    static R ToResult(R<string> result, string verb)
     {
-        if (!result.IsResultError)
-            return R.Ok;
+        if (result is not CmdError e)
+            return result;
 
-        var output = $"{result.Output}\n{result.ErrorOutput}";
+        var output = $"{e.Output}\n{e.ErrorOutput}";
         if (output.Contains("CONFLICT"))
-            return R.Error($"The {verb} stopped on more conflicts.\nResolve them and continue again.", result);
+            return new Error($"The {verb} stopped on more conflicts.\nResolve them and continue again.", e);
 
         if (output.Contains("needs merge") || output.Contains("edit all merge conflicts"))
-            return R.Error(
+            return new Error(
                 $"Cannot continue the {verb} while there are unresolved conflicts.\n\n"
                     + "Resolve each conflicted file and mark it resolved, then continue.",
-                result
+                e
             );
 
-        return result;
+        return e;
     }
 }

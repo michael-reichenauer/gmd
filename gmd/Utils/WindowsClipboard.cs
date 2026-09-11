@@ -25,7 +25,7 @@ static class WindowsClipboard
     public static R TrySetText(string text)
     {
         if (!Build.IsWindows)
-            return R.Error("The Win32 clipboard is only available on Windows");
+            return new Error("The Win32 clipboard is only available on Windows");
 
         if (!Try(out var e, () => SetText(text)))
             return e;

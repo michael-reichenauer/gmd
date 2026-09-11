@@ -380,7 +380,7 @@ public class BranchServiceTest
         )
         {
             Assert.IsFalse(Try(out var e, result));
-            StringAssert.Contains(e.ErrorMessage, "Merge Conflicts!");
+            StringAssert.Contains(e.Message, "Merge Conflicts!");
         }
     }
 }
