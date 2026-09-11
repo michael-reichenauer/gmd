@@ -28,6 +28,12 @@ class UIDialog
 
     readonly List<Validation> validations = [];
 
+    // The spell checked inputs, whose red words the hint let into the frame of the multi line one
+    // counts; the hint is redrawn when any of them is
+    readonly List<Func<int>> misspelledCounts = [];
+    UILabel? spellHint;
+    int spellHintWidth;
+
     internal string Title { get; }
     internal Dim Width { get; }
     internal Dim Height { get; }
@@ -111,6 +117,11 @@ class UIDialog
             SpellChecker = spellChecker,
         };
         views.Add(textField);
+        if (spellChecker != null)
+        {
+            misspelledCounts.Add(() => textField.MisspelledCount);
+            textField.Redrawn += UpdateSpellHint;
+        }
 
         if (markers == InputMarkers.Left || markers == InputMarkers.Both)
         {
@@ -148,7 +159,22 @@ class UIDialog
         views.Add(textView);
 
         AddBorderView(textView, Color.Dark);
+        if (spellChecker != null)
+        {
+            spellHintWidth = w + 2;
+            spellHint = new UILabel(x - 1, y + h, SpellHint.Edge(0, spellHintWidth, Color.Dark), autosize: false);
+            views.Add(spellHint);
+            misspelledCounts.Add(() => textView.MisspelledCount);
+            textView.Redrawn += UpdateSpellHint;
+        }
         return textView;
+    }
+
+    void UpdateSpellHint()
+    {
+        if (spellHint == null)
+            return;
+        spellHint.Text = SpellHint.Edge(misspelledCounts.Sum(count => count()), spellHintWidth, Color.Dark);
     }
 
     internal UIComboTextField AddComboTextField(

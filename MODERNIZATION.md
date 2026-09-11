@@ -336,6 +336,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `BorderView` added over a text view or a list (it covers the whole rectangle, drawing only its
   edges) took every click, so the commit message body and the bordered lists never saw the mouse.
   `UIDialog.AddBorderView(view, …)` now inserts the border under the view it frames.
+- Only a view that is flagged gets redrawn, so a label drawn from another view's state (the spell
+  hint under the message body, from the inputs' red words) has to be flagged by that view: the
+  inputs raise `Redrawn` at the end of `Redraw`, and the label, added later so it comes later in
+  the subview order, is then drawn in the same pass. A label flagged before the view it follows
+  would draw one redraw behind.
 - Terminal.Gui 1.17.1 pinned a core from launch on Linux and macOS: `UnixMainLoop` drained the
   wrong end of its wakeup pipe, so `poll()` reported readable forever. Fixed upstream in 1.18.0
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.

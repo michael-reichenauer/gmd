@@ -41,7 +41,7 @@ class UILabel : View
         get => text;
         set
         {
-            Width = text.Length;
+            Width = value.Length;
             text = value;
             SetNeedsDisplay();
         }

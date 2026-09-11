@@ -23,7 +23,20 @@ class UITextView : TextView
 
     internal ISpellChecker? SpellChecker { get; set; }
 
+    // Raised after each redraw, for what is drawn from this view's state elsewhere, e.g. the hint
+    // under it that counts the red words
+    internal event Action? Redrawn;
+
     bool IsSpellCheck => SpellChecker?.IsEnabled == true;
+
+    // The misspelled words drawn red, i.e. all but the one being typed
+    internal int MisspelledCount =>
+        MisspelledLines()
+            .Select(
+                (spans, row) =>
+                    spans.Count(s => !(HasFocus && row == CurrentRow && SpellSpans.IsBeingTyped(s, CurrentColumn)))
+            )
+            .Sum();
 
     public override bool ProcessKey(KeyEvent keyEvent)
     {
@@ -75,6 +88,12 @@ class UITextView : TextView
     {
         get => new Border() { };
         set => base.Border = value;
+    }
+
+    public override void Redraw(Rect bounds)
+    {
+        base.Redraw(bounds);
+        Redrawn?.Invoke();
     }
 
     // Terminal.Gui's hook for coloring a rune of a line as it is drawn

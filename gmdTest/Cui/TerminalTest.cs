@@ -2131,7 +2131,7 @@ public class TerminalTest
                                    ││             │Select All                 Ctrl-T│                      ││
                                    ││             │Copy                        Alt-C│                      ││
                                    ││             │Cut                         Alt-W│                      ││
-                                   │└─────────────│Paste                      Ctrl-Y│──────────────────────┘│
+                                   │└─ 3 misspelle│Paste                      Ctrl-Y│estions ──────────────┘│
                                    │              │Undo                       Ctrl-Z│                       │
                                    ╰──────────────│Redo                       Ctrl-R│───────────────────────╯
                                                   ╰─────────────────────────────────╯
@@ -2159,7 +2159,7 @@ public class TerminalTest
                                    ││                   │Paste                    Ctrl-Y│                  ││
                                    ││                   │Undo                     Ctrl-Z│                  ││
                                    ││                   │Redo                     Ctrl-R│                  ││
-                                   │└───────────────────╰───────────────────────────────╯──────────────────┘│
+                                   │└─ 2 misspelled word╰───────────────────────────────╯ons ──────────────┘│
             """,
             ScreenText.Rows(gmd.WaitFor("Spelling Suggestions"), repo.Path, 16, 11)
         );
@@ -2178,6 +2178,60 @@ public class TerminalTest
         gmd.Send("Escape");
         gmd.WaitUntilGone("Summarize");
         Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the spelling menu was escaped");
+    }
+
+    // While any word is red, the bottom edge of the message frame says how many and how to get at
+    // the suggestions; otherwise it is the plain edge. It counts the subject as well as the body,
+    // follows the same rule as the color, i.e. a word still being typed is not counted, and keeps
+    // up with what the spelling menu does to the text.
+    [TestMethod]
+    public async Task TestCommitDialogSpellingHint()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+        Assert.AreEqual(
+            "                       │└──────────────────────────────────────────────────────────────────────┘│",
+            ScreenText.Rows(gmd.WaitForStable(), repo.Path, 26, 1),
+            "Nothing typed yet, so the plain edge"
+        );
+
+        gmd.SendText("Fix resonable issu");
+        ScreenText.AssertEqual(
+            """
+                                   │└─ 1 misspelled word, F7 or right-click for suggestions ───────────────┘│
+            """,
+            ScreenText.Rows(gmd.WaitFor("misspelled"), repo.Path, 26, 1)
+        );
+        Assert.AreEqual(
+            "                       -DD r rrrrrrrrrr rrrrD DD DD DDDDDDDDDDD DDD DDDDDDDDDDD DDDDDDDDDDDDDDDDm",
+            ScreenText.ColorRows(gmd.CaptureColors(), 26, 1),
+            "The count is red, the rest of the edge dark"
+        );
+
+        gmd.SendText(" "); // Finishes 'issu'
+        gmd.WaitFor("2 misspelled words");
+
+        gmd.Send("Tab"); // Into the message body
+        gmd.WaitForStable();
+        gmd.SendText("Sumerize the brnach");
+        gmd.WaitFor("3 misspelled words"); // 'brnach' is still being typed
+        gmd.Send("Left");
+        gmd.WaitFor("4 misspelled words");
+
+        // Replacing a word from the spelling menu is counted at once
+        gmd.Send("F7");
+        gmd.WaitFor("Add 'brnach' to dictionary");
+        gmd.Send("Enter");
+        gmd.WaitFor("Sumerize the branch");
+        ScreenText.AssertEqual(
+            """
+                                   │└─ 3 misspelled words, F7 or right-click for suggestions ──────────────┘│
+            """,
+            ScreenText.Rows(gmd.WaitFor("3 misspelled words"), repo.Path, 26, 1)
+        );
     }
 
     // 'Add to dictionary' teaches the checker a word for good: it stops being red at once, and it

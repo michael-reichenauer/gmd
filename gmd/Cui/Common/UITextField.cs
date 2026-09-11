@@ -18,7 +18,14 @@ class UITextField : TextField
 
     internal ISpellChecker? SpellChecker { get; set; }
 
+    // Raised after each redraw, for what is drawn from this view's state elsewhere, e.g. the hint
+    // that counts the red words
+    internal event Action? Redrawn;
+
     bool IsSpellCheck => SpellChecker?.IsEnabled == true;
+
+    // The misspelled words drawn red, i.e. all but the one being typed
+    internal int MisspelledCount => Misspelled().Count(s => !(HasFocus && SpellSpans.IsBeingTyped(s, CursorPosition)));
 
     public new string Text
     {
@@ -67,6 +74,12 @@ class UITextField : TextField
     public override void Redraw(Rect bounds)
     {
         base.Redraw(bounds);
+        DrawMisspelled();
+        Redrawn?.Invoke();
+    }
+
+    void DrawMisspelled()
+    {
         if (!IsSpellCheck || SelectedLength > 0)
             return;
 
