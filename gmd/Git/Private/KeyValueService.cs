@@ -19,8 +19,9 @@ class KeyValueService : IKeyValueService
 
     public async Task<R<string>> GetValueAsync(string key, string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true)))
-            return e;
+        var result = await cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true);
+        if (result is not string output)
+            return result.Error;
         return output;
     }
 
@@ -30,19 +31,20 @@ class KeyValueService : IKeyValueService
         try
         {
             // Store the temp file with key value in the git database (returns an object id)
-            if (!Try(out var e, () => File.WriteAllText(path, value)))
-                return e;
-            if (!Try(out var objectId, out e, await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true, true)))
-                return e;
+            if (R.Catch(() => File.WriteAllText(path, value)) is Error writeError)
+                return writeError;
+            var hashed = await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true, true);
+            if (hashed is not string objectId)
+                return hashed.Error;
             objectId = objectId.Trim();
 
             // Add a ref pointer to the stored object for easier retrieval
-            if (!Try(out e, await cmd.RunAsync("git", $"update-ref {KeyRef(key)} {objectId}", wd, true)))
-                return e;
+            if (await cmd.RunAsync("git", $"update-ref {KeyRef(key)} {objectId}", wd, true) is Error updateError)
+                return updateError;
         }
         finally
         {
-            if (!Try(out var e, () => File.Delete(path)))
+            if (R.Catch(() => File.Delete(path)) is Error e)
                 Log.Warn($"{e}");
         }
 
@@ -73,7 +75,7 @@ class KeyValueService : IKeyValueService
     string TmpFilePath(string wd)
     {
         var name = Path.GetRandomFileName();
-        var gitDir = Try(out var info, out var _, GitDir.Resolve(wd)) ? info.GitDirPath : Path.Join(wd, ".git");
+        var gitDir = GitDir.Resolve(wd) is GitDirInfo info ? info.GitDirPath : Path.Join(wd, ".git");
         return Path.Join(gitDir, $"gmd.tmp.{name}");
     }
 }

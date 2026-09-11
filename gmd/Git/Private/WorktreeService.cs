@@ -26,8 +26,9 @@ class WorktreeService : IWorktreeService
     // what it reads with newlines and trims the end, neither of which touches a NUL.
     public async Task<R<IReadOnlyList<Worktree>>> ListAsync(string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "worktree list --porcelain -z", wd)))
-            return e;
+        var result = await cmd.RunAsync("git", "worktree list --porcelain -z", wd);
+        if (result is not string output)
+            return result.Error;
 
         return Parse(output);
     }

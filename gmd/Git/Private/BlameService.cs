@@ -35,8 +35,8 @@ class BlameService : IBlameService
             result = await cmd.RunAsync("git", $"-c blame.ignoreRevsFile= {args}", wd);
         }
 
-        if (!Try(out var output, out var e, result))
-            return e;
+        if (result is not string output)
+            return result.Error;
 
         // Wrap parsing in separate task thread, since a large file might be a lot of lines to parse
         return await Task.Run(() => Parse(output, path, reference));
@@ -59,8 +59,9 @@ class BlameService : IBlameService
                 continue;
             }
 
-            if (!Try(out var header, out var e, ParseHeader(lines[i])))
-                return e;
+            var parsed = ParseHeader(lines[i]);
+            if (parsed is not BlameHeader header)
+                return parsed.Error;
             i++;
 
             i = ParseCommitBlock(lines, i, header.Id, path, commits);
@@ -80,8 +81,10 @@ class BlameService : IBlameService
         return new Blame(path, reference, blameLines, commits);
     }
 
+    record BlameHeader(string Id, int OriginalLineNbr, int FinalLineNbr);
+
     // A header line is '<40 char sha> <original line nbr> <final line nbr> [<lines in group>]'
-    static R<(string Id, int OriginalLineNbr, int FinalLineNbr)> ParseHeader(string line)
+    static R<BlameHeader> ParseHeader(string line)
     {
         var parts = line.Split(' ');
         if (parts.Length < 3 || parts[0].Length != 40)
@@ -89,7 +92,7 @@ class BlameService : IBlameService
         if (!int.TryParse(parts[1], out var originalLineNbr) || !int.TryParse(parts[2], out var finalLineNbr))
             return new Error($"Failed to parse blame header line numbers '{line}'");
 
-        return (parts[0], originalLineNbr, finalLineNbr);
+        return new BlameHeader(parts[0], originalLineNbr, finalLineNbr);
     }
 
     // Parses the key/value block after a header line and adds the commit if not already known.

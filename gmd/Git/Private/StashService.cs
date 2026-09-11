@@ -40,8 +40,9 @@ class StashService : IStashService
 
     public async Task<R<IReadOnlyList<Stash>>> ListAsync(string wd)
     {
-        if (!Try(out var stashes, out var e, await logService.GetStashListAsync(wd)))
-            return e;
+        var listed = await logService.GetStashListAsync(wd);
+        if (listed is not IReadOnlyList<Commit> stashes)
+            return listed.Error;
 
         return stashes.Select(ToStash).ToList();
     }

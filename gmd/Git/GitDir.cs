@@ -97,5 +97,5 @@ internal static class GitDir
         Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(relativeTo, path));
 
     static string ReadFirstLine(string path) =>
-        Try(out var text, out var _, () => File.ReadAllText(path)) ? text.Split('\n')[0].Trim() : "";
+        R.Catch(() => File.ReadAllText(path)) is string text ? text.Split('\n')[0].Trim() : "";
 }

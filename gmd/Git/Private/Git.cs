@@ -249,15 +249,16 @@ internal class Git : IGit
 
     public async Task<R<string>> Version()
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "version", "", true, true)))
-            return e;
+        var result = await cmd.RunAsync("git", "version", "", true, true);
+        if (result is not string output)
+            return result.Error;
 
         return output.TrimPrefix("git version ");
     }
 
     private async Task SetCurrentAuthorAsync(string path)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "config user.name", path, true, true)))
+        if (await cmd.RunAsync("git", "config user.name", path, true, true) is not string output)
             return;
         Log.Info($"user {output}");
         CurrentAuthor = output.Trim();
@@ -267,8 +268,9 @@ internal class Git : IGit
     // when nested inside the main repository's folder — see GitDir.
     public static R<string> RootPathDir(string path)
     {
-        if (!Try(out var gitDir, out var e, GitDir.Find(path)))
-            return e;
+        var found = GitDir.Find(path);
+        if (found is not GitDirInfo gitDir)
+            return found.Error;
         return gitDir.RootPath;
     }
 }

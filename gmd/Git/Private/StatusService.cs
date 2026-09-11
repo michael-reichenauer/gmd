@@ -27,8 +27,9 @@ class StatusService : IStatusService
 
     async Task<R<Status>> GetStatusAsync(string options, string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", options + StatusArgs, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", options + StatusArgs, wd);
+        if (result is not string output)
+            return result.Error;
 
         return Parse(output, wd);
     }
@@ -248,11 +249,10 @@ class StatusService : IStatusService
     // The real git dir of the working folder. Usually '<wd>/.git', but in a linked worktree and in
     // a submodule '.git' is a *file* holding 'gitdir: <path>' — and that is where the operation
     // state lives, so joining '.git' blindly would find none of it there. Empty if there is none.
-    internal static string GetGitDir(string wd) =>
-        Try(out var gitDir, out var _, GitDir.Resolve(wd)) ? gitDir.GitDirPath : "";
+    internal static string GetGitDir(string wd) => GitDir.Resolve(wd) is GitDirInfo gitDir ? gitDir.GitDirPath : "";
 
     static string ReadFirstLine(string path) =>
-        Try(out var text, out var _, () => File.ReadAllText(path)) ? text.Split('\n')[0].Trim() : "";
+        R.Catch(() => File.ReadAllText(path)) is string text ? text.Split('\n')[0].Trim() : "";
 
     static int ReadNumber(string path) => int.TryParse(ReadFirstLine(path), out var value) ? value : 0;
 

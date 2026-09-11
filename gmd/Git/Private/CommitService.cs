@@ -37,7 +37,7 @@ class CommitService : ICommitService
         var isOperationInProgress = StatusService.IsOperationInProgress(wd);
         if (!isOperationInProgress)
         {
-            if (!Try(out var _, out var e, await cmd.RunAsync("git", "add .", wd)))
+            if (await cmd.RunAsync("git", "add .", wd) is Error e)
                 return e;
         }
 
@@ -63,7 +63,7 @@ class CommitService : ICommitService
 
     public async Task<R> UndoAllUncommittedChangesAsync(string wd)
     {
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd)))
+        if (await cmd.RunAsync("git", "reset --hard", wd) is Error e)
             return e;
 
         return await cmd.RunAsync("git", "clean -fd", wd);
@@ -71,15 +71,15 @@ class CommitService : ICommitService
 
     public async Task<R> UndoUncommittedFileAsync(string path, string wd)
     {
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", $"checkout --force \"{path}\"", wd)))
+        if (await cmd.RunAsync("git", $"checkout --force \"{path}\"", wd) is Error e)
         {
             // Some error while restore file
             if (IsFileUnknown(e, path))
             {
                 // Was an unknown (new/added) file, we just remove it
                 var fullPath = Path.Combine(wd, path);
-                if (!Try(out e, () => File.Delete(fullPath)))
-                    return new Error("Failed to reset", e);
+                if (R.Catch(() => File.Delete(fullPath)) is Error deleteError)
+                    return new Error("Failed to reset", deleteError);
                 Log.Info($"File '{path}' (new/added) was removed");
                 return R.Ok;
             }
@@ -92,7 +92,7 @@ class CommitService : ICommitService
 
     public async Task<R> CleanWorkingFolderAsync(string wd)
     {
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", "reset --hard", wd)))
+        if (await cmd.RunAsync("git", "reset --hard", wd) is Error e)
             return e;
 
         return await cmd.RunAsync("git", "clean -fxd", wd);

@@ -54,8 +54,9 @@ class BranchService : IBranchService
     public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd)
     {
         var args = "branch -vv --no-color --no-abbrev --all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
 
         return ParseBranches(output);
     }

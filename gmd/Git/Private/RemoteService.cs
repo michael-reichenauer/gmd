@@ -49,11 +49,11 @@ class RemoteService : IRemoteService
         // single-branch clone stays one, and --prune prunes exactly what a plain fetch would.
         var refSpecs = (await GetConfiguredFetchRefSpecsAsync(wd)).Append(TagService.FetchRefSpec);
         var args = $"fetch --force --prune --tags origin {string.Join(' ', refSpecs)}";
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", args, wd, true)))
+        if (await cmd.RunAsync("git", args, wd, true) is Error e)
             return e;
 
         // Only after a fetch that worked: a failed fetch says nothing about what the remote has
-        if (!Try(out var pe, await tagService.PruneDeletedRemoteTagsAsync(tracked, wd)))
+        if (await tagService.PruneDeletedRemoteTagsAsync(tracked, wd) is Error pe)
             Log.Warn($"Failed to prune deleted remote tags, {pe}");
 
         return R.Ok;
@@ -64,7 +64,7 @@ class RemoteService : IRemoteService
     async Task<IReadOnlyList<string>> GetConfiguredFetchRefSpecsAsync(string wd)
     {
         var args = "config --get-all remote.origin.fetch";
-        if (!Try(out var output, await cmd.RunAsync("git", args, wd, true, true)))
+        if (await cmd.RunAsync("git", args, wd, true, true) is not string output)
             return [];
 
         return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

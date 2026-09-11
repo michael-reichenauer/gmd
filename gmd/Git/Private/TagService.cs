@@ -40,8 +40,10 @@ class TagService : ITagService
     {
         // --tags limits this to refs/tags/, so the tracked remote tags above are not included
         var args = "show-ref --dereference --tags";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd, true)))
+        var result = await cmd.RunAsync("git", args, wd, true);
+        if (result is not string output)
         {
+            var e = result.Error;
             if (e.Message.StartsWith("\n"))
             { // Empty tag list (no tags yet)
                 return new List<Tag>();
@@ -88,10 +90,12 @@ class TagService : ITagService
         if (tracked.Count == 0)
             return R.Ok;
 
-        if (!Try(out var remaining, out var e, await GetTrackedRemoteTagsAsync(wd)))
-            return e;
-        if (!Try(out var local, out var le, await GetRefsAsync("refs/tags/", 2, wd)))
-            return le;
+        var remainingResult = await GetTrackedRemoteTagsAsync(wd);
+        if (remainingResult is not IReadOnlyDictionary<string, string> remaining)
+            return remainingResult.Error;
+        var localResult = await GetRefsAsync("refs/tags/", 2, wd);
+        if (localResult is not IReadOnlyDictionary<string, string> local)
+            return localResult.Error;
 
         foreach (var (name, id) in tracked)
         {
@@ -100,7 +104,7 @@ class TagService : ITagService
             if (!local.TryGetValue(name, out var localId) || localId != id)
                 continue; // Already gone locally, or moved locally since it was seen
 
-            if (!Try(out var re, await RemoveTagAsync(name, wd)))
+            if (await RemoveTagAsync(name, wd) is Error re)
             {
                 Log.Warn($"Failed to delete local tag {name}, which was deleted on the remote, {re}");
                 continue;
@@ -122,8 +126,9 @@ class TagService : ITagService
     async Task<R<IReadOnlyDictionary<string, string>>> GetRefsAsync(string refPrefix, int stripCount, string wd)
     {
         var args = $"for-each-ref --format=\"%(objectname) %(refname:strip={stripCount})\" {refPrefix}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd, true)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd, true);
+        if (result is not string output)
+            return result.Error;
 
         Dictionary<string, string> refs = [];
         foreach (var line in output.Split('\n'))
