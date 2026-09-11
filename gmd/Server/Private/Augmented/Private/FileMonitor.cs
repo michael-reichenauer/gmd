@@ -180,7 +180,7 @@ class FileMonitor : IFileMonitor
 
         if (
             !Directory.Exists(workingFolder)
-            || !Try(out var gitDir, out var _, GitDir.Resolve(workingFolder))
+            || GitDir.Resolve(workingFolder) is not GitDirInfo gitDir
             || !Directory.Exists(gitDir.CommonDirPath)
         )
         {

@@ -34,8 +34,9 @@ class Server : IServer
 
     public async Task<R<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
-        if (!Try(out var augmentedRepo, out var e, await augmentedService.GetRepoAsync(path)))
-            return e;
+        var repoResult = await augmentedService.GetRepoAsync(path);
+        if (repoResult is not Repo augmentedRepo)
+            return repoResult.Error;
 
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
     }
@@ -44,8 +45,9 @@ class Server : IServer
     {
         var branches = repo.ViewBranches.Select(b => b.Name).ToArray();
 
-        if (!Try(out var augmentedRepo, out var e, await augmentedService.UpdateRepoStatusAsync(repo)))
-            return e;
+        var updated = await augmentedService.UpdateRepoStatusAsync(repo);
+        if (updated is not Repo augmentedRepo)
+            return updated.Error;
         return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
     }
 
@@ -186,8 +188,9 @@ class Server : IServer
                 ? git.GetUncommittedDiff(contextLines, wd)
                 : git.GetCommitDiffAsync(commitId, contextLines, wd);
 
-        if (!Try(out var gitCommitDiff, out var e, await diffTask))
-            return e;
+        var diff = await diffTask;
+        if (diff is not Git.CommitDiff gitCommitDiff)
+            return diff.Error;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }
@@ -200,14 +203,9 @@ class Server : IServer
         string wd
     )
     {
-        if (
-            !Try(
-                out var gitCommitDiff,
-                out var e,
-                await git.GetPreviewMergeDiffAsync(sha1, sha2, message, contextLines, wd)
-            )
-        )
-            return e;
+        var diff = await git.GetPreviewMergeDiffAsync(sha1, sha2, message, contextLines, wd);
+        if (diff is not Git.CommitDiff gitCommitDiff)
+            return diff.Error;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }
@@ -220,8 +218,9 @@ class Server : IServer
         string wd
     )
     {
-        if (!Try(out var gitCommitDiff, out var e, await git.GetDiffRangeAsync(sha1, sha2, message, contextLines, wd)))
-            return e;
+        var diff = await git.GetDiffRangeAsync(sha1, sha2, message, contextLines, wd);
+        if (diff is not Git.CommitDiff gitCommitDiff)
+            return diff.Error;
 
         return converter.ToCommitDiff(gitCommitDiff);
     }
@@ -232,15 +231,17 @@ class Server : IServer
 
     public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
-        if (!Try(out var gitCommitDiffs, out var e, await git.GetFileDiffAsync(path, contextLines, wd)))
-            return e;
+        var diffs = await git.GetFileDiffAsync(path, contextLines, wd);
+        if (diffs is not Git.CommitDiff[] gitCommitDiffs)
+            return diffs.Error;
         return converter.ToCommitDiffs(gitCommitDiffs);
     }
 
     public async Task<R<Blame>> GetBlameAsync(string path, string reference, string wd)
     {
-        if (!Try(out var gitBlame, out var e, await git.GetBlameAsync(path, reference, wd)))
-            return e;
+        var blame = await git.GetBlameAsync(path, reference, wd);
+        if (blame is not Git.Blame gitBlame)
+            return blame.Error;
         return converter.ToBlame(gitBlame);
     }
 
@@ -288,15 +289,17 @@ class Server : IServer
 
     public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName)
     {
-        if (!Try(out var commits, out var e, await augmentedService.MergeBranchAsync(repo, branchName)))
-            return e;
+        var merged = await augmentedService.MergeBranchAsync(repo, branchName);
+        if (merged is not IReadOnlyList<Commit> commits)
+            return merged.Error;
         return converter.ToViewCommits(commits).ToList();
     }
 
     public async Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
     {
-        if (!Try(out var commits, out var e, await augmentedService.MergeToBranchAsync(repo, targetName)))
-            return e;
+        var merged = await augmentedService.MergeToBranchAsync(repo, targetName);
+        if (merged is not IReadOnlyList<Commit> commits)
+            return merged.Error;
         return converter.ToViewCommits(commits).ToList();
     }
 
@@ -323,8 +326,9 @@ class Server : IServer
     // markers for — a modify/delete, a binary file — is in the list like any other.
     public async Task<R<ConflictState>> GetConflictStateAsync(string wd)
     {
-        if (!Try(out var status, out var e, await git.GetStatusAsync(wd)))
-            return e;
+        var statusResult = await git.GetStatusAsync(wd);
+        if (statusResult is not Git.Status status)
+            return statusResult.Error;
 
         return new ConflictState(
             Augmented.Private.StatusConverter.ToOperation(status.Operation),
@@ -337,11 +341,17 @@ class Server : IServer
     // Cui layer because the model that comes up is narrowed and cannot be converted back down.
     public async Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, bool isWithBase, string wd)
     {
-        if (!Try(out var file, out var e, await git.GetConflictFileAsync(path, ToGitConflictKind(kind), wd)))
-            return e;
+        var fileResult = await git.GetConflictFileAsync(path, ToGitConflictKind(kind), wd);
+        if (fileResult is not Git.ConflictFile file)
+            return fileResult.Error;
 
-        if (isWithBase && !Try(out file, out e, await git.WithBaseAsync(file, wd)))
-            return e;
+        if (isWithBase)
+        {
+            var withBase = await git.WithBaseAsync(file, wd);
+            if (withBase is not Git.ConflictFile fileWithBase)
+                return withBase.Error;
+            file = fileWithBase;
+        }
 
         return converter.ToConflictFile(file);
     }
@@ -433,8 +443,9 @@ class Server : IServer
 
     public async Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
-        if (!Try(out var diff, out var e, await git.GetStashDiffAsync(name, contextLines, wd)))
-            return e;
+        var diffResult = await git.GetStashDiffAsync(name, contextLines, wd);
+        if (diffResult is not Git.CommitDiff diff)
+            return diffResult.Error;
         return converter.ToCommitDiff(diff);
     }
 
@@ -442,8 +453,9 @@ class Server : IServer
 
     public async Task<R<string>> GetChangeLogAsync()
     {
-        if (!Try(out var repo, out var e, await GetRepoAsync("", new[] { "main" })))
-            return e;
+        var repoResult = await GetRepoAsync("", new[] { "main" });
+        if (repoResult is not Repo repo)
+            return repoResult.Error;
 
         var nextTag = "Current";
         var nextTagDate = DateTime.UtcNow;

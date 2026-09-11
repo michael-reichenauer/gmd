@@ -50,15 +50,16 @@ class BranchWriteService : IBranchWriteService
 
         using (fileMonitor.Pause())
         {
-            if (!Try(out var e, await git.CreateBranchAsync(newBranchName, isCheckout, wd)))
+            if (await git.CreateBranchAsync(newBranchName, isCheckout, wd) is Error e)
                 return e;
 
             if (currentCommit == null || currentBranch == null)
                 return R.Ok;
 
             // Get the latest meta data
-            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd)))
-                return e;
+            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
+            if (metaDataResult is not MetaData metaData)
+                return metaDataResult.Error;
 
             metaData.SetBranched(currentCommit.Sid, currentBranch.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
@@ -79,12 +80,13 @@ class BranchWriteService : IBranchWriteService
 
         using (fileMonitor.Pause())
         {
-            if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd)))
+            if (await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd) is Error e)
                 return e;
 
             // Get the latest meta data
-            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd)))
-                return e;
+            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
+            if (metaDataResult is not MetaData metaData)
+                return metaDataResult.Error;
 
             metaData.SetBranched(source.TipId, source.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
@@ -102,15 +104,16 @@ class BranchWriteService : IBranchWriteService
         Log.Info($"Create branch {newBranchName} from {sha} ...");
         using (fileMonitor.Pause())
         {
-            if (!Try(out var e, await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd)))
+            if (await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd) is Error e)
                 return e;
 
             Commit commit = repo.CommitById[sha];
             var branch = repo.BranchByName[commit.BranchName];
 
             // Get the latest meta data
-            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd)))
-                return e;
+            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
+            if (metaDataResult is not MetaData metaData)
+                return metaDataResult.Error;
 
             metaData.SetBranched(commit.Sid, branch.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
@@ -127,12 +130,13 @@ class BranchWriteService : IBranchWriteService
 
         using (fileMonitor.Pause())
         {
-            if (!Try(out var e, await git.RenameBranchAsync(oldName, newName, wd)))
+            if (await git.RenameBranchAsync(oldName, newName, wd) is Error e)
                 return e;
 
             // Get the latest meta data
-            if (!Try(out var metaData, out e, await metaDataService.GetMetaDataAsync(wd)))
-                return e;
+            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
+            if (metaDataResult is not MetaData metaData)
+                return metaDataResult.Error;
 
             metaData.RenameBranch(NiceName(oldName), NiceName(newName));
             return await metaDataService.SetMetaDataAsync(wd, metaData);
@@ -160,19 +164,21 @@ class BranchWriteService : IBranchWriteService
     {
         if (repo.CommitById.TryGetValue(name, out var commit))
         { // Merging from a commit
-            if (!Try(out var e2, await git.MergeBranchAsync(commit.Id, repo.Path)))
+            if (await git.MergeBranchAsync(commit.Id, repo.Path) is Error e2)
                 return e2;
-            if (!Try(out var commits2, out e2, await git.GetMergeLogAsync(commit.Id, repo.Path)))
-                return e2;
+            var merged = await git.GetMergeLogAsync(commit.Id, repo.Path);
+            if (merged is not IReadOnlyList<Git.Commit> commits2)
+                return merged.Error;
             return ToMergeCommits(repo, commits2).ToList();
         }
 
         var mergeName = YoungestTipName(repo, repo.BranchByName[name]);
 
-        if (!Try(out var e, await git.MergeBranchAsync(mergeName, repo.Path)))
+        if (await git.MergeBranchAsync(mergeName, repo.Path) is Error e)
             return e;
-        if (!Try(out var commits, out e, await git.GetMergeLogAsync(mergeName, repo.Path)))
-            return e;
+        var mergeLog = await git.GetMergeLogAsync(mergeName, repo.Path);
+        if (mergeLog is not IReadOnlyList<Git.Commit> commits)
+            return mergeLog.Error;
         return ToMergeCommits(repo, commits).ToList();
     }
 
@@ -192,15 +198,16 @@ class BranchWriteService : IBranchWriteService
             // The two failures are told apart, since they leave the user in very different places:
             // a failed checkout has not moved HEAD at all, while a conflicting merge has, and the
             // conflict then has to be resolved on the target branch.
-            if (!Try(out var e, await SwitchToAsync(repo, targetName)))
-                return new Error($"Failed to switch to '{targetName}'", e);
-            if (!Try(out e, await git.MergeBranchAsync(mergeName, repo.Path)))
-                return new Error($"Failed to merge '{mergeName}' while on '{targetName}'", e);
+            if (await SwitchToAsync(repo, targetName) is Error switchError)
+                return new Error($"Failed to switch to '{targetName}'", switchError);
+            if (await git.MergeBranchAsync(mergeName, repo.Path) is Error mergeError)
+                return new Error($"Failed to merge '{mergeName}' while on '{targetName}'", mergeError);
 
             // Now on the target branch, so this is the commits the merge brings in. An empty list
             // means the target was already up to date, i.e. the merge did nothing.
-            if (!Try(out var commits, out e, await git.GetMergeLogAsync(mergeName, repo.Path)))
-                return e;
+            var mergeLog = await git.GetMergeLogAsync(mergeName, repo.Path);
+            if (mergeLog is not IReadOnlyList<Git.Commit> commits)
+                return mergeLog.Error;
 
             return ToMergeCommits(repo, commits).ToList();
         }
@@ -216,13 +223,13 @@ class BranchWriteService : IBranchWriteService
 
             var newBase = YoungestTipName(repo, repo.BranchByName[name]);
 
-            if (!Try(out var e, await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path)))
+            if (await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path) is Error e)
                 return e;
 
             if (cb.RemoteName != "")
             { // Current Branch is local branch with a remote branch, push it with force
-                if (!Try(out e, await git.PushCurrentBranchAsync(true, repo.Path)))
-                    return e;
+                if (await git.PushCurrentBranchAsync(true, repo.Path) is Error pushError)
+                    return pushError;
             }
 
             return R.Ok;

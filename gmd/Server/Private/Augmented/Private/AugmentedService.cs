@@ -45,12 +45,14 @@ class AugmentedService : IAugmentedService
     // GetRepoAsync returns an augmented repo based on new git info like branches, commits, ...
     public async Task<R<Repo>> GetRepoAsync(string path)
     {
-        if (!Try(out var rootPath, out var e, git.RootPath(path)))
-            return e;
+        var rootPathResult = git.RootPath(path);
+        if (rootPathResult is not string rootPath)
+            return rootPathResult.Error;
 
         // Get a fresh new git repo (branches, commits, tags, status, ...)
-        if (!Try(out var gitRepo, out e, await GetGitRepoAsync(rootPath)))
-            return e;
+        var gitRepoResult = await GetGitRepoAsync(rootPath);
+        if (gitRepoResult is not GitRepo gitRepo)
+            return gitRepoResult.Error;
 
         // Return an augmented repo
         return await GetAugmentedRepoAsync(gitRepo);
@@ -60,8 +62,9 @@ class AugmentedService : IAugmentedService
     public async Task<R<Repo>> UpdateRepoStatusAsync(Repo repo)
     {
         // Get latest git status
-        if (!Try(out var gitStatus, out var e, await GetGitStatusAsync(repo.Path)))
-            return e;
+        var statusResult = await GetGitStatusAsync(repo.Path);
+        if (statusResult is not GitStatus gitStatus)
+            return statusResult.Error;
         Log.Info($"Git status {gitStatus}");
 
         // Returns the augmented repo with the new status
@@ -84,8 +87,9 @@ class AugmentedService : IAugmentedService
     // change between two reads of the same repo, so it is kept from the last one.
     public async Task<R<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo)
     {
-        if (!Try(out var gitWorktrees, out var e, await git.GetWorktreesAsync(repo.Path)))
-            return e;
+        var worktreesResult = await git.GetWorktreesAsync(repo.Path);
+        if (worktreesResult is not IReadOnlyList<Git.Worktree> gitWorktrees)
+            return worktreesResult.Error;
         var changes = await GetWorktreeChangesAsync(gitWorktrees, repo.Path);
 
         var currentPath = repo.Worktrees.FirstOrDefault(w => w.IsCurrent)?.Path ?? repo.Path;
@@ -222,26 +226,26 @@ class AugmentedService : IAugmentedService
         await Task.WhenAll(logTask, branchesTask, tagsTask, statusTask, metaDataTask, stashesTask, worktreesTask);
 
         // Check all tasks for errors
-        if (!Try(out var log, out var e, logTask.Result))
-            return e;
-        if (!Try(out var branches, out e, branchesTask.Result))
-            return e;
-        if (!Try(out var tags, out e, tagsTask.Result))
-            return e;
-        if (!Try(out var status, out e, statusTask.Result))
-            return e;
-        if (!Try(out var metaData, out e, metaDataTask.Result))
-            return e;
-        if (!Try(out var stashes, out e, stashesTask.Result))
-            return e;
+        if (logTask.Result is not IReadOnlyList<Git.Commit> log)
+            return logTask.Result.Error;
+        if (branchesTask.Result is not IReadOnlyList<Git.Branch> branches)
+            return branchesTask.Result.Error;
+        if (tagsTask.Result is not IReadOnlyList<Git.Tag> tags)
+            return tagsTask.Result.Error;
+        if (statusTask.Result is not GitStatus status)
+            return statusTask.Result.Error;
+        if (metaDataTask.Result is not MetaData metaData)
+            return metaDataTask.Result.Error;
+        if (stashesTask.Result is not IReadOnlyList<Git.Stash> stashes)
+            return stashesTask.Result.Error;
 
         // The worktrees are extra: a git too old to list them must not keep the repo from opening.
         // Only the list is read here. The changes of the other worktrees are a status run in each
         // of their folders, and that is read after the repo is shown (GetUpdatedWorktreesRepoAsync)
         // rather than before, so a cold index in a large worktree cannot delay showing this one.
-        if (!Try(out var worktrees, out e, worktreesTask.Result))
+        if (worktreesTask.Result is not IReadOnlyList<Git.Worktree> worktrees)
         {
-            Log.Warn($"Failed to list worktrees, {e}");
+            Log.Warn($"Failed to list worktrees, {worktreesTask.Result.Error}");
             worktrees = [];
         }
 
@@ -287,11 +291,11 @@ class AugmentedService : IAugmentedService
         others.ForEach(
             (w, i) =>
             {
-                if (Try(out var status, out var e, tasks[i].Result))
+                if (tasks[i].Result is GitStatus status)
                     changes[w.Path] =
                         status.Modified + status.Added + status.Deleted + status.Conflicted + status.Renamed;
                 else
-                    Log.Warn($"Failed to get status of worktree {w.Path}, {e}");
+                    Log.Warn($"Failed to get status of worktree {w.Path}, {tasks[i].Result.Error}");
             }
         );
         return changes;
@@ -323,8 +327,8 @@ class AugmentedService : IAugmentedService
 
             // Create a backup branch (in case of errors)
             var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
-            if (!Try(out var e, await git.CreateBranchAsync(tmpName, false, repo.Path)))
-                return new Error("Failed to create backup branch", e);
+            if (await git.CreateBranchAsync(tmpName, false, repo.Path) is Error backupError)
+                return new Error("Failed to create backup branch", backupError);
 
             // Remember commits before squash to be cherry picked back
             var preCommits = new List<Commit>();
@@ -340,28 +344,28 @@ class AugmentedService : IAugmentedService
             // Remove all prefix commits on current branch until the first commit to squash
             if (preCommits.Any())
             {
-                if (!Try(out e, await git.ResetHardUntilCommitAsync(id1, repo.Path)))
-                    return new Error("Failed to prepare for squash", e);
+                if (await git.ResetHardUntilCommitAsync(id1, repo.Path) is Error resetError)
+                    return new Error("Failed to prepare for squash", resetError);
             }
 
             // Squash commits and commit
-            if (!Try(out e, await git.UncommitUntilCommitAsync(c2.ParentIds[0], repo.Path)))
-                return new Error("Failed to squash commits", e);
-            if (!Try(out e, await git.CommitAllChangesAsync(message, false, repo.Path)))
-                return new Error("Failed to commit squashed commits", e);
+            if (await git.UncommitUntilCommitAsync(c2.ParentIds[0], repo.Path) is Error uncommitError)
+                return new Error("Failed to squash commits", uncommitError);
+            if (await git.CommitAllChangesAsync(message, false, repo.Path) is Error commitError)
+                return new Error("Failed to commit squashed commits", commitError);
 
             // Cherry pick prefix commits back to current branch
             foreach (var commit in preCommits.AsEnumerable().Reverse())
             {
-                if (!Try(out e, await git.CherryPickAsync(commit.Id, repo.Path)))
-                    return new Error($"Failed to cherry pick {commit.Sid}", e);
-                if (!Try(out e, await git.CommitAllChangesAsync(commit.Message, false, repo.Path)))
-                    return new Error($"Failed to commit cherry pick {commit.Sid}", e);
+                if (await git.CherryPickAsync(commit.Id, repo.Path) is Error pickError)
+                    return new Error($"Failed to cherry pick {commit.Sid}", pickError);
+                if (await git.CommitAllChangesAsync(commit.Message, false, repo.Path) is Error pickCommitError)
+                    return new Error($"Failed to commit cherry pick {commit.Sid}", pickCommitError);
             }
 
             // Remove temp backup branch
-            if (!Try(out e, await git.DeleteLocalBranchAsync(tmpName, true, repo.Path)))
-                return new Error("Failed to delete backup branch", e);
+            if (await git.DeleteLocalBranchAsync(tmpName, true, repo.Path) is Error deleteError)
+                return new Error("Failed to delete backup branch", deleteError);
         }
 
         return R.Ok;
@@ -374,8 +378,9 @@ class AugmentedService : IAugmentedService
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
-            if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path)))
-                return e;
+            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
+            if (metaDataResult is not MetaData metaData)
+                return metaDataResult.Error;
 
             metaData.SetCommitBranch(commitId.Sid(), setNiceName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
@@ -391,8 +396,9 @@ class AugmentedService : IAugmentedService
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
-            if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path)))
-                return e;
+            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
+            if (metaDataResult is not MetaData metaData)
+                return metaDataResult.Error;
 
             metaData.SetCommitBranch(ambiguousTip.Sid(), setHumanName);
             return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
@@ -404,8 +410,9 @@ class AugmentedService : IAugmentedService
         using (fileMonitor.Pause())
         {
             // Get the latest meta data
-            if (!Try(out var metaData, out var e, await metaDataService.GetMetaDataAsync(repo.Path)))
-                return e;
+            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
+            if (metaDataResult is not MetaData metaData)
+                return metaDataResult.Error;
 
             metaData.RemoveCommitBranch(commitId.Sid());
 
@@ -419,7 +426,7 @@ class AugmentedService : IAugmentedService
     {
         using (fileMonitor.Pause())
         {
-            if (!Try(out var e, await git.AddTagAsync(name, commitId, wd)))
+            if (await git.AddTagAsync(name, commitId, wd) is Error e)
                 return e;
             if (!hasRemoteBranch)
                 return R.Ok;
@@ -437,7 +444,7 @@ class AugmentedService : IAugmentedService
     {
         using (fileMonitor.Pause())
         {
-            if (!Try(out var e, await git.AddAnnotatedTagAsync(name, message, commitId, wd)))
+            if (await git.AddAnnotatedTagAsync(name, message, commitId, wd) is Error e)
                 return e;
             if (!hasRemoteBranch)
                 return R.Ok;
@@ -449,7 +456,7 @@ class AugmentedService : IAugmentedService
     {
         using (fileMonitor.Pause())
         {
-            if (!Try(out var e, await git.RemoveTagAsync(name, wd)))
+            if (await git.RemoveTagAsync(name, wd) is Error e)
                 return e;
             if (!hasRemoteBranch)
                 return R.Ok;
@@ -461,9 +468,7 @@ class AugmentedService : IAugmentedService
     async Task<R<GitStatus>> GetGitStatusAsync(string path)
     {
         fileMonitor.SetReadStatusTime(DateTime.UtcNow);
-        if (!Try(out var gitStatus, out var e, await git.GetStatusAsync(path)))
-            return e;
-        return gitStatus;
+        return await git.GetStatusAsync(path);
     }
 
     // GetAugmentedRepoAsync returns an augmented git repo, and monitors working folder changes
