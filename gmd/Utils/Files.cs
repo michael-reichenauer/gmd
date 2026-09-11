@@ -68,15 +68,17 @@ static class Files
 
     public static bool IsText(string path)
     {
-        if (!Try(out var isBinary, out var _, IsBinary(path)))
+        var isBinaryResult = IsBinary(path);
+        if (isBinaryResult is not bool isBinary)
             return false;
         return !isBinary;
     }
 
     public static R<string> GetEmbeddedFileContentText(string name)
     {
-        if (!Try(out var stream, out var e, GetEmbeddedFileStream(name)))
-            return e;
+        var streamResult = GetEmbeddedFileStream(name);
+        if (streamResult is not Stream stream)
+            return streamResult.Error;
 
         try
         {

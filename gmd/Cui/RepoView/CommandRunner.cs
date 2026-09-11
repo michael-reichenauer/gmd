@@ -12,7 +12,7 @@ static class CommandRunner
         {
             using (progress.Show())
             {
-                if (!Try(out var e, await action()))
+                if (await action() is Error e)
                 {
                     UI.ErrorMessage($"{e.AllMessages()}");
                 }

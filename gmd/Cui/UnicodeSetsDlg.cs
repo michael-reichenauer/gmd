@@ -41,7 +41,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
     {
         var text = contentView.CopySelectedText();
         Log.Info($"Copy: '{text}'");
-        if (!Try(out var e, clipboard.Set(text)))
+        if (clipboard.Set(text) is Error e)
             UI.ErrorMessage(e.AllMessages());
     }
 

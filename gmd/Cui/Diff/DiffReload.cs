@@ -13,10 +13,9 @@ static class DiffReloads
     // Wraps a server call returning a single diff, which is all of them except full file history.
     public static DiffReload Single(Func<int, Task<R<CommitDiff>>> getAsync) =>
         async contextLines =>
-        {
-            if (!Try(out var diff, out var e, await getAsync(contextLines)))
-                return e;
-
-            return new[] { diff };
-        };
+            await getAsync(contextLines) switch
+            {
+                CommitDiff diff => new[] { diff },
+                Error e => e,
+            };
 }

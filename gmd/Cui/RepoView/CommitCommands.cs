@@ -118,8 +118,9 @@ class CommitCommands : ICommitCommands
     public void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null) =>
         Do(async () =>
         {
-            if (!Try(out var result, out var e, await CommitAsync(isAmend, commits)))
-                return e;
+            var commitResult = await CommitAsync(isAmend, commits);
+            if (commitResult is not CommitResult result)
+                return commitResult.Error;
 
             if (result == CommitResult.Committed)
                 Refresh();
@@ -158,7 +159,7 @@ class CommitCommands : ICommitCommands
         if (!commitDlg.Show(repo, isAmend, commits, out var message))
             return CommitResult.Cancelled;
 
-        if (!Try(out var e, await server.CommitAllChangesAsync(message, isAmend, repo.Path)))
+        if (await server.CommitAllChangesAsync(message, isAmend, repo.Path) is Error e)
         {
             return new Error($"Failed to commit", e);
         }
@@ -242,8 +243,10 @@ class CommitCommands : ICommitCommands
                 reload = DiffReloads.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path));
             }
 
-            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not CommitDiff[] diffs)
             {
+                var e = diffsResult.Error;
                 return new Error($"Failed to get diff", e);
             }
 
@@ -252,7 +255,7 @@ class CommitCommands : ICommitCommands
             var conflicts = ConflictState.None;
             if (commitId == Repo.UncommittedId && !repo.Repo.Status.IsOk)
             {
-                if (Try(out var state, out var _, await server.GetConflictStateAsync(repo.Path)))
+                if (await server.GetConflictStateAsync(repo.Path) is ConflictState state)
                     conflicts = state;
             }
 
@@ -293,19 +296,19 @@ class CommitCommands : ICommitCommands
 
                 foreach (var commit in commits)
                 {
-                    if (!Try(out var e, await server.CherryPickAsync(commit.Id, repo.Path)))
+                    if (await server.CherryPickAsync(commit.Id, repo.Path) is Error pickError)
                     {
-                        return new Error($"Failed to cherry pick", e);
+                        return new Error($"Failed to cherry pick", pickError);
                     }
-                    if (!Try(out e, await server.CommitAllChangesAsync(commit.Message, false, repo.Path)))
+                    if (await server.CommitAllChangesAsync(commit.Message, false, repo.Path) is Error commitError)
                     {
-                        return new Error($"Failed to commit", e);
+                        return new Error($"Failed to commit", commitError);
                     }
                 }
             }
             else
             { // User selected one commit
-                if (!Try(out var e, await server.CherryPickAsync(sha, repo.Path)))
+                if (await server.CherryPickAsync(sha, repo.Path) is Error e)
                 {
                     return new Error($"Failed to cherry pick", e);
                 }
@@ -322,11 +325,12 @@ class CommitCommands : ICommitCommands
             if (repo.Repo.Status.IsOk)
                 return R.Ok;
             var commitMsg = repo.Repo.CurrentCommit().Subject;
-            if (!Try(out var msg, out var e, addStashDlg.Show()))
+            var msgResult = addStashDlg.Show();
+            if (msgResult is not string msg)
                 return R.Ok;
             msg = msg == "" ? commitMsg : msg;
 
-            if (!Try(out e, await server.StashAsync(msg, repo.Path)))
+            if (await server.StashAsync(msg, repo.Path) is Error e)
             {
                 return new Error($"Failed to stash changes", e);
             }
@@ -341,7 +345,7 @@ class CommitCommands : ICommitCommands
             if (!repo.Repo.Status.IsOk)
                 return R.Ok;
 
-            if (!Try(out var e, await server.StashPopAsync(name, repo.Path)))
+            if (await server.StashPopAsync(name, repo.Path) is Error e)
             {
                 return new Error($"Failed to pop stash {name}", e);
             }
@@ -354,8 +358,10 @@ class CommitCommands : ICommitCommands
         Do(async () =>
         {
             var reload = DiffReloads.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
-            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not CommitDiff[] diffs)
             {
+                var e = diffsResult.Error;
                 return new Error($"Failed to diff stash {name}", e);
             }
 
@@ -366,7 +372,7 @@ class CommitCommands : ICommitCommands
     public void StashDrop(string name) =>
         Do(async () =>
         {
-            if (!Try(out var e, await server.StashDropAsync(name, repo.Path)))
+            if (await server.StashDropAsync(name, repo.Path) is Error e)
             {
                 return new Error($"Failed to drop stash {name}", e);
             }
@@ -383,7 +389,7 @@ class CommitCommands : ICommitCommands
             var commit = repo.Repo.CommitById[id];
             var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
-            if (!Try(out var e, await server.UndoCommitAsync(id, parentIndex, repo.Path)))
+            if (await server.UndoCommitAsync(id, parentIndex, repo.Path) is Error e)
             {
                 return new Error($"Failed to undo commit", e);
             }
@@ -400,7 +406,7 @@ class CommitCommands : ICommitCommands
             if (!CanUncommitLastCommit())
                 return R.Ok;
 
-            if (!Try(out var e, await server.UncommitLastCommitAsync(repo.Path)))
+            if (await server.UncommitLastCommitAsync(repo.Path) is Error e)
             {
                 return new Error($"Failed to undo commit", e);
             }
@@ -414,7 +420,7 @@ class CommitCommands : ICommitCommands
         {
             var commit = repo.Repo.CommitById[id];
             var parentId = repo.Repo.CommitById[commit.ParentIds[0]].Id;
-            if (!Try(out var e, await server.UncommitUntilCommitAsync(parentId, repo.Path)))
+            if (await server.UncommitUntilCommitAsync(parentId, repo.Path) is Error e)
             {
                 return new Error($"Failed to undo commit", e);
             }
@@ -455,7 +461,7 @@ class CommitCommands : ICommitCommands
             if (!squashDlg.Show(repo, commits, out var message))
                 return R.Ok;
 
-            if (!Try(out var e, await server.SquashCommits(repo.Repo, id1, id2, message)))
+            if (await server.SquashCommits(repo.Repo, id1, id2, message) is Error e)
             {
                 return new Error("Failed to squash commits", e);
             }
@@ -484,7 +490,7 @@ class CommitCommands : ICommitCommands
     public void UndoUncommittedFile(string path) =>
         Do(async () =>
         {
-            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repo.Path)))
+            if (await server.UndoUncommittedFileAsync(path, repo.Path) is Error e)
             {
                 return new Error($"Failed to undo {path}", e);
             }
@@ -506,7 +512,7 @@ class CommitCommands : ICommitCommands
         var failedPath = new List<string>();
         foreach (var path in paths)
         {
-            if (!Try(out var _, await server.UndoUncommittedFileAsync(path, repo.Path)))
+            if (await server.UndoUncommittedFileAsync(path, repo.Path) is Error)
             {
                 failedPath.Add(path);
             }
@@ -527,22 +533,18 @@ class CommitCommands : ICommitCommands
             if (commit.IsUncommitted)
                 return R.Ok;
 
-            if (!Try(out var tag, addTagDlg.Show()))
+            if (addTagDlg.Show() is not TagInfo tag)
                 return R.Ok;
 
             if (tag.message == "")
             {
-                if (!Try(out var e, await server.AddTagAsync(tag.name, commit.Id, isPushable, repo.Path)))
+                if (await server.AddTagAsync(tag.name, commit.Id, isPushable, repo.Path) is Error e)
                     return new Error($"Failed to add tag {tag.name}", e);
             }
             else
             {
-                if (
-                    !Try(
-                        out var e,
-                        await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, isPushable, repo.Path)
-                    )
-                )
+                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, isPushable, repo.Path);
+                if (added is Error e)
                     return new Error($"Failed to add tag {tag.name} '{tag.message}'", e);
             }
 
@@ -557,7 +559,7 @@ class CommitCommands : ICommitCommands
             var branch = repo.Repo.BranchByName[commit.BranchName];
             var isPushable = branch.IsRemote || branch.RemoteName != "";
 
-            if (!Try(out var e, await server.RemoveTagAsync(name, isPushable, repo.Path)))
+            if (await server.RemoveTagAsync(name, isPushable, repo.Path) is Error e)
             {
                 return new Error($"Failed to delete tag {name}", e);
             }
@@ -576,20 +578,18 @@ class CommitCommands : ICommitCommands
                 ? (commit.BranchName, $"Select File of Branch {commit.BranchName}")
                 : (commit.Id, $"Select File of Commit {commit.Id.Sid()}");
 
-            if (!Try(out var files, out var e, await server.GetFileAsync(reference, repo.Path)))
-            {
-                return new Error($"Failed to get files", e);
-            }
+            var filesResult = await server.GetFileAsync(reference, repo.Path);
+            if (filesResult is not IReadOnlyList<string> files)
+                return new Error($"Failed to get files", filesResult.Error);
 
             var browser = new FileBrowseDlg();
-            if (!Try(out var path, browser.Show(files, title)))
+            if (browser.Show(files, title) is not string path)
                 return R.Ok;
 
             DiffReload reload = n => server.GetFileDiffAsync(path, n, repo.Path);
-            if (!Try(out var diffs, out e, await reload(DiffContext.Default)))
-            {
-                return new Error($"Failed to show file history", e);
-            }
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not CommitDiff[] diffs)
+                return new Error($"Failed to show file history", diffsResult.Error);
 
             diffView.Show(diffs, repo.Path, reload);
             return R.Ok;
@@ -605,13 +605,12 @@ class CommitCommands : ICommitCommands
                 ? (commit.BranchName, $"Blame File of Branch {commit.BranchName}")
                 : (commit.Id, $"Blame File of Commit {commit.Id.Sid()}");
 
-            if (!Try(out var files, out var e, await server.GetFileAsync(reference, repo.Path)))
-            {
-                return new Error($"Failed to get files", e);
-            }
+            var filesResult = await server.GetFileAsync(reference, repo.Path);
+            if (filesResult is not IReadOnlyList<string> files)
+                return new Error($"Failed to get files", filesResult.Error);
 
             var browser = new FileBrowseDlg();
-            if (!Try(out var path, browser.Show(files, title)))
+            if (browser.Show(files, title) is not string path)
                 return R.Ok;
 
             // Git blames a binary file as text, which arrives as mojibake. Only checked when the
@@ -624,23 +623,13 @@ class CommitCommands : ICommitCommands
             }
 
             var blameReference = commit.IsUncommitted ? "" : commit.Id;
-            if (!Try(out var blame, out e, await server.GetBlameAsync(path, blameReference, repo.Path)))
-            {
-                return new Error($"Failed to blame {path}", e);
-            }
+            var blameResult = await server.GetBlameAsync(path, blameReference, repo.Path);
+            if (blameResult is not Server.Blame blame)
+                return new Error($"Failed to blame {path}", blameResult.Error);
 
             UI.Post(() => blameView.Show(blame, repo.Repo));
             return R.Ok;
         });
-
-    // public void SquashHeadTo(string id) => Do(async () =>
-    // {
-    //     // if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, branchName)))
-    //     //     return new Error($"Failed to rebase branch {branchName}", e);
-
-    //     RefreshAndFetch();
-    //     return R.Ok;
-    // });
 
     void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
 

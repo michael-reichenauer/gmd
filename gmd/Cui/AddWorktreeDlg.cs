@@ -114,7 +114,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
 
         void Browse()
         {
-            if (!Try(out var folder, new FolderBrowseDlg().Show([mainRoot])) || folder == "")
+            if (new FolderBrowseDlg().Show([mainRoot]) is not string folder || folder == "")
                 return;
             browsedParent = folder.Trim();
             UpdatePath();

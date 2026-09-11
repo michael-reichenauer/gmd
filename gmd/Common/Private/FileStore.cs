@@ -32,7 +32,7 @@ class FileStore : IFileStore
         try
         {
             string json = JsonSerializer.Serialize(state, options);
-            if (!Try(out var e, () => File.WriteAllText(path, json)))
+            if (R.Catch(() => File.WriteAllText(path, json)) is Error e)
                 Asserter.FailFast(e.Message);
             cache[path] = state!;
         }
@@ -56,8 +56,9 @@ class FileStore : IFileStore
                 Write(path, (T)Activator.CreateInstance(typeof(T))!);
             }
 
-            if (!Try(out var json, out var e, () => File.ReadAllText(path)))
-                throw Asserter.FailFast(e.Message);
+            var jsonResult = R.Catch(() => File.ReadAllText(path));
+            if (jsonResult is not string json)
+                throw Asserter.FailFast(jsonResult.Error.Message);
             var state =
                 JsonSerializer.Deserialize<T>(json) ?? throw Asserter.FailFast($"Failed to deserialize '{path}'");
             cache[path] = state;

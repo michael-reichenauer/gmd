@@ -300,18 +300,20 @@ class BlameView : IBlameView
             return;
 
         var reload = DiffReloads.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path));
-        Server.CommitDiff[]? diffs;
+        Server.CommitDiff[] diffs;
         using (progress.Show())
         {
-            if (!Try(out diffs, out var e, await reload(DiffContext.Default)))
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not Server.CommitDiff[] loaded)
             {
-                UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
+                UI.ErrorMessage($"Failed to get diff\n{diffsResult.Error.AllMessages()}");
                 return;
             }
+            diffs = loaded;
         }
 
         // A read only view two dialogs deep cannot usefully act on the result, so it is ignored
-        diffView.Show(diffs![0], row.Commit.Id, repo.Path, reload, ConflictState.None);
+        diffView.Show(diffs[0], row.Commit.Id, repo.Path, reload, ConflictState.None);
         contentView.SetNeedsDisplay();
     }
 
@@ -348,17 +350,19 @@ class BlameView : IBlameView
 
     async Task<bool> ReBlameAsync(string path, string reference, int index, int startX)
     {
-        Server.Blame? newBlame;
+        Server.Blame newBlame;
         using (progress.Show())
         {
-            if (!Try(out newBlame, out var e, await server.GetBlameAsync(path, reference, repo.Path)))
+            var blameResult = await server.GetBlameAsync(path, reference, repo.Path);
+            if (blameResult is not Server.Blame loaded)
             {
-                UI.ErrorMessage($"Failed to blame {path}\n{e.AllMessages()}");
+                UI.ErrorMessage($"Failed to blame {path}\n{blameResult.Error.AllMessages()}");
                 return false;
             }
+            newBlame = loaded;
         }
 
-        blame = newBlame!;
+        blame = newBlame;
         blameRows = blameService.ToBlameRows(blame);
         rowStartX = startX;
         contentView.MoveToTop();
@@ -380,7 +384,7 @@ class BlameView : IBlameView
             blame.Lines.Skip(contentView.SelectStartIndex).Take(contentView.SelectCount).Select(l => l.Text)
         );
 
-        if (!Try(out var e, clipboard.Set(text)))
+        if (clipboard.Set(text) is Error e)
             UI.ErrorMessage(e.AllMessages());
 
         contentView.ClearSelection();
@@ -392,7 +396,7 @@ class BlameView : IBlameView
         if (row == null || row.Commit.IsUncommitted)
             return;
 
-        if (!Try(out var e, clipboard.Set(row.Commit.Id)))
+        if (clipboard.Set(row.Commit.Id) is Error e)
             UI.ErrorMessage(e.AllMessages());
     }
 

@@ -46,7 +46,7 @@ class ClipboardService : IClipboardService
 
         foreach (var writer in WritersFor(os, env))
         {
-            if (Try(out var e, writer.Set(text)))
+            if (writer.Set(text) is not Error e)
             {
                 Log.Info($"Copied {text.Length} chars to clipboard using {writer.Name}");
                 return R.Ok;

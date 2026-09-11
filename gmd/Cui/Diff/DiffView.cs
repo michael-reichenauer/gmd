@@ -308,17 +308,13 @@ class DiffView : IDiffView
         ConflictFile file;
         using (progress.Show())
         {
-            if (
-                !Try(
-                    out file!,
-                    out var e,
-                    await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath)
-                )
-            )
+            var read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath);
+            if (read is not ConflictFile conflictFile)
             {
-                UI.ErrorMessage($"Failed to open {conflict.Path}\n{e.AllMessages()}");
+                UI.ErrorMessage($"Failed to open {conflict.Path}\n{read.Error.AllMessages()}");
                 return;
             }
+            file = conflictFile;
         }
 
         if (conflictView.Show(file, conflictState.Operation, repoPath))
@@ -342,7 +338,7 @@ class DiffView : IDiffView
     {
         UI.RunInBackground(async () =>
         {
-            if (!Try(out var e, await server.RunDiffToolAsync(path, repoPath)))
+            if (await server.RunDiffToolAsync(path, repoPath) is Error e)
                 UI.ErrorMessage($"Failed to run diff tool\n{e.AllMessages()}");
         });
     }
@@ -351,7 +347,7 @@ class DiffView : IDiffView
     {
         UI.RunInBackground(async () =>
         {
-            if (!Try(out var e, await server.RunMergeToolAsync(path, repoPath)))
+            if (await server.RunMergeToolAsync(path, repoPath) is Error e)
                 UI.ErrorMessage($"Failed to run merger tool\n{e.AllMessages()}");
 
             RefreshDiff();
@@ -385,7 +381,7 @@ class DiffView : IDiffView
         {
             foreach (var path in binaryPaths)
             {
-                if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+                if (await server.UndoUncommittedFileAsync(path, repoPath) is Error e)
                 {
                     UI.ErrorMessage($"Failed to undo file:\n{path}\n{e.AllMessages()}");
                 }
@@ -399,7 +395,7 @@ class DiffView : IDiffView
     {
         using (progress.Show())
         {
-            if (!Try(out var e, await server.UndoUncommittedFileAsync(path, repoPath)))
+            if (await server.UndoUncommittedFileAsync(path, repoPath) is Error e)
             {
                 UI.ErrorMessage($"Failed to undo file\n{e.AllMessages()}");
             }
@@ -412,7 +408,7 @@ class DiffView : IDiffView
     {
         using (progress.Show())
         {
-            if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(repoPath)))
+            if (await server.UndoAllUncommittedChangesAsync(repoPath) is Error e)
             {
                 UI.ErrorMessage($"Failed to undo all changes\n{e.AllMessages()}");
             }
@@ -433,8 +429,10 @@ class DiffView : IDiffView
 
         using (progress.Show())
         {
-            if (!Try(out var fetched, out var e, await reload(wanted)))
+            var fetchedResult = await reload(wanted);
+            if (fetchedResult is not CommitDiff[] fetched)
             {
+                var e = fetchedResult.Error;
                 UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
                 return;
             }
@@ -481,8 +479,10 @@ class DiffView : IDiffView
 
         using (progress.Show())
         {
-            if (!Try(out var refreshed, out var e, await reload(DiffContext.Default)))
+            var refreshedResult = await reload(DiffContext.Default);
+            if (refreshedResult is not CommitDiff[] refreshed)
             {
+                var e = refreshedResult.Error;
                 UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
                 return;
             }
@@ -491,7 +491,7 @@ class DiffView : IDiffView
             // list would keep heading it 'Conflicts:' and keep offering it in the resolve menu
             if (commitId == Repo.UncommittedId)
             {
-                if (Try(out var state, out var _, await server.GetConflictStateAsync(repoPath)))
+                if (await server.GetConflictStateAsync(repoPath) is ConflictState state)
                     conflictState = state;
             }
 
@@ -688,7 +688,7 @@ class DiffView : IDiffView
                 .Select(r => DiffService.WithoutLineNbr(r.Text.ToString(), r.LineNbr))
         );
 
-        if (!Try(out var e, clipboard.Set(text)))
+        if (clipboard.Set(text) is Error e)
         {
             UI.ErrorMessage(e.AllMessages());
         }

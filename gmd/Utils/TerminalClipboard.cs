@@ -44,7 +44,7 @@ class TerminalClipboard : ITerminalClipboard
         // selection) and BEL terminates the string, which more terminals accept than ST does.
         var sequence = $"\u001b]52;c;{encoded}\u0007";
 
-        if (!Try(out var e, () => Write(sequence)))
+        if (R.Catch(() => Write(sequence)) is Error e)
             return new Error($"Failed to write to {TtyPath}", e);
 
         return R.Ok;

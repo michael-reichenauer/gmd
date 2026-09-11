@@ -2,9 +2,12 @@ using gmd.Cui.Common;
 
 namespace gmd.Cui;
 
+// What to clone and where to put it
+record CloneInfo(string Uri, string Path);
+
 interface ICloneDlg
 {
-    R<(string, string)> Show(IReadOnlyList<string> recentParentFolders);
+    R<CloneInfo> Show(IReadOnlyList<string> recentParentFolders);
 }
 
 class CloneDlg : ICloneDlg
@@ -13,7 +16,7 @@ class CloneDlg : ICloneDlg
 
     UITextField? path;
 
-    public R<(string, string)> Show(IReadOnlyList<string> recentParentFolders)
+    public R<CloneInfo> Show(IReadOnlyList<string> recentParentFolders)
     {
         var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
 
@@ -33,7 +36,7 @@ class CloneDlg : ICloneDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "")
+                if (browseDlg.Show(recentParentFolders) is not string path || path == "")
                     return;
                 SetBrowsedPath(uri.Text, path);
             }
@@ -45,7 +48,7 @@ class CloneDlg : ICloneDlg
         if (!dlg.ShowOkCancel(uri))
             return new Error();
 
-        return (uri.Text, path.Text);
+        return new CloneInfo(uri.Text, path.Text);
     }
 
     // Update path field when uri changes
@@ -54,7 +57,7 @@ class CloneDlg : ICloneDlg
         if (!basePath.EndsWith(Path.DirectorySeparatorChar))
             return;
 
-        if (!Try(out var name, TryParseRepoName(uri)))
+        if (TryParseRepoName(uri) is not string name)
             return;
 
         UpdatePathField(basePath, name);
@@ -65,7 +68,7 @@ class CloneDlg : ICloneDlg
     {
         path = path.Trim();
 
-        if (!Try(out var name, TryParseRepoName(uri)))
+        if (TryParseRepoName(uri) is not string name)
             return;
 
         string basePath = path + Path.DirectorySeparatorChar;

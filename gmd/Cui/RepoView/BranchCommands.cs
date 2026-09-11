@@ -186,7 +186,7 @@ class BranchCommands : IBranchCommands
                     return await OpenWorktreeAsync(worktreePath);
             }
 
-            if (!Try(out var e, await server.SwitchToAsync(repo.Repo, branchName)))
+            if (await server.SwitchToAsync(repo.Repo, branchName) is Error e)
             {
                 return new Error($"Failed to switch to {branchName}", e);
             }
@@ -207,8 +207,9 @@ class BranchCommands : IBranchCommands
     public void MergeBranch(string branchName) =>
         Do(async () =>
         {
-            if (!Try(out var commits, out var e, await server.MergeBranchAsync(repo.Repo, branchName)))
-                return new Error($"Failed to merge branch {branchName}", e);
+            var commitsResult = await server.MergeBranchAsync(repo.Repo, branchName);
+            if (commitsResult is not IReadOnlyList<Commit> commits)
+                return new Error($"Failed to merge branch {branchName}", commitsResult.Error);
 
             RefreshAndCommit("", "", commits);
             return R.Ok;
@@ -226,10 +227,11 @@ class BranchCommands : IBranchCommands
             var sourceName = serverRepo.CurrentBranch().Name;
             var source = serverRepo.CurrentBranch().ShortNiceUniqueName();
 
-            if (!Try(out var commits, out var e, await server.MergeToBranchAsync(serverRepo, targetName)))
+            var mergeResult = await server.MergeToBranchAsync(serverRepo, targetName);
+            if (mergeResult is not IReadOnlyList<Commit> commits)
             { // Left where it stopped, i.e. on the target if the merge conflicted, so show that
                 await repoView.RefreshAsync(targetName);
-                return new Error($"Failed to merge '{source}' into '{targetName}'", e);
+                return new Error($"Failed to merge '{source}' into '{targetName}'", mergeResult.Error);
             }
 
             // Every refresh here names the target, since the branch HEAD just moved to is not
@@ -238,8 +240,9 @@ class BranchCommands : IBranchCommands
 
             // The commit commands of the refreshed view, since the merge replaced the repo
             // snapshot, and the dialog is seeded from the merge message git just wrote
-            if (!Try(out var result, out e, await repoView.ViewRepo.CommitCmds.CommitAsync(false, commits)))
-                return new Error($"Failed to commit the merge on '{targetName}'", e);
+            var commitResult = await repoView.ViewRepo.CommitCmds.CommitAsync(false, commits);
+            if (commitResult is not CommitResult result)
+                return new Error($"Failed to commit the merge on '{targetName}'", commitResult.Error);
 
             if (result == CommitResult.Cancelled)
             { // The merge is still staged, and git cannot check out over it
@@ -248,7 +251,7 @@ class BranchCommands : IBranchCommands
                 return R.Ok;
             }
 
-            if (!Try(out e, await server.SwitchToAsync(serverRepo, sourceName)))
+            if (await server.SwitchToAsync(serverRepo, sourceName) is Error e)
                 return new Error($"Merged '{source}' into '{targetName}', but failed to switch back", e);
 
             await repoView.RefreshAsync(sourceName);
@@ -271,7 +274,7 @@ class BranchCommands : IBranchCommands
                 if (cb.TipId == rcb.TipId && rcb.BottomId == rcb.TipId) { }
             }
 
-            if (!Try(out var e, await server.RebaseBranchAsync(repo.Repo, onto)))
+            if (await server.RebaseBranchAsync(repo.Repo, onto) is Error e)
                 return new Error($"Failed to rebase branch {onto}", e);
 
             Refresh();
@@ -293,8 +296,10 @@ class BranchCommands : IBranchCommands
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
-            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not CommitDiff[] diffs)
             {
+                var e = diffsResult.Error;
                 return new Error($"Failed to get diff", e);
             }
 
@@ -323,8 +328,10 @@ class BranchCommands : IBranchCommands
             }
 
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha1, sha2, message, n, repo.Path));
-            if (!Try(out var diffs, out var e, await reload(DiffContext.Default)))
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not CommitDiff[] diffs)
             {
+                var e = diffsResult.Error;
                 return new Error($"Failed to get diff", e);
             }
 
@@ -353,24 +360,20 @@ class BranchCommands : IBranchCommands
 
             var possibleBranches = server.GetPossibleBranchNames(repo.Repo, commit.Id, 20);
 
-            if (
-                !Try(
-                    out var name,
-                    setBranchDlg.Show(commit.Sid, commit.IsBranchSetByUser, branch.NiceName, possibleBranches)
-                )
-            )
+            var nameResult = setBranchDlg.Show(commit.Sid, commit.IsBranchSetByUser, branch.NiceName, possibleBranches);
+            if (nameResult is not string name)
                 return R.Ok;
 
             if (name != "")
             {
-                if (!Try(out var e, await server.SetBranchManuallyAsync(repo.Repo, commit.Id, name ?? "")))
+                if (await server.SetBranchManuallyAsync(repo.Repo, commit.Id, name) is Error e)
                 {
                     return new Error($"Failed to set branch name manually", e);
                 }
             }
             else if (commit.IsBranchSetByUser)
             { // name is empty, lets unset name (if set)
-                if (!Try(out var ee, await server.UnresolveAmbiguityAsync(repo.Repo, commit.Id)))
+                if (await server.UnresolveAmbiguityAsync(repo.Repo, commit.Id) is Error ee)
                 {
                     return new Error($"Failed to unresolve ambiguity", ee);
                 }
@@ -417,7 +420,7 @@ class BranchCommands : IBranchCommands
         Do(async () =>
         {
             var commit = repo.RowCommit;
-            if (!Try(out var e, await server.SwitchToCommitAsync(commit.Id, repo.Path)))
+            if (await server.SwitchToCommitAsync(commit.Id, repo.Path) is Error e)
             {
                 return new Error($"Failed to switch to commit {commit.Id}", e);
             }

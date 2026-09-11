@@ -84,15 +84,10 @@ class SpellChecker : ISpellChecker
     {
         var t = Timing.Start();
         var source = config.SpellDictionary != "" ? config.SpellDictionary : DicResource;
-        if (
-            !Try(
-                out var list,
-                out var e,
-                config.SpellDictionary != "" ? LoadFiles(config.SpellDictionary) : LoadEmbedded()
-            )
-        )
+        var loaded = config.SpellDictionary != "" ? LoadFiles(config.SpellDictionary) : LoadEmbedded();
+        if (loaded is not WordList list)
         {
-            Log.Error($"Failed to load spell check dictionary '{source}', {e}");
+            Log.Error($"Failed to load spell check dictionary '{source}', {loaded.Error}");
             return null;
         }
 
@@ -105,16 +100,19 @@ class SpellChecker : ISpellChecker
 
     static R<WordList> LoadEmbedded()
     {
-        if (!Try(out var dic, out var e, Files.GetEmbeddedFileStream(DicResource)))
-            return e;
+        var dicResult = Files.GetEmbeddedFileStream(DicResource);
+        if (dicResult is not Stream dic)
+            return dicResult.Error;
         using (dic)
         {
-            if (!Try(out var aff, out e, Files.GetEmbeddedFileStream(AffResource)))
-                return e;
+            var affResult = Files.GetEmbeddedFileStream(AffResource);
+            if (affResult is not Stream aff)
+                return affResult.Error;
             using (aff)
             {
-                if (!Try(out var list, out e, () => WordList.CreateFromStreams(dic, aff)))
-                    return e;
+                var listResult = R.Catch(() => WordList.CreateFromStreams(dic, aff));
+                if (listResult is not WordList list)
+                    return listResult.Error;
                 return list;
             }
         }
@@ -123,8 +121,9 @@ class SpellChecker : ISpellChecker
     // A Hunspell dictionary on disk: the .dic path, with the .aff expected beside it
     static R<WordList> LoadFiles(string dicPath)
     {
-        if (!Try(out var list, out var e, () => WordList.CreateFromFiles(dicPath)))
-            return e;
+        var listResult = R.Catch(() => WordList.CreateFromFiles(dicPath));
+        if (listResult is not WordList list)
+            return listResult.Error;
         return list;
     }
 }

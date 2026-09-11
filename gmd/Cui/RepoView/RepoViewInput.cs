@@ -403,7 +403,7 @@ class RepoViewInput
     // nothing.
     void CopyToClipboard(string text)
     {
-        if (!Try(out var e, clipboard.Set(text)))
+        if (clipboard.Set(text) is Error e)
             UI.ErrorMessage(e.AllMessages());
     }
 

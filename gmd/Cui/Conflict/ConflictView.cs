@@ -367,11 +367,12 @@ class ConflictView : IConflictView
             using (progress.Show())
             {
                 var result = await server.GetConflictFileAsync(file.Path, file.Kind, true, repoPath);
-                if (!Try(out withBase!, out var e, result))
+                if (result is not ConflictFile read)
                 {
-                    UI.ErrorMessage($"Failed to get the common ancestor\n{e.AllMessages()}");
+                    UI.ErrorMessage($"Failed to get the common ancestor\n{result.Error.AllMessages()}");
                     return;
                 }
+                withBase = read;
             }
 
             // The decisions are held by conflict number, so a file that gained or lost conflicts
@@ -434,7 +435,7 @@ class ConflictView : IConflictView
                     resolution.ToResolutions(),
                     repoPath
                 );
-                if (!Try(out var e, result))
+                if (result is Error e)
                 {
                     UI.ErrorMessage($"Failed to resolve {file.Path}\n{e.AllMessages()}");
                     return;
@@ -473,14 +474,15 @@ class ConflictView : IConflictView
         using (progress.Show())
         {
             var result = await server.GetConflictFileAsync(file.Path, file.Kind, isShowBase, repoPath);
-            if (!Try(out reread!, out var e, result))
+            if (result is not ConflictFile read)
             {
                 // There is nothing left to show the file as, so staying open would show the one it
                 // no longer is
-                UI.ErrorMessage($"Failed to re-read {file.Path}\n{e.AllMessages()}");
+                UI.ErrorMessage($"Failed to re-read {file.Path}\n{result.Error.AllMessages()}");
                 Application.RequestStop();
                 return;
             }
+            reread = read;
         }
 
         if (reread.Hunks.Count == 0)
@@ -679,7 +681,7 @@ class ConflictView : IConflictView
         {
             using (progress.Show())
             {
-                if (!Try(out var e, await action()))
+                if (await action() is Error e)
                 {
                     UI.ErrorMessage($"Failed\n{e.AllMessages()}");
                     return;

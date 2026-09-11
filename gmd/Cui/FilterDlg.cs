@@ -187,10 +187,7 @@ class FilterDlg : IFilterDlg
             return;
         currentFilter = filter;
 
-        if (
-            filter != ""
-            && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults))
-        )
+        if (filter != "" && await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults) is Server.Repo filteredRepo)
         { // Got new filtered repo, update results
             currentRepo = filteredRepo;
             resultsView.MoveToTop();

@@ -150,7 +150,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     public async Task<R> ShowInitialRepoAsync(string path)
     {
-        if (!Try(out var e, await ShowRepoAsync(path)))
+        if (await ShowRepoAsync(path) is Error e)
             return e;
         UI.AddTimeout(fetchInterval, (_) => FetchFromRemote());
         UI.AddTimeout(
@@ -169,12 +169,13 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     public async Task<R> ShowRepoAsync(string path)
     {
-        if (!Try(out var rootDir, out var e, git.RootPath(path)))
-            return e;
+        var rootDirResult = git.RootPath(path);
+        if (rootDirResult is not string rootDir)
+            return rootDirResult.Error;
         Log.Info($"Show repo for '{path}' ({rootDir})");
 
         var branches = repoConfig.Get(rootDir).Branches;
-        if (!Try(out e, await ShowNewRepoAsync(rootDir, branches)))
+        if (await ShowNewRepoAsync(rootDir, branches) is Error e)
             return e;
         FetchFromRemote();
 
@@ -231,7 +232,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         var orgRepo = repo.Repo;
         var orgCommit = repo.RowCommit;
-        Try(out var commit, out var e, filterDlg.Show(repo.Repo, r => ShowFilteredRepo(r), commitsView));
+        var selected = filterDlg.Show(repo.Repo, r => ShowFilteredRepo(r), commitsView);
 
         // Show Commits view normal again
         isShowFilter = false;
@@ -240,7 +241,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         commitsView.SetNeedsDisplay();
         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
-        if (commit != null)
+        if (selected is Server.Commit commit)
         { // User selected a commit, show it
             ShowRepo(orgRepo);
             Refresh(commit.BranchName, commit.Id);
@@ -336,8 +337,10 @@ class RepoView : IRepoView, IRepoViewInputHost
     async Task ShowUpdatedWorktreesRepoAsync()
     {
         var shown = repo.Repo;
-        if (!Try(out var viewRepo, out var e, await server.GetUpdatedWorktreesRepoAsync(shown)))
+        var viewRepoResult = await server.GetUpdatedWorktreesRepoAsync(shown);
+        if (viewRepoResult is not Server.Repo viewRepo)
         {
+            var e = viewRepoResult.Error;
             Log.Warn($"Failed to update worktrees, {e}");
             return;
         }
@@ -375,8 +378,9 @@ class RepoView : IRepoView, IRepoViewInputHost
         using (progress.Show())
         {
             var t = Timing.Start();
-            if (!Try(out var viewRepo, out var e, await GetRepoAsync(path, showBranches)))
-                return e;
+            var viewRepoResult = await GetRepoAsync(path, showBranches);
+            if (viewRepoResult is not Server.Repo viewRepo)
+                return viewRepoResult.Error;
 
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
@@ -399,8 +403,10 @@ class RepoView : IRepoView, IRepoViewInputHost
                 branchNames.Add(addBranchName);
             }
 
-            if (!Try(out var viewRepo, out var e, await GetRepoAsync(repo.Repo.Path, branchNames)))
+            var viewRepoResult = await GetRepoAsync(repo.Repo.Path, branchNames);
+            if (viewRepoResult is not Server.Repo viewRepo)
             {
+                var e = viewRepoResult.Error;
                 UI.ErrorMessage($"Failed to refresh:\n{e}");
                 return;
             }
@@ -435,8 +441,10 @@ class RepoView : IRepoView, IRepoViewInputHost
         using (progress.Show())
         {
             var t = Timing.Start();
-            if (!Try(out var viewRepo, out var e, await GetUpdateStatusRepoAsync(repo.Repo)))
+            var viewRepoResult = await GetUpdateStatusRepoAsync(repo.Repo);
+            if (viewRepoResult is not Server.Repo viewRepo)
             {
+                var e = viewRepoResult.Error;
                 UI.ErrorMessage($"Failed to update status:\n{e}");
                 return;
             }

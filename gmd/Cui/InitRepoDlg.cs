@@ -28,7 +28,7 @@ class InitRepoDlg : IInitRepoDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "")
+                if (browseDlg.Show(recentParentFolders) is not string path || path == "")
                     return;
                 pathField.Text = path;
             }

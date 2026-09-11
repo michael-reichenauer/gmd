@@ -256,12 +256,12 @@ class Cmd : ICmd
                 // rejects its arguments can exit before this, which shows up as a broken pipe —
                 // its exit code and error output below say what actually went wrong, so a failed
                 // write is not the error to report.
-                if (!Try(out var writeError, () => WriteStdin(process, stdinText)))
+                if (R.Catch(() => WriteStdin(process, stdinText)) is Error writeError)
                     Log.Debug($"Failed to write stdin of {cmdText}, {writeError}");
 
                 if (!process.WaitForExit(StdinTimeoutMs))
                 {
-                    if (!Try(out var killError, () => process.Kill(true)))
+                    if (R.Catch(() => process.Kill(true)) is Error killError)
                         Log.Debug($"Failed to kill {cmdText}, {killError}");
 
                     Log.Debug($"Timeout: {cmdText} {t}]");

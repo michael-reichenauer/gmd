@@ -16,8 +16,10 @@ class HelpDlg : IHelpDlg
 
     public void Show()
     {
-        if (!Try(out var content, out var e, Files.GetEmbeddedFileContentText(helpFile)))
+        var contentResult = Files.GetEmbeddedFileContentText(helpFile);
+        if (contentResult is not string content)
         {
+            var e = contentResult.Error;
             UI.ErrorMessage($"Failed to read help file,\n{e}");
             return;
         }
