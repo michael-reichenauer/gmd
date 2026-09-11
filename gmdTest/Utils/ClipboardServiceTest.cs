@@ -92,7 +92,7 @@ public class ClipboardServiceTest
         var terminal = new FakeTerminalClipboard();
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsTrue(Try(out var e, clipboard.Set("some text", OSPlatform.OSX, NoEnv)), $"{e}");
+        AssertOk(clipboard.Set("some text", OSPlatform.OSX, NoEnv));
 
         Assert.AreEqual(1, cmd.Calls.Count);
         Assert.AreEqual("pbcopy", cmd.Calls[0].Path);
@@ -113,7 +113,7 @@ public class ClipboardServiceTest
         var terminal = new FakeTerminalClipboard();
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsTrue(Try(out var e, clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0")))), $"{e}");
+        AssertOk(clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0"))));
 
         CollectionAssert.AreEqual(new[] { "xclip", "xsel" }, cmd.Calls.Select(c => c.Path).ToArray());
         CollectionAssert.AreEqual(Array.Empty<string>(), terminal.Texts);
@@ -126,7 +126,7 @@ public class ClipboardServiceTest
         var terminal = new FakeTerminalClipboard();
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsTrue(Try(out var e, clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0")))), $"{e}");
+        AssertOk(clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0"))));
 
         CollectionAssert.AreEqual(new[] { "text" }, terminal.Texts);
     }
@@ -140,7 +140,7 @@ public class ClipboardServiceTest
         var terminal = new FakeTerminalClipboard(new Error("No /dev/tty"));
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsFalse(Try(out var e, clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0")))));
+        var e = AssertError(clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0"))));
 
         var message = e.AllMessages();
         StringAssert.Contains(message, "xclip -selection clipboard: Error: Can't open display");

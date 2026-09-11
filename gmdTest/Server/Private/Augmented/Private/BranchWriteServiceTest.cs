@@ -71,7 +71,7 @@ public class BranchWriteServiceTest
         var git = new FakeGit();
         var service = new BranchWriteService(git, new FakeFileMonitor(), new FakeMetaDataService(metaData));
 
-        Assert.IsTrue(Try(out var e, await service.RenameBranchAsync("origin/dev", "dev2", "/wd")), $"{e}");
+        AssertOk(await service.RenameBranchAsync("origin/dev", "dev2", "/wd"));
 
         CollectionAssert.AreEqual(new[] { "origin/dev -> dev2" }, git.RenameCalls);
         Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));

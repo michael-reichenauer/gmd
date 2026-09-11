@@ -54,7 +54,7 @@ public class BlameServiceTest
     {
         var blame = new BlameService(new FakeCmd(Out(output)));
         var result = await blame.GetBlameAsync("file.txt", reference, "/wd");
-        Assert.IsTrue(Try(out var b, out var e, result), $"GetBlameAsync failed: {e}");
+        var b = AssertOk(result);
         return b;
     }
 
@@ -223,7 +223,7 @@ public class BlameServiceTest
     {
         var blame = new BlameService(new FakeCmd(Out("not a blame header\n→some line")));
         var result = await blame.GetBlameAsync("file.txt", "HEAD", "/wd");
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected a parse error");
+        AssertError(result, "Expected a parse error");
     }
 
     [TestMethod]
@@ -231,7 +231,7 @@ public class BlameServiceTest
     {
         var blame = new BlameService(new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: no such path")));
         var result = await blame.GetBlameAsync("file.txt", "HEAD", "/wd");
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     [TestMethod]
@@ -264,7 +264,7 @@ public class BlameServiceTest
 
         var result = await blame.GetBlameAsync("file.txt", "HEAD", "/wd");
 
-        Assert.IsTrue(Try(out var b, out var e, result), $"Expected the retry to succeed: {e}");
+        var b = AssertOk(result);
         Assert.AreEqual(3, b.Lines.Count);
         Assert.AreEqual(2, cmd.Calls.Count);
         Assert.AreEqual("-c blame.ignoreRevsFile= blame --porcelain HEAD -- \"file.txt\"", cmd.Calls[1].Args);

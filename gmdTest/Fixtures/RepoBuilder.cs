@@ -346,8 +346,8 @@ class RepoBuilder
 
         // The uncommitted commit is added by the augmented service, i.e. after the converter
         var result = await NewAugmentedService().UpdateRepoStatusAsync(repo);
-        if (!Try(out var repoWithUncommitted, out var e, result))
-            throw new InvalidOperationException($"Failed to add the uncommitted commit: {e}");
+        if (result is not Repo repoWithUncommitted)
+            throw new InvalidOperationException($"Failed to add the uncommitted commit: {result.Error}");
 
         return repoWithUncommitted;
     }

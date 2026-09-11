@@ -38,7 +38,7 @@ public class ConflictServiceTest
         WriteGitFile("MERGE_MSG", "Some message\n");
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(Try(out var e, await new ConflictService(cmd).AbortOperationAsync(wd)), $"{e}");
+        AssertOk(await new ConflictService(cmd).AbortOperationAsync(wd));
 
         Assert.AreEqual(expected, cmd.Calls[0].Args);
         Assert.AreEqual(wd, cmd.Calls[0].WorkingDirectory);
@@ -52,7 +52,7 @@ public class ConflictServiceTest
         MakeGitDir(dir);
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(Try(out var e, await new ConflictService(cmd).AbortOperationAsync(wd)), $"{e}");
+        AssertOk(await new ConflictService(cmd).AbortOperationAsync(wd));
 
         Assert.AreEqual(expected, cmd.Calls[0].Args);
     }
@@ -79,7 +79,7 @@ public class ConflictServiceTest
         WriteGitFile("MERGE_MSG", "topic\n");
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(Try(out var e, await new ConflictService(cmd).AbortOperationAsync(wd)), $"{e}");
+        AssertOk(await new ConflictService(cmd).AbortOperationAsync(wd));
 
         Assert.AreEqual("reset --merge", cmd.Calls[0].Args);
         Assert.AreEqual(wd, cmd.Calls[0].WorkingDirectory);
@@ -105,7 +105,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).AbortOperationAsync(wd);
 
-        Assert.IsFalse(Try(out var _, result));
+        AssertError(result);
         Assert.AreEqual(0, cmd.Calls.Count, "Nothing to abort, so git is not run at all");
     }
 
@@ -118,7 +118,7 @@ public class ConflictServiceTest
         MakeGitDir("rebase-merge");
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(Try(out var e, await new ConflictService(cmd).ContinueOperationAsync(wd)), $"{e}");
+        AssertOk(await new ConflictService(cmd).ContinueOperationAsync(wd));
 
         Assert.AreEqual("rebase --continue", cmd.Calls[0].Args);
     }
@@ -144,7 +144,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
-        Assert.IsFalse(Try(out var e, result));
+        var e = AssertError(result);
         StringAssert.Contains(e.Message, "finished by committing");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
@@ -160,7 +160,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
-        Assert.IsFalse(Try(out var e, result));
+        var e = AssertError(result);
         StringAssert.Contains(e.Message, "A revert is finished by committing it");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
@@ -174,7 +174,7 @@ public class ConflictServiceTest
         MakeGitDir("sequencer");
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(Try(out var e, await new ConflictService(cmd).ContinueOperationAsync(wd)), $"{e}");
+        AssertOk(await new ConflictService(cmd).ContinueOperationAsync(wd));
 
         Assert.AreEqual("revert --continue", cmd.Calls[0].Args);
     }
@@ -188,7 +188,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
-        Assert.IsFalse(Try(out var e, result));
+        var e = AssertError(result);
         StringAssert.Contains(e.Message, "in progress");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
@@ -213,7 +213,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).SkipOperationAsync(wd);
 
-        Assert.IsFalse(Try(out var e, result));
+        var e = AssertError(result);
         StringAssert.Contains(e.Message, "no commit to skip");
         Assert.AreEqual(0, cmd.Calls.Count);
     }
@@ -228,7 +228,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
-        Assert.IsFalse(Try(out var e, result));
+        var e = AssertError(result);
         StringAssert.Contains(e.Message, "stopped on more conflicts");
     }
 
@@ -242,7 +242,7 @@ public class ConflictServiceTest
             (_, _, _) => FakeCmd.Problems("f.txt:2: trailing whitespace.\n+b   \ng.txt:9: space before tab in indent.")
         );
 
-        Assert.IsTrue(Try(out var paths, out var e, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        var paths = AssertOk(await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd));
         Assert.AreEqual(0, paths.Count, $"Whitespace is not a conflict marker: {string.Join(", ", paths)}");
     }
 
@@ -258,7 +258,7 @@ public class ConflictServiceTest
                 )
         );
 
-        Assert.IsTrue(Try(out var paths, out var e, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        var paths = AssertOk(await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd));
         CollectionAssert.AreEqual(new[] { "f.txt", "sub/g.txt" }, paths.ToArray());
         Assert.AreEqual("diff --cached --check", cmd.Calls[0].Args);
     }
@@ -271,7 +271,7 @@ public class ConflictServiceTest
             (_, _, _) => FakeCmd.Problems("f.txt:2: trailing whitespace.\n+trail   \nf.txt:3: leftover conflict marker")
         );
 
-        Assert.IsTrue(Try(out var paths, out var _, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        var paths = AssertOk(await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd));
         CollectionAssert.AreEqual(new[] { "f.txt" }, paths.ToArray());
     }
 
@@ -281,7 +281,7 @@ public class ConflictServiceTest
     {
         var cmd = new FakeCmd((_, _, _) => FakeCmd.Problems("od:d/f:1.txt:12: leftover conflict marker"));
 
-        Assert.IsTrue(Try(out var paths, out var _, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        var paths = AssertOk(await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd));
         CollectionAssert.AreEqual(new[] { "od:d/f:1.txt" }, paths.ToArray());
     }
 
@@ -290,7 +290,7 @@ public class ConflictServiceTest
     {
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(Try(out var paths, out var _, await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd)));
+        var paths = AssertOk(await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd));
         Assert.AreEqual(0, paths.Count);
     }
 
@@ -302,7 +302,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).GetLeftoverMarkerPathsAsync(wd);
 
-        Assert.IsFalse(Try(out var _, out var _, result));
+        AssertError(result);
     }
 
     [TestMethod]
@@ -315,7 +315,7 @@ public class ConflictServiceTest
 
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
-        Assert.IsFalse(Try(out var e, result));
+        var e = AssertError(result);
         StringAssert.Contains(e.Message, "unresolved conflicts");
     }
 }

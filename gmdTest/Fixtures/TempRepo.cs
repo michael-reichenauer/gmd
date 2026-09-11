@@ -18,7 +18,7 @@ namespace gmdTest.Fixtures;
 // Use like e.g.:
 //     using var repo = await TempRepo.CreateAsync();
 //     await repo.CommitFileAsync("file.txt", "text", "Initial");
-//     Assert.IsTrue(Try(out var log, out var e, await repo.Git.GetLogAsync(100, repo.Path)), $"{e}");
+//     var log = AssertOk(await repo.Git.GetLogAsync(100, repo.Path));
 sealed class TempRepo : IDisposable
 {
     // Both the temp folder name and the guard in Dispose, i.e. only folders named like this
@@ -103,7 +103,7 @@ sealed class TempRepo : IDisposable
     // Commits all changes in the working folder and returns the id of the new commit
     public async Task<string> CommitAsync(string message)
     {
-        Assert.IsTrue(Try(out var e, await Git.CommitAllChangesAsync(message, false, Path)), $"Commit failed: {e}");
+        AssertOk(await Git.CommitAllChangesAsync(message, false, Path));
         return await HeadIdAsync();
     }
 
@@ -214,7 +214,7 @@ sealed class TempRepo : IDisposable
 
     async Task InitAsync()
     {
-        Assert.IsTrue(Try(out var e, await Git.InitRepoAsync(Path, "")), $"Init failed: {e}");
+        AssertOk(await Git.InitRepoAsync(Path, ""));
 
         // The initial branch name is a user setting (init.defaultBranch), so it is named
         // explicitly to keep the fixture identical on every machine. HEAD is unborn at this
@@ -254,7 +254,7 @@ sealed class TempRepo : IDisposable
 
         // A failed cleanup should not fail a test, the folder is in temp and will be cleaned by
         // the system eventually
-        if (!Try(out var e, () => Directory.Delete(path, true)))
+        if (R.Catch(() => Directory.Delete(path, true)) is Error e)
             Log.Warn($"Failed to delete temp repo '{path}', {e}");
     }
 }

@@ -70,7 +70,7 @@ public class StatusServiceTest
     {
         var service = new StatusService(new FakeCmd(output));
         var result = await service.GetStatusAsync(wd);
-        Assert.IsTrue(Try(out var status, out var e, result), $"GetStatusAsync failed: {e}");
+        var status = AssertOk(result);
         return status;
     }
 
@@ -407,7 +407,7 @@ public class StatusServiceTest
 
         var result = await service.GetStatusAsync(wd);
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     [TestMethod]

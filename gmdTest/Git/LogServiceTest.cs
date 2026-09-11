@@ -20,7 +20,7 @@ public class LogServiceTest
     {
         var log = new LogService(new FakeCmd(output));
         var result = await log.GetLogAsync(100, "/wd");
-        Assert.IsTrue(Try(out var commits, out var e, result), $"GetLogAsync failed: {e}");
+        var commits = AssertOk(result);
         return commits;
     }
 
@@ -147,7 +147,7 @@ public class LogServiceTest
 
         var result = await log.GetLogAsync(100, "/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected a parse error");
+        AssertError(result, "Expected a parse error");
     }
 
     [TestMethod]
@@ -157,7 +157,7 @@ public class LogServiceTest
 
         var result = await log.GetLogAsync(100, "/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     [TestMethod]

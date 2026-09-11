@@ -63,7 +63,7 @@ public class GitIntegrationTest
         await repo.CommitFileAsync("file.txt", "text\n", "Initial");
         var path = repo.WorktreePath("dev");
 
-        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        AssertOk(await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path));
         repo.TrackFolder(path);
 
         var worktrees = Value(await repo.Git.GetWorktreesAsync(repo.Path));
@@ -87,9 +87,9 @@ public class GitIntegrationTest
 
         // Uncommitted changes in the worktree: refused unless forced
         File.WriteAllText(Path.Join(path, "new.txt"), "text\n");
-        Assert.IsFalse(Try(out e, await repo.Git.RemoveWorktreeAsync(path, false, repo.Path)));
+        var e = AssertError(await repo.Git.RemoveWorktreeAsync(path, false, repo.Path));
         StringAssert.Contains(e.Message, "--force");
-        Assert.IsTrue(Try(out e, await repo.Git.RemoveWorktreeAsync(path, true, repo.Path)), $"{e}");
+        AssertOk(await repo.Git.RemoveWorktreeAsync(path, true, repo.Path));
 
         Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
         Assert.IsFalse(Directory.Exists(path));
@@ -106,7 +106,7 @@ public class GitIntegrationTest
     {
         await repo.CommitFileAsync("file.txt", "text\n", "Initial");
         var path = repo.WorktreePath("dev");
-        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        AssertOk(await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path));
         repo.TrackFolder(path);
 
         // Same content, different stat data: a refresh finds the file unchanged and writes the
@@ -137,7 +137,7 @@ public class GitIntegrationTest
         Assert.IsTrue(worktrees[1].IsPrunable);
         Assert.AreNotEqual("", worktrees[1].PruneReason);
 
-        Assert.IsTrue(Try(out var e, await repo.Git.PruneWorktreesAsync(repo.Path)), $"{e}");
+        AssertOk(await repo.Git.PruneWorktreesAsync(repo.Path));
 
         Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
     }
@@ -290,7 +290,7 @@ public class GitIntegrationTest
 
         var result = await repo.Git.RenameBranchAsync("dev", "main", repo.Path);
 
-        Assert.IsFalse(Try(out var _, result), "Expected the rename to be refused");
+        AssertError(result, "Expected the rename to be refused");
         var branches = Value(await repo.Git.GetBranchesAsync(repo.Path));
         Assert.AreEqual("dev, main", string.Join(", ", branches.Select(b => b.Name)));
     }
@@ -865,7 +865,7 @@ public class GitIntegrationTest
             var finished = await Task.WhenAny(continued, Task.Delay(TimeSpan.FromSeconds(30)));
 
             Assert.AreSame(continued, finished, "'rebase --continue' hung waiting for an editor");
-            Assert.IsTrue(Try(out var e, await continued), $"{e}");
+            AssertOk(await continued);
         }
         finally
         {
@@ -1009,7 +1009,7 @@ public class GitIntegrationTest
         await repo.Git.MergeBranchAsync("dev", repo.Path);
 
         var result = await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path);
-        Assert.IsTrue(Try(out var file, out var e, result), $"{e}");
+        var file = AssertOk(result);
         return file;
     }
 
@@ -1262,7 +1262,7 @@ public class GitIntegrationTest
 
         var result = await repo.Git.WithBaseAsync(edited, repo.Path);
 
-        Assert.IsFalse(Try(out var _, out var e, result), "An ancestor that cannot be matched is not an answer");
+        var e = AssertError(result, "An ancestor that cannot be matched is not an answer");
         StringAssert.Contains(e.Message, "could not be matched to its conflicts");
     }
 

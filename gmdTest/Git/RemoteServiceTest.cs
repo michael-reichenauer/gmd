@@ -110,7 +110,7 @@ public class RemoteServiceTest
 
         var result = await NewService(cmd).FetchAsync("/wd");
 
-        Assert.IsFalse(Try(out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
         Assert.IsFalse(cmd.Calls.Any(c => c.Args.StartsWith("tag -d")), "Expected no tag to be deleted");
     }
 
@@ -220,6 +220,6 @@ public class RemoteServiceTest
 
         var result = await service.PushCurrentBranchAsync(false, "/wd");
 
-        Assert.IsFalse(Try(out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 }

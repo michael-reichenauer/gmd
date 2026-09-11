@@ -23,7 +23,7 @@ public class StashServiceTest
     static async Task<IReadOnlyList<gmd.Git.Stash>> ListAsync(string output)
     {
         var result = await NewService(new FakeCmd(output)).ListAsync("/wd");
-        Assert.IsTrue(Try(out var stashes, out var e, result), $"ListAsync failed: {e}");
+        var stashes = AssertOk(result);
         return stashes;
     }
 
@@ -96,7 +96,7 @@ public class StashServiceTest
 
         var result = await service.ListAsync("/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     // A named stash uses 'save', an unnamed one does not. Both include untracked files (-u).

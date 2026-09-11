@@ -56,7 +56,7 @@ public class BranchServiceTest
     {
         var service = new BranchService(new FakeCmd(output));
         var result = await service.GetBranchesAsync("/wd");
-        Assert.IsTrue(Try(out var branches, out var e, result), $"GetBranchesAsync failed: {e}");
+        var branches = AssertOk(result);
         return branches;
     }
 
@@ -314,7 +314,7 @@ public class BranchServiceTest
 
         var result = await service.GetBranchesAsync("/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     [TestMethod]
@@ -379,7 +379,7 @@ public class BranchServiceTest
             }
         )
         {
-            Assert.IsFalse(Try(out var e, result));
+            var e = AssertError(result);
             StringAssert.Contains(e.Message, "Merge Conflicts!");
         }
     }

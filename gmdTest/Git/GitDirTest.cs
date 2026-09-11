@@ -47,7 +47,7 @@ public class GitDirTest
 
     static GitDirInfo Value(R<GitDirInfo> result)
     {
-        Assert.IsTrue(Try(out var info, out var e, result), $"{e}");
+        var info = AssertOk(result);
         return info;
     }
 
@@ -98,7 +98,7 @@ public class GitDirTest
     [TestMethod]
     public void TestResolveFailsWithoutAGitFolderOrFile()
     {
-        Assert.IsFalse(Try(out var _, out var _, GitDir.Resolve(root)));
+        AssertError(GitDir.Resolve(root));
     }
 
     [TestMethod]
@@ -141,7 +141,7 @@ public class GitDirTest
     [TestMethod]
     public void TestFindFailsOutsideAnyRepository()
     {
-        Assert.IsFalse(Try(out var _, out var _, GitDir.Find(root)), "No '.git' anywhere above the temp root");
-        Assert.IsFalse(Try(out var _, out var _, GitDir.Find(Path.Join(root, "missing"))), "Folder does not exist");
+        AssertError(GitDir.Find(root), "No '.git' anywhere above the temp root");
+        AssertError(GitDir.Find(Path.Join(root, "missing")), "Folder does not exist");
     }
 }
