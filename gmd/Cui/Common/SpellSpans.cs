@@ -76,15 +76,26 @@ static class SpellSpans
         string word,
         Action<string> replace,
         Action redraw
-    )
+    ) =>
+        Menu
+            .Items.Items(Suggestions(spellChecker, word, replace))
+            .Separator()
+            .Item(AddToDictionary(spellChecker, word, redraw))
+            .Item("Ignore", "", () => { });
+
+    // The suggestions for a misspelled word, each replacing it, or a note that there are none
+    public static IEnumerable<MenuItem> Suggestions(ISpellChecker spellChecker, string word, Action<string> replace)
     {
         var suggestions = spellChecker.Suggest(word);
         var items = Menu.Items;
         foreach (var suggestion in suggestions)
             items.Item(suggestion, "", () => replace(suggestion));
         items.Item(suggestions.Count == 0, "(no suggestions)", "", () => { }, () => false);
-        items.Separator();
-        items.Item(
+        return items;
+    }
+
+    public static MenuItem AddToDictionary(ISpellChecker spellChecker, string word, Action redraw) =>
+        Menu.Item(
             $"Add '{word}' to dictionary",
             "",
             () =>
@@ -93,9 +104,6 @@ static class SpellSpans
                 redraw();
             }
         );
-        items.Item("Ignore", "", () => { });
-        return items;
-    }
 
     static char ToChar(uint runeValue) => runeValue <= 0xFFFF ? (char)runeValue : '�';
 

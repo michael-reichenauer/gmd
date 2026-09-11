@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace System;
+namespace gmd.Utils;
 
 // Some useful DateTime extensions that are missing in .NET
 //

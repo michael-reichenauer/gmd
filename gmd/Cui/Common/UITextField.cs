@@ -5,7 +5,9 @@ namespace gmd.Cui.Common;
 
 // A one line text input field, which unlike Terminal.Gui's TextField returns its text as a
 // trimmed string rather than as a ustring. With a SpellChecker set, misspelled words are drawn in
-// red and F7 or Ctrl+G opens the suggestions for the misspelled word at or after the caret.
+// red and F7 or Ctrl+G opens the suggestions for the misspelled word at or after the caret. A
+// right click or Shift+F10 opens the context menu, with those suggestions on top when on a
+// misspelled word.
 class UITextField : TextField
 {
     internal UITextField(int x, int y, int w, string text = "")
@@ -16,7 +18,14 @@ class UITextField : TextField
 
     internal ISpellChecker? SpellChecker { get; set; }
 
+    // Raised after each redraw, for what is drawn from this view's state elsewhere, e.g. the hint
+    // that counts the red words
+    internal event Action? Redrawn;
+
     bool IsSpellCheck => SpellChecker?.IsEnabled == true;
+
+    // The misspelled words drawn red, i.e. all but the one being typed
+    internal int MisspelledCount => Misspelled().Count(s => !(HasFocus && SpellSpans.IsBeingTyped(s, CursorPosition)));
 
     public new string Text
     {
@@ -34,7 +43,29 @@ class UITextField : TextField
             ShowSpellingSuggestions();
             return true;
         }
+        if (TextContextMenu.IsMenuKey(keyEvent.Key))
+        {
+            ShowContextMenu(CursorPosition - ScrollOffset);
+            return true;
+        }
         return base.ProcessKey(keyEvent);
+    }
+
+    // A right click opens the context menu in place of the one Terminal.Gui would open on it, and
+    // the press and release it is made of are swallowed too, so the base view sees none of it
+    public override bool MouseEvent(MouseEvent ev)
+    {
+        if (ev.Flags.HasFlag(MouseFlags.Button3Clicked))
+        {
+            if (!HasFocus)
+                SetFocus();
+            CursorPosition = ScrollOffset + ev.X; // The caret goes to the click, as with a left click
+            ShowContextMenu(ev.X);
+            return true;
+        }
+        if (ev.Flags.HasFlag(MouseFlags.Button3Pressed) || ev.Flags.HasFlag(MouseFlags.Button3Released))
+            return true;
+        return base.MouseEvent(ev);
     }
 
     // TextField has no hook for coloring a rune as it is drawn, so the misspelled words are drawn
@@ -43,6 +74,12 @@ class UITextField : TextField
     public override void Redraw(Rect bounds)
     {
         base.Redraw(bounds);
+        DrawMisspelled();
+        Redrawn?.Invoke();
+    }
+
+    void DrawMisspelled()
+    {
         if (!IsSpellCheck || SelectedLength > 0)
             return;
 
@@ -69,8 +106,7 @@ class UITextField : TextField
 
     void ShowSpellingSuggestions()
     {
-        var spans = SpellScanner.Misspelled(SpellSpans.LineText(RawText), SpellChecker!.IsMisspelled);
-        var next = SpellSpans.NextFrom([spans], 0, CursorPosition);
+        var next = SpellSpans.NextFrom([Misspelled()], 0, CursorPosition);
         if (next == null)
             return;
         var span = next.Value.Span;
@@ -82,6 +118,32 @@ class UITextField : TextField
         var items = SpellSpans.MenuItems(SpellChecker!, span.Word, with => Replace(span, with), SetNeedsDisplay);
         Menu.Show("Spelling", x, y, items);
     }
+
+    // The context menu, placed just under the view column x, the click or the caret, or under the
+    // misspelled word when on one, where the F7 menu for it goes
+    void ShowContextMenu(int x)
+    {
+        var spans = Misspelled();
+        var at = SpellSpans.At(spans, CursorPosition);
+        if (at != null)
+            x = at.Start - ScrollOffset;
+        var spelling = TextContextMenu.SpellingItems(
+            SpellChecker,
+            at,
+            spans.Count > 0,
+            with => Replace(at!, with),
+            ShowSpellingSuggestions,
+            SetNeedsDisplay
+        );
+
+        var origin = ScreenToView(0, 0);
+        var items = TextContextMenu.Items(spelling, this, () => SelectedLength > 0);
+        Menu.Show(TextContextMenu.Title(at), x - origin.X, 1 - origin.Y, items);
+    }
+
+    // The misspelled words of the text, or nothing at all when not spell checking
+    IReadOnlyList<WordSpan> Misspelled() =>
+        !IsSpellCheck ? [] : SpellScanner.Misspelled(SpellSpans.LineText(RawText), SpellChecker!.IsMisspelled);
 
     void Replace(WordSpan span, string with)
     {

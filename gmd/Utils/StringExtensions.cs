@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace System;
+namespace gmd.Utils;
 
 // Some useful string extensions that are missing in .NET
 public static class StringExtensions
