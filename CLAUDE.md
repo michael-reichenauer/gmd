@@ -18,7 +18,7 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ```bash
 ./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
 ./test [args]    # dotnet test gmdTest/gmdTest.csproj "$@"
-                 #   --filter "TestCategory!=Integration"  fast tests only (~670 tests, ~1 s)
+                 #   --filter "TestCategory!=Integration"  fast tests only (~890 tests, ~1 s)
                  #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests
 ./build          # full release: test + package audit + publish all platforms (slow)
 ./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
@@ -196,30 +196,65 @@ Consequences to remember:
 
 ## Conventions
 
-### Errors: `R` / `R<T>` and `Try`, not exceptions
+### Errors: `R` / `R<T>`, a union matched on its case types; not exceptions
 
-`gmd/Utils/Result.cs` defines a result type used for all fallible operations, with
-`global using static gmd.Utils.Result;` in `gmd/Usings.cs` making `Try` available everywhere.
-Exceptions are for bugs, not for control flow.
+`gmd/Utils/Result.cs` defines the result type every fallible operation returns: `R<T>` is a union
+of the value `T` and an `Error`, and `R` one of `Success` and `Error`. Both are custom unions in the
+C# 15 sense (`[Union]`, a constructor per case type, an `object? Value`), so a `switch` over one is
+exhaustive with its two arms (a missing arm is a build error, CS8509) and a pattern applies to the
+contained value. Exceptions are for bugs, not for control flow.
 
 ```csharp
-// Propagate an error from a call that returns R<T>
-if (!Try(out var status, out var e, await git.GetStatusAsync(wd))) return e;
+// Propagate, with a value: the pattern binds it, and the error is returned when there is none
+var result = await git.GetStatusAsync(wd);
+if (result is not Status status) return result.Error;
 
-// Ignore the error value
-if (!Try(out var branches, await git.GetBranchesAsync(wd))) return R.Error("no branches");
+// Propagate, no value
+if (await git.SetValueAsync(key, json, wd) is Error e) return e;
 
-// Wrap a throwing API into an R
-if (!Try(out var e, () => File.Move(src, dst))) return e;
+// Branch on the outcome: exhaustive, no discard arm
+return await server.PullAsync(name, wd) switch
+{
+    Success => R.Ok,
+    Error e => new Error("Failed to pull", e),
+};
 
-// Returning: implicit conversions mean you just return the value or an error
+// A fallback instead of an error
+var tags = await git.GetTagsAsync(wd) is IReadOnlyList<Tag> t ? t : [];
+
+// Create and wrap errors; the constructor records the caller's file and line as Origin
+return new Error($"Folder missing: {path}");
+return new Error("Failed to merge", inner: e);
+
+// A throwing API, e.g. a file call, becomes a result at the boundary
+if (R.Catch(() => File.Move(src, dst)) is Error e) return e;
+
+// Returning: implicit conversions mean you just return the value or the error
 return commits;                       // → R<IReadOnlyList<Commit>>
-return R.Error($"Folder missing: {path}");
 return R.Ok;                          // → R
 ```
 
-`R.Error` captures caller file/line automatically. `R<T>.GetResultValue()` fail-fasts if the
-error state was never checked, so always go through `Try`.
+Things to know:
+
+- `result.Error` is the one accessor that trusts the caller: it fail-fasts on a value, so use it
+  only right after a pattern ruled the value out, as above. A pattern variable declared in an `if`
+  condition is scoped to the enclosing block, so a method with several guards names its errors
+  (`pushError`, `deleteError`) rather than reusing `e`.
+- **Name the exact type in the pattern.** `Commit`, `Status`, `ConflictFile` and friends exist in
+  both `gmd.Git` and `gmd.Server`, and a pattern naming the wrong twin compiles and never matches.
+  Spell the type as the file already does (`Git.Commit`, `Server.Repo`, the `GitStatus` alias).
+- In generic code `result is T value` is refused (CS8780: with a type parameter the compiler cannot
+  tell the struct from its contents), so use `result.TryGetValue(out T? value)` there.
+- A tuple cannot be bound by a union pattern that declares a variable, so a result carries a small
+  record instead (`CloneInfo`, `UpdateAvailability`, `BlameHeader`).
+- `ICmd` returns `R<string>`; a failed command is a `CmdError` with the exit code and both outputs,
+  matched as `result is CmdError e && e.Output.Contains("CONFLICT")`. `RunRawAsync` is for the few
+  commands whose non-zero exit is an answer rather than a failure.
+- There is no conversion to `bool`, so `R<bool>` is a value like any other. `default(R<T>)` holds
+  nothing and matches neither arm.
+- The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
+  while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
+  `global.json` (MODERNIZATION.md has the GA step).
 
 ### Formatting: CSharpier owns it
 
@@ -355,7 +390,7 @@ all parsing with no subprocess:
 ```csharp
 var cmd = new FakeCmd(gitLogOutput);            // or FakeCmd.Fail("fatal: ...")
 var log = new LogService(cmd);
-Assert.IsTrue(Try(out var commits, out var e, await log.GetLogAsync(100, "/wd")));
+var commits = AssertOk(await log.GetLogAsync(100, "/wd"));
 StringAssert.Contains(cmd.Calls[0].Args, "--max-count=100");
 ```
 
@@ -367,7 +402,7 @@ few and small — `FakeCmd` is the right tool for anything about parsing:
 ```csharp
 using var repo = await TempRepo.CreateAsync();      // 'main', local config set, no commits yet
 var c1 = await repo.CommitFileAsync("file.txt", "text\n", "Initial");
-Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", true, repo.Path)), $"{e}");
+AssertOk(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
 await repo.AddOriginAsync();                        // a bare repo next door, for push/fetch
 await repo.GitAsync("reset --hard HEAD~1");         // raw git, for what IGit has no method for
 ```
@@ -458,8 +493,10 @@ When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste
 
 Other things to know:
 
-- `gmdTest/Usings.cs` provides the global usings (`Assert`, `Try`, `Log`), and `internal` types are
-  visible to tests, so services can be constructed directly (`new BranchNameService()`) — no DI.
+- `gmdTest/Usings.cs` provides the global usings (`Assert`, `Log`, and `AssertOk` / `AssertError`
+  from `gmdTest/Fixtures/ResultAssert.cs`, which return the value or the `Error` they assert), and
+  `internal` types are visible to tests, so services can be constructed directly
+  (`new BranchNameService()`) — no DI.
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
   (`[AssemblyInitialize]`) before anything can log — otherwise `./test` truncates the developer's
   `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and

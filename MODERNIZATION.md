@@ -50,6 +50,26 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Collection expressions adopted (107 mechanical sites), the two `Converter`s renamed
   `WorkRepoConverter` / `ViewRepoConverter`, and dead `NoWarn` entries removed.
 
+**The result type is a C# 15 union** (2026-09-11)
+
+- `R<T>` is a union of the value and an `Error`, and `R` one of `Success` and `Error`, in the shape
+  the C# 15 compiler recognizes (`[Union]`, a constructor per case type, `object? Value`, the
+  non-boxing `TryGetValue`). Every `Try(out value, out e, …)` site — about 480 across both projects
+  — became a pattern on the case type (`if (result is not Status status) return result.Error;`,
+  `is Error e`, an exhaustive `switch`), `R.Error(…)` became `new Error(…)`, the tests assert with
+  `AssertOk` / `AssertError`, and `Try` is gone. So are the mutable static `R.Ok`, the checked-flag
+  state machine behind `GetResultValue`, the reflection into `Exception._remoteStackTraceString`
+  and the implicit conversion to `bool`. The style is in CLAUDE.md under Conventions.
+- The compiler is the .NET 11 RC1 SDK's (`global.json`; `LangVersion preview` in
+  `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
+  are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
+  why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
+  (CS8509) is a build error.
+- Found on the way: `Task<R>.RunInBackground()` bound to the `Task` overload and dropped an error
+  result silently (the two fetch sites in `RepoView`); `IsUpdateAvailableAsync` and `CloneDlg.Show`
+  returned tuples, which a union pattern cannot bind by name, so they return records;
+  `UpdateChangeLog` wrote an empty `CHANGELOG.md` when reading the log failed.
+
 **Features added on the way** (each documented in `gmd/doc/help.md`)
 
 - Merge the current branch *into* another branch (`E`, and `Merge to` in the branch menu).
@@ -159,6 +179,53 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Adding the uncommitted commit sets its parent but does not add it to that parent's children,
   while removing it filters the child lists. Invisible today; worth knowing before relying on
   a commit's children.
+
+**The union result, at .NET 11 GA (November 2026)**
+
+- Set `LangVersion` to `15`. If the target framework moves to net11.0 (an STS release, where
+  net10.0 is LTS), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When
+  CSharpier parses C# 15, `union R<T>(T, Error) { … }` is optional sugar; the struct already has
+  what the keyword form would not (non-boxing access, the helpers in its body).
+- The VS Code C# extension bundles its own Roslyn and may flag union patterns until it catches up;
+  `dotnet build` is the truth. CI installs the SDK from `global.json` plus `10.0.x` for the runtime
+  the net10.0 tests need; unverified until the first CI run on this branch.
+
+**Refactoring roadmap** (from the 2026-09-11 review; A before B before C)
+
+- A, correctness, each with a regression test: `FileStore` (the lost-update bug above, an
+  unsynchronized cache, `FailFast` on a malformed config file); `Threading.AssertIsMainThread`
+  compares thread ids with `>` and so passes on any lower id; 13 `async void` handlers
+  (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
+  `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
+  `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
+  `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
+  `Activator.CreateInstance`; the vulnerability grep in `./build` never fails the build, `run.bat`
+  drops its arguments, `log.bat` hard-codes one user's home, `installtools` sets `safe.directory`
+  to `/workspaces/gmd`, `updatepackages` expands an undefined `$projectFile`, `gmd_linux` and
+  `gmd_osx` are missing from `.gitignore`.
+- B, build and CI: grow `Directory.Build.props` to the shared properties (`TargetFramework`,
+  `Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`) and add
+  `Directory.Packages.props`, since warnings never fail a build today and the `warning`-severity
+  rules in `.editorconfig` are IDE-only; `SourceRevisionId` is recomputed from `UtcNow` on every
+  build; the workflow has no `concurrency` group, `timeout-minutes`, NuGet cache, `.trx` upload,
+  coverage step, `NuGetAuditLevel` gate or Dependabot, and the fast tier never runs on Windows or
+  macOS.
+- C, structure: the six `*Commands` classes repeat four fields, a constructor and a `Do` forwarder,
+  and 25 of 62 `Do(` bodies end in `Refresh(); return R.Ok;` — a `CommandContext` and a
+  `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
+  first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
+  layout state inside the server model; `ConfigService` syncs a second `Config` by a reflective
+  property copy and `Config` has two constructors; static leftovers (`Build.IsWindows` assignable,
+  `BranchService.remotePrefix`, `MessageDlg.Clicked`, `Updater`'s static task cache, the single
+  `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
+  `ResentParentFolders`, `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
+  synchronous, `TipID` vs `TipId`, `RepoConfigImpl`); dead code (`exampleRunes.cs`, the commented
+  blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`, `TagService`,
+  `BranchService`, `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
+  `gmd/Server/Repo.cs`, some identical — share the leaf records only; `TerminalTest.cs` at 3,200
+  lines; no tests for `ProgramCommands` and `Updater`, and `FakeGit` implements 12 of 76 members.
+- Not recommended: removing the one-implementation interfaces (they are the DI and test-double
+  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
 
 **Deferred, with the reasoning so it is not redone**
 
@@ -311,8 +378,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `Program.Main` resolves the DI graph before `Application.Init()`, so no constructor may touch
   the main loop. The container is a runtime dependency with no test: after touching registration,
   start the app, because `--version` returns before the UI half of the graph is built.
-- `R<bool>` is a trap: `R<T>` converts implicitly both to `bool` (`IsOk`) and from `T`, so for
-  `T = bool` a `bool b = result` yields `IsOk`. Use an enum.
+- The union result (C# 15, RC1 compiler): a pattern whose type is a type parameter cannot declare a
+  variable (CS8780), so generic helpers use `TryGetValue`; a tuple cannot be bound by name either,
+  so results carry small records; a pattern naming the `gmd.Server` twin of a `gmd.Git` type
+  compiles and never matches; a pattern variable in an `if` condition is scoped to the enclosing
+  block, so several guards in one method need distinct names; `not` applies to the union itself
+  and every other pattern to its contents, which is what makes `is not T value` bind on the
+  fall-through. A type named `Error` cannot be referred to inside a type that has a method named
+  `Error`, hence `new Error(...)` rather than a factory on `R`.
 - `Cmd.Command` trims the whole output, so a final empty line disappears, and it waits for the
   child's pipes, which a forking helper such as `xclip` inherits — hence `CommandWithStdin`.
 - `FileMonitor`'s debounce is a sliding window: a folder written to continuously never raises.

@@ -1,6 +1,5 @@
 global using gmd.Utils;
 global using gmd.Utils.Logging;
-global using static gmd.Utils.Result;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("gmdTest")] // Tests access
