@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- C# 15 (the .NET 11 SDK, pinned in global.json) for union types: gmd/Utils/Result.cs is a
+         custom union, matched with 'switch' and 'is' on its case types. The target framework stays
+         net10.0, so the union attribute is polyfilled in gmd/Utils/UnionPolyfill.cs. 'preview' until
+         .NET 11 is released (November 2026), then '15'. -->
+    <LangVersion>preview</LangVersion>
+  </PropertyGroup>
+</Project>

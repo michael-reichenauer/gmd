@@ -22,7 +22,10 @@
 	// The chown is required, not defensive: Docker creates a named volume root-owned when the image
 	// has no directory at the mount point, and the base image has no /home/vscode/.claude — so
 	// without this the vscode user cannot write to its own Claude directory.
-	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
+	// The image ships the .NET 10 SDK and runtime, which the net10.0 build and the end-to-end tests
+	// run on. global.json pins the .NET 11 SDK for its C# 15 compiler (union types), so it is
+	// installed side by side into the same root before anything restores. Also in ./installtools.
+	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && curl -sSL https://dot.net/v1/dotnet-install.sh | sudo bash -s -- --channel 11.0 --quality preview --install-dir /usr/share/dotnet && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"
 }
