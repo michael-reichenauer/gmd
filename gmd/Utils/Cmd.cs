@@ -6,14 +6,14 @@ namespace gmd.Utils;
 interface ICmd
 {
     // The output of a command that exited 0, or a CmdError carrying everything it printed
-    R<string> Command(
+    Result<string> Command(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false
     );
-    Task<R<string>> RunAsync(
+    Task<Result<string>> RunAsync(
         string path,
         string args,
         string workingDirectory,
@@ -34,7 +34,7 @@ interface ICmd
     // Runs a command that gets its input on stdin, and waits for it to exit but never for its
     // output streams to close. See Cmd.CommandWithStdin for why that difference is the whole
     // reason this is not just Command().
-    R<string> CommandWithStdin(string path, string args, string stdinText);
+    Result<string> CommandWithStdin(string path, string args, string stdinText);
 }
 
 // What a command printed and how it exited
@@ -46,7 +46,7 @@ record CmdResult(string Cmd, int ExitCode, string Output, string ErrorOutput)
     public bool IsOk => ExitCode == 0;
 
     // A zero exit is its output, anything else a CmdError
-    public R<string> ToResult() => ExitCode == 0 ? Output : new CmdError(this);
+    public Result<string> ToResult() => ExitCode == 0 ? Output : new CmdError(this);
 }
 
 // The failure case of a command. The message is what it printed on stderr plus the command line;
@@ -78,7 +78,7 @@ class Cmd : ICmd
     // How long to wait for the error text of a command that has already failed
     const int ErrorReadTimeoutMs = 200;
 
-    public Task<R<string>> RunAsync(
+    public Task<Result<string>> RunAsync(
         string path,
         string args,
         string workingDirectory,
@@ -100,7 +100,7 @@ class Cmd : ICmd
         return Task.Run(() => CommandRaw(path, args, workingDirectory, skipLogError, skipLog));
     }
 
-    public static R<string> Run(string cmd, string workingDirectory = "")
+    public static Result<string> Run(string cmd, string workingDirectory = "")
     {
         var index = cmd.IndexOf(' ');
         if (index == -1)
@@ -111,7 +111,7 @@ class Cmd : ICmd
         return new Cmd().Command(path, args, workingDirectory);
     }
 
-    public R<string> Command(
+    public Result<string> Command(
         string path,
         string args,
         string workingDirectory,
@@ -221,7 +221,7 @@ class Cmd : ICmd
     // and that does not happen while the helper lives — i.e. it would block for as long as the
     // clipboard holds the text (dotnet/runtime#27128). Here the output is never read and the wait
     // is bounded, so a helper that detaches cannot freeze the UI.
-    public R<string> CommandWithStdin(string path, string args, string stdinText) =>
+    public Result<string> CommandWithStdin(string path, string args, string stdinText) =>
         CommandWithStdinRaw(path, args, stdinText).ToResult();
 
     CmdResult CommandWithStdinRaw(string path, string args, string stdinText)
@@ -256,12 +256,12 @@ class Cmd : ICmd
                 // rejects its arguments can exit before this, which shows up as a broken pipe —
                 // its exit code and error output below say what actually went wrong, so a failed
                 // write is not the error to report.
-                if (R.Catch(() => WriteStdin(process, stdinText)) is Error writeError)
+                if (Result.Catch(() => WriteStdin(process, stdinText)) is Error writeError)
                     Log.Debug($"Failed to write stdin of {cmdText}, {writeError}");
 
                 if (!process.WaitForExit(StdinTimeoutMs))
                 {
-                    if (R.Catch(() => process.Kill(true)) is Error killError)
+                    if (Result.Catch(() => process.Kill(true)) is Error killError)
                         Log.Debug($"Failed to kill {cmdText}, {killError}");
 
                     Log.Debug($"Timeout: {cmdText} {t}]");

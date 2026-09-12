@@ -7,7 +7,7 @@ public class FolderBrowseDlg
 {
     string selectedPath = "";
 
-    internal R<string> Show(IReadOnlyList<string> recentFolders)
+    internal Result<string> Show(IReadOnlyList<string> recentFolders)
     {
         const int width = 50;
         const int height = 20;

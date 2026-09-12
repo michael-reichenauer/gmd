@@ -17,7 +17,7 @@ record AddWorktreeResult(
 
 interface IAddWorktreeDlg
 {
-    R<AddWorktreeResult> Show(
+    Result<AddWorktreeResult> Show(
         string mainRoot,
         string baseBranch,
         string branchName,
@@ -35,7 +35,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
 {
     const int width = 76;
 
-    public R<AddWorktreeResult> Show(
+    public Result<AddWorktreeResult> Show(
         string mainRoot,
         string baseBranch,
         string branchName,

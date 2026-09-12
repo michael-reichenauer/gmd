@@ -41,10 +41,10 @@ public class WorktreeCommandsTest
     public async Task TestTheIgnoreLineIsWrittenOnceTheWorktreeExists()
     {
         var isAdded = false;
-        Task<R> Add()
+        Task<Result> Add()
         {
             isAdded = true;
-            return Task.FromResult(R.Ok);
+            return Task.FromResult(Result.Ok);
         }
 
         AssertOk(await WorktreeCommands.AddAndIgnoreAsync(Request(".worktrees"), root, Add));
@@ -87,7 +87,7 @@ public class WorktreeCommandsTest
     static AddWorktreeResult Request(string ignoreFolder) =>
         new("/test/repo/.worktrees/dev", "dev", false, "", true, ignoreFolder, WorktreeLocation.Local);
 
-    static Task<R> Ok() => Task.FromResult(R.Ok);
+    static Task<Result> Ok() => Task.FromResult(Result.Ok);
 
-    static Task<R> Refused() => Task.FromResult<R>(new Error("fatal: invalid reference: dev"));
+    static Task<Result> Refused() => Task.FromResult<Result>(new Error("fatal: invalid reference: dev"));
 }

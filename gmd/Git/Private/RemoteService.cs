@@ -2,17 +2,17 @@ namespace gmd.Git.Private;
 
 interface IRemoteService
 {
-    Task<R> FetchAsync(string wd);
-    Task<R> PushBranchAsync(string name, string wd);
-    Task<R> PushCurrentBranchAsync(bool isForce, string wd);
-    Task<R> PullCurrentBranchAsync(string wd);
-    Task<R> PullBranchAsync(string name, string wd);
-    Task<R> DeleteRemoteBranchAsync(string name, string wd);
-    Task<R> PushRefForceAsync(string name, string wd);
-    Task<R> PullRefAsync(string name, string wd);
-    Task<R> CloneAsync(string uri, string path, string wd);
-    Task<R> PushTagAsync(string name, string wd);
-    Task<R> DeleteRemoteTagAsync(string name, string wd);
+    Task<Result> FetchAsync(string wd);
+    Task<Result> PushBranchAsync(string name, string wd);
+    Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
+    Task<Result> PullCurrentBranchAsync(string wd);
+    Task<Result> PullBranchAsync(string name, string wd);
+    Task<Result> DeleteRemoteBranchAsync(string name, string wd);
+    Task<Result> PushRefForceAsync(string name, string wd);
+    Task<Result> PullRefAsync(string name, string wd);
+    Task<Result> CloneAsync(string uri, string path, string wd);
+    Task<Result> PushTagAsync(string name, string wd);
+    Task<Result> DeleteRemoteTagAsync(string name, string wd);
 }
 
 class RemoteService : IRemoteService
@@ -34,7 +34,7 @@ class RemoteService : IRemoteService
     // every five minutes after. The remote's tags are mirrored into gmd's own tracking namespace
     // instead (see TagService.TrackedRemoteTagsRef), which --prune does prune, and the local tags
     // are then pruned from that record so only tags the remote actually deleted are deleted here.
-    public async Task<R> FetchAsync(string wd)
+    public async Task<Result> FetchAsync(string wd)
     {
         // Read before the fetch, since the fetch is what updates it. An error is not fatal here, it
         // only means no local tag is pruned this time.
@@ -56,7 +56,7 @@ class RemoteService : IRemoteService
         if (await tagService.PruneDeletedRemoteTagsAsync(tracked, wd) is Error pe)
             Log.Warn($"Failed to prune deleted remote tags, {pe}");
 
-        return R.Ok;
+        return Result.Ok;
     }
 
     // The refspecs 'git fetch origin' uses when given none, i.e. remote.origin.fetch, of which there
@@ -70,7 +70,7 @@ class RemoteService : IRemoteService
         return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    public async Task<R> PushBranchAsync(string name, string wd)
+    public async Task<Result> PushBranchAsync(string name, string wd)
     {
         name = TrimRemotePrefix(name);
         string refs = $"refs/heads/{name}:refs/heads/{name}";
@@ -78,21 +78,21 @@ class RemoteService : IRemoteService
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> PushCurrentBranchAsync(bool isForce, string wd)
+    public async Task<Result> PushCurrentBranchAsync(bool isForce, string wd)
     {
         var force = isForce ? " --force-with-lease" : "";
         var args = $"push{force}";
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> PullCurrentBranchAsync(string wd)
+    public async Task<Result> PullCurrentBranchAsync(string wd)
     {
         var args = $"pull";
         // var args = $"pull --ff --no-rebase";
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> PullBranchAsync(string name, string wd)
+    public async Task<Result> PullBranchAsync(string name, string wd)
     {
         name = TrimRemotePrefix(name);
         var refs = $"{name}:{name}";
@@ -100,14 +100,14 @@ class RemoteService : IRemoteService
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> DeleteRemoteBranchAsync(string name, string wd)
+    public async Task<Result> DeleteRemoteBranchAsync(string name, string wd)
     {
         name = TrimRemotePrefix(name);
         var args = $"push --porcelain origin --delete {name}";
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> PushRefForceAsync(string name, string wd)
+    public async Task<Result> PushRefForceAsync(string name, string wd)
     {
         name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
@@ -115,7 +115,7 @@ class RemoteService : IRemoteService
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> PullRefAsync(string name, string wd)
+    public async Task<Result> PullRefAsync(string name, string wd)
     {
         name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
@@ -123,18 +123,18 @@ class RemoteService : IRemoteService
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> CloneAsync(string uri, string path, string wd)
+    public async Task<Result> CloneAsync(string uri, string path, string wd)
     {
         var args = $"clone {uri} \"{path}\"";
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> PushTagAsync(string name, string wd)
+    public async Task<Result> PushTagAsync(string name, string wd)
     {
         return await cmd.RunAsync("git", $"push --porcelain origin {name}", wd);
     }
 
-    public async Task<R> DeleteRemoteTagAsync(string name, string wd)
+    public async Task<Result> DeleteRemoteTagAsync(string name, string wd)
     {
         return await cmd.RunAsync("git", $"push --porcelain origin --delete {name}", wd);
     }

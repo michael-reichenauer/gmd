@@ -12,11 +12,11 @@ class FakeMetaDataService : IMetaDataService
 
     public FakeMetaDataService(MetaData metaData) => this.metaData = metaData;
 
-    public Task<R<MetaData>> GetMetaDataAsync(string path) => Task.FromResult<R<MetaData>>(metaData);
+    public Task<Result<MetaData>> GetMetaDataAsync(string path) => Task.FromResult<Result<MetaData>>(metaData);
 
-    public Task<R> SetMetaDataAsync(string path, MetaData metaData) => Task.FromResult(R.Ok);
+    public Task<Result> SetMetaDataAsync(string path, MetaData metaData) => Task.FromResult(Result.Ok);
 
-    public Task<R> FetchMetaDataAsync(string path) => Task.FromResult(R.Ok);
+    public Task<Result> FetchMetaDataAsync(string path) => Task.FromResult(Result.Ok);
 
-    public Task<R> PushMetaDataAsync(string path) => Task.FromResult(R.Ok);
+    public Task<Result> PushMetaDataAsync(string path) => Task.FromResult(Result.Ok);
 }

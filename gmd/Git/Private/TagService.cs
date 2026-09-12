@@ -2,12 +2,12 @@ namespace gmd.Git.Private;
 
 interface ITagService
 {
-    Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
-    Task<R> AddTagAsync(string name, string commitID, string wd);
-    Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
-    Task<R> RemoveTagAsync(string name, string wd);
-    Task<R<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd);
-    Task<R> PruneDeletedRemoteTagsAsync(IReadOnlyDictionary<string, string> tracked, string wd);
+    Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
+    Task<Result> AddTagAsync(string name, string commitID, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
+    Task<Result> RemoveTagAsync(string name, string wd);
+    Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd);
+    Task<Result> PruneDeletedRemoteTagsAsync(IReadOnlyDictionary<string, string> tracked, string wd);
 }
 
 class TagService : ITagService
@@ -36,7 +36,7 @@ class TagService : ITagService
         this.cmd = cmd;
     }
 
-    public async Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd)
+    public async Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd)
     {
         // --tags limits this to refs/tags/, so the tracked remote tags above are not included
         var args = "show-ref --dereference --tags";
@@ -55,24 +55,24 @@ class TagService : ITagService
         return ParseTags(output);
     }
 
-    public async Task<R> AddTagAsync(string name, string commitID, string wd)
+    public async Task<Result> AddTagAsync(string name, string commitID, string wd)
     {
         return await cmd.RunAsync("git", $"tag {name} {commitID}", wd, true);
     }
 
-    public async Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd)
+    public async Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd)
     {
         return await cmd.RunAsync("git", $"tag -a {name} {commitID} -m \"{message}\"", wd, true);
     }
 
-    public async Task<R> RemoveTagAsync(string name, string wd)
+    public async Task<Result> RemoveTagAsync(string name, string wd)
     {
         return await cmd.RunAsync("git", $"tag -d {name}", wd, true);
     }
 
     // The tags the remote had at the last fetch, as name -> object id. Read before a fetch, since
     // the fetch is what updates it, and compared with what it holds afterwards by the prune below.
-    public Task<R<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd) =>
+    public Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd) =>
         GetRefsAsync(TrackedRemoteTagsRef, 3, wd);
 
     // Deletes the local tags the remote deleted, i.e. those that were in the given snapshot of the
@@ -82,13 +82,13 @@ class TagService : ITagService
     //     tag that has not been pushed,
     //   - a tag that no longer points where it did when it was seen, so it has been re-tagged
     //     locally and the local ref is no longer the remote's.
-    public async Task<R> PruneDeletedRemoteTagsAsync(IReadOnlyDictionary<string, string> tracked, string wd)
+    public async Task<Result> PruneDeletedRemoteTagsAsync(IReadOnlyDictionary<string, string> tracked, string wd)
     {
         // Nothing has been seen on the remote yet, so nothing can be known to have been deleted.
         // This is also the first fetch after upgrading, where the namespace is only being filled in,
         // which is what makes turning this on safe: it can never delete a tag it has not observed.
         if (tracked.Count == 0)
-            return R.Ok;
+            return Result.Ok;
 
         var remainingResult = await GetTrackedRemoteTagsAsync(wd);
         if (remainingResult is not IReadOnlyDictionary<string, string> remaining)
@@ -115,7 +115,7 @@ class TagService : ITagService
             Log.Info($"Deleted local tag {name} ({id}), which was deleted on the remote");
         }
 
-        return R.Ok;
+        return Result.Ok;
     }
 
     // Reads a ref namespace as name -> object id. for-each-ref rather than show-ref, since it can
@@ -123,7 +123,7 @@ class TagService : ITagService
     // peeled '^{}' line the way --dereference does. The id is the ref's own value, i.e. the tag
     // object of an annotated tag rather than the commit, which is what both sides of the comparison
     // in the prune above hold.
-    async Task<R<IReadOnlyDictionary<string, string>>> GetRefsAsync(string refPrefix, int stripCount, string wd)
+    async Task<Result<IReadOnlyDictionary<string, string>>> GetRefsAsync(string refPrefix, int stripCount, string wd)
     {
         var args = $"for-each-ref --format=\"%(objectname) %(refname:strip={stripCount})\" {refPrefix}";
         var result = await cmd.RunAsync("git", args, wd, true);
@@ -143,7 +143,7 @@ class TagService : ITagService
         return refs;
     }
 
-    R<IReadOnlyList<Tag>> ParseTags(string output)
+    Result<IReadOnlyList<Tag>> ParseTags(string output)
     {
         List<Tag> tags = [];
         var lines = output.Split('\n');

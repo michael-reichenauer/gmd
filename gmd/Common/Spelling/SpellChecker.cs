@@ -98,7 +98,7 @@ class SpellChecker : ISpellChecker
         return list;
     }
 
-    static R<WordList> LoadEmbedded()
+    static Result<WordList> LoadEmbedded()
     {
         var dicResult = Files.GetEmbeddedFileStream(DicResource);
         if (dicResult is not Stream dic)
@@ -110,7 +110,7 @@ class SpellChecker : ISpellChecker
                 return affResult.Error;
             using (aff)
             {
-                var listResult = R.Catch(() => WordList.CreateFromStreams(dic, aff));
+                var listResult = Result.Catch(() => WordList.CreateFromStreams(dic, aff));
                 if (listResult is not WordList list)
                     return listResult.Error;
                 return list;
@@ -119,9 +119,9 @@ class SpellChecker : ISpellChecker
     }
 
     // A Hunspell dictionary on disk: the .dic path, with the .aff expected beside it
-    static R<WordList> LoadFiles(string dicPath)
+    static Result<WordList> LoadFiles(string dicPath)
     {
-        var listResult = R.Catch(() => WordList.CreateFromFiles(dicPath));
+        var listResult = Result.Catch(() => WordList.CreateFromFiles(dicPath));
         if (listResult is not WordList list)
             return listResult.Error;
         return list;

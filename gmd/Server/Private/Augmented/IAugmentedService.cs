@@ -14,40 +14,40 @@ interface IAugmentedService
     public event Action<ChangeEvent> StatusChange;
 
     // GetRepoAsync returns an augmented repo based on new git info like branches, commits, ...
-    Task<R<Repo>> GetRepoAsync(string path);
+    Task<Result<Repo>> GetRepoAsync(string path);
 
     // UpdateRepoStatusAsync returns the repo with new fresh git status ...
-    Task<R<Repo>> UpdateRepoStatusAsync(Repo augRepo);
+    Task<Result<Repo>> UpdateRepoStatusAsync(Repo augRepo);
 
     // The repo with the worktrees re-read: which exist, and the uncommitted changes of each
-    Task<R<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo);
-    Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
-    Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd);
-    Task<R> PruneWorktreesAsync(string wd);
+    Task<Result<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo);
+    Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
+    Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd);
+    Task<Result> PruneWorktreesAsync(string wd);
 
-    Task<R> FetchAsync(string path);
-    Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<R> CreateBranchFromBranchAsync(
+    Task<Result> FetchAsync(string path);
+    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
+    Task<Result> CreateBranchFromBranchAsync(
         Repo augmentedRepo,
         string newBranchName,
         string sourceBranch,
         bool isCheckout,
         string wd
     );
-    Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
-    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
+    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
 
-    Task<R> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
-    Task<R> UnresolveAmbiguityAsync(Repo augmentedRepo, string commitId);
-    Task<R> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
-    Task<R> PushMetaDataAsync(string wd);
-    Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
-    Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
-    Task<R> RebaseBranchAsync(Repo repo, string name);
-    Task<R> SwitchToAsync(Repo repo, string branchName);
-    Task<R> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
-    Task<R> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
-    Task<R> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
-    Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
-    Task<R> SquashCommits(Repo repo, string id1, string id2, string msg);
+    Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
+    Task<Result> UnresolveAmbiguityAsync(Repo augmentedRepo, string commitId);
+    Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
+    Task<Result> PushMetaDataAsync(string wd);
+    Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
+    Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
+    Task<Result> RebaseBranchAsync(Repo repo, string name);
+    Task<Result> SwitchToAsync(Repo repo, string branchName);
+    Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
+    Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
+    Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
+    Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
 }

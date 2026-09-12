@@ -7,12 +7,12 @@ record DeleteBranchResult(bool IsLocal, bool IsRemote, bool IsForce);
 
 interface IDeleteBranchDlg
 {
-    R<DeleteBranchResult> Show(string branchName, bool isLocal, bool isRemote);
+    Result<DeleteBranchResult> Show(string branchName, bool isLocal, bool isRemote);
 }
 
 class DeleteBranchDlg : IDeleteBranchDlg
 {
-    public R<DeleteBranchResult> Show(string branchName, bool isLocal, bool isRemote)
+    public Result<DeleteBranchResult> Show(string branchName, bool isLocal, bool isRemote)
     {
         var dlg = new UIDialog("Delete Branch", 44, 11);
 

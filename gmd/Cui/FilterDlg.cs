@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
+    Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
 
 class FilterDlg : IFilterDlg
@@ -28,7 +28,7 @@ class FilterDlg : IFilterDlg
     Server.Repo currentRepo = null!;
     string currentFilter = null!;
     ContentView resultsView = null!;
-    R<Server.Commit> selectedCommit = new Error("No commit selected");
+    Result<Server.Commit> selectedCommit = new Error("No commit selected");
     Text repoInfo = Text.Empty;
     int closeX = 0;
 
@@ -38,7 +38,7 @@ class FilterDlg : IFilterDlg
         this.branchColorService = branchColorService;
     }
 
-    public R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
+    public Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
         this.orgRepo = repo;
         this.currentRepo = repo;

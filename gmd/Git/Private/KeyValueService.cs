@@ -2,10 +2,10 @@ namespace gmd.Git.Private;
 
 interface IKeyValueService
 {
-    Task<R<string>> GetValueAsync(string key, string wd);
-    Task<R> SetValueAsync(string key, string value, string wd);
-    Task<R> PushValueAsync(string key, string wd);
-    Task<R> PullValueAsync(string key, string wd);
+    Task<Result<string>> GetValueAsync(string key, string wd);
+    Task<Result> SetValueAsync(string key, string value, string wd);
+    Task<Result> PushValueAsync(string key, string wd);
+    Task<Result> PullValueAsync(string key, string wd);
 }
 
 class KeyValueService : IKeyValueService
@@ -17,7 +17,7 @@ class KeyValueService : IKeyValueService
         this.cmd = cmd;
     }
 
-    public async Task<R<string>> GetValueAsync(string key, string wd)
+    public async Task<Result<string>> GetValueAsync(string key, string wd)
     {
         var result = await cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true);
         if (result is not string output)
@@ -25,13 +25,13 @@ class KeyValueService : IKeyValueService
         return output;
     }
 
-    public async Task<R> SetValueAsync(string key, string value, string wd)
+    public async Task<Result> SetValueAsync(string key, string value, string wd)
     {
         var path = TmpFilePath(wd);
         try
         {
             // Store the temp file with key value in the git database (returns an object id)
-            if (R.Catch(() => File.WriteAllText(path, value)) is Error writeError)
+            if (Result.Catch(() => File.WriteAllText(path, value)) is Error writeError)
                 return writeError;
             var hashed = await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true, true);
             if (hashed is not string objectId)
@@ -44,14 +44,14 @@ class KeyValueService : IKeyValueService
         }
         finally
         {
-            if (R.Catch(() => File.Delete(path)) is Error e)
+            if (Result.Catch(() => File.Delete(path)) is Error e)
                 Log.Warn($"{e}");
         }
 
-        return R.Ok;
+        return Result.Ok;
     }
 
-    public async Task<R> PushValueAsync(string key, string wd)
+    public async Task<Result> PushValueAsync(string key, string wd)
     {
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
@@ -59,7 +59,7 @@ class KeyValueService : IKeyValueService
         return await cmd.RunAsync("git", args, wd, true, false);
     }
 
-    public async Task<R> PullValueAsync(string key, string wd)
+    public async Task<Result> PullValueAsync(string key, string wd)
     {
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";

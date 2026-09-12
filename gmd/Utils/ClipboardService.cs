@@ -7,7 +7,7 @@ namespace gmd.Utils;
 interface IClipboardService
 {
     // Puts the text on the clipboard of the machine the user is sitting at
-    R Set(string text);
+    Result Set(string text);
 }
 
 // A clipboard belongs to the desktop session rather than to a process, so setting it means
@@ -36,11 +36,11 @@ class ClipboardService : IClipboardService
         this.terminal = terminal;
     }
 
-    public R Set(string text) => Set(text, CurrentOs, Environment.GetEnvironmentVariable);
+    public Result Set(string text) => Set(text, CurrentOs, Environment.GetEnvironmentVariable);
 
     // Internal and taking the platform and the environment rather than reading them, so the tests
     // can drive a platform they are not running on.
-    internal R Set(string text, OSPlatform os, Func<string, string?> env)
+    internal Result Set(string text, OSPlatform os, Func<string, string?> env)
     {
         List<string> failures = [];
 
@@ -49,7 +49,7 @@ class ClipboardService : IClipboardService
             if (writer.Set(text) is not Error e)
             {
                 Log.Info($"Copied {text.Length} chars to clipboard using {writer.Name}");
-                return R.Ok;
+                return Result.Ok;
             }
 
             failures.Add($"  {writer.Name}: {FirstLine(e.AllMessages())}");
@@ -133,4 +133,4 @@ class ClipboardService : IClipboardService
 
 // One way of putting text on the clipboard. The name is what the log and the error message call
 // it, i.e. the command line of a tool.
-record ClipboardWriter(string Name, Func<string, R> Set);
+record ClipboardWriter(string Name, Func<string, Result> Set);

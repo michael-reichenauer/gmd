@@ -6,7 +6,7 @@ using gmd.Server;
 namespace gmd.Cui.RepoView;
 
 // What CommitAsync did, for the commands that have more to do afterwards. Note that this is an
-// enum and not a bool: R<bool> would be a trap, since R<T> converts implicitly both to and from
+// enum and not a bool: Result<bool> would be a trap, since Result<T> converts implicitly both to and from
 // its value, and for T = bool 'bool b = result' silently yields IsOk rather than the value.
 enum CommitResult
 {
@@ -18,7 +18,7 @@ enum CommitResult
 interface ICommitCommands
 {
     void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null);
-    Task<R<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null);
+    Task<Result<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null);
     void CommitFromMenu(bool isAmend);
 
     void ShowUncommittedDiff(bool isFromCommit = false);
@@ -124,13 +124,13 @@ class CommitCommands : ICommitCommands
 
             if (result == CommitResult.Committed)
                 Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     // The commit itself, without the refresh, so a command that has more to do after the commit
     // can await it and act on what the user did. MergeToBranch needs the difference: it can only
     // switch back off the target branch if the merge it staged there was actually committed.
-    public async Task<R<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null)
+    public async Task<Result<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null)
     {
         // Before the detached head check below, which a rebase would otherwise answer with
         // "create/switch to a branch first" — a rebase does leave HEAD detached, so that message is
@@ -228,7 +228,7 @@ class CommitCommands : ICommitCommands
         Do(async () =>
         {
             if (commitId == Repo.EmptyRepoCommitId)
-                return R.Ok;
+                return Result.Ok;
 
             // How the diff view gets this same diff again, at whatever context it is asked for
             DiffReload reload;
@@ -271,7 +271,7 @@ class CommitCommands : ICommitCommands
                     Refresh();
                 }
             });
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void CherryPick() =>
@@ -316,18 +316,18 @@ class CommitCommands : ICommitCommands
 
             repo.RepoView.ClearSelection();
             RefreshAndCommit();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void Stash() =>
         Do(async () =>
         {
             if (repo.Repo.Status.IsOk)
-                return R.Ok;
+                return Result.Ok;
             var commitMsg = repo.Repo.CurrentCommit().Subject;
             var msgResult = addStashDlg.Show();
             if (msgResult is not string msg)
-                return R.Ok;
+                return Result.Ok;
             msg = msg == "" ? commitMsg : msg;
 
             if (await server.StashAsync(msg, repo.Path) is Error e)
@@ -336,14 +336,14 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void StashPop(string name) =>
         Do(async () =>
         {
             if (!repo.Repo.Status.IsOk)
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.StashPopAsync(name, repo.Path) is Error e)
             {
@@ -351,7 +351,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void StashDiff(string name) =>
@@ -366,7 +366,7 @@ class CommitCommands : ICommitCommands
             }
 
             diffView.Show(diffs[0], name, repo.Path, reload, ConflictState.None);
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void StashDrop(string name) =>
@@ -378,14 +378,14 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void UndoCommit(string id) =>
         Do(async () =>
         {
             if (!CanUndoCommit())
-                return R.Ok;
+                return Result.Ok;
             var commit = repo.Repo.CommitById[id];
             var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
 
@@ -395,7 +395,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public bool CanUndoCommit() => repo.Repo.Status.IsOk;
@@ -404,7 +404,7 @@ class CommitCommands : ICommitCommands
         Do(async () =>
         {
             if (!CanUncommitLastCommit())
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.UncommitLastCommitAsync(repo.Path) is Error e)
             {
@@ -412,7 +412,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void UncommitUntilCommit(string id) =>
@@ -426,7 +426,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void SquashCommits(string id1, string id2) =>
@@ -459,7 +459,7 @@ class CommitCommands : ICommitCommands
             }
 
             if (!squashDlg.Show(repo, commits, out var message))
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.SquashCommits(repo.Repo, id1, id2, message) is Error e)
             {
@@ -469,7 +469,7 @@ class CommitCommands : ICommitCommands
 
             RefreshAndCommit();
 
-            return R.Ok;
+            return Result.Ok;
         });
 
     public bool CanUncommitLastCommit()
@@ -496,7 +496,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void UndoUncommittedFiles(IReadOnlyList<string> paths) =>
@@ -504,7 +504,7 @@ class CommitCommands : ICommitCommands
         {
             await UndoUncommittedFilesAsync(paths);
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public async Task UndoUncommittedFilesAsync(IReadOnlyList<string> paths)
@@ -531,10 +531,10 @@ class CommitCommands : ICommitCommands
             var isPushable = branch.IsRemote || branch.RemoteName != "";
 
             if (commit.IsUncommitted)
-                return R.Ok;
+                return Result.Ok;
 
             if (addTagDlg.Show() is not TagInfo tag)
-                return R.Ok;
+                return Result.Ok;
 
             if (tag.message == "")
             {
@@ -549,7 +549,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void DeleteTag(string name) =>
@@ -565,7 +565,7 @@ class CommitCommands : ICommitCommands
             }
 
             RefreshAndFetch();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void ShowFileHistory() =>
@@ -584,7 +584,7 @@ class CommitCommands : ICommitCommands
 
             var browser = new FileBrowseDlg();
             if (browser.Show(files, title) is not string path)
-                return R.Ok;
+                return Result.Ok;
 
             DiffReload reload = n => server.GetFileDiffAsync(path, n, repo.Path);
             var diffsResult = await reload(DiffContext.Default);
@@ -592,7 +592,7 @@ class CommitCommands : ICommitCommands
                 return new Error($"Failed to show file history", diffsResult.Error);
 
             diffView.Show(diffs, repo.Path, reload);
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void BlameFile() =>
@@ -611,7 +611,7 @@ class CommitCommands : ICommitCommands
 
             var browser = new FileBrowseDlg();
             if (browser.Show(files, title) is not string path)
-                return R.Ok;
+                return Result.Ok;
 
             // Git blames a binary file as text, which arrives as mojibake. Only checked when the
             // file is in the working tree, since blaming an old revision of a since deleted file
@@ -628,10 +628,10 @@ class CommitCommands : ICommitCommands
                 return new Error($"Failed to blame {path}", blameResult.Error);
 
             UI.Post(() => blameView.Show(blame, repo.Repo));
-            return R.Ok;
+            return Result.Ok;
         });
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 
     async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {

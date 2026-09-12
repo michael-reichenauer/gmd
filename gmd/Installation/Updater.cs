@@ -13,8 +13,8 @@ record UpdateAvailability(bool IsAvailable, Version Version);
 interface IUpdater
 {
     Task CheckUpdateAvailableAsync();
-    Task<R<Version>> UpdateAsync();
-    Task<R<UpdateAvailability>> IsUpdateAvailableAsync();
+    Task<Result<Version>> UpdateAsync();
+    Task<Result<UpdateAvailability>> IsUpdateAvailableAsync();
     Task StartCheckUpdatesRegularly();
 }
 
@@ -82,7 +82,7 @@ class Updater : IUpdater
         );
     }
 
-    public async Task<R<Version>> UpdateAsync()
+    public async Task<Result<Version>> UpdateAsync()
     {
         if (IsDotNet())
             return buildVersion;
@@ -156,7 +156,7 @@ class Updater : IUpdater
         }
     }
 
-    public async Task<R<UpdateAvailability>> IsUpdateAvailableAsync()
+    public async Task<Result<UpdateAvailability>> IsUpdateAvailableAsync()
     {
         if (!config.CheckUpdates)
         {
@@ -199,10 +199,10 @@ class Updater : IUpdater
         return new UpdateAvailability(true, new Version(release.Version));
     }
 
-    R Install(string downloadedPath)
+    Result Install(string downloadedPath)
     {
         if (IsDotNet())
-            return R.Ok;
+            return Result.Ok;
 
         try
         {
@@ -211,7 +211,7 @@ class Updater : IUpdater
             if (!File.Exists(downloadedPath))
             {
                 Log.Info($"No new file to install {downloadedPath}");
-                return R.Ok; // No new file to install, some other thread already installed it
+                return Result.Ok; // No new file to install, some other thread already installed it
             }
 
             File.Move(downloadedPath, newPath);
@@ -226,7 +226,7 @@ class Updater : IUpdater
             Log.Info($"Moved {thisPath} => {newThisPath}");
             File.Move(newPath, thisPath);
             Log.Info($"Installed {newPath}");
-            return R.Ok;
+            return Result.Ok;
         }
         catch (Exception e) when (e.IsNotFatal())
         {
@@ -235,7 +235,7 @@ class Updater : IUpdater
         }
     }
 
-    async Task<R<string>> DownloadBinaryAsync()
+    async Task<Result<string>> DownloadBinaryAsync()
     {
         try
         {
@@ -310,7 +310,7 @@ class Updater : IUpdater
                 if (path.StartsWith(tmpPathPrefix))
                 {
                     Log.Info($"Deleting {path}");
-                    if (R.Catch(() => File.Delete(path)) is Error e)
+                    if (Result.Catch(() => File.Delete(path)) is Error e)
                         Log.Info($"Failed to delete {e}");
                 }
             }
@@ -370,7 +370,7 @@ class Updater : IUpdater
         return releases.StableRelease;
     }
 
-    async Task<R<Release>> GetRemoteInfoAsync()
+    async Task<Result<Release>> GetRemoteInfoAsync()
     {
         try
         {
@@ -490,10 +490,10 @@ class Updater : IUpdater
         return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
     }
 
-    R MakeBinaryExecutable(string path)
+    Result MakeBinaryExecutable(string path)
     {
         if (Build.IsWindows)
-            return R.Ok; // Not needed on windows
+            return Result.Ok; // Not needed on windows
 
         return cmd.Command("chmod", $"+x {path}", "");
     }

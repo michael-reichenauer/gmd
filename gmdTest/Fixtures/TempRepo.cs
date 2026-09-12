@@ -254,7 +254,7 @@ sealed class TempRepo : IDisposable
 
         // A failed cleanup should not fail a test, the folder is in temp and will be cleaned by
         // the system eventually
-        if (R.Catch(() => Directory.Delete(path, true)) is Error e)
+        if (Result.Catch(() => Directory.Delete(path, true)) is Error e)
             Log.Warn($"Failed to delete temp repo '{path}', {e}");
     }
 }

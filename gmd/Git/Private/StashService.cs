@@ -2,11 +2,11 @@ namespace gmd.Git.Private;
 
 interface IStashService
 {
-    Task<R> StashAsync(string message, string wd);
-    Task<R> PopAsync(string name, string wd);
-    Task<R> DropAsync(string name, string wd);
-    Task<R<IReadOnlyList<Stash>>> ListAsync(string wd);
-    Task<R<CommitDiff>> GetDiffAsync(string name, int contextLines, string wd);
+    Task<Result> StashAsync(string message, string wd);
+    Task<Result> PopAsync(string name, string wd);
+    Task<Result> DropAsync(string name, string wd);
+    Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd);
+    Task<Result<CommitDiff>> GetDiffAsync(string name, int contextLines, string wd);
 }
 
 class StashService : IStashService
@@ -22,23 +22,23 @@ class StashService : IStashService
         this.diffService = diffService;
     }
 
-    public async Task<R> StashAsync(string message, string wd)
+    public async Task<Result> StashAsync(string message, string wd)
     {
         var msg = message != "" ? $"save \"{message}\" " : "";
         return await cmd.RunAsync("git", $"stash {msg}-u", wd);
     }
 
-    public async Task<R> PopAsync(string name, string wd)
+    public async Task<Result> PopAsync(string name, string wd)
     {
         return await cmd.RunAsync("git", $"stash pop {name}", wd);
     }
 
-    public async Task<R> DropAsync(string name, string wd)
+    public async Task<Result> DropAsync(string name, string wd)
     {
         return await cmd.RunAsync("git", $"stash drop {name}", wd);
     }
 
-    public async Task<R<IReadOnlyList<Stash>>> ListAsync(string wd)
+    public async Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd)
     {
         var listed = await logService.GetStashListAsync(wd);
         if (listed is not IReadOnlyList<Commit> stashes)
@@ -66,6 +66,6 @@ class StashService : IStashService
         return new Stash(id, name, branch, parentId, indexId, message);
     }
 
-    public Task<R<CommitDiff>> GetDiffAsync(string name, int contextLines, string wd) =>
+    public Task<Result<CommitDiff>> GetDiffAsync(string name, int contextLines, string wd) =>
         diffService.GetStashDiffAsync(name, contextLines, wd);
 }

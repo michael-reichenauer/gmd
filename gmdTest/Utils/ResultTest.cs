@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace gmdTest.Utils;
 
-// R and R<T> are how every fallible operation in gmd reports failure; exceptions are for bugs.
+// Result and Result<T> are how every fallible operation in gmd reports failure; exceptions are for bugs.
 // These pin the contract the whole codebase is written against: a result is a union of its value
 // (or Success) and an Error, and is matched on the case type.
 [TestClass]
@@ -32,7 +32,7 @@ public class ResultTest
     [TestMethod]
     public void TestSwitchIsExhaustive()
     {
-        static string Describe(R<int> result) =>
+        static string Describe(Result<int> result) =>
             result switch
             {
                 int value => $"value {value}",
@@ -42,7 +42,7 @@ public class ResultTest
         Assert.AreEqual("value 5", Describe(Divide(10, 2)));
         Assert.AreEqual("error Cannot divide by zero", Describe(Divide(10, 0)));
 
-        static string DescribeOutcome(R result) =>
+        static string DescribeOutcome(Result result) =>
             result switch
             {
                 Success => "ok",
@@ -62,7 +62,7 @@ public class ResultTest
         Assert.AreEqual("Cannot divide by zero", AssertError(Outer(0)).Message);
     }
 
-    // R without a value, i.e. an operation that either succeeds or fails
+    // Result without a value, i.e. an operation that either succeeds or fails
     [TestMethod]
     public void TestResultWithoutValue()
     {
@@ -70,8 +70,8 @@ public class ResultTest
         Assert.IsTrue(Validate("") is Error);
         Assert.AreEqual("Empty name", AssertError(Validate("")).Message);
 
-        Assert.IsTrue(R.Ok is Success);
-        Assert.AreEqual("OK", R.Ok.ToString());
+        Assert.IsTrue(Result.Ok is Success);
+        Assert.AreEqual("OK", Result.Ok.ToString());
     }
 
     // Wrapping adds a message without losing the inner one
@@ -114,30 +114,17 @@ public class ResultTest
         );
     }
 
-    // Reading the error of a result that holds a value is a bug in the caller, so it fails fast,
-    // which is reported through Asserter, which the running program logs and shows
+    // Reading the error of a result that holds a value is a bug in the caller, so it fails fast
     [TestMethod]
     public void TestErrorOfAValueFailsFast()
     {
-        R<int> result = 5;
-        var raised = 0;
-        void OnAssert(object? s, AsserterEventArgs e) => raised++;
+        Result<int> result = 5;
 
-        Asserter.AssertOccurred += OnAssert;
-        try
+        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
         {
-            var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
-            {
-                _ = result.Error;
-            });
-            StringAssert.Contains(e.Message, "Result is not an error");
-        }
-        finally
-        {
-            Asserter.AssertOccurred -= OnAssert;
-        }
-
-        Assert.AreEqual(1, raised);
+            _ = result.Error;
+        });
+        StringAssert.Contains(e.Message, "Result is not an error");
     }
 
     // A null value is not an error, it is a bug in the function that returned it
@@ -148,7 +135,7 @@ public class ResultTest
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
         {
-            _ = (R<string>)nothing!;
+            _ = (Result<string>)nothing!;
         });
     }
 
@@ -157,16 +144,16 @@ public class ResultTest
     [TestMethod]
     public void TestImplicitConversions()
     {
-        R<int> fromValue = 5;
+        Result<int> fromValue = 5;
         Assert.AreEqual(5, AssertOk(fromValue));
 
-        R<int> fromError = new Error("an error");
+        Result<int> fromError = new Error("an error");
         Assert.AreEqual("an error", AssertError(fromError).Message);
 
-        R outcomeOfValue = Divide(10, 2);
+        Result outcomeOfValue = Divide(10, 2);
         Assert.IsTrue(outcomeOfValue is Success, "Dropping the value keeps the outcome");
 
-        R outcomeOfError = Divide(10, 0);
+        Result outcomeOfError = Divide(10, 0);
         Assert.AreEqual("Cannot divide by zero", AssertError(outcomeOfError).Message);
     }
 
@@ -175,7 +162,7 @@ public class ResultTest
     [TestMethod]
     public void TestBoolValue()
     {
-        R<bool> isFalse = false;
+        Result<bool> isFalse = false;
 
         Assert.IsTrue(isFalse is bool value && !value);
         Assert.IsFalse(AssertOk(isFalse));
@@ -185,9 +172,9 @@ public class ResultTest
     [TestMethod]
     public void TestCatchWrapsAThrowingFunc()
     {
-        Assert.AreEqual(42, AssertOk(R.Catch(() => int.Parse("42"))));
+        Assert.AreEqual(42, AssertOk(Result.Catch(() => int.Parse("42"))));
 
-        var e = AssertError(R.Catch(() => int.Parse("not a number")));
+        var e = AssertError(Result.Catch(() => int.Parse("not a number")));
         StringAssert.Contains(e.Message, "not in a correct format");
         Assert.IsInstanceOfType<FormatException>(e.Exception);
         StringAssert.Contains(e.Origin, nameof(TestCatchWrapsAThrowingFunc), "The origin is the caller, not Catch");
@@ -198,14 +185,14 @@ public class ResultTest
     {
         var didRun = false;
         AssertOk(
-            R.Catch(() =>
+            Result.Catch(() =>
             {
                 didRun = true;
             })
         );
         Assert.IsTrue(didRun);
 
-        var e = AssertError(R.Catch(() => throw new InvalidOperationException("boom")));
+        var e = AssertError(Result.Catch(() => throw new InvalidOperationException("boom")));
         Assert.AreEqual("boom", e.Message);
     }
 
@@ -218,21 +205,21 @@ public class ResultTest
         Assert.AreEqual("Error: Empty name", Validate("").ToString());
     }
 
-    static R<int> Divide(int a, int b)
+    static Result<int> Divide(int a, int b)
     {
         if (b == 0)
             return new Error("Cannot divide by zero");
         return a / b;
     }
 
-    static R Validate(string name)
+    static Result Validate(string name)
     {
         if (name == "")
             return new Error("Empty name");
-        return R.Ok;
+        return Result.Ok;
     }
 
-    static R<int> Outer(int b)
+    static Result<int> Outer(int b)
     {
         var result = Divide(10, b);
         if (result is not int value)
@@ -240,7 +227,7 @@ public class ResultTest
         return value;
     }
 
-    static R<int> OuterWrapping(int b)
+    static Result<int> OuterWrapping(int b)
     {
         var result = Divide(10, b);
         if (result is not int value)

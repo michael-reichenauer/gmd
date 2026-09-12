@@ -19,7 +19,7 @@ record WorktreeChoice(WorktreeAction Action, Worktree Worktree);
 
 interface IWorktreesDlg
 {
-    R<WorktreeChoice> Show(Repo repo, IReadOnlyList<Worktree> worktrees, int selectedIndex = 0);
+    Result<WorktreeChoice> Show(Repo repo, IReadOnlyList<Worktree> worktrees, int selectedIndex = 0);
 }
 
 // The list of the repository's worktrees, one row each, see WorktreeRows. A dumb dialog: it
@@ -36,7 +36,7 @@ class WorktreesDlg : IWorktreesDlg
         this.branchColorService = branchColorService;
     }
 
-    public R<WorktreeChoice> Show(Repo repo, IReadOnlyList<Worktree> worktrees, int selectedIndex = 0)
+    public Result<WorktreeChoice> Show(Repo repo, IReadOnlyList<Worktree> worktrees, int selectedIndex = 0)
     {
         var width = Math.Max(WorktreeRows.MinWidth + 6, Math.Min(maxWidth, Application.Driver.Cols - 2));
         var listWidth = width - 6;

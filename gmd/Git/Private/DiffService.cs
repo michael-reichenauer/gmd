@@ -4,14 +4,14 @@ namespace gmd.Git.Private;
 
 interface IDiffService
 {
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
-    Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
-    Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
-    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
-    Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
-    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
-    Task<R> RunDiffToolAsync(string path, string wd);
-    Task<R> RunMergeToolAsync(string path, string wd);
+    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result> RunDiffToolAsync(string path, string wd);
+    Task<Result> RunMergeToolAsync(string path, string wd);
 }
 
 // cSpell:ignore uFEFF
@@ -24,7 +24,7 @@ class DiffService : IDiffService
         this.cmd = cmd;
     }
 
-    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
     {
         var args =
             "show --date=iso --first-parent --root --patch --no-color"
@@ -39,7 +39,7 @@ class DiffService : IDiffService
         return commitDiffs[0];
     }
 
-    public async Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
         var args =
             "stash show -u --date=iso --first-parent --root --patch --no-color"
@@ -51,7 +51,7 @@ class DiffService : IDiffService
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-    public async Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
     {
         // To be able to include renamed and added files in uncommitted diff, we first
         // stage all and after diff, the stage is reset.
@@ -105,7 +105,7 @@ class DiffService : IDiffService
         };
     }
 
-    public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
+    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
         var args = $"log --date=iso --patch --follow --unified={contextLines} -- \"{path}\"";
         var result = await cmd.RunAsync("git", args, wd);
@@ -121,7 +121,7 @@ class DiffService : IDiffService
         return commitDiffs.ToArray();
     }
 
-    public async Task<R<CommitDiff>> GetDiffRangeAsync(
+    public async Task<Result<CommitDiff>> GetDiffRangeAsync(
         string sha1,
         string sha2,
         string message,
@@ -137,7 +137,7 @@ class DiffService : IDiffService
         return ParseDiff(output, message);
     }
 
-    public async Task<R<CommitDiff>> GetRefsDiffAsync(
+    public async Task<Result<CommitDiff>> GetRefsDiffAsync(
         string sha1,
         string sha2,
         string message,
@@ -153,13 +153,13 @@ class DiffService : IDiffService
         return ParseDiff(output, message);
     }
 
-    public async Task<R> RunDiffToolAsync(string path, string wd)
+    public async Task<Result> RunDiffToolAsync(string path, string wd)
     {
         var args = $"difftool --no-prompt {path}";
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> RunMergeToolAsync(string path, string wd)
+    public async Task<Result> RunMergeToolAsync(string path, string wd)
     {
         var args = $"mergetool --no-prompt {path}";
         return await cmd.RunAsync("git", args, wd);

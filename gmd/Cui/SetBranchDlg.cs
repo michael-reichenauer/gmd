@@ -6,7 +6,12 @@ namespace gmd.Cui;
 
 interface ISetBranchDlg
 {
-    R<string> Show(string commitSid, bool isBranchSetByUser, string niceName, IReadOnlyList<string> possibleBranches);
+    Result<string> Show(
+        string commitSid,
+        bool isBranchSetByUser,
+        string niceName,
+        IReadOnlyList<string> possibleBranches
+    );
 }
 
 class SetBranchDlg : ISetBranchDlg
@@ -14,7 +19,7 @@ class SetBranchDlg : ISetBranchDlg
     IReadOnlyList<string> items = new List<string>();
     IReadOnlyList<Text> itemTexts = new List<Text>();
 
-    public R<string> Show(
+    public Result<string> Show(
         string commitSid,
         bool isBranchSetByUser,
         string niceName,

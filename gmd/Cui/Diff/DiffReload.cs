@@ -6,12 +6,12 @@ namespace gmd.Cui.Diff;
 // from six places using five different git commands, so it has to be told how to re-fetch rather
 // than assuming it is always a commit id — which is what it did before, and why refreshing a
 // stash, a range or a file history diff quietly fetched the wrong thing.
-delegate Task<R<CommitDiff[]>> DiffReload(int contextLines);
+delegate Task<Result<CommitDiff[]>> DiffReload(int contextLines);
 
 static class DiffReloads
 {
     // Wraps a server call returning a single diff, which is all of them except full file history.
-    public static DiffReload Single(Func<int, Task<R<CommitDiff>>> getAsync) =>
+    public static DiffReload Single(Func<int, Task<Result<CommitDiff>>> getAsync) =>
         async contextLines =>
             await getAsync(contextLines) switch
             {

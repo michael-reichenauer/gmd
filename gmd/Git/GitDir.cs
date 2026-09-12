@@ -22,7 +22,7 @@ internal static class GitDir
     // Walks up from a folder to the nearest one holding '.git', which is the root of the working
     // tree the folder is in. A '.git' file counts as well as a '.git' folder, so a linked worktree
     // is found, and found rather than the main repository it may be nested inside.
-    public static R<GitDirInfo> Find(string path)
+    public static Result<GitDirInfo> Find(string path)
     {
         if (path == "")
         {
@@ -60,7 +60,7 @@ internal static class GitDir
     }
 
     // Resolves the git dirs of a known working tree root
-    public static R<GitDirInfo> Resolve(string rootPath)
+    public static Result<GitDirInfo> Resolve(string rootPath)
     {
         var gitPath = Path.Join(rootPath, GitFolder);
         if (Directory.Exists(gitPath))
@@ -97,5 +97,5 @@ internal static class GitDir
         Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(relativeTo, path));
 
     static string ReadFirstLine(string path) =>
-        R.Catch(() => File.ReadAllText(path)) is string text ? text.Split('\n')[0].Trim() : "";
+        Result.Catch(() => File.ReadAllText(path)) is string text ? text.Split('\n')[0].Trim() : "";
 }

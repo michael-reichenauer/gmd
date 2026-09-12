@@ -21,8 +21,8 @@ interface IRepoView
     // refreshes and then needs the repo (or its command classes) has to read this again after.
     IViewRepo ViewRepo { get; }
 
-    Task<R> ShowInitialRepoAsync(string path);
-    Task<R> ShowRepoAsync(string path);
+    Task<Result> ShowInitialRepoAsync(string path);
+    Task<Result> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
     void UpdateRepoToAtCommit(Repo repo, string commitId);
     void Refresh(string addName = "", string commitId = "");
@@ -148,7 +148,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     public void ClearSelection() => commitsView.ClearSelection();
 
-    public async Task<R> ShowInitialRepoAsync(string path)
+    public async Task<Result> ShowInitialRepoAsync(string path)
     {
         if (await ShowRepoAsync(path) is Error e)
             return e;
@@ -164,10 +164,10 @@ class RepoView : IRepoView, IRepoViewInputHost
         updater.StartCheckUpdatesRegularly().RunInBackground();
 
         input.Register();
-        return R.Ok;
+        return Result.Ok;
     }
 
-    public async Task<R> ShowRepoAsync(string path)
+    public async Task<Result> ShowRepoAsync(string path)
     {
         var rootDirResult = git.RootPath(path);
         if (rootDirResult is not string rootDir)
@@ -181,7 +181,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         RememberRepoPaths(rootDir);
 
-        return R.Ok;
+        return Result.Ok;
     }
 
     public void UpdateRepoTo(Repo serverRepo, string branchName = "")
@@ -373,7 +373,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         return (page, repo.Repo.ViewCommits.Count);
     }
 
-    async Task<R> ShowNewRepoAsync(string path, IReadOnlyList<string> showBranches)
+    async Task<Result> ShowNewRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         using (progress.Show())
         {
@@ -385,7 +385,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
             UpdateWorktreesStatus();
-            return R.Ok;
+            return Result.Ok;
         }
     }
 
@@ -531,7 +531,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         );
     }
 
-    async Task<R<Server.Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
+    async Task<Result<Server.Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         if (isShowFilter)
             return repo.Repo;
@@ -549,7 +549,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         }
     }
 
-    async Task<R<Server.Repo>> GetUpdateStatusRepoAsync(Server.Repo repo)
+    async Task<Result<Server.Repo>> GetUpdateStatusRepoAsync(Server.Repo repo)
     {
         if (isShowFilter)
             return repo!;

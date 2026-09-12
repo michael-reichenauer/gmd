@@ -7,7 +7,7 @@ public class FileBrowseDlg
 {
     string selectedPath = "";
 
-    internal R<string> Show(IReadOnlyList<string> files, string title = "Select File")
+    internal Result<string> Show(IReadOnlyList<string> files, string title = "Select File")
     {
         const int width = 50;
         const int height = 20;

@@ -192,7 +192,7 @@ class BranchCommands : IBranchCommands
             }
 
             Refresh(branchName);
-            return R.Ok;
+            return Result.Ok;
         });
 
     // The worktrees: the dialog, and opening another worktree, i.e. showing that folder
@@ -202,7 +202,7 @@ class BranchCommands : IBranchCommands
 
     public void OpenWorktree(string path) => worktreeCmds.OpenWorktree(path);
 
-    Task<R> OpenWorktreeAsync(string path) => worktreeCmds.OpenWorktreeAsync(path);
+    Task<Result> OpenWorktreeAsync(string path) => worktreeCmds.OpenWorktreeAsync(path);
 
     public void MergeBranch(string branchName) =>
         Do(async () =>
@@ -212,7 +212,7 @@ class BranchCommands : IBranchCommands
                 return new Error($"Failed to merge branch {branchName}", commitsResult.Error);
 
             RefreshAndCommit("", "", commits);
-            return R.Ok;
+            return Result.Ok;
         });
 
     // Merges the current branch into some other branch, the opposite direction of MergeBranch.
@@ -248,7 +248,7 @@ class BranchCommands : IBranchCommands
             { // The merge is still staged, and git cannot check out over it
                 await repoView.RefreshAsync(targetName);
                 UI.InfoMessage("Merge", $"The merge was not committed, so you are still on '{targetName}'.");
-                return R.Ok;
+                return Result.Ok;
             }
 
             if (await server.SwitchToAsync(serverRepo, sourceName) is Error e)
@@ -260,7 +260,7 @@ class BranchCommands : IBranchCommands
             if (result == CommitResult.NothingToCommit)
                 UI.InfoMessage("Merge", $"'{targetName}' is already up to date with '{source}'.");
 
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void RebaseBranchOnto(string onto) =>
@@ -278,7 +278,7 @@ class BranchCommands : IBranchCommands
                 return new Error($"Failed to rebase branch {onto}", e);
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void DiffBranchesBranch(string branchName1, string branchName2) =>
@@ -304,7 +304,7 @@ class BranchCommands : IBranchCommands
             }
 
             diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) =>
@@ -336,7 +336,7 @@ class BranchCommands : IBranchCommands
             }
 
             diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void ChangeBranchColor(string brandName)
@@ -362,7 +362,7 @@ class BranchCommands : IBranchCommands
 
             var nameResult = setBranchDlg.Show(commit.Sid, commit.IsBranchSetByUser, branch.NiceName, possibleBranches);
             if (nameResult is not string name)
-                return R.Ok;
+                return Result.Ok;
 
             if (name != "")
             {
@@ -380,7 +380,7 @@ class BranchCommands : IBranchCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void MoveBranch(string commonName, string otherCommonName, int delta) =>
@@ -413,7 +413,7 @@ class BranchCommands : IBranchCommands
             );
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void SwitchToCommit() =>
@@ -426,12 +426,12 @@ class BranchCommands : IBranchCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     void SetRepo(Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
 
     void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 }

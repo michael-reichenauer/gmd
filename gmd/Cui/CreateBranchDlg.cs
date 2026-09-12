@@ -6,12 +6,12 @@ record CreateBranchResult(string Name, bool IsCheckout, bool IsPush);
 
 interface ICreateBranchDlg
 {
-    R<CreateBranchResult> Show(string branchName, string commitId);
+    Result<CreateBranchResult> Show(string branchName, string commitId);
 }
 
 class CreateBranchDlg : ICreateBranchDlg
 {
-    public R<CreateBranchResult> Show(string branchName, string commitSid)
+    public Result<CreateBranchResult> Show(string branchName, string commitSid)
     {
         var from = commitSid != "" ? $"{branchName} at {commitSid}" : branchName;
         var title = commitSid != "" ? $"Create Branch at Commit" : "Create Branch";

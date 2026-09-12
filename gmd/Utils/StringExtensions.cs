@@ -59,7 +59,9 @@ public static class StringExtensions
         if (source == null)
             return "";
 
-        var json = R.Catch(() => JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true }));
+        var json = Result.Catch(() =>
+            JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })
+        );
         return json switch
         {
             string text => text,

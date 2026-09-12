@@ -30,7 +30,7 @@ public class AugmentedServiceTest
             Directory.Delete(root, true);
     }
 
-    static T Value<T>(R<T> result)
+    static T Value<T>(Result<T> result)
         where T : notnull => AssertOk(result);
 
     GitWorktree MainWorktree() =>

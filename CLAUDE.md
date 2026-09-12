@@ -196,10 +196,10 @@ Consequences to remember:
 
 ## Conventions
 
-### Errors: `R` / `R<T>`, a union matched on its case types; not exceptions
+### Errors: `Result` / `Result<T>`, a union matched on its case types; not exceptions
 
-`gmd/Utils/Result.cs` defines the result type every fallible operation returns: `R<T>` is a union
-of the value `T` and an `Error`, and `R` one of `Success` and `Error`. Both are custom unions in the
+`gmd/Utils/Result.cs` defines the result type every fallible operation returns: `Result<T>` is a union
+of the value `T` and an `Error`, and `Result` one of `Success` and `Error`. Both are custom unions in the
 C# 15 sense (`[Union]`, a constructor per case type, an `object? Value`), so a `switch` over one is
 exhaustive with its two arms (a missing arm is a build error, CS8509) and a pattern applies to the
 contained value. Exceptions are for bugs, not for control flow.
@@ -215,7 +215,7 @@ if (await git.SetValueAsync(key, json, wd) is Error e) return e;
 // Branch on the outcome: exhaustive, no discard arm
 return await server.PullAsync(name, wd) switch
 {
-    Success => R.Ok,
+    Success => Result.Ok,
     Error e => new Error("Failed to pull", e),
 };
 
@@ -227,11 +227,11 @@ return new Error($"Folder missing: {path}");
 return new Error("Failed to merge", inner: e);
 
 // A throwing API, e.g. a file call, becomes a result at the boundary
-if (R.Catch(() => File.Move(src, dst)) is Error e) return e;
+if (Result.Catch(() => File.Move(src, dst)) is Error e) return e;
 
 // Returning: implicit conversions mean you just return the value or the error
-return commits;                       // → R<IReadOnlyList<Commit>>
-return R.Ok;                          // → R
+return commits;                       // → Result<IReadOnlyList<Commit>>
+return Result.Ok;                     // → Result
 ```
 
 Things to know:
@@ -249,10 +249,10 @@ Things to know:
   since they only pay off for a union that keeps value types unboxed.
 - A tuple cannot be bound by a union pattern that declares a variable, so a result carries a small
   record instead (`CloneInfo`, `UpdateAvailability`, `BlameHeader`).
-- `ICmd` returns `R<string>`; a failed command is a `CmdError` with the exit code and both outputs,
+- `ICmd` returns `Result<string>`; a failed command is a `CmdError` with the exit code and both outputs,
   matched as `result is CmdError e && e.Output.Contains("CONFLICT")`. `RunRawAsync` is for the few
   commands whose non-zero exit is an answer rather than a failure.
-- There is no conversion to `bool`, so `R<bool>` is a value like any other. `default(R<T>)` holds
+- There is no conversion to `bool`, so `Result<bool>` is a value like any other. `default(Result<T>)` holds
   nothing and matches neither arm.
 - The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
   while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
@@ -306,7 +306,7 @@ not change the string's value.
   usings and `[assembly: InternalsVisibleTo("gmdTest")]` (so tests can reach `internal` types).
 - Every git-facing method takes a trailing `string wd` — the repo working directory. It is
   threaded through explicitly rather than stored; keep doing that.
-- Async methods end in `Async` and return `Task<R<...>>`. `RunInBackground()`
+- Async methods end in `Async` and return `Task<Result<...>>`. `RunInBackground()`
   (`Utils/TaskExtensions.cs`) is the fire-and-forget helper.
 - Comments explain *why* / describe the algorithm step. The `Augmented` and graph code relies
   on them — keep them accurate rather than deleting them.

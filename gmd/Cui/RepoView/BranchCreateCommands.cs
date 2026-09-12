@@ -55,7 +55,7 @@ class BranchCreateCommands : IBranchCreateCommands
             {
                 var currentBranchName = repo.Repo.CurrentBranch().Name;
                 if (createBranchDlg.Show(currentBranchName, "") is not CreateBranchResult rsp)
-                    return R.Ok;
+                    return Result.Ok;
 
                 if (await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout, repo.Path) is Error e)
                 {
@@ -69,13 +69,13 @@ class BranchCreateCommands : IBranchCreateCommands
                     if (pushError.Message.Contains("'origin' does not appear to be a git repository"))
                     { // The push error is that repo has no remote origin, (local repo only)
                         // I.e. no remote repo to push to, lets just ignore the push error
-                        return R.Ok;
+                        return Result.Ok;
                     }
 
                     return new Error($"Failed to push branch {branchName} to remote server", pushError);
                 }
 
-                return R.Ok;
+                return Result.Ok;
             }
             finally
             {
@@ -95,7 +95,7 @@ class BranchCreateCommands : IBranchCreateCommands
                     name = branch.LocalName;
 
                 if (createBranchDlg.Show(name, "") is not CreateBranchResult rsp)
-                    return R.Ok;
+                    return Result.Ok;
 
                 var created = await server.CreateBranchFromBranchAsync(
                     repo.Repo,
@@ -115,13 +115,13 @@ class BranchCreateCommands : IBranchCreateCommands
                     if (pushError.Message.Contains("'origin' does not appear to be a git repository"))
                     { // The push error is that repo has no remote origin, (local repo only)
                         // I.e. no remote repo to push to, lets just ignore the push error
-                        return R.Ok;
+                        return Result.Ok;
                     }
 
                     return new Error($"Failed to push branch {branchName} to remote server", pushError);
                 }
 
-                return R.Ok;
+                return Result.Ok;
             }
             finally
             {
@@ -139,7 +139,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 var commitBranchName = commit.BranchName;
 
                 if (createBranchDlg.Show(commitBranchName, commit.Sid) is not CreateBranchResult rsp)
-                    return R.Ok;
+                    return Result.Ok;
 
                 var created = await server.CreateBranchFromCommitAsync(
                     repo.Repo,
@@ -159,12 +159,12 @@ class BranchCreateCommands : IBranchCreateCommands
                     if (pushError.Message.Contains("'origin' does not appear to be a git repository"))
                     { // The push error is that repo has no remote origin, (local repo only)
                         // I.e. no remote repo to push to, lets just ignore the push error
-                        return R.Ok;
+                        return Result.Ok;
                     }
                     return new Error($"Failed to push branch {rsp.Name} to remote server", pushError);
                 }
 
-                return R.Ok;
+                return Result.Ok;
             }
             finally
             {
@@ -190,7 +190,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 var existingNames = repo.Repo.AllBranches.Where(b => b.IsGitBranch).Select(b => b.Name).ToList();
                 var oldName = localBranch.NiceName;
                 if (renameBranchDlg.Show(oldName, remoteBranch != null, existingNames) is not string rsp)
-                    return R.Ok;
+                    return Result.Ok;
 
                 if (await server.RenameBranchAsync(localBranch.Name, rsp, repo.Path) is Error renameError)
                 {
@@ -200,7 +200,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 MigrateRepoConfigNames(oldName, rsp);
 
                 if (remoteBranch == null)
-                    return R.Ok;
+                    return Result.Ok;
 
                 // Renaming a remote branch is pushing the new name and then deleting the old one.
                 // The push is also what makes the local branch track the new remote branch, since
@@ -218,7 +218,7 @@ class BranchCreateCommands : IBranchCreateCommands
                     );
                 }
 
-                return R.Ok;
+                return Result.Ok;
             }
             finally
             {
@@ -234,7 +234,7 @@ class BranchCreateCommands : IBranchCreateCommands
             var isLocal = localBranch != null;
             var isRemote = remoteBranch != null;
             if (deleteBranchDlg.Show(name, isLocal, isRemote) is not DeleteBranchResult rsp)
-                return R.Ok;
+                return Result.Ok;
 
             var newName = "";
 
@@ -266,7 +266,7 @@ class BranchCreateCommands : IBranchCreateCommands
             }
 
             Refresh(newName);
-            return R.Ok;
+            return Result.Ok;
         });
 
     // A branch name can name either the local or the remote branch of a pair, and a command usually
@@ -329,5 +329,5 @@ class BranchCreateCommands : IBranchCreateCommands
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 }

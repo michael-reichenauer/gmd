@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace gmd.Utils;
 
-// Every fallible operation returns an R or an R<T>: a union of its value (or Success) and an Error,
+// Every fallible operation returns a Result or a Result<T>: a union of its value (or Success) and an Error,
 // matched on the case type. Exceptions are for bugs, not for flow control.
 //
 //   var result = await git.GetStatusAsync(wd);
@@ -13,13 +13,13 @@ namespace gmd.Utils;
 //
 //   return await server.PullAsync(name, wd) switch
 //   {
-//       Success => R.Ok,
+//       Success => Result.Ok,
 //       Error e => new Error("Failed to pull", e),
 //   };
 //
 //   var tags = await git.GetTagsAsync(wd) is IReadOnlyList<Tag> t ? t : [];
 //
-// R and R<T> are custom unions in the C# 15 sense: a struct with the [Union] attribute, one public
+// Result and Result<T> are custom unions in the C# 15 sense: a struct with the [Union] attribute, one public
 // constructor per case type and an object Value. So a switch over one is exhaustive without a
 // discard arm (a missing arm is a build error), and a pattern applies to the contained value rather
 // than to the struct. The optional non-boxing members of that pattern (HasValue, TryGetValue) are
@@ -28,7 +28,7 @@ namespace gmd.Utils;
 // its own union declarations. The attribute is polyfilled while the target framework is net10.0,
 // see UnionPolyfill.cs.
 
-// The failure case of R and R<T>: a message, where it was created, and optionally the error or the
+// The failure case of Result and Result<T>: a message, where it was created, and optionally the error or the
 // exception it wraps.
 public class Error
 {
@@ -118,7 +118,7 @@ public class Error
     public override string ToString() => $"Error: {Message}";
 }
 
-// The success case of R
+// The success case of Result
 public sealed class Success
 {
     public static readonly Success Instance = new();
@@ -130,27 +130,27 @@ public sealed class Success
 
 // The result of an operation that either succeeds or fails: Success or Error
 [Union]
-public readonly struct R : IUnion
+public readonly struct Result : IUnion
 {
     readonly object? value;
 
-    public R(Success success) => value = success;
+    public Result(Success success) => value = success;
 
-    public R(Error error) => value = error;
+    public Result(Error error) => value = error;
 
-    public static readonly R Ok = new(Success.Instance);
+    public static readonly Result Ok = new(Success.Instance);
 
     // The contained case, which the compiler matches patterns against
     public object? Value => value;
 
-    public static implicit operator R(Error error) => new(error);
+    public static implicit operator Result(Error error) => new(error);
 
     // Runs an action that reports failure by throwing, e.g. a file API, and returns the exception
     // as an error. Every exception is caught, the fatal ones included, since bad input to such an
     // API surfaces as an ArgumentException or an InvalidOperationException.
     //
-    //   if (R.Catch(() => File.Move(source, target)) is Error e) return e;
-    public static R Catch(
+    //   if (Result.Catch(() => File.Move(source, target)) is Error e) return e;
+    public static Result Catch(
         Action action,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
@@ -171,9 +171,9 @@ public readonly struct R : IUnion
     // Runs a function that reports failure by throwing and returns its value, or the exception as
     // an error.
     //
-    //   var text = R.Catch(() => File.ReadAllText(path));
+    //   var text = Result.Catch(() => File.ReadAllText(path));
     //   if (text is not string content) return text.Error;
-    public static R<T> Catch<T>(
+    public static Result<T> Catch<T>(
         Func<T> func,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
@@ -202,15 +202,16 @@ public readonly struct R : IUnion
 
 // The result of an operation that either produces a value or fails: T or Error
 [Union]
-public readonly struct R<T> : IUnion
+public readonly struct Result<T> : IUnion
     where T : notnull
 {
     readonly object? value;
 
     // A null value is not an error, it is a bug in the function returning it
-    public R(T value) => this.value = value ?? throw Asserter.FailFast("Value cannot be null");
+    public Result(T value) =>
+        this.value = value ?? throw new InvalidOperationException("A result value cannot be null");
 
-    public R(Error error) => value = error;
+    public Result(Error error) => value = error;
 
     // The contained case, which the compiler matches patterns against. Generic code matches it
     // directly ('result.Value is T value'), since a union pattern cannot bind a type parameter.
@@ -220,14 +221,14 @@ public readonly struct R<T> : IUnion
     // value; reading it on a value is a bug in the caller:
     //
     //   if (result is not Status status) return result.Error;
-    public Error Error => value as Error ?? throw Asserter.FailFast("Result is not an error");
+    public Error Error => value as Error ?? throw new InvalidOperationException("Result is not an error");
 
-    public static implicit operator R<T>(T value) => new(value);
+    public static implicit operator Result<T>(T value) => new(value);
 
-    public static implicit operator R<T>(Error error) => new(error);
+    public static implicit operator Result<T>(Error error) => new(error);
 
     // Dropping the value keeps the outcome
-    public static implicit operator R(R<T> result) => result.value is Error e ? new R(e) : R.Ok;
+    public static implicit operator Result(Result<T> result) => result.value is Error e ? new Result(e) : Result.Ok;
 
     public override string ToString() =>
         value switch

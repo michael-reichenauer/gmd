@@ -47,9 +47,9 @@ public static class TaskExtensions
         );
     }
 
-    // A task whose result is an R is not faulted when that result is an error, so the overload
+    // A task whose result is a Result is not faulted when that result is an error, so the overload
     // above would drop the error silently. This one logs it.
-    public static void RunInBackground(this Task<R> task)
+    public static void RunInBackground(this Task<Result> task)
     {
         task.ContinueWith(
             t =>

@@ -7,7 +7,7 @@ record RemoveWorktreeResult(bool IsDeleteBranch, bool IsForce);
 
 interface IRemoveWorktreeDlg
 {
-    R<RemoveWorktreeResult> Show(Worktree worktree, bool isUnmerged);
+    Result<RemoveWorktreeResult> Show(Worktree worktree, bool isUnmerged);
 }
 
 // Removing a worktree, and whether to delete its branch with it — offered checked when the branch
@@ -16,7 +16,7 @@ interface IRemoveWorktreeDlg
 // worktree have to be discarded on purpose too, with the Force box.
 class RemoveWorktreeDlg : IRemoveWorktreeDlg
 {
-    public R<RemoveWorktreeResult> Show(Worktree worktree, bool isUnmerged)
+    public Result<RemoveWorktreeResult> Show(Worktree worktree, bool isUnmerged)
     {
         var dlg = new UIDialog("Remove Worktree", 64, 10);
 

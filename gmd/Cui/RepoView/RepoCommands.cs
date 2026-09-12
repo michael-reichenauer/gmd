@@ -94,7 +94,7 @@ class RepoCommands : IRepoCommands
             {
                 return new Error($"Failed to open repo at {path}", e);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void ShowBrowseRepoDialog() =>
@@ -102,13 +102,13 @@ class RepoCommands : IRepoCommands
         {
             var browser = new FolderBrowseDlg();
             if (browser.Show(config.ResentParentFolders()) is not string path)
-                return R.Ok;
+                return Result.Ok;
 
             if (await repoView.ShowRepoAsync(path) is Error e)
             {
                 return new Error($"Failed to open repo at {path}", e);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void ShowAbout() => aboutDlg.Show();
@@ -119,7 +119,7 @@ class RepoCommands : IRepoCommands
         Do(async () =>
         {
             if (cloneDlg.Show(config.ResentParentFolders()) is not CloneInfo clone)
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.CloneAsync(clone.Uri, clone.Path, repo.Path) is Error cloneError)
             {
@@ -130,7 +130,7 @@ class RepoCommands : IRepoCommands
             {
                 return new Error($"Failed to open repo at {clone.Path}", showError);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void InitRepo() =>
@@ -138,7 +138,7 @@ class RepoCommands : IRepoCommands
         {
             var pathResult = initRepoDlg.Show(config.ResentParentFolders());
             if (pathResult is not string path)
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.InitRepoAsync(path, repo.Path) is Error initError)
             {
@@ -149,7 +149,7 @@ class RepoCommands : IRepoCommands
             {
                 return new Error($"Failed to open repo at {path}", showError);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void SearchFilterRepo() =>
@@ -157,7 +157,7 @@ class RepoCommands : IRepoCommands
         {
             await Task.CompletedTask;
             repoView.ShowFilter();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void UndoAllUncommittedChanged() =>
@@ -169,7 +169,7 @@ class RepoCommands : IRepoCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void CleanWorkingFolder() =>
@@ -184,7 +184,7 @@ class RepoCommands : IRepoCommands
                 ) != 0
             )
             {
-                return R.Ok;
+                return Result.Ok;
             }
 
             if (await server.CleanWorkingFolderAsync(repo.Path) is Error e)
@@ -193,7 +193,7 @@ class RepoCommands : IRepoCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     // The name of what git stopped part way through, e.g. "Rebase", for the menu items that act on
@@ -298,13 +298,13 @@ class RepoCommands : IRepoCommands
         {
             var name = OperationName();
             if (UI.InfoMessage($"Abort {name}", $"Do you want to abort the {name.ToLower()}?", 1, ["Yes", "No"]) != 0)
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.AbortOperationAsync(repo.Path) is Error e)
                 return new Error($"Failed to abort {name.ToLower()}", e);
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     // Carries on with the commits the operation has left. Not offered for a merge, which is
@@ -314,7 +314,7 @@ class RepoCommands : IRepoCommands
         {
             // Continuing is how a rebase makes its commit, so it needs the same gate as Commit
             if (!await ConfirmConflictsResolvedAsync("Continue"))
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.ContinueOperationAsync(repo.Path) is Error e)
             {
@@ -323,7 +323,7 @@ class RepoCommands : IRepoCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     // Drops the commit the operation stopped on and carries on with the rest
@@ -339,7 +339,7 @@ class RepoCommands : IRepoCommands
                     ["Yes", "No"]
                 ) != 0
             )
-                return R.Ok;
+                return Result.Ok;
 
             if (await server.SkipOperationAsync(repo.Path) is Error e)
             {
@@ -348,7 +348,7 @@ class RepoCommands : IRepoCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void UpdateRelease() =>
@@ -371,7 +371,7 @@ class RepoCommands : IRepoCommands
             if (button != 0)
             {
                 Log.Info($"Skip update");
-                return R.Ok;
+                return Result.Ok;
             }
             Log.Info($"Updating release ...");
             var updateTask = updater.UpdateAsync();
@@ -385,10 +385,10 @@ class RepoCommands : IRepoCommands
 
             UI.InfoMessage("Restart Required", "A program restart is required after update,\nplease start gmd again.");
             UI.Shutdown();
-            return R.Ok;
+            return Result.Ok;
         });
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 
     public void CopyCommitId() =>
         Do(async () =>
@@ -398,7 +398,7 @@ class RepoCommands : IRepoCommands
             if (clipboard.Set(commit.Id) is Error e)
                 return new Error("Failed to copy the commit id", e);
 
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void CopyCommitMessage() =>
@@ -409,6 +409,6 @@ class RepoCommands : IRepoCommands
             if (clipboard.Set(commit.Message.TrimEnd()) is Error e)
                 return new Error("Failed to copy the commit message", e);
 
-            return R.Ok;
+            return Result.Ok;
         });
 }

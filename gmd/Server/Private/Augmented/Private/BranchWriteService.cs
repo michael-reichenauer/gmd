@@ -9,20 +9,20 @@ namespace gmd.Server.Private.Augmented.Private;
 // pair holds the tip to merge or rebase onto.
 interface IBranchWriteService
 {
-    Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<R> CreateBranchFromBranchAsync(
+    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
+    Task<Result> CreateBranchFromBranchAsync(
         Repo repo,
         string newBranchName,
         string sourceBranch,
         bool isCheckout,
         string wd
     );
-    Task<R> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
-    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
-    Task<R> SwitchToAsync(Repo repo, string branchName);
-    Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name);
-    Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
-    Task<R> RebaseBranchAsync(Repo repo, string name);
+    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
+    Task<Result> SwitchToAsync(Repo repo, string branchName);
+    Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name);
+    Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
+    Task<Result> RebaseBranchAsync(Repo repo, string name);
 }
 
 class BranchWriteService : IBranchWriteService
@@ -38,7 +38,7 @@ class BranchWriteService : IBranchWriteService
         this.metaDataService = metaDataService;
     }
 
-    public async Task<R> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
+    public async Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
     {
         Log.Info($"Create branch {newBranchName} ...");
         Commit? currentCommit = null;
@@ -54,7 +54,7 @@ class BranchWriteService : IBranchWriteService
                 return e;
 
             if (currentCommit == null || currentBranch == null)
-                return R.Ok;
+                return Result.Ok;
 
             // Get the latest meta data
             var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
@@ -66,7 +66,7 @@ class BranchWriteService : IBranchWriteService
         }
     }
 
-    public async Task<R> CreateBranchFromBranchAsync(
+    public async Task<Result> CreateBranchFromBranchAsync(
         Repo repo,
         string newBranchName,
         string sourceBranch,
@@ -93,7 +93,7 @@ class BranchWriteService : IBranchWriteService
         }
     }
 
-    public async Task<R> CreateBranchFromCommitAsync(
+    public async Task<Result> CreateBranchFromCommitAsync(
         Repo repo,
         string newBranchName,
         string sha,
@@ -124,7 +124,7 @@ class BranchWriteService : IBranchWriteService
     // so those names are renamed as well, otherwise the old name would reappear as a branch of its
     // own. The remote branch is not renamed here, git has no such command, the caller pushes the
     // new name and deletes the old remote branch instead.
-    public async Task<R> RenameBranchAsync(string oldName, string newName, string wd)
+    public async Task<Result> RenameBranchAsync(string oldName, string newName, string wd)
     {
         Log.Info($"Rename branch {oldName} to {newName} ...");
 
@@ -146,7 +146,7 @@ class BranchWriteService : IBranchWriteService
     // The meta data stores nice names, i.e. names without the remote prefix
     static string NiceName(string branchName) => branchName.TrimPrefix("origin/");
 
-    public async Task<R> SwitchToAsync(Repo repo, string branchName)
+    public async Task<Result> SwitchToAsync(Repo repo, string branchName)
     {
         var branch = repo.BranchByName[branchName];
         if (branch.IsGitBranch)
@@ -160,7 +160,7 @@ class BranchWriteService : IBranchWriteService
         return await CreateBranchFromCommitAsync(repo, branch.NiceName, tip.Id, true, repo.Path);
     }
 
-    public async Task<R<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name)
+    public async Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name)
     {
         if (repo.CommitById.TryGetValue(name, out var commit))
         { // Merging from a commit
@@ -189,7 +189,7 @@ class BranchWriteService : IBranchWriteService
     //
     // Anything that fails leaves HEAD where the failure left it, which for a conflict is on the
     // target branch, since that is where the conflict has to be resolved.
-    public async Task<R<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
+    public async Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
     {
         using (fileMonitor.Pause())
         {
@@ -213,7 +213,7 @@ class BranchWriteService : IBranchWriteService
         }
     }
 
-    public async Task<R> RebaseBranchAsync(Repo repo, string name)
+    public async Task<Result> RebaseBranchAsync(Repo repo, string name)
     {
         using (fileMonitor.Pause())
         {
@@ -232,7 +232,7 @@ class BranchWriteService : IBranchWriteService
                     return pushError;
             }
 
-            return R.Ok;
+            return Result.Ok;
         }
     }
 
@@ -266,7 +266,7 @@ class BranchWriteService : IBranchWriteService
 
     // The merge log reaches as far back as the merge does, while the shown repo is a log truncated
     // to a max count, so a commit of the merge can be missing from it. Those are skipped rather
-    // than looked up blindly, which would throw a KeyNotFoundException past all the R handling.
+    // than looked up blindly, which would throw a KeyNotFoundException past all the Result handling.
     IEnumerable<Commit> ToMergeCommits(Repo repo, IReadOnlyList<Git.Commit> commits)
     {
         var mergeCommits = commits

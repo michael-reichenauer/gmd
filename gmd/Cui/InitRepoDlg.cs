@@ -4,7 +4,7 @@ namespace gmd.Cui;
 
 interface IInitRepoDlg
 {
-    R<string> Show(IReadOnlyList<string> recentParentFolders);
+    Result<string> Show(IReadOnlyList<string> recentParentFolders);
 }
 
 class InitRepoDlg : IInitRepoDlg
@@ -12,7 +12,7 @@ class InitRepoDlg : IInitRepoDlg
     const int width = 55;
     UITextField? pathField;
 
-    public R<string> Show(IReadOnlyList<string> recentParentFolders)
+    public Result<string> Show(IReadOnlyList<string> recentParentFolders)
     {
         var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
 

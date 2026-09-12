@@ -676,7 +676,7 @@ class ConflictView : IConflictView
 
     // Every git call goes through here rather than being awaited on the main loop, which a
     // Terminal.Gui SynchronizationContext would deadlock
-    void Run(Func<Task<R>> action, Action? onDone = null) =>
+    void Run(Func<Task<Result>> action, Action? onDone = null) =>
         UI.RunInBackground(async () =>
         {
             using (progress.Show())

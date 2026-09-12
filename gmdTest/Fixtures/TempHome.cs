@@ -61,7 +61,7 @@ sealed class TempHome : IDisposable
             return "(no gmd.log)";
 
         // The log is written by another process that may still hold it open
-        if (R.Catch(() => File.ReadAllText(path)) is not string text)
+        if (Result.Catch(() => File.ReadAllText(path)) is not string text)
             return "(gmd.log could not be read)";
 
         return string.Join('\n', text.Split('\n').TakeLast(lines));
@@ -74,7 +74,7 @@ sealed class TempHome : IDisposable
 
         // A failed cleanup should not fail a test, the folder is in temp and will be cleaned by
         // the system eventually
-        if (Directory.Exists(Path) && R.Catch(() => Directory.Delete(Path, true)) is Error e)
+        if (Directory.Exists(Path) && Result.Catch(() => Directory.Delete(Path, true)) is Error e)
             Log.Warn($"Failed to delete temp home '{Path}', {e}");
     }
 

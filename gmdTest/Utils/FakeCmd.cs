@@ -34,7 +34,7 @@ class FakeCmd : ICmd
     // command that reports problems rather than failing looks like — 'git diff --check' is one.
     public static CmdResult Problems(string output, int exitCode = 2) => new("fake-cmd", exitCode, output, "");
 
-    public R<string> Command(
+    public Result<string> Command(
         string path,
         string args,
         string workingDirectory,
@@ -42,7 +42,7 @@ class FakeCmd : ICmd
         bool skipLog = false
     ) => CommandRaw(path, args, workingDirectory).ToResult();
 
-    public Task<R<string>> RunAsync(
+    public Task<Result<string>> RunAsync(
         string path,
         string args,
         string workingDirectory,
@@ -58,7 +58,7 @@ class FakeCmd : ICmd
         bool skipLog = false
     ) => Task.FromResult(CommandRaw(path, args, workingDirectory));
 
-    public R<string> CommandWithStdin(string path, string args, string stdinText)
+    public Result<string> CommandWithStdin(string path, string args, string stdinText)
     {
         Calls.Add(new CmdCall(path, args, "", stdinText));
         return respond(path, args, "").ToResult();

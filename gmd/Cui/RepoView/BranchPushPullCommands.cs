@@ -69,7 +69,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                     )
                     {
                         RefreshAndFetch();
-                        return R.Ok;
+                        return Result.Ok;
                     }
                 }
 
@@ -85,7 +85,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PublishCurrentBranch() =>
@@ -99,7 +99,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PushBranch(string name) =>
@@ -111,7 +111,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PushAllBranches() =>
@@ -134,7 +134,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PullCurrentBranch() =>
@@ -158,7 +158,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PullBranch(string name) =>
@@ -170,7 +170,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PullAllBranches() =>
@@ -213,7 +213,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             if (diverged.Any())
                 ShowDivergedMessage(diverged);
 
-            return R.Ok;
+            return Result.Ok;
         });
 
     public bool CanPush() => CanPush(repo.Repo);
@@ -319,5 +319,5 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 }

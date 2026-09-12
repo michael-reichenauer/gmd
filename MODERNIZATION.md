@@ -52,21 +52,27 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **The result type is a C# 15 union** (2026-09-11)
 
-- `R<T>` is a union of the value and an `Error`, and `R` one of `Success` and `Error`, in the shape
+- `Result<T>` is a union of the value and an `Error`, and `Result` one of `Success` and `Error`, in the shape
   the C# 15 compiler recognizes (`[Union]`, a constructor per case type, `object? Value`; the
   optional non-boxing `HasValue` / `TryGetValue` members are left out, since the contents are one
   boxed object anyway). Every `Try(out value, out e, …)` site — about 480 across both projects
   — became a pattern on the case type (`if (result is not Status status) return result.Error;`,
-  `is Error e`, an exhaustive `switch`), `R.Error(…)` became `new Error(…)`, the tests assert with
-  `AssertOk` / `AssertError`, and `Try` is gone. So are the mutable static `R.Ok`, the checked-flag
-  state machine behind `GetResultValue`, the reflection into `Exception._remoteStackTraceString`
-  and the implicit conversion to `bool`. The style is in CLAUDE.md under Conventions.
+  `is Error e`, an exhaustive `switch`), the `R.Error(…)` factory became `new Error(…)`, the tests
+  assert with `AssertOk` / `AssertError`, and `Try` is gone. So are the mutable static `Ok` field
+  (`static readonly` now), the checked-flag state machine behind `GetResultValue`, the reflection
+  into `Exception._remoteStackTraceString` and the implicit conversion to `bool`. The style is in
+  CLAUDE.md under Conventions.
+- Renamed `R` / `R<T>` to `Result` / `Result<T>` (2026-09-12), so the type reads without
+  explanation in another project, and `Result.cs` no longer calls gmd's `Asserter`: misuse throws
+  `InvalidOperationException`, which gmd's unhandled-exception path logs and shows anyway. So
+  `Result.cs`, `UnionPolyfill.cs` and the test helper `ResultAssert.cs` depend on nothing but the
+  BCL and can be copied to another project as they are (one namespace line each).
 - The compiler is the .NET 11 RC1 SDK's (`global.json`; `LangVersion preview` in
   `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
   are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
   why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
   (CS8509) is a build error.
-- Found on the way: `Task<R>.RunInBackground()` bound to the `Task` overload and dropped an error
+- Found on the way: `Task<Result>.RunInBackground()` bound to the `Task` overload and dropped an error
   result silently (the two fetch sites in `RepoView`); `IsUpdateAvailableAsync` and `CloneDlg.Show`
   returned tuples, which a union pattern cannot bind by name, so they return records;
   `UpdateChangeLog` wrote an empty `CHANGELOG.md` when reading the log failed.
@@ -185,7 +191,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - Set `LangVersion` to `15`. If the target framework moves to net11.0 (an STS release, where
   net10.0 is LTS), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When
-  CSharpier parses C# 15, `union R<T>(T, Error) { … }` is optional sugar; the struct already has
+  CSharpier parses C# 15, `union Result<T>(T, Error) { … }` is optional sugar; the struct already has
   what the keyword form would not (non-boxing access, the helpers in its body).
 - The VS Code C# extension bundles its own Roslyn and may flag union patterns until it catches up;
   `dotnet build` is the truth. CI installs the SDK from `global.json` plus `10.0.x` for the runtime
@@ -212,7 +218,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   coverage step, `NuGetAuditLevel` gate or Dependabot, and the fast tier never runs on Windows or
   macOS.
 - C, structure: the six `*Commands` classes repeat four fields, a constructor and a `Do` forwarder,
-  and 25 of 62 `Do(` bodies end in `Refresh(); return R.Ok;` — a `CommandContext` and a
+  and 25 of 62 `Do(` bodies end in `Refresh(); return Result.Ok;` — a `CommandContext` and a
   `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
   first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
   layout state inside the server model; `ConfigService` syncs a second `Config` by a reflective
@@ -247,7 +253,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   edit dialog (`UIDialog.AddContentView`, as `HelpDlg` does).
 - **Combined diffs (`diff --cc`)** are skipped with a warning. Relaxing the `@@ ` check alone is
   harmful: `ParseSectionDiff` calls a bare `int.Parse` on `-1,1 -1,1 +1,1` and throws outside the
-  `R` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
+  `Result` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
   view; worth it as a feature, since it is the only way to show what a merge resolved by hand.
 - Not built, by choice: blame `-w` / `-M` / `-C` toggles; a diff context below 6; word-level
   highlighting inside a conflict; submodule conflicts; `rerere`; marking local-only tags in the log
@@ -386,7 +392,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   block, so several guards in one method need distinct names; `not` applies to the union itself
   and every other pattern to its contents, which is what makes `is not T value` bind on the
   fall-through. A type named `Error` cannot be referred to inside a type that has a method named
-  `Error`, hence `new Error(...)` rather than a factory on `R`.
+  `Error`, hence `new Error(...)` rather than a factory on `Result`.
 - `Cmd.Command` trims the whole output, so a final empty line disappears, and it waits for the
   child's pipes, which a forking helper such as `xclip` inherits — hence `CommandWithStdin`.
 - `FileMonitor`'s debounce is a sliding window: a folder written to continuously never raises.

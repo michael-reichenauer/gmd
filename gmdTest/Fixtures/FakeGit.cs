@@ -18,11 +18,11 @@ class FakeGit : IGit
     public string CurrentAuthor => "Test Author";
 
     // The status of the repo, or of another worktree's folder when one is set for that path
-    public Task<R<Status>> GetStatusAsync(string wd) =>
-        Task.FromResult<R<Status>>(StatusByPath.TryGetValue(wd, out var s) ? s : status);
+    public Task<Result<Status>> GetStatusAsync(string wd) =>
+        Task.FromResult<Result<Status>>(StatusByPath.TryGetValue(wd, out var s) ? s : status);
 
     // The lock-free read the other worktrees get; which folders were read that way is recorded
-    public Task<R<Status>> GetStatusWithoutLocksAsync(string wd)
+    public Task<Result<Status>> GetStatusWithoutLocksAsync(string wd)
     {
         StatusWithoutLocksPaths.Add(wd);
         return GetStatusAsync(wd);
@@ -36,25 +36,25 @@ class FakeGit : IGit
 
     public List<string> WorktreeCalls { get; } = [];
 
-    public Task<R<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) =>
-        Task.FromResult<R<IReadOnlyList<Worktree>>>(Worktrees.ToList());
+    public Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) =>
+        Task.FromResult<Result<IReadOnlyList<Worktree>>>(Worktrees.ToList());
 
-    public Task<R> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd)
+    public Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd)
     {
         WorktreeCalls.Add($"add {path} {branchName} {(isNewBranch ? "new" : "existing")} {startPoint}".TrimEnd());
-        return Task.FromResult(R.Ok);
+        return Task.FromResult(Result.Ok);
     }
 
-    public Task<R> RemoveWorktreeAsync(string path, bool isForce, string wd)
+    public Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd)
     {
         WorktreeCalls.Add($"remove {path}{(isForce ? " --force" : "")}");
-        return Task.FromResult(R.Ok);
+        return Task.FromResult(Result.Ok);
     }
 
-    public Task<R> PruneWorktreesAsync(string wd)
+    public Task<Result> PruneWorktreesAsync(string wd)
     {
         WorktreeCalls.Add("prune");
-        return Task.FromResult(R.Ok);
+        return Task.FromResult(Result.Ok);
     }
 
     // The git key/value storage, i.e. the 'refs/gmd-metadata-key-value/<key>' refs MetaDataService
@@ -68,10 +68,10 @@ class FakeGit : IGit
     // Every key/value call made, in order, so tests can assert what was read, written and synced
     public List<string> ValueCalls { get; } = [];
 
-    public Task<R<string>> GetValueAsync(string key, string wd)
+    public Task<Result<string>> GetValueAsync(string key, string wd)
     {
         ValueCalls.Add($"get {key}");
-        return Task.FromResult<R<string>>(
+        return Task.FromResult<Result<string>>(
             Values.TryGetValue(key, out var value)
                 ? value
                 // The message git gives for a ref that does not exist, which MetaDataService reads
@@ -80,64 +80,68 @@ class FakeGit : IGit
         );
     }
 
-    public Task<R> SetValueAsync(string key, string value, string wd)
+    public Task<Result> SetValueAsync(string key, string value, string wd)
     {
         ValueCalls.Add($"set {key}");
         Values[key] = value;
-        return Task.FromResult(R.Ok);
+        return Task.FromResult(Result.Ok);
     }
 
-    public Task<R> PushValueAsync(string key, string wd)
+    public Task<Result> PushValueAsync(string key, string wd)
     {
         ValueCalls.Add($"push {key}");
         if (!Values.TryGetValue(key, out var value))
-            return Task.FromResult<R>(new Error("error: src refspec does not match any"));
+            return Task.FromResult<Result>(new Error("error: src refspec does not match any"));
 
         RemoteValues[key] = value;
-        return Task.FromResult(R.Ok);
+        return Task.FromResult(Result.Ok);
     }
 
-    public Task<R> PullValueAsync(string key, string wd)
+    public Task<Result> PullValueAsync(string key, string wd)
     {
         ValueCalls.Add($"pull {key}");
         if (!RemoteValues.TryGetValue(key, out var value))
-            return Task.FromResult<R>(new Error($"fatal: couldn't find remote ref {key}"));
+            return Task.FromResult<Result>(new Error($"fatal: couldn't find remote ref {key}"));
 
         Values[key] = value;
-        return Task.FromResult(R.Ok);
+        return Task.FromResult(Result.Ok);
     }
 
     // The rest of IGit is not reachable from the pipeline the tests drive
-    public R<string> RootPath(string path) => throw new NotSupportedException();
+    public Result<string> RootPath(string path) => throw new NotSupportedException();
 
-    public Task<R<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
+    public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         throw new NotSupportedException();
 
-    public Task<R<string>> Version() => throw new NotSupportedException();
+    public Task<Result<string>> Version() => throw new NotSupportedException();
 
-    public Task<R<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) => throw new NotSupportedException();
-
-    public Task<R<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
+    public Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
         throw new NotSupportedException();
 
-    public Task<R<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
+    public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
-    public Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => throw new NotSupportedException();
-
-    public Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd) => throw new NotSupportedException();
-
-    public Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
+    public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) => throw new NotSupportedException();
+    public Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => throw new NotSupportedException();
 
-    public Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
+    public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         throw new NotSupportedException();
 
-    public Task<R<Blame>> GetBlameAsync(string path, string reference, string wd) => throw new NotSupportedException();
+    public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
+        throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetPreviewMergeDiffAsync(
+    public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result<CommitDiff>> GetPreviewMergeDiffAsync(
         string sha1,
         string sha2,
         string message,
@@ -145,7 +149,7 @@ class FakeGit : IGit
         string wd
     ) => throw new NotSupportedException();
 
-    public Task<R<CommitDiff>> GetDiffRangeAsync(
+    public Task<Result<CommitDiff>> GetDiffRangeAsync(
         string sha1,
         string sha2,
         string message,
@@ -153,121 +157,123 @@ class FakeGit : IGit
         string wd
     ) => throw new NotSupportedException();
 
-    public Task<R> RunDiffToolAsync(string path, string wd) => throw new NotSupportedException();
+    public Task<Result> RunDiffToolAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<R> RunMergeToolAsync(string path, string wd) => throw new NotSupportedException();
+    public Task<Result> RunMergeToolAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<R> FetchAsync(string wd) => throw new NotSupportedException();
+    public Task<Result> FetchAsync(string wd) => throw new NotSupportedException();
 
-    public Task<R> PushBranchAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> PushBranchAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> PushCurrentBranchAsync(bool isForce, string wd) => throw new NotSupportedException();
+    public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) => throw new NotSupportedException();
 
-    public Task<R> PullCurrentBranchAsync(string wd) => throw new NotSupportedException();
+    public Task<Result> PullCurrentBranchAsync(string wd) => throw new NotSupportedException();
 
-    public Task<R> PullBranchAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> PullBranchAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> PushRefForceAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> PushRefForceAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> PullRefAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> PullRefAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> CloneAsync(string uri, string path, string wd) => throw new NotSupportedException();
+    public Task<Result> CloneAsync(string uri, string path, string wd) => throw new NotSupportedException();
 
-    public Task<R> InitRepoAsync(string path, string wd) => throw new NotSupportedException();
+    public Task<Result> InitRepoAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<R> CheckoutAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> CheckoutAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> MergeBranchAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> MergeBranchAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> RebaseBranchAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> RebaseBranchAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd) => throw new NotSupportedException();
+    public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) => throw new NotSupportedException();
 
-    public Task<R> CherryPickAsync(string sha, string wd) => throw new NotSupportedException();
+    public Task<Result> CherryPickAsync(string sha, string wd) => throw new NotSupportedException();
 
-    public Task<R> AbortOperationAsync(string wd) => throw new NotSupportedException();
+    public Task<Result> AbortOperationAsync(string wd) => throw new NotSupportedException();
 
-    public Task<R> ContinueOperationAsync(string wd) => throw new NotSupportedException();
+    public Task<Result> ContinueOperationAsync(string wd) => throw new NotSupportedException();
 
-    public Task<R> SkipOperationAsync(string wd) => throw new NotSupportedException();
+    public Task<Result> SkipOperationAsync(string wd) => throw new NotSupportedException();
 
-    public Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) => throw new NotSupportedException();
-
-    public Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd) =>
+    public Task<Result<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) =>
         throw new NotSupportedException();
 
-    public Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd) => throw new NotSupportedException();
+    public Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd) =>
+        throw new NotSupportedException();
 
-    public Task<R> WriteConflictFileAsync(ConflictFile file, string wd) => throw new NotSupportedException();
+    public Task<Result<ConflictFile>> WithBaseAsync(ConflictFile file, string wd) => throw new NotSupportedException();
 
-    public Task<R> ResolveConflictFileAsync(
+    public Task<Result> WriteConflictFileAsync(ConflictFile file, string wd) => throw new NotSupportedException();
+
+    public Task<Result> ResolveConflictFileAsync(
         string path,
         ConflictKind kind,
         IReadOnlyList<HunkResolution> choices,
         string wd
     ) => throw new NotSupportedException();
 
-    public Task<R> MarkResolvedAsync(string path, string wd) => throw new NotSupportedException();
+    public Task<Result> MarkResolvedAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<R> UnresolveAsync(string path, string wd) => throw new NotSupportedException();
+    public Task<Result> UnresolveAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<R> UseWholeFileAsync(string path, bool isOurs, string wd) => throw new NotSupportedException();
+    public Task<Result> UseWholeFileAsync(string path, bool isOurs, string wd) => throw new NotSupportedException();
 
-    public Task<R> DeleteConflictedAsync(string path, string wd) => throw new NotSupportedException();
+    public Task<Result> DeleteConflictedAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<R> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
+    public Task<Result> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
 
-    public Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
+    public Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
         throw new NotSupportedException();
 
     // Recorded rather than thrown, so a test can check what the rename did to the branch choices
     public List<string> RenameCalls { get; } = [];
 
-    public Task<R> RenameBranchAsync(string oldName, string newName, string wd)
+    public Task<Result> RenameBranchAsync(string oldName, string newName, string wd)
     {
         RenameCalls.Add($"{oldName} -> {newName}");
-        return Task.FromResult(R.Ok);
+        return Task.FromResult(Result.Ok);
     }
 
-    public Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd) => throw new NotSupportedException();
-
-    public Task<R> DeleteRemoteBranchAsync(string name, string wd) => throw new NotSupportedException();
-
-    public Task<R<IReadOnlyList<Tag>>> GetTagsAsync(string wd) => throw new NotSupportedException();
-
-    public Task<R> UndoAllUncommittedChangesAsync(string wd) => throw new NotSupportedException();
-
-    public Task<R> UndoUncommittedFileAsync(string path, string wd) => throw new NotSupportedException();
-
-    public Task<R> CleanWorkingFolderAsync(string wd) => throw new NotSupportedException();
-
-    public Task<R> UndoCommitAsync(string id, int parentIndex, string wd) => throw new NotSupportedException();
-
-    public Task<R> UncommitLastCommitAsync(string wd) => throw new NotSupportedException();
-
-    public Task<R> UncommitUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
-
-    public Task<R> StashAsync(string message, string wd) => throw new NotSupportedException();
-
-    public Task<R<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => throw new NotSupportedException();
-
-    public Task<R> StashPopAsync(string name, string wd) => throw new NotSupportedException();
-
-    public Task<R> StashDropAsync(string name, string wd) => throw new NotSupportedException();
-
-    public Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd) =>
+    public Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         throw new NotSupportedException();
 
-    public Task<R> AddTagAsync(string name, string commitId, string wd) => throw new NotSupportedException();
+    public Task<Result> DeleteRemoteBranchAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>
+    public Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result> UndoAllUncommittedChangesAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result> UndoUncommittedFileAsync(string path, string wd) => throw new NotSupportedException();
+
+    public Task<Result> CleanWorkingFolderAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) => throw new NotSupportedException();
+
+    public Task<Result> UncommitLastCommitAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result> UncommitUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
+
+    public Task<Result> StashAsync(string message, string wd) => throw new NotSupportedException();
+
+    public Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result> StashPopAsync(string name, string wd) => throw new NotSupportedException();
+
+    public Task<Result> StashDropAsync(string name, string wd) => throw new NotSupportedException();
+
+    public Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd) =>
         throw new NotSupportedException();
 
-    public Task<R> RemoveTagAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> AddTagAsync(string name, string commitId, string wd) => throw new NotSupportedException();
 
-    public Task<R> PushTagAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>
+        throw new NotSupportedException();
 
-    public Task<R> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
+    public Task<Result> RemoveTagAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<R> ResetHardUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
+    public Task<Result> PushTagAsync(string name, string wd) => throw new NotSupportedException();
+
+    public Task<Result> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
+
+    public Task<Result> ResetHardUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
 }

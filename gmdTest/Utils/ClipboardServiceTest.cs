@@ -163,14 +163,14 @@ public class ClipboardServiceTest
 // there is none
 class FakeTerminalClipboard : ITerminalClipboard
 {
-    readonly R result;
+    readonly Result result;
 
-    public FakeTerminalClipboard(R? result = null) => this.result = result ?? R.Ok;
+    public FakeTerminalClipboard(Result? result = null) => this.result = result ?? Result.Ok;
 
     // Every text it was asked to copy, in order
     public List<string> Texts { get; } = [];
 
-    public R Set(string text)
+    public Result Set(string text)
     {
         Texts.Add(text);
         return result;

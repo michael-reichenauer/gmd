@@ -1585,8 +1585,8 @@ public class GitIntegrationTest
     }
 
     // Unwraps a result, failing the test with the git error if the command failed
-    static T Value<T>(R<T> result)
+    static T Value<T>(Result<T> result)
         where T : notnull => AssertOk(result, "Git failed");
 
-    static void Ok(R result) => AssertOk(result, "Git failed");
+    static void Ok(Result result) => AssertOk(result, "Git failed");
 }

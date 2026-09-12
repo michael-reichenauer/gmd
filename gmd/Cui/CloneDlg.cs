@@ -7,7 +7,7 @@ record CloneInfo(string Uri, string Path);
 
 interface ICloneDlg
 {
-    R<CloneInfo> Show(IReadOnlyList<string> recentParentFolders);
+    Result<CloneInfo> Show(IReadOnlyList<string> recentParentFolders);
 }
 
 class CloneDlg : ICloneDlg
@@ -16,7 +16,7 @@ class CloneDlg : ICloneDlg
 
     UITextField? path;
 
-    public R<CloneInfo> Show(IReadOnlyList<string> recentParentFolders)
+    public Result<CloneInfo> Show(IReadOnlyList<string> recentParentFolders)
     {
         var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
 
@@ -83,7 +83,7 @@ class CloneDlg : ICloneDlg
     }
 
     // Try to extract git repo name
-    static R<string> TryParseRepoName(string uri)
+    static Result<string> TryParseRepoName(string uri)
     {
         var i = uri.LastIndexOf('/');
         if (i == -1)

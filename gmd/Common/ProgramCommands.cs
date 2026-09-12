@@ -137,7 +137,7 @@ class ProgramCommands : IProgramCommands
                 }
 
                 var text = $"# Change Log for Gmd\n--------------------\n{log}";
-                if (R.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
+                if (Result.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
                 {
                     Console.WriteLine($"Failed to write change log, {e}");
                 }

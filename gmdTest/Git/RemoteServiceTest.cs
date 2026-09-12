@@ -26,7 +26,7 @@ public class RemoteServiceTest
 
     static string FetchArgs(FakeCmd cmd) => cmd.Calls.Single(c => c.Args.StartsWith("fetch")).Args;
 
-    static async Task<string> ArgsOf(Func<RemoteService, Task<R>> run)
+    static async Task<string> ArgsOf(Func<RemoteService, Task<Result>> run)
     {
         var cmd = new FakeCmd("");
         await run(NewService(cmd));

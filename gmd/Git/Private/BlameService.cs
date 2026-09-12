@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 interface IBlameService
 {
-    Task<R<Blame>> GetBlameAsync(string path, string reference, string wd);
+    Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
 }
 
 // Blames a file, i.e. which commit last changed each line, using 'git blame --porcelain'.
@@ -18,7 +18,7 @@ class BlameService : IBlameService
         this.cmd = cmd;
     }
 
-    public async Task<R<Blame>> GetBlameAsync(string path, string reference, string wd)
+    public async Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd)
     {
         // An empty reference blames the working tree, i.e. including uncommitted lines
         var rev = reference == "" ? "" : $"{reference} ";
@@ -42,7 +42,7 @@ class BlameService : IBlameService
         return await Task.Run(() => Parse(output, path, reference));
     }
 
-    static R<Blame> Parse(string output, string path, string reference)
+    static Result<Blame> Parse(string output, string path, string reference)
     {
         var lines = output.Split('\n');
         var commits = new Dictionary<string, BlameCommit>();
@@ -84,7 +84,7 @@ class BlameService : IBlameService
     record BlameHeader(string Id, int OriginalLineNbr, int FinalLineNbr);
 
     // A header line is '<40 char sha> <original line nbr> <final line nbr> [<lines in group>]'
-    static R<BlameHeader> ParseHeader(string line)
+    static Result<BlameHeader> ParseHeader(string line)
     {
         var parts = line.Split(' ');
         if (parts.Length < 3 || parts[0].Length != 40)

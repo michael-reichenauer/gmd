@@ -2,14 +2,14 @@ namespace gmd.Git.Private;
 
 interface ICommitService
 {
-    Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd);
-    Task<R> UndoAllUncommittedChangesAsync(string wd);
-    Task<R> UndoUncommittedFileAsync(string path, string wd);
-    Task<R> CleanWorkingFolderAsync(string wd);
-    Task<R> UndoCommitAsync(string id, int parentIndex, string wd);
-    Task<R> UncommitLastCommitAsync(string wd);
-    Task<R> UncommitUntilCommitAsync(string id, string wd);
-    Task<R> ResetHardUntilCommitAsync(string id, string wd);
+    Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
+    Task<Result> UndoAllUncommittedChangesAsync(string wd);
+    Task<Result> UndoUncommittedFileAsync(string path, string wd);
+    Task<Result> CleanWorkingFolderAsync(string wd);
+    Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
+    Task<Result> UncommitLastCommitAsync(string wd);
+    Task<Result> UncommitUntilCommitAsync(string id, string wd);
+    Task<Result> ResetHardUntilCommitAsync(string id, string wd);
 }
 
 // cSpell:ignore pathspec
@@ -22,7 +22,7 @@ class CommitService : ICommitService
         this.cmd = cmd;
     }
 
-    public async Task<R> CommitAllChangesAsync(string message, bool isAmend, string wd)
+    public async Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd)
     {
         // Encode '"' chars
         message = message.Replace("\"", "\\\"");
@@ -61,7 +61,7 @@ class CommitService : ICommitService
     static bool IsUnmergedFiles(CmdError error) =>
         error.ErrorOutput.Contains("unmerged files") || error.ErrorOutput.Contains("unresolved conflict");
 
-    public async Task<R> UndoAllUncommittedChangesAsync(string wd)
+    public async Task<Result> UndoAllUncommittedChangesAsync(string wd)
     {
         if (await cmd.RunAsync("git", "reset --hard", wd) is Error e)
             return e;
@@ -69,7 +69,7 @@ class CommitService : ICommitService
         return await cmd.RunAsync("git", "clean -fd", wd);
     }
 
-    public async Task<R> UndoUncommittedFileAsync(string path, string wd)
+    public async Task<Result> UndoUncommittedFileAsync(string path, string wd)
     {
         if (await cmd.RunAsync("git", $"checkout --force \"{path}\"", wd) is Error e)
         {
@@ -78,19 +78,19 @@ class CommitService : ICommitService
             {
                 // Was an unknown (new/added) file, we just remove it
                 var fullPath = Path.Combine(wd, path);
-                if (R.Catch(() => File.Delete(fullPath)) is Error deleteError)
+                if (Result.Catch(() => File.Delete(fullPath)) is Error deleteError)
                     return new Error("Failed to reset", deleteError);
                 Log.Info($"File '{path}' (new/added) was removed");
-                return R.Ok;
+                return Result.Ok;
             }
 
             return new Error("Failed to reset", e);
         }
 
-        return R.Ok;
+        return Result.Ok;
     }
 
-    public async Task<R> CleanWorkingFolderAsync(string wd)
+    public async Task<Result> CleanWorkingFolderAsync(string wd)
     {
         if (await cmd.RunAsync("git", "reset --hard", wd) is Error e)
             return e;
@@ -98,23 +98,23 @@ class CommitService : ICommitService
         return await cmd.RunAsync("git", "clean -fxd", wd);
     }
 
-    public async Task<R> UndoCommitAsync(string id, int parentIndex, string wd)
+    public async Task<Result> UndoCommitAsync(string id, int parentIndex, string wd)
     {
         var parent = parentIndex == 0 ? "" : $"-m {parentIndex}";
         return await cmd.RunAsync("git", $"revert {parent} --no-commit {id}", wd);
     }
 
-    public async Task<R> UncommitLastCommitAsync(string wd)
+    public async Task<Result> UncommitLastCommitAsync(string wd)
     {
         return await cmd.RunAsync("git", "reset HEAD~1", wd);
     }
 
-    public async Task<R> UncommitUntilCommitAsync(string id, string wd)
+    public async Task<Result> UncommitUntilCommitAsync(string id, string wd)
     {
         return await cmd.RunAsync("git", $"reset --soft {id}", wd);
     }
 
-    public async Task<R> ResetHardUntilCommitAsync(string id, string wd)
+    public async Task<Result> ResetHardUntilCommitAsync(string id, string wd)
     {
         return await cmd.RunAsync("git", $"reset --hard {id}", wd);
     }

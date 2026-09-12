@@ -74,7 +74,7 @@ static class Files
         return !isBinary;
     }
 
-    public static R<string> GetEmbeddedFileContentText(string name)
+    public static Result<string> GetEmbeddedFileContentText(string name)
     {
         var streamResult = GetEmbeddedFileStream(name);
         if (streamResult is not Stream stream)
@@ -96,7 +96,7 @@ static class Files
 
     // Opens an embedded resource as a stream, for content that is not text or is too large to
     // want as one string (the spell check dictionary). The caller disposes the stream.
-    public static R<Stream> GetEmbeddedFileStream(string name)
+    public static Result<Stream> GetEmbeddedFileStream(string name)
     {
         try
         {
@@ -120,7 +120,7 @@ static class Files
     // Returns true if the file seems to be a binary file.
     // The file is considered binary if it contains at least one consecutive
     // sequence of 1 or more NUL characters within the first 8000 characters.
-    static R<bool> IsBinary(string path)
+    static Result<bool> IsBinary(string path)
     {
         try
         {

@@ -45,7 +45,7 @@ public class GitDirTest
         return path;
     }
 
-    static GitDirInfo Value(R<GitDirInfo> result)
+    static GitDirInfo Value(Result<GitDirInfo> result)
     {
         var info = AssertOk(result);
         return info;
