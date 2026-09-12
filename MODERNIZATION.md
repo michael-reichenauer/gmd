@@ -53,8 +53,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **The result type is a C# 15 union** (2026-09-11)
 
 - `R<T>` is a union of the value and an `Error`, and `R` one of `Success` and `Error`, in the shape
-  the C# 15 compiler recognizes (`[Union]`, a constructor per case type, `object? Value`, the
-  non-boxing `TryGetValue`). Every `Try(out value, out e, …)` site — about 480 across both projects
+  the C# 15 compiler recognizes (`[Union]`, a constructor per case type, `object? Value`; the
+  optional non-boxing `HasValue` / `TryGetValue` members are left out, since the contents are one
+  boxed object anyway). Every `Try(out value, out e, …)` site — about 480 across both projects
   — became a pattern on the case type (`if (result is not Status status) return result.Error;`,
   `is Error e`, an exhaustive `switch`), `R.Error(…)` became `new Error(…)`, the tests assert with
   `AssertOk` / `AssertError`, and `Try` is gone. So are the mutable static `R.Ok`, the checked-flag
@@ -379,7 +380,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   the main loop. The container is a runtime dependency with no test: after touching registration,
   start the app, because `--version` returns before the UI half of the graph is built.
 - The union result (C# 15, RC1 compiler): a pattern whose type is a type parameter cannot declare a
-  variable (CS8780), so generic helpers use `TryGetValue`; a tuple cannot be bound by name either,
+  variable (CS8780), so generic helpers match `Value` directly; a tuple cannot be bound by name either,
   so results carry small records; a pattern naming the `gmd.Server` twin of a `gmd.Git` type
   compiles and never matches; a pattern variable in an `if` condition is scoped to the enclosing
   block, so several guards in one method need distinct names; `not` applies to the union itself

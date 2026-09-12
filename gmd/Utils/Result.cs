@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace gmd.Utils;
@@ -23,8 +22,11 @@ namespace gmd.Utils;
 // R and R<T> are custom unions in the C# 15 sense: a struct with the [Union] attribute, one public
 // constructor per case type and an object Value. So a switch over one is exhaustive without a
 // discard arm (a missing arm is a build error), and a pattern applies to the contained value rather
-// than to the struct. The attribute is polyfilled while the target framework is net10.0, see
-// UnionPolyfill.cs.
+// than to the struct. The optional non-boxing members of that pattern (HasValue, TryGetValue) are
+// deliberately absent: they are for unions that keep value types unboxed in fields of their own,
+// and these store their contents as one object, so the compiler matches on Value, as it does for
+// its own union declarations. The attribute is polyfilled while the target framework is net10.0,
+// see UnionPolyfill.cs.
 
 // The failure case of R and R<T>: a message, where it was created, and optionally the error or the
 // exception it wraps.
@@ -138,21 +140,8 @@ public readonly struct R : IUnion
 
     public static readonly R Ok = new(Success.Instance);
 
+    // The contained case, which the compiler matches patterns against
     public object? Value => value;
-
-    public bool HasValue => value is not null;
-
-    public bool TryGetValue([MaybeNullWhen(false)] out Success success)
-    {
-        success = value as Success;
-        return success is not null;
-    }
-
-    public bool TryGetValue([MaybeNullWhen(false)] out Error error)
-    {
-        error = value as Error;
-        return error is not null;
-    }
 
     public static implicit operator R(Error error) => new(error);
 
@@ -223,27 +212,9 @@ public readonly struct R<T> : IUnion
 
     public R(Error error) => value = error;
 
+    // The contained case, which the compiler matches patterns against. Generic code matches it
+    // directly ('result.Value is T value'), since a union pattern cannot bind a type parameter.
     public object? Value => value;
-
-    public bool HasValue => value is not null;
-
-    public bool TryGetValue([MaybeNullWhen(false)] out T value)
-    {
-        if (this.value is T t)
-        {
-            value = t;
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
-
-    public bool TryGetValue([MaybeNullWhen(false)] out Error error)
-    {
-        error = value as Error;
-        return error is not null;
-    }
 
     // The error of a result already known to be one, i.e. right after a pattern ruled out the
     // value; reading it on a value is a bug in the caller:

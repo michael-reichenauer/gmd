@@ -8,12 +8,12 @@ namespace gmdTest.Fixtures;
 // Available everywhere through the static global using in Usings.cs.
 public static class ResultAssert
 {
-    // TryGetValue rather than 'is T value': a pattern whose type is a type parameter cannot declare
-    // a variable on a union, since the compiler cannot tell whether it matches the struct or its contents
+    // Matched on Value rather than 'result is T value': a union pattern whose type is a type
+    // parameter cannot declare a variable, since the compiler cannot tell the struct from its contents
     public static T AssertOk<T>(R<T> result, string message = "")
         where T : notnull
     {
-        if (result.TryGetValue(out T? value))
+        if (result.Value is T value)
             return value;
         throw new AssertFailedException($"Expected a value but got {result.Error.AllMessages()}{Suffix(message)}");
     }

@@ -244,7 +244,9 @@ Things to know:
   both `gmd.Git` and `gmd.Server`, and a pattern naming the wrong twin compiles and never matches.
   Spell the type as the file already does (`Git.Commit`, `Server.Repo`, the `GitStatus` alias).
 - In generic code `result is T value` is refused (CS8780: with a type parameter the compiler cannot
-  tell the struct from its contents), so use `result.TryGetValue(out T? value)` there.
+  tell the struct from its contents), so match `result.Value is T value` there. `Value` is the whole
+  of what the compiler needs; the spec's optional `HasValue` / `TryGetValue` members are left out,
+  since they only pay off for a union that keeps value types unboxed.
 - A tuple cannot be bound by a union pattern that declares a variable, so a result carries a small
   record instead (`CloneInfo`, `UpdateAvailability`, `BlameHeader`).
 - `ICmd` returns `R<string>`; a failed command is a `CmdError` with the exit code and both outputs,
