@@ -28,17 +28,21 @@ namespace gmd.Utils;
 // its own union declarations. The attribute is polyfilled while the target framework is net10.0,
 // see UnionPolyfill.cs.
 
-// The failure case of Result and Result<T>: a message, where it was created, and optionally the error or the
-// exception it wraps.
+// The failure case of Result and Result<T>: a message, where it was created, and optionally the
+// one thing it wraps, which is either another Error or an exception.
 public class Error
 {
+    // What this error wraps: an Error, an Exception, or nothing. One field rather than one per
+    // kind, so an error can never wrap both, which would leave no order for their messages.
+    readonly object? cause;
+
     public Error(
         string message = "",
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     )
-        : this(message, null, null, memberName, sourceFilePath, sourceLineNumber) { }
+        : this(message, (object?)null, memberName, sourceFilePath, sourceLineNumber) { }
 
     public Error(
         string message,
@@ -47,7 +51,7 @@ public class Error
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     )
-        : this(message, inner, null, memberName, sourceFilePath, sourceLineNumber) { }
+        : this(message, (object)inner, memberName, sourceFilePath, sourceLineNumber) { }
 
     public Error(
         string message,
@@ -56,7 +60,7 @@ public class Error
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     )
-        : this(message, null, exception, memberName, sourceFilePath, sourceLineNumber) { }
+        : this(message, (object)exception, memberName, sourceFilePath, sourceLineNumber) { }
 
     public Error(
         Exception exception,
@@ -64,50 +68,42 @@ public class Error
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     )
-        : this(exception.Message, null, exception, memberName, sourceFilePath, sourceLineNumber) { }
+        : this(exception.Message, (object)exception, memberName, sourceFilePath, sourceLineNumber) { }
 
-    Error(
-        string message,
-        Error? inner,
-        Exception? exception,
-        string memberName,
-        string sourceFilePath,
-        int sourceLineNumber
-    )
+    Error(string message, object? cause, string memberName, string sourceFilePath, int sourceLineNumber)
     {
         Message = message;
-        Inner = inner;
-        Exception = exception;
+        this.cause = cause;
         Origin = $"{sourceFilePath}({sourceLineNumber}) {memberName}";
     }
 
     public string Message { get; }
 
-    // The error this one wraps, if any
-    public Error? Inner { get; }
+    // The error this one wraps, when that is what it wraps
+    public Error? Inner => cause as Error;
 
-    // The exception this one wraps, if any
-    public Exception? Exception { get; }
+    // The exception this one wraps, when that is what it wraps
+    public Exception? Exception => cause as Exception;
 
     // The file, line and member that created the error, since nothing is thrown and so there is no
     // stack trace to tell
     public string Origin { get; }
 
-    // This message and every wrapped one, outermost first, which is what a dialog shows
+    // This message and then those of what it wraps, outermost first, which is what a dialog shows
     public string AllMessages() => string.Join(",\n", Messages());
 
     IEnumerable<string> Messages()
     {
         yield return Message;
 
-        if (Inner != null)
+        if (cause is Error inner)
         {
-            foreach (var message in Inner.Messages())
+            foreach (var message in inner.Messages())
                 yield return message;
         }
 
         // An error created from an exception already has that exception's message as its own
-        var exception = Exception;
+        var exception = cause as Exception;
         if (exception != null && exception.Message == Message)
             exception = exception.InnerException;
 
@@ -140,7 +136,8 @@ public readonly struct Result : IUnion
 
     public static readonly Result Ok = new(Success.Instance);
 
-    // The contained case, which the compiler matches patterns against
+    // The contained case, for the compiler: every pattern on a result is lowered to a pattern on
+    // Value, so it returns the Error as well, and null for default(Result). Match; do not read it.
     public object? Value => value;
 
     public static implicit operator Result(Error error) => new(error);
@@ -213,8 +210,10 @@ public readonly struct Result<T> : IUnion
 
     public Result(Error error) => value = error;
 
-    // The contained case, which the compiler matches patterns against. Generic code matches it
-    // directly ('result.Value is T value'), since a union pattern cannot bind a type parameter.
+    // The contained case, for the compiler: every pattern on a result is lowered to a pattern on
+    // Value, so it returns the Error as well, and null for default(Result<T>). Match rather than
+    // read it. The one exception is generic code, which cannot bind a type parameter in a union
+    // pattern and matches 'result.Value is T value' instead.
     public object? Value => value;
 
     // The error of a result already known to be one, i.e. right after a pattern ruled out the

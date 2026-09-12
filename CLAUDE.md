@@ -243,10 +243,14 @@ Things to know:
 - **Name the exact type in the pattern.** `Commit`, `Status`, `ConflictFile` and friends exist in
   both `gmd.Git` and `gmd.Server`, and a pattern naming the wrong twin compiles and never matches.
   Spell the type as the file already does (`Git.Commit`, `Server.Repo`, the `GitStatus` alias).
-- In generic code `result is T value` is refused (CS8780: with a type parameter the compiler cannot
-  tell the struct from its contents), so match `result.Value is T value` there. `Value` is the whole
-  of what the compiler needs; the spec's optional `HasValue` / `TryGetValue` members are left out,
-  since they only pay off for a union that keeps value types unboxed.
+- `Value` is the compiler's window into the union, not an accessor: every pattern on a result is
+  lowered to a pattern on it, so it returns the `Error` too and never throws. Match on the result
+  rather than read it. The one exception is generic code, where `result is T value` is refused
+  (CS8780: with a type parameter the compiler cannot tell the struct from its contents), so match
+  `result.Value is T value` there. The spec's optional `HasValue` / `TryGetValue` members are left
+  out, since they only pay off for a union that keeps value types unboxed.
+- An `Error` wraps at most one thing, another `Error` or an exception, so `AllMessages()` is this
+  message followed by the wrapped one's messages, outermost first.
 - A tuple cannot be bound by a union pattern that declares a variable, so a result carries a small
   record instead (`CloneInfo`, `UpdateAvailability`, `BlameHeader`).
 - `ICmd` returns `Result<string>`; a failed command is a `CmdError` with the exit code and both outputs,
