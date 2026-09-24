@@ -443,6 +443,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   inputs raise `Redrawn` at the end of `Redraw`, and the label, added later so it comes later in
   the subview order, is then drawn in the same pass. A label flagged before the view it follows
   would draw one redraw behind.
+- WeCantSpell.Hunspell's suggestion time budgets (`QueryOptions.TimeLimit*`, a quarter of a second
+  in all) are measured on the wall clock, where Hunspell's own are CPU time, and a budget that runs
+  out returns the suggestions found so far rather than failing. So a loaded machine gets a shorter
+  list, or none, and which one depends on timing: on CI with the end-to-end tests running eight at
+  a time, 'Sumerize' got no suggestions and 'brnach' only 'breach'. `SpellChecker.SuggestOptions`
+  gives it eight times the defaults.
 - Terminal.Gui 1.17.1 pinned a core from launch on Linux and macOS: `UnixMainLoop` drained the
   wrong end of its wakeup pipe, so `poll()` reported readable forever. Fixed upstream in 1.18.0
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.

@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Common.Spelling;
 using gmdTest.Fixtures;
+using WeCantSpell.Hunspell;
 
 namespace gmdTest.Common.Spelling;
 
@@ -44,6 +45,22 @@ public class SpellCheckerTest
         Assert.AreEqual("issue", Shared.Suggest("issu")[0]);
         Assert.AreEqual("branch", Shared.Suggest("brnach")[0]);
         CollectionAssert.Contains(Shared.Suggest("Sumerize").ToList(), "Summarize"); // Keeps the capital
+    }
+
+    // Regression: Hunspell's time budgets are wall clock and cut the suggestions short when they run
+    // out, so with the defaults a loaded CI runner gave 'Sumerize' no suggestions and 'brnach' only
+    // 'breach', and both commit dialog end-to-end tests failed. A slow machine cannot be staged
+    // here, so this pins that the checker does not fall back to the defaults.
+    [TestMethod]
+    public void TestSuggestionTimeBudgetIsWellAboveHunspellDefaults()
+    {
+        var defaults = new QueryOptions();
+        var options = SpellChecker.SuggestOptions;
+
+        Assert.AreEqual(8 * defaults.TimeLimitSuggestGlobal, options.TimeLimitSuggestGlobal);
+        Assert.AreEqual(8 * defaults.TimeLimitSuggestStep, options.TimeLimitSuggestStep);
+        Assert.AreEqual(8 * defaults.TimeLimitCompoundSuggest, options.TimeLimitCompoundSuggest);
+        Assert.AreEqual(8 * defaults.TimeLimitCompoundCheck, options.TimeLimitCompoundCheck);
     }
 
     [TestMethod]
