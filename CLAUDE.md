@@ -64,8 +64,8 @@ assert on. Fine for "does it start and not crash", and for measuring CPU — whi
 `utime+stime` from `/proc/<pid>/stat` over a window, since `ps %cpu` averages over the whole process
 lifetime and hides a spin that starts late.
 
-All of the above is packaged as `TmuxSession` (`gmdE2eTest/Fixtures/`) and driven by
-`gmdE2eTest/Cui/TerminalTest.cs` — see the Testing section.
+All of the above is packaged as `TmuxSession` (`gmdE2eTest/Fixtures/`) and driven by the tests in
+`gmdE2eTest/Cui/` — see the Testing section.
 
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
 sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
@@ -345,7 +345,11 @@ suite is an explicit goal — see the open issues in `MODERNIZATION.md`.
 The one exception to that layout is the end-to-end tier, which is a project of its own,
 `gmdE2eTest/`, so that it can run in parallel (see `TmuxSession` below). It compiles the fixtures it
 shares with `gmdTest` (`TempRepo`, `TempHome`, `Proc`, `ResultAssert`) as linked files rather than
-copies, so they stay in `gmdTest/Fixtures/`. `./test` runs both projects.
+copies, so they stay in `gmdTest/Fixtures/`. `./test` runs both projects. Inside it the same rule
+holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
+`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/WorktreeTest.cs` and so on. The
+`Integration` and `E2e` categories are set once for the whole assembly in its `TestSetup.cs`, so a new
+class needs nothing but `[TestClass]` to be kept out of the fast run.
 
 There are five pieces of test infrastructure; use them rather than inventing a sixth way.
 
@@ -515,7 +519,7 @@ Five traps worth knowing before adding one:
   only menus: in the log view, ten `Down`s sent in one call moved the cursor five rows.
 - **Count menu moves against the *fixture*, not the menu source.** `OnCursorDown` skips disabled
   items, so the same item is a different number of moves in a repo with a remote than in one
-  without. `TerminalTest.TestRenameBranch` is five moves for that reason.
+  without. `BranchTest.TestRenameBranch` is five moves for that reason.
 
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.

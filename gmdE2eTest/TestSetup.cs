@@ -1,5 +1,30 @@
 using gmdTest.Fixtures;
 
+// End-to-end tests: the built gmd binary, real git, a real pty. tmux keeps a screen model, so
+// what is asserted is the rendered screen — the drawing, the layout, the key dispatch and the
+// dialogs, none of which any other test in this suite reaches. The tests are in Cui/, one class
+// per area of the app, placed as the code they reach is in gmd/Cui/.
+//
+// They name no Terminal.Gui type, deliberately, so they are as valid against a 2.x build as a
+// 1.x one, which is what makes them the acceptance suite for that port. They are
+// characterization tests: they capture what gmd draws today, not what it ought to draw.
+//
+// Two rules for anything added here, both learned the hard way:
+//   - Never send a key into a screen that has not settled. gmd drops keystrokes while a git
+//     command is running rather than queueing them, so a key sent too early is silently lost.
+//     Every Send is therefore preceded by a WaitFor.
+//   - Escape in the log view quits the application. Use WaitUntilGone to close a dialog and
+//     check it really closed, rather than sending a second Escape for safety.
+// CLAUDE.md has the rest, under TmuxSession.
+//
+// They need tmux, which ./installtools installs, and are in their own categories. Those are set
+// here for the whole assembly rather than on each class, so that a new test class cannot be
+// added without them and end up in the fast run:
+//   ./test --filter "TestCategory!=Integration"   excludes these and the real git tests
+//   ./test --filter "TestCategory=E2e"            runs only these
+[assembly: TestCategory("Integration")]
+[assembly: TestCategory("E2e")]
+
 // The end-to-end tests run in parallel, one test per worker. They can: every test already owns
 // everything it touches — its own temp repository, its own throwaway HOME and its own private tmux
 // server (see TmuxSession) — and none of them changes process state such as the culture or an

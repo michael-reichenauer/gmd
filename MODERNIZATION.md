@@ -232,8 +232,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   synchronous, `TipID` vs `TipId`, `RepoConfigImpl`); dead code (`exampleRunes.cs`, the commented
   blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`, `TagService`,
   `BranchService`, `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
-  `gmd/Server/Repo.cs`, some identical — share the leaf records only; `TerminalTest.cs` at 3,200
-  lines; no tests for `ProgramCommands` and `Updater`, and `FakeGit` implements 12 of 76 members.
+  `gmd/Server/Repo.cs`, some identical — share the leaf records only; no tests for
+  `ProgramCommands` and `Updater`, and `FakeGit` implements 12 of 76 members.
 - Not recommended: removing the one-implementation interfaces (they are the DI and test-double
   seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
 

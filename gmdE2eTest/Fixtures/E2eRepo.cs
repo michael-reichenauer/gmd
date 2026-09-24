@@ -211,7 +211,7 @@ static class E2eRepo
     //
     // Deliberately its own repository rather than another commit on CreateAsync: changing that
     // fixture would change the id of that commit and of every commit after it, and with it every
-    // snapshot in TerminalTest that names one.
+    // end-to-end snapshot that names one.
     public static async Task<TempRepo> CreateWithLongFileAsync()
     {
         var repo = await TempRepo.CreateAsync();
