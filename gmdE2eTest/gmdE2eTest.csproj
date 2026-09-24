@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The end-to-end UI tests: the built gmd binary driven in tmux. A project of its own so that it
+       can run its tests in parallel (see TestSetup.cs), which gmdTest must not: MSTest sets
+       parallelism per assembly, and the unit tests share process state. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.3" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.3" />
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
+    <!-- Formats sources on build (Debug) and fails the build if unformatted (Release).
+         Set CSharpier_Bypass=true to skip. -->
+    <PackageReference Include="CSharpier.MsBuild" Version="1.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- The fixtures shared with gmdTest, compiled here too rather than copied, so each still has one
+       source: the temp repository the tests run against and what it is built with, and the
+       throwaway HOME that both test processes and every gmd they start run under -->
+  <ItemGroup>
+    <Compile Include="..\gmdTest\Fixtures\Proc.cs" Link="Fixtures\Proc.cs" />
+    <Compile Include="..\gmdTest\Fixtures\ResultAssert.cs" Link="Fixtures\ResultAssert.cs" />
+    <Compile Include="..\gmdTest\Fixtures\TempHome.cs" Link="Fixtures\TempHome.cs" />
+    <Compile Include="..\gmdTest\Fixtures\TempRepo.cs" Link="Fixtures\TempRepo.cs" />
+  </ItemGroup>
+
+  <!-- gmd is an Exe, so MSBuild copies its apphost into this output, which is the binary
+       TmuxSession starts -->
+  <ItemGroup>
+    <ProjectReference Include="..\gmd\gmd.csproj" />
+  </ItemGroup>
+</Project>

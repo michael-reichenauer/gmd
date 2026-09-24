@@ -17,9 +17,9 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 
 ```bash
 ./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
-./test [args]    # dotnet test gmdTest/gmdTest.csproj "$@"
+./test [args]    # dotnet test gmd.sln "$@", i.e. both gmdTest and gmdE2eTest (~35 s with the build)
                  #   --filter "TestCategory!=Integration"  fast tests only (~890 tests, ~1 s)
-                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests
+                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~30 s, in parallel)
 ./build          # full release: test + package audit + publish all platforms (slow)
 ./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
@@ -64,8 +64,8 @@ assert on. Fine for "does it start and not crash", and for measuring CPU — whi
 `utime+stime` from `/proc/<pid>/stat` over a window, since `ps %cpu` averages over the whole process
 lifetime and hides a spin that starts late.
 
-All of the above is packaged as `TmuxSession` (`gmdTest/Fixtures/`) and driven by
-`gmdTest/Cui/TerminalTest.cs` — see the Testing section.
+All of the above is packaged as `TmuxSession` (`gmdE2eTest/Fixtures/`) and driven by the tests in
+`gmdE2eTest/Cui/` — see the Testing section.
 
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
 sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
@@ -311,7 +311,8 @@ not change the string's value.
   enabled as suggestions in `.editorconfig`, so the IDE will point out remaining sites as you work.
 - Expression-bodied one-line members are used heavily for delegation (see `Git.cs`).
 - Nullable reference types and implicit usings are **on**; `gmd/Usings.cs` holds the global
-  usings and `[assembly: InternalsVisibleTo("gmdTest")]` (so tests can reach `internal` types).
+  usings and `[assembly: InternalsVisibleTo("gmdTest")]` (so tests can reach `internal` types, and
+  the same for `gmdE2eTest`).
 - Every git-facing method takes a trailing `string wd` — the repo working directory. It is
   threaded through explicitly rather than stored; keep doing that.
 - Async methods end in `Async` and return `Task<Result<...>>`. `RunInBackground()`
@@ -340,6 +341,15 @@ MSTest 4.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout — put 
 mirroring its subject, e.g. `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`. Tests that
 need a real repository use `TempRepo`; **never** run git against this working tree. Growing this
 suite is an explicit goal — see the open issues in `MODERNIZATION.md`.
+
+The one exception to that layout is the end-to-end tier, which is a project of its own,
+`gmdE2eTest/`, so that it can run in parallel (see `TmuxSession` below). It compiles the fixtures it
+shares with `gmdTest` (`TempRepo`, `TempHome`, `Proc`, `ResultAssert`) as linked files rather than
+copies, so they stay in `gmdTest/Fixtures/`. `./test` runs both projects. Inside it the same rule
+holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
+`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/WorktreeTest.cs` and so on. The
+`Integration` and `E2e` categories are set once for the whole assembly in its `TestSetup.cs`, so a new
+class needs nothing but `[TestClass]` to be kept out of the fast run.
 
 There are five pieces of test infrastructure; use them rather than inventing a sixth way.
 
@@ -431,7 +441,7 @@ part that is not cosmetic — remove the row-order flake, since `git log --all -
 commit date and has nothing to break a tie with. They go around `IGit` because `ICmd` cannot pass
 environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committer date.
 
-**`TmuxSession`** (`gmdTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real
+**`TmuxSession`** (`gmdE2eTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real
 pty. tmux keeps a screen model, so `capture-pane` gives back the rendered screen, and that is what
 is asserted — the drawing, the layout, the key dispatch and the dialogs, none of which anything
 else in the suite reaches. It names no Terminal.Gui type, deliberately, so it is as valid against a
@@ -455,7 +465,12 @@ So is the cursor: `gmd.IsCursorVisible` and `gmd.CursorPosition` come from tmux'
 is how "the caret is back in the text field after the menu closed" is asserted.
 
 Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
-filter above excludes them. Seven things they do that matter, and that a new test must keep doing:
+filter above excludes them. They run **in parallel**, eight at a time (`[assembly: Parallelize]` in
+`gmdE2eTest/TestSetup.cs`), which took the tier from about four minutes to about thirty seconds —
+a test is nearly all waiting for a screen to settle, not CPU. What bounds a run now is its longest
+test, the thirty second worktree re-read. `-- MSTest.Parallelize.Workers=1` after the other
+arguments runs them one at a time again. Eight things they do that matter, and that a new test must
+keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
   under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
@@ -480,6 +495,11 @@ filter above excludes them. Seven things they do that matter, and that a new tes
   session to one second, and two of those have nothing to order them by. `E2eRepo` has
   `CreateWithChangesAsync` for a working tree with something to commit; the uncommitted row's own
   time is `DateTime.Now`, so that one row goes through `ScreenText.MaskTimes`.
+- **Nothing shared with the other tests**, since several run at once: everything a test touches is
+  its own repo, HOME and tmux server, and it changes nothing process-wide — no culture, environment
+  variable or current directory. Waiting blocks a thread pool thread for the whole test, which is
+  why `TestSetup` raises the pool's minimum; without that, six workers on two cores starved the pool
+  and a run took ten minutes.
 
 Five traps worth knowing before adding one:
 
@@ -495,10 +515,11 @@ Five traps worth knowing before adding one:
 - **One key per `Send` when driving a menu**, with a `WaitForStable` after each. `Send("Down",
   "Down", …)` in one call loses keys — a menu redraw drops whatever was sent behind it, so five
   arrived as three, and a miscounted menu runs the wrong command. Same "never send a key into a
-  screen that has not settled" rule, and it applies even though no git command is running.
+  screen that has not settled" rule, and it applies even though no git command is running. It is not
+  only menus: in the log view, ten `Down`s sent in one call moved the cursor five rows.
 - **Count menu moves against the *fixture*, not the menu source.** `OnCursorDown` skips disabled
   items, so the same item is a different number of moves in a repo with a remote than in one
-  without. `TerminalTest.TestRenameBranch` is five moves for that reason.
+  without. `BranchTest.TestRenameBranch` is five moves for that reason.
 
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
@@ -513,6 +534,8 @@ Other things to know:
   (`[AssemblyInitialize]`) before anything can log — otherwise `./test` truncates the developer's
   `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
   `ConfigLogger` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
+  `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
+  `[AssemblyInitialize]`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:
   `Augmenter` → `BranchStructureService` → its three stage services → `BranchNameService`.
   `RepoBuilder.NewAugmenter()` wires the lot up, so use that rather than repeating it.
@@ -524,8 +547,10 @@ Other things to know:
   string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
-- Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates
-  `CultureInfo.DefaultThreadCurrentCulture`, so enabling parallel execution would need care.
+- `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
+  `LogServiceTest` and `TimeDateExtensionsTest` change `CultureInfo.DefaultThreadCurrentCulture`, and
+  `GitIntegrationTest` sets `GIT_EDITOR`. MSTest sets parallelism per assembly (`[Parallelize]` has no
+  class form), which is why the end-to-end tests, which can run in parallel, are a project of their own.
 
 Always run `./test` before reporting work done. Prefer adding a regression test with every
 bug fix — that is the agreed direction for this repo. When the subject is a parser or the

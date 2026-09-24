@@ -34,8 +34,8 @@ polyfill in `gmd/Utils/UnionPolyfill.cs` stays and is harmless.
 
 Moving to net11.0, when wanted (or when net10.0 leaves support):
 
-1. `TargetFramework` in `gmd/gmd.csproj` and `gmdTest/gmdTest.csproj`; `DOTNET` in `./build` and
-   `build.bat`; the `gmd/bin/Debug/net10.0/gmd` path in CLAUDE.md.
+1. `TargetFramework` in `gmd/gmd.csproj`, `gmdTest/gmdTest.csproj` and `gmdE2eTest/gmdE2eTest.csproj`;
+   `DOTNET` in `./build` and `build.bat`; the `gmd/bin/Debug/net10.0/gmd` path in CLAUDE.md.
 2. Delete `gmd/Utils/UnionPolyfill.cs` (its `#if !NET11_0_OR_GREATER` already compiles it out) and
    the explicit `LangVersion` in `Directory.Build.props`, since C# 15 is the default for net11.0.
 3. CI: remove the `dotnet-version: '10.0.x'` lines and their comment; the SDK from `global.json`

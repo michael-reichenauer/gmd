@@ -1,7 +1,7 @@
 using System.Text;
 using IOPath = System.IO.Path;
 
-namespace gmdTest.Fixtures;
+namespace gmdE2eTest.Fixtures;
 
 // Drives the built gmd binary in a tmux pane and reads back the rendered screen.
 //
