@@ -6,7 +6,12 @@ namespace gmd.Cui;
 
 interface ISetBranchDlg
 {
-    R<string> Show(string commitSid, bool isBranchSetByUser, string niceName, IReadOnlyList<string> possibleBranches);
+    Result<string> Show(
+        string commitSid,
+        bool isBranchSetByUser,
+        string niceName,
+        IReadOnlyList<string> possibleBranches
+    );
 }
 
 class SetBranchDlg : ISetBranchDlg
@@ -14,7 +19,7 @@ class SetBranchDlg : ISetBranchDlg
     IReadOnlyList<string> items = new List<string>();
     IReadOnlyList<Text> itemTexts = new List<Text>();
 
-    public R<string> Show(
+    public Result<string> Show(
         string commitSid,
         bool isBranchSetByUser,
         string niceName,
@@ -22,7 +27,7 @@ class SetBranchDlg : ISetBranchDlg
     )
     {
         if (possibleBranches.Count == 0)
-            return R.Error();
+            return new Error();
 
         (var width, var height) = (50, 22);
         (var x, var y, var w, var h) = (1, 5, width - 5, height - 12);
@@ -69,7 +74,7 @@ class SetBranchDlg : ISetBranchDlg
 
         View focusView = items.Any() ? listView : nameField;
         if (!dlg.ShowOkCancel(focusView) && !isUnsetClicked)
-            return R.Error();
+            return new Error();
         return nameField.Text;
     }
 }

@@ -150,7 +150,7 @@ public class DiffServiceTest
     {
         var service = new DiffService(new FakeCmd(output));
         var result = await service.GetCommitDiffAsync("HEAD", 6, "/wd");
-        Assert.IsTrue(Try(out var commitDiff, out var e, result), $"GetCommitDiffAsync failed: {e}");
+        var commitDiff = AssertOk(result);
         return commitDiff;
     }
 
@@ -338,7 +338,7 @@ public class DiffServiceTest
     public async Task TestParseConflictMarkers()
     {
         var service = new DiffService(new FakeCmd(ConflictOutput));
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetUncommittedDiff(6, TempWd())), $"{e}");
+        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
 
         var file = FileOf(commitDiff, "addboth.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode, "A file with markers is a conflict");
@@ -362,7 +362,7 @@ public class DiffServiceTest
     public async Task TestParseDiff3ConflictMarkers()
     {
         var service = new DiffService(new FakeCmd(Diff3ConflictOutput));
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetUncommittedDiff(6, TempWd())), $"{e}");
+        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
 
         var file = FileOf(commitDiff, "f.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode);
@@ -387,7 +387,7 @@ public class DiffServiceTest
     public async Task TestParseFileWithoutMarkersInConflictedDiff()
     {
         var service = new DiffService(new FakeCmd(ConflictOutput));
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetUncommittedDiff(6, TempWd())), $"{e}");
+        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
 
         Assert.AreEqual(DiffMode.DiffAdded, FileOf(commitDiff, "mod-del.txt").DiffMode);
     }
@@ -456,7 +456,7 @@ public class DiffServiceTest
     public async Task TestParseFileDiffOfSeveralCommits()
     {
         var service = new DiffService(new FakeCmd(FileLogOutput));
-        Assert.IsTrue(Try(out var commitDiffs, out var e, await service.GetFileDiffAsync("a.txt", 6, "/wd")), $"{e}");
+        var commitDiffs = AssertOk(await service.GetFileDiffAsync("a.txt", 6, "/wd"));
 
         Assert.AreEqual(2, commitDiffs.Length);
         Assert.AreEqual("Second commit with all kinds of change", commitDiffs[0].Message);
@@ -472,7 +472,7 @@ public class DiffServiceTest
 
         var result = await service.GetCommitDiffAsync("HEAD", 6, "/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected a parse error");
+        AssertError(result, "Expected a parse error");
     }
 
     [TestMethod]
@@ -482,7 +482,7 @@ public class DiffServiceTest
 
         var result = await service.GetCommitDiffAsync("HEAD", 6, "/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     [TestMethod]
@@ -556,7 +556,7 @@ public class DiffServiceTest
         var cmd = new FakeCmd(ConflictOutput);
         var service = new DiffService(cmd);
 
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetDiffRangeAsync("a", "b", "Range", 6, "/wd")));
+        var commitDiff = AssertOk(await service.GetDiffRangeAsync("a", "b", "Range", 6, "/wd"));
         Assert.AreEqual("Range", commitDiff.Message);
         Assert.AreEqual("", commitDiff.Id);
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
@@ -569,7 +569,7 @@ public class DiffServiceTest
         var cmd = new FakeCmd(ConflictOutput);
         var service = new DiffService(cmd);
 
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd")));
+        var commitDiff = AssertOk(await service.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd"));
         Assert.AreEqual("Refs", commitDiff.Message);
         Assert.AreEqual("diff --find-renames --unified=6 --full-index a b", cmd.Calls[0].Args);
     }
@@ -580,7 +580,7 @@ public class DiffServiceTest
         var cmd = new FakeCmd(ConflictOutput);
         var service = new DiffService(cmd);
 
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetStashDiffAsync("stash@{0}", 6, "/wd")));
+        var commitDiff = AssertOk(await service.GetStashDiffAsync("stash@{0}", 6, "/wd"));
         Assert.AreEqual("Diff of stash stash@{0}", commitDiff.Message);
         StringAssert.StartsWith(cmd.Calls[0].Args, "stash show -u ");
     }
@@ -593,7 +593,7 @@ public class DiffServiceTest
         var cmd = new FakeCmd(ConflictOutput);
         var service = new DiffService(cmd);
 
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetUncommittedDiff(6, TempWd())), $"{e}");
+        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
 
         Assert.AreEqual("Uncommitted changes", commitDiff.Message);
         CollectionAssert.AreEqual(
@@ -617,7 +617,7 @@ public class DiffServiceTest
         var cmd = new FakeCmd(ConflictOutput);
         var service = new DiffService(cmd);
 
-        Assert.IsTrue(Try(out var _, out var e, await service.GetUncommittedDiff(6, wd)), $"{e}");
+        AssertOk(await service.GetUncommittedDiff(6, wd));
 
         Assert.AreEqual(1, cmd.Calls.Count, "Only the diff itself is run");
         StringAssert.StartsWith(cmd.Calls[0].Args, "diff --date=iso");
@@ -635,7 +635,7 @@ public class DiffServiceTest
         );
         var service = new DiffService(cmd);
 
-        Assert.IsTrue(Try(out var commitDiff, out var e, await service.GetUncommittedDiff(6, TempWd())), $"{e}");
+        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
 
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
         CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), "diff --staged --unified=6");
@@ -653,7 +653,7 @@ public class DiffServiceTest
 
         var result = await service.GetUncommittedDiff(6, TempWd());
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
         Assert.AreEqual("add, diff, reset", string.Join(", ", cmd.Calls.Select(c => c.Args.Split(' ')[0])));
     }
 

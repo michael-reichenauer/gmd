@@ -80,21 +80,23 @@ class ProgramCommands : IProgramCommands
         var currentVersion = Build.Version();
         Console.WriteLine($"Trying to update current version {currentVersion} ...");
 
-        if (!Try(out var available, out var e, await updater.IsUpdateAvailableAsync()))
+        var availableResult = await updater.IsUpdateAvailableAsync();
+        if (availableResult is not UpdateAvailability available)
         {
-            Console.WriteLine($"Failed to check for updates: {e}");
+            Console.WriteLine($"Failed to check for updates: {availableResult.Error}");
             return -1;
         }
-        if (!available.Item1)
+        if (!available.IsAvailable)
         {
-            Console.WriteLine($"{available.Item2} is already latest version.");
+            Console.WriteLine($"{available.Version} is already latest version.");
             return 0;
         }
 
-        Console.WriteLine($"Downloading {available.Item2} ...");
-        if (!Try(out var newVersion, out e, await updater.UpdateAsync()))
+        Console.WriteLine($"Downloading {available.Version} ...");
+        var newVersionResult = await updater.UpdateAsync();
+        if (newVersionResult is not Version newVersion)
         {
-            Console.WriteLine($"Failed to update: {e}");
+            Console.WriteLine($"Failed to update: {newVersionResult.Error}");
             return -1;
         }
 
@@ -107,10 +109,12 @@ class ProgramCommands : IProgramCommands
         Task.Run(async () =>
             {
                 Console.WriteLine($"# Change Log for Gmd\n--------------------");
-                if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
+                var logResult = await server.GetChangeLogAsync();
+                if (logResult is not string log)
                 {
-                    Log.Error($"Failed to get change log, {e}");
-                    Console.WriteLine($"Failed to get change log, {e}");
+                    Log.Error($"Failed to get change log, {logResult.Error}");
+                    Console.WriteLine($"Failed to get change log, {logResult.Error}");
+                    return;
                 }
 
                 Console.WriteLine($"{log}");
@@ -125,17 +129,15 @@ class ProgramCommands : IProgramCommands
         Task.Run(async () =>
             {
                 Console.WriteLine($"Generating change log ...");
-                if (!Try(out var log, out var e, await server.GetChangeLogAsync()))
+                var logResult = await server.GetChangeLogAsync();
+                if (logResult is not string log)
                 {
-                    Console.WriteLine($"Failed to get change log, {e}");
+                    Console.WriteLine($"Failed to get change log, {logResult.Error}");
+                    return;
                 }
 
-                if (
-                    !Try(
-                        out e,
-                        () => File.WriteAllText("CHANGELOG.md", $"# Change Log for Gmd\n--------------------\n{log}")
-                    )
-                )
+                var text = $"# Change Log for Gmd\n--------------------\n{log}";
+                if (Result.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
                 {
                     Console.WriteLine($"Failed to write change log, {e}");
                 }

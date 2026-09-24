@@ -17,7 +17,7 @@ record AddWorktreeResult(
 
 interface IAddWorktreeDlg
 {
-    R<AddWorktreeResult> Show(
+    Result<AddWorktreeResult> Show(
         string mainRoot,
         string baseBranch,
         string branchName,
@@ -35,7 +35,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
 {
     const int width = 76;
 
-    public R<AddWorktreeResult> Show(
+    public Result<AddWorktreeResult> Show(
         string mainRoot,
         string baseBranch,
         string branchName,
@@ -114,7 +114,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
 
         void Browse()
         {
-            if (!Try(out var folder, new FolderBrowseDlg().Show([mainRoot])) || folder == "")
+            if (new FolderBrowseDlg().Show([mainRoot]) is not string folder || folder == "")
                 return;
             browsedParent = folder.Trim();
             UpdatePath();
@@ -148,7 +148,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
         UpdateIgnore();
 
         if (!dlg.ShowOkCancel(branch))
-            return R.Error();
+            return new Error();
 
         var isNew = IsNew();
         var ignoreFolder = ignore.Visible && ignore.Checked ? WorktreeLocations.IgnoreFolder(location) : "";

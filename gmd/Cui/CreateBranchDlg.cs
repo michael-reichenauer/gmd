@@ -6,12 +6,12 @@ record CreateBranchResult(string Name, bool IsCheckout, bool IsPush);
 
 interface ICreateBranchDlg
 {
-    R<CreateBranchResult> Show(string branchName, string commitId);
+    Result<CreateBranchResult> Show(string branchName, string commitId);
 }
 
 class CreateBranchDlg : ICreateBranchDlg
 {
-    public R<CreateBranchResult> Show(string branchName, string commitSid)
+    public Result<CreateBranchResult> Show(string branchName, string commitSid)
     {
         var from = commitSid != "" ? $"{branchName} at {commitSid}" : branchName;
         var title = commitSid != "" ? $"Create Branch at Commit" : "Create Branch";
@@ -25,7 +25,7 @@ class CreateBranchDlg : ICreateBranchDlg
         dlg.Validate(() => name.Text != "", "Empty branch name");
 
         if (!dlg.ShowOkCancel(name))
-            return R.Error();
+            return new Error();
 
         return new CreateBranchResult(name.Text, isCheckout.Checked, isPublish.Checked);
     }

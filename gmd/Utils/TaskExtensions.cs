@@ -47,6 +47,29 @@ public static class TaskExtensions
         );
     }
 
+    // A task whose result is a Result is not faulted when that result is an error, so the overload
+    // above would drop the error silently. These two log it. A task whose failure is expected, e.g.
+    // a best effort fetch, should handle its result itself rather than be warned about each time.
+    public static void RunInBackground(this Task<Result> task) => RunLoggingError(task, () => task.Result.Value);
+
+    public static void RunInBackground<T>(this Task<Result<T>> task)
+        where T : notnull => RunLoggingError(task, () => task.Result.Value);
+
+    // The value is read through a function, since the two result types share no type to read it by
+    static void RunLoggingError(Task task, Func<object?> resultValue)
+    {
+        task.ContinueWith(
+            t =>
+            {
+                if (t.IsFaulted)
+                    FailedBackgroundTask(t);
+                else if (t.IsCompletedSuccessfully && resultValue() is Error e)
+                    Log.Warn($"Background task failed: {e.AllMessages()}");
+            },
+            TaskContinuationOptions.ExecuteSynchronously
+        );
+    }
+
     private static void FailedBackgroundTask(Task task)
     {
         var e = new InvalidOperationException("RunInBackground task failed", task.Exception);

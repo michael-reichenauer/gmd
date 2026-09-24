@@ -104,7 +104,7 @@ public class AugmentedServiceIntegrationTest
     public async Task TestWorktreesOfARealRepo()
     {
         await repo.CommitFileAsync("file.txt", "one\n", "Initial");
-        Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", false, repo.Path)), $"Git failed: {e}");
+        AssertOk(await repo.Git.CreateBranchAsync("dev", false, repo.Path));
         var worktree = await repo.AddWorktreeAsync("dev", "dev");
         File.WriteAllText(Path.Join(worktree, "new.txt"), "new\n");
 
@@ -126,12 +126,12 @@ public class AugmentedServiceIntegrationTest
         // Their changes are read on their own, after the repo is shown, so a status run in a
         // large worktree never delays showing this one
         var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
-        Assert.IsTrue(Try(out var updated, out e, await service.GetUpdatedWorktreesRepoAsync(augRepo)), $"{e}");
+        var updated = AssertOk(await service.GetUpdatedWorktreesRepoAsync(augRepo));
         Assert.AreEqual(1, updated.Worktrees[1].ChangesCount);
         Assert.AreEqual(0, updated.Worktrees[0].ChangesCount, "The current worktree's changes are the repo's status");
 
         // From inside the worktree it is the other way around, and the changes are its status
-        Assert.IsTrue(Try(out var fromWorktree, out e, await service.GetRepoAsync(worktree)), $"Augment failed: {e}");
+        var fromWorktree = AssertOk(await service.GetRepoAsync(worktree));
         Assert.AreEqual(worktree, fromWorktree.Path);
         Assert.IsFalse(fromWorktree.Worktrees[0].IsCurrent);
         Assert.IsTrue(fromWorktree.Worktrees[1].IsCurrent);
@@ -149,14 +149,14 @@ public class AugmentedServiceIntegrationTest
     {
         var service = await BuildBranchAsync();
 
-        Assert.IsTrue(Try(out var augRepo, out var e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
-        Assert.IsTrue(Try(out var commits, out e, await service.MergeToBranchAsync(augRepo, "main")), $"Merge: {e}");
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+        var commits = AssertOk(await service.MergeToBranchAsync(augRepo, "main"));
 
         // Now on the target, with the merge staged for the caller to commit
         Assert.AreEqual("main", await CurrentBranchAsync());
         Assert.AreEqual("Dev work", string.Join(", ", commits.Select(c => c.Subject)));
 
-        Assert.IsTrue(Try(out var status, out e, await repo.Git.GetStatusAsync(repo.Path)), $"Status: {e}");
+        var status = AssertOk(await repo.Git.GetStatusAsync(repo.Path));
         Assert.IsTrue(status.IsMerging, "The merge is left uncommitted");
         StringAssert.StartsWith(status.MergeMessage, "Merge branch 'dev'");
     }
@@ -168,19 +168,19 @@ public class AugmentedServiceIntegrationTest
     {
         var service = await BuildBranchAsync();
 
-        Assert.IsTrue(Try(out var augRepo, out var e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
-        Assert.IsTrue(Try(out _, out e, await service.MergeToBranchAsync(augRepo, "main")), $"Merge: {e}");
-        Assert.IsTrue(Try(out var status, out e, await repo.Git.GetStatusAsync(repo.Path)), $"Status: {e}");
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+        AssertOk(await service.MergeToBranchAsync(augRepo, "main"));
+        var status = AssertOk(await repo.Git.GetStatusAsync(repo.Path));
         await repo.CommitAsync(status.MergeMessage);
-        Assert.IsTrue(Try(out e, await repo.Git.CheckoutAsync("dev", repo.Path)), $"Checkout: {e}");
+        AssertOk(await repo.Git.CheckoutAsync("dev", repo.Path));
 
         // 'dev' is now in 'main', so merging it again brings in nothing
-        Assert.IsTrue(Try(out augRepo, out e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
-        Assert.IsTrue(Try(out var commits, out e, await service.MergeToBranchAsync(augRepo, "main")), $"Merge: {e}");
+        augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+        var commits = AssertOk(await service.MergeToBranchAsync(augRepo, "main"));
 
         Assert.AreEqual(0, commits.Count);
         Assert.AreEqual("main", await CurrentBranchAsync());
-        Assert.IsTrue(Try(out status, out e, await repo.Git.GetStatusAsync(repo.Path)), $"Status: {e}");
+        status = AssertOk(await repo.Git.GetStatusAsync(repo.Path));
         Assert.IsFalse(status.IsMerging, "Nothing was merged, so there is nothing to commit");
     }
 
@@ -189,7 +189,7 @@ public class AugmentedServiceIntegrationTest
     async Task<IAugmentedService> BuildBranchAsync()
     {
         await repo.CommitFileAsync("file.txt", "one\n", "Initial");
-        Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", true, repo.Path)), $"Git failed: {e}");
+        AssertOk(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
         await repo.CommitFileAsync("dev.txt", "dev\n", "Dev work");
 
         return RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
@@ -202,12 +202,12 @@ public class AugmentedServiceIntegrationTest
     async Task BuildBranchAndMergeAsync()
     {
         await repo.CommitFileAsync("file.txt", "one\n", "Initial");
-        Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", true, repo.Path)), $"Git failed: {e}");
+        AssertOk(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
         await repo.CommitFileAsync("dev.txt", "dev\n", "Dev work");
-        Assert.IsTrue(Try(out e, await repo.Git.CheckoutAsync("main", repo.Path)), $"Git failed: {e}");
+        AssertOk(await repo.Git.CheckoutAsync("main", repo.Path));
         await repo.CommitFileAsync("main.txt", "main\n", "Main work");
-        Assert.IsTrue(Try(out e, await repo.Git.MergeBranchAsync("dev", repo.Path)), $"Git failed: {e}");
-        Assert.IsTrue(Try(out var status, out e, await repo.Git.GetStatusAsync(repo.Path)), $"Git failed: {e}");
+        AssertOk(await repo.Git.MergeBranchAsync("dev", repo.Path));
+        var status = AssertOk(await repo.Git.GetStatusAsync(repo.Path));
         await repo.CommitAsync(status.MergeMessage);
     }
 
@@ -217,7 +217,7 @@ public class AugmentedServiceIntegrationTest
     {
         var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
 
-        Assert.IsTrue(Try(out var augRepo, out var e, await service.GetRepoAsync(repo.Path)), $"Augment failed: {e}");
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
         return augRepo;
     }
 

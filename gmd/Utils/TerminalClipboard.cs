@@ -5,7 +5,7 @@ namespace gmd.Utils;
 interface ITerminalClipboard
 {
     // Asks the terminal to put the text on its clipboard, using OSC 52
-    R Set(string text);
+    Result Set(string text);
 }
 
 // The terminal's own copy mechanism: the text is base64 encoded into an escape sequence, and the
@@ -31,23 +31,23 @@ class TerminalClipboard : ITerminalClipboard
     // silently cut-off one. Better to say so and let the tools that have no such limit be tried.
     const int MaxEncodedLength = 100000;
 
-    public R Set(string text)
+    public Result Set(string text)
     {
         if (Build.IsWindows)
-            return R.Error("OSC 52 is only used on Unix, where the terminal can be written to directly");
+            return new Error("OSC 52 is only used on Unix, where the terminal can be written to directly");
 
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(text));
         if (encoded.Length > MaxEncodedLength)
-            return R.Error($"Too much text for the terminal to copy ({encoded.Length} > {MaxEncodedLength} bytes)");
+            return new Error($"Too much text for the terminal to copy ({encoded.Length} > {MaxEncodedLength} bytes)");
 
         // ESC ] 52 ; c ; <base64> BEL, where 'c' selects the clipboard (as opposed to the primary
         // selection) and BEL terminates the string, which more terminals accept than ST does.
         var sequence = $"\u001b]52;c;{encoded}\u0007";
 
-        if (!Try(out var e, () => Write(sequence)))
-            return R.Error($"Failed to write to {TtyPath}", e);
+        if (Result.Catch(() => Write(sequence)) is Error e)
+            return new Error($"Failed to write to {TtyPath}", e);
 
-        return R.Ok;
+        return Result.Ok;
     }
 
     static void Write(string sequence)

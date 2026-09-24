@@ -4,7 +4,7 @@ namespace gmd.Cui;
 
 interface IRenameBranchDlg
 {
-    R<string> Show(string branchName, bool hasRemote, IReadOnlyList<string> existingNames);
+    Result<string> Show(string branchName, bool hasRemote, IReadOnlyList<string> existingNames);
 }
 
 class RenameBranchDlg : IRenameBranchDlg
@@ -14,7 +14,7 @@ class RenameBranchDlg : IRenameBranchDlg
     // here rather than left to git.
     static readonly char[] invalidChars = [' ', '\t', '~', '^', ':', '?', '*', '[', '\\'];
 
-    public R<string> Show(string branchName, bool hasRemote, IReadOnlyList<string> existingNames)
+    public Result<string> Show(string branchName, bool hasRemote, IReadOnlyList<string> existingNames)
     {
         var dlg = new UIDialog("Rename Branch", 60, 9);
         dlg.AddLabel(1, 0, $"From: {branchName}");
@@ -33,7 +33,7 @@ class RenameBranchDlg : IRenameBranchDlg
         );
 
         if (!dlg.ShowOkCancel(name))
-            return R.Error();
+            return new Error();
 
         return name.Text;
     }

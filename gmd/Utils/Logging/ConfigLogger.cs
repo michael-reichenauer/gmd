@@ -61,8 +61,8 @@ static class ConfigLogger
             Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(sourceFilePath))))
             ?? "";
         prefixLength = rootPath.Length + 1;
-        if (!Try(out var e, () => File.WriteAllText(LogPath, "")))
-            throw Asserter.FailFast(e.ErrorMessage);
+        if (Result.Catch(() => File.WriteAllText(LogPath, "")) is Error e)
+            throw Asserter.FailFast(e.Message);
     }
 
     static void LogDone(

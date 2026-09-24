@@ -92,7 +92,7 @@ public class ClipboardServiceTest
         var terminal = new FakeTerminalClipboard();
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsTrue(Try(out var e, clipboard.Set("some text", OSPlatform.OSX, NoEnv)), $"{e}");
+        AssertOk(clipboard.Set("some text", OSPlatform.OSX, NoEnv));
 
         Assert.AreEqual(1, cmd.Calls.Count);
         Assert.AreEqual("pbcopy", cmd.Calls[0].Path);
@@ -113,7 +113,7 @@ public class ClipboardServiceTest
         var terminal = new FakeTerminalClipboard();
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsTrue(Try(out var e, clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0")))), $"{e}");
+        AssertOk(clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0"))));
 
         CollectionAssert.AreEqual(new[] { "xclip", "xsel" }, cmd.Calls.Select(c => c.Path).ToArray());
         CollectionAssert.AreEqual(Array.Empty<string>(), terminal.Texts);
@@ -126,7 +126,7 @@ public class ClipboardServiceTest
         var terminal = new FakeTerminalClipboard();
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsTrue(Try(out var e, clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0")))), $"{e}");
+        AssertOk(clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0"))));
 
         CollectionAssert.AreEqual(new[] { "text" }, terminal.Texts);
     }
@@ -137,12 +137,12 @@ public class ClipboardServiceTest
     public void TestFailureNamesEveryToolTriedAndWhatToInstall()
     {
         var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("Error: Can't open display"));
-        var terminal = new FakeTerminalClipboard(R.Error("No /dev/tty"));
+        var terminal = new FakeTerminalClipboard(new Error("No /dev/tty"));
         var clipboard = new ClipboardService(cmd, terminal);
 
-        Assert.IsFalse(Try(out var e, clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0")))));
+        var e = AssertError(clipboard.Set("text", OSPlatform.Linux, Env(("DISPLAY", ":0"))));
 
-        var message = e.AllErrorMessages();
+        var message = e.AllMessages();
         StringAssert.Contains(message, "xclip -selection clipboard: Error: Can't open display");
         StringAssert.Contains(message, "xsel --input --clipboard: Error: Can't open display");
         StringAssert.Contains(message, "OSC 52 (the terminal): No /dev/tty");
@@ -163,14 +163,14 @@ public class ClipboardServiceTest
 // there is none
 class FakeTerminalClipboard : ITerminalClipboard
 {
-    readonly R result;
+    readonly Result result;
 
-    public FakeTerminalClipboard(R? result = null) => this.result = result ?? R.Ok;
+    public FakeTerminalClipboard(Result? result = null) => this.result = result ?? Result.Ok;
 
     // Every text it was asked to copy, in order
     public List<string> Texts { get; } = [];
 
-    public R Set(string text)
+    public Result Set(string text)
     {
         Texts.Add(text);
         return result;

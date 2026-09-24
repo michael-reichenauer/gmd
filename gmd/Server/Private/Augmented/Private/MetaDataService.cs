@@ -70,10 +70,10 @@ public class MetaData
 
 interface IMetaDataService
 {
-    Task<R<MetaData>> GetMetaDataAsync(string path);
-    Task<R> SetMetaDataAsync(string path, MetaData metaData);
-    Task<R> FetchMetaDataAsync(string path);
-    Task<R> PushMetaDataAsync(string path);
+    Task<Result<MetaData>> GetMetaDataAsync(string path);
+    Task<Result> SetMetaDataAsync(string path, MetaData metaData);
+    Task<Result> FetchMetaDataAsync(string path);
+    Task<Result> PushMetaDataAsync(string path);
 }
 
 [SingleInstance]
@@ -90,28 +90,26 @@ class MetaDataService : IMetaDataService
         this.repoConfig = repoConfig;
     }
 
-    public async Task<R<MetaData>> GetMetaDataAsync(string path)
+    public async Task<Result<MetaData>> GetMetaDataAsync(string path)
     {
-        if (!Try(out var json, out var e, await git.GetValueAsync(metaDataKey, path)))
+        var read = await git.GetValueAsync(metaDataKey, path);
+        if (read is not string json)
         { // Failed to read local value
-            if (IsNoLocalKey(e))
+            if (IsNoLocalKey(read.Error))
             { // No local key,
                 return new MetaData();
             }
 
             // Failed to get local value
-            return e;
+            return read.Error;
         }
-        ;
 
-        //Log.Info($"Metadata:\n{json}");
-        if (!Try(out var data, out e, () => JsonSerializer.Deserialize<MetaData>(json)))
-            return e;
-        //Log.Info($"Read {data.CommitBranchBySid.Count()} meta data items");
-        return data;
+        return Result.Catch(() =>
+            JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value")
+        );
     }
 
-    public async Task<R> SetMetaDataAsync(string path, MetaData metaData)
+    public async Task<Result> SetMetaDataAsync(string path, MetaData metaData)
     {
         try
         {
@@ -119,10 +117,10 @@ class MetaDataService : IMetaDataService
             var options = new JsonSerializerOptions { WriteIndented = true };
             string json = JsonSerializer.Serialize(metaData, options);
 
-            if (!Try(out var e, await git.SetValueAsync(metaDataKey, json, path)))
+            if (await git.SetValueAsync(metaDataKey, json, path) is Error e)
                 return e;
             // Log.Info($"Wrote:\n{json}");
-            return R.Ok;
+            return Result.Ok;
         }
         finally
         {
@@ -130,63 +128,65 @@ class MetaDataService : IMetaDataService
         }
     }
 
-    public async Task<R> FetchMetaDataAsync(string path)
+    public async Task<Result> FetchMetaDataAsync(string path)
     {
         if (!repoConfig.Get(path).SyncMetaData)
         {
             Log.Debug("Repo fetch sync disabled");
-            return R.Ok;
+            return Result.Ok;
         }
 
         if (isUpdating)
         {
-            return R.Ok;
+            return Result.Ok;
         }
 
         // Lets get current local value so we can merge local and remote values
-        if (!Try(out var localMetaData, out var e, await GetMetaDataAsync(path)))
-            return e;
+        var local = await GetMetaDataAsync(path);
+        if (local is not MetaData localMetaData)
+            return local.Error;
 
         // Pull latest data from remote server
-        if (!Try(out e, await git.PullValueAsync(metaDataKey, path)))
+        if (await git.PullValueAsync(metaDataKey, path) is Error pullError)
         {
             // Could not pull remote value,
-            if (IsNoRemoteKey(e))
+            if (IsNoRemoteKey(pullError))
             { // Key does not exist on remote server,
-                return R.Ok;
+                return Result.Ok;
             }
 
             // Failed to fetch remote value,
-            return e;
+            return pullError;
         }
 
         // Lets get remote value after remote server pull
-        if (!Try(out var remoteMetaData, out e, await GetMetaDataAsync(path)))
-            return e;
+        var remote = await GetMetaDataAsync(path);
+        if (remote is not MetaData remoteMetaData)
+            return remote.Error;
 
         // Merge previous local and new remote data
-        if (!Try(out e, await MergeLocalAndRemote(path, localMetaData, remoteMetaData)))
+        if (await MergeLocalAndRemote(path, localMetaData, remoteMetaData) is Error e)
             return e;
 
-        return R.Ok;
+        return Result.Ok;
     }
 
-    public async Task<R> PushMetaDataAsync(string path)
+    public async Task<Result> PushMetaDataAsync(string path)
     {
         if (!repoConfig.Get(path).SyncMetaData)
         {
             Log.Debug("Repo push sync disabled");
-            return R.Ok;
+            return Result.Ok;
         }
 
         using (Timing.Start())
         {
             await git.PushValueAsync(metaDataKey, path);
-            return R.Ok;
+            return Result.Ok;
         }
     }
 
-    async Task<R> MergeLocalAndRemote(string path, MetaData localMetaData, MetaData remoteMetaData)
+    async Task<Result> MergeLocalAndRemote(string path, MetaData localMetaData, MetaData remoteMetaData)
     {
         // We will merge before and after values and if different we will then push it
 
@@ -216,14 +216,14 @@ class MetaDataService : IMetaDataService
         if (hasChanged)
         { // The local meta data had some new values, or remote was different,
             // We need to set and push the merged collection;
-            if (!Try(out var e, await SetMetaDataAsync(path, localMetaData)))
+            if (await SetMetaDataAsync(path, localMetaData) is Error e)
                 return e;
         }
 
-        return R.Ok;
+        return Result.Ok;
     }
 
-    bool IsNoLocalKey(ErrorResult e) => e.ErrorMessage.Contains("Not a valid object name");
+    bool IsNoLocalKey(Error e) => e.Message.Contains("Not a valid object name");
 
-    bool IsNoRemoteKey(ErrorResult e) => e.ErrorMessage.Contains("couldn't find remote ref");
+    bool IsNoRemoteKey(Error e) => e.Message.Contains("couldn't find remote ref");
 }

@@ -403,8 +403,8 @@ class RepoViewInput
     // nothing.
     void CopyToClipboard(string text)
     {
-        if (!Try(out var e, clipboard.Set(text)))
-            UI.ErrorMessage(e.AllErrorMessages());
+        if (clipboard.Set(text) is Error e)
+            UI.ErrorMessage(e.AllMessages());
     }
 
     // The text of a selection that spans several commits: the sid and subject of each selected

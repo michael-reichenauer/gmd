@@ -33,7 +33,7 @@ public class KeyValueServiceTest
     {
         var cmd = new FakeCmd("the stored value");
 
-        Assert.IsTrue(Try(out var value, out var e, await new KeyValueService(cmd).GetValueAsync("data", wd)), $"{e}");
+        var value = AssertOk(await new KeyValueService(cmd).GetValueAsync("data", wd));
 
         Assert.AreEqual("the stored value", value);
         Assert.AreEqual($"cat-file -p {KeyRef}", cmd.Calls[0].Args);
@@ -47,7 +47,7 @@ public class KeyValueServiceTest
 
         var result = await new KeyValueService(cmd).GetValueAsync("data", wd);
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     // The value goes into the git object database, and the ref is then pointed at the new object
@@ -69,7 +69,7 @@ public class KeyValueServiceTest
             }
         );
 
-        Assert.IsTrue(Try(out var e, await new KeyValueService(cmd).SetValueAsync("data", "the value", wd)), $"{e}");
+        AssertOk(await new KeyValueService(cmd).SetValueAsync("data", "the value", wd));
 
         Assert.AreEqual("the value", written);
         StringAssert.StartsWith(cmd.Calls[0].Args, "hash-object -w ");
@@ -95,7 +95,7 @@ public class KeyValueServiceTest
             }
         );
 
-        Assert.IsTrue(Try(out var e, await new KeyValueService(cmd).SetValueAsync("data", "the value", wd)), $"{e}");
+        AssertOk(await new KeyValueService(cmd).SetValueAsync("data", "the value", wd));
 
         Assert.AreEqual(Path.GetFullPath(realGitDir), Path.GetDirectoryName(tempPath));
         Assert.AreEqual(0, Directory.GetFiles(realGitDir).Length, "The temp file is removed");
@@ -119,7 +119,7 @@ public class KeyValueServiceTest
 
         var result = await new KeyValueService(cmd).SetValueAsync("data", "the value", wd);
 
-        Assert.IsFalse(Try(out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
         Assert.AreEqual(0, Directory.GetFiles(Path.Join(wd, ".git")).Length);
     }
 

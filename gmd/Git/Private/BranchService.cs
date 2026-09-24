@@ -4,16 +4,16 @@ namespace gmd.Git.Private;
 
 interface IBranchService
 {
-    Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
-    Task<R> CheckoutAsync(string name, string wd);
-    Task<R> CreateBranchAsync(string name, bool isCheckout, string wd);
-    Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
-    Task<R> RenameBranchAsync(string oldName, string newName, string wd);
-    Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd);
-    Task<R> MergeBranchAsync(string name, string wd);
-    Task<R> RebaseBranchAsync(string name, string wd);
-    Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd);
-    Task<R> CherryPickAsync(string sha, string wd);
+    Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+    Task<Result> CheckoutAsync(string name, string wd);
+    Task<Result> CreateBranchAsync(string name, bool isCheckout, string wd);
+    Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
+    Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
+    Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+    Task<Result> MergeBranchAsync(string name, string wd);
+    Task<Result> RebaseBranchAsync(string name, string wd);
+    Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
+    Task<Result> CherryPickAsync(string sha, string wd);
 }
 
 class BranchService : IBranchService
@@ -51,29 +51,30 @@ class BranchService : IBranchService
         this.cmd = cmd;
     }
 
-    public async Task<R<IReadOnlyList<Branch>>> GetBranchesAsync(string wd)
+    public async Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd)
     {
         var args = "branch -vv --no-color --no-abbrev --all";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
 
         return ParseBranches(output);
     }
 
-    public async Task<R> CheckoutAsync(string name, string wd)
+    public async Task<Result> CheckoutAsync(string name, string wd)
     {
         name = RemoteService.TrimRemotePrefix(name);
         return await cmd.RunAsync("git", $"checkout {name}", wd);
     }
 
-    public async Task<R> CreateBranchAsync(string name, bool isCheckout, string wd)
+    public async Task<Result> CreateBranchAsync(string name, bool isCheckout, string wd)
     {
         string args = isCheckout ? "checkout -b" : "branch";
         args += $" {name}";
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd)
+    public async Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd)
     {
         string args = isCheckout ? $"checkout -b" : $"branch";
         args += $" {name} {sha}";
@@ -84,63 +85,63 @@ class BranchService : IBranchService
     // config section as well, and updates HEAD if the branch is the current branch, so no checkout
     // is needed. Note that '-m' (and not '-M') is used, since git should refuse rather than
     // overwrite if the new name is already taken.
-    public async Task<R> RenameBranchAsync(string oldName, string newName, string wd)
+    public async Task<Result> RenameBranchAsync(string oldName, string newName, string wd)
     {
         oldName = RemoteService.TrimRemotePrefix(oldName);
         return await cmd.RunAsync("git", $"branch -m {oldName} {newName}", wd);
     }
 
-    public async Task<R> DeleteLocalBranchAsync(string name, bool isForced, string wd)
+    public async Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd)
     {
         string args = $"branch --delete {name}";
         args = isForced ? args + " -D" : args;
         return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> MergeBranchAsync(string name, string wd)
+    public async Task<Result> MergeBranchAsync(string name, string wd)
     {
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }
 
-    public async Task<R> RebaseBranchAsync(string name, string wd)
+    public async Task<Result> RebaseBranchAsync(string name, string wd)
     {
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }
 
-    public async Task<R> RebaseOntoAsync(string newBase, string oldBase, string wd)
+    public async Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd)
     {
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --onto {newBase} {oldBase}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }
 
-    public async Task<R> CherryPickAsync(string sha, string wd)
+    public async Task<Result> CherryPickAsync(string sha, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
-        if (rsp.IsResultError && rsp.Output.Contains("CONFLICT"))
+        if (rsp is CmdError e && e.Output.Contains("CONFLICT"))
         {
-            return R.Error("Merge Conflicts!\nPlease resolve conflicts before committing", rsp);
+            return new Error("Merge Conflicts!\nPlease resolve conflicts before committing", e);
         }
         return rsp;
     }
 
-    R<IReadOnlyList<Branch>> ParseBranches(string output)
+    Result<IReadOnlyList<Branch>> ParseBranches(string output)
     {
         var matches = BranchesRegEx.Matches(output);
 

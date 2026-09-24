@@ -100,7 +100,7 @@ public class CommitServiceTest
 
         var result = await new CommitService(cmd).CommitAllChangesAsync("The message", false, wd);
 
-        Assert.IsFalse(Try(out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
         Assert.AreEqual(1, cmd.Calls.Count, "The commit is not attempted");
     }
 
@@ -147,7 +147,7 @@ public class CommitServiceTest
 
         var result = await new CommitService(cmd).UndoUncommittedFileAsync("new.txt", wd);
 
-        Assert.IsTrue(Try(out var e, result), $"Expected the new file to just be removed: {e}");
+        AssertOk(result);
         Assert.IsFalse(File.Exists(Path.Join(wd, "new.txt")));
     }
 
@@ -160,7 +160,7 @@ public class CommitServiceTest
 
         var result = await new CommitService(cmd).UndoUncommittedFileAsync("a.txt", wd);
 
-        Assert.IsFalse(Try(out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
         Assert.IsTrue(File.Exists(Path.Join(wd, "a.txt")), "The file is left alone");
     }
 

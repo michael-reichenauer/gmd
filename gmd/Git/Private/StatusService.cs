@@ -2,8 +2,8 @@ namespace gmd.Git.Private;
 
 interface IStatusService
 {
-    Task<R<Status>> GetStatusAsync(string wd);
-    Task<R<Status>> GetStatusWithoutLocksAsync(string wd);
+    Task<Result<Status>> GetStatusAsync(string wd);
+    Task<Result<Status>> GetStatusWithoutLocksAsync(string wd);
 }
 
 class StatusService : IStatusService
@@ -17,23 +17,24 @@ class StatusService : IStatusService
         this.cmd = cmd;
     }
 
-    public Task<R<Status>> GetStatusAsync(string wd) => GetStatusAsync("", wd);
+    public Task<Result<Status>> GetStatusAsync(string wd) => GetStatusAsync("", wd);
 
     // For a worktree someone else is working in. A plain 'git status' refreshes the index and
     // writes it back, holding 'index.lock' while it does, and a 'git add' or 'commit' run there
     // at that moment fails on the lock. '--no-optional-locks' skips the write, so the read leaves
     // no trace in the other worktree.
-    public Task<R<Status>> GetStatusWithoutLocksAsync(string wd) => GetStatusAsync("--no-optional-locks ", wd);
+    public Task<Result<Status>> GetStatusWithoutLocksAsync(string wd) => GetStatusAsync("--no-optional-locks ", wd);
 
-    async Task<R<Status>> GetStatusAsync(string options, string wd)
+    async Task<Result<Status>> GetStatusAsync(string options, string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", options + StatusArgs, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", options + StatusArgs, wd);
+        if (result is not string output)
+            return result.Error;
 
         return Parse(output, wd);
     }
 
-    private R<Status> Parse(string statusText, string wd)
+    private Result<Status> Parse(string statusText, string wd)
     {
         var lines = statusText.Split('\n');
 
@@ -248,11 +249,10 @@ class StatusService : IStatusService
     // The real git dir of the working folder. Usually '<wd>/.git', but in a linked worktree and in
     // a submodule '.git' is a *file* holding 'gitdir: <path>' — and that is where the operation
     // state lives, so joining '.git' blindly would find none of it there. Empty if there is none.
-    internal static string GetGitDir(string wd) =>
-        Try(out var gitDir, out var _, GitDir.Resolve(wd)) ? gitDir.GitDirPath : "";
+    internal static string GetGitDir(string wd) => GitDir.Resolve(wd) is GitDirInfo gitDir ? gitDir.GitDirPath : "";
 
     static string ReadFirstLine(string path) =>
-        Try(out var text, out var _, () => File.ReadAllText(path)) ? text.Split('\n')[0].Trim() : "";
+        Result.Catch(() => File.ReadAllText(path)) is string text ? text.Split('\n')[0].Trim() : "";
 
     static int ReadNumber(string path) => int.TryParse(ReadFirstLine(path), out var value) ? value : 0;
 

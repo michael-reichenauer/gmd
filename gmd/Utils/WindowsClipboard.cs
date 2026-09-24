@@ -22,15 +22,12 @@ static class WindowsClipboard
     const int OpenAttempts = 10;
     const int OpenDelayMs = 50;
 
-    public static R TrySetText(string text)
+    public static Result TrySetText(string text)
     {
         if (!Build.IsWindows)
-            return R.Error("The Win32 clipboard is only available on Windows");
+            return new Error("The Win32 clipboard is only available on Windows");
 
-        if (!Try(out var e, () => SetText(text)))
-            return e;
-
-        return R.Ok;
+        return Result.Catch(() => SetText(text));
     }
 
     static void SetText(string text)

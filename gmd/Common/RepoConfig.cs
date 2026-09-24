@@ -43,7 +43,7 @@ class RepoConfigImpl : IRepoConfig
     // a file, so joining onto it would try to write inside a file — and a failed write is fatal.
     static string RepoPath(string path)
     {
-        var gitDir = Try(out var info, out var _, GitDir.Resolve(path)) ? info.CommonDirPath : Path.Join(path, ".git");
+        var gitDir = GitDir.Resolve(path) is GitDirInfo info ? info.CommonDirPath : Path.Join(path, ".git");
         return Path.Join(gitDir, FileName);
     }
 }

@@ -2,12 +2,12 @@ namespace gmd.Git.Private;
 
 interface IWorktreeService
 {
-    Task<R<IReadOnlyList<Worktree>>> ListAsync(string wd);
-    Task<R> AddAsync(string path, string branchName, string wd);
-    Task<R> AddNewBranchAsync(string path, string newBranchName, string startPoint, string wd);
-    Task<R> RemoveAsync(string path, bool isForce, string wd);
-    Task<R> PruneAsync(string wd);
-    Task<R<IReadOnlyList<string>>> GetIgnoredAsync(IReadOnlyList<string> paths, string wd);
+    Task<Result<IReadOnlyList<Worktree>>> ListAsync(string wd);
+    Task<Result> AddAsync(string path, string branchName, string wd);
+    Task<Result> AddNewBranchAsync(string path, string newBranchName, string startPoint, string wd);
+    Task<Result> RemoveAsync(string path, bool isForce, string wd);
+    Task<Result> PruneAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetIgnoredAsync(IReadOnlyList<string> paths, string wd);
 }
 
 class WorktreeService : IWorktreeService
@@ -24,18 +24,19 @@ class WorktreeService : IWorktreeService
     // '-z' ends every attribute with NUL and every record with a second one, and prints paths and
     // lock reasons verbatim — without it a reason holding a newline comes back C-quoted. Cmd joins
     // what it reads with newlines and trims the end, neither of which touches a NUL.
-    public async Task<R<IReadOnlyList<Worktree>>> ListAsync(string wd)
+    public async Task<Result<IReadOnlyList<Worktree>>> ListAsync(string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", "worktree list --porcelain -z", wd)))
-            return e;
+        var result = await cmd.RunAsync("git", "worktree list --porcelain -z", wd);
+        if (result is not string output)
+            return result.Error;
 
         return Parse(output);
     }
 
-    public async Task<R> AddAsync(string path, string branchName, string wd) =>
+    public async Task<Result> AddAsync(string path, string branchName, string wd) =>
         await cmd.RunAsync("git", $"worktree add \"{path}\" {branchName}", wd);
 
-    public async Task<R> AddNewBranchAsync(string path, string newBranchName, string startPoint, string wd)
+    public async Task<Result> AddNewBranchAsync(string path, string newBranchName, string startPoint, string wd)
     {
         var start = startPoint != "" ? $" {startPoint}" : "";
         return await cmd.RunAsync("git", $"worktree add -b {newBranchName} \"{path}\"{start}", wd);
@@ -43,31 +44,30 @@ class WorktreeService : IWorktreeService
 
     // Git refuses to remove a worktree with uncommitted changes unless forced, and a locked one
     // even then (that takes a second --force, deliberately not offered here)
-    public async Task<R> RemoveAsync(string path, bool isForce, string wd)
+    public async Task<Result> RemoveAsync(string path, bool isForce, string wd)
     {
         var force = isForce ? "--force " : "";
         return await cmd.RunAsync("git", $"worktree remove {force}\"{path}\"", wd);
     }
 
     // Forgets the worktrees whose folders are gone
-    public async Task<R> PruneAsync(string wd) => await cmd.RunAsync("git", "worktree prune", wd);
+    public async Task<Result> PruneAsync(string wd) => await cmd.RunAsync("git", "worktree prune", wd);
 
     // Which of the folders git ignores, asked with a trailing separator: a folder-only pattern
     // ('x/') matches nothing for a folder that does not exist yet unless the path says it is one
-    public async Task<R<IReadOnlyList<string>>> GetIgnoredAsync(IReadOnlyList<string> paths, string wd)
+    public async Task<Result<IReadOnlyList<string>>> GetIgnoredAsync(IReadOnlyList<string> paths, string wd)
     {
         if (paths.Count == 0)
             return new List<string>();
 
         var args = "check-ignore -- " + string.Join(' ', paths.Select(p => $"\"{p.TrimSuffix("/")}/\""));
-        var rsp = await cmd.RunAsync("git", args, wd, true, true);
-        if (rsp.IsResultError)
-        {
-            // Exit code 1 is git's answer that none of them is ignored
-            if (rsp.ExitCode == 1)
-                return new List<string>();
-            return R.Error("Failed to check ignored paths", rsp);
-        }
+        var rsp = await cmd.RunRawAsync("git", args, wd, true, true);
+
+        // Exit code 1 is git's answer that none of them is ignored
+        if (rsp.ExitCode == 1)
+            return new List<string>();
+        if (!rsp.IsOk)
+            return new Error("Failed to check ignored paths", new CmdError(rsp));
 
         return rsp
             .Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)

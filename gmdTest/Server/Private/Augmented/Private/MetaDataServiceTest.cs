@@ -39,8 +39,8 @@ public class MetaDataServiceTest
         var metaData = new MetaData();
         metaData.SetCommitBranch("abc123", "dev");
 
-        Assert.IsTrue(Try(out var e, await service.SetMetaDataAsync(Path, metaData)), $"{e}");
-        Assert.IsTrue(Try(out var read, out e, await service.GetMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.SetMetaDataAsync(Path, metaData));
+        var read = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.IsTrue(read.TryGetCommitBranch("abc123", out var name, out var isSetByUser));
         Assert.AreEqual("dev", name);
@@ -51,7 +51,7 @@ public class MetaDataServiceTest
     [TestMethod]
     public async Task TestGetWithNoStoredValueIsEmptyMetaData()
     {
-        Assert.IsTrue(Try(out var metaData, out var e, await service.GetMetaDataAsync(Path)), $"{e}");
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.AreEqual(0, metaData.CommitBranchBySid.Count);
         CollectionAssert.AreEqual(new[] { "get data" }, git.ValueCalls);
@@ -64,14 +64,14 @@ public class MetaDataServiceTest
 
         var result = await service.GetMetaDataAsync(Path);
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the deserialization to fail");
+        AssertError(result, "Expected the deserialization to fail");
     }
 
     // Sync is off by default, so nothing reaches git
     [TestMethod]
     public async Task TestFetchDoesNothingWhenSyncIsDisabled()
     {
-        Assert.IsTrue(Try(out var e, await service.FetchMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.FetchMetaDataAsync(Path));
 
         Assert.AreEqual(0, git.ValueCalls.Count);
     }
@@ -79,7 +79,7 @@ public class MetaDataServiceTest
     [TestMethod]
     public async Task TestPushDoesNothingWhenSyncIsDisabled()
     {
-        Assert.IsTrue(Try(out var e, await service.PushMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.PushMetaDataAsync(Path));
 
         Assert.AreEqual(0, git.ValueCalls.Count);
     }
@@ -90,7 +90,7 @@ public class MetaDataServiceTest
         EnableSync();
         git.Values[Key] = Json(("abc123", "*dev"));
 
-        Assert.IsTrue(Try(out var e, await service.PushMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.PushMetaDataAsync(Path));
 
         Assert.AreEqual(git.Values[Key], git.RemoteValues[Key]);
     }
@@ -102,7 +102,7 @@ public class MetaDataServiceTest
     {
         EnableSync();
 
-        Assert.IsTrue(Try(out var e, await service.FetchMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.FetchMetaDataAsync(Path));
 
         CollectionAssert.AreEqual(new[] { "get data", "pull data" }, git.ValueCalls);
     }
@@ -115,8 +115,8 @@ public class MetaDataServiceTest
         EnableSync();
         git.RemoteValues[Key] = Json(("remote1", "*dev"));
 
-        Assert.IsTrue(Try(out var e, await service.FetchMetaDataAsync(Path)), $"{e}");
-        Assert.IsTrue(Try(out var metaData, out e, await service.GetMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.IsTrue(metaData.TryGetCommitBranch("remote1", out var name, out _));
         Assert.AreEqual("dev", name);
@@ -131,8 +131,8 @@ public class MetaDataServiceTest
         git.Values[Key] = Json(("local1", "*main"));
         git.RemoteValues[Key] = Json(("remote1", "*dev"));
 
-        Assert.IsTrue(Try(out var e, await service.FetchMetaDataAsync(Path)), $"{e}");
-        Assert.IsTrue(Try(out var metaData, out e, await service.GetMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
         CollectionAssert.AreEquivalent(new[] { "local1", "remote1" }, metaData.CommitBranchBySid.Keys.ToArray());
     }
@@ -145,8 +145,8 @@ public class MetaDataServiceTest
         git.Values[Key] = Json(("abc123", "*main"));
         git.RemoteValues[Key] = Json(("abc123", "*dev"));
 
-        Assert.IsTrue(Try(out var e, await service.FetchMetaDataAsync(Path)), $"{e}");
-        Assert.IsTrue(Try(out var metaData, out e, await service.GetMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
         Assert.AreEqual("dev", name);
@@ -160,7 +160,7 @@ public class MetaDataServiceTest
         git.Values[Key] = Json(("abc123", "*dev"));
         git.RemoteValues[Key] = Json(("abc123", "*dev"));
 
-        Assert.IsTrue(Try(out var e, await service.FetchMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.FetchMetaDataAsync(Path));
 
         CollectionAssert.DoesNotContain(git.ValueCalls, "set data");
     }
@@ -174,11 +174,11 @@ public class MetaDataServiceTest
         var local = new MetaData();
         local.SetCommitBranch("abc123", "dev");
         local.RemoveCommitBranch("abc123");
-        Assert.IsTrue(Try(out var e, await service.SetMetaDataAsync(Path, local)), $"{e}");
+        AssertOk(await service.SetMetaDataAsync(Path, local));
         git.RemoteValues[Key] = git.Values[Key];
 
-        Assert.IsTrue(Try(out e, await service.FetchMetaDataAsync(Path)), $"{e}");
-        Assert.IsTrue(Try(out var metaData, out e, await service.GetMetaDataAsync(Path)), $"{e}");
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.IsFalse(metaData.TryGetCommitBranch("abc123", out _, out _));
         Assert.IsTrue(metaData.CommitBranchBySid.ContainsKey("abc123"), "The removal is still shareable");

@@ -8,19 +8,19 @@ namespace gmd.Git.Private;
 // could only be escaped by leaving gmd for a console.
 interface IConflictService
 {
-    Task<R> AbortOperationAsync(string wd);
-    Task<R> ContinueOperationAsync(string wd);
-    Task<R> SkipOperationAsync(string wd);
-    Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
+    Task<Result> AbortOperationAsync(string wd);
+    Task<Result> ContinueOperationAsync(string wd);
+    Task<Result> SkipOperationAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
 
-    Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
-    Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd);
-    Task<R> WriteAsync(ConflictFile file, string wd);
-    Task<R> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
-    Task<R> MarkResolvedAsync(string path, string wd);
-    Task<R> UnresolveAsync(string path, string wd);
-    Task<R> UseWholeFileAsync(string path, bool isOurs, string wd);
-    Task<R> DeleteConflictedAsync(string path, string wd);
+    Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
+    Task<Result<ConflictFile>> WithBaseAsync(ConflictFile file, string wd);
+    Task<Result> WriteAsync(ConflictFile file, string wd);
+    Task<Result> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
+    Task<Result> MarkResolvedAsync(string path, string wd);
+    Task<Result> UnresolveAsync(string path, string wd);
+    Task<Result> UseWholeFileAsync(string path, bool isOurs, string wd);
+    Task<Result> DeleteConflictedAsync(string path, string wd);
 }
 
 class ConflictService : IConflictService
@@ -37,7 +37,7 @@ class ConflictService : IConflictService
         this.cmd = cmd;
     }
 
-    public async Task<R> AbortOperationAsync(string wd)
+    public async Task<Result> AbortOperationAsync(string wd)
     {
         // A merge with no MERGE_HEAD has no '--abort': git answers "There is no merge to abort
         // (MERGE_HEAD missing)". That is what gmd's own Cherry Pick leaves behind when it
@@ -48,13 +48,14 @@ class ConflictService : IConflictService
         if (StatusService.IsMergeWithoutHead(wd))
             return await cmd.RunAsync("git", "reset --merge", wd);
 
-        if (!Try(out var verb, out var e, OperationVerb(wd)))
-            return e;
+        var verbResult = OperationVerb(wd);
+        if (verbResult is not string verb)
+            return verbResult.Error;
 
         return await cmd.RunAsync("git", $"{verb} --abort", wd);
     }
 
-    public async Task<R> ContinueOperationAsync(string wd)
+    public async Task<Result> ContinueOperationAsync(string wd)
     {
         // Whatever a commit finishes has no '--continue' worth running. A merge has none at all,
         // and gmd's own Cherry Pick and Undo/Revert Commit run '--no-commit', which leaves one
@@ -62,24 +63,26 @@ class ConflictService : IConflictService
         // message instead. The UI offers Commit for all of these rather than this.
         var operation = StatusService.GetOperation(wd);
         if (operation != GitOperation.None && StatusService.IsFinishedByCommit(wd))
-            return R.Error($"A {ToName(operation).ToLower()} is finished by committing it, not by continuing.");
+            return new Error($"A {ToName(operation).ToLower()} is finished by committing it, not by continuing.");
 
-        if (!Try(out var verb, out var e, OperationVerb(wd)))
-            return e;
+        var verbResult = OperationVerb(wd);
+        if (verbResult is not string verb)
+            return verbResult.Error;
 
         return ToResult(await cmd.RunAsync("git", $"{verb} --continue", wd), verb);
     }
 
-    public async Task<R> SkipOperationAsync(string wd)
+    public async Task<Result> SkipOperationAsync(string wd)
     {
         var operation = StatusService.GetOperation(wd);
 
         // Only the two that replay a series of commits have anything to skip
         if (operation != GitOperation.Rebase && operation != GitOperation.Am)
-            return R.Error($"{ToName(operation)} has no commit to skip.");
+            return new Error($"{ToName(operation)} has no commit to skip.");
 
-        if (!Try(out var verb, out var e, OperationVerb(wd)))
-            return e;
+        var verbResult = OperationVerb(wd);
+        if (verbResult is not string verb)
+            return verbResult.Error;
 
         return ToResult(await cmd.RunAsync("git", $"{verb} --skip", wd), verb);
     }
@@ -92,13 +95,14 @@ class ConflictService : IConflictService
     // Reads the working tree file and parses it. The working tree file rather than the index
     // stages, because it is the only artifact that holds the text *between* the conflicts, and it
     // is what git takes verbatim once the path is marked resolved — including any hand edits.
-    public async Task<R<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
+    public async Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
     {
         var fullPath = System.IO.Path.Join(wd, path);
 
         // Which sides exist decides what can be offered for the file, so it is read for every one
-        if (!Try(out var stages, out var e, await GetStagesAsync(path, wd)))
-            return e;
+        var stagesResult = await GetStagesAsync(path, wd);
+        if (stagesResult is not IReadOnlyDictionary<int, string> stages)
+            return stagesResult.Error;
 
         var hasOurs = stages.ContainsKey(2);
         var hasTheirs = stages.ContainsKey(3);
@@ -111,16 +115,18 @@ class ConflictService : IConflictService
         if (!Files.IsText(fullPath))
             return new ConflictFile(path, kind, true, false, [], hasOurs, hasTheirs);
 
-        if (!Try(out var bytes, out e, () => File.ReadAllBytes(fullPath)))
-            return R.Error($"Failed to read {path}", e);
+        var read = Result.Catch(() => File.ReadAllBytes(fullPath));
+        if (read is not byte[] bytes)
+            return new Error($"Failed to read {path}", read.Error);
 
         var hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
 
         // Throwing rather than replacing, so a file gmd cannot represent exactly is refused instead
         // of being silently rewritten with U+FFFD where it could not decode
         var encoding = new UTF8Encoding(false, true);
-        if (!Try(out var text, out e, () => encoding.GetString(bytes, hasBom ? 3 : 0, bytes.Length - (hasBom ? 3 : 0))))
-            return R.Error($"{path} is not UTF-8 text, so it cannot be resolved here", e);
+        var decoded = Result.Catch(() => encoding.GetString(bytes, hasBom ? 3 : 0, bytes.Length - (hasBom ? 3 : 0)));
+        if (decoded is not string text)
+            return new Error($"{path} is not UTF-8 text, so it cannot be resolved here", decoded.Error);
 
         var parsed = ConflictParser.Parse(path, kind, text, hasBom);
         return parsed with { HasOurs = hasOurs, HasTheirs = hasTheirs };
@@ -137,15 +143,16 @@ class ConflictService : IConflictService
     // the whole thing out of the user's sight — where 'git checkout-index --temp' would have been
     // the obvious tool but always writes to the worktree root, whatever its cwd, and those files
     // show up as untracked in the very status gmd is displaying.
-    public async Task<R<ConflictFile>> WithBaseAsync(ConflictFile file, string wd)
+    public async Task<Result<ConflictFile>> WithBaseAsync(ConflictFile file, string wd)
     {
         // Already there: the user's conflict style is 'diff3' or 'zdiff3', so git wrote it into the
         // file itself and it is aligned by construction
         if (file.Hunks.Count == 0 || file.Hunks.Any(h => h.HasBase))
             return file with { HasBase = true };
 
-        if (!Try(out var stages, out var e, await GetStagesAsync(file.Path, wd)))
-            return e;
+        var stagesResult = await GetStagesAsync(file.Path, wd);
+        if (stagesResult is not IReadOnlyDictionary<int, string> stages)
+            return stagesResult.Error;
 
         // An add/add conflict has no stage 1: both sides created the file, so there is no ancestor.
         // This is the one place that can tell that apart from an ancestor that is merely empty
@@ -154,13 +161,14 @@ class ConflictService : IConflictService
             return file;
 
         var tempDir = System.IO.Path.Join(StatusService.GetGitDir(wd), $"gmd-conflict-{Guid.NewGuid():N}");
-        if (!Try(out e, () => Directory.CreateDirectory(tempDir)))
-            return R.Error("Failed to create a scratch folder", e);
+        if (Result.Catch(() => Directory.CreateDirectory(tempDir)) is Error e)
+            return new Error("Failed to create a scratch folder", e);
 
         try
         {
-            if (!Try(out var merged, out e, await MergeWithBaseAsync(stages, baseSha, tempDir)))
-                return e;
+            var mergedResult = await MergeWithBaseAsync(stages, baseSha, tempDir);
+            if (mergedResult is not string merged)
+                return mergedResult.Error;
 
             // Mapped by the lines each conflict covers rather than by position: '--diff3' groups
             // conflicts differently from the merge that wrote the file, so the two do not
@@ -177,7 +185,7 @@ class ConflictService : IConflictService
                     out var withBases
                 )
             )
-                return R.Error(
+                return new Error(
                     $"The common ancestor of {file.Path} could not be matched to its conflicts.\n\n"
                         + "The file has been changed since git wrote the conflicts into it, so there is\n"
                         + "no way to tell which ancestor belongs to which conflict."
@@ -190,15 +198,16 @@ class ConflictService : IConflictService
         }
         finally
         {
-            Try(out var _, () => Directory.Delete(tempDir, true));
+            Result.Catch(() => Directory.Delete(tempDir, true));
         }
     }
 
     // The blob of each stage of an unmerged path, keyed on stage number
-    async Task<R<IReadOnlyDictionary<int, string>>> GetStagesAsync(string path, string wd)
+    async Task<Result<IReadOnlyDictionary<int, string>>> GetStagesAsync(string path, string wd)
     {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", $"ls-files -u {Spec(path)}", wd)))
-            return e;
+        var result = await cmd.RunAsync("git", $"ls-files -u {Spec(path)}", wd);
+        if (result is not string output)
+            return result.Error;
 
         var stages = new Dictionary<int, string>();
         foreach (var line in output.Split('\n'))
@@ -214,14 +223,21 @@ class ConflictService : IConflictService
 
     // Re-runs the merge with the ancestor kept, and returns the result read straight off disk —
     // never through ICmd, whose stdout handling strips carriage returns and trailing newlines
-    async Task<R<string>> MergeWithBaseAsync(IReadOnlyDictionary<int, string> stages, string baseSha, string tempDir)
+    async Task<Result<string>> MergeWithBaseAsync(
+        IReadOnlyDictionary<int, string> stages,
+        string baseSha,
+        string tempDir
+    )
     {
-        if (!Try(out var baseFile, out var e, await UnpackAsync(baseSha, tempDir)))
-            return e;
-        if (!Try(out var oursFile, out e, await UnpackAsync(stages[2], tempDir)))
-            return e;
-        if (!Try(out var theirsFile, out e, await UnpackAsync(stages[3], tempDir)))
-            return e;
+        var baseResult = await UnpackAsync(baseSha, tempDir);
+        if (baseResult is not string baseFile)
+            return baseResult.Error;
+        var oursResult = await UnpackAsync(stages[2], tempDir);
+        if (oursResult is not string oursFile)
+            return oursResult.Error;
+        var theirsResult = await UnpackAsync(stages[3], tempDir);
+        if (theirsResult is not string theirsFile)
+            return theirsResult.Error;
 
         // '--diff3' and not '--zdiff3': zdiff3 hoists lines common to both sides out of the region,
         // so its conflicts would not line up with the ones git wrote into the working tree file and
@@ -234,17 +250,19 @@ class ConflictService : IConflictService
         await cmd.RunAsync("git", args, tempDir, skipLogError: true);
 
         var mergedPath = System.IO.Path.Join(tempDir, oursFile);
-        if (!Try(out var text, out e, () => File.ReadAllText(mergedPath)))
-            return R.Error("Failed to read the merged file", e);
+        var read = Result.Catch(() => File.ReadAllText(mergedPath));
+        if (read is not string text)
+            return new Error("Failed to read the merged file", read.Error);
 
         return text;
     }
 
     // Writes the blob to a file in tempDir and returns its name, which git chooses
-    async Task<R<string>> UnpackAsync(string sha, string tempDir)
+    async Task<Result<string>> UnpackAsync(string sha, string tempDir)
     {
-        if (!Try(out var name, out var e, await cmd.RunAsync("git", $"unpack-file {sha}", tempDir)))
-            return e;
+        var result = await cmd.RunAsync("git", $"unpack-file {sha}", tempDir);
+        if (result is not string name)
+            return result.Error;
 
         return name.Trim();
     }
@@ -255,15 +273,21 @@ class ConflictService : IConflictService
     // hold a narrowed model with no markers in it. It also makes a file that changed on disk while
     // the resolver was open a caught error rather than a silent mis-resolve: if it no longer has
     // the same number of conflicts, the decisions no longer line up with them.
-    public async Task<R> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd)
+    public async Task<Result> ResolveAsync(
+        string path,
+        ConflictKind kind,
+        IReadOnlyList<HunkResolution> choices,
+        string wd
+    )
     {
-        if (!Try(out var file, out var e, await GetConflictFileAsync(path, kind, wd)))
-            return e;
+        var fileResult = await GetConflictFileAsync(path, kind, wd);
+        if (fileResult is not ConflictFile file)
+            return fileResult.Error;
 
         // Before the ancestor is recovered below, not after: a file that no longer has the same
         // conflicts fails both checks, and this is the one that says which file and what changed
         if (file.Hunks.Count != choices.Count)
-            return R.Error(
+            return new Error(
                 $"{path} has changed on disk since it was opened "
                     + $"({file.Hunks.Count} conflicts now, {choices.Count} before).\n\n"
                     + "Close the resolver and open it again."
@@ -274,8 +298,13 @@ class ConflictService : IConflictService
         // recovered here rather than sent down from the view: the model up there is narrowed, and a
         // resolve is applied to the file as it is on disk *now*, so the text has to come from the
         // same read the choices are lined up against.
-        if (choices.Any(c => c.Choice == HunkChoice.Base) && !Try(out file, out e, await WithBaseAsync(file, wd)))
-            return e;
+        if (choices.Any(c => c.Choice == HunkChoice.Base))
+        {
+            var withBase = await WithBaseAsync(file, wd);
+            if (withBase is not ConflictFile fileWithBase)
+                return withBase.Error;
+            file = fileWithBase;
+        }
 
         foreach (var choice in choices)
         {
@@ -289,43 +318,43 @@ class ConflictService : IConflictService
     // Writes the resolved text back and marks the path resolved. Nothing about line endings is
     // done here: every line carries the terminator it was read with, so what comes out is what went
     // in, and git's own check-in conversion then applies exactly as it would to a hand edit.
-    public async Task<R> WriteAsync(ConflictFile file, string wd)
+    public async Task<Result> WriteAsync(ConflictFile file, string wd)
     {
         if (file.IsBinary)
-            return R.Error($"{file.Path} is binary, so there is no text to write");
+            return new Error($"{file.Path} is binary, so there is no text to write");
 
         var fullPath = System.IO.Path.Join(wd, file.Path);
         var text = ConflictParser.ToText(file);
 
         // File.WriteAllText defaults to UTF-8 without a BOM, so a file that had one would lose it
-        if (!Try(out var e, () => File.WriteAllText(fullPath, text, new UTF8Encoding(file.HasBom))))
-            return R.Error($"Failed to write {file.Path}", e);
+        if (Result.Catch(() => File.WriteAllText(fullPath, text, new UTF8Encoding(file.HasBom))) is Error e)
+            return new Error($"Failed to write {file.Path}", e);
 
         return await MarkResolvedAsync(file.Path, wd);
     }
 
     // Staging a path is what 'resolved' means to git, for a file it merged and for one it deleted
-    public async Task<R> MarkResolvedAsync(string path, string wd) =>
+    public async Task<Result> MarkResolvedAsync(string path, string wd) =>
         await cmd.RunAsync("git", $"add {Spec(path)}", wd);
 
     // Puts the conflict back, markers and all, discarding whatever was resolved. Git can do this
     // even after the path was staged, from the resolve-undo data it keeps in the index.
-    public async Task<R> UnresolveAsync(string path, string wd) =>
+    public async Task<Result> UnresolveAsync(string path, string wd) =>
         await cmd.RunAsync("git", $"checkout --merge {Spec(path)}", wd);
 
     // The whole file from one side, which is the only thing on offer for a binary conflict and the
     // quickest answer for a text one that is not worth reading through
-    public async Task<R> UseWholeFileAsync(string path, bool isOurs, string wd)
+    public async Task<Result> UseWholeFileAsync(string path, bool isOurs, string wd)
     {
         var side = isOurs ? "--ours" : "--theirs";
-        if (!Try(out var _, out var e, await cmd.RunAsync("git", $"checkout {side} {Spec(path)}", wd)))
+        if (await cmd.RunAsync("git", $"checkout {side} {Spec(path)}", wd) is Error e)
             return e;
 
         return await MarkResolvedAsync(path, wd);
     }
 
     // Accepts the deletion of a path one side removed, which is the other half of a modify/delete
-    public async Task<R> DeleteConflictedAsync(string path, string wd) =>
+    public async Task<Result> DeleteConflictedAsync(string path, string wd) =>
         await cmd.RunAsync("git", $"rm -f {Spec(path)}", wd);
 
     const string MarkerNote = ": leftover conflict marker";
@@ -339,11 +368,11 @@ class ConflictService : IConflictService
     // as well and exits non-zero for those too, so the *lines* have to be filtered rather than the
     // exit code trusted — gating on the exit code alone would refuse a commit over a trailing
     // space. Findings go to stdout; a real failure is what puts anything on stderr.
-    public async Task<R<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd)
+    public async Task<Result<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd)
     {
-        var result = await cmd.RunAsync("git", "diff --cached --check", wd, skipLogError: true);
+        var result = await cmd.RunRawAsync("git", "diff --cached --check", wd, skipLogError: true);
         if (result.ErrorOutput != "")
-            return R.Error($"Failed to check for conflict markers\n{result.ErrorOutput}");
+            return new Error($"Failed to check for conflict markers\n{result.ErrorOutput}");
 
         return result
             .Output.Split('\n')
@@ -365,7 +394,7 @@ class ConflictService : IConflictService
     }
 
     // The git sub command of whatever is in progress, i.e. what '--abort' and friends attach to
-    static R<string> OperationVerb(string wd)
+    static Result<string> OperationVerb(string wd)
     {
         var operation = StatusService.GetOperation(wd);
         return operation switch
@@ -375,7 +404,7 @@ class ConflictService : IConflictService
             GitOperation.Revert => "revert",
             GitOperation.Rebase => "rebase",
             GitOperation.Am => "am",
-            _ => R.Error("No merge, rebase, cherry pick or revert is in progress."),
+            _ => new Error("No merge, rebase, cherry pick or revert is in progress."),
         };
     }
 
@@ -394,22 +423,22 @@ class ConflictService : IConflictService
     // normal shape of a rebase over several commits, and it can be refused because the conflict the
     // operation stopped on has not been resolved. Both come back as a non-zero exit, so they are
     // told apart by what git printed — the same sniffing BranchService does when starting one.
-    static R ToResult(CmdResult result, string verb)
+    static Result ToResult(Result<string> result, string verb)
     {
-        if (!result.IsResultError)
-            return R.Ok;
+        if (result is not CmdError e)
+            return result;
 
-        var output = $"{result.Output}\n{result.ErrorOutput}";
+        var output = $"{e.Output}\n{e.ErrorOutput}";
         if (output.Contains("CONFLICT"))
-            return R.Error($"The {verb} stopped on more conflicts.\nResolve them and continue again.", result);
+            return new Error($"The {verb} stopped on more conflicts.\nResolve them and continue again.", e);
 
         if (output.Contains("needs merge") || output.Contains("edit all merge conflicts"))
-            return R.Error(
+            return new Error(
                 $"Cannot continue the {verb} while there are unresolved conflicts.\n\n"
                     + "Resolve each conflicted file and mark it resolved, then continue.",
-                result
+                e
             );
 
-        return result;
+        return e;
     }
 }

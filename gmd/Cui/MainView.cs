@@ -104,9 +104,10 @@ partial class MainView : IMainView
         // path = "/workspaces/empty";
         // path = "/workspaces/empty2";
 
-        if (!Try(out var rootPath, out var e, git.RootPath(path)) || IsShowMainMenu)
+        var rootPathResult = git.RootPath(path);
+        if (rootPathResult is not string rootPath || IsShowMainMenu)
         {
-            if (path != "")
+            if (path != "" && rootPathResult is Error e)
             { // User specified an invalid folder on command line
                 UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
             }
@@ -209,7 +210,7 @@ partial class MainView : IMainView
                 $"Updating to version {latest.Txt()},\nthis might take a while ...",
                 updateTask
             );
-            if (!Try(out var _, out var e, await updateTask))
+            if (await updateTask is Error e)
             {
                 UI.ErrorMessage($"Failed to update:\n{e}");
                 ShowMainMenu();
@@ -249,7 +250,7 @@ partial class MainView : IMainView
     {
         UI.RunInBackground(async () =>
         {
-            if (!Try(out var e, await repoView.ShowInitialRepoAsync(path)))
+            if (await repoView.ShowInitialRepoAsync(path) is Error e)
             {
                 UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e}");
                 ShowMainMenu();
@@ -261,28 +262,28 @@ partial class MainView : IMainView
 
     async void ShowCloneDlg()
     {
-        if (!Try(out var r, out var e, cloneDlg.Show(config.ResentParentFolders())))
+        if (cloneDlg.Show(config.ResentParentFolders()) is not CloneInfo clone)
         {
             ShowMainMenu();
             return;
         }
 
-        (var uri, var path) = r;
         using (progress.Show())
         {
-            if (!Try(out e, await server.CloneAsync(uri, path, "")))
+            if (await server.CloneAsync(clone.Uri, clone.Path, "") is Error e)
             {
-                UI.ErrorMessage($"Failed to clone:\n{uri}:\n{e}");
+                UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{e}");
                 return;
             }
         }
 
-        ShowRepo(path);
+        ShowRepo(clone.Path);
     }
 
     async void ShowInitRepoDlg()
     {
-        if (!Try(out var path, out var e, initRepoDlg.Show(config.ResentParentFolders())))
+        var pathResult = initRepoDlg.Show(config.ResentParentFolders());
+        if (pathResult is not string path)
         {
             ShowMainMenu();
             return;
@@ -290,7 +291,7 @@ partial class MainView : IMainView
 
         using (progress.Show())
         {
-            if (!Try(out e, await server.InitRepoAsync(path, "")))
+            if (await server.InitRepoAsync(path, "") is Error e)
             {
                 UI.ErrorMessage($"Failed to init:\n{path}:\n{e}");
                 return;
@@ -303,7 +304,7 @@ partial class MainView : IMainView
     void ShowBrowseDialog()
     {
         var browser = new FolderBrowseDlg();
-        if (!Try(out var path, browser.Show(config.ResentParentFolders())))
+        if (browser.Show(config.ResentParentFolders()) is not string path)
         {
             ShowMainMenu();
             return;

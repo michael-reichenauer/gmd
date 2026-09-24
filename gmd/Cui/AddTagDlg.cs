@@ -7,7 +7,7 @@ record TagInfo(string name, string message);
 
 interface IAddTagDlg
 {
-    R<TagInfo> Show();
+    Result<TagInfo> Show();
 }
 
 class AddTagDlg : IAddTagDlg
@@ -19,7 +19,7 @@ class AddTagDlg : IAddTagDlg
         this.spellChecker = spellChecker;
     }
 
-    public R<TagInfo> Show()
+    public Result<TagInfo> Show()
     {
         var dlg = new UIDialog("Add Tag", 60, 13);
 
@@ -32,7 +32,7 @@ class AddTagDlg : IAddTagDlg
         dlg.Validate(() => name.Text != "", "Empty tag name");
 
         if (!dlg.ShowOkCancel(name))
-            return R.Error();
+            return new Error();
 
         return new TagInfo(name.Text, message.Text);
     }

@@ -63,7 +63,7 @@ public class GitIntegrationTest
         await repo.CommitFileAsync("file.txt", "text\n", "Initial");
         var path = repo.WorktreePath("dev");
 
-        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        AssertOk(await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path));
         repo.TrackFolder(path);
 
         var worktrees = Value(await repo.Git.GetWorktreesAsync(repo.Path));
@@ -87,9 +87,9 @@ public class GitIntegrationTest
 
         // Uncommitted changes in the worktree: refused unless forced
         File.WriteAllText(Path.Join(path, "new.txt"), "text\n");
-        Assert.IsFalse(Try(out e, await repo.Git.RemoveWorktreeAsync(path, false, repo.Path)));
-        StringAssert.Contains(e.ErrorMessage, "--force");
-        Assert.IsTrue(Try(out e, await repo.Git.RemoveWorktreeAsync(path, true, repo.Path)), $"{e}");
+        var e = AssertError(await repo.Git.RemoveWorktreeAsync(path, false, repo.Path));
+        StringAssert.Contains(e.Message, "--force");
+        AssertOk(await repo.Git.RemoveWorktreeAsync(path, true, repo.Path));
 
         Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
         Assert.IsFalse(Directory.Exists(path));
@@ -106,7 +106,7 @@ public class GitIntegrationTest
     {
         await repo.CommitFileAsync("file.txt", "text\n", "Initial");
         var path = repo.WorktreePath("dev");
-        Assert.IsTrue(Try(out var e, await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path)), $"{e}");
+        AssertOk(await repo.Git.AddWorktreeAsync(path, "dev", true, "main", repo.Path));
         repo.TrackFolder(path);
 
         // Same content, different stat data: a refresh finds the file unchanged and writes the
@@ -137,7 +137,7 @@ public class GitIntegrationTest
         Assert.IsTrue(worktrees[1].IsPrunable);
         Assert.AreNotEqual("", worktrees[1].PruneReason);
 
-        Assert.IsTrue(Try(out var e, await repo.Git.PruneWorktreesAsync(repo.Path)), $"{e}");
+        AssertOk(await repo.Git.PruneWorktreesAsync(repo.Path));
 
         Assert.AreEqual(1, Value(await repo.Git.GetWorktreesAsync(repo.Path)).Count);
     }
@@ -290,7 +290,7 @@ public class GitIntegrationTest
 
         var result = await repo.Git.RenameBranchAsync("dev", "main", repo.Path);
 
-        Assert.IsFalse(Try(out var _, result), "Expected the rename to be refused");
+        AssertError(result, "Expected the rename to be refused");
         var branches = Value(await repo.Git.GetBranchesAsync(repo.Path));
         Assert.AreEqual("dev, main", string.Join(", ", branches.Select(b => b.Name)));
     }
@@ -547,8 +547,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.MergeBranchAsync("dev", repo.Path);
 
-        Assert.IsTrue(result.IsResultError, "Both branches changed the same line");
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "Merge Conflicts!");
+        var error = AssertError(result, "Both branches changed the same line");
+        StringAssert.Contains(error.Message, "Merge Conflicts!");
 
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual("M:0,A:0,D:0,C:1,R:0", status.ToString());
@@ -629,8 +629,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.CommitAllChangesAsync("Merge branch 'dev'", false, repo.Path);
 
-        Assert.IsTrue(result.IsResultError, "Git refuses to commit while a path is unmerged");
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "unresolved conflicts");
+        var error = AssertError(result, "Git refuses to commit while a path is unmerged");
+        StringAssert.Contains(error.Message, "unresolved conflicts");
         Assert.AreEqual(headBefore, await repo.HeadIdAsync(), "No commit was made");
     }
 
@@ -646,8 +646,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.CommitAllChangesAsync("Merge branch 'dev'", false, repo.Path);
 
-        Assert.IsTrue(result.IsResultError, "The path is still unmerged until it is staged");
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "mark it resolved");
+        var error = AssertError(result, "The path is still unmerged until it is staged");
+        StringAssert.Contains(error.Message, "mark it resolved");
     }
 
     // ... and once it is staged, which is what 'git mergetool' does for you, the commit goes through
@@ -865,7 +865,7 @@ public class GitIntegrationTest
             var finished = await Task.WhenAny(continued, Task.Delay(TimeSpan.FromSeconds(30)));
 
             Assert.AreSame(continued, finished, "'rebase --continue' hung waiting for an editor");
-            Assert.IsTrue(Try(out var e, await continued), $"{e}");
+            AssertOk(await continued);
         }
         finally
         {
@@ -910,8 +910,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.ContinueOperationAsync(repo.Path);
 
-        Assert.IsTrue(result.IsResultError);
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "unresolved conflicts");
+        var error = AssertError(result);
+        StringAssert.Contains(error.Message, "unresolved conflicts");
     }
 
     // A rebase over two commits that conflicts twice: continuing gets past the first and stops on
@@ -932,8 +932,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.ContinueOperationAsync(repo.Path);
 
-        Assert.IsTrue(result.IsResultError);
-        StringAssert.Contains(result.GetResultError().ErrorMessage, "stopped on more conflicts");
+        var error = AssertError(result);
+        StringAssert.Contains(error.Message, "stopped on more conflicts");
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual(GitOperation.Rebase, status.Operation, "Still rebasing, now on the second commit");
         Assert.AreEqual(2, status.OperationStep);
@@ -1009,7 +1009,7 @@ public class GitIntegrationTest
         await repo.Git.MergeBranchAsync("dev", repo.Path);
 
         var result = await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path);
-        Assert.IsTrue(Try(out var file, out var e, result), $"{e}");
+        var file = AssertOk(result);
         return file;
     }
 
@@ -1262,8 +1262,8 @@ public class GitIntegrationTest
 
         var result = await repo.Git.WithBaseAsync(edited, repo.Path);
 
-        Assert.IsFalse(Try(out var _, out var e, result), "An ancestor that cannot be matched is not an answer");
-        StringAssert.Contains(e.ErrorMessage, "could not be matched to its conflicts");
+        var e = AssertError(result, "An ancestor that cannot be matched is not an answer");
+        StringAssert.Contains(e.Message, "could not be matched to its conflicts");
     }
 
     // Resolving to the ancestor is the one choice whose text is not in the working tree file, since
@@ -1585,11 +1585,8 @@ public class GitIntegrationTest
     }
 
     // Unwraps a result, failing the test with the git error if the command failed
-    static T Value<T>(R<T> result)
-    {
-        Assert.IsTrue(Try(out var value, out var e, result), $"Git failed: {e}");
-        return value;
-    }
+    static T Value<T>(Result<T> result)
+        where T : notnull => AssertOk(result, "Git failed");
 
-    static void Ok(R result) => Assert.IsTrue(Try(out var e, result), $"Git failed: {e}");
+    static void Ok(Result result) => AssertOk(result, "Git failed");
 }

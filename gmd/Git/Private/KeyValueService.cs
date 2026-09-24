@@ -2,10 +2,10 @@ namespace gmd.Git.Private;
 
 interface IKeyValueService
 {
-    Task<R<string>> GetValueAsync(string key, string wd);
-    Task<R> SetValueAsync(string key, string value, string wd);
-    Task<R> PushValueAsync(string key, string wd);
-    Task<R> PullValueAsync(string key, string wd);
+    Task<Result<string>> GetValueAsync(string key, string wd);
+    Task<Result> SetValueAsync(string key, string value, string wd);
+    Task<Result> PushValueAsync(string key, string wd);
+    Task<Result> PullValueAsync(string key, string wd);
 }
 
 class KeyValueService : IKeyValueService
@@ -17,39 +17,36 @@ class KeyValueService : IKeyValueService
         this.cmd = cmd;
     }
 
-    public async Task<R<string>> GetValueAsync(string key, string wd)
-    {
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true)))
-            return e;
-        return output;
-    }
+    public Task<Result<string>> GetValueAsync(string key, string wd) =>
+        cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true);
 
-    public async Task<R> SetValueAsync(string key, string value, string wd)
+    public async Task<Result> SetValueAsync(string key, string value, string wd)
     {
         var path = TmpFilePath(wd);
         try
         {
             // Store the temp file with key value in the git database (returns an object id)
-            if (!Try(out var e, () => File.WriteAllText(path, value)))
-                return e;
-            if (!Try(out var objectId, out e, await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true, true)))
-                return e;
+            if (Result.Catch(() => File.WriteAllText(path, value)) is Error writeError)
+                return writeError;
+            var hashed = await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true, true);
+            if (hashed is not string objectId)
+                return hashed.Error;
             objectId = objectId.Trim();
 
             // Add a ref pointer to the stored object for easier retrieval
-            if (!Try(out e, await cmd.RunAsync("git", $"update-ref {KeyRef(key)} {objectId}", wd, true)))
-                return e;
+            if (await cmd.RunAsync("git", $"update-ref {KeyRef(key)} {objectId}", wd, true) is Error updateError)
+                return updateError;
         }
         finally
         {
-            if (!Try(out var e, () => File.Delete(path)))
+            if (Result.Catch(() => File.Delete(path)) is Error e)
                 Log.Warn($"{e}");
         }
 
-        return R.Ok;
+        return Result.Ok;
     }
 
-    public async Task<R> PushValueAsync(string key, string wd)
+    public async Task<Result> PushValueAsync(string key, string wd)
     {
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
@@ -57,7 +54,7 @@ class KeyValueService : IKeyValueService
         return await cmd.RunAsync("git", args, wd, true, false);
     }
 
-    public async Task<R> PullValueAsync(string key, string wd)
+    public async Task<Result> PullValueAsync(string key, string wd)
     {
         var refKey = KeyRef(key);
         string refs = $"{refKey}:{refKey}";
@@ -73,7 +70,7 @@ class KeyValueService : IKeyValueService
     string TmpFilePath(string wd)
     {
         var name = Path.GetRandomFileName();
-        var gitDir = Try(out var info, out var _, GitDir.Resolve(wd)) ? info.GitDirPath : Path.Join(wd, ".git");
+        var gitDir = GitDir.Resolve(wd) is GitDirInfo info ? info.GitDirPath : Path.Join(wd, ".git");
         return Path.Join(gitDir, $"gmd.tmp.{name}");
     }
 }

@@ -2,9 +2,12 @@ using gmd.Cui.Common;
 
 namespace gmd.Cui;
 
+// What to clone and where to put it
+record CloneInfo(string Uri, string Path);
+
 interface ICloneDlg
 {
-    R<(string, string)> Show(IReadOnlyList<string> recentParentFolders);
+    Result<CloneInfo> Show(IReadOnlyList<string> recentParentFolders);
 }
 
 class CloneDlg : ICloneDlg
@@ -13,7 +16,7 @@ class CloneDlg : ICloneDlg
 
     UITextField? path;
 
-    public R<(string, string)> Show(IReadOnlyList<string> recentParentFolders)
+    public Result<CloneInfo> Show(IReadOnlyList<string> recentParentFolders)
     {
         var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
 
@@ -33,7 +36,7 @@ class CloneDlg : ICloneDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "")
+                if (browseDlg.Show(recentParentFolders) is not string path || path == "")
                     return;
                 SetBrowsedPath(uri.Text, path);
             }
@@ -43,9 +46,9 @@ class CloneDlg : ICloneDlg
         dlg.Validate(() => path.Text != "", "Empty path is not allowed");
 
         if (!dlg.ShowOkCancel(uri))
-            return R.Error();
+            return new Error();
 
-        return (uri.Text, path.Text);
+        return new CloneInfo(uri.Text, path.Text);
     }
 
     // Update path field when uri changes
@@ -54,7 +57,7 @@ class CloneDlg : ICloneDlg
         if (!basePath.EndsWith(Path.DirectorySeparatorChar))
             return;
 
-        if (!Try(out var name, TryParseRepoName(uri)))
+        if (TryParseRepoName(uri) is not string name)
             return;
 
         UpdatePathField(basePath, name);
@@ -65,7 +68,7 @@ class CloneDlg : ICloneDlg
     {
         path = path.Trim();
 
-        if (!Try(out var name, TryParseRepoName(uri)))
+        if (TryParseRepoName(uri) is not string name)
             return;
 
         string basePath = path + Path.DirectorySeparatorChar;
@@ -80,11 +83,11 @@ class CloneDlg : ICloneDlg
     }
 
     // Try to extract git repo name
-    static R<string> TryParseRepoName(string uri)
+    static Result<string> TryParseRepoName(string uri)
     {
         var i = uri.LastIndexOf('/');
         if (i == -1)
-            return R.Error();
+            return new Error();
 
         return uri[(i + 1)..].Trim().TrimSuffix(".git").Replace("%20", "");
     }

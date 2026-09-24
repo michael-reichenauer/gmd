@@ -4,14 +4,14 @@ namespace gmd.Git.Private;
 
 interface IDiffService
 {
-    Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
-    Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
-    Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
-    Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
-    Task<R<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
-    Task<R<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
-    Task<R> RunDiffToolAsync(string path, string wd);
-    Task<R> RunMergeToolAsync(string path, string wd);
+    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result> RunDiffToolAsync(string path, string wd);
+    Task<Result> RunMergeToolAsync(string path, string wd);
 }
 
 // cSpell:ignore uFEFF
@@ -24,32 +24,34 @@ class DiffService : IDiffService
         this.cmd = cmd;
     }
 
-    public async Task<R<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
     {
         var args =
             "show --date=iso --first-parent --root --patch --no-color"
             + $" --find-renames --unified={contextLines} {commitId}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (commitDiffs.Count == 0)
-            return R.Error("Failed to parse diff");
+            return new Error("Failed to parse diff");
 
         return commitDiffs[0];
     }
 
-    public async Task<R<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
         var args =
             "stash show -u --date=iso --first-parent --root --patch --no-color"
             + $" --find-renames --unified={contextLines} {name}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
 
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-    public async Task<R<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
     {
         // To be able to include renamed and added files in uncommitted diff, we first
         // stage all and after diff, the stage is reset.
@@ -62,7 +64,7 @@ class DiffService : IDiffService
         var needReset = false;
         if (!StatusService.IsOperationInProgress(wd))
         {
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "add .", wd)))
+            if (await cmd.RunAsync("git", "add .", wd) is Error err)
                 return err;
             needReset = true;
         }
@@ -70,28 +72,21 @@ class DiffService : IDiffService
         var args =
             "diff --date=iso --first-parent --root --patch --no-color"
             + $" --find-renames --unified={contextLines} HEAD";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
+        var diff = await cmd.RunAsync("git", args, wd);
+        if (diff is Error e && e.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
+        { // No commit yet, so there is no HEAD to diff against; what is staged is the whole diff
+            diff = await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd);
+        }
+        if (diff is not string output)
         { // The diff failed, reset the 'git add .' if needed
-            if (e.ErrorMessage.Contains("ambiguous argument 'HEAD': unknown revision"))
-            {
-                if (!Try(out output, out e, await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd)))
-                {
-                    if (needReset)
-                        await cmd.RunAsync("git", "reset", wd);
-                    return e;
-                }
-            }
-            else
-            {
-                if (needReset)
-                    await cmd.RunAsync("git", "reset", wd);
-                return e;
-            }
+            if (needReset)
+                await cmd.RunAsync("git", "reset", wd);
+            return diff.Error;
         }
 
         if (needReset)
         { // Reset the 'git add .' previously
-            if (!Try(out var _, out var err, await cmd.RunAsync("git", "reset", wd)))
+            if (await cmd.RunAsync("git", "reset", wd) is Error err)
                 return err;
         }
 
@@ -101,7 +96,7 @@ class DiffService : IDiffService
         var commitDiffs = ParseCommitDiffs(output, "", false);
         if (!commitDiffs.Any())
         {
-            return R.Error("Failed to parse diff");
+            return new Error("Failed to parse diff");
         }
 
         return commitDiffs[0] with
@@ -110,22 +105,23 @@ class DiffService : IDiffService
         };
     }
 
-    public async Task<R<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
+    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
         var args = $"log --date=iso --patch --follow --unified={contextLines} -- \"{path}\"";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
 
         var commitDiffs = ParseCommitDiffs(output, path, false);
         if (!commitDiffs.Any())
         {
-            return R.Error("Failed to parse diff");
+            return new Error("Failed to parse diff");
         }
 
         return commitDiffs.ToArray();
     }
 
-    public async Task<R<CommitDiff>> GetDiffRangeAsync(
+    public async Task<Result<CommitDiff>> GetDiffRangeAsync(
         string sha1,
         string sha2,
         string message,
@@ -134,13 +130,14 @@ class DiffService : IDiffService
     )
     {
         var args = $"diff --find-renames --unified={contextLines} --full-index {sha1}~..{sha2}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
 
         return ParseDiff(output, message);
     }
 
-    public async Task<R<CommitDiff>> GetRefsDiffAsync(
+    public async Task<Result<CommitDiff>> GetRefsDiffAsync(
         string sha1,
         string sha2,
         string message,
@@ -149,26 +146,23 @@ class DiffService : IDiffService
     )
     {
         var args = $"diff --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
 
         return ParseDiff(output, message);
     }
 
-    public async Task<R> RunDiffToolAsync(string path, string wd)
+    public async Task<Result> RunDiffToolAsync(string path, string wd)
     {
         var args = $"difftool --no-prompt {path}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
-        return R.Ok;
+        return await cmd.RunAsync("git", args, wd);
     }
 
-    public async Task<R> RunMergeToolAsync(string path, string wd)
+    public async Task<Result> RunMergeToolAsync(string path, string wd)
     {
         var args = $"mergetool --no-prompt {path}";
-        if (!Try(out var output, out var e, await cmd.RunAsync("git", args, wd)))
-            return e;
-        return R.Ok;
+        return await cmd.RunAsync("git", args, wd);
     }
 
     // Parse diff output from git diff command
@@ -473,38 +467,6 @@ class DiffService : IDiffService
 
         return (null, i, false);
     }
-
-    // static List<FileDiff> SetConflictsFilesMode(IReadOnlyList<FileDiff> fileDiffs, Status status)
-    // {
-    //     // Update diff mode on files, which status has determined are conflicted
-    //     return fileDiffs
-    //         .Select(fd => status.ConflictsFiles.Contains(fd.PathAfter)
-    //                         ? fd with { DiffMode = DiffMode.DiffConflicts } : fd)
-    //         .ToList();
-    // }
-
-    // static IReadOnlyList<FileDiff> GetAddedFilesDiffs(Status status, string dirPath)
-    // {
-    //     var fileDiffs = new List<FileDiff>();
-    //     foreach (var name in status.AddedFiles)
-    //     {
-    //         string filePath = Path.Join(dirPath, name);
-
-    //         if (!Try(out var file, out var e, () => File.ReadAllText(filePath)))
-    //         {
-    //             file = $"<Error reading File {e}";
-    //         }
-
-    //         var lines = file.Split('\n');
-    //         var lineDiffs = lines.Select(l => new LineDiff(DiffMode.DiffAdded, l.TrimEnd().Replace("\t", "   "))).ToList();
-
-    //         var sectionDiffs = new List<SectionDiff>() { new SectionDiff($"-0,0 +1,{lines.Length}", 0, 0, 0, lines.Length, lineDiffs) };
-    //         var fileDiff = new FileDiff("", name, false, false, DiffMode.DiffAdded, sectionDiffs);
-    //         fileDiffs.Add(fileDiff);
-    //     }
-
-    //     return fileDiffs;
-    // }
 
     static string AsLine(string line)
     {
