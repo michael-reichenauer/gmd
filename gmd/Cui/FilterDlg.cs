@@ -6,7 +6,7 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
+    Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
 
 class FilterDlg : IFilterDlg
@@ -28,7 +28,7 @@ class FilterDlg : IFilterDlg
     Server.Repo currentRepo = null!;
     string currentFilter = null!;
     ContentView resultsView = null!;
-    R<Server.Commit> selectedCommit = R.Error("No commit selected");
+    Result<Server.Commit> selectedCommit;
     Text repoInfo = Text.Empty;
     int closeX = 0;
 
@@ -38,11 +38,13 @@ class FilterDlg : IFilterDlg
         this.branchColorService = branchColorService;
     }
 
-    public R<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
+    public Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
         this.orgRepo = repo;
         this.currentRepo = repo;
         this.currentFilter = null!;
+        // The dialog is reused, so what an earlier session selected must not be returned by this one
+        this.selectedCommit = new Error("No commit selected");
         this.onRepoChanged = onRepoChanged;
         this.resultsView = commitsView;
 
@@ -187,10 +189,7 @@ class FilterDlg : IFilterDlg
             return;
         currentFilter = filter;
 
-        if (
-            filter != ""
-            && Try(out var filteredRepo, out var e, await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults))
-        )
+        if (filter != "" && await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults) is Server.Repo filteredRepo)
         { // Got new filtered repo, update results
             currentRepo = filteredRepo;
             resultsView.MoveToTop();

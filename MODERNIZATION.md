@@ -50,6 +50,36 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Collection expressions adopted (107 mechanical sites), the two `Converter`s renamed
   `WorkRepoConverter` / `ViewRepoConverter`, and dead `NoWarn` entries removed.
 
+**The result type is a C# 15 union** (2026-09-11)
+
+- `Result<T>` is a union of the value and an `Error`, and `Result` one of `Success` and `Error`, in the shape
+  the C# 15 compiler recognizes (`[Union]`, a constructor per case type, `object? Value`; the
+  optional non-boxing `HasValue` / `TryGetValue` members are left out, since the contents are one
+  boxed object anyway). Every `Try(out value, out e, …)` site — about 480 across both projects
+  — became a pattern on the case type (`if (result is not Status status) return result.Error;`,
+  `is Error e`, an exhaustive `switch`), the `R.Error(…)` factory became `new Error(…)`, the tests
+  assert with `AssertOk` / `AssertError`, and `Try` is gone. So are the mutable static `Ok` field
+  (`static readonly` now), the checked-flag state machine behind `GetResultValue`, the reflection
+  into `Exception._remoteStackTraceString` and the implicit conversion to `bool`. The style is in
+  CLAUDE.md under Conventions.
+- Renamed `R` / `R<T>` to `Result` / `Result<T>` (2026-09-12), so the type reads without
+  explanation in another project, and `Result.cs` no longer calls gmd's `Asserter`: misuse throws
+  `ResultException`, an `InvalidOperationException` that `Result.Catch` lets through and gmd's
+  unhandled-exception path logs and shows. So `Result.cs`, `UnionPolyfill.cs` and the test helper
+  `ResultAssert.cs` depend on nothing but the BCL and can be copied to another project as they are
+  (one namespace line each).
+- The compiler is the .NET 11 RC1 SDK's (`global.json`; `LangVersion preview` in
+  `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
+  are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
+  why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
+  (CS8509) is a build error.
+- Found on the way: `Task<Result>.RunInBackground()` bound to the `Task` overload and dropped an error
+  result silently (the fetch sites in `RepoView`, which now log their expected failure at Debug
+  themselves, since the new overload warned on every refresh of a repo with no `origin`);
+  `IsUpdateAvailableAsync` and `CloneDlg.Show` returned tuples, which a union pattern cannot bind
+  by name, so they return records; `UpdateChangeLog` wrote an empty `CHANGELOG.md` when reading
+  the log failed.
+
 **Features added on the way** (each documented in `gmd/doc/help.md`)
 
 - Merge the current branch *into* another branch (`E`, and `Merge to` in the branch menu).
@@ -160,6 +190,53 @@ Add new open issues and findings here as work lands; keep them short and drop th
   while removing it filters the child lists. Invisible today; worth knowing before relying on
   a commit's children.
 
+**The union result, at .NET 11 GA (November 2026)** — the steps are in `UPGRADING.md`
+
+- Set `LangVersion` to `15`. If the target framework moves to net11.0 (an STS release, where
+  net10.0 is LTS), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When
+  CSharpier parses C# 15, `union Result<T>(T, Error) { … }` is optional sugar; the struct already has
+  what the keyword form would not (non-boxing access, the helpers in its body).
+- The VS Code C# extension bundles its own Roslyn and may flag union patterns until it catches up;
+  `dotnet build` is the truth. CI installs the SDK from `global.json` plus `10.0.x` for the runtime
+  the net10.0 tests need; unverified until the first CI run on this branch.
+
+**Refactoring roadmap** (from the 2026-09-11 review; A before B before C)
+
+- A, correctness, each with a regression test: `FileStore` (the lost-update bug above, an
+  unsynchronized cache, `FailFast` on a malformed config file); `Threading.AssertIsMainThread`
+  compares thread ids with `>` and so passes on any lower id; 13 `async void` handlers
+  (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
+  `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
+  `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
+  `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
+  `Activator.CreateInstance`; the vulnerability grep in `./build` never fails the build, `run.bat`
+  drops its arguments, `log.bat` hard-codes one user's home, `installtools` sets `safe.directory`
+  to `/workspaces/gmd`, `updatepackages` expands an undefined `$projectFile`, `gmd_linux` and
+  `gmd_osx` are missing from `.gitignore`.
+- B, build and CI: grow `Directory.Build.props` to the shared properties (`TargetFramework`,
+  `Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`) and add
+  `Directory.Packages.props`, since warnings never fail a build today and the `warning`-severity
+  rules in `.editorconfig` are IDE-only; `SourceRevisionId` is recomputed from `UtcNow` on every
+  build; the workflow has no `concurrency` group, `timeout-minutes`, NuGet cache, `.trx` upload,
+  coverage step, `NuGetAuditLevel` gate or Dependabot, and the fast tier never runs on Windows or
+  macOS.
+- C, structure: the six `*Commands` classes repeat four fields, a constructor and a `Do` forwarder,
+  and 25 of 62 `Do(` bodies end in `Refresh(); return Result.Ok;` — a `CommandContext` and a
+  `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
+  first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
+  layout state inside the server model; `ConfigService` syncs a second `Config` by a reflective
+  property copy and `Config` has two constructors; static leftovers (`Build.IsWindows` assignable,
+  `BranchService.remotePrefix`, `MessageDlg.Clicked`, `Updater`'s static task cache, the single
+  `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
+  `ResentParentFolders`, `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
+  synchronous, `TipID` vs `TipId`, `RepoConfigImpl`); dead code (`exampleRunes.cs`, the commented
+  blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`, `TagService`,
+  `BranchService`, `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
+  `gmd/Server/Repo.cs`, some identical — share the leaf records only; no tests for
+  `ProgramCommands` and `Updater`, and `FakeGit` implements 12 of 76 members.
+- Not recommended: removing the one-implementation interfaces (they are the DI and test-double
+  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
+
 **Deferred, with the reasoning so it is not redone**
 
 - **Terminal.Gui 1.x → 2.x.** When, not if. For: v1 is frozen (last commit June 2025); true color
@@ -179,7 +256,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   edit dialog (`UIDialog.AddContentView`, as `HelpDlg` does).
 - **Combined diffs (`diff --cc`)** are skipped with a warning. Relaxing the `@@ ` check alone is
   harmful: `ParseSectionDiff` calls a bare `int.Parse` on `-1,1 -1,1 +1,1` and throws outside the
-  `R` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
+  `Result` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
   view; worth it as a feature, since it is the only way to show what a merge resolved by hand.
 - Not built, by choice: blame `-w` / `-M` / `-C` toggles; a diff context below 6; word-level
   highlighting inside a conflict; submodule conflicts; `rerere`; marking local-only tags in the log
@@ -188,9 +265,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   pull-request job first, then consider a floor as a ratchet.
 - IDE0305 (`.ToList()` → `[.. x]`, 13 sites) by hand, since it can change the concrete type behind
   an `IReadOnlyList<T>`. Target-typed `new()` is an open style question.
-- `gmdSetup.exe` is a committed prebuilt binary; Intel macOS is unreleased though `install.sh`
-  looks for `gmd_osx`; `MajorVersion` / `MinorVersion` are hand-edited; there is no `.runsettings`,
-  and `LogServiceTest` mutates the default culture, so parallel tests would need care.
+- `gmdSetup.exe` is a committed prebuilt binary; Intel macOS is unreleased (`install.sh` now says so
+  rather than downloading a `gmd_osx` that does not exist); `MajorVersion` / `MinorVersion` are
+  hand-edited; there is no `.runsettings`.
+- `gmdTest` cannot run in parallel: 4 of 15 parallel runs of it failed. `LogServiceTest` and
+  `TimeDateExtensionsTest` change the default culture and `GitIntegrationTest` sets `GIT_EDITOR`,
+  and there may be more. Nothing to gain either, since it takes about 3 s; only the end-to-end
+  tests, in `gmdE2eTest`, run in parallel.
 - Mouse interaction has no end-to-end test; it needs raw SGR sequences via `send-keys -H`.
 
 **Test suite**
@@ -200,10 +281,26 @@ Add new open issues and findings here as work lands; keep them short and drop th
   devcontainer only, a blank pane with no `gmd.log` at all — the binary never started. Nine
   consecutive full runs were green afterwards. Seen once more on 2026-09-09
   (`TestRemoveWorktreeAndItsBranchFromTheDialog`, the `Kind    Branch` wait after `w`), and again
-  not reproduced: a full rerun and 21 runs of the worktree tests were green. Recorded so nobody
-  hunts a flake that is not biting.
+  not reproduced: a full rerun and 21 runs of the worktree tests were green. Once more on
+  2026-09-24 (`TestStashPopBringsTheChangesBack`, message not captured), and green alone three
+  times, in an E2e rerun and in a full rerun. Recorded so nobody hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
+- The end-to-end tests were about four of `./test`'s four and a half minutes, nearly all waiting:
+  every wait needs four identical captures 100 ms apart, so it costs at least about 330 ms after the
+  screen is already right, and an idle gmd uses about 6 ms of CPU a second. So they run eight at a
+  time, in a project of their own since MSTest sets parallelism per assembly: about 30 s, bounded
+  by the thirty-second worktree re-read test. Measured clean with 8 workers on 2, 4 and 9 cores.
+- Parallel tests that block starve the thread pool. A running end-to-end test holds a pool thread
+  for all of its run (TmuxSession polls with `Thread.Sleep`), and each `Proc.Run` needs more pool
+  threads for its output callbacks before `WaitForExit()` returns. With more workers than cores
+  every tmux call waited for the pool to grow: six workers on two cores took ten minutes, with two
+  tests failing on their 30 s timeouts. `gmdE2eTest/TestSetup.cs` raises the pool's minimum.
+- Several `Down`s sent in one `send-keys` lose keys, in the log view and the diff view alike and
+  with no git command running: in the log view two moved the cursor one row, five moved it three,
+  ten moved it five. Sent one per call, all arrived. So one key per `Send` with a wait after it is a
+  real constraint, and it is what makes `TestDiffContextIsSteppedPerFile` (36 single `Down`s) the
+  second slowest test.
 - The throwaway `$HOME` is Unix only; a Windows test run still truncates `~/gmd.log`. The terminal
   tests report `Inconclusive` there.
 - **Headless drawing is possible on 1.x**: `Application.Init(new FakeDriver(), null)` renders with
@@ -311,8 +408,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `Program.Main` resolves the DI graph before `Application.Init()`, so no constructor may touch
   the main loop. The container is a runtime dependency with no test: after touching registration,
   start the app, because `--version` returns before the UI half of the graph is built.
-- `R<bool>` is a trap: `R<T>` converts implicitly both to `bool` (`IsOk`) and from `T`, so for
-  `T = bool` a `bool b = result` yields `IsOk`. Use an enum.
+- The union result (C# 15, RC1 compiler): a pattern whose type is a type parameter cannot declare a
+  variable (CS8780), so generic helpers match `Value` directly; a tuple cannot be bound by name either,
+  so results carry small records; a pattern naming the `gmd.Server` twin of a `gmd.Git` type
+  compiles and never matches; a pattern variable in an `if` condition is scoped to the enclosing
+  block, so several guards in one method need distinct names; `not` applies to the union itself
+  and every other pattern to its contents, which is what makes `is not T value` bind on the
+  fall-through. A type named `Error` cannot be referred to inside a type that has a method named
+  `Error`, hence `new Error(...)` rather than a factory on `Result`.
 - `Cmd.Command` trims the whole output, so a final empty line disappears, and it waits for the
   child's pipes, which a forking helper such as `xclip` inherits — hence `CommandWithStdin`.
 - `FileMonitor`'s debounce is a sliding window: a folder written to continuously never raises.
@@ -325,6 +428,28 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `ViewToScreen` is internal; `ScreenToView(0, 0)` negated is a view's screen origin. The 2.x port
   has its own `IAutocomplete` and text-run attributes, which is where `UITextView`/`UITextField`'s
   spell coloring goes then.
+- A `TextView` or `TextField` has a context menu of its own (Select All, Copy, Paste, Undo …),
+  opened from inside `MouseEvent` on `Button3Clicked` and from `ProcessKey` on Shift+F10, so replacing
+  it means catching both before `base` and swallowing `Button3Pressed`/`Released` too. The edit
+  actions behind it are not public: an item runs one by its bound key (`GetKeyFromCommand` +
+  `ProcessKey`), and the bindings differ between the two views (Alt+C copies in a `TextView`,
+  Ctrl+C in a `TextField`). Ctrl+G is `DeleteAll` in a `TextView`, which is why the context menu
+  leaves that one out. `TextContextMenu` is where this lives.
+- A mouse event goes to the last-added subview whose frame holds the point, and nowhere else: a
+  `BorderView` added over a text view or a list (it covers the whole rectangle, drawing only its
+  edges) took every click, so the commit message body and the bordered lists never saw the mouse.
+  `UIDialog.AddBorderView(view, …)` now inserts the border under the view it frames.
+- Only a view that is flagged gets redrawn, so a label drawn from another view's state (the spell
+  hint under the message body, from the inputs' red words) has to be flagged by that view: the
+  inputs raise `Redrawn` at the end of `Redraw`, and the label, added later so it comes later in
+  the subview order, is then drawn in the same pass. A label flagged before the view it follows
+  would draw one redraw behind.
+- WeCantSpell.Hunspell's suggestion time budgets (`QueryOptions.TimeLimit*`, a quarter of a second
+  in all) are measured on the wall clock, where Hunspell's own are CPU time, and a budget that runs
+  out returns the suggestions found so far rather than failing. So a loaded machine gets a shorter
+  list, or none, and which one depends on timing: on CI with the end-to-end tests running eight at
+  a time, 'Sumerize' got no suggestions and 'brnach' only 'breach'. `SpellChecker.SuggestOptions`
+  gives it eight times the defaults.
 - Terminal.Gui 1.17.1 pinned a core from launch on Linux and macOS: `UnixMainLoop` drained the
   wrong end of its wakeup pipe, so `poll()` reported readable forever. Fixed upstream in 1.18.0
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.

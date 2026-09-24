@@ -2,8 +2,9 @@ using IOPath = System.IO.Path;
 
 namespace gmdTest.Fixtures;
 
-// A throwaway $HOME, and the whole of the hermeticity story for these tests. Two callers:
-// TmuxSession, for the gmd it starts, and TestSetup, for the test process itself.
+// A throwaway $HOME, and the whole of the hermeticity story for these tests. Its callers:
+// TmuxSession, for the gmd it starts, and the TestSetup of each test project, gmdTest and
+// gmdE2eTest (which compiles this file in), for the test process itself.
 //
 // gmd has no way to redirect where it keeps its state: the paths in ConfigService, ConfigLogger
 // and Upgrader are all anchored on SpecialFolder.UserProfile with no flag, env var or setting to
@@ -61,7 +62,7 @@ sealed class TempHome : IDisposable
             return "(no gmd.log)";
 
         // The log is written by another process that may still hold it open
-        if (!Try(out var text, out var _, () => File.ReadAllText(path)))
+        if (Result.Catch(() => File.ReadAllText(path)) is not string text)
             return "(gmd.log could not be read)";
 
         return string.Join('\n', text.Split('\n').TakeLast(lines));
@@ -74,7 +75,7 @@ sealed class TempHome : IDisposable
 
         // A failed cleanup should not fail a test, the folder is in temp and will be cleaned by
         // the system eventually
-        if (Directory.Exists(Path) && !Try(out var e, () => Directory.Delete(Path, true)))
+        if (Directory.Exists(Path) && Result.Catch(() => Directory.Delete(Path, true)) is Error e)
             Log.Warn($"Failed to delete temp home '{Path}', {e}");
     }
 

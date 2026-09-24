@@ -40,11 +40,11 @@ class BranchPushPullCommands : IBranchPushPullCommands
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
             if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pushing");
+                return new Error("Commit changes before pushing");
             if (branch == null)
-                return R.Error("No current branch to push");
+                return new Error("No current branch to push");
             if (!branch.HasLocalOnly)
-                return R.Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
+                return new Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
 
             if (branch.RemoteName != "")
             { // Cannot push local branch if remote needs to be pulled first
@@ -69,23 +69,23 @@ class BranchPushPullCommands : IBranchPushPullCommands
                     )
                     {
                         RefreshAndFetch();
-                        return R.Ok;
+                        return Result.Ok;
                     }
                 }
 
-                if (!Try(out var ee, await server.PushCurrentBranchAsync(true, repo.Path)))
+                if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
                 {
-                    return R.Error($"Failed to push branch:\n{branch.Name}", ee);
+                    return new Error($"Failed to push branch:\n{branch.Name}", ee);
                 }
             }
 
-            if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
+            if (await server.PushBranchAsync(branch.Name, repo.Path) is Error e)
             {
-                return R.Error($"Failed to push branch:\n{branch.Name}", e);
+                return new Error($"Failed to push branch:\n{branch.Name}", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PublishCurrentBranch() =>
@@ -93,48 +93,48 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.First(b => b.IsCurrent);
 
-            if (!Try(out var e, await server.PushBranchAsync(branch.Name, repo.Path)))
+            if (await server.PushBranchAsync(branch.Name, repo.Path) is Error e)
             {
-                return R.Error($"Failed to publish branch:\n{branch.Name}", e);
+                return new Error($"Failed to publish branch:\n{branch.Name}", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PushBranch(string name) =>
         Do(async () =>
         {
-            if (!Try(out var e, await server.PushBranchAsync(name, repo.Path)))
+            if (await server.PushBranchAsync(name, repo.Path) is Error e)
             {
-                return R.Error($"Failed to push branch:\n{name}", e);
+                return new Error($"Failed to push branch:\n{name}", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PushAllBranches() =>
         Do(async () =>
         {
             if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pulling");
+                return new Error("Commit changes before pulling");
             if (!CanPush())
-                return R.Error("No local changes to push");
+                return new Error("No local changes to push");
 
             var branches = BranchesToPush(repo.Repo);
 
             foreach (var b in branches)
             {
-                if (!Try(out var e, await server.PushBranchAsync(b.Name, repo.Path)))
+                if (await server.PushBranchAsync(b.Name, repo.Path) is Error e)
                 {
                     Refresh();
-                    return R.Error($"Failed to push branch {b.Name}", e);
+                    return new Error($"Failed to push branch {b.Name}", e);
                 }
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PullCurrentBranch() =>
@@ -142,35 +142,35 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
             if (!repo.Repo.Status.IsOk)
-                return R.Error("Commit changes before pulling");
+                return new Error("Commit changes before pulling");
             if (branch == null)
-                return R.Error("No current branch to pull");
+                return new Error("No current branch to pull");
             if (branch.RemoteName == "")
-                return R.Error("No current remote branch to pull");
+                return new Error("No current remote branch to pull");
 
             var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
             if (remoteBranch == null || !remoteBranch.HasRemoteOnly)
-                return R.Error("No remote changes on current branch to pull");
+                return new Error("No remote changes on current branch to pull");
 
-            if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
+            if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
             {
-                return R.Error($"Failed to pull current branch", e);
+                return new Error($"Failed to pull current branch", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PullBranch(string name) =>
         Do(async () =>
         {
-            if (!Try(out var e, await server.PullBranchAsync(name, repo.Path)))
+            if (await server.PullBranchAsync(name, repo.Path) is Error e)
             {
-                return R.Error($"Failed to pull branch {name}", e);
+                return new Error($"Failed to pull branch {name}", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void PullAllBranches() =>
@@ -181,9 +181,9 @@ class BranchPushPullCommands : IBranchPushPullCommands
             {
                 Log.Info("Pull current");
                 // Need to treat current branch separately
-                if (!Try(out var e, await server.PullCurrentBranchAsync(repo.Path)))
+                if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
                 {
-                    return R.Error($"Failed to pull current branch", e);
+                    return new Error($"Failed to pull current branch", e);
                 }
                 currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
             }
@@ -200,20 +200,20 @@ class BranchPushPullCommands : IBranchPushPullCommands
             var failed = new List<string>();
             foreach (var b in branches)
             {
-                if (!Try(out var e, await server.PullBranchAsync(b.Name, repo.Path)))
+                if (await server.PullBranchAsync(b.Name, repo.Path) is Error e)
                 {
-                    failed.Add($"{b.NiceNameUnique}: {e.AllErrorMessages()}");
+                    failed.Add($"{b.NiceNameUnique}: {e.AllMessages()}");
                 }
             }
 
             Refresh();
 
             if (failed.Any())
-                return R.Error($"Failed to pull:\n{string.Join("\n", failed)}");
+                return new Error($"Failed to pull:\n{string.Join("\n", failed)}");
             if (diverged.Any())
                 ShowDivergedMessage(diverged);
 
-            return R.Ok;
+            return Result.Ok;
         });
 
     public bool CanPush() => CanPush(repo.Repo);
@@ -319,5 +319,5 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 }

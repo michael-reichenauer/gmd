@@ -45,7 +45,7 @@ public class WorktreeServiceTest
     static async Task<IReadOnlyList<gmd.Git.Worktree>> ListAsync(FakeCmd cmd)
     {
         var result = await new WorktreeService(cmd).ListAsync("/wd");
-        Assert.IsTrue(Try(out var worktrees, out var e, result), $"ListAsync failed: {e}");
+        var worktrees = AssertOk(result);
         return worktrees;
     }
 
@@ -140,7 +140,7 @@ public class WorktreeServiceTest
     {
         var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: not a git repository"));
 
-        Assert.IsFalse(Try(out var _, out var _, await new WorktreeService(cmd).ListAsync("/wd")));
+        AssertError(await new WorktreeService(cmd).ListAsync("/wd"));
     }
 
     [TestMethod]
@@ -148,10 +148,7 @@ public class WorktreeServiceTest
     {
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(
-            Try(out var e, await new WorktreeService(cmd).AddAsync("/home/me/repo-dev", "dev", "/wd")),
-            $"{e}"
-        );
+        AssertOk(await new WorktreeService(cmd).AddAsync("/home/me/repo-dev", "dev", "/wd"));
 
         Assert.AreEqual("worktree add \"/home/me/repo-dev\" dev", cmd.Calls[0].Args);
         Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
@@ -163,11 +160,8 @@ public class WorktreeServiceTest
         var cmd = new FakeCmd("");
         var service = new WorktreeService(cmd);
 
-        Assert.IsTrue(
-            Try(out var e, await service.AddNewBranchAsync("/home/me/repo-dev", "dev", "main", "/wd")),
-            $"{e}"
-        );
-        Assert.IsTrue(Try(out e, await service.AddNewBranchAsync("/home/me/repo-dev", "dev", "", "/wd")), $"{e}");
+        AssertOk(await service.AddNewBranchAsync("/home/me/repo-dev", "dev", "main", "/wd"));
+        AssertOk(await service.AddNewBranchAsync("/home/me/repo-dev", "dev", "", "/wd"));
 
         Assert.AreEqual("worktree add -b dev \"/home/me/repo-dev\" main", cmd.Calls[0].Args);
         Assert.AreEqual("worktree add -b dev \"/home/me/repo-dev\"", cmd.Calls[1].Args, "No start point means HEAD");
@@ -179,8 +173,8 @@ public class WorktreeServiceTest
         var cmd = new FakeCmd("");
         var service = new WorktreeService(cmd);
 
-        Assert.IsTrue(Try(out var e, await service.RemoveAsync("/home/me/repo-dev", false, "/wd")), $"{e}");
-        Assert.IsTrue(Try(out e, await service.RemoveAsync("/home/me/repo-dev", true, "/wd")), $"{e}");
+        AssertOk(await service.RemoveAsync("/home/me/repo-dev", false, "/wd"));
+        AssertOk(await service.RemoveAsync("/home/me/repo-dev", true, "/wd"));
 
         Assert.AreEqual("worktree remove \"/home/me/repo-dev\"", cmd.Calls[0].Args);
         Assert.AreEqual("worktree remove --force \"/home/me/repo-dev\"", cmd.Calls[1].Args);
@@ -200,8 +194,8 @@ public class WorktreeServiceTest
 
         var result = await new WorktreeService(cmd).RemoveAsync("/home/me/repo-dev", false, "/wd");
 
-        Assert.IsFalse(Try(out var e, result));
-        StringAssert.Contains(e.ErrorMessage, "use --force");
+        var e = AssertError(result);
+        StringAssert.Contains(e.Message, "use --force");
     }
 
     [TestMethod]
@@ -209,7 +203,7 @@ public class WorktreeServiceTest
     {
         var cmd = new FakeCmd("");
 
-        Assert.IsTrue(Try(out var e, await new WorktreeService(cmd).PruneAsync("/wd")), $"{e}");
+        AssertOk(await new WorktreeService(cmd).PruneAsync("/wd"));
 
         Assert.AreEqual("worktree prune", cmd.Calls[0].Args);
     }
@@ -224,7 +218,7 @@ public class WorktreeServiceTest
 
         var result = await new WorktreeService(cmd).GetIgnoredAsync([".claude/worktrees", ".worktrees"], "/wd");
 
-        Assert.IsTrue(Try(out var ignored, out var e, result), $"{e}");
+        var ignored = AssertOk(result);
         Assert.AreEqual("check-ignore -- \".claude/worktrees/\" \".worktrees/\"", cmd.Calls[0].Args);
         CollectionAssert.AreEqual(new[] { ".worktrees" }, ignored.ToArray());
     }
@@ -237,7 +231,7 @@ public class WorktreeServiceTest
 
         var result = await new WorktreeService(cmd).GetIgnoredAsync([".worktrees"], "/wd");
 
-        Assert.IsTrue(Try(out var ignored, out var e, result), $"{e}");
+        var ignored = AssertOk(result);
         Assert.AreEqual(0, ignored.Count);
     }
 
@@ -248,7 +242,7 @@ public class WorktreeServiceTest
 
         var result = await new WorktreeService(cmd).GetIgnoredAsync([".worktrees"], "/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result));
+        AssertError(result);
     }
 
     [TestMethod]
@@ -258,7 +252,7 @@ public class WorktreeServiceTest
 
         var result = await new WorktreeService(cmd).GetIgnoredAsync([], "/wd");
 
-        Assert.IsTrue(Try(out var ignored, out var e, result), $"{e}");
+        var ignored = AssertOk(result);
         Assert.AreEqual(0, ignored.Count);
         Assert.AreEqual(0, cmd.Calls.Count);
     }

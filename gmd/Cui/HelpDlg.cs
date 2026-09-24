@@ -10,15 +10,20 @@ interface IHelpDlg
 
 class HelpDlg : IHelpDlg
 {
-    const string helpFile = "gmd.doc.help.md";
+    internal const string HelpFile = "gmd.doc.help.md";
     const int width = 80;
     const int height = 30;
 
+    // The widest help row that is shown whole. The rows are not wrapped, so a longer one is cut
+    // off at the dialog's right border, and the scroll bar is drawn over the last column inside it.
+    internal const int TextWidth = width - 3;
+
     public void Show()
     {
-        if (!Try(out var content, out var e, Files.GetEmbeddedFileContentText(helpFile)))
+        var contentResult = Files.GetEmbeddedFileContentText(HelpFile);
+        if (contentResult is not string content)
         {
-            UI.ErrorMessage($"Failed to read help file,\n{e}");
+            UI.ErrorMessage($"Failed to read help file,\n{contentResult.Error}");
             return;
         }
 
@@ -33,7 +38,7 @@ class HelpDlg : IHelpDlg
         dlg.Show(contentView);
     }
 
-    IReadOnlyList<Text> ToHelpText(string content)
+    internal static IReadOnlyList<Text> ToHelpText(string content)
     {
         var rows = content
             .Split('\n')
@@ -64,7 +69,7 @@ class HelpDlg : IHelpDlg
         return rows.ToList();
     }
 
-    (Text, int) GetColoredFragment(string row, int index)
+    static (Text, int) GetColoredFragment(string row, int index)
     {
         char[] chars = ['`', '*'];
         int i1 = row.IndexOfAny(chars, index);

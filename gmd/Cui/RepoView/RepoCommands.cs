@@ -90,25 +90,25 @@ class RepoCommands : IRepoCommands
     public void ShowRepo(string path) =>
         Do(async () =>
         {
-            if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+            if (await repoView.ShowRepoAsync(path) is Error e)
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {path}", e);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void ShowBrowseRepoDialog() =>
         Do(async () =>
         {
             var browser = new FolderBrowseDlg();
-            if (!Try(out var path, browser.Show(config.ResentParentFolders())))
-                return R.Ok;
+            if (browser.Show(config.ResentParentFolders()) is not string path)
+                return Result.Ok;
 
-            if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+            if (await repoView.ShowRepoAsync(path) is Error e)
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {path}", e);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void ShowAbout() => aboutDlg.Show();
@@ -118,38 +118,38 @@ class RepoCommands : IRepoCommands
     public void Clone() =>
         Do(async () =>
         {
-            if (!Try(out var r, out var e, cloneDlg.Show(config.ResentParentFolders())))
-                return R.Ok;
-            (var uri, var path) = r;
+            if (cloneDlg.Show(config.ResentParentFolders()) is not CloneInfo clone)
+                return Result.Ok;
 
-            if (!Try(out e, await server.CloneAsync(uri, path, repo.Path)))
+            if (await server.CloneAsync(clone.Uri, clone.Path, repo.Path) is Error cloneError)
             {
-                return R.Error($"Failed to clone", e);
+                return new Error($"Failed to clone", cloneError);
             }
 
-            if (!Try(out e, await repoView.ShowRepoAsync(path)))
+            if (await repoView.ShowRepoAsync(clone.Path) is Error showError)
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {clone.Path}", showError);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void InitRepo() =>
         Do(async () =>
         {
-            if (!Try(out var path, out var e, initRepoDlg.Show(config.ResentParentFolders())))
-                return R.Ok;
+            var pathResult = initRepoDlg.Show(config.ResentParentFolders());
+            if (pathResult is not string path)
+                return Result.Ok;
 
-            if (!Try(out e, await server.InitRepoAsync(path, repo.Path)))
+            if (await server.InitRepoAsync(path, repo.Path) is Error initError)
             {
-                return R.Error($"Failed to init repo", e);
+                return new Error($"Failed to init repo", initError);
             }
 
-            if (!Try(out e, await repoView.ShowRepoAsync(path)))
+            if (await repoView.ShowRepoAsync(path) is Error showError)
             {
-                return R.Error($"Failed to open repo at {path}", e);
+                return new Error($"Failed to open repo at {path}", showError);
             }
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void SearchFilterRepo() =>
@@ -157,19 +157,19 @@ class RepoCommands : IRepoCommands
         {
             await Task.CompletedTask;
             repoView.ShowFilter();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void UndoAllUncommittedChanged() =>
         Do(async () =>
         {
-            if (!Try(out var e, await server.UndoAllUncommittedChangesAsync(repo.Path)))
+            if (await server.UndoAllUncommittedChangesAsync(repo.Path) is Error e)
             {
-                return R.Error($"Failed to undo all changes", e);
+                return new Error($"Failed to undo all changes", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void CleanWorkingFolder() =>
@@ -184,16 +184,16 @@ class RepoCommands : IRepoCommands
                 ) != 0
             )
             {
-                return R.Ok;
+                return Result.Ok;
             }
 
-            if (!Try(out var e, await server.CleanWorkingFolderAsync(repo.Path)))
+            if (await server.CleanWorkingFolderAsync(repo.Path) is Error e)
             {
-                return R.Error($"Failed to clean working folder", e);
+                return new Error($"Failed to clean working folder", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     // The name of what git stopped part way through, e.g. "Rebase", for the menu items that act on
@@ -251,9 +251,10 @@ class RepoCommands : IRepoCommands
             return false;
         }
 
-        if (!Try(out var marked, out var e, await server.GetLeftoverMarkerPathsAsync(repo.Path)))
+        var markedResult = await server.GetLeftoverMarkerPathsAsync(repo.Path);
+        if (markedResult is not IReadOnlyList<string> marked)
         {
-            Log.Warn($"Failed to check for conflict markers: {e}");
+            Log.Warn($"Failed to check for conflict markers: {markedResult.Error}");
             return true; // Never block a commit because the check itself broke
         }
         if (marked.Count == 0)
@@ -296,13 +297,13 @@ class RepoCommands : IRepoCommands
         {
             var name = OperationName();
             if (UI.InfoMessage($"Abort {name}", $"Do you want to abort the {name.ToLower()}?", 1, ["Yes", "No"]) != 0)
-                return R.Ok;
+                return Result.Ok;
 
-            if (!Try(out var e, await server.AbortOperationAsync(repo.Path)))
-                return R.Error($"Failed to abort {name.ToLower()}", e);
+            if (await server.AbortOperationAsync(repo.Path) is Error e)
+                return new Error($"Failed to abort {name.ToLower()}", e);
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     // Carries on with the commits the operation has left. Not offered for a merge, which is
@@ -312,16 +313,16 @@ class RepoCommands : IRepoCommands
         {
             // Continuing is how a rebase makes its commit, so it needs the same gate as Commit
             if (!await ConfirmConflictsResolvedAsync("Continue"))
-                return R.Ok;
+                return Result.Ok;
 
-            if (!Try(out var e, await server.ContinueOperationAsync(repo.Path)))
+            if (await server.ContinueOperationAsync(repo.Path) is Error e)
             {
                 Refresh(); // It may have got further before stopping again, so show where it is now
-                return R.Error($"Failed to continue {OperationName().ToLower()}", e);
+                return new Error($"Failed to continue {OperationName().ToLower()}", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     // Drops the commit the operation stopped on and carries on with the rest
@@ -337,16 +338,16 @@ class RepoCommands : IRepoCommands
                     ["Yes", "No"]
                 ) != 0
             )
-                return R.Ok;
+                return Result.Ok;
 
-            if (!Try(out var e, await server.SkipOperationAsync(repo.Path)))
+            if (await server.SkipOperationAsync(repo.Path) is Error e)
             {
                 Refresh();
-                return R.Error($"Failed to skip commit", e);
+                return new Error($"Failed to skip commit", e);
             }
 
             Refresh();
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void UpdateRelease() =>
@@ -369,7 +370,7 @@ class RepoCommands : IRepoCommands
             if (button != 0)
             {
                 Log.Info($"Skip update");
-                return R.Ok;
+                return Result.Ok;
             }
             Log.Info($"Updating release ...");
             var updateTask = updater.UpdateAsync();
@@ -378,25 +379,25 @@ class RepoCommands : IRepoCommands
                 $"Updating to version {latest.Txt()},\nthis might take a while ...",
                 updateTask
             );
-            if (!Try(out var _, out var e, await updateTask))
+            if (await updateTask is Error e)
                 return e;
 
             UI.InfoMessage("Restart Required", "A program restart is required after update,\nplease start gmd again.");
             UI.Shutdown();
-            return R.Ok;
+            return Result.Ok;
         });
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 
     public void CopyCommitId() =>
         Do(async () =>
         {
             await Task.Yield();
             var commit = repo.RowCommit;
-            if (!Try(out var e, clipboard.Set(commit.Id)))
-                return R.Error("Failed to copy the commit id", e);
+            if (clipboard.Set(commit.Id) is Error e)
+                return new Error("Failed to copy the commit id", e);
 
-            return R.Ok;
+            return Result.Ok;
         });
 
     public void CopyCommitMessage() =>
@@ -404,9 +405,9 @@ class RepoCommands : IRepoCommands
         {
             await Task.Yield();
             var commit = repo.RowCommit;
-            if (!Try(out var e, clipboard.Set(commit.Message.TrimEnd())))
-                return R.Error("Failed to copy the commit message", e);
+            if (clipboard.Set(commit.Message.TrimEnd()) is Error e)
+                return new Error("Failed to copy the commit message", e);
 
-            return R.Ok;
+            return Result.Ok;
         });
 }

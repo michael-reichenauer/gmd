@@ -28,6 +28,12 @@ class UIDialog
 
     readonly List<Validation> validations = [];
 
+    // The spell checked inputs, whose red words the hint let into the frame of the multi line one
+    // counts; the hint is redrawn when any of them is
+    readonly List<Func<int>> misspelledCounts = [];
+    UILabel? spellHint;
+    int spellHintWidth;
+
     internal string Title { get; }
     internal Dim Width { get; }
     internal Dim Height { get; }
@@ -38,6 +44,10 @@ class UIDialog
     public View View { get; internal set; } = null!;
 
     Dialog dlg = null!;
+
+    // The views in the order they are added to the dialog, which is the order a mouse event finds
+    // them in, last first
+    internal IReadOnlyList<View> Views => views;
 
     internal UIDialog(
         string title,
@@ -107,6 +117,11 @@ class UIDialog
             SpellChecker = spellChecker,
         };
         views.Add(textField);
+        if (spellChecker != null)
+        {
+            misspelledCounts.Add(() => textField.MisspelledCount);
+            textField.Redrawn += UpdateSpellHint;
+        }
 
         if (markers == InputMarkers.Left || markers == InputMarkers.Both)
         {
@@ -144,7 +159,22 @@ class UIDialog
         views.Add(textView);
 
         AddBorderView(textView, Color.Dark);
+        if (spellChecker != null)
+        {
+            spellHintWidth = w + 2;
+            spellHint = new UILabel(x - 1, y + h, SpellHint.Edge(0, spellHintWidth, Color.Dark), autosize: false);
+            views.Add(spellHint);
+            misspelledCounts.Add(() => textView.MisspelledCount);
+            textView.Redrawn += UpdateSpellHint;
+        }
         return textView;
+    }
+
+    void UpdateSpellHint()
+    {
+        if (spellHint == null)
+            return;
+        spellHint.Text = SpellHint.Edge(misspelledCounts.Sum(count => count()), spellHintWidth, Color.Dark);
     }
 
     internal UIComboTextField AddComboTextField(
@@ -238,8 +268,15 @@ class UIDialog
         return checkBox;
     }
 
-    internal BorderView AddBorderView(View view, Color color) =>
-        AddBorderView(view.X - 1, view.Y - 1, view.Width + 2, view.Height + 2, color);
+    // The border goes under the view it frames: the last view added is the one a mouse event finds,
+    // and a border covers the whole rectangle, so one added over a text view took every click
+    internal BorderView AddBorderView(View view, Color color)
+    {
+        var borderView = AddBorderView(view.X - 1, view.Y - 1, view.Width + 2, view.Height + 2, color);
+        views.Remove(borderView);
+        views.Insert(Math.Max(0, views.IndexOf(view)), borderView);
+        return borderView;
+    }
 
     internal BorderView AddBorderView(Pos x, Pos y, Dim w, Dim h, Color color)
     {

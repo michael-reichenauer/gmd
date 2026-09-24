@@ -35,12 +35,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # global.json pins the .NET 11 SDK for its C# 15 compiler (union types). '10.0.x' adds the
+      # .NET 10 runtime that the net10.0 build and its tests run on, which the 11 SDK does not carry.
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.x'
+          global-json-file: global.json
+          dotnet-version: '10.0.x'
 
-      # The end-to-end UI tests drive the built binary in a tmux pane (gmdTest/Fixtures/
+      # The end-to-end UI tests drive the built binary in a tmux pane (gmdE2eTest/Fixtures/
       # TmuxSession.cs), and they fail rather than skip when tmux is missing, deliberately, so
       # that this tier cannot quietly stop running. ubuntu-latest ships tmux today but nothing
       # pins that, so install it if the image ever drops it. Free when it is already there.
@@ -84,10 +87,12 @@ jobs:
           sed -i "s/BUILD_SHA/${{github.sha}}/g" gmd/Build.cs
           git log -3 --format=full
 
+      # See the same step in test_job above
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.x'
+          global-json-file: global.json
+          dotnet-version: '10.0.x'
 
       # See the same step in test_job above
       - name: Ensure tmux (end-to-end UI tests)

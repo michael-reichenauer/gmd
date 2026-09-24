@@ -29,17 +29,11 @@ class FileStore : IFileStore
 
     void Write<T>(string path, T state)
     {
-        try
-        {
-            string json = JsonSerializer.Serialize(state, options);
-            if (!Try(out var e, () => File.WriteAllText(path, json)))
-                Asserter.FailFast(e.ErrorMessage);
-            cache[path] = state!;
-        }
-        catch (Exception e)
-        {
-            throw Asserter.FailFast(e, $"Failed to write '{path}'");
-        }
+        // Thrown, so that state which never reached the file is not cached as if it had
+        var written = Result.Catch(() => File.WriteAllText(path, JsonSerializer.Serialize(state, options)));
+        if (written is Error e)
+            throw Asserter.FailFast($"Failed to write '{path}': {e.Message}");
+        cache[path] = state!;
     }
 
     T Read<T>(string path)
@@ -56,8 +50,9 @@ class FileStore : IFileStore
                 Write(path, (T)Activator.CreateInstance(typeof(T))!);
             }
 
-            if (!Try(out var json, out var e, () => File.ReadAllText(path)))
-                throw Asserter.FailFast(e.ErrorMessage);
+            var jsonResult = Result.Catch(() => File.ReadAllText(path));
+            if (jsonResult is not string json)
+                throw Asserter.FailFast(jsonResult.Error.Message);
             var state =
                 JsonSerializer.Deserialize<T>(json) ?? throw Asserter.FailFast($"Failed to deserialize '{path}'");
             cache[path] = state;
@@ -65,7 +60,7 @@ class FileStore : IFileStore
         }
         catch (Exception e)
         {
-            throw Asserter.FailFast(e, $"Failed to read '{path}'");
+            throw Asserter.FailFast($"Failed to read '{path}': {e.Message}");
         }
     }
 }

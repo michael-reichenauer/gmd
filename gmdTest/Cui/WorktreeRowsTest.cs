@@ -10,10 +10,10 @@ public class WorktreeRowsTest
 {
     const string Sha = "3f2a1c0000000000000000000000000000000000";
 
-    static Worktree Main(bool isCurrent = true) =>
+    static Worktree MainWorktree(bool isCurrent = true) =>
         new Worktree("/home/me/repo", "main", Sha, true, isCurrent, false, false, "", false, "", 0);
 
-    static Worktree Linked(
+    static Worktree LinkedWorktree(
         string path = "/home/me/repo-dev",
         string branch = "dev",
         int changes = 0,
@@ -52,7 +52,10 @@ public class WorktreeRowsTest
     [TestMethod]
     public void TestTheCurrentMainWorktreeIsMarked()
     {
-        Assert.AreEqual("● main    main                   -                         /home/me/repo", Row(Main()));
+        Assert.AreEqual(
+            "● main    main                   -                         /home/me/repo",
+            Row(MainWorktree())
+        );
     }
 
     [TestMethod]
@@ -60,7 +63,7 @@ public class WorktreeRowsTest
     {
         Assert.AreEqual(
             "  linked  feature/login         ©2      in use   unmerged  /home/me/repo-feature",
-            Row(Linked("/home/me/repo-feature", "feature/login", changes: 2, isLocked: true), isUnmerged: true)
+            Row(LinkedWorktree("/home/me/repo-feature", "feature/login", changes: 2, isLocked: true), isUnmerged: true)
         );
     }
 
@@ -69,7 +72,7 @@ public class WorktreeRowsTest
     {
         Assert.AreEqual(
             "  linked  hotfix-1.2                    missing  merged    /home/me/repo-hot",
-            Row(Linked("/home/me/repo-hot", "hotfix-1.2", changes: -1, isPrunable: true))
+            Row(LinkedWorktree("/home/me/repo-hot", "hotfix-1.2", changes: -1, isPrunable: true))
         );
     }
 
@@ -78,7 +81,7 @@ public class WorktreeRowsTest
     {
         Assert.AreEqual(
             "  linked  (detached 3f2a1c)      -                         /tmp/review",
-            Row(Linked("/tmp/review", isDetached: true))
+            Row(LinkedWorktree("/tmp/review", isDetached: true))
         );
     }
 
@@ -86,7 +89,7 @@ public class WorktreeRowsTest
     [TestMethod]
     public void TestALongPathIsCutFromTheStart()
     {
-        var row = Row(Linked("/home/someone/projects/repository/.claude/worktrees/dev"), width: 80);
+        var row = Row(LinkedWorktree("/home/someone/projects/repository/.claude/worktrees/dev"), width: 80);
 
         StringAssert.EndsWith(row, "┅claude/worktrees/dev");
         Assert.AreEqual(80, row.Length);
@@ -95,15 +98,15 @@ public class WorktreeRowsTest
     [TestMethod]
     public void TestTheReasonIsWhyAWorktreeIsInUseOrMissing()
     {
-        Assert.AreEqual("", WorktreeRows.Reason(Linked()));
+        Assert.AreEqual("", WorktreeRows.Reason(LinkedWorktree()));
         Assert.AreEqual(
             "In use: claude session 42",
-            WorktreeRows.Reason(Linked(isLocked: true, lockReason: "claude session 42"))
+            WorktreeRows.Reason(LinkedWorktree(isLocked: true, lockReason: "claude session 42"))
         );
-        Assert.AreEqual("In use: locked", WorktreeRows.Reason(Linked(isLocked: true)));
+        Assert.AreEqual("In use: locked", WorktreeRows.Reason(LinkedWorktree(isLocked: true)));
         Assert.AreEqual(
             "Missing: gitdir file points to non-existent location",
-            WorktreeRows.Reason(Linked(isPrunable: true))
+            WorktreeRows.Reason(LinkedWorktree(isPrunable: true))
         );
     }
 
@@ -112,19 +115,22 @@ public class WorktreeRowsTest
     [TestMethod]
     public void TestWhatCanBeDoneWithEachWorktree()
     {
-        Assert.IsFalse(WorktreeRows.CanOpen(Main()));
-        Assert.IsTrue(WorktreeRows.CanOpen(Main(isCurrent: false)));
-        Assert.IsTrue(WorktreeRows.CanOpen(Linked()));
-        Assert.IsFalse(WorktreeRows.CanOpen(Linked(isPrunable: true)));
+        Assert.IsFalse(WorktreeRows.CanOpen(MainWorktree()));
+        Assert.IsTrue(WorktreeRows.CanOpen(MainWorktree(isCurrent: false)));
+        Assert.IsTrue(WorktreeRows.CanOpen(LinkedWorktree()));
+        Assert.IsFalse(WorktreeRows.CanOpen(LinkedWorktree(isPrunable: true)));
 
-        Assert.IsFalse(WorktreeRows.CanRemove(Main()));
-        Assert.IsFalse(WorktreeRows.CanRemove(Main(isCurrent: false)));
-        Assert.IsTrue(WorktreeRows.CanRemove(Linked()));
-        Assert.IsFalse(WorktreeRows.CanRemove(Linked(isCurrent: true)));
-        Assert.IsFalse(WorktreeRows.CanRemove(Linked(isLocked: true)));
-        Assert.IsFalse(WorktreeRows.CanRemove(Linked(isPrunable: true)), "A missing one is pruned, not removed");
+        Assert.IsFalse(WorktreeRows.CanRemove(MainWorktree()));
+        Assert.IsFalse(WorktreeRows.CanRemove(MainWorktree(isCurrent: false)));
+        Assert.IsTrue(WorktreeRows.CanRemove(LinkedWorktree()));
+        Assert.IsFalse(WorktreeRows.CanRemove(LinkedWorktree(isCurrent: true)));
+        Assert.IsFalse(WorktreeRows.CanRemove(LinkedWorktree(isLocked: true)));
+        Assert.IsFalse(
+            WorktreeRows.CanRemove(LinkedWorktree(isPrunable: true)),
+            "A missing one is pruned, not removed"
+        );
 
-        Assert.IsFalse(WorktreeRows.CanPrune([Main(), Linked()]));
-        Assert.IsTrue(WorktreeRows.CanPrune([Main(), Linked(isPrunable: true)]));
+        Assert.IsFalse(WorktreeRows.CanPrune([MainWorktree(), LinkedWorktree()]));
+        Assert.IsTrue(WorktreeRows.CanPrune([MainWorktree(), LinkedWorktree(isPrunable: true)]));
     }
 }

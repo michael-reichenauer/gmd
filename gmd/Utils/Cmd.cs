@@ -1,18 +1,38 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace gmd.Utils;
 
 interface ICmd
 {
-    CmdResult Command(
+    // The output of a command that exited 0, or a CmdError carrying everything it printed. The
+    // caller info is the error's Origin, so that it names the service that ran the command rather
+    // than this class, which every command failure would otherwise share.
+    Result<string> Command(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
-        bool skipLog = false
+        bool skipLog = false,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
     );
-    Task<CmdResult> RunAsync(
+    Task<Result<string>> RunAsync(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    );
+
+    // What a command printed and how it exited, whatever the exit code, for the few commands whose
+    // non-zero exit is an answer rather than a failure ('check-ignore', 'diff --check')
+    Task<CmdResult> RunRawAsync(
         string path,
         string args,
         string workingDirectory,
@@ -23,33 +43,55 @@ interface ICmd
     // Runs a command that gets its input on stdin, and waits for it to exit but never for its
     // output streams to close. See Cmd.CommandWithStdin for why that difference is the whole
     // reason this is not just Command().
-    CmdResult CommandWithStdin(string path, string args, string stdinText);
+    Result<string> CommandWithStdin(
+        string path,
+        string args,
+        string stdinText,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    );
 }
 
-class CmdResult : R<string>
+// What a command printed and how it exited
+record CmdResult(string Cmd, int ExitCode, string Output, string ErrorOutput)
 {
-    public CmdResult(string cmd, int exitCode, string output, string errorOutput)
-        : base(new Exception($"{errorOutput}\nCommand: {cmd}"))
-    {
-        Cmd = cmd;
-        ExitCode = exitCode;
-        Output = output;
-        ErrorOutput = errorOutput;
-    }
-
     public CmdResult(string cmd, string output, string errorOutput)
-        : base(output)
+        : this(cmd, 0, output, errorOutput) { }
+
+    public bool IsOk => ExitCode == 0;
+
+    // A zero exit is its output, anything else a CmdError
+    public Result<string> ToResult(
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) => ExitCode == 0 ? Output : new CmdError(this, memberName, sourceFilePath, sourceLineNumber);
+}
+
+// The failure case of a command. The message is what it printed on stderr plus the command line;
+// the rest is for callers that recognize a particular failure by its output or exit code, e.g.
+// 'CONFLICT' after a merge:
+//
+//   if (result is CmdError e && e.Output.Contains("CONFLICT")) ...
+class CmdError : Error
+{
+    public CmdError(
+        CmdResult result,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
+        : base($"{result.ErrorOutput}\nCommand: {result.Cmd}", memberName, sourceFilePath, sourceLineNumber)
     {
-        ExitCode = 0;
-        Cmd = cmd;
-        Output = output;
-        ErrorOutput = errorOutput;
+        Result = result;
     }
 
-    public string Cmd { get; }
-    public int ExitCode { get; }
-    public string Output { get; }
-    public string ErrorOutput { get; }
+    public CmdResult Result { get; }
+    public string Cmd => Result.Cmd;
+    public int ExitCode => Result.ExitCode;
+    public string Output => Result.Output;
+    public string ErrorOutput => Result.ErrorOutput;
 }
 
 class Cmd : ICmd
@@ -61,7 +103,23 @@ class Cmd : ICmd
     // How long to wait for the error text of a command that has already failed
     const int ErrorReadTimeoutMs = 200;
 
-    public Task<CmdResult> RunAsync(
+    public Task<Result<string>> RunAsync(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
+    {
+        return Task.Run(() =>
+            Command(path, args, workingDirectory, skipLogError, skipLog, memberName, sourceFilePath, sourceLineNumber)
+        );
+    }
+
+    public Task<CmdResult> RunRawAsync(
         string path,
         string args,
         string workingDirectory,
@@ -69,10 +127,10 @@ class Cmd : ICmd
         bool skipLog = false
     )
     {
-        return Task.Run(() => Command(path, args, workingDirectory, skipLogError, skipLog));
+        return Task.Run(() => CommandRaw(path, args, workingDirectory, skipLogError, skipLog));
     }
 
-    public static CmdResult Run(string cmd, string workingDirectory = "")
+    public static Result<string> Run(string cmd, string workingDirectory = "")
     {
         var index = cmd.IndexOf(' ');
         if (index == -1)
@@ -83,7 +141,20 @@ class Cmd : ICmd
         return new Cmd().Command(path, args, workingDirectory);
     }
 
-    public CmdResult Command(
+    public Result<string> Command(
+        string path,
+        string args,
+        string workingDirectory,
+        bool skipLogError = false,
+        bool skipLog = false,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) =>
+        CommandRaw(path, args, workingDirectory, skipLogError, skipLog)
+            .ToResult(memberName, sourceFilePath, sourceLineNumber);
+
+    public CmdResult CommandRaw(
         string path,
         string args,
         string workingDirectory,
@@ -185,7 +256,16 @@ class Cmd : ICmd
     // and that does not happen while the helper lives — i.e. it would block for as long as the
     // clipboard holds the text (dotnet/runtime#27128). Here the output is never read and the wait
     // is bounded, so a helper that detaches cannot freeze the UI.
-    public CmdResult CommandWithStdin(string path, string args, string stdinText)
+    public Result<string> CommandWithStdin(
+        string path,
+        string args,
+        string stdinText,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) => CommandWithStdinRaw(path, args, stdinText).ToResult(memberName, sourceFilePath, sourceLineNumber);
+
+    CmdResult CommandWithStdinRaw(string path, string args, string stdinText)
     {
         var cmdText = $"{path} {args}";
         var t = Timing.Start();
@@ -217,12 +297,12 @@ class Cmd : ICmd
                 // rejects its arguments can exit before this, which shows up as a broken pipe —
                 // its exit code and error output below say what actually went wrong, so a failed
                 // write is not the error to report.
-                if (!Try(out var writeError, () => WriteStdin(process, stdinText)))
+                if (Result.Catch(() => WriteStdin(process, stdinText)) is Error writeError)
                     Log.Debug($"Failed to write stdin of {cmdText}, {writeError}");
 
                 if (!process.WaitForExit(StdinTimeoutMs))
                 {
-                    if (!Try(out var killError, () => process.Kill(true)))
+                    if (Result.Catch(() => process.Kill(true)) is Error killError)
                         Log.Debug($"Failed to kill {cmdText}, {killError}");
 
                     Log.Debug($"Timeout: {cmdText} {t}]");

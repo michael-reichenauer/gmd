@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Records the demo animation the README shows: runs the scripted session in
+# gmdE2eTest/Demo/DemoTest.cs, i.e. the built gmd in tmux on a repository made for it, which writes
+# it as an asciicast, and renders that as a GIF with agg (https://github.com/asciinema/agg).
+# Everything is pinned, so the animation only changes when what gmd draws does.
+#
+# Usage: ./demo [output.gif]      (default: gmd/doc/Animation.gif)
+#
+#   CAST       keep the asciicast at this path as well, e.g. to look at one frame of it:
+#                agg --select marker:diff <cast> frame.gif
+#              where the markers are the frame labels in DemoTest.cs
+#   AGG        the agg binary (default: agg on the PATH)
+#   FONT_DIR   a folder with the fonts, when they are not installed
+#
+# agg and the fonts, JetBrains Mono and DejaVu Sans Mono (for the symbols JetBrains Mono lacks),
+# are installed by ./installtools.
+set -euo pipefail
+
+out="${1:-gmd/doc/Animation.gif}"
+agg="${AGG:-agg}"
+
+if ! command -v "$agg" >/dev/null; then
+  echo "agg is not installed, run ./installtools (or set AGG)"
+  exit 1
+fi
+
+cast="${CAST:-}"
+if [ -z "$cast" ]; then
+  cast="$(mktemp)"
+  trap 'rm -f "$cast"' EXIT
+fi
+
+GMD_DEMO_CAST="$cast" dotnet test gmdE2eTest/gmdE2eTest.csproj -tl:false -v quiet --nologo --filter "TestCategory=Demo"
+
+fontArgs=()
+if [ -n "${FONT_DIR:-}" ]; then
+  fontArgs=(--font-dir "$FONT_DIR")
+fi
+
+# A line height of 1.32 is JetBrains Mono's own (ascent plus descent), which is what makes the
+# graph's box drawing characters meet from one row to the next rather than leave gaps.
+#
+# The colors are Windows Terminal's Campbell scheme, as background, foreground and the 16 ANSI
+# colors. Its black has to be the background: gmd paints black behind its text, which any theme
+# with a background of its own shows as dark blocks around every word.
+campbell="0c0c0c,cccccc,0c0c0c,c50f1f,13a10e,c19c00,0037da,881798,3a96dd,cccccc,767676,e74856,16c60c,f9f1a5,3b78ff,b4009e,61d6d6,f2f2f2"
+
+"$agg" "${fontArgs[@]}" --quiet \
+  --text-font-family "JetBrains Mono,DejaVu Sans Mono" --font-size 16 --line-height 1.32 \
+  --theme "$campbell" --last-frame-duration 3 \
+  "$cast" "$out"
+
+echo "Wrote $out"

@@ -7,11 +7,14 @@ using gmd.Cui.Common;
 
 namespace gmd.Installation;
 
+// Whether a newer release exists, and its version (the running one when there is none)
+record UpdateAvailability(bool IsAvailable, Version Version);
+
 interface IUpdater
 {
     Task CheckUpdateAvailableAsync();
-    Task<R<Version>> UpdateAsync();
-    Task<R<(bool, Version)>> IsUpdateAvailableAsync();
+    Task<Result<Version>> UpdateAsync();
+    Task<Result<UpdateAvailability>> IsUpdateAvailableAsync();
     Task StartCheckUpdatesRegularly();
 }
 
@@ -65,7 +68,7 @@ class Updater : IUpdater
             return;
 
         CleanTempFiles();
-        if (!Try(out var _, out var e, await IsUpdateAvailableAsync()))
+        if (await IsUpdateAvailableAsync() is Error e)
         {
             Log.Warn($"Failed to check remote version, {e}");
             return;
@@ -79,33 +82,35 @@ class Updater : IUpdater
         );
     }
 
-    public async Task<R<Version>> UpdateAsync()
+    public async Task<Result<Version>> UpdateAsync()
     {
         if (IsDotNet())
             return buildVersion;
 
-        if (!Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()))
+        var availableResult = await IsUpdateAvailableAsync();
+        if (availableResult is not UpdateAvailability available)
         {
-            Log.Warn($"Failed to check remote version, {e}");
-            return e;
+            Log.Warn($"Failed to check remote version, {availableResult.Error}");
+            return availableResult.Error;
         }
 
-        if (!isAvailable.Item1)
+        if (!available.IsAvailable)
         {
             Log.Info("Already at latest release");
             return buildVersion;
         }
 
-        if (!Try(out var downloadedPath, out e, await DownloadBinaryAsync()))
+        var downloadedPathResult = await DownloadBinaryAsync();
+        if (downloadedPathResult is not string downloadedPath)
         {
-            Log.Warn($"Failed to download new version, {e}");
-            return e;
+            Log.Warn($"Failed to download new version, {downloadedPathResult.Error}");
+            return downloadedPathResult.Error;
         }
 
-        if (!Try(out e, Install(downloadedPath)))
+        if (Install(downloadedPath) is Error installError)
         {
-            Log.Warn($"Failed to install new version, {e}");
-            return e;
+            Log.Warn($"Failed to install new version, {installError}");
+            return installError;
         }
 
         var release = SelectRelease();
@@ -130,9 +135,9 @@ class Updater : IUpdater
 
             if (config.AutoUpdate)
             {
-                if (Try(out var isAvailable, out var e, await IsUpdateAvailableAsync()) && isAvailable.Item1)
+                if (await IsUpdateAvailableAsync() is UpdateAvailability { IsAvailable: true })
                 {
-                    if (Try(out var updatedVersion, out e, await UpdateAsync()))
+                    if (await UpdateAsync() is Version updatedVersion)
                     {
                         UI.Post(() =>
                         {
@@ -151,30 +156,32 @@ class Updater : IUpdater
         }
     }
 
-    public async Task<R<(bool, Version)>> IsUpdateAvailableAsync()
+    public async Task<Result<UpdateAvailability>> IsUpdateAvailableAsync()
     {
         if (!config.CheckUpdates)
         {
             Log.Info("Check for updates is disabled");
-            return (false, buildVersion);
+            return new UpdateAvailability(false, buildVersion);
         }
 
-        if (!Try(out var release, out var e, await GetRemoteInfoAsync()))
+        var releaseResult = await GetRemoteInfoAsync();
+        if (releaseResult is not Release release)
         {
+            var e = releaseResult.Error;
             Log.Info($"Failed to get remote info, {e}");
-            return R.Error($"Failed to get remote info, {e}");
+            return new Error($"Failed to get remote info, {e}");
         }
 
         if (release.Version == "")
         {
             Log.Info("No remote release available");
-            return (false, buildVersion);
+            return new UpdateAvailability(false, buildVersion);
         }
 
         if (!release.Assets.Any())
         {
             Log.Warn($"No remote binaries for {release.Version}");
-            return (false, buildVersion);
+            return new UpdateAvailability(false, buildVersion);
         }
         config.Set(s =>
         {
@@ -185,17 +192,17 @@ class Updater : IUpdater
         if (!config.Releases.IsUpdateAvailable())
         {
             Log.Debug("No new remote release available");
-            return (false, buildVersion);
+            return new UpdateAvailability(false, buildVersion);
         }
         Log.Info($"Update available, local {buildVersion} < {release.Version} remote (preview={release.IsPreview})");
 
-        return (true, new Version(release.Version));
+        return new UpdateAvailability(true, new Version(release.Version));
     }
 
-    R Install(string downloadedPath)
+    Result Install(string downloadedPath)
     {
         if (IsDotNet())
-            return R.Ok;
+            return Result.Ok;
 
         try
         {
@@ -204,12 +211,12 @@ class Updater : IUpdater
             if (!File.Exists(downloadedPath))
             {
                 Log.Info($"No new file to install {downloadedPath}");
-                return R.Ok; // No new file to install, some other thread already installed it
+                return Result.Ok; // No new file to install, some other thread already installed it
             }
 
             File.Move(downloadedPath, newPath);
             Log.Info($"Move {downloadedPath} => {newPath} ...");
-            if (!Try(out var e, MakeBinaryExecutable(newPath)))
+            if (MakeBinaryExecutable(newPath) is Error e)
                 return e;
 
             var thisPath = Environment.ProcessPath ?? "gmd";
@@ -219,16 +226,16 @@ class Updater : IUpdater
             Log.Info($"Moved {thisPath} => {newThisPath}");
             File.Move(newPath, thisPath);
             Log.Info($"Installed {newPath}");
-            return R.Ok;
+            return Result.Ok;
         }
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Exception(e, "Failed install new file");
-            return R.Error("Failed to install new file", e);
+            return new Error("Failed to install new file", e);
         }
     }
 
-    async Task<R<string>> DownloadBinaryAsync()
+    async Task<Result<string>> DownloadBinaryAsync()
     {
         try
         {
@@ -236,7 +243,7 @@ class Updater : IUpdater
             (string downloadUrl, string version) = SelectBinaryPath();
             if (downloadUrl == "")
             {
-                return R.Error("No binary available");
+                return new Error("No binary available");
             }
 
             var targetPath = GetDownloadFilePath(version);
@@ -256,7 +263,7 @@ class Updater : IUpdater
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Exception(e, "Failed to download latest binary");
-            return R.Error("Failed to download latest binary", e);
+            return new Error("Failed to download latest binary", e);
         }
     }
 
@@ -303,7 +310,7 @@ class Updater : IUpdater
                 if (path.StartsWith(tmpPathPrefix))
                 {
                     Log.Info($"Deleting {path}");
-                    if (!Try(out var e, () => File.Delete(path)))
+                    if (Result.Catch(() => File.Delete(path)) is Error e)
                         Log.Info($"Failed to delete {e}");
                 }
             }
@@ -363,7 +370,7 @@ class Updater : IUpdater
         return releases.StableRelease;
     }
 
-    async Task<R<Release>> GetRemoteInfoAsync()
+    async Task<Result<Release>> GetRemoteInfoAsync()
     {
         try
         {
@@ -401,7 +408,7 @@ class Updater : IUpdater
         catch (Exception e) when (e.IsNotFatal())
         {
             Log.Exception(e, "Failed to download latest setup");
-            return R.Error("Failed to download latest setup", e);
+            return new Error("Failed to download latest setup", e);
         }
     }
 
@@ -483,10 +490,10 @@ class Updater : IUpdater
         return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
     }
 
-    R MakeBinaryExecutable(string path)
+    Result MakeBinaryExecutable(string path)
     {
         if (Build.IsWindows)
-            return R.Ok; // Not needed on windows
+            return Result.Ok; // Not needed on windows
 
         return cmd.Command("chmod", $"+x {path}", "");
     }

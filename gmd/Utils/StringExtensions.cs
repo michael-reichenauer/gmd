@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace System;
+namespace gmd.Utils;
 
 // Some useful string extensions that are missing in .NET
 public static class StringExtensions
@@ -59,18 +59,14 @@ public static class StringExtensions
         if (source == null)
             return "";
 
-        if (
-            !Try(
-                out var json,
-                out var e,
-                () => JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })
-            )
-        )
+        var json = Result.Catch(() =>
+            JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })
+        );
+        return json switch
         {
-            return $"<Error: {e}>";
-        }
-
-        return json;
+            string text => text,
+            Error e => $"<Error: {e}>",
+        };
     }
 
     public static string Txt(this Version? source)

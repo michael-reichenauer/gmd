@@ -31,6 +31,14 @@ class SpellChecker : ISpellChecker
     const int MaxSuggestions = 6;
     const int MaxCachedWords = 5000;
 
+    // Hunspell stops looking for suggestions when a time budget runs out and returns what it has
+    // found so far. Its budgets were set for CPU time, but WeCantSpell measures them on the wall
+    // clock (a quarter of a second in all), so on a loaded machine a word got fewer suggestions or
+    // none: on CI, running the end-to-end tests eight at a time, 'Sumerize' got none and 'brnach'
+    // only 'breach'. An idle machine needs a few tens of milliseconds, so eight times the budget
+    // changes nothing there, and it still bounds how long an odd word can hold the UI thread.
+    internal static readonly QueryOptions SuggestOptions = ScaledTimeLimits(new QueryOptions(), 8);
+
     readonly Config config;
     readonly Lazy<WordList?> wordList;
     readonly Dictionary<string, bool> isMisspelledCache = [];
@@ -61,7 +69,7 @@ class SpellChecker : ISpellChecker
     {
         if (!IsEnabled)
             return [];
-        return wordList.Value!.Suggest(word).Take(MaxSuggestions).ToList();
+        return wordList.Value!.Suggest(word, SuggestOptions).Take(MaxSuggestions).ToList();
     }
 
     public void AddToDictionary(string word)
@@ -84,15 +92,10 @@ class SpellChecker : ISpellChecker
     {
         var t = Timing.Start();
         var source = config.SpellDictionary != "" ? config.SpellDictionary : DicResource;
-        if (
-            !Try(
-                out var list,
-                out var e,
-                config.SpellDictionary != "" ? LoadFiles(config.SpellDictionary) : LoadEmbedded()
-            )
-        )
+        var loaded = config.SpellDictionary != "" ? LoadFiles(config.SpellDictionary) : LoadEmbedded();
+        if (loaded is not WordList list)
         {
-            Log.Error($"Failed to load spell check dictionary '{source}', {e}");
+            Log.Error($"Failed to load spell check dictionary '{source}', {loaded.Error}");
             return null;
         }
 
@@ -103,28 +106,32 @@ class SpellChecker : ISpellChecker
         return list;
     }
 
-    static R<WordList> LoadEmbedded()
+    static Result<WordList> LoadEmbedded()
     {
-        if (!Try(out var dic, out var e, Files.GetEmbeddedFileStream(DicResource)))
-            return e;
+        var dicResult = Files.GetEmbeddedFileStream(DicResource);
+        if (dicResult is not Stream dic)
+            return dicResult.Error;
         using (dic)
         {
-            if (!Try(out var aff, out e, Files.GetEmbeddedFileStream(AffResource)))
-                return e;
+            var affResult = Files.GetEmbeddedFileStream(AffResource);
+            if (affResult is not Stream aff)
+                return affResult.Error;
             using (aff)
             {
-                if (!Try(out var list, out e, () => WordList.CreateFromStreams(dic, aff)))
-                    return e;
-                return list;
+                return Result.Catch(() => WordList.CreateFromStreams(dic, aff));
             }
         }
     }
 
     // A Hunspell dictionary on disk: the .dic path, with the .aff expected beside it
-    static R<WordList> LoadFiles(string dicPath)
+    static Result<WordList> LoadFiles(string dicPath) => Result.Catch(() => WordList.CreateFromFiles(dicPath));
+
+    static QueryOptions ScaledTimeLimits(QueryOptions options, int factor)
     {
-        if (!Try(out var list, out var e, () => WordList.CreateFromFiles(dicPath)))
-            return e;
-        return list;
+        options.TimeLimitSuggestGlobal *= factor;
+        options.TimeLimitSuggestStep *= factor;
+        options.TimeLimitCompoundSuggest *= factor;
+        options.TimeLimitCompoundCheck *= factor;
+        return options;
     }
 }

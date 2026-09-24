@@ -30,11 +30,8 @@ public class AugmentedServiceTest
             Directory.Delete(root, true);
     }
 
-    static T Value<T>(R<T> result)
-    {
-        Assert.IsTrue(Try(out var value, out var e, result), $"{e}");
-        return value;
-    }
+    static T Value<T>(Result<T> result)
+        where T : notnull => AssertOk(result);
 
     GitWorktree MainWorktree() =>
         new GitWorktree(Main, RepoBuilder.Sha("c1"), "main", true, false, false, false, "", false, "");
@@ -115,10 +112,10 @@ public class AugmentedServiceTest
         var monitor = new FakeFileMonitor();
         var service = RepoBuilder.NewAugmentedService(git, new FakeMetaDataService(new MetaData()), monitor);
 
-        Assert.IsTrue(Try(out var e, await service.AddWorktreeAsync(Dev, "dev", true, "main", Main)), $"{e}");
-        Assert.IsTrue(Try(out e, await service.AddWorktreeAsync(Dev, "dev", false, "", Main)), $"{e}");
-        Assert.IsTrue(Try(out e, await service.RemoveWorktreeAsync(Dev, true, Main)), $"{e}");
-        Assert.IsTrue(Try(out e, await service.PruneWorktreesAsync(Main)), $"{e}");
+        AssertOk(await service.AddWorktreeAsync(Dev, "dev", true, "main", Main));
+        AssertOk(await service.AddWorktreeAsync(Dev, "dev", false, "", Main));
+        AssertOk(await service.RemoveWorktreeAsync(Dev, true, Main));
+        AssertOk(await service.PruneWorktreesAsync(Main));
 
         CollectionAssert.AreEqual(
             new[] { $"add {Dev} dev new main", $"add {Dev} dev existing", $"remove {Dev} --force", "prune" },

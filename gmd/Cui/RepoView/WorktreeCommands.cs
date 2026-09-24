@@ -9,7 +9,7 @@ interface IWorktreeCommands
     void ShowWorktrees();
     void CreateWorktree(string branchName);
     void OpenWorktree(string path);
-    Task<R> OpenWorktreeAsync(string path);
+    Task<Result> OpenWorktreeAsync(string path);
 }
 
 // The worktree commands: the dialog listing them, and opening, adding, removing and pruning
@@ -59,14 +59,15 @@ class WorktreeCommands : IWorktreeCommands
             while (true)
             {
                 var current = repoView.ViewRepo.Repo;
-                if (!Try(out var updated, out var e, await server.GetUpdatedWorktreesRepoAsync(current)))
-                    return R.Error("Failed to read the worktrees", e);
+                var updatedResult = await server.GetUpdatedWorktreesRepoAsync(current);
+                if (updatedResult is not Repo updated)
+                    return new Error("Failed to read the worktrees", updatedResult.Error);
                 var worktrees = updated.Worktrees;
                 if (worktrees.Count == 0)
-                    return R.Error("No worktrees, this version of git does not list them");
+                    return new Error("No worktrees, this version of git does not list them");
 
-                if (!Try(out var choice, worktreesDlg.Show(updated, worktrees, selected)))
-                    return R.Ok;
+                if (worktreesDlg.Show(updated, worktrees, selected) is not WorktreeChoice choice)
+                    return Result.Ok;
                 selected = worktrees.ToList().IndexOf(choice.Worktree);
 
                 switch (choice.Action)
@@ -74,67 +75,57 @@ class WorktreeCommands : IWorktreeCommands
                     case WorktreeAction.Open:
                         return await OpenWorktreeAsync(choice.Worktree.Path);
                     case WorktreeAction.CopyPath:
-                        if (!Try(out e, clipboard.Set(choice.Worktree.Path)))
-                            return R.Error("Failed to copy the path", e);
+                        if (clipboard.Set(choice.Worktree.Path) is Error copyError)
+                            return new Error("Failed to copy the path", copyError);
                         break;
                     case WorktreeAction.Prune:
-                        if (!Try(out e, await PruneAsync(worktrees)))
-                            return e;
+                        if (await PruneAsync(worktrees) is Error pruneError)
+                            return pruneError;
                         break;
                     case WorktreeAction.Add:
-                        if (
-                            !Try(
-                                out var isOpened,
-                                out e,
-                                await CreateWorktreeAsync(updated, updated.CurrentBranch().Name)
-                            )
-                        )
-                            return e;
+                        var created = await CreateWorktreeAsync(updated, updated.CurrentBranch().Name);
+                        if (created is not bool isOpened)
+                            return created.Error;
                         if (isOpened)
-                            return R.Ok;
+                            return Result.Ok;
                         break;
                     case WorktreeAction.Remove:
-                        if (!Try(out e, await RemoveWorktreeAsync(updated, choice.Worktree)))
-                            return e;
+                        if (await RemoveWorktreeAsync(updated, choice.Worktree) is Error removeError)
+                            return removeError;
                         break;
                 }
             }
         });
 
     // From the branch menu: a worktree for that branch, or when it is checked out already, for a
-    // new branch started from it
-    public void CreateWorktree(string branchName) =>
-        Do(async () =>
-        {
-            if (!Try(out var _, out var e, await CreateWorktreeAsync(repo.Repo, branchName)))
-                return e;
-            return R.Ok;
-        });
+    // new branch started from it. Whether it was opened matters to nothing here, so only the
+    // outcome is kept.
+    public void CreateWorktree(string branchName) => Do(async () => await CreateWorktreeAsync(repo.Repo, branchName));
 
     public void OpenWorktree(string path) => Do(() => OpenWorktreeAsync(path));
 
-    public async Task<R> OpenWorktreeAsync(string path)
+    public async Task<Result> OpenWorktreeAsync(string path)
     {
         if (!Directory.Exists(path))
         {
-            return R.Error($"The worktree folder is missing:\n{path}\nPrune it in the Worktrees dialog.");
+            return new Error($"The worktree folder is missing:\n{path}\nPrune it in the Worktrees dialog.");
         }
 
-        if (!Try(out var e, await repoView.ShowRepoAsync(path)))
+        if (await repoView.ShowRepoAsync(path) is Error e)
         {
-            return R.Error($"Failed to open worktree at {path}", e);
+            return new Error($"Failed to open worktree at {path}", e);
         }
-        return R.Ok;
+        return Result.Ok;
     }
 
     // Returns whether the new worktree was opened, i.e. whether this repo is still the one shown
-    async Task<R<bool>> CreateWorktreeAsync(Repo current, string branchName)
+    async Task<Result<bool>> CreateWorktreeAsync(Repo current, string branchName)
     {
         var mainRoot = current.Worktrees.FirstOrDefault(w => w.IsMain)?.Path ?? current.Path;
 
         // A remote branch stands for its local branch, or failing one, for itself as a start point
         if (!current.BranchByName.TryGetValue(branchName, out var branch))
-            return R.Error($"Unknown branch {branchName}");
+            return new Error($"Unknown branch {branchName}");
         var baseBranch = branch.LocalName != "" ? branch.LocalName : branch.Name;
 
         var localBranches = current
@@ -149,45 +140,39 @@ class WorktreeCommands : IWorktreeCommands
             .ToDictionary(b => b.Name, b => b.WorktreePath != "" ? b.WorktreePath : current.Path);
         var initialName = heldBranches.ContainsKey(baseBranch) || !localBranches.Contains(baseBranch) ? "" : baseBranch;
 
-        if (
-            !Try(
-                out var ignored,
-                out var e,
-                await server.GetIgnoredPathsAsync(WorktreeLocations.IgnoredFolders, mainRoot)
-            )
-        )
+        var ignoredResult = await server.GetIgnoredPathsAsync(WorktreeLocations.IgnoredFolders, mainRoot);
+        if (ignoredResult is not IReadOnlyList<string> ignored)
         {
-            Log.Warn($"Failed to check ignored folders, {e}");
+            Log.Warn($"Failed to check ignored folders, {ignoredResult.Error}");
             ignored = [];
         }
 
         var location = WorktreeLocations.Parse(config.WorktreeLocation);
-        if (
-            !Try(
-                out var rsp,
-                addWorktreeDlg.Show(mainRoot, baseBranch, initialName, localBranches, heldBranches, ignored, location)
-            )
-        )
+        var added = addWorktreeDlg.Show(
+            mainRoot,
+            baseBranch,
+            initialName,
+            localBranches,
+            heldBranches,
+            ignored,
+            location
+        );
+        if (added is not AddWorktreeResult rsp)
             return false;
         config.Set(c => c.WorktreeLocation = rsp.Location.ToString());
 
-        if (
-            !Try(
-                out e,
-                await AddAndIgnoreAsync(
-                    rsp,
-                    mainRoot,
-                    () =>
-                        server.AddWorktreeAsync(rsp.Path, rsp.BranchName, rsp.IsNewBranch, rsp.StartPoint, current.Path)
-                )
-            )
-        )
-            return e;
+        var addedAndIgnored = await AddAndIgnoreAsync(
+            rsp,
+            mainRoot,
+            () => server.AddWorktreeAsync(rsp.Path, rsp.BranchName, rsp.IsNewBranch, rsp.StartPoint, current.Path)
+        );
+        if (addedAndIgnored is Error addError)
+            return addError;
 
         if (rsp.IsOpen)
         {
-            if (!Try(out e, await OpenWorktreeAsync(rsp.Path)))
-                return e;
+            if (await OpenWorktreeAsync(rsp.Path) is Error openError)
+                return openError;
             return true;
         }
 
@@ -199,15 +184,25 @@ class WorktreeCommands : IWorktreeCommands
     // then leaves no line behind for a folder that never came to be, and a line that cannot be
     // written afterwards is reported as that, since the worktree is there to be used. The add is
     // a delegate so the order is testable without the server.
-    internal static async Task<R> AddAndIgnoreAsync(AddWorktreeResult rsp, string mainRoot, Func<Task<R>> addWorktree)
+    internal static async Task<Result> AddAndIgnoreAsync(
+        AddWorktreeResult rsp,
+        string mainRoot,
+        Func<Task<Result>> addWorktree
+    )
     {
-        if (!Try(out var e, await addWorktree()))
-            return R.Error($"Failed to create worktree at {rsp.Path}", e);
+        if (await addWorktree() is Error e)
+            return new Error($"Failed to create worktree at {rsp.Path}", e);
 
-        if (rsp.IgnoreFolder != "" && !Try(out e, () => AppendToGitIgnore(mainRoot, rsp.IgnoreFolder)))
-            return R.Error($"Worktree created at {rsp.Path},\nbut failed to add {rsp.IgnoreFolder}/ to .gitignore", e);
+        if (
+            rsp.IgnoreFolder != ""
+            && Result.Catch(() => AppendToGitIgnore(mainRoot, rsp.IgnoreFolder)) is Error ignoreError
+        )
+            return new Error(
+                $"Worktree created at {rsp.Path},\nbut failed to add {rsp.IgnoreFolder}/ to .gitignore",
+                ignoreError
+            );
 
-        return R.Ok;
+        return Result.Ok;
     }
 
     // The folder line goes at the end of the main worktree's .gitignore, on a line of its own
@@ -219,45 +214,45 @@ class WorktreeCommands : IWorktreeCommands
         File.AppendAllText(path, $"{separator}{folder}/\n");
     }
 
-    async Task<R> RemoveWorktreeAsync(Repo current, Worktree worktree)
+    async Task<Result> RemoveWorktreeAsync(Repo current, Worktree worktree)
     {
         var branch = worktree.Branch != "" && current.BranchByName.TryGetValue(worktree.Branch, out var b) ? b : null;
         var isUnmerged = branch != null && current.HasUnmergedCommits(branch);
 
-        if (!Try(out var rsp, removeWorktreeDlg.Show(worktree, isUnmerged)))
-            return R.Ok;
+        if (removeWorktreeDlg.Show(worktree, isUnmerged) is not RemoveWorktreeResult rsp)
+            return Result.Ok;
 
-        if (!Try(out var e, await server.RemoveWorktreeAsync(worktree.Path, rsp.IsForce, current.Path)))
-            return R.Error($"Failed to remove worktree {worktree.Path}", e);
+        if (await server.RemoveWorktreeAsync(worktree.Path, rsp.IsForce, current.Path) is Error e)
+            return new Error($"Failed to remove worktree {worktree.Path}", e);
 
         // A deliberately checked box on a branch named as unmerged is the consent to lose it
         if (rsp.IsDeleteBranch && branch != null)
         {
-            if (!Try(out e, await server.DeleteLocalBranchAsync(branch.Name, isUnmerged, current.Path)))
-                return R.Error($"Worktree removed, but failed to delete branch {branch.Name}", e);
+            if (await server.DeleteLocalBranchAsync(branch.Name, isUnmerged, current.Path) is Error deleteError)
+                return new Error($"Worktree removed, but failed to delete branch {branch.Name}", deleteError);
         }
 
         await repoView.RefreshAsync();
-        return R.Ok;
+        return Result.Ok;
     }
 
     // Forgets the worktrees whose folders are gone, after saying which
-    async Task<R> PruneAsync(IReadOnlyList<Worktree> worktrees)
+    async Task<Result> PruneAsync(IReadOnlyList<Worktree> worktrees)
     {
         var missing = worktrees.Where(w => w.IsPrunable).Select(w => w.Path).ToList();
         if (missing.Count == 0)
-            return R.Ok;
+            return Result.Ok;
 
         var message = $"Forget the worktrees whose folders are gone?\n\n{string.Join("\n", missing)}";
         if (UI.InfoMessage("Prune Worktrees", message, "OK", "Cancel") != 0)
-            return R.Ok;
+            return Result.Ok;
 
-        if (!Try(out var e, await server.PruneWorktreesAsync(repo.Path)))
-            return R.Error("Failed to prune worktrees", e);
+        if (await server.PruneWorktreesAsync(repo.Path) is Error e)
+            return new Error("Failed to prune worktrees", e);
 
         await repoView.RefreshAsync();
-        return R.Ok;
+        return Result.Ok;
     }
 
-    void Do(Func<Task<R>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 }

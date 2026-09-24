@@ -22,7 +22,7 @@ internal static class GitDir
     // Walks up from a folder to the nearest one holding '.git', which is the root of the working
     // tree the folder is in. A '.git' file counts as well as a '.git' folder, so a linked worktree
     // is found, and found rather than the main repository it may be nested inside.
-    public static R<GitDirInfo> Find(string path)
+    public static Result<GitDirInfo> Find(string path)
     {
         if (path == "")
         {
@@ -31,7 +31,7 @@ internal static class GitDir
 
         if (!Directory.Exists(path))
         {
-            return R.Error($"Folder does not exist: '{path}'");
+            return new Error($"Folder does not exist: '{path}'");
         }
 
         var current = path.TrimSuffix("/").TrimSuffix("\\");
@@ -56,11 +56,11 @@ internal static class GitDir
             current = parent;
         }
 
-        return R.Error($"No '.git' folder was found in:\n'{path}'\n or in any parent folders.");
+        return new Error($"No '.git' folder was found in:\n'{path}'\n or in any parent folders.");
     }
 
     // Resolves the git dirs of a known working tree root
-    public static R<GitDirInfo> Resolve(string rootPath)
+    public static Result<GitDirInfo> Resolve(string rootPath)
     {
         var gitPath = Path.Join(rootPath, GitFolder);
         if (Directory.Exists(gitPath))
@@ -70,13 +70,13 @@ internal static class GitDir
 
         if (!File.Exists(gitPath))
         {
-            return R.Error($"No '.git' folder was found in:\n'{rootPath}'");
+            return new Error($"No '.git' folder was found in:\n'{rootPath}'");
         }
 
         var pointer = ReadFirstLine(gitPath);
         if (!pointer.StartsWith(GitDirPrefix))
         {
-            return R.Error($"Not a git dir pointer: '{gitPath}'");
+            return new Error($"Not a git dir pointer: '{gitPath}'");
         }
 
         // The pointer is relative to the folder holding the '.git' file (a submodule's is)
@@ -97,5 +97,5 @@ internal static class GitDir
         Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(relativeTo, path));
 
     static string ReadFirstLine(string path) =>
-        Try(out var text, out var _, () => File.ReadAllText(path)) ? text.Split('\n')[0].Trim() : "";
+        Result.Catch(() => File.ReadAllText(path)) is string text ? text.Split('\n')[0].Trim() : "";
 }

@@ -89,12 +89,12 @@ class Program
         Log.Info($"OS:      {Environment.OSVersion}");
         Log.Info($"Time:    {DateTime.Now.IsoZone()}");
 
-        if (!Try(out var gitVersion, out var e, await git.Version()))
-        {
+        var gitVersionResult = await git.Version();
+        if (gitVersionResult is Error e)
             Log.Error($"No git command detected, {e}");
-        }
+        var gitVersion = gitVersionResult is string version ? version : "";
         Log.Info($"Git:     {gitVersion}");
 
-        config.Set(s => s.GitVersion = gitVersion ?? "");
+        config.Set(s => s.GitVersion = gitVersion);
     }
 }

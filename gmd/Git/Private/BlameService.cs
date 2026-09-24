@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 interface IBlameService
 {
-    Task<R<Blame>> GetBlameAsync(string path, string reference, string wd);
+    Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
 }
 
 // Blames a file, i.e. which commit last changed each line, using 'git blame --porcelain'.
@@ -18,31 +18,31 @@ class BlameService : IBlameService
         this.cmd = cmd;
     }
 
-    public async Task<R<Blame>> GetBlameAsync(string path, string reference, string wd)
+    public async Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd)
     {
         // An empty reference blames the working tree, i.e. including uncommitted lines
         var rev = reference == "" ? "" : $"{reference} ";
         var args = $"blame --porcelain {rev}-- \"{path}\"";
 
         var result = await cmd.RunAsync("git", args, wd, true);
-        if (result.ErrorOutput.Contains(MissingIgnoreRevsError))
+        if (result is CmdError cmdError && cmdError.ErrorOutput.Contains(MissingIgnoreRevsError))
         {
             // The repo's 'blame.ignoreRevsFile' names a file that is not there, which git treats as
             // fatal rather than as 'nothing to ignore'. Honoring that config is right, since it is
             // what git blame and the hosting sites do, but a missing text file should not cost the
             // whole view, so retry once with the setting cleared (an empty value clears the list).
-            Log.Warn($"blame.ignoreRevsFile could not be read, blaming without it: {result.ErrorOutput}");
+            Log.Warn($"blame.ignoreRevsFile could not be read, blaming without it: {cmdError.ErrorOutput}");
             result = await cmd.RunAsync("git", $"-c blame.ignoreRevsFile= {args}", wd);
         }
 
-        if (!Try(out var output, out var e, result))
-            return e;
+        if (result is not string output)
+            return result.Error;
 
         // Wrap parsing in separate task thread, since a large file might be a lot of lines to parse
         return await Task.Run(() => Parse(output, path, reference));
     }
 
-    static R<Blame> Parse(string output, string path, string reference)
+    static Result<Blame> Parse(string output, string path, string reference)
     {
         var lines = output.Split('\n');
         var commits = new Dictionary<string, BlameCommit>();
@@ -59,8 +59,9 @@ class BlameService : IBlameService
                 continue;
             }
 
-            if (!Try(out var header, out var e, ParseHeader(lines[i])))
-                return e;
+            var parsed = ParseHeader(lines[i]);
+            if (parsed is not BlameHeader header)
+                return parsed.Error;
             i++;
 
             i = ParseCommitBlock(lines, i, header.Id, path, commits);
@@ -80,16 +81,18 @@ class BlameService : IBlameService
         return new Blame(path, reference, blameLines, commits);
     }
 
+    record BlameHeader(string Id, int OriginalLineNbr, int FinalLineNbr);
+
     // A header line is '<40 char sha> <original line nbr> <final line nbr> [<lines in group>]'
-    static R<(string Id, int OriginalLineNbr, int FinalLineNbr)> ParseHeader(string line)
+    static Result<BlameHeader> ParseHeader(string line)
     {
         var parts = line.Split(' ');
         if (parts.Length < 3 || parts[0].Length != 40)
-            return R.Error($"Failed to parse blame header '{line}'");
+            return new Error($"Failed to parse blame header '{line}'");
         if (!int.TryParse(parts[1], out var originalLineNbr) || !int.TryParse(parts[2], out var finalLineNbr))
-            return R.Error($"Failed to parse blame header line numbers '{line}'");
+            return new Error($"Failed to parse blame header line numbers '{line}'");
 
-        return (parts[0], originalLineNbr, finalLineNbr);
+        return new BlameHeader(parts[0], originalLineNbr, finalLineNbr);
     }
 
     // Parses the key/value block after a header line and adds the commit if not already known.

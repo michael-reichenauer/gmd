@@ -4,7 +4,7 @@ namespace gmd.Cui;
 
 interface IInitRepoDlg
 {
-    R<string> Show(IReadOnlyList<string> recentParentFolders);
+    Result<string> Show(IReadOnlyList<string> recentParentFolders);
 }
 
 class InitRepoDlg : IInitRepoDlg
@@ -12,7 +12,7 @@ class InitRepoDlg : IInitRepoDlg
     const int width = 55;
     UITextField? pathField;
 
-    public R<string> Show(IReadOnlyList<string> recentParentFolders)
+    public Result<string> Show(IReadOnlyList<string> recentParentFolders)
     {
         var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
 
@@ -28,7 +28,7 @@ class InitRepoDlg : IInitRepoDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (!Try(out var path, browseDlg.Show(recentParentFolders)) || path == "")
+                if (browseDlg.Show(recentParentFolders) is not string path || path == "")
                     return;
                 pathField.Text = path;
             }
@@ -37,7 +37,7 @@ class InitRepoDlg : IInitRepoDlg
         dlg.Validate(() => pathField.Text != "", "Empty path is not allowed");
 
         if (!dlg.ShowOkCancel(pathField))
-            return R.Error();
+            return new Error();
 
         return pathField.Text;
     }

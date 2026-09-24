@@ -18,7 +18,7 @@ namespace gmdTest.Fixtures;
 // Use like e.g.:
 //     using var repo = await TempRepo.CreateAsync();
 //     await repo.CommitFileAsync("file.txt", "text", "Initial");
-//     Assert.IsTrue(Try(out var log, out var e, await repo.Git.GetLogAsync(100, repo.Path)), $"{e}");
+//     var log = AssertOk(await repo.Git.GetLogAsync(100, repo.Path));
 sealed class TempRepo : IDisposable
 {
     // Both the temp folder name and the guard in Dispose, i.e. only folders named like this
@@ -36,8 +36,13 @@ sealed class TempRepo : IDisposable
     // Folders beside the repo that this fixture created (linked worktrees), deleted on Dispose
     readonly List<string> trackedFolders = [];
 
-    TempRepo(string path)
+    // The temp folder this fixture created, which is the repository itself unless it was created
+    // at a path inside it
+    readonly string root;
+
+    TempRepo(string root, string path)
     {
+        this.root = root;
         Path = path;
         Git = NewGit(cmd);
     }
@@ -52,7 +57,20 @@ sealed class TempRepo : IDisposable
     public static async Task<TempRepo> CreateAsync()
     {
         var path = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
-        var repo = new TempRepo(path);
+        var repo = new TempRepo(path, path);
+        await repo.InitAsync();
+        return repo;
+    }
+
+    // The same, with the repository at a path of its own choosing inside the temp folder, for when
+    // the path is on screen: the application bar shows the end of it, which is otherwise a guid.
+    // Everything the fixture makes beside the repository (origin, worktrees) is then inside the temp
+    // folder as well, and deleted with it.
+    public static async Task<TempRepo> CreateAsync(string relativePath)
+    {
+        var root = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
+        var repo = new TempRepo(root, IOPath.Join(root, relativePath));
+        Directory.CreateDirectory(repo.Path);
         await repo.InitAsync();
         return repo;
     }
@@ -87,14 +105,14 @@ sealed class TempRepo : IDisposable
     // Fails the test if git does.
     public async Task<string> GitAsync(string args)
     {
-        var result = await cmd.RunAsync("git", args, Path);
+        var result = await cmd.RunRawAsync("git", args, Path);
         Assert.AreEqual(0, result.ExitCode, $"'git {args}' failed:\n{result.ErrorOutput}");
         return result.Output;
     }
 
     // As GitAsync, but for the commands that are expected to fail — creating a conflict means
     // running a 'git merge' or 'git rebase' that stops, and those exit non-zero.
-    public async Task<string> GitAllowFailAsync(string args) => (await cmd.RunAsync("git", args, Path)).Output;
+    public async Task<string> GitAllowFailAsync(string args) => (await cmd.RunRawAsync("git", args, Path)).Output;
 
     public void WriteFile(string name, string text) => File.WriteAllText(IOPath.Join(Path, name), text);
 
@@ -103,7 +121,7 @@ sealed class TempRepo : IDisposable
     // Commits all changes in the working folder and returns the id of the new commit
     public async Task<string> CommitAsync(string message)
     {
-        Assert.IsTrue(Try(out var e, await Git.CommitAllChangesAsync(message, false, Path)), $"Commit failed: {e}");
+        AssertOk(await Git.CommitAllChangesAsync(message, false, Path));
         return await HeadIdAsync();
     }
 
@@ -178,7 +196,7 @@ sealed class TempRepo : IDisposable
     public async Task AddOriginAsync()
     {
         originPath = Path + "-origin";
-        var result = await cmd.RunAsync("git", $"init --bare \"{originPath}\"", "");
+        var result = await cmd.RunRawAsync("git", $"init --bare \"{originPath}\"", "");
         Assert.AreEqual(0, result.ExitCode, $"'git init --bare' failed:\n{result.ErrorOutput}");
 
         await GitAsync($"remote add origin \"{originPath}\"");
@@ -206,6 +224,12 @@ sealed class TempRepo : IDisposable
 
     public void Dispose()
     {
+        if (root != Path)
+        { // Created at a path inside the temp folder, which then holds everything beside it too
+            DeleteFolder(root);
+            return;
+        }
+
         trackedFolders.ForEach(DeleteFolder);
         DeleteFolder(Path);
         if (originPath != "")
@@ -214,7 +238,7 @@ sealed class TempRepo : IDisposable
 
     async Task InitAsync()
     {
-        Assert.IsTrue(Try(out var e, await Git.InitRepoAsync(Path, "")), $"Init failed: {e}");
+        AssertOk(await Git.InitRepoAsync(Path, ""));
 
         // The initial branch name is a user setting (init.defaultBranch), so it is named
         // explicitly to keep the fixture identical on every machine. HEAD is unborn at this
@@ -254,7 +278,7 @@ sealed class TempRepo : IDisposable
 
         // A failed cleanup should not fail a test, the folder is in temp and will be cleaned by
         // the system eventually
-        if (!Try(out var e, () => Directory.Delete(path, true)))
+        if (Result.Catch(() => Directory.Delete(path, true)) is Error e)
             Log.Warn($"Failed to delete temp repo '{path}', {e}");
     }
 }

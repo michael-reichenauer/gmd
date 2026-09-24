@@ -21,7 +21,7 @@ public class TagServiceTest
     static async Task<IReadOnlyList<gmd.Git.Tag>> GetTagsAsync(ICmd cmd)
     {
         var result = await NewService(cmd).GetTagsAsync("/wd");
-        Assert.IsTrue(Try(out var tags, out var e, result), $"GetTagsAsync failed: {e}");
+        var tags = AssertOk(result);
         return tags;
     }
 
@@ -65,7 +65,7 @@ public class TagServiceTest
 
         var result = await service.GetTagsAsync("/wd");
 
-        Assert.IsFalse(Try(out var _, out var _, result), "Expected the git failure to propagate");
+        AssertError(result, "Expected the git failure to propagate");
     }
 
     [TestMethod]
@@ -140,7 +140,7 @@ public class TagServiceTest
 
         var result = await NewService(cmd).GetTrackedRemoteTagsAsync("/some/wd");
 
-        Assert.IsTrue(Try(out var tracked, out var e, result), $"Failed: {e}");
+        var tracked = AssertOk(result);
         Assert.AreEqual(
             "for-each-ref --format=\"%(objectname) %(refname:strip=3)\" refs/gmdtags/origin/",
             cmd.Calls[0].Args

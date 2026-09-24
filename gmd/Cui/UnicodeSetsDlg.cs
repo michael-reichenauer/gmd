@@ -1,6 +1,8 @@
 using gmd.Cui.Common;
 using Terminal.Gui;
 
+namespace gmd.Cui;
+
 interface IUnicodeSetsDlg
 {
     void Show();
@@ -39,8 +41,8 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
     {
         var text = contentView.CopySelectedText();
         Log.Info($"Copy: '{text}'");
-        if (!Try(out var e, clipboard.Set(text)))
-            UI.ErrorMessage(e.AllErrorMessages());
+        if (clipboard.Set(text) is Error e)
+            UI.ErrorMessage(e.AllMessages());
     }
 
     // Returns a list of texts of all the characters in each set in batches

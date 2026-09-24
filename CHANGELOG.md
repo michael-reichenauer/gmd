@@ -1,9 +1,16 @@
 # Change Log for Gmd
 --------------------
 
-130 releases:
+131 releases:
 
-## [Current] - 2026-09-09
+## [Current] - 2026-09-24
+- Ignore Claude worktrees folder
+- Added spell check hint in Commits dialog
+- Build with the .NET 11 SDK for the C# 15 compiler
+- Updated help file
+- Updated README and and install script
+
+## [v0.91.1410.911] - 2026-09-09
 - Added git Worktree support
 - Fixed issue with missing cursor after spell error fix in commits
 - Fixed progress for commit

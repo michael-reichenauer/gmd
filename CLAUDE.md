@@ -17,14 +17,15 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 
 ```bash
 ./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
-./test [args]    # dotnet test gmdTest/gmdTest.csproj "$@"
-                 #   --filter "TestCategory!=Integration"  fast tests only (~670 tests, ~1 s)
-                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests
+./test [args]    # dotnet test gmd.sln "$@", i.e. both gmdTest and gmdE2eTest (~35 s with the build)
+                 #   --filter "TestCategory!=Integration"  fast tests only (~890 tests, ~1 s)
+                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~30 s, in parallel)
 ./build          # full release: test + package audit + publish all platforms (slow)
 ./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
 ./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 ./installtools   # devcontainer setup: tools, dotnet local tools, git hooks
+./demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
 ```
 
 Faster inner loop for verification: `dotnet build gmd.sln` and `./test`.
@@ -64,12 +65,13 @@ assert on. Fine for "does it start and not crash", and for measuring CPU — whi
 `utime+stime` from `/proc/<pid>/stat` over a window, since `ps %cpu` averages over the whole process
 lifetime and hides a spin that starts late.
 
-All of the above is packaged as `TmuxSession` (`gmdTest/Fixtures/`) and driven by
-`gmdTest/Cui/TerminalTest.cs` — see the Testing section.
+All of the above is packaged as `TmuxSession` (`gmdE2eTest/Fixtures/`) and driven by the tests in
+`gmdE2eTest/Cui/` — see the Testing section.
 
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
 sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
-scripts exist mainly for debugging Windows-specific behavior.
+scripts exist mainly for debugging Windows-specific behavior. `./demo` has none, since it drives
+gmd through tmux, as the end-to-end tests do.
 
 Runtime log: `~/gmd.log`. Log with `Log.Info/Warn/Error/Debug/Exception` (`gmd.Utils.Logging`,
 already a global using). The TUI owns stdout, so **never use `Console.WriteLine` for
@@ -196,30 +198,75 @@ Consequences to remember:
 
 ## Conventions
 
-### Errors: `R` / `R<T>` and `Try`, not exceptions
+### Errors: `Result` / `Result<T>`, a union matched on its case types; not exceptions
 
-`gmd/Utils/Result.cs` defines a result type used for all fallible operations, with
-`global using static gmd.Utils.Result;` in `gmd/Usings.cs` making `Try` available everywhere.
-Exceptions are for bugs, not for control flow.
+`gmd/Utils/Result.cs` defines the result type every fallible operation returns: `Result<T>` is a union
+of the value `T` and an `Error`, and `Result` one of `Success` and `Error`. Both are custom unions in the
+C# 15 sense (`[Union]`, a constructor per case type, an `object? Value`), so a `switch` over one is
+exhaustive with its two arms (a missing arm is a build error, CS8509) and a pattern applies to the
+contained value. Exceptions are for bugs, not for control flow.
 
 ```csharp
-// Propagate an error from a call that returns R<T>
-if (!Try(out var status, out var e, await git.GetStatusAsync(wd))) return e;
+// Propagate, with a value: the pattern binds it, and the error is returned when there is none
+var result = await git.GetStatusAsync(wd);
+if (result is not Status status) return result.Error;
 
-// Ignore the error value
-if (!Try(out var branches, await git.GetBranchesAsync(wd))) return R.Error("no branches");
+// Propagate, no value
+if (await git.SetValueAsync(key, json, wd) is Error e) return e;
 
-// Wrap a throwing API into an R
-if (!Try(out var e, () => File.Move(src, dst))) return e;
+// Branch on the outcome: exhaustive, no discard arm
+return await server.PullAsync(name, wd) switch
+{
+    Success => Result.Ok,
+    Error e => new Error("Failed to pull", e),
+};
 
-// Returning: implicit conversions mean you just return the value or an error
-return commits;                       // → R<IReadOnlyList<Commit>>
-return R.Error($"Folder missing: {path}");
-return R.Ok;                          // → R
+// A fallback instead of an error
+var tags = await git.GetTagsAsync(wd) is IReadOnlyList<Tag> t ? t : [];
+
+// Create and wrap errors; the constructor records the caller's file and line as Origin
+return new Error($"Folder missing: {path}");
+return new Error("Failed to merge", inner: e);
+
+// A throwing API, e.g. a file call, becomes a result at the boundary
+if (Result.Catch(() => File.Move(src, dst)) is Error e) return e;
+
+// Returning: implicit conversions mean you just return the value or the error
+return commits;                       // → Result<IReadOnlyList<Commit>>
+return Result.Ok;                     // → Result
 ```
 
-`R.Error` captures caller file/line automatically. `R<T>.GetResultValue()` fail-fasts if the
-error state was never checked, so always go through `Try`.
+Things to know:
+
+- `result.Error` is the one accessor that trusts the caller: it throws a `ResultException` on a
+  value, so use it only right after a pattern ruled the value out, as above. That exception is
+  what every misuse of a result throws, and `Result.Catch` lets it through, since it is a bug and
+  not a failure of the API being guarded. A pattern variable declared in an `if` condition is
+  scoped to the enclosing block, so a method with several guards names its errors (`pushError`,
+  `deleteError`) rather than reusing `e`.
+- **Name the exact type in the pattern.** `Commit`, `Status`, `ConflictFile` and friends exist in
+  both `gmd.Git` and `gmd.Server`, and a pattern naming the wrong twin compiles and never matches.
+  Spell the type as the file already does (`Git.Commit`, `Server.Repo`, the `GitStatus` alias).
+- `Value` is the compiler's window into the union, not an accessor: every pattern on a result is
+  lowered to a pattern on it, so it returns the `Error` too and never throws. Match on the result
+  rather than read it. The one exception is generic code, where `result is T value` is refused
+  (CS8780: with a type parameter the compiler cannot tell the struct from its contents), so match
+  `result.Value is T value` there. The spec's optional `HasValue` / `TryGetValue` members are left
+  out, since they only pay off for a union that keeps value types unboxed.
+- An `Error` wraps at most one thing, another `Error` or an exception, so `AllMessages()` is this
+  message followed by the wrapped one's messages, outermost first.
+- A tuple cannot be bound by a union pattern that declares a variable, so a result carries a small
+  record instead (`CloneInfo`, `UpdateAvailability`, `BlameHeader`).
+- `ICmd` returns `Result<string>`; a failed command is a `CmdError` with the exit code and both outputs,
+  matched as `result is CmdError e && e.Output.Contains("CONFLICT")`. Its `Origin` is the method that
+  ran the command, passed down through `ICmd` as caller info. `RunRawAsync` is for the few commands
+  whose non-zero exit is an answer rather than a failure.
+- There is no conversion to `bool`, so `Result<bool>` is a value like any other. `default(Result<T>)` holds
+  nothing and matches neither arm, and converting one to `Result` throws rather than passing it off
+  as a success.
+- The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
+  while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
+  `global.json` (MODERNIZATION.md has the GA step).
 
 ### Formatting: CSharpier owns it
 
@@ -266,11 +313,14 @@ not change the string's value.
   enabled as suggestions in `.editorconfig`, so the IDE will point out remaining sites as you work.
 - Expression-bodied one-line members are used heavily for delegation (see `Git.cs`).
 - Nullable reference types and implicit usings are **on**; `gmd/Usings.cs` holds the global
-  usings and `[assembly: InternalsVisibleTo("gmdTest")]` (so tests can reach `internal` types).
+  usings and `[assembly: InternalsVisibleTo("gmdTest")]` (so tests can reach `internal` types, and
+  the same for `gmdE2eTest`).
 - Every git-facing method takes a trailing `string wd` — the repo working directory. It is
   threaded through explicitly rather than stored; keep doing that.
-- Async methods end in `Async` and return `Task<R<...>>`. `RunInBackground()`
-  (`Utils/TaskExtensions.cs`) is the fire-and-forget helper.
+- Async methods end in `Async` and return `Task<Result<...>>`. `RunInBackground()`
+  (`Utils/TaskExtensions.cs`) is the fire-and-forget helper; on a `Task<Result>` or
+  `Task<Result<T>>` it logs an error result as a warning, so a task whose failure is expected
+  handles its own result instead, as the background fetch in `RepoView` does.
 - Comments explain *why* / describe the algorithm step. The `Augmented` and graph code relies
   on them — keep them accurate rather than deleting them.
 
@@ -293,6 +343,15 @@ MSTest 4.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout — put 
 mirroring its subject, e.g. `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`. Tests that
 need a real repository use `TempRepo`; **never** run git against this working tree. Growing this
 suite is an explicit goal — see the open issues in `MODERNIZATION.md`.
+
+The one exception to that layout is the end-to-end tier, which is a project of its own,
+`gmdE2eTest/`, so that it can run in parallel (see `TmuxSession` below). It compiles the fixtures it
+shares with `gmdTest` (`TempRepo`, `TempHome`, `Proc`, `ResultAssert`) as linked files rather than
+copies, so they stay in `gmdTest/Fixtures/`. `./test` runs both projects. Inside it the same rule
+holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
+`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/WorktreeTest.cs` and so on. The
+`Integration` and `E2e` categories are set once for the whole assembly in its `TestSetup.cs`, so a new
+class needs nothing but `[TestClass]` to be kept out of the fast run.
 
 There are five pieces of test infrastructure; use them rather than inventing a sixth way.
 
@@ -355,7 +414,7 @@ all parsing with no subprocess:
 ```csharp
 var cmd = new FakeCmd(gitLogOutput);            // or FakeCmd.Fail("fatal: ...")
 var log = new LogService(cmd);
-Assert.IsTrue(Try(out var commits, out var e, await log.GetLogAsync(100, "/wd")));
+var commits = AssertOk(await log.GetLogAsync(100, "/wd"));
 StringAssert.Contains(cmd.Calls[0].Args, "--max-count=100");
 ```
 
@@ -367,7 +426,7 @@ few and small — `FakeCmd` is the right tool for anything about parsing:
 ```csharp
 using var repo = await TempRepo.CreateAsync();      // 'main', local config set, no commits yet
 var c1 = await repo.CommitFileAsync("file.txt", "text\n", "Initial");
-Assert.IsTrue(Try(out var e, await repo.Git.CreateBranchAsync("dev", true, repo.Path)), $"{e}");
+AssertOk(await repo.Git.CreateBranchAsync("dev", true, repo.Path));
 await repo.AddOriginAsync();                        // a bare repo next door, for push/fetch
 await repo.GitAsync("reset --hard HEAD~1");         // raw git, for what IGit has no method for
 ```
@@ -384,7 +443,7 @@ part that is not cosmetic — remove the row-order flake, since `git log --all -
 commit date and has nothing to break a tie with. They go around `IGit` because `ICmd` cannot pass
 environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committer date.
 
-**`TmuxSession`** (`gmdTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real
+**`TmuxSession`** (`gmdE2eTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real
 pty. tmux keeps a screen model, so `capture-pane` gives back the rendered screen, and that is what
 is asserted — the drawing, the layout, the key dispatch and the dialogs, none of which anything
 else in the suite reaches. It names no Terminal.Gui type, deliberately, so it is as valid against a
@@ -408,7 +467,12 @@ So is the cursor: `gmd.IsCursorVisible` and `gmd.CursorPosition` come from tmux'
 is how "the caret is back in the text field after the menu closed" is asserted.
 
 Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
-filter above excludes them. Seven things they do that matter, and that a new test must keep doing:
+filter above excludes them. They run **in parallel**, eight at a time (`[assembly: Parallelize]` in
+`gmdE2eTest/TestSetup.cs`), which took the tier from about four minutes to about thirty seconds —
+a test is nearly all waiting for a screen to settle, not CPU. What bounds a run now is its longest
+test, the thirty second worktree re-read. `-- MSTest.Parallelize.Workers=1` after the other
+arguments runs them one at a time again. Eight things they do that matter, and that a new test must
+keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
   under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
@@ -433,6 +497,11 @@ filter above excludes them. Seven things they do that matter, and that a new tes
   session to one second, and two of those have nothing to order them by. `E2eRepo` has
   `CreateWithChangesAsync` for a working tree with something to commit; the uncommitted row's own
   time is `DateTime.Now`, so that one row goes through `ScreenText.MaskTimes`.
+- **Nothing shared with the other tests**, since several run at once: everything a test touches is
+  its own repo, HOME and tmux server, and it changes nothing process-wide — no culture, environment
+  variable or current directory. Waiting blocks a thread pool thread for the whole test, which is
+  why `TestSetup` raises the pool's minimum; without that, six workers on two cores starved the pool
+  and a run took ten minutes.
 
 Five traps worth knowing before adding one:
 
@@ -448,22 +517,38 @@ Five traps worth knowing before adding one:
 - **One key per `Send` when driving a menu**, with a `WaitForStable` after each. `Send("Down",
   "Down", …)` in one call loses keys — a menu redraw drops whatever was sent behind it, so five
   arrived as three, and a miscounted menu runs the wrong command. Same "never send a key into a
-  screen that has not settled" rule, and it applies even though no git command is running.
+  screen that has not settled" rule, and it applies even though no git command is running. It is not
+  only menus: in the log view, ten `Down`s sent in one call moved the cursor five rows.
 - **Count menu moves against the *fixture*, not the menu source.** `OnCursorDown` skips disabled
   items, so the same item is a different number of moves in a repo with a remote than in one
-  without. `TerminalTest.TestRenameBranch` is five moves for that reason.
+  without. `BranchTest.TestRenameBranch` is five moves for that reason.
 
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
 
+The same machinery records the README's animation, `gmd/doc/Animation.gif`, which `./demo`
+re-records. `gmdE2eTest/Demo/DemoTest.cs` is the script: an end-to-end test in all but asserting,
+run only when `./demo` names a cast file for it (skipped otherwise), on `DemoRepo`, a repository
+made to look like a team's. `DemoRecording` turns the settled screens into an asciicast, each shown
+for as long as the script says rather than as long as it took, and `./demo` renders that with agg,
+which `./installtools` installs with its fonts. Everything is pinned, including what would differ
+between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
+byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
+a way the demo passes through, re-record it; when a step of the script goes wrong, `CAST=<path>
+./demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step.
+
 Other things to know:
 
-- `gmdTest/Usings.cs` provides the global usings (`Assert`, `Try`, `Log`), and `internal` types are
-  visible to tests, so services can be constructed directly (`new BranchNameService()`) — no DI.
+- `gmdTest/Usings.cs` provides the global usings (`Assert`, `Log`, and `AssertOk` / `AssertError`
+  from `gmdTest/Fixtures/ResultAssert.cs`, which return the value or the `Error` they assert), and
+  `internal` types are visible to tests, so services can be constructed directly
+  (`new BranchNameService()`) — no DI.
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
   (`[AssemblyInitialize]`) before anything can log — otherwise `./test` truncates the developer's
   `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
   `ConfigLogger` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
+  `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
+  `[AssemblyInitialize]`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:
   `Augmenter` → `BranchStructureService` → its three stage services → `BranchNameService`.
   `RepoBuilder.NewAugmenter()` wires the lot up, so use that rather than repeating it.
@@ -475,8 +560,10 @@ Other things to know:
   string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
-- Tests run sequentially (no `.runsettings`). `LogServiceTest` mutates
-  `CultureInfo.DefaultThreadCurrentCulture`, so enabling parallel execution would need care.
+- `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
+  `LogServiceTest` and `TimeDateExtensionsTest` change `CultureInfo.DefaultThreadCurrentCulture`, and
+  `GitIntegrationTest` sets `GIT_EDITOR`. MSTest sets parallelism per assembly (`[Parallelize]` has no
+  class form), which is why the end-to-end tests, which can run in parallel, are a project of their own.
 
 Always run `./test` before reporting work done. Prefer adding a regression test with every
 bug fix — that is the agreed direction for this repo. When the subject is a parser or the

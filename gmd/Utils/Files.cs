@@ -68,15 +68,17 @@ static class Files
 
     public static bool IsText(string path)
     {
-        if (!Try(out var isBinary, out var _, IsBinary(path)))
+        var isBinaryResult = IsBinary(path);
+        if (isBinaryResult is not bool isBinary)
             return false;
         return !isBinary;
     }
 
-    public static R<string> GetEmbeddedFileContentText(string name)
+    public static Result<string> GetEmbeddedFileContentText(string name)
     {
-        if (!Try(out var stream, out var e, GetEmbeddedFileStream(name)))
-            return e;
+        var streamResult = GetEmbeddedFileStream(name);
+        if (streamResult is not Stream stream)
+            return streamResult.Error;
 
         try
         {
@@ -88,37 +90,37 @@ static class Files
         }
         catch (Exception ex)
         {
-            return R.Error(ex);
+            return new Error(ex);
         }
     }
 
     // Opens an embedded resource as a stream, for content that is not text or is too large to
     // want as one string (the spell check dictionary). The caller disposes the stream.
-    public static R<Stream> GetEmbeddedFileStream(string name)
+    public static Result<Stream> GetEmbeddedFileStream(string name)
     {
         try
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             if (assembly == null)
-                return R.Error("No GetExecutingAssembly");
+                return new Error("No GetExecutingAssembly");
 
             // var names = asm.GetManifestResourceNames();
             var stream = assembly.GetManifestResourceStream(name);
             if (stream == null)
-                return R.Error($"Embedded file '{name}'");
+                return new Error($"Embedded file '{name}'");
 
             return stream;
         }
         catch (Exception e)
         {
-            return R.Error(e);
+            return new Error(e);
         }
     }
 
     // Returns true if the file seems to be a binary file.
     // The file is considered binary if it contains at least one consecutive
     // sequence of 1 or more NUL characters within the first 8000 characters.
-    static R<bool> IsBinary(string path)
+    static Result<bool> IsBinary(string path)
     {
         try
         {
@@ -151,7 +153,7 @@ static class Files
         }
         catch (Exception e)
         {
-            return R.Error(e);
+            return new Error(e);
         }
     }
 }

@@ -1,4 +1,4 @@
-namespace gmdTest.Fixtures;
+namespace gmdE2eTest.Fixtures;
 
 // The repository the end-to-end UI tests are written against: small enough that a whole screen
 // fits in a snapshot, and interesting enough that the graph has something to draw — a branch that
@@ -211,7 +211,7 @@ static class E2eRepo
     //
     // Deliberately its own repository rather than another commit on CreateAsync: changing that
     // fixture would change the id of that commit and of every commit after it, and with it every
-    // snapshot in TerminalTest that names one.
+    // end-to-end snapshot that names one.
     public static async Task<TempRepo> CreateWithLongFileAsync()
     {
         var repo = await TempRepo.CreateAsync();

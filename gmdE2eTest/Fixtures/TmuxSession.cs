@@ -1,7 +1,7 @@
 using System.Text;
 using IOPath = System.IO.Path;
 
-namespace gmdTest.Fixtures;
+namespace gmdE2eTest.Fixtures;
 
 // Drives the built gmd binary in a tmux pane and reads back the rendered screen.
 //
@@ -103,6 +103,10 @@ sealed class TmuxSession : IDisposable
     // The same with the colors kept as ANSI escapes. Unused by the tests so far, but it is the
     // only way to reach what is highlighted, and the highlight is how gmd draws the current row.
     public string CaptureColors() => Tmux("capture-pane", "-p", "-e", "-t", "gmd").Output;
+
+    // The whole screen with its colors, for replaying it rather than asserting it: -N keeps the
+    // trailing blank cells, which a highlight's background runs on into, so every row is full width
+    public string CaptureScreen() => Tmux("capture-pane", "-p", "-e", "-N", "-t", "gmd").Output;
 
     // Polls until the screen contains the text and has then stopped changing, and returns it.
     // Never sleeps a fixed time.
