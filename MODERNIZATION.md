@@ -265,8 +265,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   pull-request job first, then consider a floor as a ratchet.
 - IDE0305 (`.ToList()` → `[.. x]`, 13 sites) by hand, since it can change the concrete type behind
   an `IReadOnlyList<T>`. Target-typed `new()` is an open style question.
-- `gmdSetup.exe` is a committed prebuilt binary; Intel macOS is unreleased though `install.sh`
-  looks for `gmd_osx`; `MajorVersion` / `MinorVersion` are hand-edited; there is no `.runsettings`.
+- `gmdSetup.exe` is a committed prebuilt binary; Intel macOS is unreleased (`install.sh` now says so
+  rather than downloading a `gmd_osx` that does not exist); `MajorVersion` / `MinorVersion` are
+  hand-edited; there is no `.runsettings`.
 - `gmdTest` cannot run in parallel: 4 of 15 parallel runs of it failed. `LogServiceTest` and
   `TimeDateExtensionsTest` change the default culture and `GitIntegrationTest` sets `GIT_EDITOR`,
   and there may be more. Nothing to gain either, since it takes about 3 s; only the end-to-end

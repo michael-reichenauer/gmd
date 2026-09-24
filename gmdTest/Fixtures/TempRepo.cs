@@ -36,8 +36,13 @@ sealed class TempRepo : IDisposable
     // Folders beside the repo that this fixture created (linked worktrees), deleted on Dispose
     readonly List<string> trackedFolders = [];
 
-    TempRepo(string path)
+    // The temp folder this fixture created, which is the repository itself unless it was created
+    // at a path inside it
+    readonly string root;
+
+    TempRepo(string root, string path)
     {
+        this.root = root;
         Path = path;
         Git = NewGit(cmd);
     }
@@ -52,7 +57,20 @@ sealed class TempRepo : IDisposable
     public static async Task<TempRepo> CreateAsync()
     {
         var path = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
-        var repo = new TempRepo(path);
+        var repo = new TempRepo(path, path);
+        await repo.InitAsync();
+        return repo;
+    }
+
+    // The same, with the repository at a path of its own choosing inside the temp folder, for when
+    // the path is on screen: the application bar shows the end of it, which is otherwise a guid.
+    // Everything the fixture makes beside the repository (origin, worktrees) is then inside the temp
+    // folder as well, and deleted with it.
+    public static async Task<TempRepo> CreateAsync(string relativePath)
+    {
+        var root = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
+        var repo = new TempRepo(root, IOPath.Join(root, relativePath));
+        Directory.CreateDirectory(repo.Path);
         await repo.InitAsync();
         return repo;
     }
@@ -206,6 +224,12 @@ sealed class TempRepo : IDisposable
 
     public void Dispose()
     {
+        if (root != Path)
+        { // Created at a path inside the temp folder, which then holds everything beside it too
+            DeleteFolder(root);
+            return;
+        }
+
         trackedFolders.ForEach(DeleteFolder);
         DeleteFolder(Path);
         if (originPath != "")
