@@ -1,4 +1,4 @@
-namespace gmdTest.Fixtures;
+namespace gmdE2eTest.Fixtures;
 
 // The repository the end-to-end UI tests are written against: small enough that a whole screen
 // fits in a snapshot, and interesting enough that the graph has something to draw — a branch that

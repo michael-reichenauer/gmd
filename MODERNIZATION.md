@@ -266,8 +266,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - IDE0305 (`.ToList()` → `[.. x]`, 13 sites) by hand, since it can change the concrete type behind
   an `IReadOnlyList<T>`. Target-typed `new()` is an open style question.
 - `gmdSetup.exe` is a committed prebuilt binary; Intel macOS is unreleased though `install.sh`
-  looks for `gmd_osx`; `MajorVersion` / `MinorVersion` are hand-edited; there is no `.runsettings`,
-  and `LogServiceTest` mutates the default culture, so parallel tests would need care.
+  looks for `gmd_osx`; `MajorVersion` / `MinorVersion` are hand-edited; there is no `.runsettings`.
+- `gmdTest` cannot run in parallel: 4 of 15 parallel runs of it failed. `LogServiceTest` and
+  `TimeDateExtensionsTest` change the default culture and `GitIntegrationTest` sets `GIT_EDITOR`,
+  and there may be more. Nothing to gain either, since it takes about 3 s; only the end-to-end
+  tests, in `gmdE2eTest`, run in parallel.
 - Mouse interaction has no end-to-end test; it needs raw SGR sequences via `send-keys -H`.
 
 **Test suite**
@@ -282,6 +285,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   times, in an E2e rerun and in a full rerun. Recorded so nobody hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
+- The end-to-end tests were about four of `./test`'s four and a half minutes, nearly all waiting:
+  every wait needs four identical captures 100 ms apart, so it costs at least about 330 ms after the
+  screen is already right, and an idle gmd uses about 6 ms of CPU a second. So they run eight at a
+  time, in a project of their own since MSTest sets parallelism per assembly: about 30 s, bounded
+  by the thirty-second worktree re-read test. Measured clean with 8 workers on 2, 4 and 9 cores.
+- Parallel tests that block starve the thread pool. A running end-to-end test holds a pool thread
+  for all of its run (TmuxSession polls with `Thread.Sleep`), and each `Proc.Run` needs more pool
+  threads for its output callbacks before `WaitForExit()` returns. With more workers than cores
+  every tmux call waited for the pool to grow: six workers on two cores took ten minutes, with two
+  tests failing on their 30 s timeouts. `gmdE2eTest/TestSetup.cs` raises the pool's minimum.
+- Several `Down`s sent in one `send-keys` lose keys, in the log view and the diff view alike and
+  with no git command running: in the log view two moved the cursor one row, five moved it three,
+  ten moved it five. Sent one per call, all arrived. So one key per `Send` with a wait after it is a
+  real constraint, and it is what makes `TestDiffContextIsSteppedPerFile` (36 single `Down`s) the
+  second slowest test.
 - The throwaway `$HOME` is Unix only; a Windows test run still truncates `~/gmd.log`. The terminal
   tests report `Inconclusive` there.
 - **Headless drawing is possible on 1.x**: `Application.Init(new FakeDriver(), null)` renders with

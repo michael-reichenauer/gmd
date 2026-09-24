@@ -3,9 +3,9 @@
 // still spell checked.
 // cspell:ignore resonable issu Sumerize brnach zzzznothing
 
-using gmdTest.Fixtures;
+using gmdE2eTest.Fixtures;
 
-namespace gmdTest.Cui;
+namespace gmdE2eTest.Cui;
 
 // End-to-end tests: the built gmd binary, real git, a real pty. tmux keeps a screen model, so
 // what is asserted is the rendered screen — the drawing, the layout, the key dispatch and the

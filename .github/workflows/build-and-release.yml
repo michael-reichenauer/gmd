@@ -43,7 +43,7 @@ jobs:
           global-json-file: global.json
           dotnet-version: '10.0.x'
 
-      # The end-to-end UI tests drive the built binary in a tmux pane (gmdTest/Fixtures/
+      # The end-to-end UI tests drive the built binary in a tmux pane (gmdE2eTest/Fixtures/
       # TmuxSession.cs), and they fail rather than skip when tmux is missing, deliberately, so
       # that this tier cannot quietly stop running. ubuntu-latest ships tmux today but nothing
       # pins that, so install it if the image ever drops it. Free when it is already there.

@@ -46,7 +46,8 @@ fi
 echo ""
 echo Run tests ...
 # '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see './test')
-dotnet test gmdTest/gmdTest.csproj -tl:false -v quiet --nologo -l:"console;verbosity=normal"
+# Both test projects, see ./test
+dotnet test gmd.sln -tl:false -v quiet --nologo -l:"console;verbosity=normal"
 if [ $? -ne 0 ]; then
   echo "Error: Tests failed"
   exit 1

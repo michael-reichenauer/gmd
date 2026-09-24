@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace gmdTest.Fixtures;
+namespace gmdE2eTest.Fixtures;
 
 // Normalizes a screen captured from a tmux pane, so it can be asserted as a picture of what the
 // user sees. GraphText does the same job for the graph column alone; this does it for the whole
