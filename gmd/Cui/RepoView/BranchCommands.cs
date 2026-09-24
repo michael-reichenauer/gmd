@@ -298,10 +298,7 @@ class BranchCommands : IBranchCommands
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
             var diffsResult = await reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
-            {
-                var e = diffsResult.Error;
-                return new Error($"Failed to get diff", e);
-            }
+                return new Error("Failed to get diff", diffsResult.Error);
 
             diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
             return Result.Ok;
@@ -330,10 +327,7 @@ class BranchCommands : IBranchCommands
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha1, sha2, message, n, repo.Path));
             var diffsResult = await reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
-            {
-                var e = diffsResult.Error;
-                return new Error($"Failed to get diff", e);
-            }
+                return new Error("Failed to get diff", diffsResult.Error);
 
             diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
             return Result.Ok;

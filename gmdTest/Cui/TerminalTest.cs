@@ -1172,6 +1172,40 @@ public class TerminalTest
         );
     }
 
+    // The filter dialog is one instance for the whole session, and it used to return the commit
+    // chosen in an earlier session when a later one was closed with nothing chosen, so the log view
+    // jumped back to that commit. Here the cursor is on the top row when the filter is closed, and
+    // has to stay there.
+    [TestMethod]
+    public async Task TestFilterClosedWithoutChoosingLeavesTheCursorAlone()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        // Choose a commit, which moves the cursor onto it, then move it back to the top row. Only
+        // then is the top row compared, since choosing it showed its branch, which widens the graph.
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+        gmd.SendText("More dev");
+        gmd.WaitFor("Search: More dev");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Filter Commits");
+        var onChosen = ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4);
+        gmd.Send("Home");
+        gmd.WaitForStable();
+        var atTop = ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4);
+        Assert.AreNotEqual(onChosen, atTop, "The chosen commit is not the top row");
+
+        // The filter again, closed with nothing chosen
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Filter Commits");
+
+        Assert.AreEqual(atTop, ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4), "Still on the top row");
+    }
+
     // Stashing, i.e. the menu, the dialog behind it and what the log view says afterwards. The
     // 'ß' is drawn nowhere else, so this is the only cover WriteBlankOrStash has at any tier.
     //

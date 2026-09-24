@@ -340,8 +340,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         var viewRepoResult = await server.GetUpdatedWorktreesRepoAsync(shown);
         if (viewRepoResult is not Server.Repo viewRepo)
         {
-            var e = viewRepoResult.Error;
-            Log.Warn($"Failed to update worktrees, {e}");
+            Log.Warn($"Failed to update worktrees, {viewRepoResult.Error}");
             return;
         }
         if (repo.Repo != shown || viewRepo.Worktrees.SequenceEqual(shown.Worktrees))
@@ -406,8 +405,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             var viewRepoResult = await GetRepoAsync(repo.Repo.Path, branchNames);
             if (viewRepoResult is not Server.Repo viewRepo)
             {
-                var e = viewRepoResult.Error;
-                UI.ErrorMessage($"Failed to refresh:\n{e}");
+                UI.ErrorMessage($"Failed to refresh:\n{viewRepoResult.Error}");
                 return;
             }
 
@@ -426,13 +424,13 @@ class RepoView : IRepoView, IRepoViewInputHost
             Log.Info($"Showed {t} {viewRepo}");
             if (isAwaitFetch)
             {
-                await server.FetchAsync(repo.Repo.Path);
+                await FetchBestEffortAsync();
             }
         }
 
         if (!isAwaitFetch)
         {
-            server.FetchAsync(repo.Repo.Path).RunInBackground();
+            FetchBestEffortAsync().RunInBackground();
         }
     }
 
@@ -444,8 +442,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             var viewRepoResult = await GetUpdateStatusRepoAsync(repo.Repo);
             if (viewRepoResult is not Server.Repo viewRepo)
             {
-                var e = viewRepoResult.Error;
-                UI.ErrorMessage($"Failed to update status:\n{e}");
+                UI.ErrorMessage($"Failed to update status:\n{viewRepoResult.Error}");
                 return;
             }
 
@@ -514,8 +511,16 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     bool FetchFromRemote()
     {
-        server.FetchAsync(repo.Repo.Path).RunInBackground();
+        FetchBestEffortAsync().RunInBackground();
         return true;
+    }
+
+    // The fetch runs after every refresh and on a timer, and fails whenever the machine is offline
+    // or the repo has no 'origin', so a failure is expected and noted at Debug, not warned about
+    async Task FetchBestEffortAsync()
+    {
+        if (await server.FetchAsync(repo.Repo.Path) is Error e)
+            Log.Debug($"Fetch failed: {e.AllMessages()}");
     }
 
     void RememberRepoPaths(string path)

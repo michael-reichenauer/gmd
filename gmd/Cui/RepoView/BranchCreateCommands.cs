@@ -63,19 +63,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 }
                 branchName = rsp.Name;
 
-                if (rsp.IsPush && await server.PushBranchAsync(branchName, repo.Path) is Error pushError)
-                {
-                    // The push error could be that repo has no remote origin, (local only)
-                    if (pushError.Message.Contains("'origin' does not appear to be a git repository"))
-                    { // The push error is that repo has no remote origin, (local repo only)
-                        // I.e. no remote repo to push to, lets just ignore the push error
-                        return Result.Ok;
-                    }
-
-                    return new Error($"Failed to push branch {branchName} to remote server", pushError);
-                }
-
-                return Result.Ok;
+                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
             }
             finally
             {
@@ -110,18 +98,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 }
                 branchName = rsp.Name;
 
-                if (rsp.IsPush && await server.PushBranchAsync(branchName, repo.Path) is Error pushError)
-                { // The push error could be that repo has no remote origin, (local only)
-                    if (pushError.Message.Contains("'origin' does not appear to be a git repository"))
-                    { // The push error is that repo has no remote origin, (local repo only)
-                        // I.e. no remote repo to push to, lets just ignore the push error
-                        return Result.Ok;
-                    }
-
-                    return new Error($"Failed to push branch {branchName} to remote server", pushError);
-                }
-
-                return Result.Ok;
+                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
             }
             finally
             {
@@ -154,17 +131,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 }
                 branchName = rsp.Name;
 
-                if (rsp.IsPush && await server.PushBranchAsync(rsp.Name, repo.Path) is Error pushError)
-                { // The push error could be that repo has no remote origin, (local only)
-                    if (pushError.Message.Contains("'origin' does not appear to be a git repository"))
-                    { // The push error is that repo has no remote origin, (local repo only)
-                        // I.e. no remote repo to push to, lets just ignore the push error
-                        return Result.Ok;
-                    }
-                    return new Error($"Failed to push branch {rsp.Name} to remote server", pushError);
-                }
-
-                return Result.Ok;
+                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
             }
             finally
             {
@@ -328,6 +295,17 @@ class BranchCreateCommands : IBranchCreateCommands
     }
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+
+    // Pushes a branch just created. A repo with no 'origin' is a local only repo with nowhere to
+    // push to, which is no failure to create the branch, so that push error is ignored.
+    async Task<Result> PushNewBranchAsync(string branchName)
+    {
+        if (await server.PushBranchAsync(branchName, repo.Path) is not Error e)
+            return Result.Ok;
+        if (e.Message.Contains("'origin' does not appear to be a git repository"))
+            return Result.Ok;
+        return new Error($"Failed to push branch {branchName} to remote server", e);
+    }
 
     void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
 }

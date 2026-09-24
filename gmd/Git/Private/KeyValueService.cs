@@ -17,13 +17,8 @@ class KeyValueService : IKeyValueService
         this.cmd = cmd;
     }
 
-    public async Task<Result<string>> GetValueAsync(string key, string wd)
-    {
-        var result = await cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true);
-        if (result is not string output)
-            return result.Error;
-        return output;
-    }
+    public Task<Result<string>> GetValueAsync(string key, string wd) =>
+        cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true);
 
     public async Task<Result> SetValueAsync(string key, string value, string wd)
     {

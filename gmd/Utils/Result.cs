@@ -114,6 +114,15 @@ public class Error
     public override string ToString() => $"Error: {Message}";
 }
 
+// Thrown on a bug in the use of a result rather than on a failure: a null value, the error of a
+// result that holds a value, an unset result. Result.Catch lets it through, since it is a bug in
+// the caller and not a failure of the API it guards.
+public sealed class ResultException : InvalidOperationException
+{
+    public ResultException(string message)
+        : base(message) { }
+}
+
 // The success case of Result
 public sealed class Success
 {
@@ -144,7 +153,8 @@ public readonly struct Result : IUnion
 
     // Runs an action that reports failure by throwing, e.g. a file API, and returns the exception
     // as an error. Every exception is caught, the fatal ones included, since bad input to such an
-    // API surfaces as an ArgumentException or an InvalidOperationException.
+    // API surfaces as an ArgumentException or an InvalidOperationException; all but a
+    // ResultException, which is a bug in the use of a result inside the action.
     //
     //   if (Result.Catch(() => File.Move(source, target)) is Error e) return e;
     public static Result Catch(
@@ -159,7 +169,7 @@ public readonly struct Result : IUnion
             action();
             return Ok;
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not ResultException)
         {
             return new Error(e, memberName, sourceFilePath, sourceLineNumber);
         }
@@ -178,14 +188,19 @@ public readonly struct Result : IUnion
     )
         where T : notnull
     {
+        T value;
         try
         {
-            return func();
+            value = func();
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not ResultException)
         {
             return new Error(e, memberName, sourceFilePath, sourceLineNumber);
         }
+
+        // Converted outside the try, so a null value throws rather than becoming an error: it is a
+        // bug in the function, not a failure of it
+        return value;
     }
 
     public override string ToString() =>
@@ -205,8 +220,7 @@ public readonly struct Result<T> : IUnion
     readonly object? value;
 
     // A null value is not an error, it is a bug in the function returning it
-    public Result(T value) =>
-        this.value = value ?? throw new InvalidOperationException("A result value cannot be null");
+    public Result(T value) => this.value = value ?? throw new ResultException("A result value cannot be null");
 
     public Result(Error error) => value = error;
 
@@ -220,14 +234,22 @@ public readonly struct Result<T> : IUnion
     // value; reading it on a value is a bug in the caller:
     //
     //   if (result is not Status status) return result.Error;
-    public Error Error => value as Error ?? throw new InvalidOperationException("Result is not an error");
+    public Error Error =>
+        value as Error ?? throw new ResultException(value == null ? "Result is unset" : "Result is not an error");
 
     public static implicit operator Result<T>(T value) => new(value);
 
     public static implicit operator Result<T>(Error error) => new(error);
 
-    // Dropping the value keeps the outcome
-    public static implicit operator Result(Result<T> result) => result.value is Error e ? new Result(e) : Result.Ok;
+    // Dropping the value keeps the outcome. An unset result has no outcome to keep, and passing it
+    // off as a success would hide the bug that left it unset.
+    public static implicit operator Result(Result<T> result) =>
+        result.value switch
+        {
+            Error e => new Result(e),
+            null => throw new ResultException("Result is unset"),
+            _ => Result.Ok,
+        };
 
     public override string ToString() =>
         value switch

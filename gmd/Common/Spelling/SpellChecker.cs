@@ -110,20 +110,11 @@ class SpellChecker : ISpellChecker
                 return affResult.Error;
             using (aff)
             {
-                var listResult = Result.Catch(() => WordList.CreateFromStreams(dic, aff));
-                if (listResult is not WordList list)
-                    return listResult.Error;
-                return list;
+                return Result.Catch(() => WordList.CreateFromStreams(dic, aff));
             }
         }
     }
 
     // A Hunspell dictionary on disk: the .dic path, with the .aff expected beside it
-    static Result<WordList> LoadFiles(string dicPath)
-    {
-        var listResult = Result.Catch(() => WordList.CreateFromFiles(dicPath));
-        if (listResult is not WordList list)
-            return listResult.Error;
-        return list;
-    }
+    static Result<WordList> LoadFiles(string dicPath) => Result.Catch(() => WordList.CreateFromFiles(dicPath));
 }

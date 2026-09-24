@@ -236,10 +236,12 @@ return Result.Ok;                     // → Result
 
 Things to know:
 
-- `result.Error` is the one accessor that trusts the caller: it fail-fasts on a value, so use it
-  only right after a pattern ruled the value out, as above. A pattern variable declared in an `if`
-  condition is scoped to the enclosing block, so a method with several guards names its errors
-  (`pushError`, `deleteError`) rather than reusing `e`.
+- `result.Error` is the one accessor that trusts the caller: it throws a `ResultException` on a
+  value, so use it only right after a pattern ruled the value out, as above. That exception is
+  what every misuse of a result throws, and `Result.Catch` lets it through, since it is a bug and
+  not a failure of the API being guarded. A pattern variable declared in an `if` condition is
+  scoped to the enclosing block, so a method with several guards names its errors (`pushError`,
+  `deleteError`) rather than reusing `e`.
 - **Name the exact type in the pattern.** `Commit`, `Status`, `ConflictFile` and friends exist in
   both `gmd.Git` and `gmd.Server`, and a pattern naming the wrong twin compiles and never matches.
   Spell the type as the file already does (`Git.Commit`, `Server.Repo`, the `GitStatus` alias).
@@ -254,10 +256,12 @@ Things to know:
 - A tuple cannot be bound by a union pattern that declares a variable, so a result carries a small
   record instead (`CloneInfo`, `UpdateAvailability`, `BlameHeader`).
 - `ICmd` returns `Result<string>`; a failed command is a `CmdError` with the exit code and both outputs,
-  matched as `result is CmdError e && e.Output.Contains("CONFLICT")`. `RunRawAsync` is for the few
-  commands whose non-zero exit is an answer rather than a failure.
+  matched as `result is CmdError e && e.Output.Contains("CONFLICT")`. Its `Origin` is the method that
+  ran the command, passed down through `ICmd` as caller info. `RunRawAsync` is for the few commands
+  whose non-zero exit is an answer rather than a failure.
 - There is no conversion to `bool`, so `Result<bool>` is a value like any other. `default(Result<T>)` holds
-  nothing and matches neither arm.
+  nothing and matches neither arm, and converting one to `Result` throws rather than passing it off
+  as a success.
 - The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
   while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
   `global.json` (MODERNIZATION.md has the GA step).
@@ -311,7 +315,9 @@ not change the string's value.
 - Every git-facing method takes a trailing `string wd` — the repo working directory. It is
   threaded through explicitly rather than stored; keep doing that.
 - Async methods end in `Async` and return `Task<Result<...>>`. `RunInBackground()`
-  (`Utils/TaskExtensions.cs`) is the fire-and-forget helper.
+  (`Utils/TaskExtensions.cs`) is the fire-and-forget helper; on a `Task<Result>` or
+  `Task<Result<T>>` it logs an error result as a warning, so a task whose failure is expected
+  handles its own result instead, as the background fetch in `RepoView` does.
 - Comments explain *why* / describe the algorithm step. The `Augmented` and graph code relies
   on them — keep them accurate rather than deleting them.
 

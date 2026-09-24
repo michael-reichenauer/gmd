@@ -28,7 +28,7 @@ class FilterDlg : IFilterDlg
     Server.Repo currentRepo = null!;
     string currentFilter = null!;
     ContentView resultsView = null!;
-    Result<Server.Commit> selectedCommit = new Error("No commit selected");
+    Result<Server.Commit> selectedCommit;
     Text repoInfo = Text.Empty;
     int closeX = 0;
 
@@ -43,6 +43,8 @@ class FilterDlg : IFilterDlg
         this.orgRepo = repo;
         this.currentRepo = repo;
         this.currentFilter = null!;
+        // The dialog is reused, so what an earlier session selected must not be returned by this one
+        this.selectedCommit = new Error("No commit selected");
         this.onRepoChanged = onRepoChanged;
         this.resultsView = commitsView;
 

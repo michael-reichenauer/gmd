@@ -5,9 +5,7 @@ using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
-// What CommitAsync did, for the commands that have more to do afterwards. Note that this is an
-// enum and not a bool: Result<bool> would be a trap, since Result<T> converts implicitly both to and from
-// its value, and for T = bool 'bool b = result' silently yields IsOk rather than the value.
+// What CommitAsync did, for the commands that have more to do afterwards
 enum CommitResult
 {
     Committed,
@@ -245,10 +243,7 @@ class CommitCommands : ICommitCommands
 
             var diffsResult = await reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
-            {
-                var e = diffsResult.Error;
-                return new Error($"Failed to get diff", e);
-            }
+                return new Error("Failed to get diff", diffsResult.Error);
 
             // Only the uncommitted diff can have conflicts, and reading them here keeps the await
             // off the main loop — see the note on IDiffView.Show
@@ -360,10 +355,7 @@ class CommitCommands : ICommitCommands
             var reload = DiffReloads.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
             var diffsResult = await reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
-            {
-                var e = diffsResult.Error;
-                return new Error($"Failed to diff stash {name}", e);
-            }
+                return new Error($"Failed to diff stash {name}", diffsResult.Error);
 
             diffView.Show(diffs[0], name, repo.Path, reload, ConflictState.None);
             return Result.Ok;

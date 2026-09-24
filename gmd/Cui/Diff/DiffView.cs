@@ -432,8 +432,7 @@ class DiffView : IDiffView
             var fetchedResult = await reload(wanted);
             if (fetchedResult is not CommitDiff[] fetched)
             {
-                var e = fetchedResult.Error;
-                UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
+                UI.ErrorMessage($"Failed to get diff\n{fetchedResult.Error.AllMessages()}");
                 return;
             }
 
@@ -482,8 +481,7 @@ class DiffView : IDiffView
             var refreshedResult = await reload(DiffContext.Default);
             if (refreshedResult is not CommitDiff[] refreshed)
             {
-                var e = refreshedResult.Error;
-                UI.ErrorMessage($"Failed to get diff\n{e.AllMessages()}");
+                UI.ErrorMessage($"Failed to get diff\n{refreshedResult.Error.AllMessages()}");
                 return;
             }
 

@@ -19,8 +19,7 @@ class HelpDlg : IHelpDlg
         var contentResult = Files.GetEmbeddedFileContentText(helpFile);
         if (contentResult is not string content)
         {
-            var e = contentResult.Error;
-            UI.ErrorMessage($"Failed to read help file,\n{e}");
+            UI.ErrorMessage($"Failed to read help file,\n{contentResult.Error}");
             return;
         }
 

@@ -15,7 +15,8 @@ public static class ResultAssert
     {
         if (result.Value is T value)
             return value;
-        throw new AssertFailedException($"Expected a value but got {result.Error.AllMessages()}{Suffix(message)}");
+        var got = result.Value is Error e ? e.AllMessages() : "an unset result";
+        throw new AssertFailedException($"Expected a value but got {got}{Suffix(message)}");
     }
 
     public static void AssertOk(Result result, string message = "")

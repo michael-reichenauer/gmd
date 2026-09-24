@@ -468,7 +468,7 @@ class Server : IServer
 
     public async Task<Result<string>> GetChangeLogAsync()
     {
-        var repoResult = await GetRepoAsync("", new[] { "main" });
+        var repoResult = await GetRepoAsync("", ["main"]);
         if (repoResult is not Repo repo)
             return repoResult.Error;
 

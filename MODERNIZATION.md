@@ -64,18 +64,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   CLAUDE.md under Conventions.
 - Renamed `R` / `R<T>` to `Result` / `Result<T>` (2026-09-12), so the type reads without
   explanation in another project, and `Result.cs` no longer calls gmd's `Asserter`: misuse throws
-  `InvalidOperationException`, which gmd's unhandled-exception path logs and shows anyway. So
-  `Result.cs`, `UnionPolyfill.cs` and the test helper `ResultAssert.cs` depend on nothing but the
-  BCL and can be copied to another project as they are (one namespace line each).
+  `ResultException`, an `InvalidOperationException` that `Result.Catch` lets through and gmd's
+  unhandled-exception path logs and shows. So `Result.cs`, `UnionPolyfill.cs` and the test helper
+  `ResultAssert.cs` depend on nothing but the BCL and can be copied to another project as they are
+  (one namespace line each).
 - The compiler is the .NET 11 RC1 SDK's (`global.json`; `LangVersion preview` in
   `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
   are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
   why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
   (CS8509) is a build error.
 - Found on the way: `Task<Result>.RunInBackground()` bound to the `Task` overload and dropped an error
-  result silently (the two fetch sites in `RepoView`); `IsUpdateAvailableAsync` and `CloneDlg.Show`
-  returned tuples, which a union pattern cannot bind by name, so they return records;
-  `UpdateChangeLog` wrote an empty `CHANGELOG.md` when reading the log failed.
+  result silently (the fetch sites in `RepoView`, which now log their expected failure at Debug
+  themselves, since the new overload warned on every refresh of a repo with no `origin`);
+  `IsUpdateAvailableAsync` and `CloneDlg.Show` returned tuples, which a union pattern cannot bind
+  by name, so they return records; `UpdateChangeLog` wrote an empty `CHANGELOG.md` when reading
+  the log failed.
 
 **Features added on the way** (each documented in `gmd/doc/help.md`)
 
@@ -274,8 +277,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   devcontainer only, a blank pane with no `gmd.log` at all — the binary never started. Nine
   consecutive full runs were green afterwards. Seen once more on 2026-09-09
   (`TestRemoveWorktreeAndItsBranchFromTheDialog`, the `Kind    Branch` wait after `w`), and again
-  not reproduced: a full rerun and 21 runs of the worktree tests were green. Recorded so nobody
-  hunts a flake that is not biting.
+  not reproduced: a full rerun and 21 runs of the worktree tests were green. Once more on
+  2026-09-24 (`TestStashPopBringsTheChangesBack`, message not captured), and green alone three
+  times, in an E2e rerun and in a full rerun. Recorded so nobody hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The throwaway `$HOME` is Unix only; a Windows test run still truncates `~/gmd.log`. The terminal

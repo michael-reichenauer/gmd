@@ -254,8 +254,7 @@ class RepoCommands : IRepoCommands
         var markedResult = await server.GetLeftoverMarkerPathsAsync(repo.Path);
         if (markedResult is not IReadOnlyList<string> marked)
         {
-            var e = markedResult.Error;
-            Log.Warn($"Failed to check for conflict markers: {e}");
+            Log.Warn($"Failed to check for conflict markers: {markedResult.Error}");
             return true; // Never block a commit because the check itself broke
         }
         if (marked.Count == 0)

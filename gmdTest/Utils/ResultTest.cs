@@ -120,7 +120,7 @@ public class ResultTest
     {
         Result<int> result = 5;
 
-        var e = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        var e = Assert.ThrowsExactly<ResultException>(() =>
         {
             _ = result.Error;
         });
@@ -133,9 +133,29 @@ public class ResultTest
     {
         string? nothing = null;
 
-        Assert.ThrowsExactly<InvalidOperationException>(() =>
+        Assert.ThrowsExactly<ResultException>(() =>
         {
             _ = (Result<string>)nothing!;
+        });
+    }
+
+    // An unset result, e.g. a field never assigned, holds no outcome, so dropping its value must
+    // not turn it into a success: a command would then refresh as if its git call had worked
+    [TestMethod]
+    public void TestUnsetResultIsNotASuccess()
+    {
+        Result<int> unset = default;
+
+        Assert.IsFalse(unset is int, "Unset holds no value");
+        Assert.IsFalse(unset is Error, "Nor an error");
+        var e = Assert.ThrowsExactly<ResultException>(() =>
+        {
+            _ = (Result)unset;
+        });
+        StringAssert.Contains(e.Message, "Result is unset");
+        Assert.ThrowsExactly<ResultException>(() =>
+        {
+            _ = unset.Error;
         });
     }
 
@@ -194,6 +214,33 @@ public class ResultTest
 
         var e = AssertError(Result.Catch(() => throw new InvalidOperationException("boom")));
         Assert.AreEqual("boom", e.Message);
+    }
+
+    // Catch turns the failures of an API into errors, but not a bug in the use of a result, which
+    // would otherwise be shown to the user as an ordinary failure instead of reaching the crash
+    // handler: a null value, or reading the error of a value inside the guarded call
+    [TestMethod]
+    public void TestCatchLetsResultBugsThrough()
+    {
+        Assert.ThrowsExactly<ResultException>(() => Result.Catch<string>(() => null!));
+
+        Result<int> five = 5;
+        Assert.ThrowsExactly<ResultException>(() => Result.Catch(() => five.Error.Message));
+        Assert.ThrowsExactly<ResultException>(() =>
+            Result.Catch(() =>
+            {
+                _ = five.Error;
+            })
+        );
+    }
+
+    // AssertOk reports an unset result as such, rather than failing inside the helper on reading
+    // the error of a result that has none
+    [TestMethod]
+    public void TestAssertOkOfAnUnsetResult()
+    {
+        var e = Assert.ThrowsExactly<AssertFailedException>(() => AssertOk(default(Result<int>)));
+        StringAssert.Contains(e.Message, "an unset result");
     }
 
     [TestMethod]

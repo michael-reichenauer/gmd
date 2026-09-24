@@ -27,10 +27,7 @@ static class WindowsClipboard
         if (!Build.IsWindows)
             return new Error("The Win32 clipboard is only available on Windows");
 
-        if (Result.Catch(() => SetText(text)) is Error e)
-            return e;
-
-        return Result.Ok;
+        return Result.Catch(() => SetText(text));
     }
 
     static void SetText(string text)

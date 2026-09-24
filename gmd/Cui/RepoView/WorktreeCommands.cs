@@ -98,14 +98,9 @@ class WorktreeCommands : IWorktreeCommands
         });
 
     // From the branch menu: a worktree for that branch, or when it is checked out already, for a
-    // new branch started from it
-    public void CreateWorktree(string branchName) =>
-        Do(async () =>
-        {
-            if (await CreateWorktreeAsync(repo.Repo, branchName) is Error e)
-                return e;
-            return Result.Ok;
-        });
+    // new branch started from it. Whether it was opened matters to nothing here, so only the
+    // outcome is kept.
+    public void CreateWorktree(string branchName) => Do(async () => await CreateWorktreeAsync(repo.Repo, branchName));
 
     public void OpenWorktree(string path) => Do(() => OpenWorktreeAsync(path));
 

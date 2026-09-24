@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace gmdTest.Utils;
 
 // Records one call made to the fake command runner. Stdin is what was piped to it, which is
@@ -39,16 +41,25 @@ class FakeCmd : ICmd
         string args,
         string workingDirectory,
         bool skipLogError = false,
-        bool skipLog = false
-    ) => CommandRaw(path, args, workingDirectory).ToResult();
+        bool skipLog = false,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) => CommandRaw(path, args, workingDirectory).ToResult(memberName, sourceFilePath, sourceLineNumber);
 
     public Task<Result<string>> RunAsync(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
-        bool skipLog = false
-    ) => Task.FromResult(Command(path, args, workingDirectory, skipLogError, skipLog));
+        bool skipLog = false,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) =>
+        Task.FromResult(
+            Command(path, args, workingDirectory, skipLogError, skipLog, memberName, sourceFilePath, sourceLineNumber)
+        );
 
     public Task<CmdResult> RunRawAsync(
         string path,
@@ -58,10 +69,17 @@ class FakeCmd : ICmd
         bool skipLog = false
     ) => Task.FromResult(CommandRaw(path, args, workingDirectory));
 
-    public Result<string> CommandWithStdin(string path, string args, string stdinText)
+    public Result<string> CommandWithStdin(
+        string path,
+        string args,
+        string stdinText,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
     {
         Calls.Add(new CmdCall(path, args, "", stdinText));
-        return respond(path, args, "").ToResult();
+        return respond(path, args, "").ToResult(memberName, sourceFilePath, sourceLineNumber);
     }
 
     CmdResult CommandRaw(string path, string args, string workingDirectory)
