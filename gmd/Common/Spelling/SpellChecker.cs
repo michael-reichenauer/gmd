@@ -31,6 +31,14 @@ class SpellChecker : ISpellChecker
     const int MaxSuggestions = 6;
     const int MaxCachedWords = 5000;
 
+    // Hunspell stops looking for suggestions when a time budget runs out and returns what it has
+    // found so far. Its budgets were set for CPU time, but WeCantSpell measures them on the wall
+    // clock (a quarter of a second in all), so on a loaded machine a word got fewer suggestions or
+    // none: on CI, running the end-to-end tests eight at a time, 'Sumerize' got none and 'brnach'
+    // only 'breach'. An idle machine needs a few tens of milliseconds, so eight times the budget
+    // changes nothing there, and it still bounds how long an odd word can hold the UI thread.
+    internal static readonly QueryOptions SuggestOptions = ScaledTimeLimits(new QueryOptions(), 8);
+
     readonly Config config;
     readonly Lazy<WordList?> wordList;
     readonly Dictionary<string, bool> isMisspelledCache = [];
@@ -61,7 +69,7 @@ class SpellChecker : ISpellChecker
     {
         if (!IsEnabled)
             return [];
-        return wordList.Value!.Suggest(word).Take(MaxSuggestions).ToList();
+        return wordList.Value!.Suggest(word, SuggestOptions).Take(MaxSuggestions).ToList();
     }
 
     public void AddToDictionary(string word)
@@ -117,4 +125,13 @@ class SpellChecker : ISpellChecker
 
     // A Hunspell dictionary on disk: the .dic path, with the .aff expected beside it
     static Result<WordList> LoadFiles(string dicPath) => Result.Catch(() => WordList.CreateFromFiles(dicPath));
+
+    static QueryOptions ScaledTimeLimits(QueryOptions options, int factor)
+    {
+        options.TimeLimitSuggestGlobal *= factor;
+        options.TimeLimitSuggestStep *= factor;
+        options.TimeLimitCompoundSuggest *= factor;
+        options.TimeLimitCompoundCheck *= factor;
+        return options;
+    }
 }
