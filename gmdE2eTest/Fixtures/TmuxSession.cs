@@ -104,6 +104,10 @@ sealed class TmuxSession : IDisposable
     // only way to reach what is highlighted, and the highlight is how gmd draws the current row.
     public string CaptureColors() => Tmux("capture-pane", "-p", "-e", "-t", "gmd").Output;
 
+    // The whole screen with its colors, for replaying it rather than asserting it: -N keeps the
+    // trailing blank cells, which a highlight's background runs on into, so every row is full width
+    public string CaptureScreen() => Tmux("capture-pane", "-p", "-e", "-N", "-t", "gmd").Output;
+
     // Polls until the screen contains the text and has then stopped changing, and returns it.
     // Never sleeps a fixed time.
     public string WaitFor(string expected, int timeoutMs = DefaultTimeoutMs) =>

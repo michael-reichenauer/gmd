@@ -25,6 +25,7 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ./log            # tail the runtime log with lnav (~/gmd.log)
 ./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 ./installtools   # devcontainer setup: tools, dotnet local tools, git hooks
+./demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
 ```
 
 Faster inner loop for verification: `dotnet build gmd.sln` and `./test`.
@@ -69,7 +70,8 @@ All of the above is packaged as `TmuxSession` (`gmdE2eTest/Fixtures/`) and drive
 
 There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
 sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
-scripts exist mainly for debugging Windows-specific behavior.
+scripts exist mainly for debugging Windows-specific behavior. `./demo` has none, since it drives
+gmd through tmux, as the end-to-end tests do.
 
 Runtime log: `~/gmd.log`. Log with `Log.Info/Warn/Error/Debug/Exception` (`gmd.Utils.Logging`,
 already a global using). The TUI owns stdout, so **never use `Console.WriteLine` for
@@ -523,6 +525,17 @@ Five traps worth knowing before adding one:
 
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
+
+The same machinery records the README's animation, `gmd/doc/Animation.gif`, which `./demo`
+re-records. `gmdE2eTest/Demo/DemoTest.cs` is the script: an end-to-end test in all but asserting,
+run only when `./demo` names a cast file for it (skipped otherwise), on `DemoRepo`, a repository
+made to look like a team's. `DemoRecording` turns the settled screens into an asciicast, each shown
+for as long as the script says rather than as long as it took, and `./demo` renders that with agg,
+which `./installtools` installs with its fonts. Everything is pinned, including what would differ
+between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
+byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
+a way the demo passes through, re-record it; when a step of the script goes wrong, `CAST=<path>
+./demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step.
 
 Other things to know:
 

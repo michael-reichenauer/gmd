@@ -185,6 +185,7 @@ To set up a machine yourself you need:
 | `./log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
 | `./updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
 | `./installtools`   | Set up the devcontainer: tools, dotnet local tools and git hooks          |
+| `./demo`           | Re-record the animation above, by running a scripted session in tmux     |
 
 On Windows, `run.bat`, `build.bat` (`-w` builds Windows only) and `log.bat` do the same.
 
