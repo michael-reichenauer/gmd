@@ -263,7 +263,11 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    (`WebLinks`). A pull request goes into the branch the branch was made from, which gmd knows and
    the service does not. `$BROWSER` comes first (`BrowserService`), and where there is no browser,
    e.g. over ssh, the link is copied instead.
-4. **Search message bodies and file paths,** with next and previous match.
+4. **Search message bodies and file paths,** with next and previous match. *Done (2026-09-25):*
+   a search matches the whole message; `file:<path>` matches the commits that changed such a file,
+   asked of git once typing pauses (`SearchTerms`, `GetIdsChangingFilesAsync`); and after a commit
+   is picked, `n` and `Shift-N` step through the other matches in the log (`SearchMatches`). A
+   picked match is shown as any branch is, so Backspace undoes it, which it did not before.
 5. **A count of the incoming commits on hidden branches.**
 6. **Merge or rebase on pull,** asked once and remembered.
 7. **Theme:**

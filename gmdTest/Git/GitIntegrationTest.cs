@@ -1620,6 +1620,23 @@ public class GitIntegrationTest
         Assert.AreEqual(staged, await repo.GitAsync("diff --cached --name-status"), "Staged as it was");
     }
 
+    // The search's 'file:' term: the commits that changed a file whose path contains the text, in
+    // any case and at any depth, newest first. Pins the pathspec, whose '*' crossing '/' is a git
+    // default rather than anything gmd does.
+    [TestMethod]
+    public async Task TestTheCommitsChangingAFile()
+    {
+        Directory.CreateDirectory(Path.Join(repo.Path, "src"));
+        var c1 = await repo.CommitFileAsync("src/Program.cs", "one\n", "Add program");
+        await repo.CommitFileAsync("README.md", "readme\n", "Add readme");
+        var c3 = await repo.CommitFileAsync("src/Program.cs", "two\n", "Change program");
+
+        var ids = Value(await repo.Git.GetIdsChangingFilesAsync("program", 100, repo.Path));
+
+        CollectionAssert.AreEqual(new[] { c3, c1 }, ids.ToArray());
+        Assert.AreEqual(0, Value(await repo.Git.GetIdsChangingFilesAsync("nothing", 100, repo.Path)).Count);
+    }
+
     // Unwraps a result, failing the test with the git error if the command failed
     static T Value<T>(Result<T> result)
         where T : notnull => AssertOk(result, "Git failed");

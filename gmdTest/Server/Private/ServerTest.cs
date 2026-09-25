@@ -87,6 +87,27 @@ public class ServerTest
         );
     }
 
+    // A 'file:' term is asked of git, and the commits must match it and the words both. The answer
+    // is kept for the keys typed after the path, which do not ask git again.
+    [TestMethod]
+    public async Task TestAFileTermNarrowsTheSearchToTheCommitsChangingIt()
+    {
+        var b = ThreeBranches();
+        var git = new FakeGit();
+        git.IdsChangingFiles["x.cs"] = [RepoBuilder.Sha("f1"), RepoBuilder.Sha("d1"), RepoBuilder.Sha("c3")];
+        var server = b.NewServer(git);
+        var repo = await b.ViewRepoAsync();
+
+        var files = AssertOk(await server.GetFilteredRepoAsync(repo, "file:x.cs", 100));
+        var work = AssertOk(await server.GetFilteredRepoAsync(repo, "file:x.cs work", 100));
+
+        CollectionAssert.AreEqual(new[] { "Feature work", "Dev work", "Third" }, Subjects(files));
+        CollectionAssert.AreEqual(new[] { "Feature work", "Dev work" }, Subjects(work));
+        CollectionAssert.AreEqual(new[] { "x.cs" }, git.IdsChangingFilesCalls, "Asked once");
+    }
+
+    static string[] Subjects(Repo repo) => repo.ViewCommits.Select(c => c.Subject).ToArray();
+
     // 'Hide all branches' goes back to just the main branch
     [TestMethod]
     public async Task TestHideAllBranchesLeavesTheMainBranch()

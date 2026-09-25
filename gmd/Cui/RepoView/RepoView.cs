@@ -26,6 +26,9 @@ interface IRepoView
     // view repo and its command classes are replaced on every refresh, and this has to outlive them.
     ShownHistory ShownHistory { get; }
 
+    // What the last search found, for n and Shift-N, kept here for the same reason
+    SearchMatches SearchMatches { get; }
+
     Task<Result> ShowInitialRepoAsync(string path);
     Task<Result> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
@@ -79,6 +82,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly IRepoWriter repoWriter;
     readonly Hoover hoover = new Hoover();
     readonly ShownHistory shownHistory = new();
+    readonly SearchMatches searchMatches = new();
     readonly RepoViewInput input;
 
     // State data
@@ -172,6 +176,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // a repo is shown.
     public IViewRepo ViewRepo => repo;
     public ShownHistory ShownHistory => shownHistory;
+    public SearchMatches SearchMatches => searchMatches;
     public IRepoViewMenus Menus => menuService;
 
     public void ClearSelection() => commitsView.ClearSelection();
@@ -208,6 +213,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         if (await ShowNewRepoAsync(rootDir, branches) is Error e)
             return e;
         shownHistory.Clear(); // What another repo showed is nothing to go back to here
+        searchMatches.Clear();
         FetchFromRemote();
 
         RememberRepoPaths(rootDir);
@@ -277,13 +283,19 @@ class RepoView : IRepoView, IRepoViewInputHost
         commitsView.SetNeedsDisplay();
         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
-        if (selected is Server.Commit commit)
-        { // User selected a commit, show it
+        if (selected is SearchPick pick)
+        { // A commit was picked. It is shown with its branch as any branch is shown, so that
+            // Backspace undoes that, and what the search found is kept for n and Shift-N.
             ShowRepo(orgRepo);
-            Refresh(commit.BranchName, commit.Id);
+            if (pick.MatchIds.Count > 0)
+                searchMatches.Set(pick.Filter, pick.MatchIds, pick.Commit.Id);
+            else
+                searchMatches.Clear();
+            repo.BranchCmds.ShowBranch(pick.Commit.BranchName, pick.Commit.Id);
         }
         else
-        {
+        { // A search given up on is not one to go on with
+            searchMatches.Clear();
             var t = Timing.Start();
             ShowRepo(orgRepo);
             ScrollToCommit(orgCommit.Id);

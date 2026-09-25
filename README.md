@@ -36,8 +36,8 @@ cannot tell, it marks the branch as ambiguous, and you can set it by hand.
   abort the operation.
 - **Everyday Git without the syntax**: commit (with spell check), amend, push and pull (every
   shown branch at once if you like), merge in either direction, create, rename and delete
-  branches, tags, stash, squash, cherry pick, undo and uncommit, file history, and search and
-  filter.
+  branches, tags, stash, squash, cherry pick, undo and uncommit, file history, and search of the
+  messages and the changed files, stepping through the matches in the log.
 - **Open in the browser**: a branch, a commit or the repository on GitHub, GitLab, Bitbucket, Azure
   DevOps or Gitea, or the page for a pull request into the branch the branch was made from.
 - **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and

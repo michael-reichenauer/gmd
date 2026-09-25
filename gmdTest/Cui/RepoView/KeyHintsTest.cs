@@ -135,6 +135,18 @@ public class KeyHintsTest
         StringAssert.Contains(Hints(view, HooverOn(view, "feature", "d1")), "h hide  Bksp undo hide  ");
     }
 
+    // After a search, n steps on to its next match in the log
+    [TestMethod]
+    public async Task TestNextMatchIsOfferedAfterASearch()
+    {
+        var view = await ViewOf(Fixture());
+        Assert.IsFalse(Hints(view).Contains("next match"));
+
+        view.SearchMatches.Set("work", [RepoBuilder.Sha("c3"), RepoBuilder.Sha("d1")], RepoBuilder.Sha("c3"));
+
+        StringAssert.Contains(Hints(view), "⇧→ show branch  n next match  f search");
+    }
+
     // Several rows selected with Shift-↑↓: the range is what the keys act on
     [TestMethod]
     public async Task TestSelectedRowsOfferTheirDiffMenuAndCopy()

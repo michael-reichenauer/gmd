@@ -7,7 +7,7 @@ namespace gmdTest.Server.Private;
 
 // Filtering the commits, i.e. what the filter dialog shows while the user types. A filter is
 // split on spaces into terms that must all match, and a term matches if it is found in any of the
-// commit's id, subject, branch name, author, date or tags. Two filters are special: '$' is the
+// commit's id, message (subject and body), branch name, author, date or tags. Two filters are special: '$' is the
 // commits whose branch the user set by hand, and '*' is the ambiguous branch tips.
 //
 // Kept apart from ViewRepoCreaterTest, which is about the branches the user chose to show.
@@ -18,6 +18,30 @@ public class ViewRepoCreaterFilterTest
     public async Task TestATermMatchesTheSubject()
     {
         var repo = await Fixture().FilteredViewRepoAsync("Feature");
+
+        CollectionAssert.AreEqual(new[] { "Feature line" }, Subjects(repo));
+    }
+
+    // The body is where the why of a change is written, and an issue number is often only there
+    [TestMethod]
+    public async Task TestATermMatchesTheMessageBody()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Fix the login\n\nThe token expired too early, see #1234.", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .FilteredViewRepoAsync("#1234");
+
+        CollectionAssert.AreEqual(new[] { "Fix the login" }, Subjects(repo));
+    }
+
+    // The commits git found changing a searched file narrow what the words match
+    [TestMethod]
+    public async Task TestOnlyTheGivenCommitsMatch()
+    {
+        var onlyIds = new HashSet<string> { RepoBuilder.Sha("d1") };
+
+        var repo = await Fixture().FilteredViewRepoAsync("line", onlyIds: onlyIds);
 
         CollectionAssert.AreEqual(new[] { "Feature line" }, Subjects(repo));
     }

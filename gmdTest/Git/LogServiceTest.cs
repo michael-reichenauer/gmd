@@ -173,4 +173,18 @@ public class LogServiceTest
         Assert.AreEqual("/some/wd", cmd.Calls[0].WorkingDirectory);
         StringAssert.Contains(cmd.Calls[0].Args, "--max-count=42");
     }
+
+    // The path of a search is what the user typed: a '"' would end the argument, and a Windows
+    // user's '\' is a '/' to git. The ids come back one per line.
+    [TestMethod]
+    public async Task TestTheFileSearchKeepsTheTypedPathInItsArgument()
+    {
+        var cmd = new FakeCmd($"{Id1}\n{Id2}\n");
+        var log = new LogService(cmd);
+
+        var ids = AssertOk(await log.GetIdsChangingFilesAsync("gmd\\Cui \"x", 50, "/wd"));
+
+        CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
+        StringAssert.EndsWith(cmd.Calls[0].Args, "--max-count=50 -- \":(icase)*gmd/Cui x*\"");
+    }
 }

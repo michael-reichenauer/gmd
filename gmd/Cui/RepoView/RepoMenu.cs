@@ -68,6 +68,20 @@ class RepoMenu : IRepoMenu
                 () => Why.InProgress
             )
             .Item("Search ...", "f", () => cmds.SearchFilterRepo())
+            .Item(
+                "Next Match",
+                "n",
+                () => repo.BranchCmds.ShowSearchMatch(1),
+                () => repo.SearchMatches.IsActive,
+                () => NoSearch
+            )
+            .Item(
+                "Previous Match",
+                "Shift-N",
+                () => repo.BranchCmds.ShowSearchMatch(-1),
+                () => repo.SearchMatches.IsActive,
+                () => NoSearch
+            )
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
             .Item("Clean Working Folder", "", () => cmds.CleanWorkingFolder())
             .Item("Worktrees ...", "w", () => repo.BranchCmds.ShowWorktrees())
@@ -78,6 +92,8 @@ class RepoMenu : IRepoMenu
             .Item("About", "", () => cmds.ShowAbout())
             .Item("Quit", "q, Esc", () => UI.Shutdown());
     }
+
+    const string NoSearch = "Search with f and pick a commit first";
 
     // What can be done about an operation git stopped part way through. Heads the menu because a
     // stopped rebase is the most urgent thing about the repo while it lasts, and self-hides when

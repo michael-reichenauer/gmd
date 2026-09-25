@@ -304,6 +304,8 @@ public class MenuItemsTest
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Search ...  [f]
+            Next Match  [n]  (disabled)
+            Previous Match  [Shift-N]  (disabled)
             Refresh  [r]
             Clean Working Folder
             Worktrees ...  [w]

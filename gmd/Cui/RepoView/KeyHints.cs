@@ -33,7 +33,12 @@ static class KeyHints
 
     // While the filter dialog is up, which has the keyboard, with the log view showing its results
     public static IReadOnlyList<KeyHint> ForFilter() =>
-        [new("↑↓", "select"), new("Enter", "show in the log"), new("Esc", "back")];
+        [
+            new("↑↓", "select"),
+            new("Enter", "show in the log"),
+            new("Esc", "back"),
+            new("file:", "search changed files"),
+        ];
 
     // The hints on one line of the given width: as many as fit, from the left, and help at the right
     public static Text ToText(IReadOnlyList<KeyHint> hints, int width)
@@ -98,6 +103,8 @@ static class KeyHints
             hints.Add(new("←→", "branch"));
         hints.Add(new("⇧→", "show branch"));
         hints.AddRange(UndoHint(repo));
+        if (repo.SearchMatches.IsActive)
+            hints.Add(new("n", "next match"));
         hints.Add(new("f", "search"));
         if (!isUncommitted)
             hints.Add(new("b", "new branch"));

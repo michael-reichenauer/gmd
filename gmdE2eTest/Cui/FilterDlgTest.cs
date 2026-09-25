@@ -103,6 +103,60 @@ public class FilterDlgTest
         Assert.AreEqual(atTop, ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4), "Still on the top row");
     }
 
+    // After a commit is picked, n and Shift-N step through the rest of what the search found, in the
+    // log, where each is seen among the commits around it. Each is shown as a pick is, its branch
+    // too, as a show Backspace undoes.
+    [TestMethod]
+    public async Task TestNextAndPreviousMatchStepThroughTheSearch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+        gmd.SendText("dev");
+        gmd.WaitFor("3 commits");
+        gmd.Send("Enter"); // The first, the merge, which is on main
+        gmd.WaitUntilGone("Filter Commits");
+
+        gmd.Send("n");
+        var second = gmd.WaitFor("Match 2 of 3");
+        Assert.AreEqual("Match 2 of 3 for 'dev'", ScreenText.LastLine(second));
+        StringAssert.Contains(second, "More dev work", "Its branch is shown");
+
+        gmd.Send("n");
+        gmd.WaitFor("Match 3 of 3");
+        gmd.Send("n");
+        Assert.AreEqual(
+            "No more matches for 'dev' below: Shift-N goes back up",
+            ScreenText.LastLine(gmd.WaitFor("No more matches"))
+        );
+        gmd.Send("N");
+        gmd.WaitFor("Match 2 of 3");
+
+        gmd.Send("BSpace");
+        gmd.WaitFor("Undid Show 'dev'");
+    }
+
+    // 'file:' searches the files the commits changed, which git is asked for, anywhere in the path
+    // and in any case
+    [TestMethod]
+    public async Task TestFileSearchFindsTheCommitsChangingAFile()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+
+        gmd.SendText("file:DEV.txt");
+
+        var screen = gmd.WaitFor("2 commits");
+        StringAssert.Contains(screen, "More dev work");
+        StringAssert.Contains(screen, "Work on dev");
+        Assert.IsFalse(screen.Contains("Merge branch"), "The merge brought the change in, but made none");
+    }
+
     // '/' opens the search as 'f' does, it being the search key of most other tools
     [TestMethod]
     public async Task TestSlashOpensTheSearch()

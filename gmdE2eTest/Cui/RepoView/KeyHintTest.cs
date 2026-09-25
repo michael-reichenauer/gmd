@@ -120,7 +120,8 @@ public class KeyHintTest
         StringAssert.StartsWith(Hints(gmd.WaitFor("c commit")), "c commit  d diff  ");
     }
 
-    // The filter has the keyboard while it is up, so the line is about the filter
+    // The filter has the keyboard while it is up, so the line is about the filter, including the
+    // 'file:' term, which nothing else on screen tells of
     [TestMethod]
     public async Task TestTheHintsAreAboutTheFilterWhileItIsUp()
     {
@@ -130,7 +131,10 @@ public class KeyHintTest
 
         gmd.Send("f");
 
-        Assert.AreEqual("↑↓ select  Enter show in the log  Esc back | ? help", Hints(gmd.WaitFor("Esc back")));
+        Assert.AreEqual(
+            "↑↓ select  Enter show in the log  Esc back  file: search changed files | ? help",
+            Hints(gmd.WaitFor("Esc back"))
+        );
     }
 
     // The bottom row, with the padding before the help shown as ' | '

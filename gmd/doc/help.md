@@ -31,6 +31,7 @@ written as they are typed: `c` is the c key, and `Shift-P` is P.
 | Shift-U    | Pull all shown branches                                    |
 | t          | Add a tag to the commit                                    |
 | f, /       | Search and filter the commits                              |
+| n, Shift-N | The next and the previous match of the last search         |
 | r, F5      | Refresh, and fetch from the remote                         |
 | w          | Open the worktrees dialog                                  |
 | o          | Open, clone or init a repository                           |
@@ -237,11 +238,14 @@ shown, their colors and their order.
   a selection copies from, `Ctrl-C` copies the selected lines, and `Esc` or
   `q` closes the view.
 - **Search ...** (`f` or `/`):
-  Type to filter the log down to the commits that match, by id, subject,
-  branch, author, date (yyyy-mm-dd) or tag. Every word has to match, a
-  "quoted phrase" matches as a whole, and case does not matter. `Enter`
-  shows the selected commit and its branch in the log, and `Esc` goes back
-  to where you were. `*` finds the ambiguous branch tips, and `$` the
+  Type to filter the log down to the commits that match, by id, message
+  (the subject and the body), branch, author, date (yyyy-mm-dd) or tag.
+  Every word has to match, a "quoted phrase" matches as a whole, and case
+  does not matter. `file:` and a path, e.g. `file:Program.cs`, matches the
+  commits that changed a file with that in its path. `Enter` shows the
+  selected commit and its branch in the log, and `Esc` goes back to where
+  you were. After that, `n` and `Shift-N` go to the next and the previous
+  match in the log. `*` finds the ambiguous branch tips, and `$` the
   commits whose branch was set manually.
 - **Squash ...** (under **Rebase** in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and

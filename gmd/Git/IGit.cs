@@ -7,6 +7,9 @@ interface IGit
     string CurrentAuthor { get; }
 
     Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
+
+    // The ids of the commits that changed a file whose path contains the text, for a search
+    Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);

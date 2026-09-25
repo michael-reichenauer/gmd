@@ -12,6 +12,7 @@ interface IBranchCommands
     void FindBranch(string text);
     void HideBranch(string name, bool hideAllBranches = false);
     void UndoShowOrHide();
+    void ShowSearchMatch(int direction);
 
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -213,6 +214,35 @@ class BranchCommands : IBranchCommands
 
         SetRepo(server.SetShownBranches(repo.Repo, change.Before), change.IsHide ? change.BranchName : "");
         status.Info($"Undid {change}");
+    }
+
+    // Steps to the next match of the last search, 1 down and -1 up, and shows it in the log as
+    // picking it in the search does, so its branch is shown too, and Backspace hides it again
+    public void ShowSearchMatch(int direction)
+    {
+        var search = repo.SearchMatches;
+        if (!search.IsActive)
+        {
+            status.Notice("No search to go on with: search with f and pick a commit first");
+            return;
+        }
+
+        // A match a refresh has taken away, e.g. by a rebase, is stepped past
+        while (search.Step(direction) is string id)
+        {
+            if (!repo.Repo.CommitById.TryGetValue(id, out var commit))
+                continue;
+
+            ShowBranch(commit.BranchName, commit.Id);
+            status.Info($"Match {search.Number} of {search.Count} for '{search.Filter}'");
+            return;
+        }
+
+        status.Notice(
+            direction > 0
+                ? $"No more matches for '{search.Filter}' below: Shift-N goes back up"
+                : $"No more matches for '{search.Filter}' above: n goes down"
+        );
     }
 
     // A show or hide the user asked for, so that Backspace can undo it

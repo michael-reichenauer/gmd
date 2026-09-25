@@ -6,12 +6,20 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
+    Result<SearchPick> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
+
+// The commit picked in the search, with what was searched for and every commit it found, in the
+// order listed, for stepping through them in the log afterwards (SearchMatches)
+record SearchPick(Server.Commit Commit, string Filter, IReadOnlyList<string> MatchIds);
 
 class FilterDlg : IFilterDlg
 {
     const int MaxResults = 5000;
+
+    // How long typing has to pause before the files a search names are asked of git, which takes a
+    // moment in a large repo, rather than once for every key of a path being typed
+    static readonly TimeSpan FileSearchDelay = TimeSpan.FromMilliseconds(300);
 
     // The dialog's own height, i.e. how far down the log view has to move to stay clear of it
     const int DialogHeight = 3;
@@ -27,7 +35,7 @@ class FilterDlg : IFilterDlg
     Server.Repo currentRepo = null!;
     string currentFilter = null!;
     ContentView resultsView = null!;
-    Result<Server.Commit> selectedCommit;
+    Result<SearchPick> selectedCommit;
     Text repoInfo = Text.Empty;
     int closeX = 0;
 
@@ -37,7 +45,7 @@ class FilterDlg : IFilterDlg
         this.branchColorService = branchColorService;
     }
 
-    public Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
+    public Result<SearchPick> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
         this.orgRepo = repo;
         this.currentRepo = repo;
@@ -112,7 +120,10 @@ class FilterDlg : IFilterDlg
         { // User selected commit from list
             var commit = currentRepo.ViewCommits[resultsView.CurrentIndex];
             if (commit.BranchName != "<none>")
-                this.selectedCommit = commit;
+            {
+                var matchIds = currentRepo == orgRepo ? [] : currentRepo.ViewCommits.Select(c => c.Id).ToList();
+                this.selectedCommit = new SearchPick(commit, currentFilter ?? "", matchIds);
+            }
             dlg.Close();
             return true;
         }
@@ -196,7 +207,29 @@ class FilterDlg : IFilterDlg
             return;
         currentFilter = filter;
 
-        if (filter != "" && await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults) is Server.Repo filteredRepo)
+        var terms = SearchTerms.Parse(filter);
+        if (terms.Files.Count > 0)
+        { // Git is asked, once typing pauses, and what it answers is dropped if typing went on
+            await Task.Delay(FileSearchDelay);
+            if (filter != currentFilter)
+                return;
+            statusLabel.Text = Text.Dark("Searching the changed files ...");
+        }
+
+        // Nothing to search for is the whole log, as is 'file:' while the path is still to be typed
+        Server.Repo? filteredRepo = null;
+        if (terms.Words.Count + terms.Files.Count > 0)
+        {
+            var result = await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults);
+            if (filter != currentFilter)
+                return;
+            if (result is Server.Repo repo)
+                filteredRepo = repo;
+            else
+                Log.Warn($"Failed to search, {result.Error}");
+        }
+
+        if (filteredRepo != null)
         { // Got new filtered repo, update results
             currentRepo = filteredRepo;
             resultsView.MoveToTop();
@@ -219,7 +252,6 @@ class FilterDlg : IFilterDlg
             statusLabel.Text = repoInfo;
             return;
         }
-        ;
 
         var commit = currentRepo.ViewCommits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];

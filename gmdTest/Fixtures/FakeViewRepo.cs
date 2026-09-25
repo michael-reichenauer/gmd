@@ -50,4 +50,5 @@ class FakeViewRepo : IViewRepo
 
     // Its own, since there is no view to own it, for tests of what a show or hide makes undoable
     public ShownHistory ShownHistory { get; } = new();
+    public SearchMatches SearchMatches { get; } = new();
 }
