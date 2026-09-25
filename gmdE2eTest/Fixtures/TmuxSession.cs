@@ -177,7 +177,13 @@ sealed class TmuxSession : IDisposable
     // Cmd logs every git command line it runs, so this is how to assert which git command a key ran
     // when the screen cannot tell two of them apart, e.g. a push from a force push. The log is
     // written by a background task, so it is polled rather than read once.
-    public string WaitForLog(string expected, int timeoutMs = DefaultTimeoutMs)
+    public string WaitForLog(string expected, int timeoutMs = DefaultTimeoutMs) =>
+        WaitForLogTimes(expected, 1, timeoutMs);
+
+    // The same for a line gmd writes more than once, e.g. a change event, until it is there 'times'
+    // times, which is how a test waits for the next one after those already logged (LogCount).
+    // Named apart from WaitForLog, whose second parameter is the timeout, also an int.
+    public string WaitForLogTimes(string expected, int times, int timeoutMs = DefaultTimeoutMs)
     {
         var path = Path.Join(Home, "gmd.log");
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
@@ -186,7 +192,7 @@ sealed class TmuxSession : IDisposable
         {
             // gmd has it open for writing, hence the share mode
             log = File.Exists(path) ? ReadShared(path) : "";
-            if (log.Contains(expected))
+            if (CountOf(log, expected) >= times)
                 return log;
 
             Thread.Sleep(PollMs);
@@ -195,6 +201,15 @@ sealed class TmuxSession : IDisposable
         Assert.Fail($"Timed out after {timeoutMs} ms waiting for '{expected}' in {path}\n{Diagnostics(Capture())}");
         return log;
     }
+
+    // How many times the log has a line, so far
+    public int LogCount(string text)
+    {
+        var path = Path.Join(Home, "gmd.log");
+        return File.Exists(path) ? CountOf(ReadShared(path), text) : 0;
+    }
+
+    static int CountOf(string log, string text) => text == "" ? 1 : log.Split(text).Length - 1;
 
     static string ReadShared(string path)
     {

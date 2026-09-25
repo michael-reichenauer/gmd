@@ -157,6 +157,25 @@ public class FilterDlgTest
         Assert.IsFalse(screen.Contains("Merge branch"), "The merge brought the change in, but made none");
     }
 
+    // A change that comes while the search is up is shown once it closes. It used to be dropped:
+    // the refresh it set off read nothing while the search had the log, and nothing read again after.
+    [TestMethod]
+    public async Task TestAChangeMadeDuringASearchIsShownAfterIt()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+        var changes = gmd.LogCount("Repo changed event");
+
+        await repo.CommitFileAtAsync("search.txt", "x\n", "Made during the search", TempRepo.BaseTime.AddMinutes(20));
+        gmd.WaitForLogTimes("Repo changed event", changes + 1); // Told of it, with the search still up
+        gmd.Send("Escape");
+
+        gmd.WaitFor("Made during the search");
+    }
+
     // '/' opens the search as 'f' does, it being the search key of most other tools
     [TestMethod]
     public async Task TestSlashOpensTheSearch()

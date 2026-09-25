@@ -23,10 +23,10 @@ public class ApplicationBarTest
         var tree = (await repo.GitAsync("rev-parse dev^{tree}")).Trim();
         var commit = (await repo.GitAsync("commit-tree " + tree + " -p dev -m \"Remote work\"")).Trim();
         await repo.GitAsync($"push -q origin {commit}:refs/heads/dev");
+        // Left to the file monitor, which is also the regression test for a lost change: this fetch
+        // lands right after gmd's first read, and a change within half a second of a read used to
+        // be taken as seen by it (RepoView.OnRefreshRepo), so the ▽ never came
         await repo.GitAsync("fetch -q origin");
-        // Refreshed by hand rather than left to the file monitor, which drops a change that comes
-        // within half a second of the last read (RepoView.OnRefreshRepo), which this fetch can
-        gmd.Send("r");
 
         var withNews = gmd.WaitFor("▽1");
         Assert.IsFalse(withNews.Contains("Remote work"), "The branch is still hidden");

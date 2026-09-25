@@ -114,6 +114,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   The diff has since stopped touching the index at all: it stages into a copy (`GIT_INDEX_FILE`),
   since its `git add .` then `git reset` also wiped whatever the user had staged with other tools.
 - `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
+- A repo change within half a second of a read was taken as seen by it, so a `git fetch` in another
+  terminal landing just after gmd read stayed unseen until something else changed; one made while a
+  read ran, or while the search was up, was dropped outright. The file monitor now dates a change by
+  the file's modification time rather than by when it was told of it, the log view skips only a
+  change made before the read, and one that comes during a read or a search is looked at again once
+  the next repo is shown.
 - Pulling a diverged branch failed, with git's dozen lines of hints as the error, for anyone who
   has not set `pull.rebase`, which recent git refuses to guess. gmd asks once and saves the answer.
 - Pull all stopped at the first diverged branch, leaving every branch after it unpulled; the branch
@@ -263,14 +269,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `ProgramCommands` and `Updater`, and `FakeGit` implements 12 of 76 members.
 - Not recommended: removing the one-implementation interfaces (they are the DI and test-double
   seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
-
-- **A change right after a read is not shown.** `RepoView.OnRefreshRepo` drops a repo change event
-  that comes within 500 ms (`minRepoUpdateInterval`) of the shown repo's read, presumably so that
-  what the read itself touches (e.g. `git status` refreshing the index) does not refresh again. But a
-  change the read did not see is dropped too: a `git fetch` in another terminal that lands just after
-  gmd reads stays unseen until something else changes, or the five-minute fetch. Seen as a flaky
-  end-to-end test (ApplicationBarTest, fixed by refreshing by hand). A fix would compare the event
-  with the time the read *finished*, or re-check the refs once the read is done, rather than drop it.
 
 **Deferred, with the reasoning so it is not redone**
 

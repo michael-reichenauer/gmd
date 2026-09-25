@@ -57,8 +57,6 @@ interface IRepoView
 // classes it dispatches to; where the hoovered branch is, is in Hoover.
 class RepoView : IRepoView, IRepoViewInputHost
 {
-    static readonly TimeSpan minRepoUpdateInterval = TimeSpan.FromMilliseconds(500);
-    static readonly TimeSpan minStatusUpdateInterval = TimeSpan.FromMilliseconds(100);
     static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
 
     // How often the other worktrees' changes are re-read. Their folders are not watched — a
@@ -95,6 +93,11 @@ class RepoView : IRepoView, IRepoViewInputHost
     IRepoViewMenus menuService = null!;
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
+
+    // A change that came while the repo was being read, or while the search was up, which is looked
+    // at again once a repo is shown, see OnRefreshRepo
+    Server.ChangeEvent? pendingRepoChange;
+    Server.ChangeEvent? pendingStatusChange;
     bool isShowDetails = false;
     bool isShowFilter;
     bool isFetchFailing = false;
@@ -400,26 +403,63 @@ class RepoView : IRepoView, IRepoViewInputHost
         commitsView.SetNeedsDisplay();
     }
 
+    // A change is shown by reading the repo again, unless the repo shown was read after the change
+    // was made, which is when the file system says it was made rather than when it was told of: that
+    // is later by however long the file system took, so a change told of after a read started may be
+    // one the read saw, or one it did not. This used to take every change told of within half a
+    // second of a read as seen, which lost a change made in that time, e.g. by a fetch in another
+    // terminal, until something else changed. And a change told of while a read was running, or while
+    // the search was up, was dropped outright; it is kept now, and looked at again once a repo is
+    // shown (ShowChangesMadeMeanwhile).
     void OnRefreshRepo(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
-        if (isRepoUpdateInProgress)
+        if (e.ChangedAt < repo.Repo.RepoTimeStamp)
             return;
-        if (e.TimeStamp - repo.Repo.RepoTimeStamp < minRepoUpdateInterval)
+        if (isRepoUpdateInProgress || isShowFilter)
+        {
+            pendingRepoChange = e;
             return;
+        }
 
         ShowRefreshedRepoAsync("", "").RunInBackground();
     }
 
+    // The same for a file in the working folder, which only the status is read again for. A status
+    // read does not move RepoTimeStamp, so a change one already saw can cost one more, which is cheap.
     void OnRefreshStatus(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
-        if (isStatusUpdateInProgress || isRepoUpdateInProgress)
+        if (e.ChangedAt < repo.Repo.RepoTimeStamp)
             return;
-        if (e.TimeStamp - repo.Repo.RepoTimeStamp < minStatusUpdateInterval)
+        if (isStatusUpdateInProgress || isRepoUpdateInProgress || isShowFilter)
+        {
+            pendingStatusChange = e;
             return;
+        }
 
         ShowUpdatedStatusRepoAsync().RunInBackground();
+    }
+
+    // Looks again at a change that came while the repo was being read or the search was up, now
+    // that a repo is shown: the read may have seen it, or not. Posted, so that it runs after what is
+    // showing the repo has finished.
+    void ShowChangesMadeMeanwhile()
+    {
+        if (pendingRepoChange == null && pendingStatusChange == null)
+            return;
+
+        UI.Post(() =>
+        {
+            var (repoChange, statusChange) = (pendingRepoChange, pendingStatusChange);
+            (pendingRepoChange, pendingStatusChange) = (null, null);
+
+            // Reading the repo reads the status too, so the status is only for when it is not read
+            if (repoChange != null && repoChange.ChangedAt >= repo.Repo.RepoTimeStamp)
+                OnRefreshRepo(repoChange);
+            else if (statusChange != null)
+                OnRefreshStatus(statusChange);
+        });
     }
 
     // The timer tick, and the read after a repo is shown: only while there are other worktrees,
@@ -575,6 +615,8 @@ class RepoView : IRepoView, IRepoViewInputHost
         // Remember shown branch for next restart of program
         if (serverRepo.Filter != "")
             return;
+
+        ShowChangesMadeMeanwhile();
 
         var names = repo.Repo.ViewBranches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoConfig.Set(serverRepo.Path, s => s.Branches = names);

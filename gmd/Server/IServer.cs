@@ -124,4 +124,7 @@ interface IServer
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
 }
 
-internal record ChangeEvent(DateTime TimeStamp);
+// A change the file monitor saw: when it reported it, which the debounce is timed by, and when the
+// latest of the changes it reports was made, as the file system has it. The two differ by however
+// long the file system took to tell, which is what decides whether a read of the repo saw it.
+internal record ChangeEvent(DateTime TimeStamp, DateTime ChangedAt);
