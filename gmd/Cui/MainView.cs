@@ -77,7 +77,9 @@ partial class MainView : IMainView
             ColorScheme = ColorSchemes.Window,
         };
 
-        mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView);
+        // The key hints after the log view, so they are drawn after it in the same pass, which is
+        // when the log view marks them for drawing
+        mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView, repoView.KeyHintView);
         repoView.View.SetFocus();
 
         return mainView;

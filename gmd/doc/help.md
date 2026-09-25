@@ -57,6 +57,10 @@ the details of a commit), and middle-click merges a branch into the current
 branch, after asking. The items in the top bar can be clicked as well: `▲`
 and `▼` open a menu to push or pull the current branch or all of them.
 
+The line at the bottom of the log view shows the keys that do something
+where the cursor is, and changes as it moves. **Config ...** in the repo
+menu turns it off.
+
 
 ## Symbols in Views
 

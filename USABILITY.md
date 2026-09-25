@@ -179,7 +179,10 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 1. **A key-hint line at the bottom of the log view** that follows what the cursor is on: a commit, a
    highlighted branch, the uncommitted row, or an operation in progress. For example:
    `m menu  d diff  c commit  ←→ branch  ⇧→ show branch  f search  ? help`. It can be turned off in
-   Config. This is the biggest single gain for someone new.
+   Config. This is the biggest single gain for someone new. *Done (2026-09-25):* `KeyHints`, keys
+   written as typed (`P` is Shift-P), with `c continue` during a rebase and `d resolve` on
+   conflicts. The diff and blame views have no such line yet; the conflict resolver's status line
+   already names its keys.
 2. **In a menu, pressing the letter it shows runs that item,** and typing in a long branch list
    narrows it.
 3. **A short non-modal status message** for no-ops and results: "Nothing to commit", "Highlight a

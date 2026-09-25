@@ -34,6 +34,13 @@ class RepoMenu : IRepoMenu
         Menu.Show($"Repo Menu", x, y + 2, GetRepoMenuItems());
     }
 
+    // The config dialog can turn the key-hint line on or off, which changes the layout
+    void ShowConfig()
+    {
+        configDlg.Show(repo.Repo.Path);
+        repo.RepoView.UpdateLayout();
+    }
+
     public void ShowOpenRepo(int x, int y)
     {
         Menu.Show($"Open/Clone/Init Repo", x, y + 2, GetOpenRepoItems());
@@ -52,7 +59,7 @@ class RepoMenu : IRepoMenu
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
             .Item("Worktrees ...", "W", () => repo.BranchCmds.ShowWorktrees())
             .SubMenu("Open/Clone/Init Repo", "O", GetOpenRepoItems())
-            .Item("Config ...", "", () => configDlg.Show(repo.Repo.Path))
+            .Item("Config ...", "", () => ShowConfig())
             .Item("Help ...", "?, F1", () => cmds.ShowHelp())
             .Item("About ...", "", () => cmds.ShowAbout())
             .Item("Quit", "Q, Esc", () => UI.Shutdown());

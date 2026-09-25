@@ -73,8 +73,9 @@ A few keys to start with:
 | `?`       | Help, with every key and symbol                           |
 | `Q`       | Quit                                                      |
 
-The [help guide](gmd/doc/help.md) covers the rest, and gmd shows the same guide when you press
-`?`.
+The line at the bottom of the screen shows the keys that do something where the cursor is, and
+changes as it moves. The [help guide](gmd/doc/help.md) covers the rest, and gmd shows the same guide
+when you press `?`.
 
 ## Installation
 

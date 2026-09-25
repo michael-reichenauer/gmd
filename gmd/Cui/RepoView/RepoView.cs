@@ -12,6 +12,7 @@ interface IRepoView
     View View { get; }
     View DetailsView { get; }
     View ApplicationBarView { get; }
+    View KeyHintView { get; }
     int CurrentIndex { get; }
     int ContentWidth { get; }
     Point CurrentPoint { get; }
@@ -32,10 +33,14 @@ interface IRepoView
     void ToggleDetails();
     void ShowFilter();
     void ClearSelection();
+
+    // Sizes the log, the details pane and the key-hint line to what is shown, e.g. after the key
+    // hints were turned on or off in the config
+    void UpdateLayout();
 }
 
-// The main log view: the list of commits with the branch graph, the commit details below it and
-// the application bar above it. It owns the shown repo, i.e. reading it, refreshing it when git or
+// The main log view: the list of commits with the branch graph, the commit details below it, the
+// application bar above it and the key-hint line at the bottom. It owns the shown repo, i.e. reading it, refreshing it when git or
 // the working folder changes, and drawing the page the user is looking at.
 //
 // What the user does to it is in RepoViewInput (the keys and mouse buttons) and in the command
@@ -65,6 +70,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly IApplicationBar applicationBarView;
     readonly IFilterDlg filterDlg;
     readonly ContentView commitsView;
+    readonly KeyHintBar keyHintBar;
     readonly IRepoWriter repoWriter;
     readonly Hoover hoover = new Hoover();
     readonly RepoViewInput input;
@@ -121,6 +127,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             IsCustomShowSelection = true,
         };
         commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
+        keyHintBar = new KeyHintBar(GetKeyHints);
 
         repoWriter = newRepoWriter(commitsView, commitsView.ContentX);
         repo = newViewRepo(this, Server.Repo.Empty);
@@ -133,6 +140,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     public View View => commitsView;
     public View DetailsView => commitDetailsView.View;
     public View ApplicationBarView => applicationBarView.View;
+    public View KeyHintView => keyHintBar;
 
     public int ContentWidth => commitsView.ContentWidth;
 
@@ -150,6 +158,8 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     public async Task<Result> ShowInitialRepoAsync(string path)
     {
+        // Here rather than in the constructor, which runs before the config is read
+        UpdateLayout();
         if (await ShowRepoAsync(path) is Error e)
             return e;
         UI.AddTimeout(fetchInterval, (_) => FetchFromRemote());
@@ -265,23 +275,44 @@ class RepoView : IRepoView, IRepoViewInputHost
     public void ToggleDetails()
     {
         isShowDetails = !isShowDetails;
+        UpdateLayout();
 
         if (isShowDetails)
         {
-            commitsView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
-            commitDetailsView.View.Height = CommitDetailsView.ContentHeight;
             OnCurrentIndexChange();
         }
         else
         {
-            commitsView.Height = Dim.Fill();
-            commitDetailsView.View.Height = 0;
             commitsView.IsFocus = true;
             commitDetailsView.View.IsFocus = false;
         }
+    }
+
+    // From the bottom up: the key-hint line when it is turned on, the details pane when it is
+    // shown, and the log filling the rest below the application bar
+    public void UpdateLayout()
+    {
+        var hintsHeight = config.ShowKeyHints ? 1 : 0;
+        var detailsHeight = isShowDetails ? CommitDetailsView.ContentHeight : 0;
+
+        keyHintBar.Visible = config.ShowKeyHints;
+        commitsView.Height = Dim.Fill(detailsHeight + hintsHeight);
+        commitDetailsView.View.Y = Pos.AnchorEnd(CommitDetailsView.ContentHeight + hintsHeight);
+        commitDetailsView.View.Height = detailsHeight;
 
         commitsView.SetNeedsDisplay();
         commitDetailsView.View.SetNeedsDisplay();
+        keyHintBar.SetNeedsDisplay();
+    }
+
+    IReadOnlyList<KeyHint> GetKeyHints()
+    {
+        if (isShowFilter)
+            return KeyHints.ForFilter();
+        if (repo.CurrentIndex < 0 || repo.CurrentIndex >= repo.Repo.ViewCommits.Count)
+            return []; // No repo shown yet
+
+        return KeyHints.For(repo, hoover, Selection, isShowDetails);
     }
 
     public void ToggleDetailsFocus()
@@ -369,6 +400,9 @@ class RepoView : IRepoView, IRepoViewInputHost
             width,
             Selection
         );
+
+        // Whatever redraws the log may have changed what the keys do, so the hints follow it
+        keyHintBar.SetNeedsDisplay();
         return (page, repo.Repo.ViewCommits.Count);
     }
 

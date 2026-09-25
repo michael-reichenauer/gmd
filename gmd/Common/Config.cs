@@ -11,6 +11,7 @@ class Config
     public bool AutoUpdate { get; set; } = false;
     public bool AllowPreview { get; set; } = false;
     public bool SpellCheck { get; set; } = true;
+    public bool ShowKeyHints { get; set; } = true; // The line at the bottom of the log view
     public List<string> SpellWords { get; set; } = []; // Words added to the dictionary by the user
     public string SpellDictionary { get; set; } = ""; // Optional path to a Hunspell .dic (with its .aff beside it)
 

@@ -122,6 +122,9 @@ Key types and flow:
   What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
+  `KeyHints.cs` decides the key-hint line at the bottom, the keys that do something where the
+  cursor is, again with no view; `KeyHintBar` draws it. When a key's behavior changes, check the
+  hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
   `BranchPushPullCommands`, `CommitCommands`, run through `CommandRunner`), menus into `*Menu.cs`.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
@@ -477,7 +480,10 @@ arguments runs them one at a time again. Eight things they do that matter, and t
 keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
-  under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
+  under "Running the TUI from a non-interactive shell" for why both halves are mandatory. It also
+  seeds `ShowKeyHints: false`: the key-hint line is the bottom row, so with it on every snapshot of a
+  whole screen would carry thirty blank rows and the hints. `StartGmd(..., isKeyHints: true)` turns
+  it on, for the tests about it (`KeyHintTest`).
 - **An empty `DISPLAY`, `WAYLAND_DISPLAY` and `WSL_DISTRO_NAME`**, so gmd finds no clipboard tool it
   can reach and copies through the terminal instead (OSC 52). `set-clipboard on` then makes tmux
   keep the sequence as a buffer, which `gmd.Clipboard()` reads back — the only way to assert a copy
@@ -558,8 +564,8 @@ Other things to know:
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `MenuDimensions`, `MenuRows`,
-  `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `KeyHints`, `MenuDimensions`,
+  `MenuRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
   string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
