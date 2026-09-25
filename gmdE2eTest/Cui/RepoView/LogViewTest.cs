@@ -78,18 +78,49 @@ public class LogViewTest
         Assert.IsFalse(gmd.IsRunning);
     }
 
-    // Escape quits from the log view, which is why nothing here ever sends a 'safety' Escape
+    // Escape asks before it quits. Everywhere else in gmd it means close or back, so one too many
+    // is an easy slip, and it used to quit on the spot. Yes is the default, so Escape then Enter
+    // still quits in a moment.
     [TestMethod]
-    public async Task TestQuitWithEscape()
+    public async Task TestEscapeAsksBeforeQuitting()
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
 
         gmd.Send("Escape");
+        gmd.WaitFor("Quit gmd?");
+        gmd.Send("Enter");
 
         gmd.WaitForExit();
         Assert.IsFalse(gmd.IsRunning);
+    }
+
+    // ... and a second Escape, which is what the slip looks like, answers the question rather than
+    // quitting. So does it with the commit details open and moved into, since that pane takes Escape
+    // itself when it has the focus.
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task TestEscapeTwiceStaysInTheLog(bool isInDetails)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        if (isInDetails)
+        {
+            gmd.Send("Enter");
+            gmd.WaitFor("Children:");
+            gmd.Send("Tab");
+            gmd.WaitForStable();
+        }
+
+        gmd.Send("Escape");
+        gmd.WaitFor("Quit gmd?");
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Quit gmd?"), "Merge branch 'dev' into main");
+        Assert.IsTrue(gmd.IsRunning, "A second Escape should answer No");
     }
 
     // The quit keys are registered on the log view, so a dialog above it has to swallow them or

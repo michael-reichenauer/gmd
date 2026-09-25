@@ -71,7 +71,7 @@ class RepoViewInput
         isRegistered = true;
 
         // Keys on repo view contents
-        commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
+        commitsView.RegisterKeyHandler(Key.Esc, QuitAfterAsking);
 
         // Both cases quit, since the help guide documents this key as 'Q'. Note that keys are
         // looked up by exact value, so a case is only handled if it is registered: 'p' and 'P'
@@ -125,7 +125,9 @@ class RepoViewInput
         commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => OnRightClicked(x + 1, y));
         commitsView.RegisterMouseHandler(MouseFlags.ReportMousePosition, (x, y) => OnMouseMoved(x + 1, y));
 
-        // Keys on commit details view.
+        // Keys on commit details view. Esc too, since a click on the pane gives it the focus, and the
+        // key would then go on to the global binding in Program, which quits without asking.
+        commitDetailsView.View.RegisterKeyHandler(Key.Esc, QuitAfterAsking);
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => host.ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => CommitCmds.ShowCurrentRowDiff());
 
@@ -210,9 +212,20 @@ class RepoViewInput
                 Cmd.ShowHelp();
                 break;
             case ApplicationBarItem.Close:
-                UI.Shutdown();
+                QuitAfterAsking();
                 break;
         }
+    }
+
+    // Esc means close or back everywhere else in gmd, so in the log view one Esc too many is an easy
+    // slip, and it used to quit on the spot. Yes is the default, so Esc then Enter still quits in a
+    // moment, while a second Esc, the likely slip, answers No. 'q' quits at once: nobody presses it
+    // on the way out of something else. The X in the application bar asks too, being a single
+    // click beside the '?' of the help.
+    void QuitAfterAsking()
+    {
+        if (UI.InfoMessage("Quit", "Quit gmd?", 0, ["Yes", "No"]) == 0)
+            UI.Shutdown();
     }
 
     void OnKeyE()

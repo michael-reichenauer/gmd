@@ -35,7 +35,7 @@ that has one.
 | Ctrl-C     | Copy the selected rows to the clipboard                    |
 | ? / F1     | Open this help page                                        |
 | Esc        | Close a menu, dialog or view                               |
-| Esc / Q    | Quit, in the log view                                      |
+| Esc / Q    | Quit, in the log view (Esc asks first)                     |
 ---------------------------------------------------------------------------
 
 In dialogs and text fields:

@@ -507,7 +507,8 @@ keep doing:
 
 Five traps worth knowing before adding one:
 
-- **`Escape` in the log view quits the app** — never send a "safety" Escape.
+- **`Escape` in the log view asks "Quit gmd?", with Yes as the default** — never send a "safety"
+  Escape: it leaves the question up, and the next `Enter` quits.
 - A modal dialog is drawn *over* the log view rather than replacing it, so the rows behind it still
   match whatever `WaitFor` is looking for. Use `WaitUntilGone` to mean "closed".
 - For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application bar

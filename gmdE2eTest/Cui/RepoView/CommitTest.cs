@@ -126,7 +126,7 @@ public class CommitTest
     }
 
     // Escape cancels the dialog, and cancelling has to leave the repository alone. Note that the
-    // same key one view further out quits gmd, so this also pins that the dialog swallows it.
+    // same key one view further out asks to quit gmd, so this also pins that the dialog swallows it.
     [TestMethod]
     public async Task TestCancelCommitLeavesTheRepoUnchanged()
     {
