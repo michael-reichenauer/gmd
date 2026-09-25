@@ -170,6 +170,36 @@ sealed class TmuxSession : IDisposable
         return "";
     }
 
+    // Polls until gmd's log, the gmd.log in its home, contains the text, and returns the whole log.
+    // Cmd logs every git command line it runs, so this is how to assert which git command a key ran
+    // when the screen cannot tell two of them apart, e.g. a push from a force push. The log is
+    // written by a background task, so it is polled rather than read once.
+    public string WaitForLog(string expected, int timeoutMs = DefaultTimeoutMs)
+    {
+        var path = Path.Join(Home, "gmd.log");
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var log = "";
+        while (DateTime.UtcNow < deadline)
+        {
+            // gmd has it open for writing, hence the share mode
+            log = File.Exists(path) ? ReadShared(path) : "";
+            if (log.Contains(expected))
+                return log;
+
+            Thread.Sleep(PollMs);
+        }
+
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for '{expected}' in {path}\n{Diagnostics(Capture())}");
+        return log;
+    }
+
+    static string ReadShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     // Whether the terminal cursor is shown, which is how a focused text input shows its caret;
     // the log view and the menus hide it. tmux tracks the visibility the app sets, as it does
     // the screen, so this is what the user sees rather than what the app believes it asked for.

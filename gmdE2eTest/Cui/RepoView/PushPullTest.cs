@@ -65,6 +65,30 @@ public class PushPullTest
         // v1.0 is still there, and still unpushed: pushing a branch does not push its tags,
         // and the fetch that follows no longer prunes the ones the remote has not got
         Assert.AreEqual("v1.0", await repo.GitAsync("tag --list"));
+
+        // And it was a plain push. 'p' used to force push (with lease) any branch that had a remote,
+        // not only after Force Push was chosen in the question a diverged branch gets, see below.
+        var log = gmd.WaitForLog("push --porcelain origin --set-upstream refs/heads/main:refs/heads/main");
+        Assert.IsFalse(log.Contains("push --force-with-lease"), "'p' should not force push");
+    }
+
+    // A branch whose remote has commits it has not got can only be pushed by force, so 'p' asks,
+    // with Cancel the default, and Cancel leaves origin as it was
+    [TestMethod]
+    public async Task TestPushingADivergedBranchAsksBeforeForcing()
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        var remoteMain = await repo.GitAsync("ls-remote origin main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("●main");
+
+        gmd.Send("p");
+        gmd.WaitFor("Push Warning");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Push Warning");
+        Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
     }
 
     // Pulling with 'u', the mirror of the push above: origin has a commit the local branch has

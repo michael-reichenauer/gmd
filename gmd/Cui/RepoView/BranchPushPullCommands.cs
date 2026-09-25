@@ -71,11 +71,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
                         RefreshAndFetch();
                         return Result.Ok;
                     }
-                }
 
-                if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
-                {
-                    return new Error($"Failed to push branch:\n{branch.Name}", ee);
+                    // Force Push was chosen. Only then: this call used to sit after the question
+                    // rather than inside it, so every push of a branch with a remote was a force push.
+                    if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
+                    {
+                        return new Error($"Failed to push branch:\n{branch.Name}", ee);
+                    }
                 }
             }
 

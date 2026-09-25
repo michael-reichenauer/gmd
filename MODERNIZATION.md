@@ -146,6 +146,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `?`, F1 and F5 do nothing inside the diff, blame and conflict views. They only ever worked there
   by falling through to the log view, which those views no longer let a key do; register them in
   the views if they are wanted.
+- *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
+  ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
+  and the push makes the lease pass over commits the user never saw. Pass the tip the user saw
+  (`--force-with-lease=<branch>:<sha>`).
 - `DeleteTag` deletes a tag on origin whenever the branch of the row's commit has a remote, not
   when origin actually has the tag, so the question may say 'on origin as well' for a tag that was
   never pushed.
