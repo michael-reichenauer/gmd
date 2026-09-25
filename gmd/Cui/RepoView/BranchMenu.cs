@@ -43,9 +43,11 @@ class BranchMenu : IBranchMenu
         Menu.Show($"Branch: {b.ShortNiceUniqueName()}", x, y + 2, GetBranchMenuItems(branchName));
     }
 
+    // Typing in it, or in its sub menus, finds a branch by name instead, which the title says, since
+    // a long list of branches is otherwise walked one key at a time
     public void ShowOpenBranchMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Open Branch", x, y + 2, GetShowBranchItems());
+        Menu.Show("Open Branch (type to find)", x, y + 2, GetShowBranchItems(), onTypeText: FindBranch);
     }
 
     public void ShowDiffBranchToMenu(int x, int y, string branchName)
@@ -201,7 +203,7 @@ class BranchMenu : IBranchMenu
             .Separator()
             // The limited menu is the one under a branch in the Branches sub menu of the commit menu,
             // which already offers these at its root, and the repo menu beside it
-            .SubMenu(!isLimited, "Show/Open Branch", "Shift →", GetShowBranchItems())
+            .Items(!isLimited, [ShowBranchSubMenu()])
             .Item(!isLimited, "Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
             .Item(!isLimited, "Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
@@ -462,7 +464,7 @@ class BranchMenu : IBranchMenu
         return GetShownBranchesSubMenus()
             .Concat(
                 Menu.Items.Separator()
-                    .SubMenu("Show/Open Branch", "Shift →", GetShowBranchItems())
+                    .Items([ShowBranchSubMenu()])
                     .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
                     .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
                     .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
@@ -525,6 +527,13 @@ class BranchMenu : IBranchMenu
     }
 
     void ShowBranch(Branch b) => cmds.ShowBranch(b.Name, false);
+
+    // Called rather than passed as a method group, which would read cmds now, and the menu tests
+    // build menus with no commands
+    void FindBranch(string text) => cmds.FindBranch(text);
+
+    // The same menu as ShowOpenBranchMenu, as a sub menu, where typing finds a branch as well
+    SubMenu ShowBranchSubMenu() => new("Show/Open Branch", "Shift →", GetShowBranchItems()) { OnTypeText = FindBranch };
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(
         IEnumerable<Branch> branches,

@@ -10,6 +10,7 @@ class Menu
     readonly int yOrg;
     readonly int altX;
     readonly Action onEscAction;
+    readonly Action<string>? onTypeText;
     readonly Menu? parent;
     Menu? childSubMenu;
 
@@ -35,9 +36,16 @@ class Menu
     // quits gmd, the start menu, turns it off, since a stray click is not asking to quit.
     public bool IsClosedOnClickOutside { get; init; } = true;
 
-    public static void Show(string title, int x, int y, IEnumerable<MenuItem> items, Action? onEscAction = null)
+    public static void Show(
+        string title,
+        int x,
+        int y,
+        IEnumerable<MenuItem> items,
+        Action? onEscAction = null,
+        Action<string>? onTypeText = null
+    )
     {
-        var menu = new Menu(x, y, title, null, -1, onEscAction);
+        var menu = new Menu(x, y, title, null, -1, onEscAction, onTypeText);
         menu.Show(items);
     }
 
@@ -56,7 +64,15 @@ class Menu
         Func<bool>? canExecute = null
     ) => new SubMenu(text, shortcut, children, canExecute);
 
-    public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)
+    public Menu(
+        int x,
+        int y,
+        string title,
+        Menu? parent,
+        int altX,
+        Action? onEscAction,
+        Action<string>? onTypeText = null
+    )
     {
         this.xOrg = x;
         this.yOrg = y;
@@ -64,6 +80,7 @@ class Menu
         this.parent = parent;
         this.altX = altX;
         this.onEscAction = onEscAction ?? (() => { });
+        this.onTypeText = onTypeText;
     }
 
     public void Show(IEnumerable<MenuItem> items)
@@ -195,10 +212,30 @@ class Menu
         view.RegisterKeyHandler(Key.CursorRight, () => OpenSubMenu());
 
         // The key an item shows beside it picks that item, see MenuShortcuts
-        foreach (var (key, index) in MenuShortcuts.Of(items))
+        var shortcuts = MenuShortcuts.Of(items);
+        foreach (var (key, index) in shortcuts)
             view.RegisterKeyHandler(key, () => OnShortcut(index));
 
+        // Any other printable key is typing, where the menu takes it, e.g. to find a branch by name.
+        // Not space, which pages down as in every list.
+        if (onTypeText != null)
+        {
+            for (var c = '!'; c <= '~'; c++)
+            {
+                var typed = c.ToString();
+                if (!shortcuts.ContainsKey((Key)c))
+                    view.RegisterKeyHandler((Key)c, () => OnTypeText(typed));
+            }
+        }
+
         return view;
+    }
+
+    // Closes the menus, the parents too, as picking an item does, and hands on what was typed
+    async void OnTypeText(string typed)
+    {
+        await RootMenu.CloseAsync();
+        onTypeText?.Invoke(typed);
     }
 
     // As Enter on the item: a sub menu opens, anything else runs. The cursor is moved there first,
@@ -348,7 +385,7 @@ class Menu
             var y = dimensions.Y + (itemsView.CurrentIndex - itemsView.FirstIndex);
 
             var title = sm.Text.Trim();
-            childSubMenu = new Menu(x, y, title, this, dimensions.X, null);
+            childSubMenu = new Menu(x, y, title, this, dimensions.X, null, sm.OnTypeText ?? onTypeText);
             childSubMenuIndex = itemsView.CurrentIndex;
             isFocus = false;
             childSubMenu.Show(sm.Children);

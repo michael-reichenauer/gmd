@@ -106,6 +106,10 @@ was made from, and the main branch is always shown.
   branch out at the current commit, then the Recent, Active, My Active
   (where the last commit is yours), Active and Deleted, and Ambiguous
   branches.
+- Typing in that menu, or in its sub menus, opens **Find Branch** with what
+  was typed. The list narrows as more of the name is typed, every word has
+  to be in it, and the names it starts a part of come first. `Enter` or a
+  click shows the branch.
 - ┣╮ and ┣╯ beside a commit mean that a hidden branch merges in or branches
   out there. `Enter` on the branch, or a click, shows it (or opens a menu
   when there are several), and hides it again.

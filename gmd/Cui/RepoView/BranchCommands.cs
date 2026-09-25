@@ -9,6 +9,7 @@ interface IBranchCommands
 {
     void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
     void ShowBranch(string name, string showCommitId);
+    void FindBranch(string text);
     void HideBranch(string name, bool hideAllBranches = false);
 
     void SwitchTo(string branchName);
@@ -63,6 +64,7 @@ class BranchCommands : IBranchCommands
     readonly IBranchCreateCommands createCmds;
     readonly IBranchPushPullCommands pushPullCmds;
     readonly IWorktreeCommands worktreeCmds;
+    readonly IFindBranchDlg findBranchDlg;
 
     public BranchCommands(
         IViewRepo repo,
@@ -72,6 +74,7 @@ class BranchCommands : IBranchCommands
         IDiffView diffView,
         IBranchColorService branchColorService,
         ISetBranchDlg setBranchDlg,
+        IFindBranchDlg findBranchDlg,
         IRepoConfig repoConfig,
         Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
         Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands,
@@ -86,6 +89,7 @@ class BranchCommands : IBranchCommands
         this.diffView = diffView;
         this.branchColorService = branchColorService;
         this.setBranchDlg = setBranchDlg;
+        this.findBranchDlg = findBranchDlg;
         this.repoConfig = repoConfig;
         this.createCmds = newCreateCommands(repo, repoView);
         this.pushPullCmds = newPushPullCommands(repo, repoView);
@@ -165,6 +169,16 @@ class BranchCommands : IBranchCommands
     {
         Repo newRepo = server.ShowBranch(repo.Repo, name, false);
         SetRepoAttCommit(newRepo, showCommitId);
+    }
+
+    // Finds a branch by name, starting from what was typed in the Open Branch menu, and shows it, as
+    // picking it in that menu does. A branch already shown is scrolled to.
+    public void FindBranch(string text)
+    {
+        if (findBranchDlg.Show(repo.Repo, text) is not Server.Branch branch)
+            return;
+
+        ShowBranch(branch.Name, false);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)

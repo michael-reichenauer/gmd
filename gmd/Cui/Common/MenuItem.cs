@@ -16,6 +16,10 @@ record SubMenu : MenuItem
     }
 
     public IEnumerable<MenuItem> Children { get; init; }
+
+    // Typing in the sub menu, or in a sub menu of it, closes the menus and calls this with what was
+    // typed, see Menu.OnTypeText. For a long list of names, where typing finds one faster.
+    public Action<string>? OnTypeText { get; init; }
 }
 
 // To create a menu separator line or header line
