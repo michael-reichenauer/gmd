@@ -297,4 +297,46 @@ public class DiffViewTest
 
         StringAssert.Contains(gmd.WaitUntilGone("Gmd Help Guide"), "Added: delta.txt", "Back in the diff");
     }
+
+    // A range diff is the changes the selected commits made, which it only is for commits of one
+    // branch: the check for that compared a commit with itself and never refused anything. It says
+    // so on the status line, and diffs a range on one branch. Ctrl-D diffs the rows whatever branch
+    // is highlighted, which showing dev leaves main.
+    [TestMethod]
+    public async Task TestARangeDiffNeedsCommitsOfOneBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+
+        // 'Add gamma' on main and 'More dev work' on dev, the third and fourth rows. The first
+        // Shift-Down selects the row the cursor is on, the second adds the one below.
+        SelectTwoRowsFrom(gmd, 2);
+        gmd.Send("C-d");
+        Assert.AreEqual(
+            "The selected commits are on different branches: select commits of one branch",
+            ScreenText.LastLine(gmd.WaitFor("different branches"))
+        );
+
+        // 'More dev work' and 'Work on dev', both on dev
+        SelectTwoRowsFrom(gmd, 3);
+        gmd.Send("C-d");
+        gmd.WaitFor("dev.txt");
+    }
+
+    static void SelectTwoRowsFrom(TmuxSession gmd, int row)
+    {
+        string[] keys = ["Home", .. Enumerable.Repeat("Down", row), "S-Down", "S-Down"];
+        foreach (var key in keys)
+        {
+            gmd.Send(key);
+            gmd.WaitForStable();
+        }
+    }
 }

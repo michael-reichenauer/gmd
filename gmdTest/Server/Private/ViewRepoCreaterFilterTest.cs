@@ -112,7 +112,7 @@ public class ViewRepoCreaterFilterTest
     {
         var repo = await Fixture().WithStatus(modified: 1).FilteredViewRepoAsync("uncommitted");
 
-        CollectionAssert.AreEqual(new[] { "1 uncommitted changes" }, Subjects(repo));
+        CollectionAssert.AreEqual(new[] { "1 uncommitted change" }, Subjects(repo));
         Assert.AreEqual(Repo.UncommittedId, repo.ViewCommits.Single().Id);
     }
 

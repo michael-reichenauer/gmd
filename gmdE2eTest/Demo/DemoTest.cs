@@ -96,12 +96,12 @@ public class DemoTest
         // top row, so that the commit made there is the current one, drawn bright, as it is pushed.
         Press(gmd, demo, "Home", 0.8);
         gmd.Send("c");
-        gmd.WaitFor("Commit 1 changes");
+        gmd.WaitFor("Commit 1 change");
         demo.Frame(1, "commit-dialog");
         demo.Type("Add password reset link", 0.08);
         demo.Frame(1);
         gmd.Send("M-o");
-        gmd.WaitUntilGone("Commit 1 changes");
+        gmd.WaitUntilGone("Commit 1 change");
         gmd.WaitUntilGone("uncommitted changes");
         demo.Frame(2.5, "committed");
         gmd.Send("p");

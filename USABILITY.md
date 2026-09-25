@@ -265,15 +265,19 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 
 ## Small bugs found along the way
 
-- `AboutDlg.cs:33`: `{latest.Txt}` is missing its `()`, so it prints a delegate type name.
-- `BranchPushPullCommands.cs:121`: Push All says "Commit changes before **pulling**".
-- `CommitCommands.cs:215`: compares `id1` with `id1`, so "not on same branch" can never be reported.
-- ~~`CommitMenu.cs:143`: checks `c1` twice and never checks `c2`.~~ Fixed.
-- `FilterDlg.cs:25,176`: the mouse-handler map is never filled, so clicking a search result does
-  nothing.
-- `ConfigDlg.cs:145`: says "Removed gmd **to** PATH".
-- "Commit 1 changes on 'main'": the plural is wrong (`CommitDlg.cs:43`).
-- `help.md`:
-  - It says *Uncommit until X* is `reset --soft X`, but the code resets to X's parent, so X is
-    uncommitted too.
-  - ~~It says a diverged branch "cannot be pushed", but `p` offers *Force Push*.~~ Fixed.
+All fixed (2026-09-25), each with a test where one could reach it:
+
+- `AboutDlg.cs`: `{latest.Txt}` was missing its `()`, so it printed a delegate type name, and with
+  no latest version known (update checks off) parsing the empty value crashed gmd.
+- `BranchPushPullCommands.cs`: Push All said "Commit changes before **pulling**" (it no longer needs
+  a clean tree at all).
+- `CommitCommands.cs`: compared `id1` with `id1`, so "not on same branch" was never reported and a
+  range diff across branches included commits that were not selected.
+- `CommitMenu.cs`: checked `c1` twice and never `c2`.
+- `FilterDlg.cs`: the mouse-handler map was never filled, so clicking a search result did nothing.
+- `ConfigDlg.cs`: said "Removed gmd **to** PATH", after a "Not implemented yet" branch that could
+  never run.
+- "Commit 1 changes on 'main'", "1 uncommitted changes" and "Amend 0 changes": the plurals.
+- `MainView.cs`: start-up errors printed "Error: ..." inside the "Error !" box.
+- `help.md`: *Uncommit until X* was documented as `reset --soft X`, but X is uncommitted too; and a
+  diverged branch "cannot be pushed", but `p` offers *Force Push*.

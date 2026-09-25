@@ -22,7 +22,6 @@ class FilterDlg : IFilterDlg
     UITextField filterField = null!;
     UILabel statusLabel = null!;
 
-    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = [];
     Action<Repo> onRepoChanged = null!;
     Server.Repo orgRepo = null!;
     Server.Repo currentRepo = null!;
@@ -152,7 +151,7 @@ class FilterDlg : IFilterDlg
         return false;
     }
 
-    // Support scrolling with mouse wheel (see ContentView.cs for details)
+    // The close X, the mouse wheel, and a click on a result
     bool OnMouseEvent(MouseEvent ev)
     {
         // Log.Info($"OnMouseEvent:  {ev}, {closeX}");
@@ -173,10 +172,18 @@ class FilterDlg : IFilterDlg
             return true;
         }
 
-        if (mouses.TryGetValue(ev.Flags, out var callback))
+        // A click on a result picks it, as Enter does. The results are the log view's rows, below the
+        // dialog, which has the mouse, so the row is worked out from the dialog's own coordinates.
+        var resultRow = ev.Y - DialogHeight;
+        var isOnResult =
+            resultRow >= 0
+            && resultRow < resultsView.ViewHeight
+            && resultsView.FirstIndex + resultRow < currentRepo.ViewCommits.Count;
+        if (ev.Flags.HasFlag(MouseFlags.Button1Clicked) && isOnResult)
         {
-            callback(ev.X, ev.Y);
-            return true;
+            resultsView.SetIndexAtViewY(resultRow);
+            ShowCommitInfo();
+            return OnDialogKey(Key.Enter);
         }
 
         return false;

@@ -115,4 +115,22 @@ public class FilterDlgTest
 
         gmd.WaitFor("Filter Commits");
     }
+
+    // A click on a result picks it, as Enter does: the search closes and the log shows the commit.
+    // It used to do nothing, the dialog having the mouse and no handler for it.
+    [TestMethod]
+    public async Task TestClickingAResultPicksIt()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+        gmd.SendText("dev");
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor("3 commits"), "More dev work");
+
+        gmd.Click(x, y);
+
+        StringAssert.Contains(gmd.WaitUntilGone("Filter Commits"), "More dev work", "dev is shown with the commit");
+    }
 }

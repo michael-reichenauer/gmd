@@ -118,7 +118,7 @@ partial class MainView : IMainView
         {
             if (path != "" && rootPathResult is Error e)
             { // User specified an invalid folder on command line
-                UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
+                UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e.AllMessages()}");
             }
 
             ShowMainMenu();
@@ -228,7 +228,7 @@ partial class MainView : IMainView
             );
             if (await updateTask is Error e)
             {
-                UI.ErrorMessage($"Failed to update:\n{e}");
+                UI.ErrorMessage($"Failed to update:\n{e.AllMessages()}");
                 ShowMainMenu();
                 return;
             }
@@ -275,7 +275,7 @@ partial class MainView : IMainView
         {
             if (await repoView.ShowInitialRepoAsync(path) is Error e)
             {
-                UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e}");
+                UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e.AllMessages()}");
                 ShowMainMenu();
                 return;
             }

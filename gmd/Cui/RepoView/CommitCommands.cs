@@ -213,14 +213,17 @@ class CommitCommands : ICommitCommands
         { // User has selected multiple commits
             id1 = repo.Repo.ViewCommits[i1].Id;
             id2 = repo.Repo.ViewCommits[i2].Id;
+            // A range diff is the changes the selected commits made, i.e. from before the oldest to
+            // the newest, which is only that when they are commits of one branch: rows of other
+            // branches in between would be in it as well. Said on the status line, as no error.
             if (id1 == Repo.UncommittedId || id2 == Repo.UncommittedId)
             {
-                UI.ErrorMessage("Selection start and end commit cannot be uncommitted row.");
+                status.Notice("The uncommitted changes are no commit to diff a range to: select commits only");
                 return;
             }
-            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id1].BranchPrimaryName)
+            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id2].BranchPrimaryName)
             {
-                UI.ErrorMessage("Selection start and end commit not on same branch");
+                status.Notice("The selected commits are on different branches: select commits of one branch");
                 return;
             }
         }

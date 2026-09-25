@@ -369,4 +369,18 @@ public class CommitDlgTest
 
         StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "[Subject ", "The message is as it was");
     }
+
+    // One change is '1 change', not '1 changes'
+    [TestMethod]
+    public async Task TestOneChangeIsSaidInTheSingular()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        repo.WriteFile("epsilon.txt", "epsilon\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("1 uncommitted change ");
+
+        gmd.Send("c");
+
+        gmd.WaitFor("Commit 1 change on 'main':");
+    }
 }

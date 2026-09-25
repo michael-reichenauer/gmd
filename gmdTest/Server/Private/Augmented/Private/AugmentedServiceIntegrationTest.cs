@@ -138,7 +138,7 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual(repo.Path, fromWorktree.BranchByName["main"].WorktreePath);
         Assert.AreEqual("", fromWorktree.BranchByName["dev"].WorktreePath);
         Assert.AreEqual("dev", fromWorktree.CurrentBranch().Name);
-        Assert.AreEqual("1 uncommitted changes", fromWorktree.AllCommits[0].Subject);
+        Assert.AreEqual("1 uncommitted change", fromWorktree.AllCommits[0].Subject);
     }
 
     // 'Merge to' is the one write operation that moves HEAD twice, so what it leaves behind is

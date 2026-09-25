@@ -118,7 +118,8 @@ static class Uncommitted
             parentIds.Add(repo.Status.MergeHeadId);
         }
 
-        string subject = $"{repo.Status.ChangesCount} uncommitted changes";
+        var count = repo.Status.ChangesCount;
+        string subject = $"{count} uncommitted change{(count == 1 ? "" : "s")}";
         if (repo.Status.IsMerging && repo.Status.MergeMessage != "")
         { // Merge in progress
             subject = $"{repo.Status.MergeMessage}, {subject}";

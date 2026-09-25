@@ -153,14 +153,14 @@ public class CommitTest
         using var repo = await E2eRepo.CreateAsync();
         repo.WriteFile("image.bin", "binary\0data");
         using var gmd = TmuxSession.StartGmd(repo);
-        gmd.WaitFor("©1 uncommitted changes");
+        gmd.WaitFor("©1 uncommitted change");
         gmd.Send("c");
         gmd.WaitFor("Binary Files Detected");
 
         gmd.Send("Enter");
 
-        StringAssert.Contains(gmd.WaitUntilGone("Binary Files Detected"), "©1 uncommitted changes");
-        Assert.IsFalse(gmd.Capture().Contains("Commit 1 changes"), "Cancel should not go on to commit");
+        StringAssert.Contains(gmd.WaitUntilGone("Binary Files Detected"), "©1 uncommitted change");
+        Assert.IsFalse(gmd.Capture().Contains("Commit 1 change"), "Cancel should not go on to commit");
         Assert.AreEqual("?? image.bin", await repo.GitAsync("status -s"));
         Assert.AreEqual("binary\0data", File.ReadAllText(Path.Join(repo.Path, "image.bin")));
     }
@@ -284,7 +284,7 @@ public class CommitTest
         );
 
         gmd.Send("a");
-        var dialog = gmd.WaitFor("Amend 0 changes");
+        var dialog = gmd.WaitFor("Amend the last commit");
 
         // The dialog is the commit one retitled, with the message of the commit being amended
         // filled in and the cursor at its end. '0 changes' because the working tree is clean here:
@@ -292,7 +292,7 @@ public class CommitTest
         Assert.AreEqual(
             """
                                    ╭ Amend ─────────────────────────────────────────────────────────────────╮
-                                   │ Amend 0 changes on 'main':                                             │
+                                   │ Amend the last commit on 'main':                                       │
                                    │                                                                        │
                                    │[Add zeta                                          ]                    │
             """,
@@ -523,7 +523,7 @@ public class CommitTest
         gmd.Send("Enter");
 
         // The dialog arrives filled in with the message of the commit being picked
-        gmd.WaitFor("Add gamma, 1 uncommitted changes");
+        gmd.WaitFor("Add gamma, 1 uncommitted change");
         gmd.Send("Enter");
 
         // 'dev' now has its own copy of the commit, with an id of its own, and main still has the
