@@ -114,6 +114,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   The diff has since stopped touching the index at all: it stages into a copy (`GIT_INDEX_FILE`),
   since its `git add .` then `git reset` also wiped whatever the user had staged with other tools.
 - `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
+- Pulling a diverged branch failed, with git's dozen lines of hints as the error, for anyone who
+  has not set `pull.rebase`, which recent git refuses to guess. gmd asks once and saves the answer.
 - Pull all stopped at the first diverged branch, leaving every branch after it unpulled; the branch
   menu's `Pull/Update` on the current branch ran a fetch git refuses outright.
 - Squash refused unpushed commits and allowed pushed ones; Uncommit was offered with a dirty tree

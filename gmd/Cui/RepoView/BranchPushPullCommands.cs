@@ -174,6 +174,12 @@ class BranchPushPullCommands : IBranchPushPullCommands
             if (remoteBranch == null || !remoteBranch.HasRemoteOnly)
                 return new Notice($"Nothing to pull on '{branch.NiceNameUnique}'");
 
+            var way = await EnsurePullWayAsync(remoteBranch);
+            if (way is not bool isToPull)
+                return way.Error;
+            if (!isToPull)
+                return Result.Ok;
+
             if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
             {
                 return new Error($"Failed to pull current branch", e);
@@ -204,6 +210,15 @@ class BranchPushPullCommands : IBranchPushPullCommands
             List<string> updated = [];
             if (CanPullCurrentBranch())
             {
+                if (repo.Repo.BranchByName.TryGetValue(repo.Repo.CurrentBranch()?.RemoteName ?? "", out var current))
+                {
+                    var way = await EnsurePullWayAsync(current);
+                    if (way is not bool isToPull)
+                        return way.Error;
+                    if (!isToPull)
+                        return Result.Ok;
+                }
+
                 Log.Info("Pull current");
                 // Need to treat current branch separately
                 if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
@@ -245,6 +260,47 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 status.Info($"Updated {Names(updated)}");
             return Result.Ok;
         });
+
+    // A branch that has diverged from its remote is joined to it by a merge or a rebase. Git leaves
+    // that to its config, and refuses to guess when none is set: 'fatal: Need to specify how to
+    // reconcile divergent branches', under a dozen lines of hints, which used to be gmd's error. So
+    // gmd asks, once, and saves the answer where git reads it, pull.rebase, so that a pull on the
+    // command line does the same from then on. A branch that is only behind is a fast-forward, which
+    // needs neither. False when the user cancelled.
+    async Task<Result<bool>> EnsurePullWayAsync(Branch remoteBranch)
+    {
+        if (!(remoteBranch.HasRemoteOnly && remoteBranch.HasLocalOnly))
+            return true;
+
+        var localName = remoteBranch.LocalName != "" ? remoteBranch.LocalName : remoteBranch.Name;
+        var configured = await server.IsPullWayConfiguredAsync(localName, repo.Path);
+        if (configured is not bool isConfigured)
+            return configured.Error;
+        if (isConfigured)
+            return true;
+
+        var commits = repo.Repo.ViewCommits.Where(c => c.BranchPrimaryName == remoteBranch.PrimaryName).ToList();
+        var ahead = Commits(commits.Count(c => c.IsAhead));
+        var behind = Commits(commits.Count(c => c.IsBehind));
+        var choice = UI.InfoMessage(
+            "Pull Diverged Branch",
+            $"'{NiceName(remoteBranch.Name)}' has {ahead} not pushed, and origin has {behind}\n"
+                + "not pulled. Merge joins the two with a merge commit, and Rebase\n"
+                + $"moves your {ahead} on top of origin's.\n\n"
+                + "The answer is saved as pull.rebase in the repository's git config,\n"
+                + "so it is not asked again, and git on the command line does the same.",
+            0,
+            ["Merge", "Rebase", "Cancel"]
+        );
+        if (choice is not (0 or 1))
+            return false;
+
+        if (await server.SetPullRebaseAsync(choice == 1, repo.Path) is Error e)
+            return new Error("Failed to save how to pull", e);
+        return true;
+    }
+
+    static string Commits(int count) => count == 1 ? "1 commit" : $"{count} commits";
 
     // The name a branch is shown with, its local one for a local and remote pair: a branch menu and
     // a highlighted branch give the pair by its primary name, which is the remote's, 'origin/main'

@@ -289,4 +289,50 @@ public class PushPullTest
             "The diverged branch was left as it was"
         );
     }
+
+    // Git will not pull a diverged branch until it is told how to join the two sides, and gmd used
+    // to pass on its refusal, a dozen lines of hints. It asks now, Merge or Rebase, and saves the
+    // answer as pull.rebase, where git reads it too.
+    [TestMethod]
+    [DataRow("Merge", "false")]
+    [DataRow("Rebase", "merges")]
+    public async Task TestPullingADivergedBranchAsksHow(string button, string saved)
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Main local");
+
+        gmd.Send("u");
+        StringAssert.Contains(
+            gmd.WaitFor("Pull Diverged Branch"),
+            "'main' has 1 commit not pushed, and origin has 1 commit"
+        );
+        if (button == "Rebase")
+        {
+            gmd.Send("Tab");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Pulled 'main'");
+        Assert.AreEqual(saved, (await repo.GitAsync("config pull.rebase")).Trim());
+        var parents = (await repo.GitAsync("log -1 --format=%P main")).Trim().Split(' ');
+        Assert.AreEqual(button == "Rebase" ? 1 : 2, parents.Length, button == "Rebase" ? "One line" : "A merge");
+    }
+
+    // Once git knows how, whether gmd saved it or the user did, nothing is asked
+    [TestMethod]
+    public async Task TestPullingADivergedBranchAsGitIsConfiguredAsksNothing()
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        await repo.GitAsync("config pull.rebase false");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Main local");
+
+        gmd.Send("u");
+
+        Assert.IsFalse(gmd.WaitFor("Pulled 'main'").Contains("Pull Diverged Branch"));
+    }
 }

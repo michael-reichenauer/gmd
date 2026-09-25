@@ -222,4 +222,34 @@ public class RemoteServiceTest
 
         AssertError(result, "Expected the git failure to propagate");
     }
+
+    // Git refuses to pull a diverged branch unless told how, by any of three settings. Nothing set
+    // is exit code 1, an answer rather than a failure.
+    [TestMethod]
+    [DataRow("", "main", false)]
+    [DataRow("pull.rebase true", "main", true)]
+    [DataRow("pull.rebase false", "main", true)]
+    [DataRow("pull.ff only", "main", true)]
+    [DataRow("branch.main.rebase true", "main", true)]
+    [DataRow("branch.Feature.rebase true", "Feature", true)]
+    [DataRow("branch.other.rebase true", "main", false)]
+    public async Task TestWhetherThePullWayIsConfigured(string config, string branch, bool isConfigured)
+    {
+        var cmd = new FakeCmd((_, _, _) => config == "" ? FakeCmd.Fail("", 1) : FakeCmd.Ok(config));
+
+        Assert.AreEqual(isConfigured, AssertOk(await NewService(cmd).IsPullWayConfiguredAsync(branch, "/wd")));
+    }
+
+    // A rebase keeps the local merges, which a plain one flattens, losing where their commits came from
+    [TestMethod]
+    [DataRow(true, "config pull.rebase merges")]
+    [DataRow(false, "config pull.rebase false")]
+    public async Task TestThePullWayIsSavedForGit(bool isRebase, string args)
+    {
+        var cmd = new FakeCmd("");
+
+        AssertOk(await NewService(cmd).SetPullRebaseAsync(isRebase, "/wd"));
+
+        Assert.AreEqual(args, cmd.Calls[0].Args);
+    }
 }

@@ -1637,6 +1637,37 @@ public class GitIntegrationTest
         Assert.AreEqual(0, Value(await repo.Git.GetIdsChangingFilesAsync("nothing", 100, repo.Path)).Count);
     }
 
+    // A diverged branch is refused by 'git pull' until git is told how to join the two sides, which
+    // is why gmd asks. Once the answer is saved where git reads it, the pull merges, or rebases the
+    // local commit on top of the remote one.
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task TestPullingADivergedBranch(bool isRebase)
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q --set-upstream origin main");
+        var remote = await repo.CommitFileAsync("b.txt", "b\n", "Remote");
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("reset -q --hard HEAD~1");
+        await repo.CommitFileAsync("c.txt", "c\n", "Local");
+        if (Value(await repo.Git.IsPullWayConfiguredAsync("main", repo.Path)))
+            Assert.Inconclusive("The system git config says how to pull, which this test needs unset");
+
+        var refused = AssertError(await repo.Git.PullCurrentBranchAsync(repo.Path), "Git will not guess");
+        StringAssert.Contains(refused.AllMessages(), "divergent branches");
+
+        Ok(await repo.Git.SetPullRebaseAsync(isRebase, repo.Path));
+        Assert.IsTrue(Value(await repo.Git.IsPullWayConfiguredAsync("main", repo.Path)));
+        Ok(await repo.Git.PullCurrentBranchAsync(repo.Path));
+
+        var parents = (await repo.GitAsync("log -1 --format=%P")).Trim().Split(' ');
+        Assert.AreEqual(isRebase ? 1 : 2, parents.Length, isRebase ? "One line" : "A merge");
+        if (isRebase)
+            Assert.AreEqual(remote, parents[0], "The local commit is on top of the remote one");
+    }
+
     // Unwraps a result, failing the test with the git error if the command failed
     static T Value<T>(Result<T> result)
         where T : notnull => AssertOk(result, "Git failed");

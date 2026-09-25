@@ -153,7 +153,8 @@ These are choices for the author, not defects.
   - Search looks at the subject only: not the message body, and not file paths.
   - Nothing opens a branch, commit or pull request in the browser.
   - Only `origin` is supported.
-  - `pull` offers no choice between merge and rebase.
+  - `pull` offers no choice between merge and rebase. *Fixed (2026-09-25),* see Tier 4 item 6:
+    it was worse than no choice, since git refuses a diverged pull when `pull.rebase` is unset.
 
 ---
 
@@ -272,7 +273,11 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    counts the commits pushed to hidden remote branches since each was last shown, remembered per
    repository (`HiddenNews`, `RepoConfig.SeenTips`). A click lists them, as *New Commits* in Show
    Branch does, and *Mark All as Seen* clears what is not followed.
-6. **Merge or rebase on pull,** asked once and remembered.
+6. **Merge or rebase on pull,** asked once and remembered. *Done (2026-09-25):* with git's default
+   config, pulling a diverged branch failed outright ("Need to specify how to reconcile divergent
+   branches", under a dozen lines of hints). gmd now asks, Merge or Rebase, when git has no
+   `pull.rebase`, `pull.ff` or `branch.<name>.rebase`, and saves the answer as `pull.rebase`
+   (`merges` for a rebase, which keeps local merges), so git on the command line does the same.
 7. **Theme:**
    - Honour `NO_COLOR` and light terminals, with no forced black background.
    - More branch colors, with the Terminal.Gui 2.x port.

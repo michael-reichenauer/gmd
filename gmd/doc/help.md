@@ -156,7 +156,9 @@ them, switch, and put them back. `Shift-P` and
 A branch with both unpulled and unpushed commits can only be pushed by
 force, which `p` asks about first, and is not updated by `Shift-U`, which
 only fast-forwards the branches it is not on. Switch to the branch and pull
-it (`u`) to merge the two sides.
+it (`u`) to join the two sides. The first time, gmd asks whether to merge
+them or to rebase your commits on top, unless git's `pull.rebase` already
+says, and saves the answer there, for git on the command line as well.
 
 **Open in Browser** in a branch menu opens the branch on the site hosting
 the remote (GitHub, GitLab, Bitbucket, Azure DevOps or Gitea), and **Create

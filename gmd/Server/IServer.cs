@@ -74,6 +74,8 @@ interface IServer
     Task<Result> PushBranchAsync(string name, string wd);
     Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);
+    Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd);
+    Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> SwitchToAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);

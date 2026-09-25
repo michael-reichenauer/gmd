@@ -325,6 +325,11 @@ class Server : IServer
 
     public Task<Result> PullCurrentBranchAsync(string wd) => git.PullCurrentBranchAsync(wd);
 
+    public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
+        git.IsPullWayConfiguredAsync(branchName, wd);
+
+    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => git.SetPullRebaseAsync(isRebase, wd);
+
     public Task<Result> PullBranchAsync(string name, string wd) => git.PullBranchAsync(name, wd);
 
     public Task<Result> SwitchToAsync(Repo repo, string branchName) => augmentedService.SwitchToAsync(repo, branchName);

@@ -128,6 +128,11 @@ internal class Git : IGit
 
     public Task<Result> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
 
+    public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
+        remoteService.IsPullWayConfiguredAsync(branchName, wd);
+
+    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => remoteService.SetPullRebaseAsync(isRebase, wd);
+
     public Task<Result> PullBranchAsync(string name, string wd) => remoteService.PullBranchAsync(name, wd);
 
     public Task<Result> CloneAsync(string uri, string path, string wd) => remoteService.CloneAsync(uri, path, wd);

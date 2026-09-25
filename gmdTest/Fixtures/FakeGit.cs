@@ -183,6 +183,11 @@ class FakeGit : IGit
 
     public Task<Result> PullCurrentBranchAsync(string wd) => throw new NotSupportedException();
 
+    public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => throw new NotSupportedException();
+
     public Task<Result> PullBranchAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> PushRefForceAsync(string name, string wd) => throw new NotSupportedException();

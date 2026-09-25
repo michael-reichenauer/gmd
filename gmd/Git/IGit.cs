@@ -40,6 +40,10 @@ interface IGit
     Task<Result> PushBranchAsync(string name, string wd);
     Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);
+
+    // Whether git has been told how to pull a diverged branch, and telling it: merge or rebase
+    Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd);
+    Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> PushRefForceAsync(string name, string wd);
     Task<Result> PullRefAsync(string name, string wd);
