@@ -457,7 +457,7 @@ fast filter in Commands excludes.
 any fixture whose drawn output is asserted: they fix the time column, make the commit ids
 reproducible (a commit object is just its tree, parents, identity, dates and message), and — the
 part that is not cosmetic — remove the row-order flake, since `git log --all --date-order` orders by
-commit date and has nothing to break a tie with. They go around `IGit` because `ICmd` cannot pass
+commit date and has nothing to break a tie with. They go around `IGit` because no `IGit` method takes
 environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committer date.
 
 **`TmuxSession`** (`gmdE2eTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real

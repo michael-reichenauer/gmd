@@ -8,13 +8,15 @@ interface ICmd
 {
     // The output of a command that exited 0, or a CmdError carrying everything it printed. The
     // caller info is the error's Origin, so that it names the service that ran the command rather
-    // than this class, which every command failure would otherwise share.
+    // than this class, which every command failure would otherwise share. The environment is
+    // variables set for this one command on top of gmd's own, e.g. GIT_INDEX_FILE.
     Result<string> Command(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -25,6 +27,7 @@ interface ICmd
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -103,19 +106,32 @@ class Cmd : ICmd
     // How long to wait for the error text of a command that has already failed
     const int ErrorReadTimeoutMs = 200;
 
+    static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
+
     public Task<Result<string>> RunAsync(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     )
     {
         return Task.Run(() =>
-            Command(path, args, workingDirectory, skipLogError, skipLog, memberName, sourceFilePath, sourceLineNumber)
+            Command(
+                path,
+                args,
+                workingDirectory,
+                skipLogError,
+                skipLog,
+                environment,
+                memberName,
+                sourceFilePath,
+                sourceLineNumber
+            )
         );
     }
 
@@ -147,11 +163,12 @@ class Cmd : ICmd
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     ) =>
-        CommandRaw(path, args, workingDirectory, skipLogError, skipLog)
+        CommandRaw(path, args, workingDirectory, skipLogError, skipLog, environment)
             .ToResult(memberName, sourceFilePath, sourceLineNumber);
 
     public CmdResult CommandRaw(
@@ -159,10 +176,14 @@ class Cmd : ICmd
         string args,
         string workingDirectory,
         bool skipLogError = false,
-        bool skipLog = false
+        bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null
     )
     {
-        var cmdText = $"{path} {args}   [{workingDirectory},";
+        // The variables are part of the logged command, since they can change what it does, as
+        // GIT_INDEX_FILE changes which index a 'git add .' writes to
+        var envText = environment == null ? "" : string.Concat(environment.Select(v => $"{v.Key}={v.Value} "));
+        var cmdText = $"{envText}{path} {args}   [{workingDirectory},";
         var t = Timing.Start();
         try
         {
@@ -189,6 +210,10 @@ class Cmd : ICmd
             using (process)
             {
                 NeverOpenAnEditor(process.StartInfo);
+                foreach (var (name, value) in environment ?? Empty)
+                {
+                    process.StartInfo.Environment[name] = value;
+                }
                 if (workingDirectory != "")
                 {
                     process.StartInfo.WorkingDirectory = workingDirectory;

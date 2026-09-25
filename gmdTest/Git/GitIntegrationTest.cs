@@ -604,17 +604,24 @@ public class GitIntegrationTest
         Assert.AreEqual(1, after.Conflicted, "Still one conflict, not resolved behind the user's back");
     }
 
-    // The same for a merge, which was already safe — it is here so that the guard cannot regress
-    // for the case that did work
+    // The same for a merge. The diff used to stage nothing during one, which left out a file the
+    // user had added meanwhile; it stages into a copy of the index now, so that file is shown and
+    // the conflict is still left as it is.
     [TestMethod]
     public async Task TestDiffDuringAMergeKeepsTheConflictUnmerged()
     {
         await TwoBranchesThatConflictAsync();
         await repo.Git.MergeBranchAsync("dev", repo.Path);
+        repo.WriteFile("new.txt", "new\n");
 
-        Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
 
+        Assert.AreEqual(
+            "file.txt DiffConflicts, new.txt DiffAdded",
+            string.Join(", ", diff.FileDiffs.Select(f => $"{f.PathAfter} {f.DiffMode}"))
+        );
         Assert.AreNotEqual("", (await repo.GitAsync("ls-files -u")).Trim());
+        Assert.AreEqual("?? new.txt", (await repo.GitAsync("status --porcelain -- new.txt")).Trim());
     }
 
     // 'git commit -am' during a conflicted merge succeeds and commits the '<<<<<<<' markers into
@@ -1559,7 +1566,7 @@ public class GitIntegrationTest
         }
     }
 
-    // GetUncommittedDiff stages the changes, diffs them and resets the index again, since a diff
+    // GetUncommittedDiff stages the changes into a copy of the index and diffs that, since a diff
     // of untracked files is not otherwise possible. This pins that the working folder is left as
     // it was, which the FakeCmd tests can only assert the git commands for.
     [TestMethod]
@@ -1582,6 +1589,35 @@ public class GitIntegrationTest
 
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual("M:1,A:1,D:1,C:0,R:0", status.ToString(), "The staged changes were reset again");
+    }
+
+    // What the user staged is left staged, however they did it; the diff used to stage everything
+    // and then 'git reset', which wiped it. It still shows what staging is needed for: a new file,
+    // and a file moved without 'git mv' as a rename rather than as one deleted and one added.
+    [TestMethod]
+    public async Task TestUncommittedDiffKeepsWhatIsStaged()
+    {
+        await repo.CommitFileAsync("staged.txt", "one\n", "First");
+        await repo.CommitFileAsync("moved.txt", "one\ntwo\nthree\nfour\nfive\n", "Second");
+        repo.WriteFile("staged.txt", "one\nstaged\n");
+        await repo.GitAsync("add staged.txt");
+        File.Move(Path.Join(repo.Path, "moved.txt"), Path.Join(repo.Path, "renamed.txt"));
+        repo.WriteFile("new.txt", "new\n");
+        var staged = await repo.GitAsync("diff --cached --name-status");
+
+        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+
+        Assert.AreEqual(
+            "new.txt DiffAdded, moved.txt -> renamed.txt, staged.txt DiffModified",
+            string.Join(
+                ", ",
+                diff.FileDiffs.Select(f =>
+                    f.IsRenamed ? $"{f.PathBefore} -> {f.PathAfter}" : $"{f.PathAfter} {f.DiffMode}"
+                )
+            )
+        );
+        Assert.AreEqual("M\tstaged.txt", staged.Trim());
+        Assert.AreEqual(staged, await repo.GitAsync("diff --cached --name-status"), "Staged as it was");
     }
 
     // Unwraps a result, failing the test with the git error if the command failed

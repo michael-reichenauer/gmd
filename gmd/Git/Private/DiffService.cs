@@ -53,42 +53,56 @@ class DiffService : IDiffService
 
     public async Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
     {
-        // To be able to include renamed and added files in uncommitted diff, we first
-        // stage all and after diff, the stage is reset.
+        // A diff of the working tree leaves out the files git does not track yet, and a file moved
+        // without 'git mv' shows as one deleted and one new rather than as a rename. Both are there
+        // once everything is staged, so it is, but into a copy of the index, which is deleted
+        // afterwards: git reads GIT_INDEX_FILE for which index to use, as 'git stash -u' does for
+        // the same reason. This used to stage into the index itself and 'git reset' it after, which
+        // wiped whatever the user had staged with other tools, 'git add -p' or an editor.
         //
-        // Never while an operation is in progress: 'git add .' stages an unmerged path with the
-        // conflict markers as its content, which resolves the conflict, and the 'git reset' below
-        // does not put the stages back. This used to test for .git/MERGE_MSG, which a rebase with
-        // the --apply backend and 'git am' do not write — so merely opening the diff during one of
-        // those destroyed the conflict with no way back but 'git rebase --abort'.
-        var needReset = false;
-        if (!StatusService.IsOperationInProgress(wd))
+        // That also makes it safe while an operation is in progress. 'git add .' stages an unmerged
+        // path with the conflict markers as its content, which resolves the conflict, and done to
+        // the index itself that could not be undone. Done to the copy, it changes only what the
+        // diff is made from, and a conflicted file diffs the same either way, markers and all.
+        var tempIndex = Path.Join(Path.GetTempPath(), $"gmd-index-{Guid.NewGuid():N}");
+        try
         {
-            if (await cmd.RunAsync("git", "add .", wd) is Error err)
-                return err;
-            needReset = true;
+            return await DiffWithIndexAsync(contextLines, tempIndex, wd);
         }
+        finally
+        {
+            // Git writes the copy through a lock file beside it, left behind only if git was killed
+            foreach (var path in new[] { tempIndex, $"{tempIndex}.lock" })
+            {
+                if (Result.Catch(() => File.Delete(path)) is Error e)
+                    Log.Warn($"Failed to delete {path}, {e}");
+            }
+        }
+    }
+
+    async Task<Result<CommitDiff>> DiffWithIndexAsync(int contextLines, string tempIndex, string wd)
+    {
+        // A copy rather than a new, empty index, so that git's record of which files are unchanged
+        // since it last looked carries over, and it need not read every file in the working tree.
+        // A repo that has never staged anything has no index to copy, and git creates one.
+        var index = Path.Join(StatusService.GetGitDir(wd), "index");
+        if (File.Exists(index) && Result.Catch(() => File.Copy(index, tempIndex)) is Error copyError)
+            return new Error("Failed to copy the index", copyError);
+
+        var env = new Dictionary<string, string> { ["GIT_INDEX_FILE"] = tempIndex };
+        if (await cmd.RunAsync("git", "add .", wd, environment: env) is Error addError)
+            return addError;
 
         var args =
             "diff --date=iso --first-parent --root --patch --no-color"
             + $" --find-renames --unified={contextLines} HEAD";
-        var diff = await cmd.RunAsync("git", args, wd);
+        var diff = await cmd.RunAsync("git", args, wd, environment: env);
         if (diff is Error e && e.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
         { // No commit yet, so there is no HEAD to diff against; what is staged is the whole diff
-            diff = await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd);
+            diff = await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd, environment: env);
         }
         if (diff is not string output)
-        { // The diff failed, reset the 'git add .' if needed
-            if (needReset)
-                await cmd.RunAsync("git", "reset", wd);
             return diff.Error;
-        }
-
-        if (needReset)
-        { // Reset the 'git add .' previously
-            if (await cmd.RunAsync("git", "reset", wd) is Error err)
-                return err;
-        }
 
         // Add commit prefix text to support parser.
         output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;

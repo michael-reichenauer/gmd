@@ -111,6 +111,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   tags only, and a new remote commit showed up only when something else happened to fetch.
 - Opening the diff view during a `rebase --apply` or `am` conflict staged the markers and destroyed
   the conflict; `commit -a` committed markers into history. Both are now guarded on any operation.
+  The diff has since stopped touching the index at all: it stages into a copy (`GIT_INDEX_FILE`),
+  since its `git add .` then `git reset` also wiped whatever the user had staged with other tools.
 - `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
 - Pull all stopped at the first diverged branch, leaving every branch after it unpulled; the branch
   menu's `Pull/Update` on the current branch ran a fetch git refuses outright.

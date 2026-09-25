@@ -146,7 +146,8 @@ These are choices for the author, not defects.
 - **There is no choice of what to commit.** A commit is always `git add .` plus `commit -a`
   (`CommitService.cs:37-46`).
   - Viewing the uncommitted diff runs `git add .` and then `git reset` (`DiffService.cs:64-91`), so
-    merely looking at it wipes any staging done with the git CLI.
+    merely looking at it wipes any staging done with the git CLI. *Fixed (2026-09-25):* it stages
+    into a copy of the index instead (`GIT_INDEX_FILE`), so the index is never written.
 - **Other gaps:**
   - No undo for showing or hiding branches.
   - Search looks at the subject only: not the message body, and not file paths.
@@ -249,7 +250,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 
 1. **A file checklist in the commit dialog,** every file ticked by default. This fits gmd's model
    (no staging area to manage) better than lazygit-style staging does. Also, stop the uncommitted
-   diff from resetting the index.
+   diff from resetting the index. *The index half is done (2026-09-25):* the diff stages into a copy
+   of the index, which also lets it show new files during a merge. The checklist is put off.
 2. **Undo for showing and hiding branches,** e.g. Backspace brings back the previous set. It is
    cheap, and it makes the README's "can be undone at any time" literally true.
 3. **Open the branch, the commit or a new pull request in the browser.**
