@@ -77,6 +77,23 @@ public class MainViewTest
         gmd.WaitFor("Open a Repository");
     }
 
+    // A repository that fails to open leaves the start menu with no key hints below it, since none
+    // of the keys would work there. The line used to be put up before the repository was read, and
+    // was left up when reading it failed.
+    [TestMethod]
+    public async Task TestARepoThatFailsToOpenLeavesNoKeyHints()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        // A branch on a commit that is not there: git still finds the repository, but not its log
+        repo.WriteFile(".git/refs/heads/broken", "0123456789012345678901234567890123456789\n");
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("Failed to load repo");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Open a Repository");
+        Assert.IsFalse(screen.Contains("? help"), "No key hints on the start menu");
+    }
+
     // A click beside the start menu leaves it open. It used to quit gmd, the way Escape does, which
     // the menu says as 'Quit Esc'; a click is not asking for that.
     [TestMethod]

@@ -353,8 +353,10 @@ class RepoView : IRepoView, IRepoViewInputHost
     }
 
     // A status message is shown on the key-hint line, and over the last row of the log when the key
-    // hints are turned off, which is the one time the line is shown for it alone
-    bool IsKeyHintBarShown => config.ShowKeyHints || status.Current != null;
+    // hints are turned off, which is the one time the line is shown for it alone. The hints are only
+    // for a repo that is shown: until one is, e.g. after one failed to open, the start menu is all
+    // there is, and no key hinted would work there.
+    bool IsKeyHintBarShown => status.Current != null || (config.ShowKeyHints && repo.Repo.Path != "");
 
     // The line is shown and drawn for a message, and put back when the message has been shown long
     // enough, which nothing else would redraw it for
@@ -601,6 +603,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         repo = newViewRepo(this, serverRepo);
         menuService = newMenuService(repo);
         hoover.FollowRepo(serverRepo.BranchByName); // Redrawn below
+        keyHintBar.Visible = IsKeyHintBarShown; // Once there is a repo, the hints are for it
 
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
 
