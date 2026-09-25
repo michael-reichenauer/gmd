@@ -97,6 +97,7 @@ static class KeyHints
         if (repo.Graph.GetRowBranches(repo.CurrentIndex).Any())
             hints.Add(new("←→", "branch"));
         hints.Add(new("⇧→", "show branch"));
+        hints.AddRange(UndoHint(repo));
         hints.Add(new("f", "search"));
         if (!isUncommitted)
             hints.Add(new("b", "new branch"));
@@ -140,6 +141,7 @@ static class KeyHints
             hints.Add(new("m", "menu"));
         if (!branch.IsMainBranch)
             hints.Add(new("h", "hide"));
+        hints.AddRange(UndoHint(repo));
         if (status.IsOk)
             hints.Add(new("d", "diff"));
         if (branch.IsCurrent)
@@ -162,11 +164,11 @@ static class KeyHints
         return hints;
     }
 
-    // 'c' finishes a merge, or a cherry pick or revert made in gmd, by committing, but anything
-    // else git stopped part way through has to be continued instead, and 'c' offers that
     // The way out of an operation git stopped part way through, in the repo menu, which 'M' opens
     static readonly KeyHint AbortHint = new("⇧m", "abort…");
 
+    // 'c' finishes a merge, or a cherry pick or revert made in gmd, by committing, but anything
+    // else git stopped part way through has to be continued instead, and 'c' offers that
     static KeyHint CommitHint(Status status) =>
         new("c", status.IsMerging && !status.IsFinishedByCommit ? "continue" : "commit");
 
@@ -176,6 +178,13 @@ static class KeyHints
             yield return new("p", "push");
         if (BranchPushPullCommands.CanPullCurrentBranch(repo.Repo))
             yield return new("u", "pull");
+    }
+
+    // Backspace, once a branch has been shown or hidden, saying which of the two it goes back from
+    static IEnumerable<KeyHint> UndoHint(IViewRepo repo)
+    {
+        if (repo.ShownHistory.Last is ShownChange last)
+            yield return new("Bksp", $"undo {last.Verb.ToLowerInvariant()}");
     }
 
     // A hint with no key is a label, e.g. the name of the branch the keys act on

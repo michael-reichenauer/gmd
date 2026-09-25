@@ -47,4 +47,7 @@ class FakeViewRepo : IViewRepo
     public IBranchCommands BranchCmds => null!;
 
     public IRepoView RepoView => throw new NotSupportedException("FakeViewRepo has no view");
+
+    // Its own, since there is no view to own it, for tests of what a show or hide makes undoable
+    public ShownHistory ShownHistory { get; } = new();
 }

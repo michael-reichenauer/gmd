@@ -61,6 +61,32 @@ public class ServerTest
         CollectionAssert.AreEqual(new[] { "origin/main", "main" }, BranchNames(repo), "feat hangs off dev");
     }
 
+    // Undoing a show or hide gives the names of the view before it back to SetShownBranches, so
+    // that has to rebuild exactly that view, the branches hidden along with the one asked for too
+    [TestMethod]
+    public async Task TestSetShownBranchesGivesBackTheViewTheNamesCameFrom()
+    {
+        var b = new RepoBuilder()
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("dev", "d1")
+            .LocalBranch("feat", "f1");
+        var server = b.NewServer();
+        var shown = await b.ViewRepoAsync(ShowBranches.AllActive);
+        var hidden = server.HideBranch(shown, "dev");
+        CollectionAssert.AreEqual(new[] { "origin/main", "main" }, BranchNames(hidden));
+
+        var undone = server.SetShownBranches(hidden, BranchNames(shown));
+
+        CollectionAssert.AreEqual(BranchNames(shown), BranchNames(undone), "feat is back with dev");
+        CollectionAssert.AreEqual(
+            BranchNames(hidden),
+            BranchNames(server.SetShownBranches(undone, BranchNames(hidden)))
+        );
+    }
+
     // 'Hide all branches' goes back to just the main branch
     [TestMethod]
     public async Task TestHideAllBranchesLeavesTheMainBranch()

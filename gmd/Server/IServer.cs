@@ -30,6 +30,10 @@ interface IServer
         int count = 1
     );
     Repo HideBranch(Repo repo, string name, bool hideAllBranches = false);
+
+    // Shows exactly these branches, with their ancestors, as the names of a view repo's own
+    // ViewBranches give it back, which is how a show or hide is undone
+    Repo SetShownBranches(Repo repo, IReadOnlyList<string> branchNames);
     Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);

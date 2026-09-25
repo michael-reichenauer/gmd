@@ -583,7 +583,7 @@ Other things to know:
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `KeyHints`, `BranchFinder`,
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `KeyHints`, `BranchFinder`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
   string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

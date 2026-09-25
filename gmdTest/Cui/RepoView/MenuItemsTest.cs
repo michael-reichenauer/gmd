@@ -169,11 +169,22 @@ public class MenuItemsTest
             ---
             Show Branch >  [Shift →]
             Hide All Branches
+            Undo Show or Hide  [Backspace]  (disabled)
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(view).GetShownBranchesItems())
         );
+    }
+
+    // Once a branch has been shown or hidden, the undo item names what Backspace would undo
+    [TestMethod]
+    public async Task TestTheUndoItemNamesTheLastShowOrHide()
+    {
+        var view = await ViewOf(Fixture(), "dev");
+        view.ShownHistory.Add(["main", "dev"], ["main"], "Hide", "'dev'", "dev");
+
+        StringAssert.Contains(Items(BranchMenuOf(view).GetShownBranchesItems()), "Undo Hide 'dev'  [Backspace]\n");
     }
 
     // The order is the current branch, then the branch it was branched from and so on, and the
@@ -192,6 +203,7 @@ public class MenuItemsTest
             ---
             Show Branch >  [Shift →]
             Hide All Branches
+            Undo Show or Hide  [Backspace]  (disabled)
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             """,

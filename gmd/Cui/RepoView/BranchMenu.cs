@@ -540,6 +540,13 @@ class BranchMenu : IBranchMenu
                 Menu.Items.Separator()
                     .Items([ShowBranchSubMenu()])
                     .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
+                    .Item(
+                        repo.ShownHistory.Last is ShownChange last ? $"Undo {last}" : "Undo Show or Hide",
+                        "Backspace",
+                        () => cmds.UndoShowOrHide(),
+                        () => repo.ShownHistory.Last != null,
+                        () => "No branch has been shown or hidden to undo"
+                    )
                     .Item("Pull All Branches", "Shift-U", () => cmds.PullAllBranches())
                     .Item(
                         "Push All Branches",

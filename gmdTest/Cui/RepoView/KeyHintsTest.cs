@@ -120,6 +120,21 @@ public class KeyHintsTest
         );
     }
 
+    // Once a branch has been shown or hidden, Backspace is offered for going back, next to the key
+    // that shows branches and, on a hoovered branch, next to the one that hides it
+    [TestMethod]
+    public async Task TestBackspaceIsOfferedOnceABranchHasBeenShownOrHidden()
+    {
+        var view = await ViewOf(Fixture().LocalBranch("feature", "d1"), "feature");
+        Assert.IsFalse(Hints(view).Contains("Bksp"), "Nothing to undo yet");
+
+        view.ShownHistory.Add(["main"], ["main", "feature"], "Show", "'feature'", "feature");
+        StringAssert.Contains(Hints(view), "⇧→ show branch  Bksp undo show  f search");
+
+        view.ShownHistory.Add(["main", "feature"], ["main"], "Hide", "'feature'", "feature");
+        StringAssert.Contains(Hints(view, HooverOn(view, "feature", "d1")), "h hide  Bksp undo hide  ");
+    }
+
     // Several rows selected with Shift-↑↓: the range is what the keys act on
     [TestMethod]
     public async Task TestSelectedRowsOfferTheirDiffMenuAndCopy()

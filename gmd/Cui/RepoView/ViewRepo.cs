@@ -21,6 +21,9 @@ interface IViewRepo
 
     string CurrentAuthor { get; }
     IReadOnlyList<Branch> GetCommitBranches(bool isAll);
+
+    // The shows and hides Backspace can undo, which outlive this view repo, see IRepoView
+    ShownHistory ShownHistory { get; }
 }
 
 class ViewRepo : IViewRepo
@@ -71,4 +74,6 @@ class ViewRepo : IViewRepo
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) => server.GetCommitBranches(Repo, RowCommit.Id, isAll);
 
     public string CurrentAuthor => server.CurrentAuthor;
+
+    public ShownHistory ShownHistory => repoView.ShownHistory;
 }

@@ -119,6 +119,8 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.e, OnKeyE);
         commitsView.RegisterKeyHandler(Key.E, OnKeyShiftE);
         commitsView.RegisterKeyHandler(Key.h, () => BranchCmds.HideBranch(GetBranchName()));
+        // Back to the branches shown before the last show or hide, as a browser goes back a page
+        commitsView.RegisterKeyHandler(Key.Backspace, () => BranchCmds.UndoShowOrHide());
         commitsView.RegisterKeyHandler(Key.w, () => BranchCmds.ShowWorktrees());
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);

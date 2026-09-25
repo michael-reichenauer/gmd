@@ -499,24 +499,26 @@ public class LogViewTest
 
         // The two shown branches, left to right as the graph draws them, with the '●' marking the
         // current one. Both are submenus, so both carry the '>'. Below the separator, the items
-        // that change which branches are shown at all, and the ones that pull and push them all.
+        // that change which branches are shown at all, the undo of showing dev above among them,
+        // and the ones that pull and push them all.
         gmd.Send("Right");
         var branches = gmd.WaitForStable();
         Assert.AreEqual(
             """
                      │Full File History ...                  │
                      │Blame File ...                         │
-                     │───────────────────────────────────────│╭ Branches ─────────────────╮
-                     │Branches                              >││●   main                  >│
-                     │Repo Menu                     Shift-M >││    dev                   >│
-                     ╰───────────────────────────────────────╯│───────────────────────────│
-                                                              │Show Branch       Shift → >│
-                                                              │Hide All Branches          │
-                                                              │Pull All Branches Shift-U  │
-                                                              │Push All Branches Shift-P  │
-                                                              ╰───────────────────────────╯
+                     │───────────────────────────────────────│╭ Branches ───────────────────╮
+                     │Branches                              >││●   main                    >│
+                     │Repo Menu                     Shift-M >││    dev                     >│
+                     ╰───────────────────────────────────────╯│─────────────────────────────│
+                                                              │Show Branch         Shift → >│
+                                                              │Hide All Branches            │
+                                                              │Undo Show 'dev'   Backspace  │
+                                                              │Pull All Branches   Shift-U  │
+                                                              │Push All Branches   Shift-P  │
+                                                              ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 19, 11)
+            ScreenText.Rows(branches, repo.Path, 19, 12)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -531,16 +533,16 @@ public class LogViewTest
             """
                      │Full File History ...                  │
                      │Blame File ...                         │
-                     │───────────────────────────────────────│╭ Branches ─────────────────╮
-                    ╭ dev ───────────────────────────────────╮│●   main                  >│
-                    │Switch to Branch                     s  ││    dev                   >│
-                    │Merge to main                        e  ││───────────────────────────│
-                    │Merge from main                Shift-E  ││Show Branch       Shift → >│
-                    │Rebase and Push onto                   >││Hide All Branches          │
-                    │Hide Branch                          h  ││Pull All Branches Shift-U  │
-                    │Pull                                 u  ││Push All Branches Shift-P  │
-                    │Push                                 p  │╰───────────────────────────╯
-                    │Create Branch ...                    b  │
+                     │───────────────────────────────────────│╭ Branches ───────────────────╮
+                    ╭ dev ───────────────────────────────────╮│●   main                    >│
+                    │Switch to Branch                     s  ││    dev                     >│
+                    │Merge to main                        e  ││─────────────────────────────│
+                    │Merge from main                Shift-E  ││Show Branch         Shift → >│
+                    │Rebase and Push onto                   >││Hide All Branches            │
+                    │Hide Branch                          h  ││Undo Show 'dev'   Backspace  │
+                    │Pull                                 u  ││Pull All Branches   Shift-U  │
+                    │Push                                 p  ││Push All Branches   Shift-P  │
+                    │Create Branch ...                    b  │╰─────────────────────────────╯
                     │Create Worktree ...                     │
                     │Rename Branch ...                       │
                     │Delete Branch ...                       │
@@ -630,5 +632,43 @@ public class LogViewTest
         // And hiding it again gives back exactly the screen we started with
         gmd.Send("h");
         ScreenText.AssertEqual(ScreenText.Of(before, repo.Path), gmd.WaitUntilGone("More dev work"), repo.Path);
+    }
+
+    // Backspace goes back to the branches shown before the last show or hide, one step at a time, as
+    // a browser goes back a page, and says what it undid. With nothing left to undo it says so,
+    // rather than doing nothing. The rows are compared without the bottom one, which the message
+    // is drawn over: the top bar, its line and the commits, nine rows with dev shown and seven without.
+    [TestMethod]
+    public async Task TestBackspaceUndoesTheShowsAndHides()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var before = gmd.WaitFor("Initial");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        var shown = gmd.WaitFor("More dev work");
+        // The hoover is still on main, the one branch Left found on the merge row, and the cursor on
+        // dev's tip, where Right moves it to dev, for h to hide dev rather than what hangs off main
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("h");
+        gmd.WaitUntilGone("More dev work");
+
+        gmd.Send("BSpace");
+        var undone = gmd.WaitFor("Undid Hide 'dev'");
+        Assert.AreEqual(ScreenText.Rows(shown, repo.Path, 0, 9), ScreenText.Rows(undone, repo.Path, 0, 9));
+
+        gmd.Send("BSpace");
+        var undoneAgain = gmd.WaitFor("Undid Show 'dev'");
+        Assert.AreEqual(ScreenText.Rows(before, repo.Path, 0, 7), ScreenText.Rows(undoneAgain, repo.Path, 0, 7));
+
+        gmd.Send("BSpace");
+        Assert.AreEqual(
+            "No branch has been shown or hidden to undo",
+            ScreenText.LastLine(gmd.WaitFor("No branch has been shown"))
+        );
     }
 }

@@ -12,7 +12,7 @@ written as they are typed: `c` is the c key, and `Shift-P` is P.
 | m          | Menu of the highlighted branch, or of the commit           |
 | Shift-M    | The repo menu, e.g. to continue or abort a rebase          |
 | ← →        | Highlight the branch to the left or right, or the commit   |
-| Shift-→    | Show Branch menu, to choose which branches are shown  |
+| Shift-→    | Show Branch menu, to choose which branches are shown       |
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
 | c          | Commit the uncommitted changes                             |
@@ -23,6 +23,7 @@ written as they are typed: `c` is the c key, and `Shift-P` is P.
 | e          | Merge the highlighted branch into the current branch       |
 | Shift-E    | Merge the current branch into the highlighted branch       |
 | h          | Hide the highlighted branch                                |
+| Backspace  | Undo the last show or hide of branches                     |
 | g          | Change the color of the highlighted branch                 |
 | p          | Push the highlighted branch, or the current one            |
 | u          | Pull the highlighted branch, or the current one            |
@@ -120,6 +121,9 @@ was made from, and the main branch is always shown.
   when there are several), and hides it again.
 - `h` hides the highlighted branch, and the branches made from it.
   **Hide All Branches** goes back to showing just the main branch.
+- `Backspace` undoes the last show or hide, going back to the branches shown
+  before it, one step at a time. **Undo** under **Branches** in the commit
+  menu does the same, and names what it would undo.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
 

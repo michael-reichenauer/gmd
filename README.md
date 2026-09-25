@@ -15,8 +15,8 @@ tangle of lines. Teams often rebase or squash to keep it readable, which rewrite
 
 Gmd leaves the history as it is and lets you choose what to look at. A developer may follow just
 `main` and their own branch, while a team lead follows `main` and a few feature branches.
-Showing or hiding a branch is instant and can be undone at any time. It works like a squash merge
-that you can take back, and it never touches the history.
+Showing or hiding a branch is instant and can be undone at any time, with `Backspace`. It works like
+a squash merge that you can take back, and it never touches the history.
 
 Git does not record which branch a commit was made on. Gmd works that out from the branch
 structure and the merge messages, and draws each branch in its own column and color. When it

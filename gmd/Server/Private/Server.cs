@@ -176,6 +176,9 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo, branchNames);
     }
 
+    public Repo SetShownBranches(Repo repo, IReadOnlyList<string> branchNames) =>
+        viewRepoCreater.GetViewRepoAsync(repo, branchNames);
+
     public Task<Result> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
 
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>

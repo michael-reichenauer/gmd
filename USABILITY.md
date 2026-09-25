@@ -253,7 +253,10 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    diff from resetting the index. *The index half is done (2026-09-25):* the diff stages into a copy
    of the index, which also lets it show new files during a merge. The checklist is put off.
 2. **Undo for showing and hiding branches,** e.g. Backspace brings back the previous set. It is
-   cheap, and it makes the README's "can be undone at any time" literally true.
+   cheap, and it makes the README's "can be undone at any time" literally true. *Done
+   (2026-09-25):* `Backspace` steps back through the shows and hides the user asked for
+   (`ShownHistory`), and says what it undid; *Undo …* under Branches names it, and the key-hint line
+   offers `Bksp undo show` or `undo hide` once there is something to undo.
 3. **Open the branch, the commit or a new pull request in the browser.**
 4. **Search message bodies and file paths,** with next and previous match.
 5. **A count of the incoming commits on hidden branches.**

@@ -22,6 +22,10 @@ interface IRepoView
     // refreshes and then needs the repo (or its command classes) has to read this again after.
     IViewRepo ViewRepo { get; }
 
+    // The branches shown before each show and hide, for Backspace to go back to. Kept here since the
+    // view repo and its command classes are replaced on every refresh, and this has to outlive them.
+    ShownHistory ShownHistory { get; }
+
     Task<Result> ShowInitialRepoAsync(string path);
     Task<Result> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
@@ -74,6 +78,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly IStatusLine status;
     readonly IRepoWriter repoWriter;
     readonly Hoover hoover = new Hoover();
+    readonly ShownHistory shownHistory = new();
     readonly RepoViewInput input;
 
     // State data
@@ -166,6 +171,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // What RepoViewInput needs from the view, see IRepoViewInputHost. Both are replaced every time
     // a repo is shown.
     public IViewRepo ViewRepo => repo;
+    public ShownHistory ShownHistory => shownHistory;
     public IRepoViewMenus Menus => menuService;
 
     public void ClearSelection() => commitsView.ClearSelection();
@@ -201,6 +207,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         var branches = repoConfig.Get(rootDir).Branches;
         if (await ShowNewRepoAsync(rootDir, branches) is Error e)
             return e;
+        shownHistory.Clear(); // What another repo showed is nothing to go back to here
         FetchFromRemote();
 
         RememberRepoPaths(rootDir);

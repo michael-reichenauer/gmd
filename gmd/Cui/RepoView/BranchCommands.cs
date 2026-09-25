@@ -11,6 +11,7 @@ interface IBranchCommands
     void ShowBranch(string name, string showCommitId);
     void FindBranch(string text);
     void HideBranch(string name, bool hideAllBranches = false);
+    void UndoShowOrHide();
 
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -165,12 +166,21 @@ class BranchCommands : IBranchCommands
         }
 
         Repo newRepo = server.ShowBranch(repo.Repo, name, includeAmbiguous, show, count);
+        var what = show switch
+        {
+            ShowBranches.AllRecent => $"{count} More Recent",
+            ShowBranches.AllActive => "All Active",
+            ShowBranches.AllActiveAndDeleted => "All Active and Deleted",
+            _ => Quoted(name),
+        };
+        RecordShown(newRepo, "Show", what, show == ShowBranches.Specified ? name : "");
         SetRepo(newRepo, name);
     }
 
     public void ShowBranch(string name, string showCommitId)
     {
         Repo newRepo = server.ShowBranch(repo.Repo, name, false);
+        RecordShown(newRepo, "Show", Quoted(name), name);
         SetRepoAttCommit(newRepo, showCommitId);
     }
 
@@ -187,8 +197,32 @@ class BranchCommands : IBranchCommands
     public void HideBranch(string name, bool hideAllBranches = false)
     {
         Repo newRepo = server.HideBranch(repo.Repo, name, hideAllBranches);
+        RecordShown(newRepo, "Hide", hideAllBranches ? "All Branches" : Quoted(name), hideAllBranches ? "" : name);
         SetRepo(newRepo);
     }
+
+    // Goes back to the branches shown before the last show or hide. Undoing a hide of one branch
+    // scrolls to it, as showing it does, since it is what the user wanted back.
+    public void UndoShowOrHide()
+    {
+        if (repo.ShownHistory.Undo() is not ShownChange change)
+        {
+            status.Notice("No branch has been shown or hidden to undo");
+            return;
+        }
+
+        SetRepo(server.SetShownBranches(repo.Repo, change.Before), change.IsHide ? change.BranchName : "");
+        status.Info($"Undid {change}");
+    }
+
+    // A show or hide the user asked for, so that Backspace can undo it
+    void RecordShown(Repo newRepo, string verb, string what, string name) =>
+        repo.ShownHistory.Add(BranchNames(repo.Repo), BranchNames(newRepo), verb, what, name);
+
+    static IReadOnlyList<string> BranchNames(Repo repo) => repo.ViewBranches.Select(b => b.Name).ToList();
+
+    string Quoted(string name) =>
+        repo.Repo.BranchByName.TryGetValue(name, out var branch) ? $"'{branch.NiceNameUnique}'" : $"'{name}'";
 
     // A branch checked out in another worktree cannot be checked out here, git refuses, so the
     // folder it is checked out in is opened instead. Done here rather than in the menu, since the
