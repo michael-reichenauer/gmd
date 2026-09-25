@@ -41,6 +41,7 @@ class RepoCommands : IRepoCommands
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly ICloneDlg cloneDlg;
     readonly IInitRepoDlg initRepoDlg;
     readonly IAboutDlg aboutDlg;
@@ -54,6 +55,7 @@ class RepoCommands : IRepoCommands
         IRepoView repoView,
         IServer server,
         IProgress progress,
+        IStatusLine status,
         ICloneDlg cloneDlg,
         IInitRepoDlg initRepoDlg,
         IAboutDlg aboutDlg,
@@ -67,6 +69,7 @@ class RepoCommands : IRepoCommands
         this.repoView = repoView;
         this.server = server;
         this.progress = progress;
+        this.status = status;
         this.cloneDlg = cloneDlg;
         this.initRepoDlg = initRepoDlg;
         this.aboutDlg = aboutDlg;
@@ -381,7 +384,7 @@ class RepoCommands : IRepoCommands
             return Result.Ok;
         });
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
 
     public void CopyCommitId() =>
         Do(async () =>

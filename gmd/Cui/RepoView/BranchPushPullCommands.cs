@@ -23,13 +23,21 @@ class BranchPushPullCommands : IBranchPushPullCommands
 {
     readonly IViewRepo repo;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
 
-    public BranchPushPullCommands(IViewRepo repo, IProgress progress, IRepoView repoView, IServer server)
+    public BranchPushPullCommands(
+        IViewRepo repo,
+        IProgress progress,
+        IStatusLine status,
+        IRepoView repoView,
+        IServer server
+    )
     {
         this.repo = repo;
         this.progress = progress;
+        this.status = status;
         this.repoView = repoView;
         this.server = server;
     }
@@ -39,12 +47,19 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
+            // Why nothing was pushed is said on the status line, see Notice: none of these is an error
             if (!repo.Repo.Status.IsOk)
-                return new Error("Commit changes before pushing");
+                return new Notice("Commit the changes first, then push");
             if (branch == null)
-                return new Error("No current branch to push");
+                return new Notice("No branch is checked out to push");
             if (!branch.HasLocalOnly)
-                return new Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
+            {
+                return new Notice(
+                    branch.RemoteName == ""
+                        ? $"'{branch.NiceNameUnique}' is not on origin yet: Push in its branch menu publishes it"
+                        : $"Nothing to push on '{branch.NiceNameUnique}'"
+                );
+            }
 
             if (branch.RemoteName != "")
             { // Cannot push local branch if remote needs to be pulled first
@@ -87,6 +102,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Pushed '{branch.NiceNameUnique}'");
             return Result.Ok;
         });
 
@@ -101,6 +117,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Published '{branch.NiceNameUnique}'");
             return Result.Ok;
         });
 
@@ -113,6 +130,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Pushed '{name}'");
             return Result.Ok;
         });
 
@@ -120,9 +138,9 @@ class BranchPushPullCommands : IBranchPushPullCommands
         Do(async () =>
         {
             if (!repo.Repo.Status.IsOk)
-                return new Error("Commit changes before pulling");
+                return new Notice("Commit the changes first, then push");
             if (!CanPush())
-                return new Error("No local changes to push");
+                return new Notice("Nothing to push");
 
             var branches = BranchesToPush(repo.Repo);
 
@@ -136,6 +154,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Pushed {Names(branches.Select(b => b.NiceNameUnique))}");
             return Result.Ok;
         });
 
@@ -144,15 +163,15 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
             if (!repo.Repo.Status.IsOk)
-                return new Error("Commit changes before pulling");
+                return new Notice("Commit the changes first, then pull");
             if (branch == null)
-                return new Error("No current branch to pull");
+                return new Notice("No branch is checked out to pull");
             if (branch.RemoteName == "")
-                return new Error("No current remote branch to pull");
+                return new Notice($"'{branch.NiceNameUnique}' is not on origin, so there is nothing to pull");
 
             var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
             if (remoteBranch == null || !remoteBranch.HasRemoteOnly)
-                return new Error("No remote changes on current branch to pull");
+                return new Notice($"Nothing to pull on '{branch.NiceNameUnique}'");
 
             if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
             {
@@ -160,6 +179,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Pulled '{branch.NiceNameUnique}'");
             return Result.Ok;
         });
 
@@ -172,6 +192,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Updated '{name}'");
             return Result.Ok;
         });
 
@@ -179,6 +200,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         Do(async () =>
         {
             var currentRemoteName = "";
+            List<string> updated = [];
             if (CanPullCurrentBranch())
             {
                 Log.Info("Pull current");
@@ -188,6 +210,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                     return new Error($"Failed to pull current branch", e);
                 }
                 currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
+                updated.Add(repo.Repo.CurrentBranch()?.NiceNameUnique ?? "");
             }
 
             var branches = BranchesToPull(repo.Repo, currentRemoteName).ToList();
@@ -203,9 +226,9 @@ class BranchPushPullCommands : IBranchPushPullCommands
             foreach (var b in branches)
             {
                 if (await server.PullBranchAsync(b.Name, repo.Path) is Error e)
-                {
                     failed.Add($"{b.NiceNameUnique}: {e.AllMessages()}");
-                }
+                else
+                    updated.Add(b.NiceNameUnique);
             }
 
             Refresh();
@@ -214,9 +237,20 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 return new Error($"Failed to pull:\n{string.Join("\n", failed)}");
             if (diverged.Any())
                 ShowDivergedMessage(diverged);
+            else if (!updated.Any())
+                return new Notice("Nothing to pull");
 
+            if (updated.Any())
+                status.Info($"Updated {Names(updated)}");
             return Result.Ok;
         });
+
+    // Up to three names, which is what fits a status line, and otherwise how many
+    static string Names(IEnumerable<string> names)
+    {
+        var list = names.ToList();
+        return list.Count <= 3 ? string.Join(", ", list.Select(n => $"'{n}'")) : $"{list.Count} branches";
+    }
 
     public bool CanPush() => CanPush(repo.Repo);
 
@@ -321,5 +355,5 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
 }

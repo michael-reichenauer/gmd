@@ -155,6 +155,32 @@ public class KeyHintsTest
         Assert.AreEqual("DCDDDDDDDDDDDCDDDDDD", colors);
     }
 
+    // A status message takes the line: green for what was done, yellow for why nothing was, red for
+    // a failure, and cut with '┅' when it is longer than the line
+    [TestMethod]
+    public void TestAStatusMessageIsDrawnInTheColorOfItsKind()
+    {
+        var info = KeyHints.ToText(new StatusMessage("Pushed 'main'", StatusKind.Info, DateTime.UtcNow), 20);
+        var notice = KeyHints.ToText(new StatusMessage("Nothing to commit", StatusKind.Notice, DateTime.UtcNow), 20);
+        var failure = KeyHints.ToText(new StatusMessage("Fetch failed", StatusKind.Failure, DateTime.UtcNow), 20);
+
+        Assert.AreEqual(" Pushed 'main'      ", info.ToString());
+        Assert.AreEqual(Color.Green, info.Fragments[1].Color);
+        Assert.AreEqual(Color.Yellow, notice.Fragments[1].Color);
+        Assert.AreEqual(Color.BrightRed, failure.Fragments[1].Color);
+    }
+
+    [TestMethod]
+    public void TestALongStatusMessageIsCut()
+    {
+        var text = KeyHints.ToText(
+            new StatusMessage("Nothing to push on 'feature/login'", StatusKind.Notice, DateTime.UtcNow),
+            20
+        );
+
+        Assert.AreEqual(" Nothing to push o┅ ", text.ToString());
+    }
+
     static string Hints(FakeViewRepo view, Hoover? hoover = null, bool isDetailsShown = false) =>
         Hints(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), isDetailsShown));
 

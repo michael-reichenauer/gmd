@@ -71,6 +71,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly IFilterDlg filterDlg;
     readonly ContentView commitsView;
     readonly KeyHintBar keyHintBar;
+    readonly IStatusLine status;
     readonly IRepoWriter repoWriter;
     readonly Hoover hoover = new Hoover();
     readonly RepoViewInput input;
@@ -83,6 +84,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     bool isRepoUpdateInProgress = false;
     bool isShowDetails = false;
     bool isShowFilter;
+    bool isFetchFailing = false;
 
     internal RepoView(
         IServer server,
@@ -98,10 +100,12 @@ class RepoView : IRepoView, IRepoViewInputHost
         IApplicationBar applicationBarView,
         IFilterDlg filterDlg,
         IUnicodeSetsDlg charDlg,
-        IClipboardService clipboard
+        IClipboardService clipboard,
+        IStatusLine status
     )
         : base()
     {
+        this.status = status;
         this.server = server;
         this.newViewRepo = newViewRepo;
         this.newMenuService = newMenuService;
@@ -127,11 +131,21 @@ class RepoView : IRepoView, IRepoViewInputHost
             IsCustomShowSelection = true,
         };
         commitsView.CurrentIndexChange += () => OnCurrentIndexChange();
-        keyHintBar = new KeyHintBar(GetKeyHints);
+        keyHintBar = new KeyHintBar(GetKeyHints, () => status.Current);
+        status.Changed += OnStatusChanged;
 
         repoWriter = newRepoWriter(commitsView, commitsView.ContentX);
         repo = newViewRepo(this, Server.Repo.Empty);
-        input = new RepoViewInput(this, commitsView, commitDetailsView, applicationBarView, charDlg, clipboard, hoover);
+        input = new RepoViewInput(
+            this,
+            commitsView,
+            commitDetailsView,
+            applicationBarView,
+            charDlg,
+            clipboard,
+            hoover,
+            status
+        );
 
         server.RepoChange += OnRefreshRepo;
         server.StatusChange += OnRefreshStatus;
@@ -226,7 +240,12 @@ class RepoView : IRepoView, IRepoViewInputHost
         UI.Post(async () =>
         {
             await ShowRefreshedRepoAsync(addName, commitId, false);
-            CommitCmds.Commit(false, commits);
+
+            // After what may have left changes to commit, e.g. a merge or a cherry pick, for the user
+            // to commit. What committed them itself, a squash, leaves nothing, and 'Nothing to
+            // commit' would then be said about a commit nobody asked for.
+            if (!repo.Repo.Status.IsOk)
+                CommitCmds.Commit(false, commits);
         });
     }
 
@@ -295,7 +314,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         var hintsHeight = config.ShowKeyHints ? 1 : 0;
         var detailsHeight = isShowDetails ? CommitDetailsView.ContentHeight : 0;
 
-        keyHintBar.Visible = config.ShowKeyHints;
+        keyHintBar.Visible = IsKeyHintBarShown;
         commitsView.Height = Dim.Fill(detailsHeight + hintsHeight);
         commitDetailsView.View.Y = Pos.AnchorEnd(CommitDetailsView.ContentHeight + hintsHeight);
         commitDetailsView.View.Height = detailsHeight;
@@ -303,6 +322,35 @@ class RepoView : IRepoView, IRepoViewInputHost
         commitsView.SetNeedsDisplay();
         commitDetailsView.View.SetNeedsDisplay();
         keyHintBar.SetNeedsDisplay();
+    }
+
+    // A status message is shown on the key-hint line, and over the last row of the log when the key
+    // hints are turned off, which is the one time the line is shown for it alone
+    bool IsKeyHintBarShown => config.ShowKeyHints || status.Current != null;
+
+    // The line is shown and drawn for a message, and put back when the message has been shown long
+    // enough, which nothing else would redraw it for
+    void OnStatusChanged()
+    {
+        UI.Post(() =>
+        {
+            UpdateStatusLine();
+            UI.AddTimeout(
+                StatusLine.Duration + TimeSpan.FromMilliseconds(100),
+                _ =>
+                {
+                    UpdateStatusLine();
+                    return false;
+                }
+            );
+        });
+    }
+
+    void UpdateStatusLine()
+    {
+        keyHintBar.Visible = IsKeyHintBarShown;
+        keyHintBar.SetNeedsDisplay();
+        commitsView.SetNeedsDisplay(); // The row under the line, when it was shown over the log
     }
 
     IReadOnlyList<KeyHint> GetKeyHints()
@@ -458,7 +506,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             Log.Info($"Showed {t} {viewRepo}");
             if (isAwaitFetch)
             {
-                await FetchBestEffortAsync();
+                await FetchBestEffortAsync(isAsked: true);
             }
         }
 
@@ -550,11 +598,35 @@ class RepoView : IRepoView, IRepoViewInputHost
     }
 
     // The fetch runs after every refresh and on a timer, and fails whenever the machine is offline
-    // or the repo has no 'origin', so a failure is expected and noted at Debug, not warned about
-    async Task FetchBestEffortAsync()
+    // or the repo has no 'origin', so a failure is expected and noted at Debug, not warned about.
+    // It is said on the status line, though, since what the log shows of the remote has then gone
+    // stale: always when the fetch was asked for (r, F5), and otherwise once, when fetching starts
+    // to fail, rather than after every refresh and every five minutes. A repo with no remote
+    // branches has nothing to fetch, and is not told so.
+    async Task FetchBestEffortAsync(bool isAsked = false)
     {
-        if (await server.FetchAsync(repo.Repo.Path) is Error e)
-            Log.Debug($"Fetch failed: {e.AllMessages()}");
+        if (await server.FetchAsync(repo.Repo.Path) is not Error e)
+        {
+            isFetchFailing = false;
+            return;
+        }
+
+        Log.Debug($"Fetch failed: {e.AllMessages()}");
+        var isFirstFailure = !isFetchFailing;
+        isFetchFailing = true;
+
+        if ((isAsked || isFirstFailure) && repo.Repo.AllBranches.Any(b => b.IsRemote))
+            status.Failure($"Fetch failed: {Reason(e)}");
+    }
+
+    // What git said, e.g. "Could not resolve host", rather than the whole of the error, which ends
+    // with the command line: the first line git prefixed with 'fatal:' or 'error:', or the first
+    static string Reason(Error e)
+    {
+        var lines = e.AllMessages().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var line =
+            lines.FirstOrDefault(l => l.StartsWith("fatal:") || l.StartsWith("error:")) ?? lines.FirstOrDefault();
+        return line?.Replace("fatal: ", "").Replace("error: ", "") ?? "";
     }
 
     void RememberRepoPaths(string path)

@@ -41,7 +41,8 @@ public class PushPullTest
 
         gmd.Send("p");
 
-        ScreenText.AssertEqual(
+        var screen = gmd.WaitUntilGone("▲");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -52,9 +53,9 @@ public class PushPullTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("▲"),
-            repo.Path
+            ScreenText.Rows(screen, repo.Path, 0, 8)
         );
+        Assert.AreEqual("Pushed 'main'", ScreenText.LastLine(gmd.WaitFor("Pushed 'main'")), "What was done is said");
 
         Assert.AreEqual(
             await repo.GitAsync("rev-parse main"),
@@ -141,7 +142,8 @@ public class PushPullTest
 
         gmd.Send("u");
 
-        ScreenText.AssertEqual(
+        var screen = gmd.WaitUntilGone("▼");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -152,9 +154,9 @@ public class PushPullTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("▼"),
-            repo.Path
+            ScreenText.Rows(screen, repo.Path, 0, 8)
         );
+        Assert.AreEqual("Pulled 'main'", ScreenText.LastLine(gmd.WaitFor("Pulled 'main'")), "What was done is said");
 
         Assert.AreEqual(
             await repo.GitAsync("rev-parse origin/main"),
@@ -215,7 +217,8 @@ public class PushPullTest
 
         gmd.Send("Enter");
 
-        ScreenText.AssertEqual(
+        var updated = gmd.WaitUntilGone("Pull/Update All Branches");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●work, ▼1, ▲1                                               (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -230,9 +233,9 @@ public class PushPullTest
             ┣╯        Add beta                                                                            dd7891 Test User 24-10-15
             ┗         Initial                                                                             9dc406 Test User 24-10-15
             """,
-            gmd.WaitUntilGone("Pull/Update All Branches"),
-            repo.Path
+            ScreenText.Rows(updated, repo.Path, 0, 12)
         );
+        Assert.AreEqual("Updated 'work'", ScreenText.LastLine(gmd.WaitFor("Updated 'work'")), "What was done is said");
 
         Assert.AreEqual(
             await repo.GitAsync("rev-parse origin/work"),

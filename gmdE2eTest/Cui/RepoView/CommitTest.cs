@@ -343,9 +343,11 @@ public class CommitTest
 
         gmd.Send("a");
 
-        // No dialog opens. The '▲' ahead markers are gone now that everything is pushed, and the
-        // remote is drawn as its own '(^)' tip beside the local one on the same commit.
-        ScreenText.AssertEqual(
+        // No dialog opens, and the status line says why. The '▲' ahead markers are gone now that
+        // everything is pushed, and the remote is drawn as its own '(^)' tip beside the local one on
+        // the same commit.
+        var screen = gmd.WaitFor("Only a commit not yet pushed can be amended");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -356,9 +358,9 @@ public class CommitTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitForStable(),
-            repo.Path
+            ScreenText.Rows(screen, repo.Path, 0, 8)
         );
+        Assert.AreEqual("Only a commit not yet pushed can be amended", ScreenText.LastLine(screen));
 
         Assert.AreEqual("Add zeta", await repo.GitAsync("log --format=%s -1"), "Nothing should be rewritten");
     }

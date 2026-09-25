@@ -475,7 +475,7 @@ public class MenuItemsTest
     static IRepoMenu RepoMenuOf(FakeViewRepo view) =>
         new RepoMenu(
             view,
-            new RepoCommands(view, null!, null!, null!, null!, null!, null!, null!, new Config(), null!, null!),
+            new RepoCommands(view, null!, null!, null!, null!, null!, null!, null!, null!, new Config(), null!, null!),
             new Config(),
             null!
         );

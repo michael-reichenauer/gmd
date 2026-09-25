@@ -55,6 +55,7 @@ class BranchCommands : IBranchCommands
 {
     readonly IViewRepo repo;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IDiffView diffView;
@@ -69,6 +70,7 @@ class BranchCommands : IBranchCommands
     public BranchCommands(
         IViewRepo repo,
         IProgress progress,
+        IStatusLine status,
         IRepoView repoView,
         IServer server,
         IDiffView diffView,
@@ -84,6 +86,7 @@ class BranchCommands : IBranchCommands
         this.worktreeCmds = newWorktreeCommands(repo, repoView);
         this.repo = repo;
         this.progress = progress;
+        this.status = status;
         this.repoView = repoView;
         this.server = server;
         this.diffView = diffView;
@@ -441,5 +444,5 @@ class BranchCommands : IBranchCommands
 
     void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
 }

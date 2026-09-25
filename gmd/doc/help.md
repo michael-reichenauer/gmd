@@ -59,7 +59,8 @@ and `▼` open a menu to push or pull the current branch or all of them.
 
 The line at the bottom of the log view shows the keys that do something
 where the cursor is, and changes as it moves. **Config ...** in the repo
-menu turns it off.
+menu turns it off. For a few seconds after a command it says what the
+command did, or why a key did nothing, and in red when a fetch failed.
 
 
 ## Symbols in Views

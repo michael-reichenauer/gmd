@@ -48,6 +48,7 @@ interface ICommitCommands
 class CommitCommands : ICommitCommands
 {
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IViewRepo repo;
     readonly IServer server;
     readonly ICommitDlg commitDlg;
@@ -60,6 +61,7 @@ class CommitCommands : ICommitCommands
 
     public CommitCommands(
         IProgress progress,
+        IStatusLine status,
         IViewRepo repo,
         IServer server,
         ICommitDlg commitDlg,
@@ -72,6 +74,7 @@ class CommitCommands : ICommitCommands
     )
     {
         this.progress = progress;
+        this.status = status;
         this.repo = repo;
         this.server = server;
         this.commitDlg = commitDlg;
@@ -120,6 +123,9 @@ class CommitCommands : ICommitCommands
             if (commitResult is not CommitResult result)
                 return commitResult.Error;
 
+            // Said rather than nothing happening, as it used to for a key pressed with nothing to do
+            if (result == CommitResult.NothingToCommit)
+                return new Notice(isAmend ? "Only a commit not yet pushed can be amended" : "Nothing to commit");
             if (result == CommitResult.Committed)
                 Refresh();
             return Result.Ok;
@@ -533,7 +539,7 @@ class CommitCommands : ICommitCommands
             var isPushable = branch.IsRemote || branch.RemoteName != "";
 
             if (commit.IsUncommitted)
-                return Result.Ok;
+                return new Notice("A tag is put on a commit: move to one first");
 
             if (addTagDlg.Show() is not TagInfo tag)
                 return Result.Ok;
@@ -636,7 +642,7 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
 
     async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {

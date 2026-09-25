@@ -266,6 +266,10 @@ Things to know:
   matched as `result is CmdError e && e.Output.Contains("CONFLICT")`. Its `Origin` is the method that
   ran the command, passed down through `ICmd` as caller info. `RunRawAsync` is for the few commands
   whose non-zero exit is an answer rather than a failure.
+- A command that does not run for a reason that is no failure (nothing to push, changes to commit
+  first) returns a `Notice` (`Cui/Common/StatusLine.cs`), an `Error` the command runner shows on
+  the status line at the bottom of the log view rather than in an error box. What a command did is
+  said there too, with `IStatusLine.Info`; a key that cannot act says why rather than doing nothing.
 - There is no conversion to `bool`, so `Result<bool>` is a value like any other. `default(Result<T>)` holds
   nothing and matches neither arm, and converting one to `Result` throws rather than passing it off
   as a success.
@@ -511,12 +515,16 @@ keep doing:
   why `TestSetup` raises the pool's minimum; without that, six workers on two cores starved the pool
   and a run took ten minutes.
 
-Six traps worth knowing before adding one:
+Seven traps worth knowing before adding one:
 
 - **`Escape` in the log view asks "Quit gmd?", with Yes as the default** — never send a "safety"
   Escape: it leaves the question up, and the next `Enter` quits.
 - A modal dialog is drawn *over* the log view rather than replacing it, so the rows behind it still
   match whatever `WaitFor` is looking for. Use `WaitUntilGone` to mean "closed".
+- **A status message is drawn over the bottom row for five seconds** after a push, a pull, or a key
+  that could not act, since the key hints are off: a whole-screen snapshot taken then has thirty
+  blank rows and the message in it. Compare the log with `ScreenText.Rows` and the message with
+  `ScreenText.LastLine`, as `PushPullTest` does.
 - For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application bar
   does not tell you what the hoover is on** — it is set both by the hoover and by the current row's
   branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read the

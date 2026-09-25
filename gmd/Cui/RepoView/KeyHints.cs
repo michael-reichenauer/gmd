@@ -53,6 +53,26 @@ static class KeyHints
         return text.Dark(" ");
     }
 
+    // A status message, in place of the hints: green for what a command did, yellow for why a key
+    // did nothing, red for what failed in the background. Cut to the line if it is longer.
+    public static Text ToText(StatusMessage message, int width)
+    {
+        var room = Math.Max(0, width - 2);
+        var text = message.Text.ReplaceLineEndings(" ");
+        text = text.Length > room ? text[..Math.Max(0, room - 1)] + "┅" : text;
+        var color = message.Kind switch
+        {
+            StatusKind.Info => Color.Green,
+            StatusKind.Notice => Color.Yellow,
+            _ => Color.BrightRed,
+        };
+
+        return new TextBuilder()
+            .Dark(" ")
+            .Color(color, text)
+            .Dark(new string(' ', Math.Max(0, width - 1 - text.Length)));
+    }
+
     // The ranges the menu and 'd' work with: diff, squash and cherry-pick of the rows, and copying
     // them
     static IReadOnlyList<KeyHint> ForSelectedRows() => [new("d", "diff"), new("m", "menu"), new("Ctrl-C", "copy")];

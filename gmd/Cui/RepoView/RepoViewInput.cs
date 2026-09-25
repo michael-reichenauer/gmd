@@ -31,6 +31,7 @@ class RepoViewInput
     readonly IUnicodeSetsDlg charDlg;
     readonly IClipboardService clipboard;
     readonly Hoover hoover;
+    readonly IStatusLine status;
 
     bool isRegistered = false;
 
@@ -41,7 +42,8 @@ class RepoViewInput
         IApplicationBar applicationBarView,
         IUnicodeSetsDlg charDlg,
         IClipboardService clipboard,
-        Hoover hoover
+        Hoover hoover,
+        IStatusLine status
     )
     {
         this.host = host;
@@ -51,6 +53,7 @@ class RepoViewInput
         this.charDlg = charDlg;
         this.clipboard = clipboard;
         this.hoover = hoover;
+        this.status = status;
     }
 
     // The repo and the menus of the currently shown repo. Both are replaced every time a repo is
@@ -230,69 +233,89 @@ class RepoViewInput
 
     void OnKeyE()
     {
-        if (hoover.IsBranch)
+        if (!hoover.IsBranch)
         {
-            var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
-            if (branch.LocalName != "")
-                branch = ServerRepo.BranchByName[branch.LocalName];
-            if (!branch.IsCurrent && ServerRepo.Status.IsOk)
-            { // Some other branch merging to current
-                BranchCmds.MergeBranch(hoover.BranchPrimaryName);
-                return;
-            }
-
-            if (branch.IsCurrent && ServerRepo.Status.IsOk)
-            { // Current branch showing menu of branches to merge from
-                var hb = Repo.Graph.BranchByName(branch.Name);
-                Menus.ShowMergeFromMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
-                return;
-            }
+            status.Notice("Highlight a branch with ← → first, and 'e' merges it into the current branch");
+            return;
         }
+        if (!ServerRepo.Status.IsOk)
+        {
+            status.Notice("Commit the changes first, then merge");
+            return;
+        }
+
+        var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
+        if (branch.LocalName != "")
+            branch = ServerRepo.BranchByName[branch.LocalName];
+        if (!branch.IsCurrent)
+        { // Some other branch merging to current
+            BranchCmds.MergeBranch(hoover.BranchPrimaryName);
+            return;
+        }
+
+        // Current branch showing menu of branches to merge from
+        var hb = Repo.Graph.BranchByName(branch.Name);
+        Menus.ShowMergeFromMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
     }
 
     // The mirror of OnKeyE: 'e' merges into the current branch, 'E' merges the current branch out
     // into another one, which git can only do by checking that one out on the way.
     void OnKeyShiftE()
     {
-        if (hoover.IsBranch)
+        if (!hoover.IsBranch)
         {
-            var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
-            if (branch.LocalName != "")
-                branch = ServerRepo.BranchByName[branch.LocalName];
-            // A branch git no longer has would be recreated by the checkout, so it is not offered,
-            // exactly as in the branch menu
-            if (!branch.IsCurrent && branch.IsGitBranch && ServerRepo.Status.IsOk)
-            { // Current branch merging to some other branch
-                BranchCmds.MergeToBranch(branch.Name);
-                return;
-            }
-
-            if (branch.IsCurrent && ServerRepo.Status.IsOk)
-            { // Current branch showing menu of branches to merge to
-                var hb = Repo.Graph.BranchByName(branch.Name);
-                Menus.ShowMergeToMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
-                return;
-            }
+            status.Notice("Highlight a branch with ← → first, and 'E' merges the current branch into it");
+            return;
         }
+        if (!ServerRepo.Status.IsOk)
+        {
+            status.Notice("Commit the changes first, then merge");
+            return;
+        }
+
+        var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
+        if (branch.LocalName != "")
+            branch = ServerRepo.BranchByName[branch.LocalName];
+        if (branch.IsCurrent)
+        { // Current branch showing menu of branches to merge to
+            var hb = Repo.Graph.BranchByName(branch.Name);
+            Menus.ShowMergeToMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
+            return;
+        }
+
+        // A branch git no longer has would be recreated by the checkout, so it is not offered,
+        // exactly as in the branch menu
+        if (!branch.IsGitBranch)
+        {
+            status.Notice($"'{branch.NiceNameUnique}' no longer exists, so nothing can be merged into it");
+            return;
+        }
+
+        // Current branch merging to some other branch
+        BranchCmds.MergeToBranch(branch.Name);
     }
 
     void OnKeyS()
     {
-        if (hoover.IsBranch)
+        if (!hoover.IsBranch)
         {
-            var branchName = hoover.BranchPrimaryName;
-            var currentName = ServerRepo.CurrentBranch().PrimaryName;
-            var branch = ServerRepo.BranchByName[branchName];
-            if (branch.LocalName != "")
-                branchName = branch.LocalName;
-
-            if (branch.PrimaryName != currentName)
-            {
-                BranchCmds.SwitchTo(branchName);
-            }
-
+            status.Notice("Highlight a branch with ← → first, and 's' switches to it");
             return;
         }
+
+        var branchName = hoover.BranchPrimaryName;
+        var currentName = ServerRepo.CurrentBranch().PrimaryName;
+        var branch = ServerRepo.BranchByName[branchName];
+        if (branch.LocalName != "")
+            branchName = branch.LocalName;
+
+        if (branch.PrimaryName == currentName)
+        {
+            status.Notice($"Already on '{branch.NiceNameUnique}'");
+            return;
+        }
+
+        BranchCmds.SwitchTo(branchName);
     }
 
     void OnKeyEnter()
@@ -397,7 +420,10 @@ class RepoViewInput
     {
         var selection = commitsView.Selection;
         if (selection.IsEmpty)
+        {
+            status.Notice("Select rows with Shift-↑↓ first, and Ctrl-C copies them");
             return;
+        }
 
         var (i1, i2) = (selection.I1, selection.I2);
         if (i1 == i2)
@@ -417,7 +443,12 @@ class RepoViewInput
     void CopyToClipboard(string text)
     {
         if (clipboard.Set(text) is Error e)
+        {
             UI.ErrorMessage(e.AllMessages());
+            return;
+        }
+
+        status.Info("Copied to the clipboard");
     }
 
     // The text of a selection that spans several commits: the sid and subject of each selected

@@ -42,6 +42,10 @@ static class ScreenText
     // blank lines dropped
     public static string Of(string capture, string repoPath = "") => Join(Lines(capture, repoPath));
 
+    // The last row that is not blank, trimmed: the key-hint line, or a status message when one is
+    // shown, which is drawn over the bottom row of the log when the hints are off
+    public static string LastLine(string capture, string repoPath = "") => Lines(capture, repoPath).Last().Trim();
+
     // A window of rows, for the screens where only part of it is the subject of the test
     public static string Rows(string capture, string repoPath, int first, int count) =>
         Join(Lines(capture, repoPath).Skip(first).Take(count));

@@ -19,6 +19,7 @@ class BranchCreateCommands : IBranchCreateCommands
 {
     readonly IViewRepo repo;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IRepoConfig repoConfig;
@@ -29,6 +30,7 @@ class BranchCreateCommands : IBranchCreateCommands
     public BranchCreateCommands(
         IViewRepo repo,
         IProgress progress,
+        IStatusLine status,
         IRepoView repoView,
         IServer server,
         IRepoConfig repoConfig,
@@ -39,6 +41,7 @@ class BranchCreateCommands : IBranchCreateCommands
     {
         this.repo = repo;
         this.progress = progress;
+        this.status = status;
         this.repoView = repoView;
         this.server = server;
         this.repoConfig = repoConfig;
@@ -307,5 +310,5 @@ class BranchCreateCommands : IBranchCreateCommands
         return new Error($"Failed to push branch {branchName} to remote server", e);
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
 }

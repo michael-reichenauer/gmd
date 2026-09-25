@@ -190,7 +190,10 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    `FindBranchDlg`), a list that narrows as the name is typed.
 3. **A short non-modal status message** for no-ops and results: "Nothing to commit", "Highlight a
    branch with ← → first", "Pushed main", "Fetch failed: offline". It replaces the red box for
-   anything that is not an error, and fades after a few seconds.
+   anything that is not an error, and fades after a few seconds. *Done (2026-09-25):* on the
+   key-hint line for five seconds (over the log's bottom row with hints off), via `IStatusLine` and
+   `Notice`: `c`/`a`/`t` with nothing to act on, `s`/`e`/`E` with no branch highlighted, Ctrl-C with
+   nothing selected, the push and pull guards and results, and a fetch that starts failing.
 4. **An operation in progress is shown in the top bar,** e.g. `MERGING · 2 conflicts`.
    - Clicking it offers Continue, Skip and Abort, and a key opens the Repo menu.
    - A conflict is reported in an info box with a *Resolve Conflicts* button.

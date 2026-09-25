@@ -283,11 +283,12 @@ public class BranchTest
         gmd.Send("Enter");
         gmd.WaitFor("More dev work");
 
-        // The hoover is left on main, i.e. on the branch that is already current, and 's' on that
-        // is deliberately a no-op (OnKeyS's PrimaryName guard). Worth pinning: it is the reason
-        // 'show a branch and press s' does nothing, which reads like a dropped keystroke.
+        // The hoover is left on main, i.e. on the branch that is already current, so 's' does not
+        // switch (OnKeyS's PrimaryName guard). It used to do nothing at all, which read like a
+        // dropped keystroke, and is the reason 'show a branch and press s' seemed not to work; the
+        // status line says why now.
         gmd.Send("s");
-        gmd.WaitForStable();
+        Assert.AreEqual("Already on 'main'", ScreenText.LastLine(gmd.WaitFor("Already on")));
         Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "'s' on the current branch");
 
         // One step right is dev, and there it does switch
@@ -296,8 +297,9 @@ public class BranchTest
         gmd.Send("s");
 
         // The current markers moved: '●dev' in the application bar, '●' on dev's tip commit and
-        // '(● dev)' on its branch tip, while main keeps its plain '(main)'
-        ScreenText.AssertEqual(
+        // '(● dev)' on its branch tip, while main keeps its plain '(main)'. The rows of the log only,
+        // since the message about the 's' above may still be on the bottom row.
+        Assert.AreEqual(
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -309,8 +311,7 @@ public class BranchTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitFor("(● dev)"),
-            repo.Path
+            ScreenText.Rows(gmd.WaitFor("(● dev)"), repo.Path, 0, 9)
         );
 
         Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
