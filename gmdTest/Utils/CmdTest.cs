@@ -50,6 +50,21 @@ public class CmdTest
         AssertError(await new Cmd().StartAsync("gmd-test-no-such-command", ""), "Not installed");
     }
 
+    // All of what it said, however much: the error output is read on a thread of its own, which
+    // can still be at it when the program is seen to have exited. Ten times, since it is a race.
+    [TestMethod]
+    public async Task TestStartReportsAllThatAFailingProgramSaid()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("Uses sh");
+
+        for (int i = 0; i < 10; i++)
+        {
+            var e = AssertError(await new Cmd().StartAsync("sh", "-c \"seq 1 2000 >&2; echo last >&2; exit 4\""));
+            StringAssert.Contains(e.Message, "last");
+        }
+    }
+
     // One still running after the wait has worked, as a browser started in the foreground has, and
     // is left running: killing it on a timeout, as CommandWithStdin does, would close the browser
     [TestMethod]

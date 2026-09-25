@@ -342,11 +342,26 @@ class Cmd : ICmd
                 EnableRaisingEvents = true,
             };
             var errorLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            var errorEnd = new TaskCompletionSource();
+
+            // Disposed once it ends, if it is left running: the Exited event is raised only for a
+            // handler already there, so this one is, and the two sides agree on who disposes
+            const int Waited = 0,
+                Running = 1,
+                Ended = 2;
+            var state = Waited;
+            process.Exited += (_, _) =>
+            {
+                if (Interlocked.Exchange(ref state, Ended) == Running)
+                    process.Dispose();
+            };
             process.OutputDataReceived += (_, _) => { };
             process.ErrorDataReceived += (_, e) =>
             {
                 if (e.Data != null)
                     errorLines.Enqueue(e.Data);
+                else
+                    errorEnd.TrySetResult(); // The end of the stream
             };
 
             process.Start();
@@ -356,7 +371,8 @@ class Cmd : ICmd
 
             if (!process.WaitForExit(StartWaitMs))
             {
-                process.Exited += (_, _) => process.Dispose();
+                if (Interlocked.CompareExchange(ref state, Running, Waited) == Ended)
+                    process.Dispose(); // It ended just now, before it could be left running
                 Log.Info($"Started: {cmdText} {t}, still running");
                 return new CmdResult(cmdText, "", "");
             }
@@ -365,6 +381,10 @@ class Cmd : ICmd
             {
                 if (process.ExitCode != 0)
                 {
+                    // The error output is read on a thread of its own, which a wait with a timeout
+                    // does not wait for, so it can still be at it. Waited for, but only a moment,
+                    // since a program it started can hold the stream open.
+                    errorEnd.Task.Wait(ErrorReadTimeoutMs);
                     var error = string.Join('\n', errorLines).Trim();
                     Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
                     return new CmdResult(cmdText, process.ExitCode, "", error);
