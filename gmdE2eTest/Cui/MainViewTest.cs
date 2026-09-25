@@ -10,6 +10,34 @@ namespace gmdE2eTest.Cui;
 [TestClass]
 public class MainViewTest
 {
+    // Titled with what it is for, and saying there are no recent repositories rather than opening on
+    // a bare separator, as it did for someone who had not opened one yet
+    [TestMethod]
+    public async Task TestTheStartMenuSaysWhatItIsFor()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = StartOnTheStartMenu(repo);
+
+        ScreenText.AssertEqual(
+            """
+             Gmd                                                                                                     [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                ╭ Open a Repository ────────╮
+                │No recent repositories     │
+                │───────────────────────────│
+                │Browse ...                 │
+                │Clone ...                  │
+                │Init ...                   │
+                │Help ...                   │
+                │About ...                  │
+                │Quit                   Esc │
+                ╰───────────────────────────╯
+            """,
+            gmd.WaitForStable(),
+            repo.Path
+        );
+    }
+
     // A clone or init that fails says so and then shows the start menu again. It used to return
     // after the error, leaving a blank screen where no key but Escape did anything, and nothing
     // on it said so.
@@ -27,7 +55,7 @@ public class MainViewTest
         gmd.WaitFor("Failed to init");
         gmd.Send("Enter");
 
-        gmd.WaitFor("Recent Repos");
+        gmd.WaitFor("Open a Repository");
     }
 
     [TestMethod]
@@ -46,7 +74,7 @@ public class MainViewTest
         gmd.WaitFor("Failed to clone");
         gmd.Send("Enter");
 
-        gmd.WaitFor("Recent Repos");
+        gmd.WaitFor("Open a Repository");
     }
 
     // A click beside the start menu leaves it open. It used to quit gmd, the way Escape does, which
@@ -59,7 +87,7 @@ public class MainViewTest
 
         gmd.Click(80, 30);
 
-        StringAssert.Contains(gmd.WaitForStable(), "Recent Repos", "The menu is still open");
+        StringAssert.Contains(gmd.WaitForStable(), "Open a Repository", "The menu is still open");
         Assert.IsTrue(gmd.IsRunning, "A click outside the menu should not quit gmd");
     }
 
@@ -68,7 +96,7 @@ public class MainViewTest
     static TmuxSession StartOnTheStartMenu(TempRepo repo)
     {
         var gmd = TmuxSession.StartGmd(repo.Path, extraArgs: "-m");
-        gmd.WaitFor("Recent Repos");
+        gmd.WaitFor("Open a Repository");
         return gmd;
     }
 

@@ -8,10 +8,11 @@ static class MenuExtensions
         string text,
         string shortcut,
         IEnumerable<MenuItem> children,
-        Func<bool>? canExecute = null
+        Func<bool>? canExecute = null,
+        Func<string>? whyNot = null
     )
     {
-        items.Add(new SubMenu(text, shortcut, children, canExecute));
+        items.Add(new SubMenu(text, shortcut, children, canExecute) { WhyNot = whyNot });
         return items;
     }
 
@@ -21,11 +22,12 @@ static class MenuExtensions
         string title,
         string shortcut,
         IEnumerable<MenuItem> children,
-        Func<bool>? canExecute = null
+        Func<bool>? canExecute = null,
+        Func<string>? whyNot = null
     )
     {
         if (condition)
-            items.Add(new SubMenu(title, shortcut, children, canExecute));
+            items.Add(new SubMenu(title, shortcut, children, canExecute) { WhyNot = whyNot });
         return items;
     }
 
@@ -34,10 +36,11 @@ static class MenuExtensions
         string text,
         string shortcut,
         Action action,
-        Func<bool>? canExecute = null
+        Func<bool>? canExecute = null,
+        Func<string>? whyNot = null
     )
     {
-        items.Add(new MenuItem(text, shortcut, action, canExecute));
+        items.Add(new MenuItem(text, shortcut, action, canExecute) { WhyNot = whyNot });
         return items;
     }
 
@@ -47,11 +50,12 @@ static class MenuExtensions
         string title,
         string shortcut,
         Action action,
-        Func<bool>? canExecute = null
+        Func<bool>? canExecute = null,
+        Func<string>? whyNot = null
     )
     {
         if (condition)
-            items.Add(new MenuItem(title, shortcut, action, canExecute));
+            items.Add(new MenuItem(title, shortcut, action, canExecute) { WhyNot = whyNot });
         return items;
     }
 

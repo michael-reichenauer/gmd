@@ -32,6 +32,7 @@ that has one, and pressing it in an open menu picks that item.
 | R / F5     | Refresh, and fetch from the remote                         |
 | W          | Open the worktrees dialog                                  |
 | O          | Open, clone or init a repository                           |
+| Y          | Go to the current branch, showing it if it is hidden       |
 | Shift-↑↓   | Select rows in the log, diff and blame views               |
 | Ctrl-C     | Copy the selected rows to the clipboard                    |
 | ? / F1     | Open this help page                                        |
@@ -61,7 +62,8 @@ and `▼` open a menu to push or pull the current branch or all of them.
 The line at the bottom of the log view shows the keys that do something
 where the cursor is, and changes as it moves. **Config ...** in the repo
 menu turns it off. For a few seconds after a command it says what the
-command did, or why a key did nothing, and in red when a fetch failed.
+command did, or why a key or a greyed out menu item did nothing, and in red
+when a fetch failed.
 
 
 ## Symbols in Views

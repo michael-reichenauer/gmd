@@ -39,9 +39,10 @@ static class MenuShortcuts
 
     // The item each key picks: the first item showing it. A letter picks its item in both cases,
     // since the column writes letters in upper case and that is what gets pressed, unless another
-    // item shows the upper case one as "Shift-...", which is then a command of its own. A disabled
-    // item still claims its keys, which then do nothing: 'P' on a menu whose "Shift-P" is greyed
-    // out must not fall back to the item showing "P", a different command.
+    // item shows the upper case one as "Shift-...", which is then a command of its own. A greyed out
+    // item keeps its keys, which then say why it is greyed out rather than run anything: 'P' on a
+    // menu whose "Shift-P" is greyed out must not fall back to the item showing "P", a different
+    // command.
     public static IReadOnlyDictionary<Key, int> Of(IReadOnlyList<MenuItem> items)
     {
         Dictionary<Key, int> keys = [];
@@ -58,7 +59,7 @@ static class MenuShortcuts
                 keys.TryAdd((Key)char.ToUpperInvariant((char)key), i);
         }
 
-        return keys.Where(k => !items[k.Value].IsDisabled).ToDictionary();
+        return keys;
     }
 
     static Key? KeyOf(string part)

@@ -4,6 +4,11 @@ namespace gmd.Cui.Common;
 record MenuItem(string Text, string Shortcut, Action Action, Func<bool>? CanExecute = null)
 {
     public bool IsDisabled { get; init; }
+
+    // Why the item is greyed out, said on the status line when it is picked anyway, by a click or
+    // its key: a greyed item that says nothing leaves the user to guess. Asked only then, and only
+    // while it is greyed out, so it can name whichever of its conditions failed.
+    public Func<string>? WhyNot { get; init; }
 }
 
 // To create a sub menu

@@ -53,8 +53,20 @@ class RepoMenu : IRepoMenu
 
         return Menu
             .Items.Items(GetOperationItems())
-            .Item("Pull/Update All Branches", "Shift-U", () => repo.BranchCmds.PullAllBranches(), () => isStatusOK)
-            .Item("Push All Branches", "Shift-P", () => repo.BranchCmds.PushAllBranches(), () => isStatusOK)
+            .Item(
+                "Pull/Update All Branches",
+                "Shift-U",
+                () => repo.BranchCmds.PullAllBranches(),
+                () => isStatusOK,
+                () => Why.Changes
+            )
+            .Item(
+                "Push All Branches",
+                "Shift-P",
+                () => repo.BranchCmds.PushAllBranches(),
+                () => isStatusOK,
+                () => Why.Changes
+            )
             .Item("Search/Filter ...", "F", () => cmds.SearchFilterRepo())
             .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
             .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())

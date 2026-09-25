@@ -41,10 +41,12 @@ partial class MainView : IMainView
         IProgress progress,
         IAboutDlg aboutDlg,
         IUpdater updater,
-        ISpellChecker spellChecker
+        ISpellChecker spellChecker,
+        IStatusLine statusLine
     )
         : base()
     {
+        Menu.StatusLine = statusLine;
         this.repoView = repoView;
         this.git = git;
         this.config = config;
@@ -80,6 +82,11 @@ partial class MainView : IMainView
         // The key hints after the log view, so they are drawn after it in the same pass, which is
         // when the log view marks them for drawing
         mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView, repoView.KeyHintView);
+
+        // Hidden until a repo is shown, which is when RepoView.UpdateLayout makes the layout from the
+        // config: before that the start menu is all there is, and no key hinted would work there.
+        // Here rather than in RepoView, whose constructor runs before there is a driver to hide it.
+        repoView.KeyHintView.Visible = false;
         repoView.View.SetFocus();
 
         return mainView;
@@ -140,7 +147,12 @@ partial class MainView : IMainView
         Log.Info("Show main menu");
         // Closing it quits, since it is all there is on screen, so only Esc and 'Quit' close it and a
         // click beside it is ignored
-        Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu()) { IsClosedOnClickOutside = false };
+        // Titled with what it is for, since it is what gmd shows when it was started outside a
+        // repository, which nothing else on the screen says
+        Menu menu = new Menu(4, 2, "Open a Repository", null, -1, () => OnCancelMenu())
+        {
+            IsClosedOnClickOutside = false,
+        };
 
         if (!config.Releases.IsUpdateAvailable())
         { // Check for update ...
@@ -244,11 +256,18 @@ partial class MainView : IMainView
         ShowMainMenu();
     }
 
-    IEnumerable<MenuItem> GetRecentRepoItems() =>
-        config
+    // The repositories opened last, or a greyed out line saying there are none yet, rather than a
+    // menu that starts with a bare separator
+    IEnumerable<MenuItem> GetRecentRepoItems()
+    {
+        var items = config
             .RecentFolders.Where(Directory.Exists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
-            .Take(Config.MaxRecentFolders);
+            .Take(Config.MaxRecentFolders)
+            .ToList();
+
+        return items.Any() ? items : [Menu.Item("No recent repositories", "", () => { }, () => false)];
+    }
 
     void ShowRepo(string path)
     {

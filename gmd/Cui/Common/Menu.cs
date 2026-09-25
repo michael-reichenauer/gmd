@@ -36,6 +36,10 @@ class Menu
     // quits gmd, the start menu, turns it off, since a stray click is not asking to quit.
     public bool IsClosedOnClickOutside { get; init; } = true;
 
+    // Where a greyed out item says why it is, when it is picked anyway: the status line at the
+    // bottom of the log view, which is left in view behind a menu. Set once, by MainView.
+    internal static IStatusLine? StatusLine { get; set; }
+
     public static void Show(
         string title,
         int x,
@@ -242,8 +246,24 @@ class Menu
     // which is what Enter acts on, and so that an opened sub menu is placed beside its item.
     void OnShortcut(int index)
     {
+        if (items[index].IsDisabled)
+        {
+            SayWhyNot(items[index]);
+            return;
+        }
+
         itemsView.Move(index - itemsView.CurrentIndex);
         OnEnter();
+    }
+
+    // A greyed out item picked anyway says why it is greyed out, rather than nothing happening
+    static void SayWhyNot(MenuItem item)
+    {
+        if (item is MenuSeparator)
+            return;
+
+        var why = item.WhyNot?.Invoke() ?? "";
+        StatusLine?.Notice(why != "" ? why : $"'{item.Text.Trim()}' cannot be used here");
     }
 
     async void OnKeyEsc()
@@ -280,7 +300,8 @@ class Menu
     {
         itemsView.SetIndexAtViewY(y);
         if (CurrentItem.IsDisabled)
-        { // Clicked on disabled item, lets try select next enabled item
+        { // Clicked on disabled item, say why, and select the next enabled item
+            SayWhyNot(CurrentItem);
             if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled)
                 OnCursorUp();
             if (CurrentItem.IsDisabled)

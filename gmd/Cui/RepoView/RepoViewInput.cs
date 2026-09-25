@@ -108,7 +108,10 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => OnKeyF());
-        commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
+        // A developer's tool, the Unicode sets, and a digit easily hit by accident, so only in a
+        // build run from the source
+        if (Build.IsDevInstance())
+            commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
         commitsView.RegisterKeyHandler(Key.D5, () => BranchCmds.SetBranchManuallyAsync());
 
         commitsView.RegisterKeyHandler(Key.y, () => BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false));

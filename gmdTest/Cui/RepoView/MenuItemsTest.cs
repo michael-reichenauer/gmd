@@ -396,8 +396,8 @@ public class MenuItemsTest
     }
 
     // The keys that pick an item of the branch menu while it is open, which are the keys it shows:
-    // 'u' pulls this branch and 'U' every branch, and 'd' opens the diff sub menu. The keys of the
-    // disabled items (Pull/Update here, which has nothing to pull) pick nothing.
+    // 'u' pulls this branch and 'U' every branch, and 'd' opens the diff sub menu. The key of a
+    // greyed out item (Pull/Update here, which has nothing to pull) says why rather than run it.
     [TestMethod]
     public async Task TestTheBranchMenuKeysPickTheItemsShowingThem()
     {
@@ -409,7 +409,7 @@ public class MenuItemsTest
         var picked = MenuShortcuts
             .Of(items)
             .OrderBy(k => k.Value)
-            .Select(k => $"{KeyName(k.Key)} {items[k.Value].Text}");
+            .Select(k => $"{KeyName(k.Key)} {items[k.Value].Text}{(items[k.Value].IsDisabled ? "  (says why)" : "")}");
 
         Assert.AreEqual(
             """
@@ -419,6 +419,7 @@ public class MenuItemsTest
             E Merge from main
             h Hide Branch
             H Hide Branch
+            u Pull/Update  (says why)
             p Push
             b Create Branch ...
             B Create Branch ...
@@ -431,6 +432,40 @@ public class MenuItemsTest
             M Repo Menu
             """,
             string.Join("\n", picked)
+        );
+    }
+
+    // A greyed out item says why when it is picked anyway, naming the condition that failed
+    [TestMethod]
+    public async Task TestGreyedOutItemsSayWhy()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main").ToList();
+
+        Assert.AreEqual("Already on 'main'", WhyNot(items, "Switch/Checkout to Branch"));
+        Assert.AreEqual("The main branch cannot be deleted", WhyNot(items, "Delete Branch ..."));
+        Assert.AreEqual("The main branch is always magenta", WhyNot(items, "Change Branch Color"));
+        Assert.AreEqual("Nothing to pull on 'main'", WhyNot(items, "Pull/Update"));
+    }
+
+    // Uncommitted changes are the reason most items are greyed out, and they say so
+    [TestMethod]
+    public async Task TestChangesAreSaidToBeWhyMergingIsGreyedOut()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetBranchMenuItems("dev").ToList();
+
+        Assert.AreEqual("Commit or stash the changes first", WhyNot(items, "Merge to main"));
+        Assert.AreEqual("Commit or stash the changes first", WhyNot(items, "Diff Branch to"));
+    }
+
+    // A diverged current branch cannot be pushed from the ▲ menu, and it says what to do instead
+    [TestMethod]
+    public async Task TestTheGreyedOutPushOfADivergedBranchSaysWhatToDo()
+    {
+        var items = BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPushItems().ToList();
+
+        Assert.AreEqual(
+            "The remote has commits to pull first (u), or 'p' asks to force the push",
+            WhyNot(items, "Push Current Branch")
         );
     }
 
@@ -458,6 +493,14 @@ public class MenuItemsTest
         );
 
     static string KeyName(Terminal.Gui.Key key) => ((char)key).ToString();
+
+    // The reason a greyed out item gives, which it only has to while it is greyed out
+    static string WhyNot(IReadOnlyList<MenuItem> items, string text)
+    {
+        var item = items.First(i => i.Text == text);
+        Assert.IsTrue(IsDisabled(item), $"'{text}' should be greyed out");
+        return item.WhyNot?.Invoke() ?? "(no reason)";
+    }
 
     static bool IsDisabled(MenuItem i) =>
         i.IsDisabled || !(i.CanExecute?.Invoke() ?? true) || (i is SubMenu sm && !sm.Children.Any());

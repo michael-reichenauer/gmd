@@ -91,14 +91,26 @@ class BranchMenu : IBranchMenu
                 "Push Current Branch",
                 "P",
                 () => cmds.PushCurrentBranch(),
-                () => BranchPushPullCommands.CanPushCurrentBranch(repo.Repo)
+                () => BranchPushPullCommands.CanPushCurrentBranch(repo.Repo),
+                WhyNoPush
             )
             .Item(
                 "Push All Branches",
                 "Shift-P",
                 () => cmds.PushAllBranches(),
-                () => BranchPushPullCommands.CanPush(repo.Repo)
+                () => BranchPushPullCommands.CanPush(repo.Repo),
+                () => !repo.Repo.Status.IsOk ? Why.Changes : "Nothing to push"
             );
+
+    string WhyNoPush()
+    {
+        var current = repo.Repo.CurrentBranch();
+        if (!repo.Repo.Status.IsOk)
+            return Why.Changes;
+        if (current.RemoteName != "" && repo.Repo.BranchByName[current.RemoteName].HasRemoteOnly)
+            return "The remote has commits to pull first (u), or 'p' asks to force the push";
+        return $"Nothing to push on '{current.NiceNameUnique}'";
+    }
 
     public IEnumerable<MenuItem> GetPullItems() =>
         Menu
@@ -106,13 +118,18 @@ class BranchMenu : IBranchMenu
                 "Pull Current Branch",
                 "U",
                 () => cmds.PullCurrentBranch(),
-                () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo)
+                () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo),
+                () =>
+                    !repo.Repo.Status.IsOk
+                        ? Why.Changes
+                        : $"Nothing to pull on '{repo.Repo.CurrentBranch().NiceNameUnique}'"
             )
             .Item(
                 "Pull/Update All Branches",
                 "Shift-U",
                 () => cmds.PullAllBranches(),
-                () => BranchPushPullCommands.CanPull(repo.Repo)
+                () => BranchPushPullCommands.CanPull(repo.Repo),
+                () => !repo.Repo.Status.IsOk ? Why.Changes : "Nothing to pull"
             );
 
     public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
@@ -136,18 +153,31 @@ class BranchMenu : IBranchMenu
                 $"Merge to {currentName}",
                 "E",
                 () => cmds.MergeBranch(b.Name),
-                () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK
+                () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK,
+                () => Why.Changes
             )
             .Item(
                 !isCurrent,
                 $"Merge from {currentName}",
                 "Shift-E",
                 () => cmds.MergeToBranch(LocalName(b)),
-                () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK && b.IsGitBranch && !IsInWorktree(b)
+                () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK && b.IsGitBranch && !IsInWorktree(b),
+                () =>
+                    !isStatusOK ? Why.Changes
+                    : !b.IsGitBranch ? Why.Deleted(b)
+                    : Why.InWorktree(b)
             )
-            .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems())
-            .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems())
-            .SubMenu("Rebase and push on", "", GetRebaseFromItems(b))
+            .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems(), whyNot: WhyNoMerge)
+            .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems(), whyNot: WhyNoMerge)
+            .SubMenu(
+                "Rebase and push on",
+                "",
+                GetRebaseFromItems(b),
+                whyNot: () =>
+                    !isCurrent ? "Only the current branch is rebased: switch to it first"
+                    : !isStatusOK ? Why.Changes
+                    : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
+            )
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
             // The current branch is pulled with 'git pull', which merges, so it can be pulled even
             // when diverged. Any other branch is updated with a fetch, which only fast-forwards,
@@ -163,18 +193,30 @@ class BranchMenu : IBranchMenu
                     else
                         cmds.PullBranch(branchName);
                 },
-                () => b.HasRemoteOnly && isStatusOK && (isCurrent || !b.HasLocalOnly) && !IsInWorktree(b)
+                () => b.HasRemoteOnly && isStatusOK && (isCurrent || !b.HasLocalOnly) && !IsInWorktree(b),
+                () =>
+                    !b.HasRemoteOnly ? $"Nothing to pull on '{b.NiceNameUnique}'"
+                    : !isStatusOK ? Why.Changes
+                    : IsInWorktree(b) ? Why.InWorktree(b)
+                    : "It has commits of its own too: switch to it, and pull (u) merges the two"
             )
             .Item(
                 "Push",
                 "P",
                 () => cmds.PushBranch(branchName),
-                () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK
+                () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK,
+                () => !isStatusOK ? Why.Changes : $"Nothing to push on '{b.NiceNameUnique}'"
             )
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it
             // is checked out already (here or in another worktree)
-            .Item("Create Worktree ...", "", () => cmds.CreateWorktree(b.Name), () => b.IsGitBranch)
+            .Item(
+                "Create Worktree ...",
+                "",
+                () => cmds.CreateWorktree(b.Name),
+                () => b.IsGitBranch,
+                () => Why.Deleted(b)
+            )
             .Item(
                 "Rename Branch ...",
                 "",
@@ -182,22 +224,40 @@ class BranchMenu : IBranchMenu
                 // The current branch can be renamed, git moves HEAD with it, but a branch git no
                 // longer has cannot, the main branch is what the branch structure is based on, and
                 // a remote branch without a local branch has no local branch to rename
-                () => b.IsGitBranch && !b.IsMainBranch && !b.IsDetached && (!b.IsRemote || b.LocalName != "")
+                () => b.IsGitBranch && !b.IsMainBranch && !b.IsDetached && (!b.IsRemote || b.LocalName != ""),
+                () =>
+                    !b.IsGitBranch ? Why.Deleted(b)
+                    : b.IsMainBranch ? "The main branch is what the others are drawn from, so it keeps its name"
+                    : b.IsDetached ? "A detached HEAD is not a branch to rename"
+                    : "Only a local branch can be renamed"
             )
             .Item(
                 "Delete Branch ...",
                 "",
                 () => cmds.DeleteBranch(b.Name),
                 // Nor a branch checked out in another worktree, which git refuses to delete
-                () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent && !IsInWorktree(b)
+                () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent && !IsInWorktree(b),
+                () =>
+                    !b.IsGitBranch ? Why.Deleted(b)
+                    : b.IsMainBranch ? "The main branch cannot be deleted"
+                    : b.IsCurrent || b.IsLocalCurrent
+                        ? "Switch to another branch first, the current one cannot be deleted"
+                    : Why.InWorktree(b)
             )
-            .SubMenu("Diff Branch to", "D", GetBranchDiffItems(branchName))
+            .SubMenu(
+                "Diff Branch to",
+                "D",
+                GetBranchDiffItems(branchName),
+                whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see Shift →"
+            )
             .Item(
                 "Change Branch Color",
                 "G",
                 () => cmds.ChangeBranchColor(branchName),
                 // Main is always magenta and a deleted branch always gray, so neither can be changed
-                () => !repo.Repo.BranchByName[branchName].IsMainBranch && repo.Repo.BranchByName[branchName].IsGitBranch
+                () =>
+                    !repo.Repo.BranchByName[branchName].IsMainBranch && repo.Repo.BranchByName[branchName].IsGitBranch,
+                () => b.IsMainBranch ? "The main branch is always magenta" : "A deleted branch is always gray"
             )
             .Items(GetMoveBranchItems(branchName))
             .Separator()
@@ -205,8 +265,21 @@ class BranchMenu : IBranchMenu
             // which already offers these at its root, and the repo menu beside it
             .Items(!isLimited, [ShowBranchSubMenu()])
             .Item(!isLimited, "Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
-            .Item(!isLimited, "Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
-            .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
+            .Item(
+                !isLimited,
+                "Push All Branches",
+                "Shift-P",
+                () => cmds.PushAllBranches(),
+                () => isStatusOK,
+                () => Why.Changes
+            )
+            .Item(
+                "Set Commit Branch Manually ...",
+                "",
+                () => cmds.SetBranchManuallyAsync(),
+                () => !c.IsUncommitted,
+                () => "The uncommitted changes have no branch to set: move to a commit first"
+            )
             .SubMenu(!isLimited, "Repo Menu", "Shift-M", repoMenu.GetRepoMenuItems());
     }
 
@@ -231,13 +304,20 @@ class BranchMenu : IBranchMenu
             "S",
             () => cmds.SwitchTo(branchName),
             () => branch.PrimaryName != currentName
-        );
+        ) with
+        {
+            WhyNot = () => $"Already on '{branch.NiceNameUnique}'",
+        };
     }
 
     bool IsInWorktree(Branch branch) => repo.Repo.WorktreePathOf(branch) != "";
 
     // The end of a path, which is what tells worktrees apart; the start is the same for all
     static string ShortPath(string path) => path.Length <= 30 ? path : $"┅{path[^30..]}";
+
+    // Why the merge sub menus of the current branch are empty: they list the shown branches, and
+    // only while there are no changes
+    string WhyNoMerge() => !repo.Repo.Status.IsOk ? Why.Changes : "No other branch is shown to merge with, see Shift →";
 
     IEnumerable<MenuItem> GetMergeFromItems() =>
         GetMergeBranches().Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
@@ -467,7 +547,13 @@ class BranchMenu : IBranchMenu
                     .Items([ShowBranchSubMenu()])
                     .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
                     .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
-                    .Item("Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
+                    .Item(
+                        "Push All Branches",
+                        "Shift-P",
+                        () => cmds.PushAllBranches(),
+                        () => isStatusOK,
+                        () => Why.Changes
+                    )
             );
     }
 

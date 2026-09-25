@@ -54,4 +54,24 @@ public class MenuTest
         gmd.Send("Enter");
         gmd.WaitFor("╭ Scroll to");
     }
+
+    // A greyed out item picked anyway, here by its key, says why on the status line at the bottom,
+    // and the menu stays open. 'Diff Branch to' is greyed out while there are changes.
+    [TestMethod]
+    public async Task TestAGreyedOutItemSaysWhy()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Branch: main");
+
+        gmd.Send("d");
+
+        var screen = gmd.WaitFor("Commit or stash the changes first");
+        Assert.AreEqual("Commit or stash the changes first", ScreenText.LastLine(screen));
+        StringAssert.Contains(screen, "Branch: main", "The menu is still open");
+    }
 }

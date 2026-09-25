@@ -59,10 +59,11 @@ public class MenuShortcutsTest
         Assert.AreEqual(0, keys[Key.P]);
     }
 
-    // A greyed out item picks nothing, and still keeps its key from the item it would otherwise fall
-    // back to: with 'Push All Branches' disabled, 'P' must not push this branch instead
+    // A greyed out item keeps its key, which then says why it is greyed out (see Menu), rather than
+    // falling back to another item: with 'Push All Branches' greyed out, 'P' must not push this
+    // branch instead
     [TestMethod]
-    public void TestADisabledItemKeepsItsKeyAndPicksNothing()
+    public void TestADisabledItemKeepsItsKey()
     {
         var keys = MenuShortcuts.Of([
             Item("Push", "P"),
@@ -73,7 +74,7 @@ public class MenuShortcutsTest
         ]);
 
         Assert.AreEqual(0, keys[Key.p]);
-        Assert.IsFalse(keys.ContainsKey(Key.P));
+        Assert.AreEqual(1, keys[Key.P], "The greyed out item, which says why");
     }
 
     // The first item showing a key wins

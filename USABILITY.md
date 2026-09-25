@@ -202,10 +202,13 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    to finish` in yellow), a click on it opening Resolve Conflicts / Continue / Skip / Abort,
    `Shift-M` for the repo menu (hinted as `M abort…` while an operation lasts), and a
    `ConflictError` from git reported by `RepoCommands.ShowConflicts`.
-5. **A disabled item says why** when chosen, or in the hint line.
-6. **Housekeeping:**
+5. **A disabled item says why** when chosen, or in the hint line. *Done (2026-09-25):* a click on a
+   greyed out item, or its key, puts the reason on the status line (`MenuItem.WhyNot`, `Why`), for
+   the branch, commit, repo, push and pull menus. The Amend item is enabled as the `a` key is.
+6. **Housekeeping:** *done (2026-09-25).*
    - Take the `0` developer key out of release builds, and document `y`.
-   - With no recent repositories, the start menu says so.
+   - With no recent repositories, the start menu says so. It is titled "Open a Repository" too,
+     which says why it is there.
 
 ### Tier 3: consistency
 
@@ -248,7 +251,7 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 - `AboutDlg.cs:33`: `{latest.Txt}` is missing its `()`, so it prints a delegate type name.
 - `BranchPushPullCommands.cs:121`: Push All says "Commit changes before **pulling**".
 - `CommitCommands.cs:215`: compares `id1` with `id1`, so "not on same branch" can never be reported.
-- `CommitMenu.cs:143`: checks `c1` twice and never checks `c2`.
+- ~~`CommitMenu.cs:143`: checks `c1` twice and never checks `c2`.~~ Fixed.
 - `FilterDlg.cs:25,176`: the mouse-handler map is never filled, so clicking a search result does
   nothing.
 - `ConfigDlg.cs:145`: says "Removed gmd **to** PATH".
