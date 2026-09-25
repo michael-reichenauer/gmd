@@ -14,7 +14,12 @@ record KeyHint(string Key, string Text);
 // A key is written the way it is typed, and a shifted one with '⇧', so '⇧p' is Shift-P, which is a
 // different command from 'p'.
 // The hints are listed most useful first, which is also the order they are dropped in, from the
-// end, when the line is too narrow for all of them. '? help' is always kept, at the right.
+// end, when the line is too narrow for all of them. 'm menu' leads, since every command is in a
+// menu, and '? help' is always kept, at the right.
+//
+// The line is drawn as the log's bottom border, in the color of the line under the application bar,
+// with the hints set into it, so that it reads as the frame of the log and not as one more row of
+// it, which it did when it was the hints on their own.
 //
 // This is the decision and the layout, with no view, so it is tested without a terminal; the
 // line itself is drawn by KeyHintBar.
@@ -22,6 +27,11 @@ static class KeyHints
 {
     const string Gap = "  ";
     static readonly KeyHint Help = new("?", "help");
+    static readonly KeyHint Menu = new("m", "menu");
+
+    // The border runs into the line for this long before the hints, and after the help
+    const string Lead = "──";
+    const string Tail = "──";
 
     public static IReadOnlyList<KeyHint> For(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
     {
@@ -40,30 +50,44 @@ static class KeyHints
             new("file:", "search changed files"),
         ];
 
-    // The hints on one line of the given width: as many as fit, from the left, and help at the right
+    // The hints on one line of the given width, set into the border: as many as fit, from the left,
+    // and help at the right, with the border between them
+    //
+    //   ── m menu  d diff  f search ──────────────── ? help ──
     public static Text ToText(IReadOnlyList<KeyHint> hints, int width)
     {
+        // The border and its spaces around the hints, the help and the border around it
+        var frame = Lead.Length + 1 + 1 + 1 + 1 + Length(Help) + 1 + Tail.Length;
         var shown = hints.ToList();
-        while (shown.Count > 0 && 1 + Length(shown) + Gap.Length + Length(Help) + 1 > width)
+        while (shown.Count > 0 && frame + Length(shown) > width)
             shown.RemoveAt(shown.Count - 1);
 
-        var text = new TextBuilder().Dark(" ");
-        for (int i = 0; i < shown.Count; i++)
-            Add(i == 0 ? text : text.Dark(Gap), shown[i]);
+        var text = new TextBuilder().Color(Color.BrightMagenta, Lead);
+        if (shown.Count > 0)
+        {
+            text.Dark(" ");
+            for (int i = 0; i < shown.Count; i++)
+                Add(i == 0 ? text : text.Dark(Gap), shown[i]);
+            text.Dark(" ");
+        }
 
-        var space = width - text.Length - Length(Help) - 1;
-        if (space < 0)
+        var border = width - text.Length - 1 - Length(Help) - 1 - Tail.Length;
+        if (border < 0)
             return text; // Not even the help fits
 
-        Add(text.Dark(new string(' ', space)), Help);
-        return text.Dark(" ");
+        text.Color(Color.BrightMagenta, new string('─', border)).Dark(" ");
+        Add(text, Help);
+        return text.Dark(" ").Color(Color.BrightMagenta, Tail);
     }
 
-    // A status message, in place of the hints: green for what a command did, yellow for why a key
-    // did nothing, red for what failed in the background. Cut to the line if it is longer.
+    // A status message, in place of the hints and set into the border the same way: green for what a
+    // command did, yellow for why a key did nothing, red for what failed in the background. Cut to
+    // the line if it is longer.
+    //
+    //   ── Pushed 'main' ─────────────────────────────────────
     public static Text ToText(StatusMessage message, int width)
     {
-        var room = Math.Max(0, width - 2);
+        var room = Math.Max(0, width - Lead.Length - 2 - Tail.Length);
         var text = message.Text.ReplaceLineEndings(" ");
         text = text.Length > room ? text[..Math.Max(0, room - 1)] + "┅" : text;
         var color = message.Kind switch
@@ -73,22 +97,25 @@ static class KeyHints
             _ => Color.BrightRed,
         };
 
+        var border = Math.Max(0, width - Lead.Length - 2 - text.Length);
         return new TextBuilder()
+            .Color(Color.BrightMagenta, Lead)
             .Dark(" ")
             .Color(color, text)
-            .Dark(new string(' ', Math.Max(0, width - 1 - text.Length)));
+            .Dark(" ")
+            .Color(Color.BrightMagenta, new string('─', border));
     }
 
     // The ranges the menu and 'd' work with: diff, squash and cherry-pick of the rows, and copying
     // them
-    static IReadOnlyList<KeyHint> ForSelectedRows() => [new("d", "diff"), new("m", "menu"), new("Ctrl-C", "copy")];
+    static IReadOnlyList<KeyHint> ForSelectedRows() => [Menu, new("d", "diff"), new("Ctrl-C", "copy")];
 
     static IReadOnlyList<KeyHint> ForCommit(IViewRepo repo, bool isDetailsShown)
     {
         var status = repo.Status;
         var isUncommitted = repo.RowCommit.IsUncommitted;
         var isConflicts = isUncommitted && status.Conflicted > 0;
-        List<KeyHint> hints = [];
+        List<KeyHint> hints = [Menu];
 
         if (!status.IsOk)
             hints.Add(CommitHint(status));
@@ -97,7 +124,6 @@ static class KeyHints
         // On the uncommitted row with conflicts, the diff is where they are resolved, with Enter
         hints.Add(new("d", isConflicts ? "resolve" : "diff"));
         hints.Add(new("Enter", isDetailsShown ? "hide details" : "details"));
-        hints.Add(new("m", "menu"));
         hints.AddRange(PushPullHints(repo));
         if (repo.Graph.GetRowBranches(repo.CurrentIndex).Any())
             hints.Add(new("←→", "branch"));
@@ -126,6 +152,8 @@ static class KeyHints
             .Graph.GetRowBranches(repo.CurrentIndex)
             .Any(b => b.B.PrimaryName == hoover.BranchPrimaryName);
         List<KeyHint> hints = [Label($"{primary.NiceNameUnique}:")];
+        if (isOnRow)
+            hints.Add(Menu);
 
         if (branch.IsCurrent)
         {
@@ -144,8 +172,6 @@ static class KeyHints
         // the only one, Enter does nothing to offer.
         if (isOnRow && repo.GetCommitBranches(true).Any(b => !b.IsMainBranch))
             hints.Add(new("Enter", "show/hide"));
-        if (isOnRow)
-            hints.Add(new("m", "menu"));
         if (!branch.IsMainBranch)
             hints.Add(new("h", "hide"));
         hints.AddRange(UndoHint(repo));

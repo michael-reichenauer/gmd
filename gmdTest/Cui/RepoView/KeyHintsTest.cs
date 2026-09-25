@@ -17,7 +17,7 @@ public class KeyHintsTest
         var view = await ViewOf(Fixture());
 
         Assert.AreEqual(
-            "d diff  Enter details  m menu  ←→ branch  ⇧→ show branch  f search  b new branch",
+            "m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch",
             Hints(view)
         );
     }
@@ -38,7 +38,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Fixture().WithStatus(modified: 1));
 
-        Assert.AreEqual("c commit  d diff  Enter details  m menu  ←→ branch  ⇧→ show branch  f search", Hints(view));
+        Assert.AreEqual("m menu  c commit  d diff  Enter details  ←→ branch  ⇧→ show branch  f search", Hints(view));
     }
 
     // A merge stopped on conflicts: the diff of the uncommitted row is where they are resolved
@@ -47,7 +47,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
-        StringAssert.StartsWith(Hints(view), "c commit  ⇧m abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "m menu  c commit  ⇧m abort…  d resolve  ");
     }
 
     // A rebase is finished by continuing it, not by a commit, and 'c' offers that instead
@@ -58,7 +58,7 @@ public class KeyHintsTest
             Fixture().WithStatus(conflicted: 1, operation: GitOp.Rebase, isFinishedByCommit: false)
         );
 
-        StringAssert.StartsWith(Hints(view), "c continue  ⇧m abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "m menu  c continue  ⇧m abort…  d resolve  ");
     }
 
     // 'p' and 'u' only while the current branch has something to push or pull
@@ -67,7 +67,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Ahead());
 
-        StringAssert.Contains(Hints(view), "m menu  p push  ←→ branch");
+        StringAssert.Contains(Hints(view), "Enter details  p push  ←→ branch");
         Assert.IsFalse(Hints(await ViewOf(Fixture())).Contains("p push"), "Nothing to push when synced");
     }
 
@@ -76,7 +76,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Behind());
 
-        StringAssert.Contains(Hints(view), "m menu  u pull  ←→ branch");
+        StringAssert.Contains(Hints(view), "Enter details  u pull  ←→ branch");
     }
 
     // Another branch hoovered, named first: what the keys do to it. 'p' pushes it, as the branch
@@ -89,7 +89,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "dev", "d1");
 
         Assert.AreEqual(
-            "dev:  s switch  e merge  Enter show/hide  m menu  h hide  d diff  p push  b new branch",
+            "dev:  m menu  s switch  e merge  Enter show/hide  h hide  d diff  p push  b new branch",
             Hints(view, hoover)
         );
     }
@@ -102,7 +102,7 @@ public class KeyHintsTest
         var view = await ViewOf(Ahead());
         var hoover = HooverOn(view, "main", "l1");
 
-        Assert.AreEqual("main:  e merge from  ⇧e merge to  m menu  d diff  p push  b new branch", Hints(view, hoover));
+        Assert.AreEqual("main:  m menu  e merge from  ⇧e merge to  d diff  p push  b new branch", Hints(view, hoover));
     }
 
     // Merging and diffing a branch need a clean working tree, so with changes they give way to
@@ -115,7 +115,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "feature", "d1");
 
         Assert.AreEqual(
-            "feature:  s switch  Enter show/hide  m menu  h hide  p push  c commit  b new branch",
+            "feature:  m menu  s switch  Enter show/hide  h hide  p push  c commit  b new branch",
             Hints(view, hoover)
         );
     }
@@ -155,48 +155,47 @@ public class KeyHintsTest
 
         var hints = KeyHints.For(view, new Hoover(), new Selection(0, 0, 0, 2, 0), false);
 
-        Assert.AreEqual("d diff  m menu  Ctrl-C copy", Hints(hints));
+        Assert.AreEqual("m menu  d diff  Ctrl-C copy", Hints(hints));
     }
 
-    // The line: hints from the left, help at the right, and what does not fit dropped from the end
-    // rather than cut, so every hint shown is whole
+    // The line: the border, the hints from the left, the border on to the help at the right, and what
+    // does not fit dropped from the end rather than cut, so every hint shown is whole
     [TestMethod]
     public void TestTheLineDropsTheHintsThatDoNotFit()
     {
-        List<KeyHint> hints = [new("d", "diff"), new("m", "menu"), new("f", "search")];
+        List<KeyHint> hints = [new("m", "menu"), new("d", "diff"), new("f", "search")];
 
-        Assert.AreEqual(" d diff  m menu  f search          ? help ", KeyHints.ToText(hints, 42).ToString());
-        Assert.AreEqual(" d diff  m menu        ? help ", KeyHints.ToText(hints, 30).ToString());
-        Assert.AreEqual(" d diff  ? help ", KeyHints.ToText(hints, 16).ToString());
-        Assert.AreEqual(" ? help ", KeyHints.ToText(hints, 8).ToString(), "The help is kept to the last");
+        Assert.AreEqual("── m menu  d diff  f search ──── ? help ──", KeyHints.ToText(hints, 42).ToString());
+        Assert.AreEqual("── m menu  d diff ── ? help ──", KeyHints.ToText(hints, 30).ToString());
+        Assert.AreEqual("────── ? help ──", KeyHints.ToText(hints, 16).ToString());
+        Assert.AreEqual("── ? help ──", KeyHints.ToText(hints, 12).ToString(), "The help is kept to the last");
     }
 
-    // The keys in cyan, what they do in dark gray, like the shortcuts in a menu
+    // Set into a border in the color of the line under the application bar, so that it reads as the
+    // frame of the log rather than as one more row of it: the keys in cyan, what they do in dark gray,
+    // like the shortcuts in a menu, and the border in bright magenta
     [TestMethod]
-    public void TestTheKeysAreDrawnInCyan()
+    public void TestTheLineIsABorderWithTheKeysInCyan()
     {
-        var text = KeyHints.ToText([new("d", "diff")], 20);
+        var text = KeyHints.ToText([new("d", "diff")], 26);
 
-        var colors = string.Concat(
-            text.Fragments.Select(f => new string(f.Color == Color.Cyan ? 'C' : 'D', f.Text.Length))
-        );
-        Assert.AreEqual(" d diff      ? help ", text.ToString());
-        Assert.AreEqual("DCDDDDDDDDDDDCDDDDDD", colors);
+        Assert.AreEqual("── d diff ────── ? help ──", text.ToString());
+        Assert.AreEqual("MMDCDDDDDDMMMMMMDCDDDDDDMM", Colors(text));
     }
 
-    // A status message takes the line: green for what was done, yellow for why nothing was, red for
-    // a failure, and cut with '┅' when it is longer than the line
+    // A status message takes the line, set into the border the same way: green for what was done,
+    // yellow for why nothing was, red for a failure, and cut with '┅' when it is longer than the line
     [TestMethod]
     public void TestAStatusMessageIsDrawnInTheColorOfItsKind()
     {
         var info = KeyHints.ToText(new StatusMessage("Pushed 'main'", StatusKind.Info, DateTime.UtcNow), 20);
-        var notice = KeyHints.ToText(new StatusMessage("Nothing to commit", StatusKind.Notice, DateTime.UtcNow), 20);
+        var notice = KeyHints.ToText(new StatusMessage("Nothing to commit", StatusKind.Notice, DateTime.UtcNow), 24);
         var failure = KeyHints.ToText(new StatusMessage("Fetch failed", StatusKind.Failure, DateTime.UtcNow), 20);
 
-        Assert.AreEqual(" Pushed 'main'      ", info.ToString());
-        Assert.AreEqual(Color.Green, info.Fragments[1].Color);
-        Assert.AreEqual(Color.Yellow, notice.Fragments[1].Color);
-        Assert.AreEqual(Color.BrightRed, failure.Fragments[1].Color);
+        Assert.AreEqual("── Pushed 'main' ───", info.ToString());
+        Assert.AreEqual(Color.Green, ColorOf(info, "Pushed"));
+        Assert.AreEqual(Color.Yellow, ColorOf(notice, "Nothing"));
+        Assert.AreEqual(Color.BrightRed, ColorOf(failure, "Fetch"));
     }
 
     [TestMethod]
@@ -207,8 +206,21 @@ public class KeyHintsTest
             20
         );
 
-        Assert.AreEqual(" Nothing to push o┅ ", text.ToString());
+        Assert.AreEqual("── Nothing to pu┅ ──", text.ToString());
     }
+
+    // One letter per cell: 'M' the magenta border, 'C' a cyan key, 'D' the dark rest
+    static string Colors(Text text) =>
+        string.Concat(
+            text.Fragments.Select(f => new string(
+                f.Color == Color.BrightMagenta ? 'M'
+                    : f.Color == Color.Cyan ? 'C'
+                    : 'D',
+                f.Text.Length
+            ))
+        );
+
+    static Color ColorOf(Text text, string part) => text.Fragments.First(f => f.Text.Contains(part)).Color;
 
     static string Hints(FakeViewRepo view, Hoover? hoover = null, bool isDetailsShown = false) =>
         Hints(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), isDetailsShown));

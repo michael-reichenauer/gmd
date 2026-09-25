@@ -17,7 +17,8 @@ public class KeyHintTest
 {
     const int Height = 12;
 
-    // The bottom row, below the log, with help at the right
+    // The bottom row, below the log, set into a border like the one under the application bar, with
+    // the menu first, since every command is in a menu, and help at the right
     [TestMethod]
     public async Task TestTheKeyHintsAreOnTheBottomRow()
     {
@@ -37,7 +38,7 @@ public class KeyHintTest
 
 
 
-             d diff  Enter details  m menu  ←→ branch  ⇧→ show branch  f search  b new branch                                ? help
+            ── m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch ────────────────────────── ? help ──
             """,
             gmd.WaitFor("d diff"),
             repo.Path
@@ -55,19 +56,19 @@ public class KeyHintTest
 
         gmd.Send("Left");
         Assert.AreEqual(
-            "main:  e merge from  ⇧e merge to  m menu  d diff  b new branch | ? help",
+            "main:  m menu  e merge from  ⇧e merge to  d diff  b new branch | ? help",
             Hints(gmd.WaitFor("merge from"))
         );
 
         gmd.Send("Down");
         Assert.AreEqual(
-            "main:  e merge from  ⇧e merge to  Enter show/hide  m menu  d diff  b new branch | ? help",
+            "main:  m menu  e merge from  ⇧e merge to  Enter show/hide  d diff  b new branch | ? help",
             Hints(gmd.WaitFor("show/hide"))
         );
 
         gmd.Send("Right");
         Assert.AreEqual(
-            "d diff  Enter details  m menu  ←→ branch  ⇧→ show branch  f search  b new branch | ? help",
+            "m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch | ? help",
             Hints(gmd.WaitFor("Enter details"))
         );
     }
@@ -103,21 +104,21 @@ public class KeyHintTest
             Add delta
 
 
-             d diff  Enter hide details  m menu  ←→ branch  ⇧→ show branch  f search  b new branch                           ? help
+            ── m menu  d diff  Enter hide details  ←→ branch  ⇧→ show branch  f search  b new branch ───────────────────── ? help ──
             """,
             gmd.WaitFor("hide details"),
             repo.Path
         );
     }
 
-    // With changes, committing comes first
+    // With changes, committing comes first, after the menu
     [TestMethod]
     public async Task TestChangesPutCommitFirst()
     {
         using var repo = await E2eRepo.CreateWithChangesAsync();
         using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
 
-        StringAssert.StartsWith(Hints(gmd.WaitFor("c commit")), "c commit  d diff  ");
+        StringAssert.StartsWith(Hints(gmd.WaitFor("c commit")), "m menu  c commit  d diff  ");
     }
 
     // The filter has the keyboard while it is up, so the line is about the filter, including the
@@ -138,5 +139,6 @@ public class KeyHintTest
     }
 
     // The bottom row, with the padding before the help shown as ' | '
-    static string Hints(string screen) => Regex.Replace(ScreenText.Of(screen).Split('\n')[^1].Trim(), " {3,}", " | ");
+    // The hints, with the stretch of border between them and the help written ' | '
+    static string Hints(string screen) => Regex.Replace(ScreenText.LastLine(screen), " ─+ ", " | ");
 }
