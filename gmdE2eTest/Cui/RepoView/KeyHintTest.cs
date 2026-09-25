@@ -8,6 +8,9 @@ namespace gmdE2eTest.Cui.RepoView;
 // follows the cursor. The line is off in every other end-to-end test (see TempHome), so these turn
 // it on, and use a short terminal so that a snapshot of the whole screen stays readable.
 //
+// They wait for a hint rather than for '? help', which is on the line for a moment on its own,
+// while the first repo is read.
+//
 // What every end-to-end test must keep doing is at the top of gmdE2eTest/TestSetup.cs.
 [TestClass]
 public class KeyHintTest
@@ -36,29 +39,29 @@ public class KeyHintTest
 
              d diff  Enter details  m menu  ←→ branch  ⇧→ show branch  f search  b new branch                                ? help
             """,
-            gmd.WaitFor("? help"),
+            gmd.WaitFor("d diff"),
             repo.Path
         );
     }
 
-    // ← hoovers the branch, and the hints are then about it. On the merge commit, Enter shows the
+    // ← hoovers the branch, and the hints are then about it, named first. On the merge commit, Enter shows the
     // branch that was merged in, so that is offered there and not on the row above.
     [TestMethod]
     public async Task TestTheHintsFollowTheCursor()
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
-        gmd.WaitFor("? help");
+        gmd.WaitFor("d diff");
 
         gmd.Send("Left");
         Assert.AreEqual(
-            "e merge from  E merge to  m menu  d diff  b new branch | ? help",
+            "main:  e merge from  E merge to  m menu  d diff  b new branch | ? help",
             Hints(gmd.WaitFor("merge from"))
         );
 
         gmd.Send("Down");
         Assert.AreEqual(
-            "e merge from  E merge to  Enter show/hide  m menu  d diff  b new branch | ? help",
+            "main:  e merge from  E merge to  Enter show/hide  m menu  d diff  b new branch | ? help",
             Hints(gmd.WaitFor("show/hide"))
         );
 
@@ -75,7 +78,7 @@ public class KeyHintTest
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo, height: 20, isKeyHints: true);
-        gmd.WaitFor("? help");
+        gmd.WaitFor("d diff");
 
         gmd.Send("Enter");
 
@@ -114,7 +117,7 @@ public class KeyHintTest
         using var repo = await E2eRepo.CreateWithChangesAsync();
         using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
 
-        StringAssert.StartsWith(Hints(gmd.WaitFor("? help")), "c commit  d diff  ");
+        StringAssert.StartsWith(Hints(gmd.WaitFor("c commit")), "c commit  d diff  ");
     }
 
     // The filter has the keyboard while it is up, so the line is about the filter
@@ -123,7 +126,7 @@ public class KeyHintTest
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
-        gmd.WaitFor("? help");
+        gmd.WaitFor("d diff");
 
         gmd.Send("f");
 

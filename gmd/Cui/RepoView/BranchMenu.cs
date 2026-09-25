@@ -179,10 +179,8 @@ class BranchMenu : IBranchMenu
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
             )
             .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
-            // The current branch is pulled with 'git pull', which merges, so it can be pulled even
-            // when diverged. Any other branch is updated with a fetch, which only fast-forwards,
-            // so a diverged one can only be pulled by switching to it first. A branch checked out
-            // in another worktree cannot be pulled from here at all, git refuses to move it.
+            // The same rules as the 'u' and 'p' keys on a highlighted branch, see
+            // BranchPushPullCommands.CanPullBranch
             .Item(
                 "Pull/Update",
                 "U",
@@ -193,19 +191,15 @@ class BranchMenu : IBranchMenu
                     else
                         cmds.PullBranch(branchName);
                 },
-                () => b.HasRemoteOnly && isStatusOK && (isCurrent || !b.HasLocalOnly) && !IsInWorktree(b),
-                () =>
-                    !b.HasRemoteOnly ? $"Nothing to pull on '{b.NiceNameUnique}'"
-                    : !isStatusOK ? Why.Changes
-                    : IsInWorktree(b) ? Why.InWorktree(b)
-                    : "It has commits of its own too: switch to it, and pull (u) merges the two"
+                () => BranchPushPullCommands.CanPullBranch(repo.Repo, b),
+                () => BranchPushPullCommands.WhyNoPullBranch(repo.Repo, b)
             )
             .Item(
                 "Push",
                 "P",
                 () => cmds.PushBranch(branchName),
-                () => (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && isStatusOK,
-                () => !isStatusOK ? Why.Changes : $"Nothing to push on '{b.NiceNameUnique}'"
+                () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
+                () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
             )
             .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it

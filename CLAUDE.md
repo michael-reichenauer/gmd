@@ -531,8 +531,9 @@ Seven traps worth knowing before adding one:
   that could not act, since the key hints are off: a whole-screen snapshot taken then has thirty
   blank rows and the message in it. Compare the log with `ScreenText.Rows` and the message with
   `ScreenText.LastLine`, as `PushPullTest` does.
-- For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application bar
-  does not tell you what the hoover is on** — it is set both by the hoover and by the current row's
+- For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`, and `p` / `u`, which
+  act on the current branch when nothing is hoovered), **the application bar does not tell you what
+  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — it is set both by the hoover and by the current row's
   branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read the
   `Branch: <name>` menu title; that is the only readout from outside. And expect the hoover to stay
   where it was after a command rather than follow what appeared: after `Enter` opens a branch it is

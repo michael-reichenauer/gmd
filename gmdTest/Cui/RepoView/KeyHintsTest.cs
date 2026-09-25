@@ -79,10 +79,9 @@ public class KeyHintsTest
         StringAssert.Contains(Hints(view), "m menu  u pull  ←→ branch");
     }
 
-    // Another branch hoovered: what the hoover keys do to it. 'p' and 'u' act on the current
-    // branch whichever is hoovered, so they are left out here rather than seem to be about it.
-    // Enter is offered since this is the tip of 'dev', off 'main': it opens the show/hide menu of
-    // the two.
+    // Another branch hoovered, named first: what the keys do to it. 'p' pushes it, as the branch
+    // menu's Push does, which for 'dev', not on origin yet, publishes it. Enter is offered since
+    // this is the tip of 'dev', off 'main': it opens the show/hide menu of the two.
     [TestMethod]
     public async Task TestAHooveredBranchOffersSwitchingMergingAndHidingIt()
     {
@@ -90,7 +89,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "dev", "d1");
 
         Assert.AreEqual(
-            "s switch  e merge  Enter show/hide  m menu  h hide  d diff  b new branch",
+            "dev:  s switch  e merge  Enter show/hide  m menu  h hide  d diff  p push  b new branch",
             Hints(view, hoover)
         );
     }
@@ -103,7 +102,7 @@ public class KeyHintsTest
         var view = await ViewOf(Ahead());
         var hoover = HooverOn(view, "main", "l1");
 
-        Assert.AreEqual("e merge from  E merge to  m menu  d diff  p push  b new branch", Hints(view, hoover));
+        Assert.AreEqual("main:  e merge from  E merge to  m menu  d diff  p push  b new branch", Hints(view, hoover));
     }
 
     // Merging and diffing a branch need a clean working tree, so with changes they give way to
@@ -115,7 +114,10 @@ public class KeyHintsTest
         view.CurrentIndex = view.Repo.CommitById[RepoBuilder.Sha("d1")].ViewIndex;
         var hoover = HooverOn(view, "feature", "d1");
 
-        Assert.AreEqual("s switch  Enter show/hide  m menu  h hide  c commit  b new branch", Hints(view, hoover));
+        Assert.AreEqual(
+            "feature:  s switch  Enter show/hide  m menu  h hide  c commit  b new branch",
+            Hints(view, hoover)
+        );
     }
 
     // Several rows selected with Shift-↑↓: the range is what the keys act on
@@ -184,7 +186,9 @@ public class KeyHintsTest
     static string Hints(FakeViewRepo view, Hoover? hoover = null, bool isDetailsShown = false) =>
         Hints(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), isDetailsShown));
 
-    static string Hints(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
+    // A hint with no key is a label, e.g. the branch the keys act on
+    static string Hints(IReadOnlyList<KeyHint> hints) =>
+        string.Join("  ", hints.Select(h => h.Key == "" ? h.Text : $"{h.Key} {h.Text}"));
 
     // The cursor on the commit, and the branch hoovered there, as ← → leaves them
     static Hoover HooverOn(FakeViewRepo view, string branchName, string commit)

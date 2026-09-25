@@ -116,6 +116,27 @@ public class PushPullTest
         Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
     }
 
+    // With a branch highlighted, 'p' pushes that branch, as its branch menu's Push says, rather than
+    // the current one. 'work' is current and 'main', a commit ahead of origin, is highlighted.
+    [TestMethod]
+    public async Task TestPushTheHighlightedBranch()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("checkout -q -b work HEAD~1");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+        gmd.Send("Home");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+
+        gmd.Send("p");
+
+        Assert.AreEqual("Pushed 'main'", ScreenText.LastLine(gmd.WaitFor("Pushed 'main'")));
+        Assert.AreEqual(await repo.GitAsync("rev-parse main"), await repo.GitAsync("rev-parse origin/main"));
+        Assert.AreEqual("work", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "Still on work");
+    }
+
     // Pulling with 'u', the mirror of the push above: origin has a commit the local branch has
     // not got, so it is drawn bright blue with the '▼' behind marker until it is pulled in.
     [TestMethod]

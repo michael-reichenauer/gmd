@@ -23,8 +23,8 @@ that has one, and pressing it in an open menu picks that item.
 | Shift-E    | Merge the current branch into the highlighted branch       |
 | H          | Hide the highlighted branch                                |
 | G          | Change the color of the highlighted branch                 |
-| P          | Push the current branch                                    |
-| U          | Pull the current branch                                    |
+| P          | Push the highlighted branch, or the current one            |
+| U          | Pull the highlighted branch, or the current one            |
 | Shift-P    | Push all shown branches                                    |
 | Shift-U    | Pull/update all shown branches                             |
 | T          | Add a tag to the commit                                    |
@@ -135,8 +135,8 @@ commits that can be pulled or pushed.
 - Remote has unpulled commits (▼ and a blue subject)
 - Local has unpushed commits (▲ and a green subject)
 
-`P` and `U` push and pull the current branch, and **Push** and
-**Pull/Update** in a branch menu do it for that branch. `Shift-P` and
+`P` and `U` push and pull the highlighted branch, or the current one when
+none is, as **Push** and **Pull/Update** in its branch menu do. `Shift-P` and
 `Shift-U` push or update all shown branches.
 
 A branch with both unpulled and unpushed commits cannot be pushed, nor

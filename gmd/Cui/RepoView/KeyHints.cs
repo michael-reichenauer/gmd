@@ -103,21 +103,20 @@ static class KeyHints
         return hints;
     }
 
-    // A branch hoovered with ← → or the mouse. 'p' and 'u' act on the current branch, whichever is
-    // hoovered, so they are only offered on the current branch itself, where that is what they say.
+    // A branch hoovered with ← → or the mouse, named first, since it is what the keys act on and
+    // the mouse can move the hoover without a key being pressed
     static IReadOnlyList<KeyHint> ForBranch(IViewRepo repo, Hoover hoover)
     {
         var status = repo.Status;
-        var branch = repo.Repo.BranchByName[hoover.BranchPrimaryName];
-        if (branch.LocalName != "")
-            branch = repo.Repo.BranchByName[branch.LocalName];
+        var primary = repo.Repo.BranchByName[hoover.BranchPrimaryName];
+        var branch = primary.LocalName != "" ? repo.Repo.BranchByName[primary.LocalName] : primary;
 
         // The menu and Enter act on the hoovered branch only where it crosses the current row, see
         // RepoViewInput.OnMenu and OnKeyEnter; the mouse can hoover one anywhere
         var isOnRow = repo
             .Graph.GetRowBranches(repo.CurrentIndex)
             .Any(b => b.B.PrimaryName == hoover.BranchPrimaryName);
-        List<KeyHint> hints = [];
+        List<KeyHint> hints = [Label($"{primary.NiceNameUnique}:")];
 
         if (branch.IsCurrent)
         {
@@ -143,7 +142,16 @@ static class KeyHints
         if (status.IsOk)
             hints.Add(new("d", "diff"));
         if (branch.IsCurrent)
+        {
             hints.AddRange(PushPullHints(repo));
+        }
+        else
+        { // The rules of the branch menu's Push and Pull, which the keys follow for this branch
+            if (BranchPushPullCommands.CanPushBranch(repo.Repo, primary))
+                hints.Add(new("p", "push"));
+            if (BranchPushPullCommands.CanPullBranch(repo.Repo, primary))
+                hints.Add(new("u", "pull"));
+        }
         if (!status.IsOk)
             hints.Add(CommitHint(status));
         if (status.IsMerging)
@@ -169,9 +177,18 @@ static class KeyHints
             yield return new("u", "pull");
     }
 
-    static void Add(TextBuilder text, KeyHint hint) => text.Cyan(hint.Key).Dark($" {hint.Text}");
+    // A hint with no key is a label, e.g. the name of the branch the keys act on
+    static KeyHint Label(string text) => new("", text);
 
-    static int Length(KeyHint hint) => hint.Key.Length + 1 + hint.Text.Length;
+    static void Add(TextBuilder text, KeyHint hint)
+    {
+        if (hint.Key == "")
+            text.White(hint.Text);
+        else
+            text.Cyan(hint.Key).Dark($" {hint.Text}");
+    }
+
+    static int Length(KeyHint hint) => hint.Key == "" ? hint.Text.Length : hint.Key.Length + 1 + hint.Text.Length;
 
     static int Length(IReadOnlyList<KeyHint> hints) => hints.Sum(Length) + Math.Max(0, hints.Count - 1) * Gap.Length;
 }

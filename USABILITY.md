@@ -217,14 +217,16 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
      Ctrl-C = copy.
    - A command letter is not reused for something else in another view.
 2. **The branch menu's key labels match what the keys do.** Either `p` and `u` act on the highlighted
-   branch, like `s e h b d` do, or the label goes.
+   branch, like `s e h b d` do, or the label goes. *Done (2026-09-25):* they act on the highlighted
+   branch, by the same rules as the menu's Push and Pull (`CanPushBranch`, `CanPullBranch`).
 3. **Plain names:**
    - *Discard Changes in File…*, *Discard All Changes…*
    - *Revert Commit*, *Uncommit Last Commit (keep changes)*, *Uncommit to X*
    - *Switch to Branch*, *Search*, *Refresh*
    - "..." only when a dialog follows.
 4. **Keys act on the keyboard highlight,** not on wherever the mouse happens to rest. At least,
-   label the target in the top bar (`▸ dev`).
+   label the target in the top bar (`▸ dev`). *The label is done (2026-09-25),* on the key-hint line,
+   which starts with the highlighted branch's name (`dev:  s switch …`); the mouse still moves it.
 5. **Don't require a clean tree to push.** For merge and switch, offer "stash, do it, pop".
 6. **Write keys in the help and the README the way they are pressed.**
 

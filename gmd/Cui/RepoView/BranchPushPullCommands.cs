@@ -130,7 +130,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            status.Info($"Pushed '{name}'");
+            status.Info($"Pushed '{NiceName(name)}'");
             return Result.Ok;
         });
 
@@ -192,7 +192,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            status.Info($"Updated '{name}'");
+            status.Info($"Updated '{NiceName(name)}'");
             return Result.Ok;
         });
 
@@ -245,6 +245,17 @@ class BranchPushPullCommands : IBranchPushPullCommands
             return Result.Ok;
         });
 
+    // The name a branch is shown with, its local one for a local and remote pair: a branch menu and
+    // a highlighted branch give the pair by its primary name, which is the remote's, 'origin/main'
+    string NiceName(string name)
+    {
+        if (!repo.Repo.BranchByName.TryGetValue(name, out var branch))
+            return name;
+        if (branch.LocalName != "" && repo.Repo.BranchByName.TryGetValue(branch.LocalName, out var local))
+            branch = local;
+        return branch.NiceNameUnique;
+    }
+
     // Up to three names, which is what fits a status line, and otherwise how many
     static string Names(IEnumerable<string> names)
     {
@@ -264,6 +275,28 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // are testable without a view. Note that a diverged branch (both local and remote only
     // commits) can neither be pushed nor be part of 'push all branches', since git would reject
     // it as non fast-forward.
+    // Push and Pull of one branch, the one a branch menu is for or the one highlighted when 'p' or
+    // 'u' is pressed: one rule for both, so the key does what the menu item says. A branch not yet
+    // on origin can be pushed, which publishes it. The current branch is pulled with 'git pull',
+    // which merges, so it can be pulled even when diverged; any other branch is updated with a
+    // fetch, which only fast-forwards, and not at all while it is checked out in another worktree.
+    internal static bool CanPushBranch(Repo repo, Branch b) =>
+        (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && repo.Status.IsOk;
+
+    internal static string WhyNoPushBranch(Repo repo, Branch b) =>
+        !repo.Status.IsOk ? Why.Changes : $"Nothing to push on '{b.NiceNameUnique}'";
+
+    internal static bool CanPullBranch(Repo repo, Branch b) =>
+        b.HasRemoteOnly && repo.Status.IsOk && (IsCurrent(b) || !b.HasLocalOnly) && repo.WorktreePathOf(b) == "";
+
+    internal static string WhyNoPullBranch(Repo repo, Branch b) =>
+        !b.HasRemoteOnly ? $"Nothing to pull on '{b.NiceNameUnique}'"
+        : !repo.Status.IsOk ? Why.Changes
+        : repo.WorktreePathOf(b) != "" ? Why.InWorktree(b)
+        : "It has commits of its own too: switch to it, and pull (u) merges the two";
+
+    static bool IsCurrent(Branch b) => b.IsCurrent || b.IsLocalCurrent;
+
     internal static bool CanPush(Repo repo) =>
         repo.Status.IsOk && repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 

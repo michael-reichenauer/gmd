@@ -100,9 +100,9 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
         commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
-        commitsView.RegisterKeyHandler(Key.p, () => BranchCmds.PushCurrentBranch());
+        commitsView.RegisterKeyHandler(Key.p, OnKeyP);
         commitsView.RegisterKeyHandler(Key.P, () => BranchCmds.PushAllBranches());
-        commitsView.RegisterKeyHandler(Key.u, () => BranchCmds.PullCurrentBranch());
+        commitsView.RegisterKeyHandler(Key.u, OnKeyU);
         commitsView.RegisterKeyHandler(Key.U, () => BranchCmds.PullAllBranches());
         commitsView.RegisterKeyHandler(Key.D1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
@@ -301,6 +301,46 @@ class RepoViewInput
         // Current branch merging to some other branch
         BranchCmds.MergeToBranch(branch.Name);
     }
+
+    // 'p' and 'u' act on the highlighted branch, as the other branch keys do and as the branch
+    // menu's Push and Pull say, and on the current branch when none is highlighted. The current
+    // branch goes through the commands that ask before a force push, or pull with a merge.
+    void OnKeyP()
+    {
+        var branch = HooveredBranch();
+        if (branch == null || branch.IsCurrent || branch.IsLocalCurrent)
+        {
+            BranchCmds.PushCurrentBranch();
+            return;
+        }
+
+        if (!BranchPushPullCommands.CanPushBranch(ServerRepo, branch))
+        {
+            status.Notice(BranchPushPullCommands.WhyNoPushBranch(ServerRepo, branch));
+            return;
+        }
+        BranchCmds.PushBranch(hoover.BranchPrimaryName);
+    }
+
+    void OnKeyU()
+    {
+        var branch = HooveredBranch();
+        if (branch == null || branch.IsCurrent || branch.IsLocalCurrent)
+        {
+            BranchCmds.PullCurrentBranch();
+            return;
+        }
+
+        if (!BranchPushPullCommands.CanPullBranch(ServerRepo, branch))
+        {
+            status.Notice(BranchPushPullCommands.WhyNoPullBranch(ServerRepo, branch));
+            return;
+        }
+        BranchCmds.PullBranch(hoover.BranchPrimaryName);
+    }
+
+    // The branch the branch menu would be for, i.e. as the menu's Push and Pull see it
+    Branch? HooveredBranch() => hoover.IsBranch ? ServerRepo.BranchByName[hoover.BranchPrimaryName] : null;
 
     void OnKeyS()
     {
