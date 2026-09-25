@@ -308,12 +308,12 @@ public class LogViewTest
         gmd.WaitFor("Initial");
 
         // The first row is the one the cursor is on, and the run of dark gray 'D' is the
-        // highlight. It starts after the graph, which keeps its own background — that is
-        // RepoWriter applying Highlight() to the non-graph part of the row only, a detail that is
-        // easy to break and invisible to every other assertion here. The rows below it are plain.
+        // highlight. It is on the graph too, the rune and the current marker, so the node of the
+        // commit is found at a glance, which it was not when the highlight stopped at the graph.
+        // The rows below it are plain.
         Assert.AreEqual(
             """
-            -  . DDD DDDDD                                                      DD DDDDDDDDDDD DDDDDD DDDD DDDD      DDDDDDDD DDDDD
+            D  D DDD DDDDD                                                      DD DDDDDDDDDDD DDDDDD DDDD DDDD      DDDDDDDD DDDDD
             --   ..... ...... ..... .... ....                                                  ...... .... ....      ........ .....
             -    ... .....                                                                     ...... .... ....      ........ .....
             --   ... ....                                                                      ...... .... ....      ........ .....

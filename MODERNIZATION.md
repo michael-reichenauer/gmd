@@ -276,6 +276,18 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `UI.cs`, `ContentView`, `UIDialog`, the two browse dialogs; `MessageDlg` and `BorderView` are
   deleted rather than ported. Trap: the migration guide describes `v2_develop`, not the released
   package; check the shipped assembly before believing any specific API.
+- **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7):
+  - *Light terminals.* Every color is on a forced black background (`Color.Make` pairs each with
+    `Terminal.Gui.Color.Black`), so a light-themed terminal shows gmd as a black box: readable, but
+    not the user's theme. The fix is the terminal's own default background, which 1.x has no color
+    for and 2.x has. A second, light palette in 1.x is the alternative, and every screen's colors
+    would need checking on it.
+  - *More branch colors.* Five, picked by a hash of the name (`BranchColorService`), since the
+    other 16-color entries already mean something (main, deleted, ahead, behind). Two of four
+    shown branches often share one; `g` recolors by hand. Needs 256 or true color. Consider
+    replacing red or green then too, for red-green color blindness.
+  - *`NO_COLOR`.* Not read. Low value for gmd, whose graph tells branches apart by color alone;
+    revisit if asked.
 - **Inline conflict editing** (typing in the result pane with both sides in view). The modal `E`
   box covers the need. The gate is whether `SetFocus()` gives a `UITextView` the keyboard when it
   shares a bare `Toplevel` with `ContentView`s — a configuration nothing in the codebase has run,

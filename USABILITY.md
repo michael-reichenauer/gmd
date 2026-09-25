@@ -283,6 +283,10 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    - More branch colors, with the Terminal.Gui 2.x port.
    - Mark the current row in the graph column too.
 
+   *The last is done (2026-09-25):* the current row's highlight covers the graph as well, so the
+   commit's node is found at a glance. The first two wait for the Terminal.Gui 2.x port, recorded
+   in MODERNIZATION.md with the reasons.
+
 ---
 
 ## Small bugs found along the way
