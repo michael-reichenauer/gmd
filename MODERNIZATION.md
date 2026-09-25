@@ -116,10 +116,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
 - A repo change within half a second of a read was taken as seen by it, so a `git fetch` in another
   terminal landing just after gmd read stayed unseen until something else changed; one made while a
-  read ran, or while the search was up, was dropped outright. The file monitor now dates a change by
-  the file's modification time rather than by when it was told of it, the log view skips only a
-  change made before the read, and one that comes during a read or a search is looked at again once
-  the next repo is shown.
+  read ran, or while the search was up, was dropped outright. The log view now skips only a change
+  told of before the read started (`ChangeEvent.IsSeenBy`), and one that comes during a read or a
+  search is looked at again once the next repo is shown. Dating a change by the file's modification
+  time instead was tried and lost renames: a moved file keeps its old time, so it looked seen.
 - Pulling a diverged branch failed, with git's dozen lines of hints as the error, for anyone who
   has not set `pull.rebase`, which recent git refuses to guess. gmd asks once and saves the answer.
 - Pull all stopped at the first diverged branch, leaving every branch after it unpulled; the branch

@@ -337,43 +337,19 @@ class FileMonitor : IFileMonitor
         }
 
         // Log.Info($"Repo change for '{fullPath}' {changeType}");
-        var changedAt = ChangeTime(fullPath);
         lock (syncRoot)
         {
-            repoChangedEvent = Latest(repoChangedEvent, changedAt);
+            repoChangedEvent = new ChangeEvent(Now());
         }
     }
 
     internal void FileChange(string fullPath)
     {
         // Log.Info($"Status change '{fullPath}'");
-        var changedAt = ChangeTime(fullPath);
         lock (syncRoot)
         {
-            fileChangedEvent = Latest(fileChangedEvent, changedAt);
+            fileChangedEvent = new ChangeEvent(Now());
         }
-    }
-
-    // A burst of changes is one event, reported a second after the last of them, and made when the
-    // latest of them was made
-    ChangeEvent Latest(ChangeEvent? pending, DateTime changedAt) =>
-        new(Now(), pending != null && pending.ChangedAt > changedAt ? pending.ChangedAt : changedAt);
-
-    // When a change was made, as the file system has it: the file's modification time, or for a
-    // file that is gone its folder's, which the entry going changed. Not when the event came, which
-    // is later by however long the file system took to tell, so that a change made before a read
-    // of the repo could look made after it, or the other way round, see RepoView.OnRefreshRepo. The
-    // time the event came when neither is there to ask.
-    DateTime ChangeTime(string fullPath)
-    {
-        var time = Result.Catch(() =>
-        {
-            if (File.Exists(fullPath))
-                return File.GetLastWriteTimeUtc(fullPath);
-            var folder = Path.GetDirectoryName(fullPath);
-            return folder != null && Directory.Exists(folder) ? Directory.GetLastWriteTimeUtc(folder) : Now();
-        });
-        return time is DateTime t ? t : Now();
     }
 
     bool IsExcluded(string? fullPath)

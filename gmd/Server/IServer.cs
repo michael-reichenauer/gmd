@@ -124,7 +124,14 @@ interface IServer
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
 }
 
-// A change the file monitor saw: when it reported it, which the debounce is timed by, and when the
-// latest of the changes it reports was made, as the file system has it. The two differ by however
-// long the file system took to tell, which is what decides whether a read of the repo saw it.
-internal record ChangeEvent(DateTime TimeStamp, DateTime ChangedAt);
+// A change the file monitor saw, with when it was told of the last of the changes it reports,
+// which the debounce is timed by.
+internal record ChangeEvent(DateTime TimeStamp)
+{
+    // A read of the repo that started after the change was told of saw it, since a change is told
+    // of after it is made. One told of later may have been seen or not, so it is read again, which
+    // costs a read now and then but never loses a change. The file's modification time cannot tell
+    // the two apart instead: a rename, a move and a copy that keeps the time all leave one older
+    // than the change, and a file system with a coarse clock rounds it down to before the read.
+    public bool IsSeenBy(Repo repo) => TimeStamp < repo.RepoTimeStamp;
+}

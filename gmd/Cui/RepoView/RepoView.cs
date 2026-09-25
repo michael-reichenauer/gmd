@@ -405,9 +405,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     }
 
     // A change is shown by reading the repo again, unless the repo shown was read after the change
-    // was made, which is when the file system says it was made rather than when it was told of: that
-    // is later by however long the file system took, so a change told of after a read started may be
-    // one the read saw, or one it did not. This used to take every change told of within half a
+    // was told of, see ChangeEvent.IsSeenBy. This used to take every change told of within half a
     // second of a read as seen, which lost a change made in that time, e.g. by a fetch in another
     // terminal, until something else changed. And a change told of while a read was running, or while
     // the search was up, was dropped outright; it is kept now, and looked at again once a repo is
@@ -415,7 +413,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     void OnRefreshRepo(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
-        if (e.ChangedAt < repo.Repo.RepoTimeStamp)
+        if (e.IsSeenBy(repo.Repo))
             return;
         if (isRepoUpdateInProgress || isShowFilter)
         {
@@ -431,7 +429,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     void OnRefreshStatus(Server.ChangeEvent e)
     {
         UI.AssertOnUIThread();
-        if (e.ChangedAt < repo.Repo.RepoTimeStamp)
+        if (e.IsSeenBy(repo.Repo))
             return;
         if (isStatusUpdateInProgress || isRepoUpdateInProgress || isShowFilter)
         {
@@ -456,7 +454,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             (pendingRepoChange, pendingStatusChange) = (null, null);
 
             // Reading the repo reads the status too, so the status is only for when it is not read
-            if (repoChange != null && repoChange.ChangedAt >= repo.Repo.RepoTimeStamp)
+            if (repoChange != null && !repoChange.IsSeenBy(repo.Repo))
                 OnRefreshRepo(repoChange);
             else if (statusChange != null)
                 OnRefreshStatus(statusChange);

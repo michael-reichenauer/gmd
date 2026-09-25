@@ -40,6 +40,21 @@ public class CommitTest
         );
     }
 
+    // A file renamed while gmd is open is a change, left to the file monitor to see. A rename keeps
+    // the file's modification time, and the monitor used to date a change by that time, so the
+    // rename looked older than the last read, was taken as seen by it, and never showed.
+    [TestMethod]
+    public async Task TestAFileRenamedWhileGmdIsOpenIsShown()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        File.Move(Path.Join(repo.Path, "alpha.txt"), Path.Join(repo.Path, "renamed.txt"));
+
+        gmd.WaitFor("uncommitted changes");
+    }
+
     // 'c' commits, i.e. the dialog, the git command behind it and the refreshed log view. The one
     // keystroke in this suite that writes a commit.
     [TestMethod]
