@@ -24,7 +24,5 @@ internal record SearchTerms(IReadOnlyList<string> Words, IReadOnlyList<string> F
         return new SearchTerms(terms.Where(t => !IsFile(t)).ToList(), files);
     }
 
-    public static bool HasFiles(string filter) => Parse(filter).Files.Count > 0;
-
     static bool IsFile(string term) => term.StartsWith(FilePrefix, StringComparison.OrdinalIgnoreCase);
 }

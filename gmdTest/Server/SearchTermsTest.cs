@@ -33,6 +33,5 @@ public class SearchTermsTest
 
         Assert.AreEqual(0, terms.Words.Count);
         Assert.AreEqual(0, terms.Files.Count);
-        Assert.IsFalse(SearchTerms.HasFiles("file:"));
     }
 }

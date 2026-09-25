@@ -77,10 +77,11 @@ class Server : IServer
         if (lastFileSearch is var (lastKey, lastIds) && lastKey == key)
             return new Result<IReadOnlySet<string>>(lastIds);
 
+        // All at once, since each is a walk of the whole history
+        var results = await Task.WhenAll(files.Select(file => git.GetIdsChangingFilesAsync(file, maxCount, repo.Path)));
         HashSet<string>? ids = null;
-        foreach (var file in files)
+        foreach (var result in results)
         {
-            var result = await git.GetIdsChangingFilesAsync(file, maxCount, repo.Path);
             if (result is not IReadOnlyList<string> fileIds)
                 return result.Error;
             ids = ids == null ? fileIds.ToHashSet() : ids.Intersect(fileIds).ToHashSet();
