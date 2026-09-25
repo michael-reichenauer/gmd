@@ -10,6 +10,7 @@ enum ApplicationBarItem
 {
     Update,
     Gmd,
+    Operation,
     Repo,
     CurrentBranch,
     Status,
@@ -140,6 +141,7 @@ class ApplicationBar : View, IApplicationBar
         var aheadCount = repo.ViewCommits.Where(c => c.IsAhead).Count();
         var stashCount = repo.Stashes.Count;
 
+        items[(int)ApplicationBarItem.Operation] = GetOperation(repo.Status);
         items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
         SetCurrentBranch(repo);
         items[(int)ApplicationBarItem.Status] = !repo.Status.IsOk
@@ -153,6 +155,38 @@ class ApplicationBar : View, IApplicationBar
             stashCount > 0 ? Common.Text.Dark(", ").White("ß").Dark($"{stashCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Worktrees] = GetWorktrees(repo);
         UpdateView();
+    }
+
+    // What git stopped part way through, for as long as it is: red while there are conflicts to
+    // resolve, and yellow once there are none, until a commit or a continue finishes it. Right after
+    // ' Gmd ', the first thing on the line, since nothing else can be done the usual way meanwhile.
+    // A click opens what resolves, finishes or aborts it.
+    internal static Text GetOperation(Server.Status status)
+    {
+        if (!status.IsMerging)
+            return Common.Text.Empty;
+
+        var doing = status.Operation switch
+        {
+            GitOperation.Merge => "Merging",
+            GitOperation.CherryPick => "Cherry picking",
+            GitOperation.Revert => "Reverting",
+            GitOperation.Rebase => "Rebasing",
+            GitOperation.Am => "Applying patches",
+            _ => "In progress",
+        };
+        if (status.OperationTotal > 0)
+            doing += $" {status.OperationStep}/{status.OperationTotal}";
+
+        if (status.Conflicted > 0)
+        {
+            var conflicts = $"{status.Conflicted} conflict{(status.Conflicted == 1 ? "" : "s")}";
+            return Common.Text.BrightRed($"{doing}: {conflicts}").Dark(" ");
+        }
+
+        return Common
+            .Text.Yellow($"{doing}: {(status.IsFinishedByCommit ? "commit" : "continue")} to finish")
+            .Dark(" ");
     }
 
     // The other worktrees of the repository, i.e. the other folders with a checkout of it. Yellow

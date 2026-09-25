@@ -197,6 +197,11 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 4. **An operation in progress is shown in the top bar,** e.g. `MERGING · 2 conflicts`.
    - Clicking it offers Continue, Skip and Abort, and a key opens the Repo menu.
    - A conflict is reported in an info box with a *Resolve Conflicts* button.
+
+   *Done (2026-09-25):* the operation right after ' Gmd ' (`Merging: 1 conflict` in red, `…: commit
+   to finish` in yellow), a click on it opening Resolve Conflicts / Continue / Skip / Abort,
+   `Shift-M` for the repo menu (hinted as `M abort…` while an operation lasts), and a
+   `ConflictError` from git reported by `RepoCommands.ShowConflicts`.
 5. **A disabled item says why** when chosen, or in the hint line.
 6. **Housekeeping:**
    - Take the `0` developer key out of release builds, and document `y`.

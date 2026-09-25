@@ -39,7 +39,7 @@ public class MenuItemsTest
             Pull/Update All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
-            Repo Menu >
+            Repo Menu >  [Shift-M]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("dev"))
         );
@@ -70,7 +70,7 @@ public class MenuItemsTest
             Pull/Update All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
-            Repo Menu >
+            Repo Menu >  [Shift-M]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main"))
         );
@@ -102,7 +102,7 @@ public class MenuItemsTest
             Pull/Update All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
-            Repo Menu >
+            Repo Menu >  [Shift-M]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture().Worktree("/home/me/repo-dev", "dev"))).GetBranchMenuItems("dev"))
         );
@@ -241,6 +241,7 @@ public class MenuItemsTest
         Assert.AreEqual(
             """
             --- Rebase 'dev' (3 of 7)  ·  2 conflicts ---
+            Resolve Conflicts ...
             Continue Rebase
             Skip This Commit
             Abort Rebase
@@ -251,7 +252,8 @@ public class MenuItemsTest
     }
 
     // A merge has no 'Continue' — committing is what finishes one — and nothing to skip. They are
-    // left out rather than greyed, since neither could ever apply to a merge.
+    // left out rather than greyed, since neither could ever apply to a merge. Resolving comes first
+    // while there are conflicts, since they are what keep it from being finished.
     [TestMethod]
     public async Task TestAStoppedMergeOffersOnlyAbort()
     {
@@ -260,6 +262,7 @@ public class MenuItemsTest
         Assert.AreEqual(
             """
             --- Merge  ·  1 conflict ---
+            Resolve Conflicts ...
             Abort Merge
             ---
             """,
@@ -425,6 +428,7 @@ public class MenuItemsTest
             G Change Branch Color
             U Pull/Update All Branches
             P Push All Branches
+            M Repo Menu
             """,
             string.Join("\n", picked)
         );

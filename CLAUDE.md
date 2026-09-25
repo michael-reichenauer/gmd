@@ -270,6 +270,9 @@ Things to know:
   first) returns a `Notice` (`Cui/Common/StatusLine.cs`), an `Error` the command runner shows on
   the status line at the bottom of the log view rather than in an error box. What a command did is
   said there too, with `IStatusLine.Info`; a key that cannot act says why rather than doing nothing.
+- A git command that stops on conflicts returns a `ConflictError` (`Git/ConflictError.cs`, made
+  with `ConflictError.ToConflict`). The command runner finds it however deeply it is wrapped,
+  refreshes, and shows `RepoCommands.ShowConflicts`, the files and the way on, not the error.
 - There is no conversion to `bool`, so `Result<bool>` is a value like any other. `default(Result<T>)` holds
   nothing and matches neither arm, and converting one to `Result` throws rather than passing it off
   as a success.

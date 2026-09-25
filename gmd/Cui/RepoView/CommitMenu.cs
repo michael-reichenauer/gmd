@@ -87,7 +87,7 @@ class CommitMenu : ICommitMenu
             .Separator()
             // Everything about branches, including showing and hiding them, is under here
             .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
-            .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
+            .SubMenu("Repo Menu", "Shift-M", repoMenu.GetRepoMenuItems());
     }
 
     IEnumerable<MenuItem> GetCommitUndoItems()

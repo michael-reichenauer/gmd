@@ -236,6 +236,19 @@ static class E2eRepo
     // be showing what it was opened for, and next/previous conflict have somewhere to move to.
     public static async Task<TempRepo> CreateWithConflictAsync()
     {
+        var repo = await CreateWithConflictingBranchAsync();
+
+        // Fails, which is the whole point: it leaves the merge in progress with the file conflicted.
+        // No date to pin, since a merge that stops on a conflict writes no commit.
+        await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+    }
+
+    // The same two branches before the merge, so that the merge that conflicts is gmd's own:
+    // 'main' is current, and 'dev' changes the line 'main' changed too
+    public static async Task<TempRepo> CreateWithConflictingBranchAsync()
+    {
         var repo = await TempRepo.CreateAsync();
         var t = TempRepo.BaseTime;
 
@@ -249,10 +262,6 @@ static class E2eRepo
         await repo.GitAsync("checkout -q main");
         lines[39] = "line 40 on main";
         await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
-
-        // Fails, which is the whole point: it leaves the merge in progress with the file conflicted.
-        // No date to pin, since a merge that stops on a conflict writes no commit.
-        await repo.GitAllowFailAsync("merge dev");
 
         return repo;
     }

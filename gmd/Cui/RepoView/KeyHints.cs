@@ -86,6 +86,8 @@ static class KeyHints
 
         if (!status.IsOk)
             hints.Add(CommitHint(status));
+        if (status.IsMerging)
+            hints.Add(AbortHint);
         // On the uncommitted row with conflicts, the diff is where they are resolved, with Enter
         hints.Add(new("d", isConflicts ? "resolve" : "diff"));
         hints.Add(new("Enter", isDetailsShown ? "hide details" : "details"));
@@ -144,6 +146,8 @@ static class KeyHints
             hints.AddRange(PushPullHints(repo));
         if (!status.IsOk)
             hints.Add(CommitHint(status));
+        if (status.IsMerging)
+            hints.Add(AbortHint);
         hints.Add(new("b", "new branch"));
 
         return hints;
@@ -151,6 +155,9 @@ static class KeyHints
 
     // 'c' finishes a merge, or a cherry pick or revert made in gmd, by committing, but anything
     // else git stopped part way through has to be continued instead, and 'c' offers that
+    // The way out of an operation git stopped part way through, in the repo menu, which 'M' opens
+    static readonly KeyHint AbortHint = new("M", "abort…");
+
     static KeyHint CommitHint(Status status) =>
         new("c", status.IsMerging && !status.IsFinishedByCommit ? "continue" : "commit");
 

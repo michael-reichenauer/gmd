@@ -101,7 +101,10 @@ class CommitService : ICommitService
     public async Task<Result> UndoCommitAsync(string id, int parentIndex, string wd)
     {
         var parent = parentIndex == 0 ? "" : $"-m {parentIndex}";
-        return await cmd.RunAsync("git", $"revert {parent} --no-commit {id}", wd);
+        return ConflictError.ToConflict(
+            await cmd.RunAsync("git", $"revert {parent} --no-commit {id}", wd),
+            "The revert stopped on conflicts"
+        );
     }
 
     public async Task<Result> UncommitLastCommitAsync(string wd)

@@ -355,5 +355,5 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 }

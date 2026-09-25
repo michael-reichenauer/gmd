@@ -9,6 +9,7 @@ that has one, and pressing it in an open menu picks that item.
 | Key        | Description                                                |
 | ---------- | ---------------------------------------------------------- |
 | M          | Menu of the highlighted branch, or of the commit           |
+| Shift-M    | The repo menu, e.g. to continue or abort a rebase          |
 | ← →        | Highlight the branch to the left or right, or the commit   |
 | Shift-→    | Show/Open Branch menu, to choose which branches are shown  |
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
@@ -284,14 +285,21 @@ Find more commands in the menus (the `M` key).
 
 ## Resolving Conflicts
 
-When a merge, rebase, cherry pick or revert stops on conflicts, open the
-diff of the uncommitted changes (`D` on the `©` row) and press `Enter` on a
-conflicted file. That opens the file the cursor is on, or the list of the
-conflicted files if the cursor is elsewhere. The same list is under
-**Resolve Conflicts** in the diff menu, and it names every conflicted file,
-including those the diff cannot show, such as one a side deleted, or a
-binary file. **Run External Merge Tool** in the diff menu opens a file in
-the tool git is configured with instead (`git mergetool`).
+When a merge, rebase, cherry pick, revert or pull that gmd runs stops on
+conflicts, a box says so and names the files; its **Resolve Conflicts**
+opens the diff described below. For as long as the operation lasts, the top
+bar says what is in progress, e.g. `Merging: 1 conflict` in red, and in
+yellow once the conflicts are resolved. A click on it, or `Shift-M` for the
+repo menu, offers Resolve Conflicts, Continue, Skip and Abort.
+
+To resolve the conflicts, open the diff of the uncommitted changes (`D` on
+the `©` row) and press `Enter` on a conflicted file. That opens the file
+the cursor is on, or the list of the conflicted files if the cursor is
+elsewhere. The same list is under **Resolve Conflicts** in the diff menu,
+and it names every conflicted file, including those the diff cannot show,
+such as one a side deleted, or a binary file. **Run External Merge Tool**
+in the diff menu opens a file in the tool git is configured with instead
+(`git mergetool`).
 
 The two sides are shown beside each other, titled with the names git wrote
 into the markers (`HEAD` and `topic`, or a commit id during a rebase)

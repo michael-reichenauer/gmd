@@ -257,5 +257,5 @@ class WorktreeCommands : IWorktreeCommands
         return Result.Ok;
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 }

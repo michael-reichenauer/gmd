@@ -207,7 +207,7 @@ class BranchMenu : IBranchMenu
             .Item(!isLimited, "Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
             .Item(!isLimited, "Push All Branches", "Shift-P", () => cmds.PushAllBranches(), () => isStatusOK)
             .Item("Set Commit Branch Manually ...", "", () => cmds.SetBranchManuallyAsync(), () => !c.IsUncommitted)
-            .SubMenu(!isLimited, "Repo Menu", "", repoMenu.GetRepoMenuItems());
+            .SubMenu(!isLimited, "Repo Menu", "Shift-M", repoMenu.GetRepoMenuItems());
     }
 
     // A branch checked out in another worktree cannot be checked out here, git refuses, so the

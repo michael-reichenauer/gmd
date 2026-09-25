@@ -84,6 +84,7 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.Q, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
+        commitsView.RegisterKeyHandler(Key.M, () => Menus.ShowRepoMenu(0, 0));
         commitsView.RegisterKeyHandler(Key.o, () => Menus.ShowOpenRepoMenu());
         commitsView.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
@@ -183,6 +184,9 @@ class RepoViewInput
                 break;
             case ApplicationBarItem.Gmd:
                 Menus.ShowRepoMenu(x - 5, y);
+                break;
+            case ApplicationBarItem.Operation:
+                Menus.ShowOperationMenu(x - 5, y);
                 break;
             case ApplicationBarItem.Repo:
                 Menus.ShowOpenRepoMenu(x - 5, y);

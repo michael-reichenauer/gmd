@@ -89,7 +89,7 @@ class RemoteService : IRemoteService
     {
         var args = $"pull";
         // var args = $"pull --ff --no-rebase";
-        return await cmd.RunAsync("git", args, wd);
+        return ConflictError.ToConflict(await cmd.RunAsync("git", args, wd), "The pull stopped on conflicts");
     }
 
     public async Task<Result> PullBranchAsync(string name, string wd)

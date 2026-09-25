@@ -47,7 +47,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
-        StringAssert.StartsWith(Hints(view), "c commit  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "c commit  M abort…  d resolve  ");
     }
 
     // A rebase is finished by continuing it, not by a commit, and 'c' offers that instead
@@ -58,7 +58,7 @@ public class KeyHintsTest
             Fixture().WithStatus(conflicted: 1, operation: GitOp.Rebase, isFinishedByCommit: false)
         );
 
-        StringAssert.StartsWith(Hints(view), "c continue  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "c continue  M abort…  d resolve  ");
     }
 
     // 'p' and 'u' only while the current branch has something to push or pull

@@ -642,7 +642,7 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 
     async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {

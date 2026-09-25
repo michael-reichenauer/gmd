@@ -11,6 +11,7 @@ interface IRepoMenu
 
     IEnumerable<MenuItem> GetNewReleaseItems();
     IEnumerable<MenuItem> GetOperationItems();
+    void ShowOperationMenu(int x, int y);
     IEnumerable<MenuItem> GetRepoMenuItems();
 }
 
@@ -74,10 +75,26 @@ class RepoMenu : IRepoMenu
     // on, and until now gmd could start them but not finish them.
     public IEnumerable<MenuItem> GetOperationItems()
     {
-        var status = repo.Repo.Status;
-        if (status.Operation == GitOperation.None)
+        if (repo.Repo.Status.Operation == GitOperation.None)
             return Menu.Items;
 
+        return Menu.Items.Separator(cmds.OperationSummary()).Items(GetOperationActionItems()).Separator();
+    }
+
+    // The same items on their own, for a click on the operation in the application bar, with the
+    // summary as the title rather than as a header line
+    public void ShowOperationMenu(int x, int y)
+    {
+        if (repo.Repo.Status.Operation == GitOperation.None)
+            return;
+        Menu.Show(cmds.OperationSummary(), x, y + 2, GetOperationActionItems());
+    }
+
+    // Resolve first, since the conflicts are what keep the operation from being finished: it opens
+    // the diff of the uncommitted changes, where Enter on a conflicted file opens the resolver
+    IEnumerable<MenuItem> GetOperationActionItems()
+    {
+        var status = repo.Repo.Status;
         var name = cmds.OperationName();
 
         // Omitted rather than disabled: neither can ever apply to the operation in progress, so a
@@ -92,11 +109,10 @@ class RepoMenu : IRepoMenu
         var hasSkip = status.Operation is GitOperation.Rebase or GitOperation.Am;
 
         return Menu
-            .Items.Separator(cmds.OperationSummary())
+            .Items.Item(status.Conflicted > 0, "Resolve Conflicts ...", "", () => repo.CommitCmds.ShowUncommittedDiff())
             .Item(hasContinue, $"Continue {name}", "", () => cmds.ContinueOperation())
             .Item(hasSkip, "Skip This Commit", "", () => cmds.SkipOperationCommit())
-            .Item($"Abort {name}", "", () => cmds.AbortOperation())
-            .Separator();
+            .Item($"Abort {name}", "", () => cmds.AbortOperation());
     }
 
     public IEnumerable<MenuItem> GetNewReleaseItems()

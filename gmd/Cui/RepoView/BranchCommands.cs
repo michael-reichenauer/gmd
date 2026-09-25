@@ -444,5 +444,5 @@ class BranchCommands : IBranchCommands
 
     void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 }

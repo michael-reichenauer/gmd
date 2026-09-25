@@ -310,5 +310,5 @@ class BranchCreateCommands : IBranchCreateCommands
         return new Error($"Failed to push branch {branchName} to remote server", e);
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 }
