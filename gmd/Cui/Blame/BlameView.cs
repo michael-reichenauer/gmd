@@ -410,13 +410,13 @@ class BlameView : IBlameView
             x,
             y,
             Menu.Items.Item(
-                    c == null ? "Commit Diff ..." : $"Commit Diff of {(c.IsUncommitted ? "uncommitted" : c.Sid)} ...",
+                    c == null ? "Commit Diff" : $"Commit Diff of {(c.IsUncommitted ? "uncommitted" : c.Sid)}",
                     "D",
                     () => ShowLineCommitDiff(),
                     () => c != null
                 )
                 .Item(
-                    hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()}) ..." : "Blame Previous Version ...",
+                    hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()})" : "Blame Previous Version",
                     "P",
                     () => BlamePrevious(),
                     () => hasPrevious
@@ -424,12 +424,12 @@ class BlameView : IBlameView
                 .Item("Back", "Backspace", () => Back(), () => backStack.Count > 0)
                 .Separator()
                 .SubMenu("Scroll to Commit", "", GetScrollToItems())
-                .Item("Toggle Commit Details ...", "Enter", () => ToggleDetails())
-                .Item($"Gutter Detail ({details}) ...", "I", () => CycleDetails())
+                .Item("Commit Details", "Enter", () => ToggleDetails())
+                .Item($"Gutter Detail ({details})", "I", () => CycleDetails())
                 .Item("Reset Horizontal Scroll", "", () => ResetScroll(), () => rowStartX > 0)
                 .Separator()
                 .Item("Copy Selected Lines", "Ctrl-C", () => OnCopy(), () => IsSelected)
-                .Item("Copy Commit Sha of Line", "C", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
+                .Item("Copy Commit Id of Line", "C", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }

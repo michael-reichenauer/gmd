@@ -377,7 +377,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     {
         var names = string.Join("\n", diverged.Select(b => $"  {b.NiceNameUnique}"));
         UI.InfoMessage(
-            "Pull/Update All Branches",
+            "Pull All Branches",
             "These branches have both local and remote commits, which an update of all\n"
                 + "branches cannot merge, since it only fast-forwards a branch it is not on.\n"
                 + $"Switch to the branch and pull it to merge:\n\n{names}"

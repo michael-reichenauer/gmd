@@ -442,7 +442,7 @@ class CommitCommands : ICommitCommands
                 return new Error("Commits are not on the same branch");
             var branch = repo.Repo.BranchByName[c1.BranchName];
 
-            // Both flags, as 'Uncommit until' asks it in CommitMenu. IsLocalCurrent is only ever
+            // Both flags, as 'Uncommit X and Newer' asks it in CommitMenu. IsLocalCurrent is only ever
             // set on a *remote* branch whose local branch is current (Augmenter.cs), so asking for
             // it alone refused every commit that had not been pushed yet — the local branch never
             // carries the flag. Which was the wrong way round: the commits it did allow were the

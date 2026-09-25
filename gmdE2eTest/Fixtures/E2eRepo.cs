@@ -120,7 +120,7 @@ static class E2eRepo
 
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
-    // and gives 'Pull/Update' something to do.
+    // and gives 'Pull' something to do.
     //
     // Moving the local branch back rather than committing on the remote is the cheap way to get
     // there: a bare repository has no working tree to commit in, and a second clone would be a

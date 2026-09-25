@@ -28,8 +28,8 @@ public class MainViewTest
                 │Browse ...                 │
                 │Clone ...                  │
                 │Init ...                   │
-                │Help ...                   │
-                │About ...                  │
+                │Help                       │
+                │About                      │
                 │Quit                   Esc │
                 ╰───────────────────────────╯
             """,
@@ -103,7 +103,7 @@ public class MainViewTest
     // Counted up from the last item, 'Quit', which does not move whatever comes above it
     static void SelectItem(TmuxSession gmd, string item)
     {
-        string[] fromTheEnd = ["Quit", "About ...", "Help ...", "Init ...", "Clone ...", "Browse ..."];
+        string[] fromTheEnd = ["Quit", "About", "Help", "Init ...", "Clone ...", "Browse ..."];
         gmd.Send("End");
         gmd.WaitForStable();
         for (int i = 0; i < Array.IndexOf(fromTheEnd, item); i++)

@@ -158,7 +158,7 @@ public class DiffViewTest
             Author:  Test User <test@example.com> │Diff File                                 >│
             Date:    2024-10-15 12:02:00          │Resolve Conflicts                   Enter >│
             Message: Change both files            │Run External Merge Tool                   >│
-                                                  │Undo/Restore Uncommitted                U >│
+                                                  │Discard Changes                         U >│
             2 Files:                              │Refresh                                 R  │
               Modified:    long.txt               │Commit                                  C  │
               Modified:    short.txt              │More Context of long.txt (15 lines)     +  │
@@ -240,7 +240,7 @@ public class DiffViewTest
     // with no way to get it back. The question says which of the two it is.
     [TestMethod]
     [DataRow("Down", "Delete the new file?")]
-    [DataRow("End", "Undo all uncommitted changes?")]
+    [DataRow("End", "Discard all uncommitted changes?")]
     public async Task TestUndoFromTheDiffAsksFirst(string move, string question)
     {
         using var repo = await E2eRepo.CreateWithChangesAsync();
@@ -249,7 +249,7 @@ public class DiffViewTest
         gmd.Send("d");
         gmd.WaitFor("Added: epsilon.txt");
         gmd.Send("u");
-        gmd.WaitFor("All Uncommitted Changes");
+        gmd.WaitFor("All Changes");
         gmd.Send(move);
         gmd.WaitForStable();
         gmd.Send("Enter");

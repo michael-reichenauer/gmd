@@ -368,7 +368,7 @@ public class CommitTest
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
     //
-    // On a clean tree the menu opens with the cursor already on 'Commit Diff ...' — 'Commit ...'
+    // On a clean tree the menu opens with the cursor already on 'Commit Diff' — 'Commit ...'
     // and 'Amend ...' are both disabled, and Menu.Show starts on the first item that is not — so
     // 'Undo' is one move away rather than three.
     [TestMethod]
@@ -408,7 +408,7 @@ public class CommitTest
         gmd.WaitForStable();
 
         gmd.Send("m");
-        gmd.WaitFor("Commit Diff ...");
+        gmd.WaitFor("Commit Diff");
         for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
@@ -469,7 +469,7 @@ public class CommitTest
         gmd.WaitForStable();
 
         gmd.Send("m");
-        gmd.WaitFor("Commit Diff ...");
+        gmd.WaitFor("Commit Diff");
         for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
@@ -502,7 +502,7 @@ public class CommitTest
     // a commit that is not on the current branch (rb != cb). One move up is 'Add gamma' on main,
     // and it is a move that lands there whether the cursor started on row 0 or row 1.
     //
-    // Then seven moves down to it. The menu opens on 'Commit Diff ...' — with nothing to commit,
+    // Then seven moves down to it. The menu opens on 'Commit Diff' — with nothing to commit,
     // 'Commit ...' and 'Amend ...' are both disabled and Menu.Show starts on the first that is not.
     [TestMethod]
     public async Task TestCherryPickACommitFromAnotherBranch()
@@ -514,7 +514,7 @@ public class CommitTest
         gmd.Send("Up");
         gmd.WaitForStable();
         gmd.Send("m");
-        gmd.WaitFor("Cherry Pick Commit to dev");
+        gmd.WaitFor("Cherry Pick into dev");
         for (var i = 0; i < 7; i++)
         {
             gmd.Send("Down");
@@ -572,7 +572,7 @@ public class CommitTest
             gmd.WaitForStable();
         }
         gmd.Send("Right");
-        gmd.WaitFor("Stash Changes");
+        gmd.WaitFor("Stash Changes ...");
         gmd.Send("Enter");
         gmd.WaitFor("Stash Message");
         gmd.SendText("stashed work");

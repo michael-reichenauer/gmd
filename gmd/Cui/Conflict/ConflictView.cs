@@ -648,7 +648,7 @@ class ConflictView : IConflictView
             Menu.Items.Item($"Use {OursLabel()} for the Whole File", "", () => UseWholeFile(true))
                 .Item($"Use {TheirsLabel()} for the Whole File", "", () => UseWholeFile(false))
                 .Separator()
-                .Item("Un-resolve This File", "", Unresolve)
+                .Item("Unresolve This File", "", Unresolve)
         );
     }
 
@@ -665,7 +665,7 @@ class ConflictView : IConflictView
     // Puts the conflict back as git left it, discarding whatever was resolved
     void Unresolve()
     {
-        if (UI.InfoMessage("Un-resolve", $"Put the conflicts back into {file.Path}?", 1, ["Yes", "No"]) != 0)
+        if (UI.InfoMessage("Unresolve", $"Put the conflicts back into {file.Path}?", 1, ["Yes", "No"]) != 0)
             return;
 
         isResolved = true;
@@ -707,7 +707,7 @@ class ConflictView : IConflictView
                 .Item($"Use {theirs} then {ours}", "4", () => Choose(HunkChoice.TheirsThenOurs), () => hasHunk)
                 .Item("Use the Common Ancestor", "0", ChooseBase, () => hasHunk)
                 .Item("Edit by Hand ...", "E", EditCurrentHunk, () => hasHunk)
-                .Item("Un-choose", "U", () => Choose(HunkChoice.None), () => hasHunk)
+                .Item("Clear Decision", "U", () => Choose(HunkChoice.None), () => hasHunk)
                 .Separator()
                 .Item(
                     "Next Conflict",
@@ -734,5 +734,5 @@ class ConflictView : IConflictView
             .Items.Item(file.HasOurs, $"Use {OursLabel()} for the Whole File", "", () => UseWholeFile(true))
             .Item(file.HasTheirs, $"Use {TheirsLabel()} for the Whole File", "", () => UseWholeFile(false))
             .Separator()
-            .Item("Un-resolve This File", "", Unresolve);
+            .Item("Unresolve This File", "", Unresolve);
 }

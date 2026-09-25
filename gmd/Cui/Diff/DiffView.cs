@@ -184,7 +184,7 @@ class DiffView : IDiffView
                 .SubMenu("Diff File", "", diffItems)
                 .SubMenu("Resolve Conflicts", "Enter", conflictItems)
                 .SubMenu("Run External Merge Tool", "", GetMergeToolItems())
-                .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
+                .SubMenu("Discard Changes", "U", undoItems)
                 // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
                 .Item("Refresh", "R", () => RefreshDiff())
                 .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
@@ -212,7 +212,7 @@ class DiffView : IDiffView
         var undoItems = GetUndoItems();
         if (!undoItems.Any())
             return;
-        Menu.Show("Undo/Restore Uncommitted", 1, 2, undoItems);
+        Menu.Show("Discard Changes", 1, 2, undoItems);
     }
 
     void TriggerCommit()
@@ -365,14 +365,14 @@ class DiffView : IDiffView
         var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p, addedPaths.Contains(p))));
         if (undoItems.Count() > 10)
         { // Show files ith sub menu
-            undoItems = new[] { new SubMenu("Uncommitted Files", "", undoItems) };
+            undoItems = new[] { new SubMenu("Files", "", undoItems) };
         }
 
         return Menu
             .Items.Items(undoItems)
             .Separator()
-            .Item("All Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
-            .Item("All Uncommitted Changes", "", () => UndoAll());
+            .Item("Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
+            .Item("All Changes", "", () => UndoAll());
     }
 
     async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)

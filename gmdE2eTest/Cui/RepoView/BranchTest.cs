@@ -135,7 +135,7 @@ public class BranchTest
         gmd.WaitFor("Branch: dev");
 
         // Down to 'Rename Branch ...', which is seven moves and not nine, since 'Rebase and push
-        // on' and 'Pull/Update' are disabled here and are skipped over. One key at a time: a menu
+        // onto' and 'Pull' are disabled here and are skipped over. One key at a time: a menu
         // redraw drops the keys sent behind it, so a single Send of seven would arrive as three.
         for (var i = 0; i < 7; i++)
         {

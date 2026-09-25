@@ -11,7 +11,7 @@ that has one, and pressing it in an open menu picks that item.
 | M          | Menu of the highlighted branch, or of the commit           |
 | Shift-M    | The repo menu, e.g. to continue or abort a rebase          |
 | ← →        | Highlight the branch to the left or right, or the commit   |
-| Shift-→    | Show/Open Branch menu, to choose which branches are shown  |
+| Shift-→    | Show Branch menu, to choose which branches are shown  |
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
 | C          | Commit the uncommitted changes                             |
@@ -26,7 +26,7 @@ that has one, and pressing it in an open menu picks that item.
 | P          | Push the highlighted branch, or the current one            |
 | U          | Pull the highlighted branch, or the current one            |
 | Shift-P    | Push all shown branches                                    |
-| Shift-U    | Pull/update all shown branches                             |
+| Shift-U    | Pull all shown branches                                    |
 | T          | Add a tag to the commit                                    |
 | F          | Search and filter the commits                              |
 | R / F5     | Refresh, and fetch from the remote                         |
@@ -106,7 +106,7 @@ Which branches are shown is up to you, which is how gmd gives a clean log
 without rebasing or squashing. Showing a branch also shows the branches it
 was made from, and the main branch is always shown.
 
-- `Shift-→` opens **Show/Open Branch**: first the branches that merge in or
+- `Shift-→` opens **Show Branch**: first the branches that merge in or
   branch out at the current commit, then the Recent, Active, My Active
   (where the last commit is yours), Active and Deleted, and Ambiguous
   branches.
@@ -136,7 +136,7 @@ commits that can be pulled or pushed.
 - Local has unpushed commits (▲ and a green subject)
 
 `P` and `U` push and pull the highlighted branch, or the current one when
-none is, as **Push** and **Pull/Update** in its branch menu do. `Shift-P` and
+none is, as **Push** and **Pull** in its branch menu do. `Shift-P` and
 `Shift-U` push or update all shown branches.
 
 A branch with both unpulled and unpushed commits cannot be pushed, nor
@@ -183,12 +183,12 @@ folder gmd was started in, or opened since.
   session) or missing (its folder is gone), and whether its branch is
   merged. From there a worktree can be opened (`Enter`), added, removed or
   pruned, and its path copied.
-- **Add...** (or **Create Worktree ...** in a branch menu) creates a
+- **Add ...** (or **Create Worktree ...** in a branch menu) creates a
   worktree for an existing branch or a new one, beside the repository
   (`<repo>-<branch>`), in Claude Code's `.claude/worktrees/` or in
   `.worktrees/`. The two inside the repository are added to `.gitignore`
   by default, else the main worktree shows them as untracked files.
-- **Remove...** removes a worktree and offers to delete its branch with it,
+- **Remove ...** removes a worktree and offers to delete its branch with it,
   checked when the branch is merged. Uncommitted changes in the worktree
   are only discarded with *Force*. A worktree in use cannot be removed.
 - **Prune** forgets the worktrees whose folders were deleted by hand.
@@ -199,13 +199,13 @@ shown, their colors and their order.
 
 ## Noteworthy Commands
 
-- **Toggle Commit Details ...** (`Enter`):
+- **Commit Details** (`Enter`):
   Displays additional commit details.
 - **Commit ...** (`C`):
   Commit all uncommitted changes, with warnings for large or binary files.
   After a merge made in gmd, `Ctrl-A` in the dialog adds the messages of
   the merged commits.
-- **Commit Diff ...** (`D`):
+- **Commit Diff** (`D`):
   View a side-by-side diff of commit changes.
   Within the view: `+` shows more of the file the cursor is on around its
   changes and `-` shows less, stepping from the 6 lines of context it
@@ -220,27 +220,27 @@ shown, their colors and their order.
   opens the menu, `←` `→` scroll the two columns sideways and pick which one
   a selection copies from, `Ctrl-C` copies the selected lines, and `Esc` or
   `Q` closes the view.
-- **Search/Filter ...** (`F`):
+- **Search ...** (`F`):
   Type to filter the log down to the commits that match, by id, subject,
   branch, author, date (yyyy-mm-dd) or tag. Every word has to match, a
   "quoted phrase" matches as a whole, and case does not matter. `Enter`
   shows the selected commit and its branch in the log, and `Esc` goes back
   to where you were. `*` finds the ambiguous branch tips, and `$` the
   commits whose branch was set manually.
-- **Squash** (under **Rebase** in the commit menu):
+- **Squash ...** (under **Rebase** in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message.
 - **Undo** (in the commit menu, and `U` in the diff of the uncommitted
   changes). The items that throw changes away for good ask first:
-  - **Undo/Restore an Uncommitted File**: `git checkout --force <file>`, or
+  - **Discard Changes in a File**: `git checkout --force <file>`, or
     a new file is deleted
-  - **Undo Commit**: `git revert --no-commit <commit-sha>`
-  - **Uncommit**: `git reset HEAD~1`, the changes stay uncommitted
-  - **Uncommit until <commit-sha>**: `git reset --soft <commit-sha>~`, so
+  - **Revert Commit**: `git revert --no-commit <commit-sha>`
+  - **Uncommit Last Commit**: `git reset HEAD~1`, the changes stay uncommitted
+  - **Uncommit <commit-sha> and Newer**: `git reset --soft <commit-sha>~`, so
     that commit and the ones after it are uncommitted
-  - **Undo/Restore all Uncommitted Changes**: `git reset --hard` and
+  - **Discard All Changes**: `git reset --hard` and
     `git clean -fd`
-- **Clean/Restore Working Folder** (in the repo menu, asks first):
+- **Clean Working Folder** (in the repo menu, asks first):
   `git reset --hard` and `git clean -fxd`, which also deletes the files git
   ignores.
 - **Blame File ...**:
@@ -374,7 +374,7 @@ operation away and puts the working folder back as it was.
 *Continue* is offered for whatever a commit does not finish, and only a
 rebase or an `am` has commits to skip, so those items appear only where
 they apply. A merge has no *Continue*, since committing is what finishes
-one, and neither has gmd's own **Cherry Pick** or **Undo Commit**, which
+one, and neither has gmd's own **Cherry Pick** or **Revert Commit**, which
 stage one change for the commit dialog with nothing queued behind it.
 Pressing `C` during a rebase, an `am`, a cherry pick started outside gmd,
 or a revert of several commits offers **Continue** instead: committing

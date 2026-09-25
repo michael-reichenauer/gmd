@@ -134,7 +134,7 @@ gmd to PATH environment variable**. Without the installer, download `gmd_windows
 ### Updating
 
 Gmd checks for new releases every hour and shows ⇓ in its top bar when there is one. Click it,
-or pick **Update to Latest Version ...** at the top of the menu. From the command line, run:
+or pick **Update to Latest Version** at the top of the menu. From the command line, run:
 
 ```bash
 gmd --update

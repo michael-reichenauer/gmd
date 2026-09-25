@@ -82,7 +82,7 @@ public class FindBranchDlgTest
 
     // The same menu under Branches in the commit menu, where typing finds a branch as well: it is a
     // sub menu there, and the typing is handed on from the item it was opened from. 'Branches' is
-    // second to last in the commit menu, and 'Show/Open Branch' the one below the shown branches.
+    // second to last in the commit menu, and 'Show Branch' the one below the shown branches.
     [TestMethod]
     public async Task TestTypingInTheShowOpenBranchSubMenuFindsABranch()
     {
@@ -97,11 +97,11 @@ public class FindBranchDlgTest
             gmd.WaitForStable();
         }
         gmd.Send("Right");
-        gmd.WaitFor("Show/Open Branch");
+        gmd.WaitFor("Show Branch");
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");
-        gmd.WaitFor("╭ Show/Open Branch");
+        gmd.WaitFor("╭ Show Branch");
 
         gmd.Send("d");
 

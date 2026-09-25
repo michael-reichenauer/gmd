@@ -12,9 +12,9 @@ static class Confirm
 
     internal static bool UndoAllUncommitted() =>
         Ask(
-            "Undo All Uncommitted Changes",
+            "Discard All Changes",
             """
-            Undo all uncommitted changes?
+            Discard all uncommitted changes?
 
             Every changed file is reset to the last commit,
             and every new file is deleted.
@@ -25,7 +25,7 @@ static class Confirm
     internal static bool UndoFile(string path, bool isNew) =>
         isNew
             ? Ask(
-                "Undo Uncommitted File",
+                "Discard Changes in a File",
                 $"""
                 Delete the new file?
 
@@ -35,9 +35,9 @@ static class Confirm
                 """
             )
             : Ask(
-                "Undo Uncommitted File",
+                "Discard Changes in a File",
                 $"""
-                Undo the changes to the file?
+                Discard the changes to the file?
 
                   {path}
 
@@ -51,8 +51,8 @@ static class Confirm
         string[] more = paths.Count > MaxListedPaths ? [$"  ... and {paths.Count - MaxListedPaths} more"] : [];
 
         return Ask(
-            "Undo Uncommitted Files",
-            $"Undo the changes to {Files(paths.Count)}?\n\n"
+            "Discard Changes in Files",
+            $"Discard the changes to {Files(paths.Count)}?\n\n"
                 + string.Join("\n", listed.Concat(more))
                 + "\n\nNew files are deleted, the others reset to the last commit.\nThis cannot be undone."
         );

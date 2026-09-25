@@ -224,6 +224,12 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    - *Revert Commit*, *Uncommit Last Commit (keep changes)*, *Uncommit to X*
    - *Switch to Branch*, *Search*, *Refresh*
    - "..." only when a dialog follows.
+
+   *Done (2026-09-25):* no slash names left (Switch to Branch, Pull, Pull All Branches, Show
+   Branch, Search, Refresh, Clean Working Folder, Open, Clone or Init Repo); Discard / Revert
+   Commit / Uncommit Last Commit / Uncommit X and Newer for the three kinds of undo; and "..." on
+   the items that ask for something before they run, not on those that open a view, toggle or
+   only confirm.
 4. **Keys act on the keyboard highlight,** not on wherever the mouse happens to rest. At least,
    label the target in the top bar (`▸ dev`). *The label is done (2026-09-25),* on the key-hint line,
    which starts with the highlighted branch's name (`dev:  s switch …`); the mouse still moves it.

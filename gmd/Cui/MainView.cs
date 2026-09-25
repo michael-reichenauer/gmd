@@ -179,8 +179,8 @@ partial class MainView : IMainView
                 .Item("Browse ...", "", () => ShowBrowseDialog())
                 .Item("Clone ...", "", () => ShowCloneDlg())
                 .Item("Init ...", "", () => ShowInitRepoDlg())
-                .Item("Help ...", "", () => ShowHelp())
-                .Item("About ...", "", () => ShowAbout())
+                .Item("Help", "", () => ShowHelp())
+                .Item("About", "", () => ShowAbout())
                 .Item("Quit", "Esc ", () => Application.RequestStop())
         );
     }
@@ -192,7 +192,7 @@ partial class MainView : IMainView
 
         return Menu
             .Items.Separator("New Release Available !!!")
-            .Item("Update to Latest Version ...", "", () => UpdateRelease().RunInBackground())
+            .Item("Update to Latest Version", "", () => UpdateRelease().RunInBackground())
             .Separator();
     }
 

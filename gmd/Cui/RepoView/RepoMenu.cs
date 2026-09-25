@@ -44,7 +44,7 @@ class RepoMenu : IRepoMenu
 
     public void ShowOpenRepo(int x, int y)
     {
-        Menu.Show($"Open/Clone/Init Repo", x, y + 2, GetOpenRepoItems());
+        Menu.Show($"Open, Clone or Init Repo", x, y + 2, GetOpenRepoItems());
     }
 
     public IEnumerable<MenuItem> GetRepoMenuItems()
@@ -54,7 +54,7 @@ class RepoMenu : IRepoMenu
         return Menu
             .Items.Items(GetOperationItems())
             .Item(
-                "Pull/Update All Branches",
+                "Pull All Branches",
                 "Shift-U",
                 () => repo.BranchCmds.PullAllBranches(),
                 () => isStatusOK,
@@ -67,14 +67,14 @@ class RepoMenu : IRepoMenu
                 () => isStatusOK,
                 () => Why.Changes
             )
-            .Item("Search/Filter ...", "F", () => cmds.SearchFilterRepo())
-            .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
-            .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
+            .Item("Search ...", "F", () => cmds.SearchFilterRepo())
+            .Item("Refresh", "R", () => cmds.RefreshAndFetch())
+            .Item("Clean Working Folder", "", () => cmds.CleanWorkingFolder())
             .Item("Worktrees ...", "W", () => repo.BranchCmds.ShowWorktrees())
-            .SubMenu("Open/Clone/Init Repo", "O", GetOpenRepoItems())
+            .SubMenu("Open, Clone or Init Repo", "O", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())
-            .Item("Help ...", "?, F1", () => cmds.ShowHelp())
-            .Item("About ...", "", () => cmds.ShowAbout())
+            .Item("Help", "?, F1", () => cmds.ShowHelp())
+            .Item("About", "", () => cmds.ShowAbout())
             .Item("Quit", "Q, Esc", () => UI.Shutdown());
     }
 
@@ -121,7 +121,7 @@ class RepoMenu : IRepoMenu
         var hasSkip = status.Operation is GitOperation.Rebase or GitOperation.Am;
 
         return Menu
-            .Items.Item(status.Conflicted > 0, "Resolve Conflicts ...", "", () => repo.CommitCmds.ShowUncommittedDiff())
+            .Items.Item(status.Conflicted > 0, "Resolve Conflicts", "", () => repo.CommitCmds.ShowUncommittedDiff())
             .Item(hasContinue, $"Continue {name}", "", () => cmds.ContinueOperation())
             .Item(hasSkip, "Skip This Commit", "", () => cmds.SkipOperationCommit())
             .Item($"Abort {name}", "", () => cmds.AbortOperation());
@@ -133,7 +133,7 @@ class RepoMenu : IRepoMenu
             return Menu.Items;
         return Menu
             .Items.Separator("New Release Available !!!")
-            .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
+            .Item("Update to Latest Version", "", () => cmds.UpdateRelease())
             .Separator();
     }
 

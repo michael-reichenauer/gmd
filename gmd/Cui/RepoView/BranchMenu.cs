@@ -125,7 +125,7 @@ class BranchMenu : IBranchMenu
                         : $"Nothing to pull on '{repo.Repo.CurrentBranch().NiceNameUnique}'"
             )
             .Item(
-                "Pull/Update All Branches",
+                "Pull All Branches",
                 "Shift-U",
                 () => cmds.PullAllBranches(),
                 () => BranchPushPullCommands.CanPull(repo.Repo),
@@ -170,7 +170,7 @@ class BranchMenu : IBranchMenu
             .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems(), whyNot: WhyNoMerge)
             .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems(), whyNot: WhyNoMerge)
             .SubMenu(
-                "Rebase and push on",
+                "Rebase and Push onto",
                 "",
                 GetRebaseFromItems(b),
                 whyNot: () =>
@@ -182,7 +182,7 @@ class BranchMenu : IBranchMenu
             // The same rules as the 'u' and 'p' keys on a highlighted branch, see
             // BranchPushPullCommands.CanPullBranch
             .Item(
-                "Pull/Update",
+                "Pull",
                 "U",
                 () =>
                 {
@@ -258,7 +258,7 @@ class BranchMenu : IBranchMenu
             // The limited menu is the one under a branch in the Branches sub menu of the commit menu,
             // which already offers these at its root, and the repo menu beside it
             .Items(!isLimited, [ShowBranchSubMenu()])
-            .Item(!isLimited, "Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
+            .Item(!isLimited, "Pull All Branches", "Shift-U", () => cmds.PullAllBranches())
             .Item(
                 !isLimited,
                 "Push All Branches",
@@ -294,7 +294,7 @@ class BranchMenu : IBranchMenu
         }
 
         return Menu.Item(
-            "Switch/Checkout to Branch",
+            "Switch to Branch",
             "S",
             () => cmds.SwitchTo(branchName),
             () => branch.PrimaryName != currentName
@@ -499,7 +499,7 @@ class BranchMenu : IBranchMenu
                 "",
                 ToBranchesItems(recentBranches, ShowBranch)
                     .Prepend(
-                        Menu.Item("Show 5 more Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))
+                        Menu.Item("Show 5 More Recent", "", () => cmds.ShowBranch("", false, ShowBranches.AllRecent, 5))
                     )
             )
             .SubMenu(
@@ -540,7 +540,7 @@ class BranchMenu : IBranchMenu
                 Menu.Items.Separator()
                     .Items([ShowBranchSubMenu()])
                     .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
-                    .Item("Pull/Update All Branches", "Shift-U", () => cmds.PullAllBranches())
+                    .Item("Pull All Branches", "Shift-U", () => cmds.PullAllBranches())
                     .Item(
                         "Push All Branches",
                         "Shift-P",
@@ -613,7 +613,7 @@ class BranchMenu : IBranchMenu
     void FindBranch(string text) => cmds.FindBranch(text);
 
     // The same menu as ShowOpenBranchMenu, as a sub menu, where typing finds a branch as well
-    SubMenu ShowBranchSubMenu() => new("Show/Open Branch", "Shift →", GetShowBranchItems()) { OnTypeText = FindBranch };
+    SubMenu ShowBranchSubMenu() => new("Show Branch", "Shift →", GetShowBranchItems()) { OnTypeText = FindBranch };
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(
         IEnumerable<Branch> branches,

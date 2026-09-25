@@ -220,10 +220,10 @@ public class PushPullTest
 
         // The diverged branch is named rather than passed over: it keeps its '▼' marker, so
         // silence would look exactly like the pull having failed
-        var message = gmd.WaitFor("Pull/Update All Branches");
+        var message = gmd.WaitFor("Pull All Branches");
         Assert.AreEqual(
             """
-                                  ╭ Pull/Update All Branches ───────────────────────────────────────────────╮
+                                  ╭ Pull All Branches ──────────────────────────────────────────────────────╮
                                   │These branches have both local and remote commits, which an update of all│
                                   │branches cannot merge, since it only fast-forwards a branch it is not on.│
                                   │Switch to the branch and pull it to merge:                               │
@@ -238,7 +238,7 @@ public class PushPullTest
 
         gmd.Send("Enter");
 
-        var updated = gmd.WaitUntilGone("Pull/Update All Branches");
+        var updated = gmd.WaitUntilGone("Pull All Branches");
         Assert.AreEqual(
             """
              Gmd {repo}, ●work, ▼1, ▲1                                               (main) [Ϙ Search] ? X

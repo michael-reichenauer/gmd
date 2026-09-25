@@ -439,16 +439,16 @@ public class LogViewTest
             ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                  4e73d2 Test User      24-10-15 12:05
             ┣    Add│Commit ...                          C  │                                  4a15fb Test User      24-10-15 12:04
             ┣╯   Add│Amend ...                           A  │                                  dd7891 Test User      24-10-15 12:01
-            ┗    Ini│Commit Diff ...                     D  │                                  9dc406 Test User      24-10-15 12:00
+            ┗    Ini│Commit Diff                         D  │                                  9dc406 Test User      24-10-15 12:00
                     │Undo                                  >│
                     │Rebase                                >│
                     │Stash                                 >│
                     │Tag                                   >│
                     │Create Branch from Commit ...       B  │
-                    │Merge From Commit to main              │
-                    │Cherry Pick Commit to main             │
-                    │Switch/Checkout to Commit              │
-                    │Toggle Commit Details ...       Enter  │
+                    │Merge Commit into main                 │
+                    │Cherry Pick into main                  │
+                    │Switch to Commit                       │
+                    │Commit Details                  Enter  │
                     │Full File History ...                  │
                     │Blame File ...                         │
                     │───────────────────────────────────────│
@@ -506,21 +506,21 @@ public class LogViewTest
             """
                      │Full File History ...                  │
                      │Blame File ...                         │
-                     │───────────────────────────────────────│╭ Branches ────────────────────────╮
-                     │Branches                              >││●   main                         >│
-                     │Repo Menu                     Shift-M >││    dev                          >│
-                     ╰───────────────────────────────────────╯│──────────────────────────────────│
-                                                              │Show/Open Branch         Shift → >│
-                                                              │Hide All Branches                 │
-                                                              │Pull/Update All Branches Shift-U  │
-                                                              │Push All Branches        Shift-P  │
-                                                              ╰──────────────────────────────────╯
+                     │───────────────────────────────────────│╭ Branches ─────────────────╮
+                     │Branches                              >││●   main                  >│
+                     │Repo Menu                     Shift-M >││    dev                   >│
+                     ╰───────────────────────────────────────╯│───────────────────────────│
+                                                              │Show Branch       Shift → >│
+                                                              │Hide All Branches          │
+                                                              │Pull All Branches Shift-U  │
+                                                              │Push All Branches Shift-P  │
+                                                              ╰───────────────────────────╯
             """,
             ScreenText.Rows(branches, repo.Path, 19, 11)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
-        // the branch menu, built with isLimited so it has no 'Show/Open Branch', 'Pull/Update All
+        // the branch menu, built with isLimited so it has no 'Show Branch', 'Pull All
         // Branches', 'Push All Branches' or 'Repo Menu' of its own, since the menus it is under
         // already offer those. The Branches menu is too wide to leave room for it on the right in
         // 120 columns, so it opens on the left, over the commit menu.
@@ -531,15 +531,15 @@ public class LogViewTest
             """
                      │Full File History ...                  │
                      │Blame File ...                         │
-                     │───────────────────────────────────────│╭ Branches ────────────────────────╮
-                    ╭ dev ───────────────────────────────────╮│●   main                         >│
-                    │Switch/Checkout to Branch            S  ││    dev                          >│
-                    │Merge to main                        E  ││──────────────────────────────────│
-                    │Merge from main                Shift-E  ││Show/Open Branch         Shift → >│
-                    │Rebase and push on                     >││Hide All Branches                 │
-                    │Hide Branch                          H  ││Pull/Update All Branches Shift-U  │
-                    │Pull/Update                          U  ││Push All Branches        Shift-P  │
-                    │Push                                 P  │╰──────────────────────────────────╯
+                     │───────────────────────────────────────│╭ Branches ─────────────────╮
+                    ╭ dev ───────────────────────────────────╮│●   main                  >│
+                    │Switch to Branch                     S  ││    dev                   >│
+                    │Merge to main                        E  ││───────────────────────────│
+                    │Merge from main                Shift-E  ││Show Branch       Shift → >│
+                    │Rebase and Push onto                   >││Hide All Branches          │
+                    │Hide Branch                          H  ││Pull All Branches Shift-U  │
+                    │Pull                                 U  ││Push All Branches Shift-P  │
+                    │Push                                 P  │╰───────────────────────────╯
                     │Create Branch ...                    B  │
                     │Create Worktree ...                     │
                     │Rename Branch ...                       │
@@ -550,7 +550,7 @@ public class LogViewTest
                     │Set Commit Branch Manually ...          │
                     ╰────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 19, 20)
+            ScreenText.Rows(gmd.WaitFor("Switch to Branch"), repo.Path, 19, 20)
         );
     }
 

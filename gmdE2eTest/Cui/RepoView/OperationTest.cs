@@ -91,7 +91,7 @@ public class OperationTest
         var (x, y) = TmuxSession.PositionOf(screen, "Merging: 1 conflict");
         gmd.Click(x + 2, y);
 
-        var menu = gmd.WaitFor("Resolve Conflicts ...");
+        var menu = gmd.WaitFor("Resolve Conflicts");
         StringAssert.Contains(menu, "Abort Merge");
     }
 

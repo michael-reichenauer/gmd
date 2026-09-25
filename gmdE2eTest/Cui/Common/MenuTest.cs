@@ -10,7 +10,7 @@ namespace gmdE2eTest.Cui.Common;
 [TestClass]
 public class MenuTest
 {
-    // 'D' is shown beside 'Commit Diff ...' in the commit menu, and both cases open the diff, since
+    // 'D' is shown beside 'Commit Diff' in the commit menu, and both cases open the diff, since
     // the menu writes it in upper case
     [TestMethod]
     [DataRow("d")]
@@ -21,12 +21,12 @@ public class MenuTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
         gmd.Send("m");
-        gmd.WaitFor("Commit Diff ...");
+        gmd.WaitFor("Commit Diff");
 
         gmd.Send(key);
 
         gmd.WaitFor("Added: delta.txt");
-        gmd.WaitUntilGone("Commit Diff ...");
+        gmd.WaitUntilGone("Commit Diff");
     }
 
     // The key of a sub menu opens it, beside its item, as Enter or → does: 'S' in the diff menu
