@@ -369,7 +369,7 @@ class DiffView : IDiffView
         var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p, addedPaths.Contains(p))));
         if (undoItems.Count() > 10)
         { // Show files ith sub menu
-            undoItems = new[] { new SubMenu("Files", "", undoItems) };
+            undoItems = [new SubMenu("Files", "", undoItems)];
         }
 
         return Menu

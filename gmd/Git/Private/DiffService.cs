@@ -72,7 +72,8 @@ class DiffService : IDiffService
         finally
         {
             // Git writes the copy through a lock file beside it, left behind only if git was killed
-            foreach (var path in new[] { tempIndex, $"{tempIndex}.lock" })
+            string[] paths = [tempIndex, $"{tempIndex}.lock"];
+            foreach (var path in paths)
             {
                 if (Result.Catch(() => File.Delete(path)) is Error e)
                     Log.Warn($"Failed to delete {path}, {e}");
