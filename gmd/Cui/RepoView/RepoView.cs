@@ -223,6 +223,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         shownHistory.Clear(); // What another repo showed is nothing to go back to here
         searchMatches.Clear();
         hoover.Clear(); // A branch of the same name in another repo is another branch
+        isFetchFailing = false; // Said once per repo, see FetchBestEffortAsync
         FetchFromRemote();
 
         RememberRepoPaths(rootDir);
