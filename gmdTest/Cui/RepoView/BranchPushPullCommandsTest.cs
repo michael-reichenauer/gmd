@@ -77,6 +77,19 @@ public class BranchPushPullCommandsTest
         );
     }
 
+    // Behind whether or not the changes let it be pulled, which is how Pull All tells a current
+    // branch it had to leave from one with nothing to pull
+    [TestMethod]
+    public async Task TestTheCurrentBranchIsBehindWithChangesToo()
+    {
+        Assert.IsTrue(BranchPushPullCommands.IsCurrentBranchBehind(await Behind().ViewRepoAsync()));
+        Assert.IsTrue(
+            BranchPushPullCommands.IsCurrentBranchBehind(await Behind().WithStatus(modified: 1).ViewRepoAsync())
+        );
+        Assert.IsFalse(BranchPushPullCommands.IsCurrentBranchBehind(await Ahead().ViewRepoAsync()));
+        Assert.IsFalse(BranchPushPullCommands.IsCurrentBranchBehind(await LocalOnly().ViewRepoAsync()));
+    }
+
     // A branch with no remote is not published yet, so there is nothing to push it to
     [TestMethod]
     public async Task TestBranchWithNoRemoteCanNotBePushedOrPulled()

@@ -315,6 +315,24 @@ public class PushPullTest
         );
     }
 
+    // With changes, the current branch cannot be pulled, and 'Shift-U' says so. It used to say
+    // 'Nothing to pull', with the ▼ of the branch it had left on screen.
+    [TestMethod]
+    public async Task TestPullAllBranchesSaysWhyTheCurrentBranchWasLeft()
+    {
+        using var repo = await E2eRepo.CreateBehindOriginAsync();
+        repo.WriteFile("alpha.txt", "alpha\nchanged\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1");
+
+        gmd.Send("U");
+
+        Assert.AreEqual(
+            "Commit or stash the changes first, then pull 'main'",
+            ScreenText.LastLine(gmd.WaitFor("then pull"))
+        );
+    }
+
     // Git will not pull a diverged branch until it is told how to join the two sides, and gmd used
     // to pass on its refusal, a dozen lines of hints. It asks now, Merge or Rebase, and saves the
     // answer as pull.rebase, where git reads it too.

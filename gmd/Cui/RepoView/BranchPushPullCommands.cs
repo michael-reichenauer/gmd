@@ -214,6 +214,15 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var currentRemoteName = "";
             List<string> updated = [];
+
+            // The current branch is pulled with 'git pull', which needs the changes out of the way,
+            // while the others are fetched, which leaves the working tree alone. So they are pulled
+            // all the same, and the current one is said to have been left, as 'Nothing to pull'
+            // would be said with its ▼ on screen.
+            var leftCurrent =
+                !repo.Repo.Status.IsOk && IsCurrentBranchBehind(repo.Repo)
+                    ? repo.Repo.CurrentBranch()?.NiceNameUnique
+                    : null;
             if (CanPullCurrentBranch())
             {
                 if (repo.Repo.BranchByName.TryGetValue(repo.Repo.CurrentBranch()?.RemoteName ?? "", out var current))
@@ -260,10 +269,15 @@ class BranchPushPullCommands : IBranchPushPullCommands
             if (diverged.Any())
                 ShowDivergedMessage(diverged);
             else if (!updated.Any())
-                return new Notice("Nothing to pull");
+                return new Notice(
+                    leftCurrent != null ? $"{Why.Changes}, then pull '{leftCurrent}'" : "Nothing to pull"
+                );
 
             if (updated.Any())
-                status.Info($"Updated {Names(updated)}");
+            {
+                var left = leftCurrent != null ? $", but not '{leftCurrent}': commit or stash the changes first" : "";
+                status.Info($"Updated {Names(updated)}{left}");
+            }
             return Result.Ok;
         });
 
@@ -397,6 +411,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
         var remoteBranch = repo.BranchByName[branch.RemoteName];
         return repo.Status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
     }
+
+    // Whether origin has commits for the current branch, whether or not the changes let it be pulled
+    internal static bool IsCurrentBranchBehind(Repo repo) =>
+        repo.ViewBranches.FirstOrDefault(b => b.IsCurrent) is Branch branch
+        && branch.RemoteName != ""
+        && repo.BranchByName.TryGetValue(branch.RemoteName, out var remote)
+        && remote.HasRemoteOnly;
 
     // The branches 'push all branches' pushes, i.e. one row per branch (a branch and its remote
     // share their primary name)
