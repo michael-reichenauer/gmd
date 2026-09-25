@@ -26,6 +26,9 @@ interface IViewRepo
     // outlive this view repo, see IRepoView
     ShownHistory ShownHistory { get; }
     SearchMatches SearchMatches { get; }
+
+    // The hidden remote branches with commits not yet seen, see HiddenNews
+    IReadOnlyList<HiddenBranchNews> HiddenNews { get; }
 }
 
 class ViewRepo : IViewRepo
@@ -79,4 +82,5 @@ class ViewRepo : IViewRepo
 
     public ShownHistory ShownHistory => repoView.ShownHistory;
     public SearchMatches SearchMatches => repoView.SearchMatches;
+    public IReadOnlyList<HiddenBranchNews> HiddenNews => repoView.HiddenNews;
 }

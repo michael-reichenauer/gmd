@@ -29,6 +29,9 @@ interface IRepoView
     // What the last search found, for n and Shift-N, kept here for the same reason
     SearchMatches SearchMatches { get; }
 
+    // The hidden remote branches with commits not yet seen, see HiddenNews
+    IReadOnlyList<HiddenBranchNews> HiddenNews { get; }
+
     Task<Result> ShowInitialRepoAsync(string path);
     Task<Result> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
@@ -83,6 +86,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly Hoover hoover = new Hoover();
     readonly ShownHistory shownHistory = new();
     readonly SearchMatches searchMatches = new();
+    IReadOnlyList<HiddenBranchNews> hiddenNews = [];
     readonly RepoViewInput input;
 
     // State data
@@ -177,6 +181,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     public IViewRepo ViewRepo => repo;
     public ShownHistory ShownHistory => shownHistory;
     public SearchMatches SearchMatches => searchMatches;
+    public IReadOnlyList<HiddenBranchNews> HiddenNews => hiddenNews;
     public IRepoViewMenus Menus => menuService;
 
     public void ClearSelection() => commitsView.ClearSelection();
@@ -558,7 +563,11 @@ class RepoView : IRepoView, IRepoViewInputHost
         menuService = newMenuService(repo);
 
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
-        applicationBarView.SetRepo(serverRepo);
+
+        // Not while a search shows its results, which are not what the user has seen of the branches
+        if (serverRepo.Filter == "")
+            UpdateHiddenNews(serverRepo);
+        applicationBarView.SetRepo(serverRepo, hiddenNews.Sum(n => n.Count));
 
         commitsView.SetNeedsDisplay();
         OnCurrentIndexChange();
@@ -569,6 +578,17 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         var names = repo.Repo.ViewBranches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoConfig.Set(serverRepo.Path, s => s.Branches = names);
+    }
+
+    // The shown branches are seen, and what is new on the hidden ones is counted against what was
+    void UpdateHiddenNews(Server.Repo serverRepo)
+    {
+        var seenTips = repoConfig.Get(serverRepo.Path).SeenTips;
+        var seen = Cui.RepoView.HiddenNews.Seen(serverRepo, seenTips);
+        if (!Cui.RepoView.HiddenNews.IsSame(seen, seenTips))
+            repoConfig.Set(serverRepo.Path, s => s.SeenTips = seen);
+
+        hiddenNews = Cui.RepoView.HiddenNews.Of(serverRepo, seen);
     }
 
     void ScrollToBranch(string branchName)

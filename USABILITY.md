@@ -268,7 +268,10 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    asked of git once typing pauses (`SearchTerms`, `GetIdsChangingFilesAsync`); and after a commit
    is picked, `n` and `Shift-N` step through the other matches in the log (`SearchMatches`). A
    picked match is shown as any branch is, so Backspace undoes it, which it did not before.
-5. **A count of the incoming commits on hidden branches.**
+5. **A count of the incoming commits on hidden branches.** *Done (2026-09-25):* ▽ in the top bar
+   counts the commits pushed to hidden remote branches since each was last shown, remembered per
+   repository (`HiddenNews`, `RepoConfig.SeenTips`). A click lists them, as *New Commits* in Show
+   Branch does, and *Mark All as Seen* clears what is not followed.
 6. **Merge or rebase on pull,** asked once and remembered.
 7. **Theme:**
    - Honour `NO_COLOR` and light terminals, with no forced black background.

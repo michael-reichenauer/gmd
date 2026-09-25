@@ -26,7 +26,8 @@ cannot tell, it marks the branch as ambiguous, and you can set it by hand.
 
 - **Branch visibility**: show and hide branches, pick them from lists of recent, active, your
   own or deleted branches or find one by typing part of its name, and see markers where hidden
-  branches merge in or branch out.
+  branches merge in or branch out, and a count of what was pushed to hidden branches since you
+  last looked.
 - **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches. The
   context shown around the changes can be widened for one file at a time, up to the whole file.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its

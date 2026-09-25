@@ -83,6 +83,7 @@ when a fetch failed.
 | o      | Branch shown in the graph (in branch menus)                  |
 | ▼      | Commit not yet pulled (blue subject)                         |
 | ▲      | Commit not yet pushed (green subject)                        |
+| ▽      | New commits on hidden branches, since last shown (top bar)   |
 | ß      | Stash based on commit                                        |
 | ⇓      | Available update to download (use menu)                      |
 | ┅      | Truncated name/text                                          |
@@ -125,6 +126,10 @@ was made from, and the main branch is always shown.
 - `Backspace` undoes the last show or hide, going back to the branches shown
   before it, one step at a time. **Undo** under **Branches** in the commit
   menu does the same, and names what it would undo.
+- ▽ in the top bar counts the commits pushed to hidden branches since you
+  last had them shown. A click lists those branches, and **New Commits** at
+  the top of **Show Branch** does too; showing one is seeing it. **Mark All
+  as Seen** clears the rest without showing them.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
 

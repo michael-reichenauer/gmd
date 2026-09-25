@@ -10,6 +10,10 @@ class RepoConfig
     public List<string> Branches { get; set; } = [];
     public Dictionary<string, int> BranchColors { get; set; } = [];
     public List<BranchOrder> BranchOrders { get; set; } = [];
+
+    // The tip each remote branch had when it was last shown, by name, for telling what is new on
+    // the hidden ones, see HiddenNews
+    public Dictionary<string, string> SeenTips { get; set; } = [];
 }
 
 public class BranchOrder

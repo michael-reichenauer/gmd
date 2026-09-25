@@ -13,8 +13,10 @@ interface IBranchMenu
     void ShowMergeToMenu(int x = Menu.Center, int y = 0);
     void ShowPushMenu(int x, int y);
     void ShowPullMenu(int x, int y);
+    void ShowHiddenNewsMenu(int x, int y);
 
     IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false);
+    IEnumerable<MenuItem> GetHiddenNewsItems();
     IEnumerable<MenuItem> GetPushItems();
     IEnumerable<MenuItem> GetPullItems();
     IEnumerable<MenuItem> GetShowBranchItems();
@@ -79,6 +81,31 @@ class BranchMenu : IBranchMenu
     {
         Menu.Show("Pull", x, y + 2, GetPullItems());
     }
+
+    // What the ▽ in the application bar opens: the hidden branches with commits not yet seen
+    public void ShowHiddenNewsMenu(int x, int y)
+    {
+        Menu.Show("New on Hidden Branches", x, y + 2, GetHiddenNewsItems());
+    }
+
+    // Each hidden branch with commits not yet seen, the most recently changed first, which picking
+    // shows, and so marks as seen. The rest can be marked as seen without showing them, for branches
+    // the user does not follow and that would otherwise stay news.
+    public IEnumerable<MenuItem> GetHiddenNewsItems() =>
+        repo
+            .HiddenNews.Select(n =>
+                Menu.Item($"{n.Branch.NiceNameUnique} ({n.Count} new)", "", () => cmds.ShowBranch(n.Branch.Name, false))
+            )
+            .Concat(
+                Menu.Items.Separator()
+                    .Item(
+                        "Mark All as Seen",
+                        "",
+                        () => cmds.MarkHiddenNewsSeen(),
+                        () => repo.HiddenNews.Count > 0,
+                        () => "There is nothing new on the hidden branches"
+                    )
+            );
 
     // What the ▲ and ▼ in the application bar open. A click on either used to push or pull every
     // shown branch there and then, so a stray click changed the remote; now it offers the current
@@ -509,6 +536,8 @@ class BranchMenu : IBranchMenu
 
         var items = Menu
             .Items.Items(GetCommitInOutItems())
+            // First when there is any, since it is what has changed since the user last looked
+            .SubMenu(repo.HiddenNews.Count > 0, "    New Commits", "", GetHiddenNewsItems())
             .SubMenu(
                 "    Recent",
                 "",

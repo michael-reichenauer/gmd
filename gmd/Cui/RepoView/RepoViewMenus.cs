@@ -18,6 +18,7 @@ interface IRepoViewMenus
     void ShowPushMenu(int x, int y);
     void ShowPullMenu(int x, int y);
     void ShowOperationMenu(int x, int y);
+    void ShowHiddenNewsMenu(int x, int y);
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -57,6 +58,8 @@ class RepoViewMenus : IRepoViewMenus
     public void ShowPushMenu(int x, int y) => branchMenu.ShowPushMenu(x, y);
 
     public void ShowPullMenu(int x, int y) => branchMenu.ShowPullMenu(x, y);
+
+    public void ShowHiddenNewsMenu(int x, int y) => branchMenu.ShowHiddenNewsMenu(x, y);
 
     public void ShowOperationMenu(int x, int y) => repoMenu.ShowOperationMenu(x, y);
 }

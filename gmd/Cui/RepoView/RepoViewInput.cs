@@ -211,6 +211,9 @@ class RepoViewInput
             case ApplicationBarItem.Ahead:
                 Menus.ShowPushMenu(x - 5, y);
                 break;
+            case ApplicationBarItem.HiddenNews:
+                Menus.ShowHiddenNewsMenu(x - 5, y);
+                break;
             case ApplicationBarItem.BranchName:
                 Menus.ShowOpenBranchMenu(x - 5, y);
                 break;

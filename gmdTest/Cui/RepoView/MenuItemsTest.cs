@@ -183,6 +183,24 @@ public class MenuItemsTest
         );
     }
 
+    // What the ▽ in the application bar opens: the hidden branches with new commits, and the way to
+    // stop them being news without showing them
+    [TestMethod]
+    public async Task TestTheNewsMenuListsTheHiddenBranchesWithNewCommits()
+    {
+        var view = await ViewOf(Fixture());
+        view.HiddenNews = [new HiddenBranchNews(view.Repo.BranchByName["dev"], 2)];
+
+        Assert.AreEqual(
+            """
+            dev (2 new)
+            ---
+            Mark All as Seen
+            """,
+            Items(BranchMenuOf(view).GetHiddenNewsItems())
+        );
+    }
+
     // Once a branch has been shown or hidden, the undo item names what Backspace would undo
     [TestMethod]
     public async Task TestTheUndoItemNamesTheLastShowOrHide()
