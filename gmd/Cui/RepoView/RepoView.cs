@@ -222,6 +222,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             return e;
         shownHistory.Clear(); // What another repo showed is nothing to go back to here
         searchMatches.Clear();
+        hoover.Clear(); // A branch of the same name in another repo is another branch
         FetchFromRemote();
 
         RememberRepoPaths(rootDir);
@@ -601,6 +602,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     {
         repo = newViewRepo(this, serverRepo);
         menuService = newMenuService(repo);
+        hoover.FollowRepo(serverRepo.BranchByName); // Redrawn below
 
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";
 

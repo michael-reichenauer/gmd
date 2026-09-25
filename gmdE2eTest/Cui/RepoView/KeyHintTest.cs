@@ -138,7 +138,29 @@ public class KeyHintTest
         );
     }
 
-    // The bottom row, with the padding before the help shown as ' | '
+    // A highlighted branch deleted from under the hoover, here in another terminal, as a fetch that
+    // prunes it does too. The current row stays where it was, so nothing gave the hoover up, and the
+    // hints looked the branch up by name on every redraw, which threw and ended gmd.
+    [TestMethod]
+    public async Task TestAHighlightedBranchThatIsDeletedIsLetGo()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Add feature", TempRepo.BaseTime.AddMinutes(7));
+        using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
+        gmd.WaitFor("d diff");
+        gmd.Send("Left");
+        StringAssert.StartsWith(Hints(gmd.WaitFor("feature:")), "feature:  m menu");
+
+        await repo.GitAsync("checkout -q main");
+        await repo.GitAsync("branch -q -D feature");
+
+        var screen = gmd.WaitFor("Enter details");
+        Assert.IsTrue(gmd.IsRunning, "gmd is still running");
+        Assert.IsFalse(screen.Contains("Add feature"), "The branch is gone");
+        StringAssert.StartsWith(Hints(screen), "m menu  d diff  Enter details");
+    }
+
     // The hints, with the stretch of border between them and the help written ' | '
     static string Hints(string screen) => Regex.Replace(ScreenText.LastLine(screen), " ─+ ", " | ");
 }
