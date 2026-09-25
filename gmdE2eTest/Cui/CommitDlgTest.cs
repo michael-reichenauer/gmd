@@ -346,4 +346,27 @@ public class CommitDlgTest
         gmd.Send("Escape");
         StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
     }
+
+    // A key the diff has no use for does nothing, and in particular is not typed into the message
+    // waiting in the commit dialog below it. The diff was not modal, so such a key went on down the
+    // stack of views to the dialog's text field.
+    [TestMethod]
+    public async Task TestKeysInTheDiffAreNotTypedIntoTheMessage()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        gmd.WaitFor("Commit 2 changes");
+        gmd.SendText("Subject");
+        gmd.WaitFor("[Subject");
+
+        gmd.Send("C-d");
+        gmd.WaitFor("Added: epsilon.txt");
+        gmd.Send("x");
+        gmd.WaitForStable();
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "[Subject ", "The message is as it was");
+    }
 }

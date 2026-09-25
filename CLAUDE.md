@@ -145,7 +145,9 @@ Key types and flow:
 
 Each is its own folder under `Cui/`, and each splits the same way: the view drives Terminal.Gui, and
 everything that is layout or decision-making sits beside it as a plain class with no view, so it is
-unit testable — `*Rows`, `*Columns`, `ConflictResolution`.
+unit testable — `*Rows`, `*Columns`, `ConflictResolution`. Each runs through `UI.RunDialog`, which
+makes it modal, so a key it does not handle does nothing rather than reaching the log view below;
+register a letter with `RegisterLetterHandler`, which takes both cases, as its menu writes it.
 
 - **`Cui/Diff/`** — `DiffService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a

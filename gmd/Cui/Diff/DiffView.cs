@@ -125,23 +125,19 @@ class DiffView : IDiffView
     {
         view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
 
-        // Both cases close the diff. Lower case did already, but only by accident: it is not
-        // registered here, so it fell through to the log view's quit handler further down the
-        // toplevel chain, which is Application.RequestStop() and so happened to stop this view
-        // rather than the application. Registering it makes that intended rather than a side
-        // effect of which view the key reached.
-        view.RegisterKeyHandler(Key.Q, () => Application.RequestStop());
-        view.RegisterKeyHandler(Key.q, () => Application.RequestStop());
+        // Letters in both cases, since the menu writes them in upper case. The view is modal (see
+        // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
+        view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
-        view.RegisterKeyHandler(Key.m, () => ShowMainMenu());
+        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
 
-        view.RegisterKeyHandler(Key.r, () => RefreshDiff());
-        view.RegisterKeyHandler(Key.d, () => RefreshDiff());
-        view.RegisterKeyHandler(Key.s, () => ShowScrollMenu());
-        view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
-        view.RegisterKeyHandler(Key.c, () => TriggerCommit());
+        view.RegisterLetterHandler(Key.r, () => RefreshDiff());
+        view.RegisterLetterHandler(Key.d, () => RefreshDiff());
+        view.RegisterLetterHandler(Key.s, () => ShowScrollMenu());
+        view.RegisterLetterHandler(Key.u, () => ShowUndoMenu());
+        view.RegisterLetterHandler(Key.c, () => TriggerCommit());
 
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.

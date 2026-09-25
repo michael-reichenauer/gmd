@@ -118,10 +118,9 @@ class BlameView : IBlameView
     void RegisterShortcuts(ContentView view)
     {
         view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
-        // Both cases, they are separate keys and the lower case would otherwise fall through to
-        // the log view below and quit the application, see the same note in DiffView
-        view.RegisterKeyHandler(Key.Q, () => Application.RequestStop());
-        view.RegisterKeyHandler(Key.q, () => Application.RequestStop());
+        // Letters in both cases, since the menu writes them in upper case. The view is modal (see
+        // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
+        view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
@@ -137,12 +136,12 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.CursorDown, () => ScrollDetails(1));
         view.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-CommitDetailsView.ContentHeight));
         view.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(CommitDetailsView.ContentHeight));
-        view.RegisterKeyHandler(Key.m, () => ShowMainMenu());
-        view.RegisterKeyHandler(Key.i, CycleDetails);
-        view.RegisterKeyHandler(Key.d, ShowLineCommitDiff);
-        view.RegisterKeyHandler(Key.p, BlamePrevious);
+        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
+        view.RegisterLetterHandler(Key.i, CycleDetails);
+        view.RegisterLetterHandler(Key.d, ShowLineCommitDiff);
+        view.RegisterLetterHandler(Key.p, BlamePrevious);
         view.RegisterKeyHandler(Key.Backspace, Back);
-        view.RegisterKeyHandler(Key.c, CopyLineSha);
+        view.RegisterLetterHandler(Key.c, CopyLineSha);
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));

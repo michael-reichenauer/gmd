@@ -143,9 +143,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Product**
 
-- **The diff and blame views register lower-case letters only.** An unhandled upper-case key falls
-  through to the log view: `P` in either view is *push all branches*, `U` in the diff view is *pull
-  all*. One line each, the way the resolver's `RegisterLetter` does it.
+- `?`, F1 and F5 do nothing inside the diff, blame and conflict views. They only ever worked there
+  by falling through to the log view, which those views no longer let a key do; register them in
+  the views if they are wanted.
 - `CopyCommitId` / `CopyCommitMessage` are implemented on `IRepoCommands` but no key or menu item
   calls them. A commit-menu entry would also give macOS users a copy without Ctrl+C. Cmd+C cannot
   reach a terminal program at all: the terminal keeps it, the classic key protocol cannot express
@@ -388,7 +388,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   focus, so a pane that looks focused receives nothing. Forward keys by hand from the view that has
   them, as `FilterDlg` and `BlameView` do.
 - Keys are matched by exact value and nothing folds case (`p` / `P`, `u` / `U` are different
-  commands). Every letter a view over the log view handles must be registered in both cases.
+  commands in the log view). The side views register their letters in both cases
+  (`ContentView.RegisterLetterHandler`), since their menus write shortcuts in upper case.
+- A key goes to every toplevel on the stack until one handles it, stopping only at a modal one, and
+  a plain `Toplevel` is not modal. The diff, blame and conflict views were plain toplevels, so a key
+  they did not use reached the log view below (`P` in a diff pushed every branch) or the commit
+  dialog's text field. `UI.RunDialog` makes whatever it runs modal. A modal toplevel is not made
+  `Application.Top`, so the log view goes on redrawing underneath, followed by a redraw of the view
+  over it; that is by design and is what a `Dialog` has always done.
 - `UI.EnableInput` captures and restores `RootKeyEvent`. If progress reaches zero while a dialog is
   open, the restore puts back "swallow everything" and input is dead for good — keep the dialog
   inside the command's `Do`.

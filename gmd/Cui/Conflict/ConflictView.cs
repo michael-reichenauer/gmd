@@ -119,6 +119,9 @@ class ConflictView : IConflictView
             IsScrollMode = true,
             IsCursorMargin = false,
             IsFocus = false,
+            // Shows the result only. Were it focusable, Tab (the toplevel's next-view key) or a
+            // click would move the focus here, off the file, and every key after it would go nowhere
+            CanFocus = false,
         };
 
         view.Add(header, border, contentView, resultBorder, resultView);
@@ -145,20 +148,20 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler((Key)52, () => Choose(HunkChoice.TheirsThenOurs)); // '4'
         view.RegisterKeyHandler((Key)48, ChooseBase); // '0'
 
-        // Every letter in both cases. Not politeness: an unhandled key falls through to the log
-        // view below, where the upper case letters are commands of their own — 'U' pulls every
-        // branch and 'P' pushes every branch, both of them things to do to a repository that is
-        // *not* in the middle of a stopped merge. The menu and the help name these keys the way
-        // shortcuts are always written, in upper case, so those are the ones a user presses.
-        RegisterLetter(view, Key.q, Key.Q, Close);
-        RegisterLetter(view, Key.u, Key.U, () => Choose(HunkChoice.None));
-        RegisterLetter(view, Key.n, Key.N, () => GotoHunk(1));
-        RegisterLetter(view, Key.p, Key.P, () => GotoHunk(-1));
-        RegisterLetter(view, Key.e, Key.E, EditCurrentHunk);
-        RegisterLetter(view, Key.b, Key.B, ToggleBase);
-        RegisterLetter(view, Key.s, Key.S, () => Save());
-        RegisterLetter(view, Key.a, Key.A, ShowWholeFileMenu);
-        RegisterLetter(view, Key.m, Key.M, () => ShowMainMenu());
+        // Every letter in both cases: the menu and the help name these keys the way shortcuts are
+        // always written, in upper case, so those are the ones a user presses. The view is modal (see
+        // UI.RunDialog), so a key not registered here does nothing. It used to fall through to the
+        // views below, where 'U' pulls every branch, 'P' pushes every branch and the diff's 'c'
+        // closed the resolver without asking about the decisions made in it.
+        view.RegisterLetterHandler(Key.q, Close);
+        view.RegisterLetterHandler(Key.u, () => Choose(HunkChoice.None));
+        view.RegisterLetterHandler(Key.n, () => GotoHunk(1));
+        view.RegisterLetterHandler(Key.p, () => GotoHunk(-1));
+        view.RegisterLetterHandler(Key.e, EditCurrentHunk);
+        view.RegisterLetterHandler(Key.b, ToggleBase);
+        view.RegisterLetterHandler(Key.s, () => Save());
+        view.RegisterLetterHandler(Key.a, ShowWholeFileMenu);
+        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
 
         view.RegisterKeyHandler((Key)93, () => GotoHunk(1)); // ']'
         view.RegisterKeyHandler((Key)91, () => GotoHunk(-1)); // '['
@@ -168,12 +171,6 @@ class ConflictView : IConflictView
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
-    }
-
-    static void RegisterLetter(ContentView view, Key lower, Key upper, OnKeyCallback action)
-    {
-        view.RegisterKeyHandler(lower, action);
-        view.RegisterKeyHandler(upper, action);
     }
 
     void SetRows()

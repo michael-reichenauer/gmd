@@ -210,4 +210,46 @@ public class DiffViewTest
         StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
         Assert.IsTrue(gmd.IsRunning, $"'{key}' should close the diff view, not quit gmd");
     }
+
+    // A key the diff view has no use for does nothing there. It used to fall through to the log view
+    // below, since the diff was a toplevel that was not modal, and in the log view 'P' pushes every
+    // branch and 'p' the current one — from a screen that shows neither, and says nothing of it.
+    [TestMethod]
+    public async Task TestLogViewKeysDoNothingInTheDiff()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        var remoteMain = await repo.GitAsync("ls-remote origin main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("▲1");
+        gmd.Send("d");
+        gmd.WaitFor("Added: zeta.txt");
+
+        foreach (var key in new[] { "P", "p", "U", "u" })
+        {
+            gmd.Send(key);
+            gmd.WaitForStable();
+        }
+
+        gmd.Send("Escape");
+        StringAssert.Contains(gmd.WaitUntilGone("Added: zeta.txt"), "▲1", "Nothing was pushed");
+        Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
+    }
+
+    // Both cases open the menu: the menus write their shortcuts in upper case, so that is what gets
+    // pressed
+    [TestMethod]
+    [DataRow("m")]
+    [DataRow("M")]
+    public async Task TestDiffMenuOpensWithM(string key)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("d");
+        gmd.WaitFor("Added: delta.txt");
+
+        gmd.Send(key);
+
+        gmd.WaitFor("Diff Menu");
+    }
 }
