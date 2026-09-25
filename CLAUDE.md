@@ -612,6 +612,9 @@ message.
 - **`MODERNIZATION.md` holds the open issues and the findings** from the modernization work: what
   is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the way.
   Read it before starting anything substantial, and add to it (or close items) as work lands.
+- **`USABILITY.md` is the usability review**: the findings by principle (safety, discoverability,
+  consistency, feedback, workflow fit) and the ranked proposals. Check a new command or key against
+  it — above all, that a slip of the finger cannot push, pull or lose work.
 - Modernizing this codebase, fixing bugs, adding tests and improving maintainability is the
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
