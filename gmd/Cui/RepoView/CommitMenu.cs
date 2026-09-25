@@ -96,6 +96,14 @@ class CommitMenu : ICommitMenu
                 () => !isStatusOK ? Why.Changes : "Already on this commit"
             )
             .Item("Commit Details", "Enter", () => cmds.ToggleDetails())
+            // Above the file items rather than at the end, which the walks to Blame File count from
+            .Item(
+                "Open Commit in Browser",
+                "",
+                () => repo.Cmds.OpenCommitInBrowser(c.Id),
+                () => WebCommands.CanOpenCommit(repo.Repo, c),
+                () => WebCommands.WhyNoOpenCommit(repo.Repo, c)
+            )
             // Belongs with the commit items: the files offered are the ones this commit has, even
             // though the history then shown for the chosen one is its full history, hence 'Full'
             .Item("Full File History ...", "", () => cmds.ShowFileHistory())

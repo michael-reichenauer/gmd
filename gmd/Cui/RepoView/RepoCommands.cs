@@ -33,6 +33,11 @@ interface IRepoCommands
 
     void CopyCommitId();
     void CopyCommitMessage();
+
+    void OpenRepoInBrowser();
+    void OpenBranchInBrowser(string name);
+    void OpenCommitInBrowser(string commitId);
+    void OpenNewPullRequest(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -50,6 +55,7 @@ class RepoCommands : IRepoCommands
     readonly Config config;
     readonly IUpdater updater;
     readonly IClipboardService clipboard;
+    readonly IWebCommands webCmds;
 
     internal RepoCommands(
         IViewRepo repo,
@@ -63,7 +69,8 @@ class RepoCommands : IRepoCommands
         IHelpDlg helpDlg,
         Config config,
         IUpdater updater,
-        IClipboardService clipboard
+        IClipboardService clipboard,
+        Func<IViewRepo, IWebCommands> newWebCommands
     )
     {
         this.repo = repo;
@@ -78,7 +85,16 @@ class RepoCommands : IRepoCommands
         this.config = config;
         this.updater = updater;
         this.clipboard = clipboard;
+        this.webCmds = newWebCommands(repo);
     }
+
+    public void OpenRepoInBrowser() => webCmds.OpenRepo();
+
+    public void OpenBranchInBrowser(string name) => webCmds.OpenBranch(name);
+
+    public void OpenCommitInBrowser(string commitId) => webCmds.OpenCommit(commitId);
+
+    public void OpenNewPullRequest(string name) => webCmds.OpenNewPullRequest(name);
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 

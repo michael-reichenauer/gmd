@@ -152,6 +152,13 @@ force, which `p` asks about first, and is not updated by `Shift-U`, which
 only fast-forwards the branches it is not on. Switch to the branch and pull
 it (`u`) to merge the two sides.
 
+**Open in Browser** in a branch menu opens the branch on the site hosting
+the remote (GitHub, GitLab, Bitbucket, Azure DevOps or Gitea), and **Create
+Pull Request in Browser** the page for a pull request into the branch it
+was made from. The commit menu has **Open Commit in Browser**, and the repo
+menu **Open Repository in Browser**. `$BROWSER` is used when it is set, and
+with no browser to open, e.g. over ssh, the link is copied instead.
+
 ### Current Commit/Branch
 
 Symbols:

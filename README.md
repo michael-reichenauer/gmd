@@ -38,12 +38,15 @@ cannot tell, it marks the branch as ambiguous, and you can set it by hand.
   shown branch at once if you like), merge in either direction, create, rename and delete
   branches, tags, stash, squash, cherry pick, undo and uncommit, file history, and search and
   filter.
+- **Open in the browser**: a branch, a commit or the repository on GitHub, GitLab, Bitbucket, Azure
+  DevOps or Gitea, or the page for a pull request into the branch the branch was made from.
 - **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and
   open, add or remove them. This includes the worktrees Claude Code creates.
 - **Keyboard and mouse**: every command is in a context menu, the common ones also have a
   single-key shortcut, and the mouse works for highlighting, menus and switching branches.
 - **Works over SSH and in containers**: when no clipboard tool is available, gmd copies through
-  the terminal instead (OSC 52), if the terminal supports it.
+  the terminal instead (OSC 52), if the terminal supports it, and a link it has no browser to open
+  in is copied the same way.
 - **Keeps itself up to date** with a built-in update check and a one-click update.
 - **Shared branch structure** (off by default, turned on per repository): the branch choices you
   make by hand can be pushed with the repository, so everyone sees the same graph.

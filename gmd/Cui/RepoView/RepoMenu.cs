@@ -71,6 +71,7 @@ class RepoMenu : IRepoMenu
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
             .Item("Clean Working Folder", "", () => cmds.CleanWorkingFolder())
             .Item("Worktrees ...", "w", () => repo.BranchCmds.ShowWorktrees())
+            .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())
             .Item("Help", "?, F1", () => cmds.ShowHelp())

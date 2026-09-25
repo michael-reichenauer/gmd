@@ -43,6 +43,16 @@ interface ICmd
         bool skipLog = false
     );
 
+    // Starts a program that may go on running after it has done what it was started for, e.g. a
+    // browser: waits a moment for it to fail, but never for it to end, and never kills it
+    Task<Result> StartAsync(
+        string path,
+        string args,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    );
+
     // Runs a command that gets its input on stdin, and waits for it to exit but never for its
     // output streams to close. See Cmd.CommandWithStdin for why that difference is the whole
     // reason this is not just Command().
@@ -105,6 +115,10 @@ class Cmd : ICmd
 
     // How long to wait for the error text of a command that has already failed
     const int ErrorReadTimeoutMs = 200;
+
+    // How long a started program has to fail in before it is taken to be running. Openers like
+    // xdg-open hand the page to a browser and exit in well under this.
+    const int StartWaitMs = 1500;
 
     static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
 
@@ -269,6 +283,92 @@ class Cmd : ICmd
     {
         info.Environment["GIT_EDITOR"] = "true";
         info.Environment["GIT_SEQUENCE_EDITOR"] = "true"; // The todo list of an interactive rebase
+    }
+
+    // Starts a program that may go on running, e.g. a browser, which a tool like xdg-open starts
+    // for the page and which then outlives it, or which is itself what was started. Neither can be
+    // waited for, since that is for as long as the browser is open, nor killed on a timeout, as
+    // CommandWithStdin does, since that would close the browser.
+    //
+    // So this waits a moment for it to fail, and takes it still running after that as having
+    // worked. Its output is read and dropped for as long as it runs, rather than not redirected,
+    // which would draw it over the UI, or redirected and never read, which blocks a program once
+    // it has written a pipe full. For the same reason the process is not disposed while it runs:
+    // that closes the pipes, and writing to a closed one can end it.
+    public Task<Result> StartAsync(
+        string path,
+        string args,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) =>
+        Task.Run(() =>
+        {
+            var result = Start(path, args);
+            return result.IsOk ? Result.Ok : new CmdError(result, memberName, sourceFilePath, sourceLineNumber);
+        });
+
+    CmdResult Start(string path, string args)
+    {
+        var cmdText = $"{path} {args}";
+        var t = Timing.Start();
+        try
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = path,
+                    Arguments = args,
+                    UseShellExecute = false,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8,
+                },
+                EnableRaisingEvents = true,
+            };
+            var errorLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            process.OutputDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                    errorLines.Enqueue(e.Data);
+            };
+
+            process.Start();
+            process.StandardInput.Close();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            if (!process.WaitForExit(StartWaitMs))
+            {
+                process.Exited += (_, _) => process.Dispose();
+                Log.Info($"Started: {cmdText} {t}, still running");
+                return new CmdResult(cmdText, "", "");
+            }
+
+            using (process)
+            {
+                if (process.ExitCode != 0)
+                {
+                    var error = string.Join('\n', errorLines).Trim();
+                    Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    return new CmdResult(cmdText, process.ExitCode, "", error);
+                }
+
+                Log.Info($"Started: {cmdText} {t}");
+                return new CmdResult(cmdText, "", "");
+            }
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            // A program that is not installed lands here, which is expected while looking for one
+            Log.Debug($"Failed: {cmdText} {t}]\n{e.Message}");
+            return new CmdResult(cmdText, -1, "", e.Message);
+        }
     }
 
     // Runs a command that gets its input on stdin, e.g. a clipboard tool, and waits for it to

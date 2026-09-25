@@ -30,6 +30,10 @@ interface IGit
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
     Task<Result> FetchAsync(string wd);
+
+    // The URL of the remote 'origin', as git uses it (insteadOf rules applied), empty when there is
+    // no such remote
+    Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> PushBranchAsync(string name, string wd);
     Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);

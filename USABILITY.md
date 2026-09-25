@@ -257,7 +257,12 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    (2026-09-25):* `Backspace` steps back through the shows and hides the user asked for
    (`ShownHistory`), and says what it undid; *Undo …* under Branches names it, and the key-hint line
    offers `Bksp undo show` or `undo hide` once there is something to undo.
-3. **Open the branch, the commit or a new pull request in the browser.**
+3. **Open the branch, the commit or a new pull request in the browser.** *Done (2026-09-25):*
+   *Open in Browser* and *Create Pull Request in Browser* in the branch menu, *Open Commit in
+   Browser* and *Open Repository in Browser*, for GitHub, GitLab, Bitbucket, Azure DevOps and Gitea
+   (`WebLinks`). A pull request goes into the branch the branch was made from, which gmd knows and
+   the service does not. `$BROWSER` comes first (`BrowserService`), and where there is no browser,
+   e.g. over ssh, the link is copied instead.
 4. **Search message bodies and file paths,** with next and previous match.
 5. **A count of the incoming commits on hidden branches.**
 6. **Merge or rebase on pull,** asked once and remembered.

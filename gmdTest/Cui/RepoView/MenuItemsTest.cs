@@ -34,6 +34,8 @@ public class MenuItemsTest
             Delete Branch ...
             Diff Branch to >  [d]
             Change Branch Color  [g]
+            Open in Browser  (disabled)
+            Create Pull Request in Browser  (disabled)
             ---
             Show Branch >  [Shift →]
             Pull All Branches  [Shift-U]
@@ -65,6 +67,8 @@ public class MenuItemsTest
             Delete Branch ...  (disabled)
             Diff Branch to >  [d]  (disabled)
             Change Branch Color  [g]  (disabled)
+            Open in Browser
+            Create Pull Request in Browser  (disabled)
             ---
             Show Branch >  [Shift →]
             Pull All Branches  [Shift-U]
@@ -97,6 +101,8 @@ public class MenuItemsTest
             Delete Branch ...  (disabled)
             Diff Branch to >  [d]
             Change Branch Color  [g]
+            Open in Browser  (disabled)
+            Create Pull Request in Browser  (disabled)
             ---
             Show Branch >  [Shift →]
             Pull All Branches  [Shift-U]
@@ -154,7 +160,7 @@ public class MenuItemsTest
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
         Assert.AreEqual(16, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(9, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(10, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -301,6 +307,7 @@ public class MenuItemsTest
             Refresh  [r]
             Clean Working Folder
             Worktrees ...  [w]
+            Open Repository in Browser
             Open, Clone or Init Repo >  [o]
             Config ...
             Help  [?, F1]
@@ -539,7 +546,21 @@ public class MenuItemsTest
     static IRepoMenu RepoMenuOf(FakeViewRepo view) =>
         new RepoMenu(
             view,
-            new RepoCommands(view, null!, null!, null!, null!, null!, null!, null!, null!, new Config(), null!, null!),
+            new RepoCommands(
+                view,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                new Config(),
+                null!,
+                null!,
+                _ => null!
+            ),
             new Config(),
             null!
         );

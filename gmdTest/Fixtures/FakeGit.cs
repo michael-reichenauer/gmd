@@ -163,6 +163,8 @@ class FakeGit : IGit
 
     public Task<Result> FetchAsync(string wd) => throw new NotSupportedException();
 
+    public Task<Result<string>> GetRemoteUrlAsync(string wd) => throw new NotSupportedException();
+
     public Task<Result> PushBranchAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) => throw new NotSupportedException();

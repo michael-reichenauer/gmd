@@ -253,6 +253,21 @@ class BranchMenu : IBranchMenu
                     !repo.Repo.BranchByName[branchName].IsMainBranch && repo.Repo.BranchByName[branchName].IsGitBranch,
                 () => b.IsMainBranch ? "The main branch is always magenta" : "A deleted branch is always gray"
             )
+            // The pages of the service hosting the remote, see WebCommands
+            .Item(
+                "Open in Browser",
+                "",
+                () => repo.Cmds.OpenBranchInBrowser(branchName),
+                () => WebCommands.CanOpenBranch(repo.Repo, branchName),
+                () => WebCommands.WhyNoOpenBranch(repo.Repo, branchName)
+            )
+            .Item(
+                "Create Pull Request in Browser",
+                "",
+                () => repo.Cmds.OpenNewPullRequest(branchName),
+                () => WebCommands.CanOpenNewPullRequest(repo.Repo, branchName),
+                () => WebCommands.WhyNoNewPullRequest(repo.Repo, branchName)
+            )
             .Items(GetMoveBranchItems(branchName))
             .Separator()
             // The limited menu is the one under a branch in the Branches sub menu of the commit menu,

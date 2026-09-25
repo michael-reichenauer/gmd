@@ -181,6 +181,8 @@ class Server : IServer
 
     public Task<Result> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
 
+    public Task<Result<string>> GetRemoteUrlAsync(string wd) => git.GetRemoteUrlAsync(wd);
+
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         augmentedService.CommitAllChangesAsync(message, isAmend, wd);
 

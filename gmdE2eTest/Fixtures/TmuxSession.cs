@@ -377,6 +377,11 @@ sealed class TmuxSession : IDisposable
             "DISPLAY=",
             "WAYLAND_DISPLAY=",
             "WSL_DISTRO_NAME=",
+            // The same for BrowserService, which would otherwise open a page on the developer's
+            // desktop: VS Code sets BROWSER in its terminals to a helper that opens it on the
+            // machine the developer is sitting at. With no way to open one, gmd copies the link,
+            // which the test can read back as above.
+            "BROWSER=",
             // Nothing may ever block on a credential prompt in a pane nobody is watching
             "GIT_TERMINAL_PROMPT=0",
         ];

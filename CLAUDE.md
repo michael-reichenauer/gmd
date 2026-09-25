@@ -148,6 +148,11 @@ Key types and flow:
   Tools get the text through `ICmd.CommandWithStdin`, which unlike `Command` never waits for the
   child's output streams: `xclip` and friends fork a helper that inherits them and would otherwise
   hang gmd (dotnet/runtime#27128). A copy that fails must say so at the call site.
+- `Utils/BrowserService.cs` — opening a web page, the same shape: `$BROWSER` first (VS Code sets it
+  over ssh and in a container), then the platform's opener, each started with `ICmd.StartAsync`,
+  which waits a moment for a failure but never for the program to end, and never kills it, since it
+  may be the browser itself. With no way to open one, the caller copies the link instead.
+  `Git/WebLinks.cs` turns the remote's URL into the pages of the service hosting it.
 
 ### The three side views: diff, blame, conflict
 
@@ -499,7 +504,9 @@ keep doing:
 - **An empty `DISPLAY`, `WAYLAND_DISPLAY` and `WSL_DISTRO_NAME`**, so gmd finds no clipboard tool it
   can reach and copies through the terminal instead (OSC 52). `set-clipboard on` then makes tmux
   keep the sequence as a buffer, which `gmd.Clipboard()` reads back — the only way to assert a copy
-  — and a copy on a developer's desktop no longer overwrites their real clipboard.
+  — and a copy on a developer's desktop no longer overwrites their real clipboard. **An empty
+  `BROWSER`** too, so that opening a page never reaches the developer's browser; gmd copies the
+  link instead, which is asserted the same way.
 - **`TZ=UTC` and `LC_ALL=C.UTF-8`**, since the time column is local time formatted with the current
   culture, and the UI is drawn with `● ┣ ┅ Ϙ`.
 - **A private tmux server** (`-L <socket> -f <conf>`, socket inside the temp home) so the

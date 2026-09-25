@@ -112,6 +112,8 @@ internal class Git : IGit
 
     public Task<Result> FetchAsync(string wd) => remoteService.FetchAsync(wd);
 
+    public Task<Result<string>> GetRemoteUrlAsync(string wd) => remoteService.GetRemoteUrlAsync(wd);
+
     public Task<Result> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);
 
     public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) =>

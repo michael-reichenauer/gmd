@@ -53,6 +53,7 @@ interface IServer
     // Git commands
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result> FetchAsync(string wd);
+    Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);

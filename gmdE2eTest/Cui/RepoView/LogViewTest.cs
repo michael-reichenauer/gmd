@@ -449,6 +449,7 @@ public class LogViewTest
                     │Cherry Pick into main                  │
                     │Switch to Commit                       │
                     │Commit Details                  Enter  │
+                    │Open Commit in Browser                 │
                     │Full File History ...                  │
                     │Blame File ...                         │
                     │───────────────────────────────────────│
@@ -518,7 +519,7 @@ public class LogViewTest
                                                               │Push All Branches   Shift-P  │
                                                               ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 19, 12)
+            ScreenText.Rows(branches, repo.Path, 20, 12)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -532,27 +533,27 @@ public class LogViewTest
         Assert.AreEqual(
             """
                      │Full File History ...                  │
-                     │Blame File ...                         │
-                     │───────────────────────────────────────│╭ Branches ───────────────────╮
-                    ╭ dev ───────────────────────────────────╮│●   main                    >│
-                    │Switch to Branch                     s  ││    dev                     >│
-                    │Merge to main                        e  ││─────────────────────────────│
-                    │Merge from main                Shift-E  ││Show Branch         Shift → >│
-                    │Rebase and Push onto                   >││Hide All Branches            │
-                    │Hide Branch                          h  ││Undo Show 'dev'   Backspace  │
-                    │Pull                                 u  ││Pull All Branches   Shift-U  │
-                    │Push                                 p  ││Push All Branches   Shift-P  │
-                    │Create Branch ...                    b  │╰─────────────────────────────╯
-                    │Create Worktree ...                     │
-                    │Rename Branch ...                       │
+                    ╭ dev ───────────────────────────────────╮
+                    │Switch to Branch                     s  │╭ Branches ───────────────────╮
+                    │Merge to main                        e  ││●   main                    >│
+                    │Merge from main                Shift-E  ││    dev                     >│
+                    │Rebase and Push onto                   >││─────────────────────────────│
+                    │Hide Branch                          h  ││Show Branch         Shift → >│
+                    │Pull                                 u  ││Hide All Branches            │
+                    │Push                                 p  ││Undo Show 'dev'   Backspace  │
+                    │Create Branch ...                    b  ││Pull All Branches   Shift-U  │
+                    │Create Worktree ...                     ││Push All Branches   Shift-P  │
+                    │Rename Branch ...                       │╰─────────────────────────────╯
                     │Delete Branch ...                       │
                     │Diff Branch to                       d >│
                     │Change Branch Color                  g  │
+                    │Open in Browser                         │
+                    │Create Pull Request in Browser          │
                     │────────────────────────────────────────│
                     │Set Commit Branch Manually ...          │
                     ╰────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Switch to Branch"), repo.Path, 19, 20)
+            ScreenText.Rows(gmd.WaitFor("Switch to Branch"), repo.Path, 20, 20)
         );
     }
 

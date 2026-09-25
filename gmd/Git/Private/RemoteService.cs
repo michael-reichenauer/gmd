@@ -3,6 +3,7 @@ namespace gmd.Git.Private;
 interface IRemoteService
 {
     Task<Result> FetchAsync(string wd);
+    Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> PushBranchAsync(string name, string wd);
     Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);
@@ -27,6 +28,18 @@ class RemoteService : IRemoteService
     }
 
     public static string TrimRemotePrefix(string name) => name.TrimPrefix("origin/");
+
+    // 'get-url' rather than the remote.origin.url config, since it applies the insteadOf rules, so
+    // a short form like 'gh:user/repo' comes back as the address it stands for. Git exits with 2
+    // for a remote that is not there, which is an answer rather than a failure.
+    public async Task<Result<string>> GetRemoteUrlAsync(string wd)
+    {
+        var result = await cmd.RunRawAsync("git", "remote get-url origin", wd, skipLogError: true);
+        if (result.ExitCode == 2)
+            return "";
+
+        return result.ToResult();
+    }
 
     // Fetches branches and tags and prunes what the remote no longer has. Deliberately without
     // --prune-tags: that deletes every local tag the remote does not have, which throws away tags

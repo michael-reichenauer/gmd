@@ -87,6 +87,20 @@ class FakeCmd : ICmd
         bool skipLog = false
     ) => Task.FromResult(CommandRaw(path, args, workingDirectory));
 
+    public Task<Result> StartAsync(
+        string path,
+        string args,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
+    {
+        var result = CommandRaw(path, args, "");
+        return Task.FromResult(
+            result.IsOk ? Result.Ok : new CmdError(result, memberName, sourceFilePath, sourceLineNumber)
+        );
+    }
+
     public Result<string> CommandWithStdin(
         string path,
         string args,
