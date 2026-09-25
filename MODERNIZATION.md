@@ -264,6 +264,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Not recommended: removing the one-implementation interfaces (they are the DI and test-double
   seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
 
+- **A change right after a read is not shown.** `RepoView.OnRefreshRepo` drops a repo change event
+  that comes within 500 ms (`minRepoUpdateInterval`) of the shown repo's read, presumably so that
+  what the read itself touches (e.g. `git status` refreshing the index) does not refresh again. But a
+  change the read did not see is dropped too: a `git fetch` in another terminal that lands just after
+  gmd reads stays unseen until something else changes, or the five-minute fetch. Seen as a flaky
+  end-to-end test (ApplicationBarTest, fixed by refreshing by hand). A fix would compare the event
+  with the time the read *finished*, or re-check the refs once the read is done, rather than drop it.
+
 **Deferred, with the reasoning so it is not redone**
 
 - **Terminal.Gui 1.x → 2.x.** When, not if. For: v1 is frozen (last commit June 2025); true color

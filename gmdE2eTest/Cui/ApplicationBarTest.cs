@@ -24,6 +24,9 @@ public class ApplicationBarTest
         var commit = (await repo.GitAsync("commit-tree " + tree + " -p dev -m \"Remote work\"")).Trim();
         await repo.GitAsync($"push -q origin {commit}:refs/heads/dev");
         await repo.GitAsync("fetch -q origin");
+        // Refreshed by hand rather than left to the file monitor, which drops a change that comes
+        // within half a second of the last read (RepoView.OnRefreshRepo), which this fetch can
+        gmd.Send("r");
 
         var withNews = gmd.WaitFor("▽1");
         Assert.IsFalse(withNews.Contains("Remote work"), "The branch is still hidden");
