@@ -194,9 +194,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
   lists only shown branches, so with only `main` shown it is an empty box.
 - Cosmetic and pinned by tests: a cut sid, author or time column carries no `┅` marker (the
-  subject column does); a binary file is headed `Modified:`; a staged added file is counted as
-  modified (only the sum is ever shown, and a `--no-commit` merge stages its files, so every merge
-  shows it); `FileSize` never shows a fraction; a stash message is cut at its first `:`.
+  subject column does); a binary file is headed `Modified:`; `FileSize` never shows a fraction; a
+  stash message is cut at its first `:`. (A staged added file used to be counted as modified, which
+  stopped being cosmetic once discarding a file asked whether it was new; it is added now.)
 - Worktrees, deliberately left out of v1: no unlock of a locked worktree (a second `--force`),
   no bulk clean-up, no auto-prune; the stash list is the repository's and so shows stashes made
   in other worktrees; other worktrees' folders are not watched, so their change counts are up to

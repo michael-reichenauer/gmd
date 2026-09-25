@@ -495,10 +495,10 @@ public class GitIntegrationTest
         Assert.AreEqual("Merge branch 'dev'", status.MergeMessage);
         Assert.AreEqual(d1, status.MergeHeadId);
 
-        // The merged in file is staged as an add, which is counted as modified. See the open issues
-        // in MODERNIZATION.md; this pins that the counts are visibly the ones described.
-        Assert.AreEqual("M:1,A:0,D:0,C:0,R:0", status.ToString());
-        CollectionAssert.AreEqual(new[] { "dev.txt" }, status.ModifiedFiles);
+        // The merged in file is staged as an add, and is counted as one. It used to be counted as
+        // modified, since the status parser trimmed away the column that says staged.
+        Assert.AreEqual("M:0,A:1,D:0,C:0,R:0", status.ToString());
+        CollectionAssert.AreEqual(new[] { "dev.txt" }, status.AddedFiles);
 
         // Committing the merge is what the commit dialog does with the merge message prefilled
         var mergeId = await repo.CommitAsync(status.MergeMessage);
@@ -1618,6 +1618,46 @@ public class GitIntegrationTest
         );
         Assert.AreEqual("M\tstaged.txt", staged.Trim());
         Assert.AreEqual(staged, await repo.GitAsync("diff --cached --name-status"), "Staged as it was");
+    }
+
+    // Discarding a file puts it back as it was in the last commit, as the question before it says,
+    // in the index as well: staged with another tool, which the diff no longer undoes, a change used
+    // to stay and a new file to be left in the index when discarding restored from the index alone
+    [TestMethod]
+    public async Task TestDiscardingAFileTakesItBackToTheLastCommit()
+    {
+        await repo.CommitFileAsync("staged.txt", "one\n", "First");
+        await repo.CommitFileAsync("deleted.txt", "kept\n", "Second");
+        repo.WriteFile("staged.txt", "one\nstaged\n");
+        await repo.GitAsync("add staged.txt");
+        repo.WriteFile("staged.txt", "one\nstaged\nand more\n");
+        repo.WriteFile("new.txt", "new\n");
+        await repo.GitAsync("add new.txt");
+        await repo.GitAsync("rm -q deleted.txt");
+        repo.WriteFile("untracked.txt", "untracked\n");
+
+        foreach (var path in new[] { "staged.txt", "new.txt", "deleted.txt", "untracked.txt" })
+            AssertOk(await repo.Git.UndoUncommittedFileAsync(path, repo.Path));
+
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "Nothing left, staged or not");
+        Assert.AreEqual("one\n", File.ReadAllText(Path.Join(repo.Path, "staged.txt")));
+        Assert.AreEqual("kept\n", File.ReadAllText(Path.Join(repo.Path, "deleted.txt")));
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, "new.txt")));
+    }
+
+    // With no commit yet, every file is new, staged or not, and is deleted
+    [TestMethod]
+    public async Task TestDiscardingAFileBeforeTheFirstCommitDeletesIt()
+    {
+        repo.WriteFile("staged.txt", "staged\n");
+        await repo.GitAsync("add staged.txt");
+        repo.WriteFile("untracked.txt", "untracked\n");
+
+        AssertOk(await repo.Git.UndoUncommittedFileAsync("staged.txt", repo.Path));
+        AssertOk(await repo.Git.UndoUncommittedFileAsync("untracked.txt", repo.Path));
+
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, "staged.txt")));
     }
 
     // The search's 'file:' term: the commits that changed a file whose path contains the text, in

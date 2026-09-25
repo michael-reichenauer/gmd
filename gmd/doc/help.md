@@ -259,8 +259,8 @@ shown, their colors and their order.
   squash them into one commit with a new message.
 - **Undo** (in the commit menu, and `u` in the diff of the uncommitted
   changes). The items that throw changes away for good ask first:
-  - **Discard Changes in a File**: `git checkout --force <file>`, or
-    a new file is deleted
+  - **Discard Changes in a File**: `git checkout --force HEAD -- <file>`,
+    staged changes too, or a new file is unstaged and deleted
   - **Revert Commit**: `git revert --no-commit <commit-sha>`
   - **Uncommit Last Commit**: `git reset HEAD~1`, the changes stay uncommitted
   - **Uncommit <commit-sha> and Newer**: `git reset --soft <commit-sha>~`, so

@@ -66,10 +66,12 @@ class StatusService : IStatusService
                 conflicted++;
                 conflicts.Add(new ConflictedFile(line.Substring(3).Trim().Replace("\"", ""), kind));
             }
-            else if (line.StartsWith("?? ") || line.StartsWith(" A "))
+            // Untracked, or staged as new ('A ', 'AM', 'AD'), or intended to be (' A', which the trim
+            // has made 'A' followed by the path): a new file either way, which discarding deletes
+            else if (line.StartsWith("?? ") || line.StartsWith('A'))
             {
                 added++;
-                addedFiles.Add(line.Substring(3).Trim().Replace("\"", ""));
+                addedFiles.Add(line.Substring(2).Trim().Replace("\"", ""));
             }
             else if (line.StartsWith("D"))
             {

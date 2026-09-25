@@ -69,24 +69,25 @@ class CommitService : ICommitService
         return await cmd.RunAsync("git", "clean -fd", wd);
     }
 
+    // Back to the last commit, in the index as well as in the working tree, which is what the
+    // question before it says. From the index alone, as this used to, a change staged with another
+    // tool stayed, and a new file staged there was not deleted: the diff used to unstage everything
+    // before this was picked, but no longer touches the index (DiffService.GetUncommittedDiff).
     public async Task<Result> UndoUncommittedFileAsync(string path, string wd)
     {
-        if (await cmd.RunAsync("git", $"checkout --force \"{path}\"", wd) is Error e)
-        {
-            // Some error while restore file
-            if (IsFileUnknown(e, path))
-            {
-                // Was an unknown (new/added) file, we just remove it
-                var fullPath = Path.Combine(wd, path);
-                if (Result.Catch(() => File.Delete(fullPath)) is Error deleteError)
-                    return new Error("Failed to reset", deleteError);
-                Log.Info($"File '{path}' (new/added) was removed");
-                return Result.Ok;
-            }
-
+        if (await cmd.RunAsync("git", $"checkout --force HEAD -- \"{path}\"", wd) is not Error e)
+            return Result.Ok;
+        if (!IsFileUnknown(e, path) && !e.Message.Contains("invalid reference: HEAD"))
             return new Error("Failed to reset", e);
-        }
 
+        // Not in the last commit, or there is no commit yet, so a new file: out of the index, if it
+        // was staged, and deleted
+        if (await cmd.RunAsync("git", $"rm --cached --ignore-unmatch -q -- \"{path}\"", wd) is Error rmError)
+            return new Error("Failed to reset", rmError);
+        var fullPath = Path.Combine(wd, path);
+        if (Result.Catch(() => File.Delete(fullPath)) is Error deleteError)
+            return new Error("Failed to reset", deleteError);
+        Log.Info($"File '{path}' (new/added) was removed");
         return Result.Ok;
     }
 
