@@ -193,7 +193,9 @@ class BranchCommands : IBranchCommands
         if (findBranchDlg.Show(repo.Repo, text) is not Server.Branch branch)
             return;
 
-        ShowBranch(branch.Name, false);
+        // Shown in the repo as it is now: the log goes on refreshing under the dialog, e.g. after a
+        // fetch, and showing the branch in the repo from before it would put that back
+        repoView.ViewRepo.BranchCmds.ShowBranch(branch.Name, false);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)

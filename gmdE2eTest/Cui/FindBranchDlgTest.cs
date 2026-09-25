@@ -45,6 +45,31 @@ public class FindBranchDlgTest
         StringAssert.Contains(gmd.WaitUntilGone("Find Branch"), "More dev work", "dev is shown");
     }
 
+    // A commit made while the dialog is up is still there once the branch picked is shown. The log
+    // goes on refreshing under the dialog, and the branch used to be shown in the repo as it was
+    // before the dialog opened, which put that back, the commit gone until something else changed.
+    [TestMethod]
+    public async Task TestACommitMadeWhileFindingIsKept()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("S-Right");
+        gmd.WaitFor("type to find");
+        gmd.Send("d");
+        gmd.WaitFor("Find Branch");
+        var shown = gmd.LogCount("Showed ");
+
+        await repo.CommitFileAtAsync("found.txt", "x\n", "Made while finding", TempRepo.BaseTime.AddMinutes(20));
+        gmd.WaitForLogTimes("Showed ", shown + 1); // Refreshed, under the dialog
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitUntilGone("Find Branch");
+        StringAssert.Contains(screen, "More dev work", "dev is shown");
+        StringAssert.Contains(screen, "Made while finding", "The commit made meanwhile is still there");
+    }
+
     // Escape goes back to the log with nothing shown
     [TestMethod]
     public async Task TestEscapeFindsNothing()
