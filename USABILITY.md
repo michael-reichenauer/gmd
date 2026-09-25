@@ -16,7 +16,8 @@ feature:
 - **Workflow fit**: are the everyday tasks short, compared with the tools people already know?
 
 File references are as of the review. Close items here, or move them to `MODERNIZATION.md`, as
-they land.
+they land. The safety findings (section 1, and Tier 1 of the proposals) are fixed; the rest is
+open.
 
 ---
 
@@ -35,39 +36,41 @@ they land.
 
 ## Findings
 
-### 1. Safety: it is too easy to do something costly by accident
+### 1. Safety: it was too easy to do something costly by accident (fixed)
 
-This matters most. One lost piece of work costs more trust than many small annoyances.
+This matters most. One lost piece of work costs more trust than many small annoyances. As found,
+all of it fixed since (Tier 1 below):
 
-- **Keys the side views do not handle fall through to the log view underneath.** The diff, blame
-  and conflict views are non-modal toplevels, so an unregistered key reaches `RepoViewInput`:
-  - `Shift-U` in a diff pulls every branch, and `Shift-P` in blame pushes every branch.
-  - `p`, `e` and `E` in a diff push or merge.
-  - The menus of those views write their shortcuts in upper case, which invites exactly those keys.
-  - In the conflict resolver, `c` reaches the diff view below it and closes the resolver without the
+- **Keys the side views did not handle fell through to the log view underneath.** The diff, blame
+  and conflict views were non-modal toplevels, so an unregistered key reached `RepoViewInput`:
+  - `Shift-U` in a diff pulled every branch, and `Shift-P` in blame pushed every branch.
+  - `p`, `e` and `E` in a diff pushed or merged.
+  - The menus of those views write their shortcuts in upper case, which invited exactly those keys.
+  - In the conflict resolver, `c` reached the diff view below it and closed the resolver without the
     unsaved-decisions question.
-- **Esc quits the app without asking** (`RepoViewInput.cs:74`). Everywhere else Esc means "close" or
-  "back", so one Esc too many exits. The top bar's `X` sits right next to `?`.
+  - A letter typed in a diff opened from the commit dialog went into the commit message.
+- **Esc quit the app without asking** (`RepoViewInput.cs:74`). Everywhere else Esc means "close" or
+  "back", so one Esc too many exited. The top bar's `X` sits right next to `?`.
 - **Unsafe default buttons:**
-  - In *Binary Files Detected*, Enter means *Undo*, which discards the binary changes
+  - In *Binary Files Detected*, Enter meant *Undo*, which discards the binary changes
     (`CommitCommands.cs:644`).
-  - In the resolver's *Unsaved Decisions*, Esc means *Discard* (`ConflictView.cs:536`).
-- **Irreversible discards run without a question:**
+  - In the resolver's *Unsaved Decisions*, Esc meant *Discard* (`ConflictView.cs:536`).
+- **Irreversible discards ran without a question:**
   - discard all changes (`reset --hard` plus `clean -fd`);
   - discard a file (a new file is deleted);
   - drop a stash;
   - remove a tag, which deletes it on origin too.
 
-  Yet the milder *Clean Working Folder* asks first.
-- **`p` force-pushes.** For any branch with a remote it runs `git push --force-with-lease`
-  (`BranchPushPullCommands.cs:76`), not only after the user picks *Force Push* in the warning. The
-  call is one block too far out; it came in with 09534e6.
-- **Single clicks act on the remote:**
-  - Clicking ▲ or ▼ in the top bar pushes or pulls all shown branches at once.
-  - A middle click merges a branch, and on Linux the middle button is the habitual paste.
+  Yet the milder *Clean Working Folder* asked first.
+- **`p` force-pushed.** For any branch with a remote it ran `git push --force-with-lease`
+  (`BranchPushPullCommands.cs:76`), not only after the user picked *Force Push* in the warning. The
+  call was one block too far out; it came in with 09534e6.
+- **Single clicks acted on the remote:**
+  - Clicking ▲ or ▼ in the top bar pushed or pulled all shown branches at once.
+  - A middle click merged a branch, and on Linux the middle button is the habitual paste.
 - **Dead ends at start-up:**
-  - A failed clone or init leaves a blank screen where no key but Esc works (`MainView.cs:271-298`).
-  - A click anywhere outside the start menu quits gmd.
+  - A failed clone or init left a blank screen where no key but Esc worked (`MainView.cs:271-298`).
+  - A click anywhere outside the start menu quit gmd.
 
 ### 2. Discoverability: can a new user find things?
 
@@ -155,7 +158,9 @@ These are choices for the author, not defects.
 
 ## Proposals, ranked
 
-### Tier 1: safety
+### Tier 1: safety (done, 2026-09-25)
+
+Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixed".
 
 1. The side views are modal, so no key falls through to the log. Their letters work in both cases,
    as their menus write them.

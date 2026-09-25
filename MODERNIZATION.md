@@ -136,6 +136,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
   was. Verified on this repo's history: one branch renamed to `branch`, nothing else moved.
+- Safety, from the usability review (`USABILITY.md`, Tier 1, 2026-09-25):
+  - Any key the diff, blame or conflict view did not use fell through to the log view: `P` in a
+    diff pushed every branch, and `c` in the resolver closed it with its decisions unsaved.
+  - Esc in the log view quit on the spot, and so did a click on the top bar's `X`. Both ask now,
+    with Yes the default.
+  - `p` force-pushed (`--force-with-lease`) every branch that had a remote, not only after
+    *Force Push* was chosen.
+  - Enter on *Binary Files Detected* discarded the binary changes, and Esc on *Unsaved Decisions*
+    discarded the decisions.
+  - Discarding all changes or a file, dropping a stash and removing a tag (on origin too) never
+    asked first.
+  - A click on ▲ / ▼ pushed or pulled every shown branch, and a middle click merged with no
+    question.
+  - A failed clone or init from the start menu left a blank screen, and a click beside the start
+    menu quit gmd.
 
 ---
 
@@ -143,6 +158,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Product**
 
+- `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
+  small bugs found along the way.
 - `?`, F1 and F5 do nothing inside the diff, blame and conflict views. They only ever worked there
   by falling through to the log view, which those views no longer let a key do; register them in
   the views if they are wanted.
