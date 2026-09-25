@@ -500,7 +500,7 @@ keep doing:
   under "Running the TUI from a non-interactive shell" for why both halves are mandatory. It also
   seeds `ShowKeyHints: false`: the key-hint line is the bottom row, so with it on every snapshot of a
   whole screen would carry thirty blank rows and the hints. `StartGmd(..., isKeyHints: true)` turns
-  it on, for the tests about it (`KeyHintTest`).
+  it on, for the tests about it (`KeyHintTest`) and for the demo, which shows gmd as a user has it.
 - **An empty `DISPLAY`, `WAYLAND_DISPLAY` and `WSL_DISTRO_NAME`**, so gmd finds no clipboard tool it
   can reach and copies through the terminal instead (OSC 52). `set-clipboard on` then makes tmux
   keep the sequence as a buffer, which `gmd.Clipboard()` reads back — the only way to assert a copy
