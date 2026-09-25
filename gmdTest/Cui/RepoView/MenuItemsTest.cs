@@ -21,19 +21,19 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Switch to Branch  [S]
-            Merge to main  [E]
+            Switch to Branch  [s]
+            Merge to main  [e]
             Merge from main  [Shift-E]
             Rebase and Push onto >  (disabled)
-            Hide Branch  [H]
-            Pull  [U]  (disabled)
-            Push  [P]
-            Create Branch ...  [B]
+            Hide Branch  [h]
+            Pull  [u]  (disabled)
+            Push  [p]
+            Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...
-            Diff Branch to >  [D]
-            Change Branch Color  [G]
+            Diff Branch to >  [d]
+            Change Branch Color  [g]
             ---
             Show Branch >  [Shift →]
             Pull All Branches  [Shift-U]
@@ -52,19 +52,19 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Switch to Branch  [S]  (disabled)
-            Merge from >  [E]  (disabled)
+            Switch to Branch  [s]  (disabled)
+            Merge from >  [e]  (disabled)
             Merge to >  [Shift-E]  (disabled)
             Rebase and Push onto >  (disabled)
-            Hide Branch  [H]
-            Pull  [U]  (disabled)
-            Push  [P]
-            Create Branch ...  [B]
+            Hide Branch  [h]
+            Pull  [u]  (disabled)
+            Push  [p]
+            Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...  (disabled)
             Delete Branch ...  (disabled)
-            Diff Branch to >  [D]  (disabled)
-            Change Branch Color  [G]  (disabled)
+            Diff Branch to >  [d]  (disabled)
+            Change Branch Color  [g]  (disabled)
             ---
             Show Branch >  [Shift →]
             Pull All Branches  [Shift-U]
@@ -84,19 +84,19 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Open Worktree /home/me/repo-dev  [S]
-            Merge to main  [E]
+            Open Worktree /home/me/repo-dev  [s]
+            Merge to main  [e]
             Merge from main  [Shift-E]  (disabled)
             Rebase and Push onto >  (disabled)
-            Hide Branch  [H]
-            Pull  [U]  (disabled)
-            Push  [P]
-            Create Branch ...  [B]
+            Hide Branch  [h]
+            Pull  [u]  (disabled)
+            Push  [p]
+            Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...  (disabled)
-            Diff Branch to >  [D]
-            Change Branch Color  [G]
+            Diff Branch to >  [d]
+            Change Branch Color  [g]
             ---
             Show Branch >  [Shift →]
             Pull All Branches  [Shift-U]
@@ -115,7 +115,7 @@ public class MenuItemsTest
         var path = "/home/someone/projects/repository/.claude/worktrees/dev";
         var items = Items(BranchMenuOf(await ViewOf(Fixture().Worktree(path, "dev"))).GetBranchMenuItems("dev"));
 
-        StringAssert.StartsWith(items, "Open Worktree ┅pository/.claude/worktrees/dev  [S]\n");
+        StringAssert.StartsWith(items, "Open Worktree ┅pository/.claude/worktrees/dev  [s]\n");
     }
 
     // From the current branch's side: it can merge from the held branch, but not to it, since
@@ -127,7 +127,7 @@ public class MenuItemsTest
 
         var items = Items(BranchMenuOf(view).GetBranchMenuItems("main"));
 
-        StringAssert.Contains(items, "Merge from >  [E]\n");
+        StringAssert.Contains(items, "Merge from >  [e]\n");
         StringAssert.Contains(items, "Merge to >  [Shift-E]  (disabled)");
     }
 
@@ -285,15 +285,15 @@ public class MenuItemsTest
             """
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
-            Search ...  [F]
-            Refresh  [R]
+            Search ...  [f]
+            Refresh  [r]
             Clean Working Folder
-            Worktrees ...  [W]
-            Open, Clone or Init Repo >  [O]
+            Worktrees ...  [w]
+            Open, Clone or Init Repo >  [o]
             Config ...
             Help  [?, F1]
             About
-            Quit  [Q, Esc]
+            Quit  [q, Esc]
             """,
             Items(RepoMenuOf(await ViewOf(Fixture())).GetRepoMenuItems())
         );
@@ -332,7 +332,7 @@ public class MenuItemsTest
     {
         var items = Items(BranchMenuOf(await ViewOf(DivergedFixture(), "dev")).GetBranchMenuItems("dev"));
 
-        StringAssert.Contains(items, "Pull  [U]  (disabled)");
+        StringAssert.Contains(items, "Pull  [u]  (disabled)");
     }
 
     // The current branch is pulled with 'git pull', which merges rather than fast-forwards, so the
@@ -342,7 +342,7 @@ public class MenuItemsTest
     {
         var items = Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetBranchMenuItems("main"));
 
-        StringAssert.Contains(items, "Pull  [U]\n");
+        StringAssert.Contains(items, "Pull  [u]\n");
     }
 
     // What a click on ▲ in the application bar offers. It used to push every shown branch there and
@@ -352,7 +352,7 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Push Current Branch  [P]
+            Push Current Branch  [p]
             Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(await ViewOf(AheadFixture())).GetPushItems())
@@ -366,7 +366,7 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Push Current Branch  [P]  (disabled)
+            Push Current Branch  [p]  (disabled)
             Push All Branches  [Shift-P]  (disabled)
             """,
             Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPushItems())
@@ -380,7 +380,7 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Pull Current Branch  [U]
+            Pull Current Branch  [u]
             Pull All Branches  [Shift-U]
             """,
             Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPullItems())
@@ -393,7 +393,7 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Push Current Branch  [P]
+            Push Current Branch  [p]
             Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(await ViewOf(AheadFixture().WithStatus(modified: 1))).GetPushItems())

@@ -129,7 +129,9 @@ Key types and flow:
   `BranchPushPullCommands`, `CommitCommands`, run through `CommandRunner`), menus into `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
-  its key.
+  its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"Shift-P"` for P,
+  the help does the same, and the key-hint line writes a shifted letter as `⇧p`. Item names are
+  plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,

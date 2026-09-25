@@ -28,6 +28,7 @@ class ConflictView : IConflictView
 
     ContentView contentView = null!;
     ContentView resultView = null!;
+    readonly IHelpDlg helpDlg;
     UILabel header = null!;
     ConflictFile file = null!;
     ConflictResolution resolution = null!;
@@ -39,8 +40,9 @@ class ConflictView : IConflictView
     bool isResolved;
     bool isMovedToFirstHunk;
 
-    public ConflictView(IServer server, IProgress progress, IConflictRowService rowService)
+    public ConflictView(IServer server, IProgress progress, IConflictRowService rowService, IHelpDlg helpDlg)
     {
+        this.helpDlg = helpDlg;
         this.server = server;
         this.progress = progress;
         this.rowService = rowService;
@@ -154,6 +156,8 @@ class ConflictView : IConflictView
         // views below, where 'U' pulls every branch, 'P' pushes every branch and the diff's 'c'
         // closed the resolver without asking about the decisions made in it.
         view.RegisterLetterHandler(Key.q, Close);
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
         view.RegisterLetterHandler(Key.u, () => Choose(HunkChoice.None));
         view.RegisterLetterHandler(Key.n, () => GotoHunk(1));
         view.RegisterLetterHandler(Key.p, () => GotoHunk(-1));
@@ -706,25 +710,25 @@ class ConflictView : IConflictView
                 .Item($"Use {ours} then {theirs}", "3", () => Choose(HunkChoice.OursThenTheirs), () => hasHunk)
                 .Item($"Use {theirs} then {ours}", "4", () => Choose(HunkChoice.TheirsThenOurs), () => hasHunk)
                 .Item("Use the Common Ancestor", "0", ChooseBase, () => hasHunk)
-                .Item("Edit by Hand ...", "E", EditCurrentHunk, () => hasHunk)
-                .Item("Clear Decision", "U", () => Choose(HunkChoice.None), () => hasHunk)
+                .Item("Edit by Hand ...", "e", EditCurrentHunk, () => hasHunk)
+                .Item("Clear Decision", "u", () => Choose(HunkChoice.None), () => hasHunk)
                 .Separator()
                 .Item(
                     "Next Conflict",
-                    "], N",
+                    "], n",
                     () => GotoHunk(1),
                     () => rows.NextHunkRow(contentView.CurrentIndex, 1) != -1
                 )
                 .Item(
                     "Previous Conflict",
-                    "[, P",
+                    "[, p",
                     () => GotoHunk(-1),
                     () => rows.NextHunkRow(contentView.CurrentIndex, -1) != -1
                 )
-                .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "B", ToggleBase)
+                .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "b", ToggleBase)
                 .Separator()
-                .Item("Save and Mark Resolved", "S", () => Save())
-                .SubMenu("Whole File", "A", WholeFileItems())
+                .Item("Save and Mark Resolved", "s", () => Save())
+                .SubMenu("Whole File", "a", WholeFileItems())
                 .Item("Close", "Esc", Close)
         );
     }

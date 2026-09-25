@@ -3,41 +3,42 @@
 ## Keyboard Shortcuts
 
 The most used keys of the log view. The menus show the key of every command
-that has one, and pressing it in an open menu picks that item.
+that has one, and pressing it in an open menu picks that item. Keys are
+written as they are typed: `c` is the c key, and `Shift-P` is P.
 
 ---------------------------------------------------------------------------
 | Key        | Description                                                |
 | ---------- | ---------------------------------------------------------- |
-| M          | Menu of the highlighted branch, or of the commit           |
+| m          | Menu of the highlighted branch, or of the commit           |
 | Shift-M    | The repo menu, e.g. to continue or abort a rebase          |
 | ← →        | Highlight the branch to the left or right, or the commit   |
 | Shift-→    | Show Branch menu, to choose which branches are shown  |
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
-| C          | Commit the uncommitted changes                             |
-| A          | Amend the last commit, while it is not pushed              |
-| D          | Diff of the commit (on a branch: diff the branch to ...)   |
-| S          | Switch to the highlighted branch                           |
-| B          | Create a branch from the highlighted branch or the commit  |
-| E          | Merge the highlighted branch into the current branch       |
+| c          | Commit the uncommitted changes                             |
+| a          | Amend the last commit, while it is not pushed              |
+| d          | Diff of the commit (on a branch: diff the branch to ...)   |
+| s          | Switch to the highlighted branch                           |
+| b          | Create a branch from the highlighted branch or the commit  |
+| e          | Merge the highlighted branch into the current branch       |
 | Shift-E    | Merge the current branch into the highlighted branch       |
-| H          | Hide the highlighted branch                                |
-| G          | Change the color of the highlighted branch                 |
-| P          | Push the highlighted branch, or the current one            |
-| U          | Pull the highlighted branch, or the current one            |
+| h          | Hide the highlighted branch                                |
+| g          | Change the color of the highlighted branch                 |
+| p          | Push the highlighted branch, or the current one            |
+| u          | Pull the highlighted branch, or the current one            |
 | Shift-P    | Push all shown branches                                    |
 | Shift-U    | Pull all shown branches                                    |
-| T          | Add a tag to the commit                                    |
-| F          | Search and filter the commits                              |
-| R / F5     | Refresh, and fetch from the remote                         |
-| W          | Open the worktrees dialog                                  |
-| O          | Open, clone or init a repository                           |
-| Y          | Go to the current branch, showing it if it is hidden       |
+| t          | Add a tag to the commit                                    |
+| f, /       | Search and filter the commits                              |
+| r, F5      | Refresh, and fetch from the remote                         |
+| w          | Open the worktrees dialog                                  |
+| o          | Open, clone or init a repository                           |
+| y          | Go to the current branch, showing it if it is hidden       |
 | Shift-↑↓   | Select rows in the log, diff and blame views               |
 | Ctrl-C     | Copy the selected rows to the clipboard                    |
-| ? / F1     | Open this help page                                        |
+| ?, F1      | Open this help page                                        |
 | Esc        | Close a menu, dialog or view                               |
-| Esc / Q    | Quit, in the log view (Esc asks first)                     |
+| Esc, q     | Quit, in the log view (Esc asks first)                     |
 ---------------------------------------------------------------------------
 
 In dialogs and text fields:
@@ -95,7 +96,7 @@ when a fetch failed.
 
 The graph on the left shows the branches you have chosen to show. Move
 between them with `←` and `→`, and open the menu of the highlighted branch
-with `M`. The same menus are reachable without highlighting a branch, under
+with `m`. The same menus are reachable without highlighting a branch, under
 **Branches** in the commit menu: it lists every branch shown in the graph,
 the current branch and its parent branches first, and below them the items
 to show and hide branches, and to pull/update or push all of them.
@@ -117,7 +118,7 @@ was made from, and the main branch is always shown.
 - ┣╮ and ┣╯ beside a commit mean that a hidden branch merges in or branches
   out there. `Enter` on the branch, or a click, shows it (or opens a menu
   when there are several), and hides it again.
-- `H` hides the highlighted branch, and the branches made from it.
+- `h` hides the highlighted branch, and the branches made from it.
   **Hide All Branches** goes back to showing just the main branch.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
@@ -135,7 +136,7 @@ commits that can be pulled or pushed.
 - Remote has unpulled commits (▼ and a blue subject)
 - Local has unpushed commits (▲ and a green subject)
 
-`P` and `U` push and pull the highlighted branch, or the current one when
+`p` and `u` push and pull the highlighted branch, or the current one when
 none is, as **Push** and **Pull** in its branch menu do. A push leaves the
 uncommitted changes where they are; a pull needs them committed or stashed
 first. Switching to a branch where git would overwrite them offers to stash
@@ -143,9 +144,9 @@ them, switch, and put them back. `Shift-P` and
 `Shift-U` push or update all shown branches.
 
 A branch with both unpulled and unpushed commits can only be pushed by
-force, which `P` asks about first, and is not updated by `Shift-U`, which
+force, which `p` asks about first, and is not updated by `Shift-U`, which
 only fast-forwards the branches it is not on. Switch to the branch and pull
-it (`U`) to merge the two sides.
+it (`u`) to merge the two sides.
 
 ### Current Commit/Branch
 
@@ -177,12 +178,12 @@ folder gmd was started in, or opened since.
 
 - `⌂` in the margin and after a branch tip means that branch is checked out
   in another worktree. Git allows a branch in one worktree only, so it
-  cannot be checked out, pulled or deleted from here; the `S` key opens
+  cannot be checked out, pulled or deleted from here; the `s` key opens
   that worktree instead of switching to the branch.
 - `⌂N` in the top bar counts the other worktrees. It turns yellow when one
   of them has uncommitted changes, which is checked right after the
   repository is read and every thirty seconds after that.
-- `W` opens the worktrees dialog: one row per worktree with its branch,
+- `w` opens the worktrees dialog: one row per worktree with its branch,
   changes, whether it is in use (locked, e.g. by a running Claude Code
   session) or missing (its folder is gone), and whether its branch is
   merged. From there a worktree can be opened (`Enter`), added, removed or
@@ -205,11 +206,11 @@ shown, their colors and their order.
 
 - **Commit Details** (`Enter`):
   Displays additional commit details.
-- **Commit ...** (`C`):
+- **Commit ...** (`c`):
   Commit all uncommitted changes, with warnings for large or binary files.
   After a merge made in gmd, `Ctrl-A` in the dialog adds the messages of
   the merged commits.
-- **Commit Diff** (`D`):
+- **Commit Diff** (`d`):
   View a side-by-side diff of commit changes.
   Within the view: `+` shows more of the file the cursor is on around its
   changes and `-` shows less, stepping from the 6 lines of context it
@@ -219,12 +220,12 @@ shown, their colors and their order.
   showing. The menu has the same two, as **More Context** and
   **Less Context**, naming the file they would act on and what it would
   then show.
-  `R` re-reads the diff from git, `S` scrolls to a file, `U` restores an
-  uncommitted file, `C` commits, `Enter` resolves a conflicted file, `M`
+  `r` re-reads the diff from git, `s` scrolls to a file, `u` restores an
+  uncommitted file, `c` commits, `Enter` resolves a conflicted file, `m`
   opens the menu, `←` `→` scroll the two columns sideways and pick which one
   a selection copies from, `Ctrl-C` copies the selected lines, and `Esc` or
-  `Q` closes the view.
-- **Search ...** (`F`):
+  `q` closes the view.
+- **Search ...** (`f` or `/`):
   Type to filter the log down to the commits that match, by id, subject,
   branch, author, date (yyyy-mm-dd) or tag. Every word has to match, a
   "quoted phrase" matches as a whole, and case does not matter. `Enter`
@@ -234,7 +235,7 @@ shown, their colors and their order.
 - **Squash ...** (under **Rebase** in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message.
-- **Undo** (in the commit menu, and `U` in the diff of the uncommitted
+- **Undo** (in the commit menu, and `u` in the diff of the uncommitted
   changes). The items that throw changes away for good ask first:
   - **Discard Changes in a File**: `git checkout --force <file>`, or
     a new file is deleted
@@ -257,16 +258,16 @@ shown, their colors and their order.
   and lines that are not committed yet are bright yellow and marked `©`.
   Within the view: `Enter` toggles the commit details of the current line,
   the same pane the log view shows, which follows the cursor as you move
-  down the lines (`Tab` moves into it to scroll a long message). `D` shows
-  the diff of the current line's commit, `P` blames the version before it
+  down the lines (`Tab` moves into it to scroll a long message). `d` shows
+  the diff of the current line's commit, `p` blames the version before it
   (so a reformat or a rename can be stepped past to the change that
-  actually matters) and `Backspace` steps back out again, `I` cycles how
+  actually matters) and `Backspace` steps back out again, `i` cycles how
   much of each commit the left column names, `←` `→` scroll the code while
-  the left column stays put, `C` copies the current line's commit id,
-  `Ctrl-C` copies the selected lines, `M` opens the menu, and `Esc` or `Q`
+  the left column stays put, `c` copies the current line's commit id,
+  `Ctrl-C` copies the selected lines, `m` opens the menu, and `Esc` or `q`
   closes the view.
 - **Merge**:
-  Highlight a branch and merge it into the current branch (`E`).
+  Highlight a branch and merge it into the current branch (`e`).
   Use `Commit` post-merge, or **Abort Merge** at the top of the repo menu
   to back out.
 - **Merge to** (`Shift-E`):
@@ -286,7 +287,7 @@ shown, their colors and their order.
   For commits where the branch is ambiguous, this command resolves the
   uncertainty.
 
-Find more commands in the menus (the `M` key).
+Find more commands in the menus (the `m` key).
 
 
 ## Resolving Conflicts
@@ -298,7 +299,7 @@ bar says what is in progress, e.g. `Merging: 1 conflict` in red, and in
 yellow once the conflicts are resolved. A click on it, or `Shift-M` for the
 repo menu, offers Resolve Conflicts, Continue, Skip and Abort.
 
-To resolve the conflicts, open the diff of the uncommitted changes (`D` on
+To resolve the conflicts, open the diff of the uncommitted changes (`d` on
 the `©` row) and press `Enter` on a conflicted file. That opens the file
 the cursor is on, or the list of the conflicted files if the cursor is
 elsewhere. The same list is under **Resolve Conflicts** in the diff menu,
@@ -324,21 +325,21 @@ next and previous one from wherever the cursor is.
 | 1  2       | Take the left or the right side                            |
 | 3  4       | Take both, left first or right first                       |
 | 0          | Take the common ancestor, i.e. undo both sides' changes    |
-| U          | Un-decide this conflict                                    |
-| E          | Edit the result of this conflict by hand                   |
-| ]  [       | Next or previous conflict (N and P do the same)            |
-| B          | Show the version both sides started from                   |
-| A          | Whole file: take one side, or put the conflicts back       |
-| S          | Save and mark the file resolved                            |
-| M          | Open the menu, which lists all of these                    |
+| u          | Clear the decision on this conflict                        |
+| e          | Edit the result of this conflict by hand                   |
+| ]  [       | Next or previous conflict (n and p do the same)            |
+| b          | Show the version both sides started from                   |
+| a          | Whole file: take one side, or put the conflicts back       |
+| s          | Save and mark the file resolved                            |
+| m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
-| Esc / Q    | Close the resolver                                         |
+| Esc, q     | Close the resolver                                         |
 ---------------------------------------------------------------------------
 
-Nothing is written until `S`, so closing without saving leaves the file as
+Nothing is written until `s`, so closing without saving leaves the file as
 it was, and closing with decisions unsaved asks first.
 
-`B` shows the version both sides started from, which is usually what
+`b` shows the version both sides started from, which is usually what
 settles which change to keep, and `0` resolves the conflict *to* it, the
 answer when neither change should have happened here. Git records that
 version in the file only when `merge.conflictStyle` is `diff3` or `zdiff3`;
@@ -348,7 +349,7 @@ has no such version, and says so. Where both sides added lines that were
 not there before, the ancestor is empty, so `0` removes the region, which
 is also how to drop a conflict you want gone.
 
-`E` is for the merge that is neither side but something of both. A box
+`e` is for the merge that is neither side but something of both. A box
 opens holding what the conflict resolves to now, or both sides if you have
 not chosen yet, and it says which of the two it gave you. Emptying the box
 is how to delete the conflicted region outright. `Tab` moves from the box
@@ -380,7 +381,7 @@ rebase or an `am` has commits to skip, so those items appear only where
 they apply. A merge has no *Continue*, since committing is what finishes
 one, and neither has gmd's own **Cherry Pick** or **Revert Commit**, which
 stage one change for the commit dialog with nothing queued behind it.
-Pressing `C` during a rebase, an `am`, a cherry pick started outside gmd,
+Pressing `c` during a rebase, an `am`, a cherry pick started outside gmd,
 or a revert of several commits offers **Continue** instead: committing
 there would make the one commit git stopped on and leave the rest
 unapplied.

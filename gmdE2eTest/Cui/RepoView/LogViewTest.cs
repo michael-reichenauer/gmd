@@ -437,14 +437,14 @@ public class LogViewTest
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
             ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add│Commit ...                          C  │                                  4a15fb Test User      24-10-15 12:04
-            ┣╯   Add│Amend ...                           A  │                                  dd7891 Test User      24-10-15 12:01
-            ┗    Ini│Commit Diff                         D  │                                  9dc406 Test User      24-10-15 12:00
+            ┣    Add│Commit ...                          c  │                                  4a15fb Test User      24-10-15 12:04
+            ┣╯   Add│Amend ...                           a  │                                  dd7891 Test User      24-10-15 12:01
+            ┗    Ini│Commit Diff                         d  │                                  9dc406 Test User      24-10-15 12:00
                     │Undo                                  >│
                     │Rebase                                >│
                     │Stash                                 >│
                     │Tag                                   >│
-                    │Create Branch from Commit ...       B  │
+                    │Create Branch from Commit ...       b  │
                     │Merge Commit into main                 │
                     │Cherry Pick into main                  │
                     │Switch to Commit                       │
@@ -533,19 +533,19 @@ public class LogViewTest
                      │Blame File ...                         │
                      │───────────────────────────────────────│╭ Branches ─────────────────╮
                     ╭ dev ───────────────────────────────────╮│●   main                  >│
-                    │Switch to Branch                     S  ││    dev                   >│
-                    │Merge to main                        E  ││───────────────────────────│
+                    │Switch to Branch                     s  ││    dev                   >│
+                    │Merge to main                        e  ││───────────────────────────│
                     │Merge from main                Shift-E  ││Show Branch       Shift → >│
                     │Rebase and Push onto                   >││Hide All Branches          │
-                    │Hide Branch                          H  ││Pull All Branches Shift-U  │
-                    │Pull                                 U  ││Push All Branches Shift-P  │
-                    │Push                                 P  │╰───────────────────────────╯
-                    │Create Branch ...                    B  │
+                    │Hide Branch                          h  ││Pull All Branches Shift-U  │
+                    │Pull                                 u  ││Push All Branches Shift-P  │
+                    │Push                                 p  │╰───────────────────────────╯
+                    │Create Branch ...                    b  │
                     │Create Worktree ...                     │
                     │Rename Branch ...                       │
                     │Delete Branch ...                       │
-                    │Diff Branch to                       D >│
-                    │Change Branch Color                  G  │
+                    │Diff Branch to                       d >│
+                    │Change Branch Color                  g  │
                     │────────────────────────────────────────│
                     │Set Commit Branch Manually ...          │
                     ╰────────────────────────────────────────╯

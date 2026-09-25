@@ -89,7 +89,7 @@ class BranchMenu : IBranchMenu
         Menu
             .Items.Item(
                 "Push Current Branch",
-                "P",
+                "p",
                 () => cmds.PushCurrentBranch(),
                 () => BranchPushPullCommands.CanPushCurrentBranch(repo.Repo),
                 WhyNoPush
@@ -116,7 +116,7 @@ class BranchMenu : IBranchMenu
         Menu
             .Items.Item(
                 "Pull Current Branch",
-                "U",
+                "u",
                 () => cmds.PullCurrentBranch(),
                 () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo),
                 () =>
@@ -151,7 +151,7 @@ class BranchMenu : IBranchMenu
             .Item(
                 !isCurrent,
                 $"Merge to {currentName}",
-                "E",
+                "e",
                 () => cmds.MergeBranch(b.Name),
                 () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK,
                 () => Why.Changes
@@ -167,7 +167,7 @@ class BranchMenu : IBranchMenu
                     : !b.IsGitBranch ? Why.Deleted(b)
                     : Why.InWorktree(b)
             )
-            .SubMenu(isCurrent, "Merge from", "E", GetMergeFromItems(), whyNot: WhyNoMerge)
+            .SubMenu(isCurrent, "Merge from", "e", GetMergeFromItems(), whyNot: WhyNoMerge)
             .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems(), whyNot: WhyNoMerge)
             .SubMenu(
                 "Rebase and Push onto",
@@ -178,12 +178,12 @@ class BranchMenu : IBranchMenu
                     : !isStatusOK ? Why.Changes
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
             )
-            .Item("Hide Branch", "H", () => cmds.HideBranch(branchName))
+            .Item("Hide Branch", "h", () => cmds.HideBranch(branchName))
             // The same rules as the 'u' and 'p' keys on a highlighted branch, see
             // BranchPushPullCommands.CanPullBranch
             .Item(
                 "Pull",
-                "U",
+                "u",
                 () =>
                 {
                     if (isCurrent)
@@ -196,12 +196,12 @@ class BranchMenu : IBranchMenu
             )
             .Item(
                 "Push",
-                "P",
+                "p",
                 () => cmds.PushBranch(branchName),
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
             )
-            .Item("Create Branch ...", "B", () => cmds.CreateBranchFromBranch(b.Name))
+            .Item("Create Branch ...", "b", () => cmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it
             // is checked out already (here or in another worktree)
             .Item(
@@ -240,13 +240,13 @@ class BranchMenu : IBranchMenu
             )
             .SubMenu(
                 "Diff Branch to",
-                "D",
+                "d",
                 GetBranchDiffItems(branchName),
                 whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see Shift →"
             )
             .Item(
                 "Change Branch Color",
-                "G",
+                "g",
                 () => cmds.ChangeBranchColor(branchName),
                 // Main is always magenta and a deleted branch always gray, so neither can be changed
                 () =>
@@ -290,12 +290,12 @@ class BranchMenu : IBranchMenu
         var worktreePath = repo.Repo.WorktreePathOf(branch);
         if (worktreePath != "")
         {
-            return Menu.Item($"Open Worktree {ShortPath(worktreePath)}", "S", () => cmds.SwitchTo(branchName));
+            return Menu.Item($"Open Worktree {ShortPath(worktreePath)}", "s", () => cmds.SwitchTo(branchName));
         }
 
         return Menu.Item(
             "Switch to Branch",
-            "S",
+            "s",
             () => cmds.SwitchTo(branchName),
             () => branch.PrimaryName != currentName
         ) with

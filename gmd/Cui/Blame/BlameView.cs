@@ -41,15 +41,19 @@ class BlameView : IBlameView
 
     record BlameState(string Path, string Reference, int Index, int RowStartX);
 
+    readonly IHelpDlg helpDlg;
+
     public BlameView(
         IBlameService blameService,
         IServer server,
         IProgress progress,
         IDiffView diffView,
         IClipboardService clipboard,
-        Func<ICommitDetailsView> newDetailsView
+        Func<ICommitDetailsView> newDetailsView,
+        IHelpDlg helpDlg
     )
     {
+        this.helpDlg = helpDlg;
         this.blameService = blameService;
         this.server = server;
         this.progress = progress;
@@ -121,6 +125,8 @@ class BlameView : IBlameView
         // Letters in both cases, since the menu writes them in upper case. The view is modal (see
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
         view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
@@ -411,13 +417,13 @@ class BlameView : IBlameView
             y,
             Menu.Items.Item(
                     c == null ? "Commit Diff" : $"Commit Diff of {(c.IsUncommitted ? "uncommitted" : c.Sid)}",
-                    "D",
+                    "d",
                     () => ShowLineCommitDiff(),
                     () => c != null
                 )
                 .Item(
                     hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()})" : "Blame Previous Version",
-                    "P",
+                    "p",
                     () => BlamePrevious(),
                     () => hasPrevious
                 )
@@ -425,11 +431,11 @@ class BlameView : IBlameView
                 .Separator()
                 .SubMenu("Scroll to Commit", "", GetScrollToItems())
                 .Item("Commit Details", "Enter", () => ToggleDetails())
-                .Item($"Gutter Detail ({details})", "I", () => CycleDetails())
+                .Item($"Gutter Detail ({details})", "i", () => CycleDetails())
                 .Item("Reset Horizontal Scroll", "", () => ResetScroll(), () => rowStartX > 0)
                 .Separator()
                 .Item("Copy Selected Lines", "Ctrl-C", () => OnCopy(), () => IsSelected)
-                .Item("Copy Commit Id of Line", "C", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
+                .Item("Copy Commit Id of Line", "c", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }

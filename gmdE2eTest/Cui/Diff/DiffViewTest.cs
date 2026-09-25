@@ -154,13 +154,13 @@ public class DiffViewTest
         ScreenText.AssertEqual(
             """
             ══════════════════════════════════════╭ Diff Menu ────────────────────────────────╮════════════════════════════════════
-            Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               S >│
+            Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               s >│
             Author:  Test User <test@example.com> │Diff File                                 >│
             Date:    2024-10-15 12:02:00          │Resolve Conflicts                   Enter >│
             Message: Change both files            │Run External Merge Tool                   >│
-                                                  │Discard Changes                         U >│
-            2 Files:                              │Refresh                                 R  │
-              Modified:    long.txt               │Commit                                  C  │
+                                                  │Discard Changes                         u >│
+            2 Files:                              │Refresh                                 r  │
+              Modified:    long.txt               │Commit                                  c  │
               Modified:    short.txt              │More Context of long.txt (15 lines)     +  │
                                                   │Less Context                            -  │
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Focus Left Column                       ←  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -277,5 +277,24 @@ public class DiffViewTest
         gmd.Send(key);
 
         gmd.WaitFor("Diff Menu");
+    }
+
+    // The help opens from the diff as from the log view, and closing it is back in the diff
+    [TestMethod]
+    [DataRow("?")]
+    [DataRow("F1")]
+    public async Task TestHelpOpensFromTheDiff(string key)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("d");
+        gmd.WaitFor("Added: delta.txt");
+
+        gmd.Send(key);
+        gmd.WaitFor("Gmd Help Guide");
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Gmd Help Guide"), "Added: delta.txt", "Back in the diff");
     }
 }

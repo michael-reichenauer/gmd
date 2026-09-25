@@ -46,17 +46,17 @@ class CommitMenu : ICommitMenu
 
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
-            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK, () => "Nothing to commit")
+            .Item("Commit ...", "c", () => cmds.CommitFromMenu(false), () => !isStatusOK, () => "Nothing to commit")
             // Enabled as the 'a' key is: a commit not yet pushed can be amended with no changes too,
             // to reword its message
             .Item(
                 "Amend ...",
-                "A",
+                "a",
                 () => cmds.CommitFromMenu(true),
                 () => cc.IsAhead,
                 () => "Only a commit not yet pushed can be amended"
             )
-            .Item("Commit Diff", "D", () => cmds.ShowCurrentRowDiff())
+            .Item("Commit Diff", "d", () => cmds.ShowCurrentRowDiff())
             .SubMenu("Undo", "", GetCommitUndoItems())
             .SubMenu("Rebase", "", GetRebaseMenuItems())
             .SubMenu("Stash", "", GetStashMenuItems())
@@ -69,7 +69,7 @@ class CommitMenu : ICommitMenu
             )
             .Item(
                 "Create Branch from Commit ...",
-                "B",
+                "b",
                 () => repo.BranchCmds.CreateBranchFromCommit(),
                 () => !c.IsUncommitted,
                 () => "A branch starts at a commit: move to one first"
@@ -208,7 +208,7 @@ class CommitMenu : ICommitMenu
         Menu
             .Items.Item(
                 "Add Tag ...",
-                "T",
+                "t",
                 () => cmds.AddTag(),
                 () => !repo.RowCommit.IsUncommitted,
                 () => "A tag is put on a commit: move to one first"

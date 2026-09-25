@@ -11,7 +11,8 @@ record KeyHint(string Key, string Text);
 // highlighted branch or several selected rows) and on the repo, e.g. 'p push' only while there is
 // something to push, and 'c continue' rather than 'c commit' during a rebase.
 //
-// A key is written the way it is typed, so 'P' is Shift-P, which is a different command from 'p'.
+// A key is written the way it is typed, and a shifted one with '⇧', so '⇧p' is Shift-P, which is a
+// different command from 'p'.
 // The hints are listed most useful first, which is also the order they are dropped in, from the
 // end, when the line is too narrow for all of them. '? help' is always kept, at the right.
 //
@@ -121,7 +122,7 @@ static class KeyHints
         if (branch.IsCurrent)
         {
             if (status.IsOk)
-                hints.AddRange([new("e", "merge from"), new("E", "merge to")]);
+                hints.AddRange([new("e", "merge from"), new("⇧e", "merge to")]);
         }
         else
         {
@@ -164,7 +165,7 @@ static class KeyHints
     // 'c' finishes a merge, or a cherry pick or revert made in gmd, by committing, but anything
     // else git stopped part way through has to be continued instead, and 'c' offers that
     // The way out of an operation git stopped part way through, in the repo menu, which 'M' opens
-    static readonly KeyHint AbortHint = new("M", "abort…");
+    static readonly KeyHint AbortHint = new("⇧m", "abort…");
 
     static KeyHint CommitHint(Status status) =>
         new("c", status.IsMerging && !status.IsFinishedByCommit ? "continue" : "commit");

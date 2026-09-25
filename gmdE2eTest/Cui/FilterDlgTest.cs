@@ -102,4 +102,17 @@ public class FilterDlgTest
 
         Assert.AreEqual(atTop, ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4), "Still on the top row");
     }
+
+    // '/' opens the search as 'f' does, it being the search key of most other tools
+    [TestMethod]
+    public async Task TestSlashOpensTheSearch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("/");
+
+        gmd.WaitFor("Filter Commits");
+    }
 }

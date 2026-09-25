@@ -65,14 +65,14 @@ A few keys to start with:
 
 | Key       | What it does                                              |
 | --------- | --------------------------------------------------------- |
-| `M`       | The menu of the highlighted branch or the current commit  |
+| `m`       | The menu of the highlighted branch or the current commit  |
 | `←` `→`   | Highlight a branch in the graph                           |
 | `Shift-→` | Choose which branches are shown                           |
 | `Enter`   | Show or hide the commit details                           |
-| `D`       | Diff of the commit                                        |
-| `C`       | Commit                                                    |
+| `d`       | Diff of the commit                                        |
+| `c`       | Commit                                                    |
 | `?`       | Help, with every key and symbol                           |
-| `Q`       | Quit                                                      |
+| `q`       | Quit                                                      |
 
 The line at the bottom of the screen shows the keys that do something where the cursor is, and
 changes as it moves. The [help guide](gmd/doc/help.md) covers the rest, and gmd shows the same guide

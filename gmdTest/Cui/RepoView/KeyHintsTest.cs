@@ -47,7 +47,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
-        StringAssert.StartsWith(Hints(view), "c commit  M abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "c commit  ⇧m abort…  d resolve  ");
     }
 
     // A rebase is finished by continuing it, not by a commit, and 'c' offers that instead
@@ -58,7 +58,7 @@ public class KeyHintsTest
             Fixture().WithStatus(conflicted: 1, operation: GitOp.Rebase, isFinishedByCommit: false)
         );
 
-        StringAssert.StartsWith(Hints(view), "c continue  M abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "c continue  ⇧m abort…  d resolve  ");
     }
 
     // 'p' and 'u' only while the current branch has something to push or pull
@@ -102,7 +102,7 @@ public class KeyHintsTest
         var view = await ViewOf(Ahead());
         var hoover = HooverOn(view, "main", "l1");
 
-        Assert.AreEqual("main:  e merge from  E merge to  m menu  d diff  p push  b new branch", Hints(view, hoover));
+        Assert.AreEqual("main:  e merge from  ⇧e merge to  m menu  d diff  p push  b new branch", Hints(view, hoover));
     }
 
     // Merging and diffing a branch need a clean working tree, so with changes they give way to

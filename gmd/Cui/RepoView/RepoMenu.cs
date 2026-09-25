@@ -67,15 +67,15 @@ class RepoMenu : IRepoMenu
                 () => !repo.Repo.Status.IsMerging,
                 () => Why.InProgress
             )
-            .Item("Search ...", "F", () => cmds.SearchFilterRepo())
-            .Item("Refresh", "R", () => cmds.RefreshAndFetch())
+            .Item("Search ...", "f", () => cmds.SearchFilterRepo())
+            .Item("Refresh", "r", () => cmds.RefreshAndFetch())
             .Item("Clean Working Folder", "", () => cmds.CleanWorkingFolder())
-            .Item("Worktrees ...", "W", () => repo.BranchCmds.ShowWorktrees())
-            .SubMenu("Open, Clone or Init Repo", "O", GetOpenRepoItems())
+            .Item("Worktrees ...", "w", () => repo.BranchCmds.ShowWorktrees())
+            .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())
             .Item("Help", "?, F1", () => cmds.ShowHelp())
             .Item("About", "", () => cmds.ShowAbout())
-            .Item("Quit", "Q, Esc", () => UI.Shutdown());
+            .Item("Quit", "q, Esc", () => UI.Shutdown());
     }
 
     // What can be done about an operation git stopped part way through. Heads the menu because a

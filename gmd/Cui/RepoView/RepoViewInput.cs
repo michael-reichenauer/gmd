@@ -104,10 +104,10 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.P, () => BranchCmds.PushAllBranches());
         commitsView.RegisterKeyHandler(Key.u, OnKeyU);
         commitsView.RegisterKeyHandler(Key.U, () => BranchCmds.PullAllBranches());
-        commitsView.RegisterKeyHandler(Key.D1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => OnKeyF());
+        commitsView.RegisterKeyHandler((Key)'/', () => OnKeyF()); // The search key of most other tools
         // A developer's tool, the Unicode sets, and a digit easily hit by accident, so only in a
         // build run from the source
         if (Build.IsDevInstance())

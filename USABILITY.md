@@ -216,6 +216,11 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    - Esc = back, `q` = close, `m` = menu, Enter = open, `?` = help, `/` = search (as well as `f`),
      Ctrl-C = copy.
    - A command letter is not reused for something else in another view.
+
+   *Done (2026-09-25), as far as the shared keys go:* `?` and F1 open the help in the diff, blame
+   and resolver too, `/` searches the log, and the diff's second refresh key `d` and the log's
+   undocumented `1` are gone. Letters that mean different things in different views stay: with the
+   side views modal, none of them can reach a command of another view any more.
 2. **The branch menu's key labels match what the keys do.** Either `p` and `u` act on the highlighted
    branch, like `s e h b d` do, or the label goes. *Done (2026-09-25):* they act on the highlighted
    branch, by the same rules as the menu's Push and Pull (`CanPushBranch`, `CanPullBranch`).
@@ -237,7 +242,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    *Done (2026-09-25):* push only waits for a merge or rebase in progress, and says the changes
    stay local; a switch git refuses over the changes offers Stash and Switch. Merge and pull still
    ask for a clean tree.
-6. **Write keys in the help and the README the way they are pressed.**
+6. **Write keys in the help and the README the way they are pressed.** *Done (2026-09-25):* menus,
+   help and README write `c` for the c key and `Shift-P` for P; the key-hint line writes `⇧p`.
 
 ### Tier 4: bigger bets, to decide later
 

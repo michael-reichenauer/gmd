@@ -160,9 +160,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
   small bugs found along the way.
-- `?`, F1 and F5 do nothing inside the diff, blame and conflict views. They only ever worked there
-  by falling through to the log view, which those views no longer let a key do; register them in
-  the views if they are wanted.
+- F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
+  through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
 - *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
   ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
   and the push makes the lease pass over commits the user never saw. Pass the tip the user saw

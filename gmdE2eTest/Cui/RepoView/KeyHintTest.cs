@@ -55,13 +55,13 @@ public class KeyHintTest
 
         gmd.Send("Left");
         Assert.AreEqual(
-            "main:  e merge from  E merge to  m menu  d diff  b new branch | ? help",
+            "main:  e merge from  ⇧e merge to  m menu  d diff  b new branch | ? help",
             Hints(gmd.WaitFor("merge from"))
         );
 
         gmd.Send("Down");
         Assert.AreEqual(
-            "main:  e merge from  E merge to  Enter show/hide  m menu  d diff  b new branch | ? help",
+            "main:  e merge from  ⇧e merge to  Enter show/hide  m menu  d diff  b new branch | ? help",
             Hints(gmd.WaitFor("show/hide"))
         );
 
