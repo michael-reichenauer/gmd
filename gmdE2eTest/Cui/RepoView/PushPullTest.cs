@@ -116,6 +116,31 @@ public class PushPullTest
         Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
     }
 
+    // Force Push is the push, and the only one: a plain push used to follow it, going to the remote a
+    // second time, and failing if anyone had pushed in between, after the force push had worked
+    [TestMethod]
+    public async Task TestForcePushPushesOnce()
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("●main");
+        var refreshes = gmd.LogCount("show refreshed repo");
+
+        gmd.Send("p");
+        gmd.WaitFor("Push Warning");
+        gmd.Send("Left"); // From Cancel, the default, to Force Push
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual("Pushed 'main'", ScreenText.LastLine(gmd.WaitFor("Pushed 'main'")));
+        Assert.AreEqual(await repo.GitAsync("rev-parse main"), await repo.GitAsync("rev-parse origin/main"));
+        // The refresh after the push is logged after any push it made
+        var log = gmd.WaitForLogTimes("show refreshed repo", refreshes + 1);
+        StringAssert.Contains(log, "push --force-with-lease");
+        Assert.IsFalse(log.Contains("push --porcelain"), "No plain push after the forced one");
+    }
+
     // Uncommitted changes do not stop a push, which sends commits and leaves the changes where they
     // are, and the message says so, since that is easy to assume otherwise
     [TestMethod]

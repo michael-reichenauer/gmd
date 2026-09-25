@@ -94,6 +94,12 @@ class BranchPushPullCommands : IBranchPushPullCommands
                     {
                         return new Error($"Failed to push branch:\n{branch.Name}", ee);
                     }
+
+                    // And that is the push: the plain one below would go to the remote a second
+                    // time, and fail if anyone pushed in between, after the force push had worked
+                    Refresh();
+                    status.Info(Pushed($"'{branch.NiceNameUnique}'"));
+                    return Result.Ok;
                 }
             }
 
