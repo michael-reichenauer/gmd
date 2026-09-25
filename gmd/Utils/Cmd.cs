@@ -224,6 +224,7 @@ class Cmd : ICmd
             using (process)
             {
                 NeverOpenAnEditor(process.StartInfo);
+                InEnglish(process.StartInfo);
                 foreach (var (name, value) in environment ?? Empty)
                 {
                     process.StartInfo.Environment[name] = value;
@@ -284,6 +285,16 @@ class Cmd : ICmd
         info.Environment["GIT_EDITOR"] = "true";
         info.Environment["GIT_SEQUENCE_EDITOR"] = "true"; // The todo list of an interactive rebase
     }
+
+    // Git's messages in English, whatever language the user has set. gmd tells what happened by
+    // them, e.g. 'CONFLICT' after a merge and 'would be overwritten by checkout' when changes stop a
+    // switch, so a translated git ('KONFLIKT') got git's error in a box rather than the conflict
+    // resolver, or the offer to take the changes along.
+    //
+    // LANGUAGE is the one variable gettext reads before LC_ALL, LC_MESSAGES and LANG, and git has no
+    // translation for plain 'en', so the messages are left as written. Nothing else of the locale
+    // changes, the character set included. A 'C' locale ignores LANGUAGE, but is English already.
+    static void InEnglish(ProcessStartInfo info) => info.Environment["LANGUAGE"] = "en";
 
     // Starts a program that may go on running, e.g. a browser, which a tool like xdg-open starts
     // for the page and which then outlives it, or which is itself what was started. Neither can be

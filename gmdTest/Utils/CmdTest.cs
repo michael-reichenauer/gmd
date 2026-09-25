@@ -24,6 +24,17 @@ public class CmdTest
         StringAssert.Matches(asyncError.Origin, origin, "Across the thread RunAsync runs it on");
     }
 
+    // Git is run in English whatever the user's language, since gmd recognizes what happened by
+    // git's messages. LANGUAGE is what gettext reads first, so it wins over the user's own.
+    [TestMethod]
+    public void TestCommandsRunInEnglish()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("Uses sh");
+
+        Assert.AreEqual("en", AssertOk(new Cmd().Command("sh", "-c \"echo $LANGUAGE\"", "")));
+    }
+
     // StartAsync is for a program that may go on running, a browser: one that fails at once is an
     // error with what it said, as for any command
     [TestMethod]

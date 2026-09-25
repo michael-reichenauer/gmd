@@ -629,6 +629,9 @@ message.
   call, because a `rebase --continue` opening the user's editor would hang gmd behind the terminal
   it owns. It is done there and not per command line because `GIT_EDITOR` beats
   `-c core.editor=…`, so a flag is silently ineffective for any user who has that set.
+- **Git speaks English to gmd.** `Cmd.InEnglish` sets `LANGUAGE=en` on the same processes, since
+  gmd recognizes outcomes by git's messages (`CONFLICT`, `would be overwritten by checkout`, …),
+  and a translated git turned each of those into a plain error box. Match on git's English text.
 - **`gmdSetup.exe` is a prebuilt binary committed to the repo**
   (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
