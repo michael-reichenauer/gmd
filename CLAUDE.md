@@ -656,6 +656,7 @@ message.
 - Modernizing this codebase, fixing bugs, adding tests and improving maintainability is the
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
-- Do not commit or push unless asked.
+- **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
+  once `./test` passes, so that the git log and its diffs are the review. Push only when asked.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (embedded into the
   binary as a resource) needs updating too.
