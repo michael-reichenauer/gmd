@@ -136,7 +136,9 @@ partial class MainView : IMainView
     void ShowMainMenu()
     {
         Log.Info("Show main menu");
-        Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu());
+        // Closing it quits, since it is all there is on screen, so only Esc and 'Quit' close it and a
+        // click beside it is ignored
+        Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu()) { IsClosedOnClickOutside = false };
 
         if (!config.Releases.IsUpdateAvailable())
         { // Check for update ...
@@ -268,13 +270,19 @@ partial class MainView : IMainView
             return;
         }
 
+        Result cloned;
         using (progress.Show())
         {
-            if (await server.CloneAsync(clone.Uri, clone.Path, "") is Error e)
-            {
-                UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{e}");
-                return;
-            }
+            cloned = await server.CloneAsync(clone.Uri, clone.Path, "");
+        }
+
+        // Back to the start menu on a failure, the one way on from here, as for a repo that fails to
+        // load. The progress is over by then, since the menu is modal and would keep it running.
+        if (cloned is Error e)
+        {
+            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{e.AllMessages()}");
+            ShowMainMenu();
+            return;
         }
 
         ShowRepo(clone.Path);
@@ -289,13 +297,18 @@ partial class MainView : IMainView
             return;
         }
 
+        Result initiated;
         using (progress.Show())
         {
-            if (await server.InitRepoAsync(path, "") is Error e)
-            {
-                UI.ErrorMessage($"Failed to init:\n{path}:\n{e}");
-                return;
-            }
+            initiated = await server.InitRepoAsync(path, "");
+        }
+
+        // Back to the start menu on a failure, as for a failed clone above
+        if (initiated is Error e)
+        {
+            UI.ErrorMessage($"Failed to init:\n{path}:\n{e.AllMessages()}");
+            ShowMainMenu();
+            return;
         }
 
         ShowRepo(path);

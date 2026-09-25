@@ -27,6 +27,10 @@ class Menu
 
     public const int Center = -int.MaxValue;
 
+    // Whether a click outside the menu closes it, as a context menu is closed. A menu whose closing
+    // quits gmd, the start menu, turns it off, since a stray click is not asking to quit.
+    public bool IsClosedOnClickOutside { get; init; } = true;
+
     public static void Show(string title, int x, int y, IEnumerable<MenuItem> items, Action? onEscAction = null)
     {
         var menu = new Menu(x, y, title, null, -1, onEscAction);
@@ -154,6 +158,9 @@ class Menu
         (var x, var y) = ToViewCoordinates(screenX, screenY);
         if (!IsInside(x, y))
         { // Clicked outside this menu, close this menu and forward click to parent menu
+            if (parent == null && !IsClosedOnClickOutside)
+                return;
+
             await CloseAsync();
             parent?.OnMouseClicked(screenX, screenY);
             if (parent == null)
