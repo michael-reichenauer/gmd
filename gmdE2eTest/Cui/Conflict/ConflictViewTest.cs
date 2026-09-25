@@ -236,6 +236,28 @@ public class ConflictViewTest
         StringAssert.Contains(gmd.WaitFor("using dev"), "all resolved", "The keys still reach the resolver");
     }
 
+    // Escape on the question is Stay, like any other way of backing out of it. It used to fall to
+    // Discard and Close, the one answer that loses the decisions, since only Stay's own button was
+    // checked for.
+    [TestMethod]
+    public async Task TestEscapeOnTheUnsavedDecisionsQuestionStays()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+        gmd.Send("Escape");
+        gmd.WaitFor("Unsaved Decisions");
+
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Unsaved Decisions"), "all resolved", "Still there to save");
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        StringAssert.Contains(text, "<<<<<<<", "and nothing has been written to the file");
+    }
+
     // Nothing decided is nothing to lose, so that close is not about unsaved work — but leaving the
     // file conflicted is still worth a word, since the merge cannot be committed until it is not
     [TestMethod]

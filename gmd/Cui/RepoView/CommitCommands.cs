@@ -641,7 +641,9 @@ class CommitCommands : ICommitCommands
                 $"There are {binaryFiles.Count} binary modified files:\n"
                 + $"  {string.Join("\n  ", binaryFiles)}"
                 + "\n\nDo you want to commit them as they are\nor first undo/revert them and then commit?";
-            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 1, ["Commit", "Undo", "Cancel"]);
+            // Cancel is the default: Undo reverts a changed binary file and deletes a new one, which is
+            // not what an Enter pressed out of habit should do
+            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 2, ["Commit", "Undo", "Cancel"]);
             if (rsp == 2 || rsp == -1)
                 return false; // Cancel
 

@@ -530,7 +530,8 @@ class ConflictView : IConflictView
             0,
             ["Stay", "Save and Close", "Discard and Close"]
         );
-        if (choice == 0)
+        // Esc (-1) backs out of the question, i.e. stays, rather than falling to Discard
+        if (choice is 0 or -1)
             return;
         if (choice == 1)
         {

@@ -144,6 +144,27 @@ public class CommitTest
         Assert.AreEqual("Add delta", await repo.GitAsync("log --format=%s -1"), "Nothing should be committed");
     }
 
+    // A binary file in the changes is asked about before the commit dialog opens, and Enter on that
+    // question used to be Undo, which reverts a changed binary file and deletes a new one, with no
+    // way back. Cancel is the default now: it changes nothing, and 'c' again is a key away.
+    [TestMethod]
+    public async Task TestEnterOnTheBinaryFilesQuestionChangesNothing()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        repo.WriteFile("image.bin", "binary\0data");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1 uncommitted changes");
+        gmd.Send("c");
+        gmd.WaitFor("Binary Files Detected");
+
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Binary Files Detected"), "©1 uncommitted changes");
+        Assert.IsFalse(gmd.Capture().Contains("Commit 1 changes"), "Cancel should not go on to commit");
+        Assert.AreEqual("?? image.bin", await repo.GitAsync("status -s"));
+        Assert.AreEqual("binary\0data", File.ReadAllText(Path.Join(repo.Path, "image.bin")));
+    }
+
     // The dialog's one validation rule, which is the difference between a rejected commit and a
     // commit with an empty message
     [TestMethod]
