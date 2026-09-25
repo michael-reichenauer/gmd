@@ -72,6 +72,30 @@ public class PushPullTest
         Assert.IsFalse(log.Contains("push --force-with-lease"), "'p' should not force push");
     }
 
+    // A click on ▲ or ▼ in the application bar opens a menu, the current branch or all of them. It
+    // used to push or pull every shown branch there and then.
+    [TestMethod]
+    [DataRow(true, "▲1", "Push Current Branch")]
+    [DataRow(false, "▼1", "Pull Current Branch")]
+    public async Task TestClickingTheAheadOrBehindMarkerOpensAMenu(bool isAhead, string marker, string item)
+    {
+        using var repo = isAhead ? await E2eRepo.CreateWithOriginAsync() : await E2eRepo.CreateBehindOriginAsync();
+        var (localMain, remoteMain) = (
+            await repo.GitAsync("rev-parse main"),
+            await repo.GitAsync("ls-remote origin main")
+        );
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor(marker), marker);
+
+        gmd.Click(x, y);
+        gmd.WaitFor(item);
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone(item), marker, "Nothing was pushed or pulled");
+        Assert.AreEqual(localMain, await repo.GitAsync("rev-parse main"), "main is untouched");
+        Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "and so is origin");
+    }
+
     // A branch whose remote has commits it has not got can only be pushed by force, so 'p' asks,
     // with Cancel the default, and Cancel leaves origin as it was
     [TestMethod]

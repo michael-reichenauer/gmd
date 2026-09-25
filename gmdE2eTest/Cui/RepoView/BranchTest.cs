@@ -522,4 +522,26 @@ public class BranchTest
             ScreenText.Rows(gmd.WaitFor("Merge to"), repo.Path, 4, 3)
         );
     }
+
+    // A middle click on a branch merges it into the current branch, after asking: on Linux the
+    // middle button is the habitual paste, so a click meant for something else used to merge. Yes
+    // is the default, so Enter merges; Escape answers No and leaves the repository alone.
+    [TestMethod]
+    [DataRow("Enter")]
+    [DataRow("Escape")]
+    public async Task TestMiddleClickOnABranchAsksBeforeMerging(string answer)
+    {
+        using var repo = await E2eRepo.CreateWithUnmergedBranchAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (_, y) = TmuxSession.PositionOf(gmd.WaitFor("Add gamma"), "Add gamma");
+
+        // 'main' is the leftmost column of the graph, and this is its row
+        gmd.Click(0, y, button: 1);
+        gmd.WaitFor("Merge 'main' into 'dev'?");
+        gmd.Send(answer);
+        gmd.WaitUntilGone("Merge 'main' into 'dev'?");
+
+        var isMerging = File.Exists(Path.Join(repo.Path, ".git", "MERGE_HEAD"));
+        Assert.AreEqual(answer == "Enter", isMerging, "Only Yes merges");
+    }
 }

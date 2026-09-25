@@ -191,10 +191,10 @@ class RepoViewInput
                 CommitCmds.CommitFromMenu(false);
                 break;
             case ApplicationBarItem.Behind:
-                BranchCmds.PullAllBranches();
+                Menus.ShowPullMenu(x - 5, y);
                 break;
             case ApplicationBarItem.Ahead:
-                BranchCmds.PushAllBranches();
+                Menus.ShowPushMenu(x - 5, y);
                 break;
             case ApplicationBarItem.BranchName:
                 Menus.ShowOpenBranchMenu(x - 5, y);
@@ -493,8 +493,13 @@ class RepoViewInput
             if (hb.LocalName != "")
                 hb = ServerRepo.BranchByName[hb.LocalName];
             if (!hb.IsCurrent && ServerRepo.Status.IsOk)
-            { // Some other branch merging to current
-                BranchCmds.MergeBranch(hb.Name);
+            { // Some other branch merging to current, after asking: on Linux the middle button is the
+                // habitual paste, so a click meant for something else would merge. Yes is the default,
+                // so a click meant as a merge is still just an Enter away.
+                var current = ServerRepo.CurrentBranch();
+                var question = $"Merge '{hb.ShortNiceUniqueName()}' into '{current.ShortNiceUniqueName()}'?";
+                if (UI.InfoMessage("Merge", question, 0, ["Yes", "No"]) == 0)
+                    BranchCmds.MergeBranch(hb.Name);
                 return;
             }
 

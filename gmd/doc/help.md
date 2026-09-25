@@ -54,7 +54,8 @@ In dialogs and text fields:
 The mouse works too: hovering highlights a branch, right-click opens the
 menu of a branch or a commit, double-click switches to a branch (or toggles
 the details of a commit), and middle-click merges a branch into the current
-branch. The items in the top bar can be clicked as well.
+branch, after asking. The items in the top bar can be clicked as well: `▲`
+and `▼` open a menu to push or pull the current branch or all of them.
 
 
 ## Symbols in Views

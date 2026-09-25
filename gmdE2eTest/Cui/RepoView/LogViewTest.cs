@@ -123,6 +123,23 @@ public class LogViewTest
         Assert.IsTrue(gmd.IsRunning, "A second Escape should answer No");
     }
 
+    // The X in the application bar asks as Escape does: it is a single click, beside the '?' of
+    // the help
+    [TestMethod]
+    public async Task TestClickingTheXAsksBeforeQuitting()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor("Initial"), "? X");
+
+        gmd.Click(x + 2, y);
+        gmd.WaitFor("Quit gmd?");
+        gmd.Send("Escape");
+
+        gmd.WaitUntilGone("Quit gmd?");
+        Assert.IsTrue(gmd.IsRunning, "No is the answer Escape gives");
+    }
+
     // The quit keys are registered on the log view, so a dialog above it has to swallow them or
     // typing a 'q' into a text field would quit gmd. Worth pinning rather than assuming, since
     // it is what makes registering both cases of the key safe.

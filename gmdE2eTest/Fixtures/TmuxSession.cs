@@ -219,6 +219,32 @@ sealed class TmuxSession : IDisposable
     // StableCount.
     public void Send(params string[] keys) => Tmux(["send-keys", "-t", "gmd", .. keys]);
 
+    // Clicks a cell, given 0-based as the rows and columns of a capture are, by typing the SGR mouse
+    // sequences a terminal sends for a press and a release. gmd turns mouse reporting on, and tmux
+    // passes the bytes to it as they are. The button is 0 for the left, 1 the middle, 2 the right.
+    // The screen must have settled first, as for a key.
+    public void Click(int x, int y, int button = 0)
+    {
+        SendText($"\u001b[<{button};{x + 1};{y + 1}M");
+        SendText($"\u001b[<{button};{x + 1};{y + 1}m");
+    }
+
+    // Where a text first is on the screen, 0-based, for clicking it. Every rune gmd draws is one cell
+    // wide, so the index in the row is the column.
+    public static (int X, int Y) PositionOf(string screen, string text)
+    {
+        var rows = screen.Split('\n');
+        for (int y = 0; y < rows.Length; y++)
+        {
+            var x = rows[y].IndexOf(text, StringComparison.Ordinal);
+            if (x != -1)
+                return (x, y);
+        }
+
+        Assert.Fail($"'{text}' is not on the screen:\n{screen}");
+        return (0, 0);
+    }
+
     // Sends text literally, for typing into a dialog, so that e.g. "Down" is five characters
     // rather than a cursor key
     public void SendText(string text) => Tmux("send-keys", "-t", "gmd", "-l", text);

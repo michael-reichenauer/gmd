@@ -11,8 +11,12 @@ interface IBranchMenu
     void ShowCommitBranchesMenu(int x, int y);
     void ShowMergeFromMenu(int x = Menu.Center, int y = 0);
     void ShowMergeToMenu(int x = Menu.Center, int y = 0);
+    void ShowPushMenu(int x, int y);
+    void ShowPullMenu(int x, int y);
 
     IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false);
+    IEnumerable<MenuItem> GetPushItems();
+    IEnumerable<MenuItem> GetPullItems();
     IEnumerable<MenuItem> GetShowBranchItems();
     IEnumerable<MenuItem> GetShownBranchesItems();
 }
@@ -63,6 +67,51 @@ class BranchMenu : IBranchMenu
     {
         Menu.Show("Merge to", x, y, GetMergeToItems());
     }
+
+    public void ShowPushMenu(int x, int y)
+    {
+        Menu.Show("Push", x, y + 2, GetPushItems());
+    }
+
+    public void ShowPullMenu(int x, int y)
+    {
+        Menu.Show("Pull", x, y + 2, GetPullItems());
+    }
+
+    // What the ▲ and ▼ in the application bar open. A click on either used to push or pull every
+    // shown branch there and then, so a stray click changed the remote; now it offers the current
+    // branch or all of them. The items are enabled by the same rules the keys are checked against,
+    // so a diverged current branch is not offered a push: that needs a force push, which 'p' asks
+    // about first, and it should not be a click away.
+    public IEnumerable<MenuItem> GetPushItems() =>
+        Menu
+            .Items.Item(
+                "Push Current Branch",
+                "P",
+                () => cmds.PushCurrentBranch(),
+                () => BranchPushPullCommands.CanPushCurrentBranch(repo.Repo)
+            )
+            .Item(
+                "Push All Branches",
+                "Shift-P",
+                () => cmds.PushAllBranches(),
+                () => BranchPushPullCommands.CanPush(repo.Repo)
+            );
+
+    public IEnumerable<MenuItem> GetPullItems() =>
+        Menu
+            .Items.Item(
+                "Pull Current Branch",
+                "U",
+                () => cmds.PullCurrentBranch(),
+                () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo)
+            )
+            .Item(
+                "Pull/Update All Branches",
+                "Shift-U",
+                () => cmds.PullAllBranches(),
+                () => BranchPushPullCommands.CanPull(repo.Repo)
+            );
 
     public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
     {

@@ -15,6 +15,8 @@ interface IRepoViewMenus
     void ShowMergeToMenu(int x = Menu.Center, int y = 0);
     void ShowOpenRepoMenu(int x = Menu.Center, int y = 0);
     void ShowDiffBranchToMenu(int x, int y, string branchName);
+    void ShowPushMenu(int x, int y);
+    void ShowPullMenu(int x, int y);
 }
 
 class RepoViewMenus : IRepoViewMenus
@@ -50,4 +52,8 @@ class RepoViewMenus : IRepoViewMenus
 
     public void ShowDiffBranchToMenu(int x, int y, string branchName) =>
         branchMenu.ShowDiffBranchToMenu(x, y, branchName);
+
+    public void ShowPushMenu(int x, int y) => branchMenu.ShowPushMenu(x, y);
+
+    public void ShowPullMenu(int x, int y) => branchMenu.ShowPullMenu(x, y);
 }

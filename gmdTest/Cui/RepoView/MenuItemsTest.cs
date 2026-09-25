@@ -337,6 +337,61 @@ public class MenuItemsTest
         StringAssert.Contains(items, "Pull/Update  [U]\n");
     }
 
+    // What a click on ▲ in the application bar offers. It used to push every shown branch there and
+    // then; now it is a menu, the current branch or all of them.
+    [TestMethod]
+    public async Task TestThePushMenuOffersTheCurrentBranchOrAll()
+    {
+        Assert.AreEqual(
+            """
+            Push Current Branch  [P]
+            Push All Branches  [Shift-P]
+            """,
+            Items(BranchMenuOf(await ViewOf(AheadFixture())).GetPushItems())
+        );
+    }
+
+    // ... and a diverged current branch is not offered a push at all: it would have to be a force
+    // push, which 'p' asks about first, and that should not be a click away
+    [TestMethod]
+    public async Task TestThePushMenuOffersNoPushOfADivergedBranch()
+    {
+        Assert.AreEqual(
+            """
+            Push Current Branch  [P]  (disabled)
+            Push All Branches  [Shift-P]  (disabled)
+            """,
+            Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPushItems())
+        );
+    }
+
+    // What a click on ▼ offers, the mirror of ▲. A diverged current branch can be pulled, since the
+    // current branch is pulled with 'git pull', which merges.
+    [TestMethod]
+    public async Task TestThePullMenuOffersTheCurrentBranchOrAll()
+    {
+        Assert.AreEqual(
+            """
+            Pull Current Branch  [U]
+            Pull/Update All Branches  [Shift-U]
+            """,
+            Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPullItems())
+        );
+    }
+
+    // Uncommitted changes grey out both, as they do the keys
+    [TestMethod]
+    public async Task TestUncommittedChangesDisableThePushMenu()
+    {
+        Assert.AreEqual(
+            """
+            Push Current Branch  [P]  (disabled)
+            Push All Branches  [Shift-P]  (disabled)
+            """,
+            Items(BranchMenuOf(await ViewOf(AheadFixture().WithStatus(modified: 1))).GetPushItems())
+        );
+    }
+
     [TestMethod]
     public async Task TestNoNewReleaseAddsNothingToTheMenu()
     {
@@ -418,6 +473,13 @@ public class MenuItemsTest
             .Commit("c2", "Second", "c1")
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "r1", ahead: 1, behind: 1);
+
+    // 'main' is current with one commit not yet pushed
+    static RepoBuilder AheadFixture() =>
+        new RepoBuilder()
+            .Commit("l1", "Local 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "c1", ahead: 1);
 
     static RepoBuilder Fixture() =>
         new RepoBuilder()
