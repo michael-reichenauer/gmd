@@ -183,7 +183,19 @@ sealed class TmuxSession : IDisposable
     // The same for a line gmd writes more than once, e.g. a change event, until it is there 'times'
     // times, which is how a test waits for the next one after those already logged (LogCount).
     // Named apart from WaitForLog, whose second parameter is the timeout, also an int.
-    public string WaitForLogTimes(string expected, int times, int timeoutMs = DefaultTimeoutMs)
+    public string WaitForLogTimes(string expected, int times, int timeoutMs = DefaultTimeoutMs) =>
+        PollLog(log => CountOf(log, expected) >= times, $"'{expected}'", timeoutMs);
+
+    // The same for any one of several lines, for a test where either of two things can happen and
+    // both mean that the moment it waits for has passed
+    public string WaitForLogAny(params string[] expected) =>
+        PollLog(
+            log => expected.Any(log.Contains),
+            string.Join(" or ", expected.Select(e => $"'{e}'")),
+            DefaultTimeoutMs
+        );
+
+    string PollLog(Func<string, bool> isDone, string what, int timeoutMs)
     {
         var path = Path.Join(Home, "gmd.log");
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
@@ -192,13 +204,13 @@ sealed class TmuxSession : IDisposable
         {
             // gmd has it open for writing, hence the share mode
             log = File.Exists(path) ? ReadShared(path) : "";
-            if (CountOf(log, expected) >= times)
+            if (isDone(log))
                 return log;
 
             Thread.Sleep(PollMs);
         }
 
-        Assert.Fail($"Timed out after {timeoutMs} ms waiting for '{expected}' in {path}\n{Diagnostics(Capture())}");
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for {what} in {path}\n{Diagnostics(Capture())}");
         return log;
     }
 

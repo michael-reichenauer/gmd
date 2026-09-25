@@ -39,6 +39,12 @@ class FilterDlg : IFilterDlg
     Text repoInfo = Text.Empty;
     int closeX = 0;
 
+    // Which showing of the dialog this is, since it is reused, and whether it is up, so that a search
+    // still running when it closes knows its answer is no longer wanted: shown then, it replaced the
+    // log the user had gone back to with the results, the dialog gone
+    int session;
+    bool isOpen;
+
     internal FilterDlg(IServer server, IBranchColorService branchColorService)
     {
         this.server = server;
@@ -54,6 +60,8 @@ class FilterDlg : IFilterDlg
         this.selectedCommit = new Error("No commit selected");
         this.onRepoChanged = onRepoChanged;
         this.resultsView = commitsView;
+        this.session++;
+        this.isOpen = true;
 
         dlg = new UIDialog(
             "Filter Commits",
@@ -102,6 +110,7 @@ class FilterDlg : IFilterDlg
         finally
         {
             commitsView.Y = orgY;
+            isOpen = false;
         }
 
         return selectedCommit;
@@ -202,8 +211,9 @@ class FilterDlg : IFilterDlg
 
     async Task UpdateFilteredResults()
     {
+        var session = this.session;
         var filter = filterField.Text.Trim();
-        if (filter == currentFilter)
+        if (!isOpen || filter == currentFilter)
             return;
         currentFilter = filter;
 
@@ -211,7 +221,7 @@ class FilterDlg : IFilterDlg
         if (terms.Files.Count > 0)
         { // Git is asked, once typing pauses, and what it answers is dropped if typing went on
             await Task.Delay(FileSearchDelay);
-            if (filter != currentFilter)
+            if (!IsStillWanted(filter, session))
                 return;
             statusLabel.Text = Text.Dark("Searching the changed files ...");
         }
@@ -221,7 +231,7 @@ class FilterDlg : IFilterDlg
         if (terms.Words.Count + terms.Files.Count > 0)
         {
             var result = await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults);
-            if (filter != currentFilter)
+            if (!IsStillWanted(filter, session))
                 return;
             if (result is Server.Repo repo)
                 filteredRepo = repo;
@@ -242,6 +252,19 @@ class FilterDlg : IFilterDlg
         repoInfo = GetRepoInfo();
         ShowCommitInfo();
         onRepoChanged(currentRepo);
+    }
+
+    // Whether a search that had to wait is still the one to show: not if typing went on, nor once
+    // the dialog has closed, or closed and been shown again
+    bool IsStillWanted(string filter, int session)
+    {
+        if (!isOpen || session != this.session)
+        {
+            Log.Info("Search dropped, the search closed before it was done");
+            return false;
+        }
+
+        return filter == currentFilter;
     }
 
     void ShowCommitInfo()

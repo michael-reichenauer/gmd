@@ -157,6 +157,29 @@ public class FilterDlgTest
         Assert.IsFalse(screen.Contains("Merge branch"), "The merge brought the change in, but made none");
     }
 
+    // A 'file:' search still waiting for git when the search closes is dropped. It used to be shown
+    // once git answered, replacing the log the user had gone back to with the results, and the next
+    // refresh then showed every branch they were on.
+    [TestMethod]
+    public async Task TestAFileSearchStillRunningWhenTheSearchClosesIsDropped()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+
+        // In one go, so that the search closes while it waits for the typing to pause. Git is asked
+        // anyway if it closes later, so either line in the log means the answer has come or never will.
+        gmd.Send("file:dev.txt", "Escape");
+        gmd.WaitUntilGone("Filter Commits");
+        gmd.WaitForLogAny("Search dropped", "--full-history");
+
+        var screen = gmd.WaitForStable();
+        StringAssert.Contains(screen, "Add delta");
+        Assert.IsFalse(screen.Contains("More dev work"), "The results of the search are not shown after it closed");
+    }
+
     // A change that comes while the search is up is shown once it closes. It used to be dropped:
     // the refresh it set off read nothing while the search had the log, and nothing read again after.
     [TestMethod]
