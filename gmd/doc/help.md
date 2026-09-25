@@ -217,15 +217,17 @@ shown, their colors and their order.
 - **Squash** (under **Rebase** in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message.
-- **Undo** (in the commit menu):
+- **Undo** (in the commit menu, and `U` in the diff of the uncommitted
+  changes). The items that throw changes away for good ask first:
   - **Undo/Restore an Uncommitted File**: `git checkout --force <file>`, or
     a new file is deleted
   - **Undo Commit**: `git revert --no-commit <commit-sha>`
   - **Uncommit**: `git reset HEAD~1`, the changes stay uncommitted
-  - **Uncommit until <commit-sha>**: `git reset --soft <commit-sha>`
+  - **Uncommit until <commit-sha>**: `git reset --soft <commit-sha>~`, so
+    that commit and the ones after it are uncommitted
   - **Undo/Restore all Uncommitted Changes**: `git reset --hard` and
     `git clean -fd`
-- **Clean/Restore Working Folder** (in the repo menu):
+- **Clean/Restore Working Folder** (in the repo menu, asks first):
   `git reset --hard` and `git clean -fxd`, which also deletes the files git
   ignores.
 - **Blame File ...**:

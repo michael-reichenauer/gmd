@@ -364,6 +364,10 @@ class CommitCommands : ICommitCommands
     public void StashDrop(string name) =>
         Do(async () =>
         {
+            var message = repo.Repo.Stashes.FirstOrDefault(s => s.Name == name)?.Message ?? name;
+            if (!Confirm.DropStash(message))
+                return Result.Ok;
+
             if (await server.StashDropAsync(name, repo.Path) is Error e)
             {
                 return new Error($"Failed to drop stash {name}", e);
@@ -482,6 +486,9 @@ class CommitCommands : ICommitCommands
     public void UndoUncommittedFile(string path) =>
         Do(async () =>
         {
+            if (!Confirm.UndoFile(path, repo.Repo.Status.AddedFiles.Contains(path)))
+                return Result.Ok;
+
             if (await server.UndoUncommittedFileAsync(path, repo.Path) is Error e)
             {
                 return new Error($"Failed to undo {path}", e);
@@ -494,6 +501,9 @@ class CommitCommands : ICommitCommands
     public void UndoUncommittedFiles(IReadOnlyList<string> paths) =>
         Do(async () =>
         {
+            if (!Confirm.UndoFiles(paths))
+                return Result.Ok;
+
             await UndoUncommittedFilesAsync(paths);
             Refresh();
             return Result.Ok;
@@ -550,6 +560,9 @@ class CommitCommands : ICommitCommands
             var commit = repo.RowCommit;
             var branch = repo.Repo.BranchByName[commit.BranchName];
             var isPushable = branch.IsRemote || branch.RemoteName != "";
+
+            if (!Confirm.RemoveTag(name, isPushable))
+                return Result.Ok;
 
             if (await server.RemoveTagAsync(name, isPushable, repo.Path) is Error e)
             {

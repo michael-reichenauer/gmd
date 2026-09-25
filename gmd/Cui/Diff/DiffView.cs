@@ -358,7 +358,11 @@ class DiffView : IDiffView
 
         var binaryPaths = diffService.GetDiffBinaryFilePaths(diffs[0]);
 
-        var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
+        var addedPaths = diffs[0]
+            .FileDiffs.Where(fd => fd.DiffMode == DiffMode.DiffAdded)
+            .Select(fd => fd.PathAfter)
+            .ToHashSet();
+        var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p, addedPaths.Contains(p))));
         if (undoItems.Count() > 10)
         { // Show files ith sub menu
             undoItems = new[] { new SubMenu("Uncommitted Files", "", undoItems) };
@@ -373,6 +377,9 @@ class DiffView : IDiffView
 
     async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)
     {
+        if (!Confirm.UndoFiles(binaryPaths))
+            return;
+
         using (progress.Show())
         {
             foreach (var path in binaryPaths)
@@ -387,8 +394,11 @@ class DiffView : IDiffView
         RefreshDiff();
     }
 
-    async void UndoFile(string path)
+    async void UndoFile(string path, bool isNew)
     {
+        if (!Confirm.UndoFile(path, isNew))
+            return;
+
         using (progress.Show())
         {
             if (await server.UndoUncommittedFileAsync(path, repoPath) is Error e)
@@ -402,6 +412,9 @@ class DiffView : IDiffView
 
     async void UndoAll()
     {
+        if (!Confirm.UndoAllUncommitted())
+            return;
+
         using (progress.Show())
         {
             if (await server.UndoAllUncommittedChangesAsync(repoPath) is Error e)

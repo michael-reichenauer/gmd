@@ -629,4 +629,65 @@ public class CommitTest
             "Both the modified file and the untracked one come back"
         );
     }
+
+    // Dropping a stash asks first, with No the default: its changes exist nowhere else. Stash Drop is
+    // two below Stash Pop, which is where the cursor lands, as in the test above.
+    [TestMethod]
+    public async Task TestStashDropAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateWithStashAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCommitSubMenu(gmd, 3, "Stash Pop");
+        for (int i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("stashed work");
+        gmd.Send("Enter");
+        gmd.WaitFor("Drop the stash?");
+
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Drop the stash?");
+        Assert.AreEqual("stash@{0}: On main: stashed work", await repo.GitAsync("stash list"), "Still there");
+    }
+
+    // Removing a tag asks first, with No the default, and says when it goes from origin too
+    [TestMethod]
+    public async Task TestRemoveTagAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCommitSubMenu(gmd, 4, "Add Tag");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("v1.0");
+        gmd.Send("Enter");
+        gmd.WaitFor("Remove the tag 'v1.0'?");
+
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Remove the tag");
+        Assert.AreEqual("v1.0", await repo.GitAsync("tag"), "Still there");
+    }
+
+    // Opens the commit menu of the current row and the sub menu 'moves' down from the first
+    // enabled item, one key per Send since a menu redraw drops what was sent behind it
+    static void OpenCommitSubMenu(TmuxSession gmd, int moves, string firstItem)
+    {
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        for (int i = 0; i < moves; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor(firstItem);
+    }
 }

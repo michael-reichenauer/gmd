@@ -163,6 +163,9 @@ class RepoCommands : IRepoCommands
     public void UndoAllUncommittedChanged() =>
         Do(async () =>
         {
+            if (!Confirm.UndoAllUncommitted())
+                return Result.Ok;
+
             if (await server.UndoAllUncommittedChangesAsync(repo.Path) is Error e)
             {
                 return new Error($"Failed to undo all changes", e);
@@ -175,17 +178,8 @@ class RepoCommands : IRepoCommands
     public void CleanWorkingFolder() =>
         Do(async () =>
         {
-            if (
-                UI.InfoMessage(
-                    "Clean Working Folder",
-                    "Do you want to reset folder\nand delete all untracked files and folders?",
-                    1,
-                    ["Yes", "No"]
-                ) != 0
-            )
-            {
+            if (!Confirm.CleanWorkingFolder())
                 return Result.Ok;
-            }
 
             if (await server.CleanWorkingFolderAsync(repo.Path) is Error e)
             {

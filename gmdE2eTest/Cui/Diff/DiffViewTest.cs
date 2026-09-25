@@ -235,6 +235,32 @@ public class DiffViewTest
         Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
     }
 
+    // Undoing uncommitted changes from the diff asks first, and No is the default: the item is
+    // chosen from a menu, where the slip is an Enter on the wrong line, and a new file is deleted
+    // with no way to get it back. The question says which of the two it is.
+    [TestMethod]
+    [DataRow("Down", "Delete the new file?")]
+    [DataRow("End", "Undo all uncommitted changes?")]
+    public async Task TestUndoFromTheDiffAsksFirst(string move, string question)
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©2 uncommitted changes");
+        gmd.Send("d");
+        gmd.WaitFor("Added: epsilon.txt");
+        gmd.Send("u");
+        gmd.WaitFor("All Uncommitted Changes");
+        gmd.Send(move);
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor(question);
+
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone(question), "Added: epsilon.txt", "Still in the diff");
+        Assert.AreEqual(" M alpha.txt\n?? epsilon.txt", await repo.GitAsync("status -s"), "Nothing undone");
+    }
+
     // Both cases open the menu: the menus write their shortcuts in upper case, so that is what gets
     // pressed
     [TestMethod]
