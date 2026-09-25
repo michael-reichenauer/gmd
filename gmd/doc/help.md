@@ -3,7 +3,7 @@
 ## Keyboard Shortcuts
 
 The most used keys of the log view. The menus show the key of every command
-that has one.
+that has one, and pressing it in an open menu picks that item.
 
 ---------------------------------------------------------------------------
 | Key        | Description                                                |

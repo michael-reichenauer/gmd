@@ -12,7 +12,11 @@ class Menu
     readonly Action onEscAction;
     readonly Menu? parent;
     Menu? childSubMenu;
-    int childSubMenuIndex;
+
+    // The item of the sub menu that was open last, so that a click on that item, which closes the
+    // sub menu (see OnMouseClicked), is not also taken as opening it again. Only a click: a sub
+    // menu closed from the keyboard clears it, or the next Enter on the item would be swallowed.
+    int childSubMenuIndex = -1;
 
     UIDialog dlg = null!;
     ContentView itemsView = null!;
@@ -190,11 +194,24 @@ class Menu
         view.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         view.RegisterKeyHandler(Key.CursorRight, () => OpenSubMenu());
 
+        // The key an item shows beside it picks that item, see MenuShortcuts
+        foreach (var (key, index) in MenuShortcuts.Of(items))
+            view.RegisterKeyHandler(key, () => OnShortcut(index));
+
         return view;
+    }
+
+    // As Enter on the item: a sub menu opens, anything else runs. The cursor is moved there first,
+    // which is what Enter acts on, and so that an opened sub menu is placed beside its item.
+    void OnShortcut(int index)
+    {
+        itemsView.Move(index - itemsView.CurrentIndex);
+        OnEnter();
     }
 
     async void OnKeyEsc()
     {
+        ClearParentSubMenuIndex();
         await CloseAsync();
         if (parent == null)
         {
@@ -313,7 +330,14 @@ class Menu
     {
         if (parent == null)
             return; // Do not close top level menu on left arrow (only sub menus)
+        ClearParentSubMenuIndex();
         CloseAsync().RunInBackground();
+    }
+
+    void ClearParentSubMenuIndex()
+    {
+        if (parent != null)
+            parent.childSubMenuIndex = -1;
     }
 
     void OpenSubMenu()

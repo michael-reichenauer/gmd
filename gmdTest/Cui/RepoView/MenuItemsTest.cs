@@ -392,6 +392,44 @@ public class MenuItemsTest
         );
     }
 
+    // The keys that pick an item of the branch menu while it is open, which are the keys it shows:
+    // 'u' pulls this branch and 'U' every branch, and 'd' opens the diff sub menu. The keys of the
+    // disabled items (Pull/Update here, which has nothing to pull) pick nothing.
+    [TestMethod]
+    public async Task TestTheBranchMenuKeysPickTheItemsShowingThem()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture()))
+            .GetBranchMenuItems("dev")
+            .Select(i => i with { IsDisabled = IsDisabled(i) })
+            .ToList();
+
+        var picked = MenuShortcuts
+            .Of(items)
+            .OrderBy(k => k.Value)
+            .Select(k => $"{KeyName(k.Key)} {items[k.Value].Text}");
+
+        Assert.AreEqual(
+            """
+            s Switch/Checkout to Branch
+            S Switch/Checkout to Branch
+            e Merge to main
+            E Merge from main
+            h Hide Branch
+            H Hide Branch
+            p Push
+            b Create Branch ...
+            B Create Branch ...
+            d Diff Branch to
+            D Diff Branch to
+            g Change Branch Color
+            G Change Branch Color
+            U Pull/Update All Branches
+            P Push All Branches
+            """,
+            string.Join("\n", picked)
+        );
+    }
+
     [TestMethod]
     public async Task TestNoNewReleaseAddsNothingToTheMenu()
     {
@@ -414,6 +452,8 @@ public class MenuItemsTest
                 return $"{i.Text}{(i is SubMenu ? " >" : "")}{shortcut}{(IsDisabled(i) ? "  (disabled)" : "")}";
             })
         );
+
+    static string KeyName(Terminal.Gui.Key key) => ((char)key).ToString();
 
     static bool IsDisabled(MenuItem i) =>
         i.IsDisabled || !(i.CanExecute?.Invoke() ?? true) || (i is SubMenu sm && !sm.Children.Any());

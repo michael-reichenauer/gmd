@@ -511,7 +511,7 @@ keep doing:
   why `TestSetup` raises the pool's minimum; without that, six workers on two cores starved the pool
   and a run took ten minutes.
 
-Five traps worth knowing before adding one:
+Six traps worth knowing before adding one:
 
 - **`Escape` in the log view asks "Quit gmd?", with Yes as the default** — never send a "safety"
   Escape: it leaves the question up, and the next `Enter` quits.
@@ -523,6 +523,8 @@ Five traps worth knowing before adding one:
   `Branch: <name>` menu title; that is the only readout from outside. And expect the hoover to stay
   where it was after a command rather than follow what appeared: after `Enter` opens a branch it is
   still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
+- **A letter sent to an open menu picks the item showing it** (`MenuShortcuts`), as Enter would.
+  Drive a menu by the arrows and Enter, or by the letter on purpose, never by typing into it.
 - **One key per `Send` when driving a menu**, with a `WaitForStable` after each. `Send("Down",
   "Down", …)` in one call loses keys — a menu redraw drops whatever was sent behind it, so five
   arrived as three, and a miscounted menu runs the wrong command. Same "never send a key into a
@@ -565,7 +567,7 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `KeyHints`, `MenuDimensions`,
-  `MenuRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
+  `MenuRows`, `MenuShortcuts`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
   string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.

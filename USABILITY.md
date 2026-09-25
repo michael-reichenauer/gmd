@@ -184,7 +184,9 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    conflicts. The diff and blame views have no such line yet; the conflict resolver's status line
    already names its keys.
 2. **In a menu, pressing the letter it shows runs that item,** and typing in a long branch list
-   narrows it.
+   narrows it. *The letters are done (2026-09-25):* `MenuShortcuts`, both cases of a letter unless
+   the menu also shows it as `Shift-`, and a greyed out item's key does nothing. Type-to-find in the
+   long branch lists is still open.
 3. **A short non-modal status message** for no-ops and results: "Nothing to commit", "Highlight a
    branch with ← → first", "Pushed main", "Fetch failed: offline". It replaces the red box for
    anything that is not an error, and fades after a few seconds.
