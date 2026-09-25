@@ -736,16 +736,18 @@ class BranchMenu : IBranchMenu
         );
     }
 
-    string ToBranchOwnerInitials(Branch b)
-    {
-        var tip = repo.Repo.CommitById[b.TipId];
-        var initials = string.Join(
-            ' ',
-            tip.Author.Split(' ').Select(p => p.Trim()).Where(p => p.Length > 0).Take(2).Select(p => p[0])
-        );
+    string ToBranchOwnerInitials(Branch b) => $"'{Initials(repo.Repo.CommitById[b.TipId].Author)}'";
 
-        return $"'{initials}'";
-    }
+    // The initials of an author, e.g. 'T U' for Test User, which the branch lists show for who made
+    // the last commit of a branch. The Find Branch dialog shows them too.
+    internal static string Initials(string author) =>
+        string.Join(
+            ' ',
+            author
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(2)
+                .Select(p => p[0])
+        );
 
     string ToBranchMenuName(Branch branch, bool canBeOutside = false, bool isNoShowIcon = false)
     {

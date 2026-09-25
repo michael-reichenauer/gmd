@@ -30,6 +30,7 @@ class FindBranchDlg : IFindBranchDlg
     UILabel statusLabel = null!;
     Repo repo = null!;
     IReadOnlyList<Branch> found = [];
+    int totalCount; // The branches there are to find, which cannot change while the dialog is up
     string? foundText;
     Result<Branch> picked = new Error("No branch picked");
 
@@ -43,10 +44,11 @@ class FindBranchDlg : IFindBranchDlg
         this.repo = repo;
         this.picked = new Error("No branch picked"); // The dialog is reused
         this.foundText = null;
+        this.totalCount = BranchFinder.Find(repo, "").Count;
         // As tall as every branch needs, within the screen, so that a repo with few is not a box of
         // blank rows: the list plus the field, the line under it, the status and the borders
         var width = Math.Min(MaxWidth, Application.Driver.Cols - 4);
-        var height = Math.Min(Math.Min(MaxHeight, Application.Driver.Rows - 4), Math.Max(8, TotalCount() + 5));
+        var height = Math.Min(Math.Min(MaxHeight, Application.Driver.Rows - 4), Math.Max(8, totalCount + 5));
 
         dlg = new UIDialog("Find Branch", width, height, OnKey);
         dlg.RegisterMouseHandler(OnMouse);
@@ -86,12 +88,9 @@ class FindBranchDlg : IFindBranchDlg
         UpdateStatus();
     }
 
-    int TotalCount() => BranchFinder.Find(repo, "").Count;
-
     void UpdateStatus()
     {
-        var total = TotalCount();
-        var matches = found.Count == total ? $"{total} branches" : $"{found.Count} of {total} branches";
+        var matches = found.Count == totalCount ? $"{totalCount} branches" : $"{found.Count} of {totalCount} branches";
         statusLabel.Text = Text.Dark($"{matches}   ").Cyan("↑↓").Dark(" select  ").Cyan("Enter").Dark(" show");
     }
 
@@ -178,7 +177,7 @@ class FindBranchDlg : IFindBranchDlg
             : b.IsInView ? "o"
             : " ";
         var name = b.IsGitBranch ? $" {b.NiceNameUnique}" : $"~{b.NiceNameUnique}";
-        var initials = Initials(repo.CommitById[b.TipId].Author);
+        var initials = BranchMenu.Initials(repo.CommitById[b.TipId].Author);
 
         var nameWidth = Math.Max(0, width - 4 - initials.Length - 1);
         var nameText = name.Length > nameWidth ? name[..Math.Max(0, nameWidth - 1)] + "┅" : name.PadRight(nameWidth);
@@ -186,7 +185,4 @@ class FindBranchDlg : IFindBranchDlg
 
         return Text.White($" {marker}").Color(color, nameText).Dark($" {initials} ");
     }
-
-    static string Initials(string author) =>
-        string.Join(' ', author.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => p[0]));
 }
