@@ -299,24 +299,29 @@ public class MenuItemsTest
         );
     }
 
-    // Uncommitted changes block everything that would move the working tree from under them
+    // Uncommitted changes block a pull, which would move the working tree from under them, but not
+    // a push, which sends commits and leaves the changes where they are
     [TestMethod]
-    public async Task TestUncommittedChangesDisableThePullAndPushItems()
+    public async Task TestUncommittedChangesDisablePullingButNotPushing()
     {
         var items = Items(RepoMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetRepoMenuItems());
 
         StringAssert.Contains(items, "Pull All Branches  [Shift-U]  (disabled)");
-        StringAssert.Contains(items, "Push All Branches  [Shift-P]  (disabled)");
+        StringAssert.Contains(items, "Push All Branches  [Shift-P]\n");
     }
 
-    // The same two under Branches in the commit menu, where a push of everything is greyed out
-    // the same way, while an update of all branches is a fetch and so is left alone
+    // What does block a push is a merge or rebase stopped part way through, the branch being
+    // unfinished, or HEAD not even on it. The same under Branches in the commit menu.
     [TestMethod]
-    public async Task TestUncommittedChangesDisableThePushAllItemOfTheShownBranches()
+    public async Task TestAnOperationInProgressDisablesPushAll()
     {
-        var items = Items(BranchMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetShownBranchesItems());
+        var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
-        StringAssert.Contains(items, "Pull All Branches  [Shift-U]\nPush All Branches  [Shift-P]  (disabled)");
+        StringAssert.Contains(Items(RepoMenuOf(view).GetRepoMenuItems()), "Push All Branches  [Shift-P]  (disabled)");
+        StringAssert.Contains(
+            Items(BranchMenuOf(view).GetShownBranchesItems()),
+            "Push All Branches  [Shift-P]  (disabled)"
+        );
     }
 
     // 'Pull' is a fetch for a branch that is not current, and git only fast-forwards one,
@@ -382,14 +387,14 @@ public class MenuItemsTest
         );
     }
 
-    // Uncommitted changes grey out both, as they do the keys
+    // Uncommitted changes leave both, as they do the keys: a push leaves the changes where they are
     [TestMethod]
-    public async Task TestUncommittedChangesDisableThePushMenu()
+    public async Task TestUncommittedChangesLeaveThePushMenu()
     {
         Assert.AreEqual(
             """
-            Push Current Branch  [P]  (disabled)
-            Push All Branches  [Shift-P]  (disabled)
+            Push Current Branch  [P]
+            Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(await ViewOf(AheadFixture().WithStatus(modified: 1))).GetPushItems())
         );

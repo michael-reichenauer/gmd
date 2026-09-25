@@ -234,6 +234,9 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    label the target in the top bar (`▸ dev`). *The label is done (2026-09-25),* on the key-hint line,
    which starts with the highlighted branch's name (`dev:  s switch …`); the mouse still moves it.
 5. **Don't require a clean tree to push.** For merge and switch, offer "stash, do it, pop".
+   *Done (2026-09-25):* push only waits for a merge or rebase in progress, and says the changes
+   stay local; a switch git refuses over the changes offers Stash and Switch. Merge and pull still
+   ask for a clean tree.
 6. **Write keys in the help and the README the way they are pressed.**
 
 ### Tier 4: bigger bets, to decide later
@@ -267,4 +270,4 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 - `help.md`:
   - It says *Uncommit until X* is `reset --soft X`, but the code resets to X's parent, so X is
     uncommitted too.
-  - It says a diverged branch "cannot be pushed", but `p` offers *Force Push*.
+  - ~~It says a diverged branch "cannot be pushed", but `p` offers *Force Push*.~~ Fixed.

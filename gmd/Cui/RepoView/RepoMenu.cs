@@ -64,8 +64,8 @@ class RepoMenu : IRepoMenu
                 "Push All Branches",
                 "Shift-P",
                 () => repo.BranchCmds.PushAllBranches(),
-                () => isStatusOK,
-                () => Why.Changes
+                () => !repo.Repo.Status.IsMerging,
+                () => Why.InProgress
             )
             .Item("Search ...", "F", () => cmds.SearchFilterRepo())
             .Item("Refresh", "R", () => cmds.RefreshAndFetch())

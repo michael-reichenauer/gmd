@@ -545,4 +545,41 @@ public class BranchTest
         var isMerging = File.Exists(Path.Join(repo.Path, ".git", "MERGE_HEAD"));
         Assert.AreEqual(answer == "Enter", isMerging, "Only Yes merges");
     }
+
+    // A switch that git refuses, since it would overwrite uncommitted changes, offers to take them
+    // along by way of the stash. long.txt differs between main and dev, so a change to it on main
+    // stops the switch, and its first line, which the two agree on, puts it back cleanly on dev.
+    [TestMethod]
+    public async Task TestSwitchTakesTheChangesAlongByWayOfTheStash()
+    {
+        using var repo = await E2eRepo.CreateWithConflictingBranchAsync();
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        lines[0] = "line 1 changed";
+        lines[39] = "line 40 on main";
+        repo.WriteFile("long.txt", string.Join("\n", lines) + "\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1");
+
+        // Show dev by name, which puts the cursor on its commit, and highlight it
+        gmd.Send("S-Right");
+        gmd.WaitFor("type to find");
+        gmd.Send("d");
+        gmd.WaitFor("Find Branch");
+        gmd.SendText("ev");
+        gmd.WaitFor("Name: dev");
+        gmd.Send("Enter");
+        gmd.WaitFor("Change it on dev");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+
+        gmd.Send("s");
+        gmd.WaitFor("Stash and Switch");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Switched to 'dev', with the changes");
+        Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+        Assert.AreEqual(" M long.txt", await repo.GitAsync("status -s"), "The change came along");
+        StringAssert.StartsWith(File.ReadAllText(Path.Join(repo.Path, "long.txt")), "line 1 changed\n");
+        Assert.AreEqual("", await repo.GitAsync("stash list"), "and the stash is gone again");
+    }
 }

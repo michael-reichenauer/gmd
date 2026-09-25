@@ -62,13 +62,13 @@ public class BranchPushPullCommandsTest
         Assert.IsTrue(BranchPushPullCommands.CanPullCurrentBranch(repo));
     }
 
-    // Uncommitted changes block both, since a pull would fail and a push would leave the local
-    // work behind
+    // Uncommitted changes block a pull, which git would refuse, but not a push, which sends commits
+    // and leaves the changes where they are; the push says so when it is done
     [TestMethod]
-    public async Task TestUncommittedChangesBlockPushAndPull()
+    public async Task TestUncommittedChangesBlockPullButNotPush()
     {
-        Assert.IsFalse(BranchPushPullCommands.CanPush(await Ahead().WithStatus(modified: 1).ViewRepoAsync()));
-        Assert.IsFalse(
+        Assert.IsTrue(BranchPushPullCommands.CanPush(await Ahead().WithStatus(modified: 1).ViewRepoAsync()));
+        Assert.IsTrue(
             BranchPushPullCommands.CanPushCurrentBranch(await Ahead().WithStatus(modified: 1).ViewRepoAsync())
         );
         Assert.IsFalse(BranchPushPullCommands.CanPull(await Behind().WithStatus(modified: 1).ViewRepoAsync()));

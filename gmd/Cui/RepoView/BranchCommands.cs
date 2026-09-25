@@ -205,12 +205,58 @@ class BranchCommands : IBranchCommands
 
             if (await server.SwitchToAsync(repo.Repo, branchName) is Error e)
             {
+                if (IsBlockedByChanges(e))
+                    return await SwitchWithStashAsync(branchName);
                 return new Error($"Failed to switch to {branchName}", e);
             }
 
             Refresh(branchName);
             return Result.Ok;
         });
+
+    // Git carries uncommitted changes over to the branch switched to, unless they would be
+    // overwritten there, when it refuses. That refusal is where the switch offers to take the
+    // changes along by way of the stash: stash them, switch, and put them back.
+    static bool IsBlockedByChanges(Error e) =>
+        e.AllMessages() is var text
+        && (text.Contains("would be overwritten by checkout") || text.Contains("stash them before you switch"));
+
+    async Task<Result> SwitchWithStashAsync(string branchName)
+    {
+        var name = repo.Repo.BranchByName.TryGetValue(branchName, out var b) ? b.NiceNameUnique : branchName;
+        var question =
+            $"Your uncommitted changes would be overwritten by switching to '{name}'.\n\n"
+            + "Stash them, switch, and put them back on it?";
+        if (UI.InfoMessage("Switch Branch", question, 0, ["Stash and Switch", "Cancel"]) != 0)
+            return Result.Ok;
+
+        var stashMessage = $"Switching to {name}";
+        if (await server.StashAsync(stashMessage, repo.Path) is Error stashError)
+            return new Error("Failed to stash the changes", stashError);
+
+        if (await server.SwitchToAsync(repo.Repo, branchName) is Error switchError)
+        { // Back where it was, with the changes put back
+            await server.StashPopAsync("stash@{0}", repo.Path);
+            Refresh();
+            return new Error($"Failed to switch to {name}", switchError);
+        }
+
+        if (await server.StashPopAsync("stash@{0}", repo.Path) is Error)
+        { // Git keeps the stash when putting it back conflicts, so nothing is lost
+            Refresh(branchName);
+            UI.InfoMessage(
+                "Switch Branch",
+                $"Switched to '{name}', but the changes conflict with it where they were put back.\n\n"
+                    + $"They are still in the stash '{stashMessage}' as well. Resolve the conflicts\n"
+                    + "in the diff of the uncommitted changes, then drop the stash."
+            );
+            return Result.Ok;
+        }
+
+        Refresh(branchName);
+        status.Info($"Switched to '{name}', with the changes");
+        return Result.Ok;
+    }
 
     // The worktrees: the dialog, and opening another worktree, i.e. showing that folder
     public void ShowWorktrees() => worktreeCmds.ShowWorktrees();

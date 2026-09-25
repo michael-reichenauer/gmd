@@ -116,6 +116,26 @@ public class PushPullTest
         Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
     }
 
+    // Uncommitted changes do not stop a push, which sends commits and leaves the changes where they
+    // are, and the message says so, since that is easy to assume otherwise
+    [TestMethod]
+    public async Task TestPushWithUncommittedChanges()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        repo.WriteFile("alpha.txt", "alpha\nchanged\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1");
+
+        gmd.Send("p");
+
+        Assert.AreEqual(
+            "Pushed 'main'; the uncommitted changes stay local",
+            ScreenText.LastLine(gmd.WaitFor("Pushed 'main'"))
+        );
+        Assert.AreEqual(await repo.GitAsync("rev-parse main"), await repo.GitAsync("rev-parse origin/main"));
+        Assert.AreEqual(" M alpha.txt", await repo.GitAsync("status -s"), "The change is still there");
+    }
+
     // With a branch highlighted, 'p' pushes that branch, as its branch menu's Push says, rather than
     // the current one. 'work' is current and 'main', a commit ahead of origin, is highlighted.
     [TestMethod]

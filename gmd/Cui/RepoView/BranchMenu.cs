@@ -99,14 +99,14 @@ class BranchMenu : IBranchMenu
                 "Shift-P",
                 () => cmds.PushAllBranches(),
                 () => BranchPushPullCommands.CanPush(repo.Repo),
-                () => !repo.Repo.Status.IsOk ? Why.Changes : "Nothing to push"
+                () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
             );
 
     string WhyNoPush()
     {
         var current = repo.Repo.CurrentBranch();
-        if (!repo.Repo.Status.IsOk)
-            return Why.Changes;
+        if (repo.Repo.Status.IsMerging)
+            return Why.InProgress;
         if (current.RemoteName != "" && repo.Repo.BranchByName[current.RemoteName].HasRemoteOnly)
             return "The remote has commits to pull first (u), or 'p' asks to force the push";
         return $"Nothing to push on '{current.NiceNameUnique}'";
@@ -264,8 +264,8 @@ class BranchMenu : IBranchMenu
                 "Push All Branches",
                 "Shift-P",
                 () => cmds.PushAllBranches(),
-                () => isStatusOK,
-                () => Why.Changes
+                () => !repo.Repo.Status.IsMerging,
+                () => Why.InProgress
             )
             .Item(
                 "Set Commit Branch Manually ...",
@@ -545,8 +545,8 @@ class BranchMenu : IBranchMenu
                         "Push All Branches",
                         "Shift-P",
                         () => cmds.PushAllBranches(),
-                        () => isStatusOK,
-                        () => Why.Changes
+                        () => !repo.Repo.Status.IsMerging,
+                        () => Why.InProgress
                     )
             );
     }

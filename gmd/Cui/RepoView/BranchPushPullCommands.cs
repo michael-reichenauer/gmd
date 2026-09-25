@@ -47,9 +47,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
-            // Why nothing was pushed is said on the status line, see Notice: none of these is an error
-            if (!repo.Repo.Status.IsOk)
-                return new Notice("Commit the changes first, then push");
+            // Why nothing was pushed is said on the status line, see Notice: none of these is an error.
+            // Changes are no reason, a push sends commits and leaves them where they are.
+            if (repo.Repo.Status.IsMerging)
+                return new Notice(Why.InProgress);
             if (branch == null)
                 return new Notice("No branch is checked out to push");
             if (!branch.HasLocalOnly)
@@ -102,7 +103,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            status.Info($"Pushed '{branch.NiceNameUnique}'");
+            status.Info(Pushed($"'{branch.NiceNameUnique}'"));
             return Result.Ok;
         });
 
@@ -130,15 +131,15 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            status.Info($"Pushed '{NiceName(name)}'");
+            status.Info(Pushed($"'{NiceName(name)}'"));
             return Result.Ok;
         });
 
     public void PushAllBranches() =>
         Do(async () =>
         {
-            if (!repo.Repo.Status.IsOk)
-                return new Notice("Commit the changes first, then push");
+            if (repo.Repo.Status.IsMerging)
+                return new Notice(Why.InProgress);
             if (!CanPush())
                 return new Notice("Nothing to push");
 
@@ -154,7 +155,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
-            status.Info($"Pushed {Names(branches.Select(b => b.NiceNameUnique))}");
+            status.Info(Pushed(Names(branches.Select(b => b.NiceNameUnique))));
             return Result.Ok;
         });
 
@@ -256,6 +257,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
         return branch.NiceNameUnique;
     }
 
+    // What was pushed, and that the changes were not, since that is easy to assume
+    string Pushed(string what) =>
+        repo.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
+
     // Up to three names, which is what fits a status line, and otherwise how many
     static string Names(IEnumerable<string> names)
     {
@@ -281,10 +286,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // which merges, so it can be pulled even when diverged; any other branch is updated with a
     // fetch, which only fast-forwards, and not at all while it is checked out in another worktree.
     internal static bool CanPushBranch(Repo repo, Branch b) =>
-        (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && repo.Status.IsOk;
+        (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && !repo.Status.IsMerging;
 
     internal static string WhyNoPushBranch(Repo repo, Branch b) =>
-        !repo.Status.IsOk ? Why.Changes : $"Nothing to push on '{b.NiceNameUnique}'";
+        repo.Status.IsMerging ? Why.InProgress : $"Nothing to push on '{b.NiceNameUnique}'";
 
     internal static bool CanPullBranch(Repo repo, Branch b) =>
         b.HasRemoteOnly && repo.Status.IsOk && (IsCurrent(b) || !b.HasLocalOnly) && repo.WorktreePathOf(b) == "";
@@ -298,7 +303,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     static bool IsCurrent(Branch b) => b.IsCurrent || b.IsLocalCurrent;
 
     internal static bool CanPush(Repo repo) =>
-        repo.Status.IsOk && repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
+        !repo.Status.IsMerging && repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 
     internal static bool CanPushCurrentBranch(Repo repo)
     {
@@ -313,7 +318,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 return false;
         }
 
-        return repo.Status.IsOk && branch != null && branch.HasLocalOnly;
+        return !repo.Status.IsMerging && branch != null && branch.HasLocalOnly;
     }
 
     internal static bool CanPull(Repo repo) => repo.Status.IsOk && repo.ViewBranches.Any(b => b.HasRemoteOnly);

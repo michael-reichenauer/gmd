@@ -106,7 +106,7 @@ public class KeyHintsTest
     }
 
     // Merging and diffing a branch need a clean working tree, so with changes they give way to
-    // committing
+    // committing. Pushing it does not, which for 'feature', not on origin yet, publishes it.
     [TestMethod]
     public async Task TestUncommittedChangesLeaveOutMergingAndDiffingABranch()
     {
@@ -115,7 +115,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "feature", "d1");
 
         Assert.AreEqual(
-            "feature:  s switch  Enter show/hide  m menu  h hide  c commit  b new branch",
+            "feature:  s switch  Enter show/hide  m menu  h hide  p push  c commit  b new branch",
             Hints(view, hoover)
         );
     }

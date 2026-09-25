@@ -136,12 +136,16 @@ commits that can be pulled or pushed.
 - Local has unpushed commits (▲ and a green subject)
 
 `P` and `U` push and pull the highlighted branch, or the current one when
-none is, as **Push** and **Pull** in its branch menu do. `Shift-P` and
+none is, as **Push** and **Pull** in its branch menu do. A push leaves the
+uncommitted changes where they are; a pull needs them committed or stashed
+first. Switching to a branch where git would overwrite them offers to stash
+them, switch, and put them back. `Shift-P` and
 `Shift-U` push or update all shown branches.
 
-A branch with both unpulled and unpushed commits cannot be pushed, nor
-updated by `Shift-U`, which only fast-forwards the branches it is not on.
-Switch to the branch and pull it (`U`) to merge the two sides.
+A branch with both unpulled and unpushed commits can only be pushed by
+force, which `P` asks about first, and is not updated by `Shift-U`, which
+only fast-forwards the branches it is not on. Switch to the branch and pull
+it (`U`) to merge the two sides.
 
 ### Current Commit/Branch
 
