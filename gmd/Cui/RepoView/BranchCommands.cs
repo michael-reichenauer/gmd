@@ -9,7 +9,11 @@ interface IBranchCommands
 {
     void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
     void ShowBranch(string name, string showCommitId);
+    void FindBranch(string text);
     void HideBranch(string name, bool hideAllBranches = false);
+    void UndoShowOrHide();
+    void ShowSearchMatch(int direction);
+    void MarkHiddenNewsSeen();
 
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -54,6 +58,7 @@ class BranchCommands : IBranchCommands
 {
     readonly IViewRepo repo;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IDiffView diffView;
@@ -63,15 +68,18 @@ class BranchCommands : IBranchCommands
     readonly IBranchCreateCommands createCmds;
     readonly IBranchPushPullCommands pushPullCmds;
     readonly IWorktreeCommands worktreeCmds;
+    readonly IFindBranchDlg findBranchDlg;
 
     public BranchCommands(
         IViewRepo repo,
         IProgress progress,
+        IStatusLine status,
         IRepoView repoView,
         IServer server,
         IDiffView diffView,
         IBranchColorService branchColorService,
         ISetBranchDlg setBranchDlg,
+        IFindBranchDlg findBranchDlg,
         IRepoConfig repoConfig,
         Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
         Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands,
@@ -81,11 +89,13 @@ class BranchCommands : IBranchCommands
         this.worktreeCmds = newWorktreeCommands(repo, repoView);
         this.repo = repo;
         this.progress = progress;
+        this.status = status;
         this.repoView = repoView;
         this.server = server;
         this.diffView = diffView;
         this.branchColorService = branchColorService;
         this.setBranchDlg = setBranchDlg;
+        this.findBranchDlg = findBranchDlg;
         this.repoConfig = repoConfig;
         this.createCmds = newCreateCommands(repo, repoView);
         this.pushPullCmds = newPushPullCommands(repo, repoView);
@@ -158,20 +168,103 @@ class BranchCommands : IBranchCommands
         }
 
         Repo newRepo = server.ShowBranch(repo.Repo, name, includeAmbiguous, show, count);
+        var what = show switch
+        {
+            ShowBranches.AllRecent => $"{count} More Recent",
+            ShowBranches.AllActive => "All Active",
+            ShowBranches.AllActiveAndDeleted => "All Active and Deleted",
+            _ => Quoted(name),
+        };
+        RecordShown(newRepo, "Show", what, show == ShowBranches.Specified ? name : "");
         SetRepo(newRepo, name);
     }
 
     public void ShowBranch(string name, string showCommitId)
     {
         Repo newRepo = server.ShowBranch(repo.Repo, name, false);
+        RecordShown(newRepo, "Show", Quoted(name), name);
         SetRepoAttCommit(newRepo, showCommitId);
+    }
+
+    // Finds a branch by name, starting from what was typed in the Open Branch menu, and shows it, as
+    // picking it in that menu does. A branch already shown is scrolled to.
+    public void FindBranch(string text)
+    {
+        if (findBranchDlg.Show(repo.Repo, text) is not Server.Branch branch)
+            return;
+
+        // Shown in the repo as it is now: the log goes on refreshing under the dialog, e.g. after a
+        // fetch, and showing the branch in the repo from before it would put that back
+        repoView.ViewRepo.BranchCmds.ShowBranch(branch.Name, false);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)
     {
         Repo newRepo = server.HideBranch(repo.Repo, name, hideAllBranches);
+        RecordShown(newRepo, "Hide", hideAllBranches ? "All Branches" : Quoted(name), hideAllBranches ? "" : name);
         SetRepo(newRepo);
     }
+
+    // Goes back to the branches shown before the last show or hide. Undoing a hide of one branch
+    // scrolls to it, as showing it does, since it is what the user wanted back.
+    public void UndoShowOrHide()
+    {
+        if (repo.ShownHistory.Undo() is not ShownChange change)
+        {
+            status.Notice("No branch has been shown or hidden to undo");
+            return;
+        }
+
+        SetRepo(server.SetShownBranches(repo.Repo, change.Before), change.IsHide ? change.BranchName : "");
+        status.Info($"Undid {change}");
+    }
+
+    // Steps to the next match of the last search, 1 down and -1 up, and shows it in the log as
+    // picking it in the search does, so its branch is shown too, and Backspace hides it again
+    public void ShowSearchMatch(int direction)
+    {
+        var search = repo.SearchMatches;
+        if (!search.IsActive)
+        {
+            status.Notice("No search to go on with: search with f and pick a commit first");
+            return;
+        }
+
+        // A match a refresh has taken away, e.g. by a rebase, is stepped past
+        while (search.Step(direction) is string id)
+        {
+            if (!repo.Repo.CommitById.TryGetValue(id, out var commit))
+                continue;
+
+            ShowBranch(commit.BranchName, commit.Id);
+            status.Info($"Match {search.Number} of {search.Count} for '{search.Filter}'");
+            return;
+        }
+
+        status.Notice(
+            direction > 0
+                ? $"No more matches for '{search.Filter}' below: Shift-N goes back up"
+                : $"No more matches for '{search.Filter}' above: n goes down"
+        );
+    }
+
+    // Takes every remote branch's tip as seen, so that the hidden ones have nothing new until more is
+    // pushed to them
+    public void MarkHiddenNewsSeen()
+    {
+        repoConfig.Set(repo.Path, s => s.SeenTips = HiddenNews.AllSeen(repo.Repo));
+        repoView.UpdateRepoTo(repo.Repo);
+        status.Info("The new commits on the hidden branches are marked as seen");
+    }
+
+    // A show or hide the user asked for, so that Backspace can undo it
+    void RecordShown(Repo newRepo, string verb, string what, string name) =>
+        repo.ShownHistory.Add(BranchNames(repo.Repo), BranchNames(newRepo), verb, what, name);
+
+    static IReadOnlyList<string> BranchNames(Repo repo) => repo.ViewBranches.Select(b => b.Name).ToList();
+
+    string Quoted(string name) =>
+        repo.Repo.BranchByName.TryGetValue(name, out var branch) ? $"'{branch.NiceNameUnique}'" : $"'{name}'";
 
     // A branch checked out in another worktree cannot be checked out here, git refuses, so the
     // folder it is checked out in is opened instead. Done here rather than in the menu, since the
@@ -188,12 +281,58 @@ class BranchCommands : IBranchCommands
 
             if (await server.SwitchToAsync(repo.Repo, branchName) is Error e)
             {
+                if (IsBlockedByChanges(e))
+                    return await SwitchWithStashAsync(branchName);
                 return new Error($"Failed to switch to {branchName}", e);
             }
 
             Refresh(branchName);
             return Result.Ok;
         });
+
+    // Git carries uncommitted changes over to the branch switched to, unless they would be
+    // overwritten there, when it refuses. That refusal is where the switch offers to take the
+    // changes along by way of the stash: stash them, switch, and put them back.
+    static bool IsBlockedByChanges(Error e) =>
+        e.AllMessages() is var text
+        && (text.Contains("would be overwritten by checkout") || text.Contains("stash them before you switch"));
+
+    async Task<Result> SwitchWithStashAsync(string branchName)
+    {
+        var name = repo.Repo.BranchByName.TryGetValue(branchName, out var b) ? b.NiceNameUnique : branchName;
+        var question =
+            $"Your uncommitted changes would be overwritten by switching to '{name}'.\n\n"
+            + "Stash them, switch, and put them back on it?";
+        if (UI.InfoMessage("Switch Branch", question, 0, ["Stash and Switch", "Cancel"]) != 0)
+            return Result.Ok;
+
+        var stashMessage = $"Switching to {name}";
+        if (await server.StashAsync(stashMessage, repo.Path) is Error stashError)
+            return new Error("Failed to stash the changes", stashError);
+
+        if (await server.SwitchToAsync(repo.Repo, branchName) is Error switchError)
+        { // Back where it was, with the changes put back
+            await server.StashPopAsync("stash@{0}", repo.Path);
+            Refresh();
+            return new Error($"Failed to switch to {name}", switchError);
+        }
+
+        if (await server.StashPopAsync("stash@{0}", repo.Path) is Error)
+        { // Git keeps the stash when putting it back conflicts, so nothing is lost
+            Refresh(branchName);
+            UI.InfoMessage(
+                "Switch Branch",
+                $"Switched to '{name}', but the changes conflict with it where they were put back.\n\n"
+                    + $"They are still in the stash '{stashMessage}' as well. Resolve the conflicts\n"
+                    + "in the diff of the uncommitted changes, then drop the stash."
+            );
+            return Result.Ok;
+        }
+
+        Refresh(branchName);
+        status.Info($"Switched to '{name}', with the changes");
+        return Result.Ok;
+    }
 
     // The worktrees: the dialog, and opening another worktree, i.e. showing that folder
     public void ShowWorktrees() => worktreeCmds.ShowWorktrees();
@@ -427,5 +566,5 @@ class BranchCommands : IBranchCommands
 
     void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 }

@@ -3,8 +3,14 @@ using System.Runtime.CompilerServices;
 namespace gmdTest.Utils;
 
 // Records one call made to the fake command runner. Stdin is what was piped to it, which is
-// empty for everything but CommandWithStdin.
-record CmdCall(string Path, string Args, string WorkingDirectory, string Stdin = "");
+// empty for everything but CommandWithStdin, and Environment the variables it was given.
+record CmdCall(
+    string Path,
+    string Args,
+    string WorkingDirectory,
+    string Stdin = "",
+    IReadOnlyDictionary<string, string>? Environment = null
+);
 
 // FakeCmd is a test double for ICmd, the seam between the git services and the git
 // executable. It lets git output be canned so parsing can be tested without running git.
@@ -42,10 +48,11 @@ class FakeCmd : ICmd
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
-    ) => CommandRaw(path, args, workingDirectory).ToResult(memberName, sourceFilePath, sourceLineNumber);
+    ) => CommandRaw(path, args, workingDirectory, environment).ToResult(memberName, sourceFilePath, sourceLineNumber);
 
     public Task<Result<string>> RunAsync(
         string path,
@@ -53,12 +60,23 @@ class FakeCmd : ICmd
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     ) =>
         Task.FromResult(
-            Command(path, args, workingDirectory, skipLogError, skipLog, memberName, sourceFilePath, sourceLineNumber)
+            Command(
+                path,
+                args,
+                workingDirectory,
+                skipLogError,
+                skipLog,
+                environment,
+                memberName,
+                sourceFilePath,
+                sourceLineNumber
+            )
         );
 
     public Task<CmdResult> RunRawAsync(
@@ -68,6 +86,20 @@ class FakeCmd : ICmd
         bool skipLogError = false,
         bool skipLog = false
     ) => Task.FromResult(CommandRaw(path, args, workingDirectory));
+
+    public Task<Result> StartAsync(
+        string path,
+        string args,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    )
+    {
+        var result = CommandRaw(path, args, "");
+        return Task.FromResult(
+            result.IsOk ? Result.Ok : new CmdError(result, memberName, sourceFilePath, sourceLineNumber)
+        );
+    }
 
     public Result<string> CommandWithStdin(
         string path,
@@ -82,9 +114,14 @@ class FakeCmd : ICmd
         return respond(path, args, "").ToResult(memberName, sourceFilePath, sourceLineNumber);
     }
 
-    CmdResult CommandRaw(string path, string args, string workingDirectory)
+    CmdResult CommandRaw(
+        string path,
+        string args,
+        string workingDirectory,
+        IReadOnlyDictionary<string, string>? env = null
+    )
     {
-        Calls.Add(new CmdCall(path, args, workingDirectory));
+        Calls.Add(new CmdCall(path, args, workingDirectory, "", env));
         return respond(path, args, workingDirectory);
     }
 }

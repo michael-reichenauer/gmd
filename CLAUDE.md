@@ -122,8 +122,16 @@ Key types and flow:
   What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
+  `KeyHints.cs` decides the key-hint line at the bottom, the keys that do something where the
+  cursor is, again with no view; `KeyHintBar` draws it. When a key's behavior changes, check the
+  hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
   `BranchPushPullCommands`, `CommitCommands`, run through `CommandRunner`), menus into `*Menu.cs`.
+  A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
+  reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
+  its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"Shift-P"` for P,
+  the help does the same, and the key-hint line writes a shifted letter as `⇧p`. Item names are
+  plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
@@ -140,12 +148,19 @@ Key types and flow:
   Tools get the text through `ICmd.CommandWithStdin`, which unlike `Command` never waits for the
   child's output streams: `xclip` and friends fork a helper that inherits them and would otherwise
   hang gmd (dotnet/runtime#27128). A copy that fails must say so at the call site.
+- `Utils/BrowserService.cs` — opening a web page, the same shape: `$BROWSER` first (VS Code sets it
+  over ssh and in a container), then the platform's opener, each started with `ICmd.StartAsync`,
+  which waits a moment for a failure but never for the program to end, and never kills it, since it
+  may be the browser itself. With no way to open one, the caller copies the link instead.
+  `Git/WebLinks.cs` turns the remote's URL into the pages of the service hosting it.
 
 ### The three side views: diff, blame, conflict
 
 Each is its own folder under `Cui/`, and each splits the same way: the view drives Terminal.Gui, and
 everything that is layout or decision-making sits beside it as a plain class with no view, so it is
-unit testable — `*Rows`, `*Columns`, `ConflictResolution`.
+unit testable — `*Rows`, `*Columns`, `ConflictResolution`. Each runs through `UI.RunDialog`, which
+makes it modal, so a key it does not handle does nothing rather than reaching the log view below;
+register a letter with `RegisterLetterHandler`, which takes both cases, as its menu writes it.
 
 - **`Cui/Diff/`** — `DiffService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
@@ -261,6 +276,13 @@ Things to know:
   matched as `result is CmdError e && e.Output.Contains("CONFLICT")`. Its `Origin` is the method that
   ran the command, passed down through `ICmd` as caller info. `RunRawAsync` is for the few commands
   whose non-zero exit is an answer rather than a failure.
+- A command that does not run for a reason that is no failure (nothing to push, changes to commit
+  first) returns a `Notice` (`Cui/Common/StatusLine.cs`), an `Error` the command runner shows on
+  the status line at the bottom of the log view rather than in an error box. What a command did is
+  said there too, with `IStatusLine.Info`; a key that cannot act says why rather than doing nothing.
+- A git command that stops on conflicts returns a `ConflictError` (`Git/ConflictError.cs`, made
+  with `ConflictError.ToConflict`). The command runner finds it however deeply it is wrapped,
+  refreshes, and shows `RepoCommands.ShowConflicts`, the files and the way on, not the error.
 - There is no conversion to `bool`, so `Result<bool>` is a value like any other. `default(Result<T>)` holds
   nothing and matches neither arm, and converting one to `Result` throws rather than passing it off
   as a success.
@@ -440,7 +462,7 @@ fast filter in Commands excludes.
 any fixture whose drawn output is asserted: they fix the time column, make the commit ids
 reproducible (a commit object is just its tree, parents, identity, dates and message), and — the
 part that is not cosmetic — remove the row-order flake, since `git log --all --date-order` orders by
-commit date and has nothing to break a tie with. They go around `IGit` because `ICmd` cannot pass
+commit date and has nothing to break a tie with. They go around `IGit` because no `IGit` method takes
 environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committer date.
 
 **`TmuxSession`** (`gmdE2eTest/Fixtures/`) is the end-to-end tier: the built binary, real git, a real
@@ -475,11 +497,16 @@ arguments runs them one at a time again. Eight things they do that matter, and t
 keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
-  under "Running the TUI from a non-interactive shell" for why both halves are mandatory.
+  under "Running the TUI from a non-interactive shell" for why both halves are mandatory. It also
+  seeds `ShowKeyHints: false`: the key-hint line is the bottom row, so with it on every snapshot of a
+  whole screen would carry thirty blank rows and the hints. `StartGmd(..., isKeyHints: true)` turns
+  it on, for the tests about it (`KeyHintTest`) and for the demo, which shows gmd as a user has it.
 - **An empty `DISPLAY`, `WAYLAND_DISPLAY` and `WSL_DISTRO_NAME`**, so gmd finds no clipboard tool it
   can reach and copies through the terminal instead (OSC 52). `set-clipboard on` then makes tmux
   keep the sequence as a buffer, which `gmd.Clipboard()` reads back — the only way to assert a copy
-  — and a copy on a developer's desktop no longer overwrites their real clipboard.
+  — and a copy on a developer's desktop no longer overwrites their real clipboard. **An empty
+  `BROWSER`** too, so that opening a page never reaches the developer's browser; gmd copies the
+  link instead, which is asserted the same way.
 - **`TZ=UTC` and `LC_ALL=C.UTF-8`**, since the time column is local time formatted with the current
   culture, and the UI is drawn with `● ┣ ┅ Ϙ`.
 - **A private tmux server** (`-L <socket> -f <conf>`, socket inside the temp home) so the
@@ -503,17 +530,25 @@ keep doing:
   why `TestSetup` raises the pool's minimum; without that, six workers on two cores starved the pool
   and a run took ten minutes.
 
-Five traps worth knowing before adding one:
+Seven traps worth knowing before adding one:
 
-- **`Escape` in the log view quits the app** — never send a "safety" Escape.
+- **`Escape` in the log view asks "Quit gmd?", with Yes as the default** — never send a "safety"
+  Escape: it leaves the question up, and the next `Enter` quits.
 - A modal dialog is drawn *over* the log view rather than replacing it, so the rows behind it still
   match whatever `WaitFor` is looking for. Use `WaitUntilGone` to mean "closed".
-- For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`), **the application bar
-  does not tell you what the hoover is on** — it is set both by the hoover and by the current row's
+- **A status message is drawn over the bottom row for five seconds** after a push, a pull, or a key
+  that could not act, since the key hints are off: a whole-screen snapshot taken then has thirty
+  blank rows and the message in it. Compare the log with `ScreenText.Rows` and the message with
+  `ScreenText.LastLine`, as `PushPullTest` does.
+- For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`, and `p` / `u`, which
+  act on the current branch when nothing is hoovered), **the application bar does not tell you what
+  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — it is set both by the hoover and by the current row's
   branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read the
   `Branch: <name>` menu title; that is the only readout from outside. And expect the hoover to stay
   where it was after a command rather than follow what appeared: after `Enter` opens a branch it is
   still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
+- **A letter sent to an open menu picks the item showing it** (`MenuShortcuts`), as Enter would.
+  Drive a menu by the arrows and Enter, or by the letter on purpose, never by typing into it.
 - **One key per `Send` when driving a menu**, with a `WaitForStable` after each. `Send("Down",
   "Down", …)` in one call loses keys — a menu redraw drops whatever was sent behind it, so five
   arrived as three, and a miscounted menu runs the wrong command. Same "never send a key into a
@@ -555,8 +590,8 @@ Other things to know:
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `MenuDimensions`, `MenuRows`,
-  `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `HiddenNews`, `KeyHints`, `BranchFinder`,
+  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
   string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
@@ -594,6 +629,9 @@ message.
   call, because a `rebase --continue` opening the user's editor would hang gmd behind the terminal
   it owns. It is done there and not per command line because `GIT_EDITOR` beats
   `-c core.editor=…`, so a flag is silently ineffective for any user who has that set.
+- **Git speaks English to gmd.** `Cmd.InEnglish` sets `LANGUAGE=en` on the same processes, since
+  gmd recognizes outcomes by git's messages (`CONFLICT`, `would be overwritten by checkout`, …),
+  and a translated git turned each of those into a plain error box. Match on git's English text.
 - **`gmdSetup.exe` is a prebuilt binary committed to the repo**
   (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
@@ -612,9 +650,13 @@ message.
 - **`MODERNIZATION.md` holds the open issues and the findings** from the modernization work: what
   is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the way.
   Read it before starting anything substantial, and add to it (or close items) as work lands.
+- **`USABILITY.md` is the usability review**: the findings by principle (safety, discoverability,
+  consistency, feedback, workflow fit) and the ranked proposals. Check a new command or key against
+  it — above all, that a slip of the finger cannot push, pull or lose work.
 - Modernizing this codebase, fixing bugs, adding tests and improving maintainability is the
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
-- Do not commit or push unless asked.
+- **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
+  once `./test` passes, so that the git log and its diffs are the review. Push only when asked.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (embedded into the
   binary as a resource) needs updating too.

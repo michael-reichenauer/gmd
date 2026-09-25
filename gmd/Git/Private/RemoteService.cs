@@ -3,9 +3,12 @@ namespace gmd.Git.Private;
 interface IRemoteService
 {
     Task<Result> FetchAsync(string wd);
+    Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> PushBranchAsync(string name, string wd);
     Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);
+    Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd);
+    Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result> PushRefForceAsync(string name, string wd);
@@ -27,6 +30,18 @@ class RemoteService : IRemoteService
     }
 
     public static string TrimRemotePrefix(string name) => name.TrimPrefix("origin/");
+
+    // 'get-url' rather than the remote.origin.url config, since it applies the insteadOf rules, so
+    // a short form like 'gh:user/repo' comes back as the address it stands for. Git exits with 2
+    // for a remote that is not there, which is an answer rather than a failure.
+    public async Task<Result<string>> GetRemoteUrlAsync(string wd)
+    {
+        var result = await cmd.RunRawAsync("git", "remote get-url origin", wd, skipLogError: true);
+        if (result.ExitCode == 2)
+            return "";
+
+        return result.ToResult();
+    }
 
     // Fetches branches and tags and prunes what the remote no longer has. Deliberately without
     // --prune-tags: that deletes every local tag the remote does not have, which throws away tags
@@ -89,7 +104,38 @@ class RemoteService : IRemoteService
     {
         var args = $"pull";
         // var args = $"pull --ff --no-rebase";
-        return await cmd.RunAsync("git", args, wd);
+        return ConflictError.ToConflict(await cmd.RunAsync("git", args, wd), "The pull stopped on conflicts");
+    }
+
+    // Whether git has been told how a pull joins a branch that has diverged from its remote, by
+    // merging or rebasing: pull.rebase, pull.ff or the branch's own branch.<name>.rebase, in any of
+    // the config files. Without one, 'git pull' refuses such a branch outright ("Need to specify how
+    // to reconcile divergent branches"). Git exits with 1 when nothing matches, which is an answer.
+    public async Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd)
+    {
+        var result = await cmd.RunRawAsync(
+            "git",
+            "config --get-regexp \"^(pull\\.(rebase|ff)|branch\\..+\\.rebase)$\"",
+            wd,
+            skipLogError: true
+        );
+        if (result.ExitCode == 1)
+            return false;
+        if (result.ToResult() is not string output)
+            return result.ToResult().Error;
+
+        // Section and key names come back lowercased, a branch name (the subsection) as it is
+        var keys = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Split(' ')[0]);
+        return keys.Any(k => k is "pull.rebase" or "pull.ff" || k == $"branch.{branchName}.rebase");
+    }
+
+    // Saved where git reads it, in the repository's own config, so that a pull on the command line
+    // does the same. A rebase keeps the local merges (--rebase-merges), which a plain rebase would
+    // flatten into their commits, losing the merge that says which branch they came from.
+    public async Task<Result> SetPullRebaseAsync(bool isRebase, string wd)
+    {
+        var value = isRebase ? "merges" : "false";
+        return await cmd.RunAsync("git", $"config pull.rebase {value}", wd);
     }
 
     public async Task<Result> PullBranchAsync(string name, string wd)

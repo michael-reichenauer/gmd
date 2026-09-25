@@ -13,8 +13,9 @@ using gmdTest.Fixtures;
 //   - Never send a key into a screen that has not settled. gmd drops keystrokes while a git
 //     command is running rather than queueing them, so a key sent too early is silently lost.
 //     Every Send is therefore preceded by a WaitFor.
-//   - Escape in the log view quits the application. Use WaitUntilGone to close a dialog and
-//     check it really closed, rather than sending a second Escape for safety.
+//   - Escape in the log view asks "Quit gmd?" with Yes as the default, so a stray Escape leaves a
+//     question up and the next Enter quits. Use WaitUntilGone to close a dialog and check it
+//     really closed, rather than sending a second Escape for safety.
 // CLAUDE.md has the rest, under TmuxSession.
 //
 // They need tmux, which ./installtools installs, and are in their own categories. Those are set

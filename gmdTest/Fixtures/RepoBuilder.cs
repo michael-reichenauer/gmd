@@ -364,13 +364,19 @@ class RepoBuilder
 
     // The view repo the filter dialog renders, i.e. only the commits matching the filter, on the
     // branches those commits are on. The default count is what FilterDlg passes.
-    public async Task<Repo> FilteredViewRepoAsync(string filter, int maxCount = 5000) =>
-        NewViewRepoCreater().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount);
+    public async Task<Repo> FilteredViewRepoAsync(
+        string filter,
+        int maxCount = 5000,
+        IReadOnlySet<string>? onlyIds = null
+    ) => NewViewRepoCreater().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount, onlyIds);
 
     // The real server layer, with git, the file monitor and the config faked out. Needed for the
     // branch show/hide commands, which work on an already created view repo.
-    public IServer NewServer() =>
-        new ServerImpl(NewGit(), NewAugmentedService(), new ViewRepoConverter(), NewViewRepoCreater());
+    public IServer NewServer() => NewServer(NewGit());
+
+    // The same with a git the test holds, for what the server asks of git itself, e.g. a search's files
+    public IServer NewServer(FakeGit git) =>
+        new ServerImpl(git, NewAugmentedService(), new ViewRepoConverter(), NewViewRepoCreater());
 
     // The augmenter with its real collaborators, none of which touch git, disk or the terminal.
     // The wiring mirrors the branch structure pipeline: the commit graph, the branch of every

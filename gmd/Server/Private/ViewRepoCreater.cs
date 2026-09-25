@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using gmd.Common;
 
 namespace gmd.Server.Private;
@@ -12,7 +11,9 @@ interface IViewRepoCreater
         int count = 1
     );
 
-    Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount);
+    // The commits matching the filter, and only those among 'onlyIds' when it is given, which is
+    // how the files a search names narrow it, see SearchTerms
+    Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount, IReadOnlySet<string>? onlyIds = null);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -45,7 +46,7 @@ class ViewRepoCreater : IViewRepoCreater
         return viewRepo;
     }
 
-    public Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount)
+    public Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount, IReadOnlySet<string>? onlyIds = null)
     {
         using (Timing.Start($"Filtered repo on '{filter}'"))
         {
@@ -66,7 +67,7 @@ class ViewRepoCreater : IViewRepoCreater
             }
             else
             { // Get all commits matching filter
-                filteredCommits = GetFilteredCommits(repo, filter, maxCount);
+                filteredCommits = GetFilteredCommits(repo, filter, maxCount, onlyIds);
             }
 
             if (!filteredCommits.Any())
@@ -89,36 +90,29 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    static IReadOnlyList<Commit> GetFilteredCommits(Repo repo, string filter, int maxCount)
+    // The commits where every word is found in the id, the message (the subject and the body), the
+    // branch, the author, the date or a tag. The message rather than the subject alone, since the
+    // body is where the why of a change is written, and an issue number is often only there.
+    static IReadOnlyList<Commit> GetFilteredCommits(
+        Repo repo,
+        string filter,
+        int maxCount,
+        IReadOnlySet<string>? onlyIds
+    )
     {
         var sc = StringComparison.OrdinalIgnoreCase;
+        var words = SearchTerms.Parse(filter).Words;
 
-        // Need extract all text enclosed by double quotes in filter (for exact matches of them)
-        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
-        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
-
-        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below.
-        var modifiedFilter = filter;
-        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
-
-        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
-        var andParts = modifiedFilter
-            .Split(' ')
-            .Where(p => p != "")
-            .Select(p => p.Replace("\n", " ")) // Replace newlines back to spaces again
-            .ToList();
-
-        // Find all branches matching all AND parts.
         return repo
-            .CommitById.Values.Where(c =>
-                andParts.All(p =>
+            .CommitById.Values.Where(c => onlyIds == null || onlyIds.Contains(c.Id))
+            .Where(c =>
+                words.All(p =>
                     c.Id.Contains(p, sc)
-                    || c.Subject.Contains(p, sc)
+                    || c.Message.Contains(p, sc)
                     || c.BranchName.Contains(p, sc)
                     || c.Author.Contains(p, sc)
                     || c.AuthorTime.IsoDate().Contains(p, sc)
                     || c.BranchNiceUniqueName.Contains(p, sc)
-                    || c.BranchName.Contains(p, sc)
                     || c.Tags.Any(t => t.Name.Contains(p, sc))
                 )
             )

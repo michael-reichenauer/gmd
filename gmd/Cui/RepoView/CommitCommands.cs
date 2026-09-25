@@ -48,6 +48,7 @@ interface ICommitCommands
 class CommitCommands : ICommitCommands
 {
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IViewRepo repo;
     readonly IServer server;
     readonly ICommitDlg commitDlg;
@@ -60,6 +61,7 @@ class CommitCommands : ICommitCommands
 
     public CommitCommands(
         IProgress progress,
+        IStatusLine status,
         IViewRepo repo,
         IServer server,
         ICommitDlg commitDlg,
@@ -72,6 +74,7 @@ class CommitCommands : ICommitCommands
     )
     {
         this.progress = progress;
+        this.status = status;
         this.repo = repo;
         this.server = server;
         this.commitDlg = commitDlg;
@@ -120,6 +123,9 @@ class CommitCommands : ICommitCommands
             if (commitResult is not CommitResult result)
                 return commitResult.Error;
 
+            // Said rather than nothing happening, as it used to for a key pressed with nothing to do
+            if (result == CommitResult.NothingToCommit)
+                return new Notice(isAmend ? "Only a commit not yet pushed can be amended" : "Nothing to commit");
             if (result == CommitResult.Committed)
                 Refresh();
             return Result.Ok;
@@ -207,14 +213,17 @@ class CommitCommands : ICommitCommands
         { // User has selected multiple commits
             id1 = repo.Repo.ViewCommits[i1].Id;
             id2 = repo.Repo.ViewCommits[i2].Id;
+            // A range diff is the changes the selected commits made, i.e. from before the oldest to
+            // the newest, which is only that when they are commits of one branch: rows of other
+            // branches in between would be in it as well. Said on the status line, as no error.
             if (id1 == Repo.UncommittedId || id2 == Repo.UncommittedId)
             {
-                UI.ErrorMessage("Selection start and end commit cannot be uncommitted row.");
+                status.Notice("The uncommitted changes are no commit to diff a range to: select commits only");
                 return;
             }
-            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id1].BranchPrimaryName)
+            if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id2].BranchPrimaryName)
             {
-                UI.ErrorMessage("Selection start and end commit not on same branch");
+                status.Notice("The selected commits are on different branches: select commits of one branch");
                 return;
             }
         }
@@ -364,6 +373,10 @@ class CommitCommands : ICommitCommands
     public void StashDrop(string name) =>
         Do(async () =>
         {
+            var message = repo.Repo.Stashes.FirstOrDefault(s => s.Name == name)?.Message ?? name;
+            if (!Confirm.DropStash(message))
+                return Result.Ok;
+
             if (await server.StashDropAsync(name, repo.Path) is Error e)
             {
                 return new Error($"Failed to drop stash {name}", e);
@@ -432,7 +445,7 @@ class CommitCommands : ICommitCommands
                 return new Error("Commits are not on the same branch");
             var branch = repo.Repo.BranchByName[c1.BranchName];
 
-            // Both flags, as 'Uncommit until' asks it in CommitMenu. IsLocalCurrent is only ever
+            // Both flags, as 'Uncommit X and Newer' asks it in CommitMenu. IsLocalCurrent is only ever
             // set on a *remote* branch whose local branch is current (Augmenter.cs), so asking for
             // it alone refused every commit that had not been pushed yet — the local branch never
             // carries the flag. Which was the wrong way round: the commits it did allow were the
@@ -482,6 +495,9 @@ class CommitCommands : ICommitCommands
     public void UndoUncommittedFile(string path) =>
         Do(async () =>
         {
+            if (!Confirm.UndoFile(path, repo.Repo.Status.AddedFiles.Contains(path)))
+                return Result.Ok;
+
             if (await server.UndoUncommittedFileAsync(path, repo.Path) is Error e)
             {
                 return new Error($"Failed to undo {path}", e);
@@ -494,6 +510,9 @@ class CommitCommands : ICommitCommands
     public void UndoUncommittedFiles(IReadOnlyList<string> paths) =>
         Do(async () =>
         {
+            if (!Confirm.UndoFiles(paths))
+                return Result.Ok;
+
             await UndoUncommittedFilesAsync(paths);
             Refresh();
             return Result.Ok;
@@ -523,7 +542,7 @@ class CommitCommands : ICommitCommands
             var isPushable = branch.IsRemote || branch.RemoteName != "";
 
             if (commit.IsUncommitted)
-                return Result.Ok;
+                return new Notice("A tag is put on a commit: move to one first");
 
             if (addTagDlg.Show() is not TagInfo tag)
                 return Result.Ok;
@@ -550,6 +569,9 @@ class CommitCommands : ICommitCommands
             var commit = repo.RowCommit;
             var branch = repo.Repo.BranchByName[commit.BranchName];
             var isPushable = branch.IsRemote || branch.RemoteName != "";
+
+            if (!Confirm.RemoveTag(name, isPushable))
+                return Result.Ok;
 
             if (await server.RemoveTagAsync(name, isPushable, repo.Path) is Error e)
             {
@@ -623,7 +645,7 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 
     async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {
@@ -641,7 +663,9 @@ class CommitCommands : ICommitCommands
                 $"There are {binaryFiles.Count} binary modified files:\n"
                 + $"  {string.Join("\n  ", binaryFiles)}"
                 + "\n\nDo you want to commit them as they are\nor first undo/revert them and then commit?";
-            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 1, ["Commit", "Undo", "Cancel"]);
+            // Cancel is the default: Undo reverts a changed binary file and deletes a new one, which is
+            // not what an Enter pressed out of habit should do
+            var rsp = UI.InfoMessage("Binary Files Detected !", msg, 2, ["Commit", "Undo", "Cancel"]);
             if (rsp == 2 || rsp == -1)
                 return false; // Cancel
 

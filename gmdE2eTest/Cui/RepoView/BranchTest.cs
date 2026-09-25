@@ -135,7 +135,7 @@ public class BranchTest
         gmd.WaitFor("Branch: dev");
 
         // Down to 'Rename Branch ...', which is seven moves and not nine, since 'Rebase and push
-        // on' and 'Pull/Update' are disabled here and are skipped over. One key at a time: a menu
+        // onto' and 'Pull' are disabled here and are skipped over. One key at a time: a menu
         // redraw drops the keys sent behind it, so a single Send of seven would arrive as three.
         for (var i = 0; i < 7; i++)
         {
@@ -283,11 +283,12 @@ public class BranchTest
         gmd.Send("Enter");
         gmd.WaitFor("More dev work");
 
-        // The hoover is left on main, i.e. on the branch that is already current, and 's' on that
-        // is deliberately a no-op (OnKeyS's PrimaryName guard). Worth pinning: it is the reason
-        // 'show a branch and press s' does nothing, which reads like a dropped keystroke.
+        // The hoover is left on main, i.e. on the branch that is already current, so 's' does not
+        // switch (OnKeyS's PrimaryName guard). It used to do nothing at all, which read like a
+        // dropped keystroke, and is the reason 'show a branch and press s' seemed not to work; the
+        // status line says why now.
         gmd.Send("s");
-        gmd.WaitForStable();
+        Assert.AreEqual("Already on 'main'", ScreenText.LastLine(gmd.WaitFor("Already on")));
         Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "'s' on the current branch");
 
         // One step right is dev, and there it does switch
@@ -296,8 +297,9 @@ public class BranchTest
         gmd.Send("s");
 
         // The current markers moved: '●dev' in the application bar, '●' on dev's tip commit and
-        // '(● dev)' on its branch tip, while main keeps its plain '(main)'
-        ScreenText.AssertEqual(
+        // '(● dev)' on its branch tip, while main keeps its plain '(main)'. The rows of the log only,
+        // since the message about the 's' above may still be on the bottom row.
+        Assert.AreEqual(
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -309,8 +311,7 @@ public class BranchTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitFor("(● dev)"),
-            repo.Path
+            ScreenText.Rows(gmd.WaitFor("(● dev)"), repo.Path, 0, 9)
         );
 
         Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
@@ -521,5 +522,64 @@ public class BranchTest
             """,
             ScreenText.Rows(gmd.WaitFor("Merge to"), repo.Path, 4, 3)
         );
+    }
+
+    // A middle click on a branch merges it into the current branch, after asking: on Linux the
+    // middle button is the habitual paste, so a click meant for something else used to merge. Yes
+    // is the default, so Enter merges; Escape answers No and leaves the repository alone.
+    [TestMethod]
+    [DataRow("Enter")]
+    [DataRow("Escape")]
+    public async Task TestMiddleClickOnABranchAsksBeforeMerging(string answer)
+    {
+        using var repo = await E2eRepo.CreateWithUnmergedBranchAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (_, y) = TmuxSession.PositionOf(gmd.WaitFor("Add gamma"), "Add gamma");
+
+        // 'main' is the leftmost column of the graph, and this is its row
+        gmd.Click(0, y, button: 1);
+        gmd.WaitFor("Merge 'main' into 'dev'?");
+        gmd.Send(answer);
+        gmd.WaitUntilGone("Merge 'main' into 'dev'?");
+
+        var isMerging = File.Exists(Path.Join(repo.Path, ".git", "MERGE_HEAD"));
+        Assert.AreEqual(answer == "Enter", isMerging, "Only Yes merges");
+    }
+
+    // A switch that git refuses, since it would overwrite uncommitted changes, offers to take them
+    // along by way of the stash. long.txt differs between main and dev, so a change to it on main
+    // stops the switch, and its first line, which the two agree on, puts it back cleanly on dev.
+    [TestMethod]
+    public async Task TestSwitchTakesTheChangesAlongByWayOfTheStash()
+    {
+        using var repo = await E2eRepo.CreateWithConflictingBranchAsync();
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        lines[0] = "line 1 changed";
+        lines[39] = "line 40 on main";
+        repo.WriteFile("long.txt", string.Join("\n", lines) + "\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1");
+
+        // Show dev by name, which puts the cursor on its commit, and highlight it
+        gmd.Send("S-Right");
+        gmd.WaitFor("type to find");
+        gmd.Send("d");
+        gmd.WaitFor("Find Branch");
+        gmd.SendText("ev");
+        gmd.WaitFor("Name: dev");
+        gmd.Send("Enter");
+        gmd.WaitFor("Change it on dev");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+
+        gmd.Send("s");
+        gmd.WaitFor("Stash and Switch");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Switched to 'dev', with the changes");
+        Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
+        Assert.AreEqual(" M long.txt", await repo.GitAsync("status -s"), "The change came along");
+        StringAssert.StartsWith(File.ReadAllText(Path.Join(repo.Path, "long.txt")), "line 1 changed\n");
+        Assert.AreEqual("", await repo.GitAsync("stash list"), "and the stash is gone again");
     }
 }

@@ -78,18 +78,66 @@ public class LogViewTest
         Assert.IsFalse(gmd.IsRunning);
     }
 
-    // Escape quits from the log view, which is why nothing here ever sends a 'safety' Escape
+    // Escape asks before it quits. Everywhere else in gmd it means close or back, so one too many
+    // is an easy slip, and it used to quit on the spot. Yes is the default, so Escape then Enter
+    // still quits in a moment.
     [TestMethod]
-    public async Task TestQuitWithEscape()
+    public async Task TestEscapeAsksBeforeQuitting()
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
 
         gmd.Send("Escape");
+        gmd.WaitFor("Quit gmd?");
+        gmd.Send("Enter");
 
         gmd.WaitForExit();
         Assert.IsFalse(gmd.IsRunning);
+    }
+
+    // ... and a second Escape, which is what the slip looks like, answers the question rather than
+    // quitting. So does it with the commit details open and moved into, since that pane takes Escape
+    // itself when it has the focus.
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task TestEscapeTwiceStaysInTheLog(bool isInDetails)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        if (isInDetails)
+        {
+            gmd.Send("Enter");
+            gmd.WaitFor("Children:");
+            gmd.Send("Tab");
+            gmd.WaitForStable();
+        }
+
+        gmd.Send("Escape");
+        gmd.WaitFor("Quit gmd?");
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Quit gmd?"), "Merge branch 'dev' into main");
+        Assert.IsTrue(gmd.IsRunning, "A second Escape should answer No");
+    }
+
+    // The X in the application bar asks as Escape does: it is a single click, beside the '?' of
+    // the help
+    [TestMethod]
+    public async Task TestClickingTheXAsksBeforeQuitting()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor("Initial"), "? X");
+
+        gmd.Click(x + 2, y);
+        gmd.WaitFor("Quit gmd?");
+        gmd.Send("Escape");
+
+        gmd.WaitUntilGone("Quit gmd?");
+        Assert.IsTrue(gmd.IsRunning, "No is the answer Escape gives");
     }
 
     // The quit keys are registered on the log view, so a dialog above it has to swallow them or
@@ -260,12 +308,12 @@ public class LogViewTest
         gmd.WaitFor("Initial");
 
         // The first row is the one the cursor is on, and the run of dark gray 'D' is the
-        // highlight. It starts after the graph, which keeps its own background — that is
-        // RepoWriter applying Highlight() to the non-graph part of the row only, a detail that is
-        // easy to break and invisible to every other assertion here. The rows below it are plain.
+        // highlight. It is on the graph too, the rune and the current marker, so the node of the
+        // commit is found at a glance, which it was not when the highlight stopped at the graph.
+        // The rows below it are plain.
         Assert.AreEqual(
             """
-            -  . DDD DDDDD                                                      DD DDDDDDDDDDD DDDDDD DDDD DDDD      DDDDDDDD DDDDD
+            D  D DDD DDDDD                                                      DD DDDDDDDDDDD DDDDDD DDDD DDDD      DDDDDDDD DDDDD
             --   ..... ...... ..... .... ....                                                  ...... .... ....      ........ .....
             -    ... .....                                                                     ...... .... ....      ........ .....
             --   ... ....                                                                      ...... .... ....      ........ .....
@@ -388,25 +436,26 @@ public class LogViewTest
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Mer╭ Commit: 17d85b ─────────────────────╮                                    4e73d2 Test User      24-10-15 12:05
-            ┣    Add│Commit ...                        C  │                                    4a15fb Test User      24-10-15 12:04
-            ┣╯   Add│Amend ...                         A  │                                    dd7891 Test User      24-10-15 12:01
-            ┗    Ini│Commit Diff ...                   D  │                                    9dc406 Test User      24-10-15 12:00
-                    │Undo                                >│
-                    │Rebase                              >│
-                    │Stash                               >│
-                    │Tag                                 >│
-                    │Create Branch from Commit ...     B  │
-                    │Merge From Commit to main            │
-                    │Cherry Pick Commit to main           │
-                    │Switch/Checkout to Commit            │
-                    │Toggle Commit Details ...     Enter  │
-                    │Full File History ...                │
-                    │Blame File ...                       │
-                    │─────────────────────────────────────│
-                    │Branches                            >│
-                    │Repo Menu                           >│
-                    ╰─────────────────────────────────────╯
+            ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                  4e73d2 Test User      24-10-15 12:05
+            ┣    Add│Commit ...                          c  │                                  4a15fb Test User      24-10-15 12:04
+            ┣╯   Add│Amend ...                           a  │                                  dd7891 Test User      24-10-15 12:01
+            ┗    Ini│Commit Diff                         d  │                                  9dc406 Test User      24-10-15 12:00
+                    │Undo                                  >│
+                    │Rebase                                >│
+                    │Stash                                 >│
+                    │Tag                                   >│
+                    │Create Branch from Commit ...       b  │
+                    │Merge Commit into main                 │
+                    │Cherry Pick into main                  │
+                    │Switch to Commit                       │
+                    │Commit Details                  Enter  │
+                    │Open Commit in Browser                 │
+                    │Full File History ...                  │
+                    │Blame File ...                         │
+                    │───────────────────────────────────────│
+                    │Branches                              >│
+                    │Repo Menu                     Shift-M >│
+                    ╰───────────────────────────────────────╯
             """,
             gmd.WaitFor("Commit ..."),
             repo.Path
@@ -451,28 +500,30 @@ public class LogViewTest
 
         // The two shown branches, left to right as the graph draws them, with the '●' marking the
         // current one. Both are submenus, so both carry the '>'. Below the separator, the items
-        // that change which branches are shown at all, and the ones that pull and push them all.
+        // that change which branches are shown at all, the undo of showing dev above among them,
+        // and the ones that pull and push them all.
         gmd.Send("Right");
         var branches = gmd.WaitForStable();
         Assert.AreEqual(
             """
-                     │Full File History ...                │
-                     │Blame File ...                       │
-                     │─────────────────────────────────────│╭ Branches ────────────────────────╮
-                     │Branches                            >││●   main                         >│
-                     │Repo Menu                           >││    dev                          >│
-                     ╰─────────────────────────────────────╯│──────────────────────────────────│
-                                                            │Show/Open Branch         Shift → >│
-                                                            │Hide All Branches                 │
-                                                            │Pull/Update All Branches Shift-U  │
-                                                            │Push All Branches        Shift-P  │
-                                                            ╰──────────────────────────────────╯
+                     │Full File History ...                  │
+                     │Blame File ...                         │
+                     │───────────────────────────────────────│╭ Branches ───────────────────╮
+                     │Branches                              >││●   main                    >│
+                     │Repo Menu                     Shift-M >││    dev                     >│
+                     ╰───────────────────────────────────────╯│─────────────────────────────│
+                                                              │Show Branch         Shift → >│
+                                                              │Hide All Branches            │
+                                                              │Undo Show 'dev'   Backspace  │
+                                                              │Pull All Branches   Shift-U  │
+                                                              │Push All Branches   Shift-P  │
+                                                              ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 19, 11)
+            ScreenText.Rows(branches, repo.Path, 20, 12)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
-        // the branch menu, built with isLimited so it has no 'Show/Open Branch', 'Pull/Update All
+        // the branch menu, built with isLimited so it has no 'Show Branch', 'Pull All
         // Branches', 'Push All Branches' or 'Repo Menu' of its own, since the menus it is under
         // already offer those. The Branches menu is too wide to leave room for it on the right in
         // 120 columns, so it opens on the left, over the commit menu.
@@ -481,28 +532,28 @@ public class LogViewTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │Full File History ...                │
-                     │Blame File ...                       │
-                     │─────────────────────────────────────│╭ Branches ────────────────────────╮
-                  ╭ dev ───────────────────────────────────╮│●   main                         >│
-                  │Switch/Checkout to Branch            S  ││    dev                          >│
-                  │Merge to main                        E  ││──────────────────────────────────│
-                  │Merge from main                Shift-E  ││Show/Open Branch         Shift → >│
-                  │Rebase and push on                     >││Hide All Branches                 │
-                  │Hide Branch                          H  ││Pull/Update All Branches Shift-U  │
-                  │Pull/Update                          U  ││Push All Branches        Shift-P  │
-                  │Push                                 P  │╰──────────────────────────────────╯
-                  │Create Branch ...                    B  │
-                  │Create Worktree ...                     │
-                  │Rename Branch ...                       │
-                  │Delete Branch ...                       │
-                  │Diff Branch to                       D >│
-                  │Change Branch Color                  G  │
-                  │────────────────────────────────────────│
-                  │Set Commit Branch Manually ...          │
-                  ╰────────────────────────────────────────╯
+                     │Full File History ...                  │
+                    ╭ dev ───────────────────────────────────╮
+                    │Switch to Branch                     s  │╭ Branches ───────────────────╮
+                    │Merge to main                        e  ││●   main                    >│
+                    │Merge from main                Shift-E  ││    dev                     >│
+                    │Rebase and Push onto                   >││─────────────────────────────│
+                    │Hide Branch                          h  ││Show Branch         Shift → >│
+                    │Pull                                 u  ││Hide All Branches            │
+                    │Push                                 p  ││Undo Show 'dev'   Backspace  │
+                    │Create Branch ...                    b  ││Pull All Branches   Shift-U  │
+                    │Create Worktree ...                     ││Push All Branches   Shift-P  │
+                    │Rename Branch ...                       │╰─────────────────────────────╯
+                    │Delete Branch ...                       │
+                    │Diff Branch to                       d >│
+                    │Change Branch Color                  g  │
+                    │Open in Browser                         │
+                    │Create Pull Request in Browser          │
+                    │────────────────────────────────────────│
+                    │Set Commit Branch Manually ...          │
+                    ╰────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Switch/Checkout to Branch"), repo.Path, 19, 20)
+            ScreenText.Rows(gmd.WaitFor("Switch to Branch"), repo.Path, 20, 20)
         );
     }
 
@@ -582,5 +633,43 @@ public class LogViewTest
         // And hiding it again gives back exactly the screen we started with
         gmd.Send("h");
         ScreenText.AssertEqual(ScreenText.Of(before, repo.Path), gmd.WaitUntilGone("More dev work"), repo.Path);
+    }
+
+    // Backspace goes back to the branches shown before the last show or hide, one step at a time, as
+    // a browser goes back a page, and says what it undid. With nothing left to undo it says so,
+    // rather than doing nothing. The rows are compared without the bottom one, which the message
+    // is drawn over: the top bar, its line and the commits, nine rows with dev shown and seven without.
+    [TestMethod]
+    public async Task TestBackspaceUndoesTheShowsAndHides()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var before = gmd.WaitFor("Initial");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        var shown = gmd.WaitFor("More dev work");
+        // The hoover is still on main, the one branch Left found on the merge row, and the cursor on
+        // dev's tip, where Right moves it to dev, for h to hide dev rather than what hangs off main
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("h");
+        gmd.WaitUntilGone("More dev work");
+
+        gmd.Send("BSpace");
+        var undone = gmd.WaitFor("Undid Hide 'dev'");
+        Assert.AreEqual(ScreenText.Rows(shown, repo.Path, 0, 9), ScreenText.Rows(undone, repo.Path, 0, 9));
+
+        gmd.Send("BSpace");
+        var undoneAgain = gmd.WaitFor("Undid Show 'dev'");
+        Assert.AreEqual(ScreenText.Rows(before, repo.Path, 0, 7), ScreenText.Rows(undoneAgain, repo.Path, 0, 7));
+
+        gmd.Send("BSpace");
+        Assert.AreEqual(
+            "No branch has been shown or hidden to undo",
+            ScreenText.LastLine(gmd.WaitFor("No branch has been shown"))
+        );
     }
 }

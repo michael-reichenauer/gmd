@@ -8,6 +8,7 @@ internal interface ILogService
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
 }
 
 internal class LogService : ILogService
@@ -28,6 +29,25 @@ internal class LogService : ILogService
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return await Task.Run(() => ParseLines(output));
+    }
+
+    // The ids of the commits that changed a file whose path contains the text, in any case, newest
+    // first, for a search. A pathspec with no 'glob' magic lets '*' match across '/', so '*text*'
+    // is anywhere in the path. --full-history, since git's default simplification hides a commit
+    // on a side branch whose change the merge left out, and --no-merges, since with the full history
+    // every merge bringing in such a change is listed as well, which would bury the commits made.
+    //
+    // The text is what the user typed: a '"' would end the argument, and git writes paths with '/'
+    // on every platform.
+    public async Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd)
+    {
+        var text = pathText.Replace("\"", "").Replace('\\', '/');
+        var args = $"log --all --full-history --no-merges --format=%H --max-count={maxCount} -- \":(icase)*{text}*\"";
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)

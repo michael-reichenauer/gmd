@@ -66,10 +66,12 @@ class StatusService : IStatusService
                 conflicted++;
                 conflicts.Add(new ConflictedFile(line.Substring(3).Trim().Replace("\"", ""), kind));
             }
-            else if (line.StartsWith("?? ") || line.StartsWith(" A "))
+            // Untracked, or staged as new ('A ', 'AM', 'AD'), or intended to be (' A', which the trim
+            // has made 'A' followed by the path): a new file either way, which discarding deletes
+            else if (line.StartsWith("?? ") || line.StartsWith('A'))
             {
                 added++;
-                addedFiles.Add(line.Substring(3).Trim().Replace("\"", ""));
+                addedFiles.Add(line.Substring(2).Trim().Replace("\"", ""));
             }
             else if (line.StartsWith("D"))
             {
@@ -258,8 +260,8 @@ class StatusService : IStatusService
 
     static string TrimRefsHeads(string name) => name.TrimPrefix("refs/heads/");
 
-    // Which operation git is part way through, for the callers that only need that much: the two
-    // 'git add .' guards below, and ConflictService deciding what '--abort' attaches to.
+    // Which operation git is part way through, for the callers that only need that much: the
+    // 'git add .' guard below, and ConflictService deciding what '--abort' attaches to.
     internal static GitOperation GetOperation(string wd) => GetOperationStatus(wd).Operation;
 
     // Whether committing is what finishes the operation in progress, rather than '--continue'.
@@ -277,7 +279,8 @@ class StatusService : IStatusService
     }
 
     // True while git is part way through an operation it has to be told to finish or abort. What
-    // this guards is 'git add .' and 'git commit -a': either would stage an unmerged path with the
-    // conflict markers as its content and drop the stages, which cannot be undone.
+    // this guards is the commit's 'git add .' and 'git commit -a': either would stage an unmerged
+    // path with the conflict markers as its content and drop the stages, which cannot be undone.
+    // The uncommitted diff needs no guard, since it stages into a copy of the index.
     internal static bool IsOperationInProgress(string wd) => GetOperation(wd) != GitOperation.None;
 }

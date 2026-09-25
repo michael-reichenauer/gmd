@@ -11,6 +11,7 @@ interface IRepoMenu
 
     IEnumerable<MenuItem> GetNewReleaseItems();
     IEnumerable<MenuItem> GetOperationItems();
+    void ShowOperationMenu(int x, int y);
     IEnumerable<MenuItem> GetRepoMenuItems();
 }
 
@@ -34,9 +35,16 @@ class RepoMenu : IRepoMenu
         Menu.Show($"Repo Menu", x, y + 2, GetRepoMenuItems());
     }
 
+    // The config dialog can turn the key-hint line on or off, which changes the layout
+    void ShowConfig()
+    {
+        configDlg.Show(repo.Repo.Path);
+        repo.RepoView.UpdateLayout();
+    }
+
     public void ShowOpenRepo(int x, int y)
     {
-        Menu.Show($"Open/Clone/Init Repo", x, y + 2, GetOpenRepoItems());
+        Menu.Show($"Open, Clone or Init Repo", x, y + 2, GetOpenRepoItems());
     }
 
     public IEnumerable<MenuItem> GetRepoMenuItems()
@@ -45,18 +53,47 @@ class RepoMenu : IRepoMenu
 
         return Menu
             .Items.Items(GetOperationItems())
-            .Item("Pull/Update All Branches", "Shift-U", () => repo.BranchCmds.PullAllBranches(), () => isStatusOK)
-            .Item("Push All Branches", "Shift-P", () => repo.BranchCmds.PushAllBranches(), () => isStatusOK)
-            .Item("Search/Filter ...", "F", () => cmds.SearchFilterRepo())
-            .Item("Refresh/Reload", "R", () => cmds.RefreshAndFetch())
-            .Item("Clean/Restore Working Folder", "", () => cmds.CleanWorkingFolder())
-            .Item("Worktrees ...", "W", () => repo.BranchCmds.ShowWorktrees())
-            .SubMenu("Open/Clone/Init Repo", "O", GetOpenRepoItems())
-            .Item("Config ...", "", () => configDlg.Show(repo.Repo.Path))
-            .Item("Help ...", "?, F1", () => cmds.ShowHelp())
-            .Item("About ...", "", () => cmds.ShowAbout())
-            .Item("Quit", "Q, Esc", () => UI.Shutdown());
+            .Item(
+                "Pull All Branches",
+                "Shift-U",
+                () => repo.BranchCmds.PullAllBranches(),
+                () => isStatusOK,
+                () => Why.Changes
+            )
+            .Item(
+                "Push All Branches",
+                "Shift-P",
+                () => repo.BranchCmds.PushAllBranches(),
+                () => !repo.Repo.Status.IsMerging,
+                () => Why.InProgress
+            )
+            .Item("Search ...", "f", () => cmds.SearchFilterRepo())
+            .Item(
+                "Next Match",
+                "n",
+                () => repo.BranchCmds.ShowSearchMatch(1),
+                () => repo.SearchMatches.IsActive,
+                () => NoSearch
+            )
+            .Item(
+                "Previous Match",
+                "Shift-N",
+                () => repo.BranchCmds.ShowSearchMatch(-1),
+                () => repo.SearchMatches.IsActive,
+                () => NoSearch
+            )
+            .Item("Refresh", "r", () => cmds.RefreshAndFetch())
+            .Item("Clean Working Folder", "", () => cmds.CleanWorkingFolder())
+            .Item("Worktrees ...", "w", () => repo.BranchCmds.ShowWorktrees())
+            .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
+            .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
+            .Item("Config ...", "", () => ShowConfig())
+            .Item("Help", "?, F1", () => cmds.ShowHelp())
+            .Item("About", "", () => cmds.ShowAbout())
+            .Item("Quit", "q, Esc", () => UI.Shutdown());
     }
+
+    const string NoSearch = "Search with f and pick a commit first";
 
     // What can be done about an operation git stopped part way through. Heads the menu because a
     // stopped rebase is the most urgent thing about the repo while it lasts, and self-hides when
@@ -67,10 +104,26 @@ class RepoMenu : IRepoMenu
     // on, and until now gmd could start them but not finish them.
     public IEnumerable<MenuItem> GetOperationItems()
     {
-        var status = repo.Repo.Status;
-        if (status.Operation == GitOperation.None)
+        if (repo.Repo.Status.Operation == GitOperation.None)
             return Menu.Items;
 
+        return Menu.Items.Separator(cmds.OperationSummary()).Items(GetOperationActionItems()).Separator();
+    }
+
+    // The same items on their own, for a click on the operation in the application bar, with the
+    // summary as the title rather than as a header line
+    public void ShowOperationMenu(int x, int y)
+    {
+        if (repo.Repo.Status.Operation == GitOperation.None)
+            return;
+        Menu.Show(cmds.OperationSummary(), x, y + 2, GetOperationActionItems());
+    }
+
+    // Resolve first, since the conflicts are what keep the operation from being finished: it opens
+    // the diff of the uncommitted changes, where Enter on a conflicted file opens the resolver
+    IEnumerable<MenuItem> GetOperationActionItems()
+    {
+        var status = repo.Repo.Status;
         var name = cmds.OperationName();
 
         // Omitted rather than disabled: neither can ever apply to the operation in progress, so a
@@ -85,11 +138,10 @@ class RepoMenu : IRepoMenu
         var hasSkip = status.Operation is GitOperation.Rebase or GitOperation.Am;
 
         return Menu
-            .Items.Separator(cmds.OperationSummary())
+            .Items.Item(status.Conflicted > 0, "Resolve Conflicts", "", () => repo.CommitCmds.ShowUncommittedDiff())
             .Item(hasContinue, $"Continue {name}", "", () => cmds.ContinueOperation())
             .Item(hasSkip, "Skip This Commit", "", () => cmds.SkipOperationCommit())
-            .Item($"Abort {name}", "", () => cmds.AbortOperation())
-            .Separator();
+            .Item($"Abort {name}", "", () => cmds.AbortOperation());
     }
 
     public IEnumerable<MenuItem> GetNewReleaseItems()
@@ -98,7 +150,7 @@ class RepoMenu : IRepoMenu
             return Menu.Items;
         return Menu
             .Items.Separator("New Release Available !!!")
-            .Item("Update to Latest Version ...", "", () => cmds.UpdateRelease())
+            .Item("Update to Latest Version", "", () => cmds.UpdateRelease())
             .Separator();
     }
 

@@ -28,6 +28,7 @@ class ConflictView : IConflictView
 
     ContentView contentView = null!;
     ContentView resultView = null!;
+    readonly IHelpDlg helpDlg;
     UILabel header = null!;
     ConflictFile file = null!;
     ConflictResolution resolution = null!;
@@ -39,8 +40,9 @@ class ConflictView : IConflictView
     bool isResolved;
     bool isMovedToFirstHunk;
 
-    public ConflictView(IServer server, IProgress progress, IConflictRowService rowService)
+    public ConflictView(IServer server, IProgress progress, IConflictRowService rowService, IHelpDlg helpDlg)
     {
+        this.helpDlg = helpDlg;
         this.server = server;
         this.progress = progress;
         this.rowService = rowService;
@@ -119,6 +121,9 @@ class ConflictView : IConflictView
             IsScrollMode = true,
             IsCursorMargin = false,
             IsFocus = false,
+            // Shows the result only. Were it focusable, Tab (the toplevel's next-view key) or a
+            // click would move the focus here, off the file, and every key after it would go nowhere
+            CanFocus = false,
         };
 
         view.Add(header, border, contentView, resultBorder, resultView);
@@ -145,20 +150,22 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler((Key)52, () => Choose(HunkChoice.TheirsThenOurs)); // '4'
         view.RegisterKeyHandler((Key)48, ChooseBase); // '0'
 
-        // Every letter in both cases. Not politeness: an unhandled key falls through to the log
-        // view below, where the upper case letters are commands of their own — 'U' pulls every
-        // branch and 'P' pushes every branch, both of them things to do to a repository that is
-        // *not* in the middle of a stopped merge. The menu and the help name these keys the way
-        // shortcuts are always written, in upper case, so those are the ones a user presses.
-        RegisterLetter(view, Key.q, Key.Q, Close);
-        RegisterLetter(view, Key.u, Key.U, () => Choose(HunkChoice.None));
-        RegisterLetter(view, Key.n, Key.N, () => GotoHunk(1));
-        RegisterLetter(view, Key.p, Key.P, () => GotoHunk(-1));
-        RegisterLetter(view, Key.e, Key.E, EditCurrentHunk);
-        RegisterLetter(view, Key.b, Key.B, ToggleBase);
-        RegisterLetter(view, Key.s, Key.S, () => Save());
-        RegisterLetter(view, Key.a, Key.A, ShowWholeFileMenu);
-        RegisterLetter(view, Key.m, Key.M, () => ShowMainMenu());
+        // Every letter in both cases: the menu and the help name these keys the way shortcuts are
+        // always written, in upper case, so those are the ones a user presses. The view is modal (see
+        // UI.RunDialog), so a key not registered here does nothing. It used to fall through to the
+        // views below, where 'U' pulls every branch, 'P' pushes every branch and the diff's 'c'
+        // closed the resolver without asking about the decisions made in it.
+        view.RegisterLetterHandler(Key.q, Close);
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
+        view.RegisterLetterHandler(Key.u, () => Choose(HunkChoice.None));
+        view.RegisterLetterHandler(Key.n, () => GotoHunk(1));
+        view.RegisterLetterHandler(Key.p, () => GotoHunk(-1));
+        view.RegisterLetterHandler(Key.e, EditCurrentHunk);
+        view.RegisterLetterHandler(Key.b, ToggleBase);
+        view.RegisterLetterHandler(Key.s, () => Save());
+        view.RegisterLetterHandler(Key.a, ShowWholeFileMenu);
+        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
 
         view.RegisterKeyHandler((Key)93, () => GotoHunk(1)); // ']'
         view.RegisterKeyHandler((Key)91, () => GotoHunk(-1)); // '['
@@ -168,12 +175,6 @@ class ConflictView : IConflictView
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
-    }
-
-    static void RegisterLetter(ContentView view, Key lower, Key upper, OnKeyCallback action)
-    {
-        view.RegisterKeyHandler(lower, action);
-        view.RegisterKeyHandler(upper, action);
     }
 
     void SetRows()
@@ -533,7 +534,8 @@ class ConflictView : IConflictView
             0,
             ["Stay", "Save and Close", "Discard and Close"]
         );
-        if (choice == 0)
+        // Esc (-1) backs out of the question, i.e. stays, rather than falling to Discard
+        if (choice is 0 or -1)
             return;
         if (choice == 1)
         {
@@ -650,7 +652,7 @@ class ConflictView : IConflictView
             Menu.Items.Item($"Use {OursLabel()} for the Whole File", "", () => UseWholeFile(true))
                 .Item($"Use {TheirsLabel()} for the Whole File", "", () => UseWholeFile(false))
                 .Separator()
-                .Item("Un-resolve This File", "", Unresolve)
+                .Item("Unresolve This File", "", Unresolve)
         );
     }
 
@@ -667,7 +669,7 @@ class ConflictView : IConflictView
     // Puts the conflict back as git left it, discarding whatever was resolved
     void Unresolve()
     {
-        if (UI.InfoMessage("Un-resolve", $"Put the conflicts back into {file.Path}?", 1, ["Yes", "No"]) != 0)
+        if (UI.InfoMessage("Unresolve", $"Put the conflicts back into {file.Path}?", 1, ["Yes", "No"]) != 0)
             return;
 
         isResolved = true;
@@ -708,25 +710,25 @@ class ConflictView : IConflictView
                 .Item($"Use {ours} then {theirs}", "3", () => Choose(HunkChoice.OursThenTheirs), () => hasHunk)
                 .Item($"Use {theirs} then {ours}", "4", () => Choose(HunkChoice.TheirsThenOurs), () => hasHunk)
                 .Item("Use the Common Ancestor", "0", ChooseBase, () => hasHunk)
-                .Item("Edit by Hand ...", "E", EditCurrentHunk, () => hasHunk)
-                .Item("Un-choose", "U", () => Choose(HunkChoice.None), () => hasHunk)
+                .Item("Edit by Hand ...", "e", EditCurrentHunk, () => hasHunk)
+                .Item("Clear Decision", "u", () => Choose(HunkChoice.None), () => hasHunk)
                 .Separator()
                 .Item(
                     "Next Conflict",
-                    "], N",
+                    "], n",
                     () => GotoHunk(1),
                     () => rows.NextHunkRow(contentView.CurrentIndex, 1) != -1
                 )
                 .Item(
                     "Previous Conflict",
-                    "[, P",
+                    "[, p",
                     () => GotoHunk(-1),
                     () => rows.NextHunkRow(contentView.CurrentIndex, -1) != -1
                 )
-                .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "B", ToggleBase)
+                .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "b", ToggleBase)
                 .Separator()
-                .Item("Save and Mark Resolved", "S", () => Save())
-                .SubMenu("Whole File", "A", WholeFileItems())
+                .Item("Save and Mark Resolved", "s", () => Save())
+                .SubMenu("Whole File", "a", WholeFileItems())
                 .Item("Close", "Esc", Close)
         );
     }
@@ -736,5 +738,5 @@ class ConflictView : IConflictView
             .Items.Item(file.HasOurs, $"Use {OursLabel()} for the Whole File", "", () => UseWholeFile(true))
             .Item(file.HasTheirs, $"Use {TheirsLabel()} for the Whole File", "", () => UseWholeFile(false))
             .Separator()
-            .Item("Un-resolve This File", "", Unresolve);
+            .Item("Unresolve This File", "", Unresolve);
 }

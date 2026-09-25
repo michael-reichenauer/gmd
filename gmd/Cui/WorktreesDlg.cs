@@ -69,10 +69,10 @@ class WorktreesDlg : IWorktreesDlg
 
         var y = listHeight + 4;
         var open = dlg.AddButton(1, y, "_Open", () => Choose(WorktreeAction.Open));
-        dlg.AddButton(11, y, "_Add...", () => Choose(WorktreeAction.Add));
-        var remove = dlg.AddButton(23, y, "_Remove...", () => Choose(WorktreeAction.Remove));
-        var prune = dlg.AddButton(38, y, "_Prune", () => Choose(WorktreeAction.Prune));
-        dlg.AddButton(49, y, "_Copy Path", () => Choose(WorktreeAction.CopyPath));
+        dlg.AddButton(11, y, "_Add ...", () => Choose(WorktreeAction.Add));
+        var remove = dlg.AddButton(24, y, "_Remove ...", () => Choose(WorktreeAction.Remove));
+        var prune = dlg.AddButton(40, y, "_Prune", () => Choose(WorktreeAction.Prune));
+        dlg.AddButton(51, y, "_Copy Path", () => Choose(WorktreeAction.CopyPath));
         dlg.AddButton(width - 13, y, "Close", () => dlg.Close());
 
         void UpdateForSelected()

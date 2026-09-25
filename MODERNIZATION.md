@@ -111,7 +111,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
   tags only, and a new remote commit showed up only when something else happened to fetch.
 - Opening the diff view during a `rebase --apply` or `am` conflict staged the markers and destroyed
   the conflict; `commit -a` committed markers into history. Both are now guarded on any operation.
+  The diff has since stopped touching the index at all: it stages into a copy (`GIT_INDEX_FILE`),
+  since its `git add .` then `git reset` also wiped whatever the user had staged with other tools.
 - `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
+- A repo change within half a second of a read was taken as seen by it, so a `git fetch` in another
+  terminal landing just after gmd read stayed unseen until something else changed; one made while a
+  read ran, or while the search was up, was dropped outright. The log view now skips only a change
+  told of before the read started (`ChangeEvent.IsSeenBy`), and one that comes during a read or a
+  search is looked at again once the next repo is shown. Dating a change by the file's modification
+  time instead was tried and lost renames: a moved file keeps its old time, so it looked seen.
+- Pulling a diverged branch failed, with git's dozen lines of hints as the error, for anyone who
+  has not set `pull.rebase`, which recent git refuses to guess. gmd asks once and saves the answer.
 - Pull all stopped at the first diverged branch, leaving every branch after it unpulled; the branch
   menu's `Pull/Update` on the current branch ran a fetch git refuses outright.
 - Squash refused unpushed commits and allowed pushed ones; Uncommit was offered with a dirty tree
@@ -136,6 +146,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
   was. Verified on this repo's history: one branch renamed to `branch`, nothing else moved.
+- Safety, from the usability review (`USABILITY.md`, Tier 1, 2026-09-25):
+  - Any key the diff, blame or conflict view did not use fell through to the log view: `P` in a
+    diff pushed every branch, and `c` in the resolver closed it with its decisions unsaved.
+  - Esc in the log view quit on the spot, and so did a click on the top bar's `X`. Both ask now,
+    with Yes the default.
+  - `p` force-pushed (`--force-with-lease`) every branch that had a remote, not only after
+    *Force Push* was chosen.
+  - Enter on *Binary Files Detected* discarded the binary changes, and Esc on *Unsaved Decisions*
+    discarded the decisions.
+  - Discarding all changes or a file, dropping a stash and removing a tag (on origin too) never
+    asked first.
+  - A click on ▲ / ▼ pushed or pulled every shown branch, and a middle click merged with no
+    question.
+  - A failed clone or init from the start menu left a blank screen, and a click beside the start
+    menu quit gmd.
 
 ---
 
@@ -143,9 +168,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Product**
 
-- **The diff and blame views register lower-case letters only.** An unhandled upper-case key falls
-  through to the log view: `P` in either view is *push all branches*, `U` in the diff view is *pull
-  all*. One line each, the way the resolver's `RegisterLetter` does it.
+- `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
+  small bugs found along the way.
+- F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
+  through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
+- *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
+  ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
+  and the push makes the lease pass over commits the user never saw. Pass the tip the user saw
+  (`--force-with-lease=<branch>:<sha>`).
+- `DeleteTag` deletes a tag on origin whenever the branch of the row's commit has a remote, not
+  when origin actually has the tag, so the question may say 'on origin as well' for a tag that was
+  never pushed.
 - `CopyCommitId` / `CopyCommitMessage` are implemented on `IRepoCommands` but no key or menu item
   calls them. A commit-menu entry would also give macOS users a copy without Ctrl+C. Cmd+C cannot
   reach a terminal program at all: the terminal keeps it, the classic key protocol cannot express
@@ -161,9 +194,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
   lists only shown branches, so with only `main` shown it is an empty box.
 - Cosmetic and pinned by tests: a cut sid, author or time column carries no `┅` marker (the
-  subject column does); a binary file is headed `Modified:`; a staged added file is counted as
-  modified (only the sum is ever shown, and a `--no-commit` merge stages its files, so every merge
-  shows it); `FileSize` never shows a fraction; a stash message is cut at its first `:`.
+  subject column does); a binary file is headed `Modified:`; `FileSize` never shows a fraction; a
+  stash message is cut at its first `:`. (A staged added file used to be counted as modified, which
+  stopped being cosmetic once discarding a file asked whether it was new; it is added now.)
 - Worktrees, deliberately left out of v1: no unlock of a locked worktree (a second `--force`),
   no bulk clean-up, no auto-prune; the stash list is the repository's and so shows stashes made
   in other worktrees; other worktrees' folders are not watched, so their change counts are up to
@@ -249,6 +282,18 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `UI.cs`, `ContentView`, `UIDialog`, the two browse dialogs; `MessageDlg` and `BorderView` are
   deleted rather than ported. Trap: the migration guide describes `v2_develop`, not the released
   package; check the shipped assembly before believing any specific API.
+- **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7):
+  - *Light terminals.* Every color is on a forced black background (`Color.Make` pairs each with
+    `Terminal.Gui.Color.Black`), so a light-themed terminal shows gmd as a black box: readable, but
+    not the user's theme. The fix is the terminal's own default background, which 1.x has no color
+    for and 2.x has. A second, light palette in 1.x is the alternative, and every screen's colors
+    would need checking on it.
+  - *More branch colors.* Five, picked by a hash of the name (`BranchColorService`), since the
+    other 16-color entries already mean something (main, deleted, ahead, behind). Two of four
+    shown branches often share one; `g` recolors by hand. Needs 256 or true color. Consider
+    replacing red or green then too, for red-green color blindness.
+  - *`NO_COLOR`.* Not read. Low value for gmd, whose graph tells branches apart by color alone;
+    revisit if asked.
 - **Inline conflict editing** (typing in the result pane with both sides in view). The modal `E`
   box covers the need. The gate is whether `SetFocus()` gives a `UITextView` the keyboard when it
   shares a bare `Toplevel` with `ContentView`s — a configuration nothing in the codebase has run,
@@ -388,7 +433,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   focus, so a pane that looks focused receives nothing. Forward keys by hand from the view that has
   them, as `FilterDlg` and `BlameView` do.
 - Keys are matched by exact value and nothing folds case (`p` / `P`, `u` / `U` are different
-  commands). Every letter a view over the log view handles must be registered in both cases.
+  commands in the log view). The side views register their letters in both cases
+  (`ContentView.RegisterLetterHandler`), since their menus write shortcuts in upper case.
+- A key goes to every toplevel on the stack until one handles it, stopping only at a modal one, and
+  a plain `Toplevel` is not modal. The diff, blame and conflict views were plain toplevels, so a key
+  they did not use reached the log view below (`P` in a diff pushed every branch) or the commit
+  dialog's text field. `UI.RunDialog` makes whatever it runs modal. A modal toplevel is not made
+  `Application.Top`, so the log view goes on redrawing underneath, followed by a redraw of the view
+  over it; that is by design and is what a `Dialog` has always done.
 - `UI.EnableInput` captures and restores `RootKeyEvent`. If progress reaches zero while a dialog is
   open, the restore puts back "swallow everything" and input is dead for good — keep the dialog
   inside the command's `Do`.

@@ -163,11 +163,30 @@ class FakeGit : IGit
 
     public Task<Result> FetchAsync(string wd) => throw new NotSupportedException();
 
+    // The commits each path of a search changed, as 'git log -- <path>' would list them, and every
+    // path asked about, in order
+    public Dictionary<string, IReadOnlyList<string>> IdsChangingFiles { get; } = [];
+    public List<string> IdsChangingFilesCalls { get; } = [];
+
+    public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd)
+    {
+        IdsChangingFilesCalls.Add(pathText);
+        IReadOnlyList<string> ids = IdsChangingFiles.TryGetValue(pathText, out var found) ? found : [];
+        return Task.FromResult<Result<IReadOnlyList<string>>>(ids.ToList());
+    }
+
+    public Task<Result<string>> GetRemoteUrlAsync(string wd) => throw new NotSupportedException();
+
     public Task<Result> PushBranchAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) => throw new NotSupportedException();
 
     public Task<Result> PullCurrentBranchAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => throw new NotSupportedException();
 
     public Task<Result> PullBranchAsync(string name, string wd) => throw new NotSupportedException();
 

@@ -66,6 +66,9 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         logService.GetMergeLogAsync(reference, wd);
 
+    public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
+        logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         logService.GetFileAsync(reference, wd);
 
@@ -112,6 +115,8 @@ internal class Git : IGit
 
     public Task<Result> FetchAsync(string wd) => remoteService.FetchAsync(wd);
 
+    public Task<Result<string>> GetRemoteUrlAsync(string wd) => remoteService.GetRemoteUrlAsync(wd);
+
     public Task<Result> PushBranchAsync(string name, string wd) => remoteService.PushBranchAsync(name, wd);
 
     public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) =>
@@ -122,6 +127,11 @@ internal class Git : IGit
     public Task<Result> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
 
     public Task<Result> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
+
+    public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
+        remoteService.IsPullWayConfiguredAsync(branchName, wd);
+
+    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => remoteService.SetPullRebaseAsync(isRebase, wd);
 
     public Task<Result> PullBranchAsync(string name, string wd) => remoteService.PullBranchAsync(name, wd);
 

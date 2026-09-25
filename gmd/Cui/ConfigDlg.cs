@@ -47,7 +47,8 @@ class ConfigDlg : IConfigDlg
         var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", config.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", config.AllowPreview);
         var isSpellCheck = dlg.AddCheckBox(1, 8, "Spell check commit messages", config.SpellCheck);
-        var isAddGmdToPath = dlg.AddCheckBox(1, 9, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
+        var isShowKeyHints = dlg.AddCheckBox(1, 9, "Show key hints at the bottom of the log", config.ShowKeyHints);
+        var isAddGmdToPath = dlg.AddCheckBox(1, 10, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
         isAddGmdToPath.Visible = !Build.IsDevInstance() && Build.IsWindows;
 
         if (dlg.ShowOkCancel())
@@ -62,6 +63,7 @@ class ConfigDlg : IConfigDlg
                 c.AutoUpdate = isAutoUpdate.Checked;
                 c.AllowPreview = isAllowPreview.Checked;
                 c.SpellCheck = isSpellCheck.Checked;
+                c.ShowKeyHints = isShowKeyHints.Checked;
             });
 
             UpdatePathVariable(isAddGmdToPath.Checked);
@@ -99,18 +101,11 @@ class ConfigDlg : IConfigDlg
             return;
 
         string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!;
-        string pathVariable = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
+        string pathVariable = (Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "").Trim();
         string newPathVariable = pathVariable != "" ? pathVariable + ";" + folderPath : folderPath;
 
-        if (Build.IsWindows)
-        {
-            Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
-        }
-        else
-        {
-            // Add to path for Linux and Mac
-            UI.InfoMessage("Not implemented yet", "Add gmd to PATH environment variable");
-        }
+        // Windows only, see UpdatePathVariable: the user PATH is a registry value there
+        Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
 
         UI.InfoMessage(
             "Gmd",
@@ -126,23 +121,18 @@ class ConfigDlg : IConfigDlg
 
         string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!.ToUpper();
 
-        string pathVariables = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
+        string pathVariables = (
+            Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? ""
+        ).Trim();
         var parts = pathVariables.Split(';');
         string newPathVariable = String.Join(';', parts.Where(p => p.ToUpper() != folderPath));
 
-        if (Build.IsWindows)
-        {
-            Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
-        }
-        else
-        {
-            // Remove path for Linux and Mac
-            UI.InfoMessage("Not implemented yet", "Remove gmd from PATH environment variable");
-        }
+        // Windows only, see UpdatePathVariable
+        Environment.SetEnvironmentVariable("PATH", newPathVariable, EnvironmentVariableTarget.User);
 
         UI.InfoMessage(
             "Gmd",
-            "Removed gmd to PATH environment variable\n\n"
+            "Removed gmd from PATH environment variable\n\n"
                 + "You need to restart running terminals for the change to take effect"
         );
     }

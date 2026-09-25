@@ -41,7 +41,8 @@ public class PushPullTest
 
         gmd.Send("p");
 
-        ScreenText.AssertEqual(
+        var screen = gmd.WaitUntilGone("▲");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -52,9 +53,9 @@ public class PushPullTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("▲"),
-            repo.Path
+            ScreenText.Rows(screen, repo.Path, 0, 8)
         );
+        Assert.AreEqual("Pushed 'main'", ScreenText.LastLine(gmd.WaitFor("Pushed 'main'")), "What was done is said");
 
         Assert.AreEqual(
             await repo.GitAsync("rev-parse main"),
@@ -65,6 +66,120 @@ public class PushPullTest
         // v1.0 is still there, and still unpushed: pushing a branch does not push its tags,
         // and the fetch that follows no longer prunes the ones the remote has not got
         Assert.AreEqual("v1.0", await repo.GitAsync("tag --list"));
+
+        // And it was a plain push. 'p' used to force push (with lease) any branch that had a remote,
+        // not only after Force Push was chosen in the question a diverged branch gets, see below.
+        var log = gmd.WaitForLog("push --porcelain origin --set-upstream refs/heads/main:refs/heads/main");
+        Assert.IsFalse(log.Contains("push --force-with-lease"), "'p' should not force push");
+    }
+
+    // A click on ▲ or ▼ in the application bar opens a menu, the current branch or all of them. It
+    // used to push or pull every shown branch there and then.
+    [TestMethod]
+    [DataRow(true, "▲1", "Push Current Branch")]
+    [DataRow(false, "▼1", "Pull Current Branch")]
+    public async Task TestClickingTheAheadOrBehindMarkerOpensAMenu(bool isAhead, string marker, string item)
+    {
+        using var repo = isAhead ? await E2eRepo.CreateWithOriginAsync() : await E2eRepo.CreateBehindOriginAsync();
+        var (localMain, remoteMain) = (
+            await repo.GitAsync("rev-parse main"),
+            await repo.GitAsync("ls-remote origin main")
+        );
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor(marker), marker);
+
+        gmd.Click(x, y);
+        gmd.WaitFor(item);
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone(item), marker, "Nothing was pushed or pulled");
+        Assert.AreEqual(localMain, await repo.GitAsync("rev-parse main"), "main is untouched");
+        Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "and so is origin");
+    }
+
+    // A branch whose remote has commits it has not got can only be pushed by force, so 'p' asks,
+    // with Cancel the default, and Cancel leaves origin as it was
+    [TestMethod]
+    public async Task TestPushingADivergedBranchAsksBeforeForcing()
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        var remoteMain = await repo.GitAsync("ls-remote origin main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("●main");
+
+        gmd.Send("p");
+        gmd.WaitFor("Push Warning");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Push Warning");
+        Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
+    }
+
+    // Force Push is the push, and the only one: a plain push used to follow it, going to the remote a
+    // second time, and failing if anyone had pushed in between, after the force push had worked
+    [TestMethod]
+    public async Task TestForcePushPushesOnce()
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("●main");
+        var refreshes = gmd.LogCount("show refreshed repo");
+
+        gmd.Send("p");
+        gmd.WaitFor("Push Warning");
+        gmd.Send("Left"); // From Cancel, the default, to Force Push
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual("Pushed 'main'", ScreenText.LastLine(gmd.WaitFor("Pushed 'main'")));
+        Assert.AreEqual(await repo.GitAsync("rev-parse main"), await repo.GitAsync("rev-parse origin/main"));
+        // The refresh after the push is logged after any push it made
+        var log = gmd.WaitForLogTimes("show refreshed repo", refreshes + 1);
+        StringAssert.Contains(log, "push --force-with-lease");
+        Assert.IsFalse(log.Contains("push --porcelain"), "No plain push after the forced one");
+    }
+
+    // Uncommitted changes do not stop a push, which sends commits and leaves the changes where they
+    // are, and the message says so, since that is easy to assume otherwise
+    [TestMethod]
+    public async Task TestPushWithUncommittedChanges()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        repo.WriteFile("alpha.txt", "alpha\nchanged\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1");
+
+        gmd.Send("p");
+
+        Assert.AreEqual(
+            "Pushed 'main'; the uncommitted changes stay local",
+            ScreenText.LastLine(gmd.WaitFor("Pushed 'main'"))
+        );
+        Assert.AreEqual(await repo.GitAsync("rev-parse main"), await repo.GitAsync("rev-parse origin/main"));
+        Assert.AreEqual(" M alpha.txt", await repo.GitAsync("status -s"), "The change is still there");
+    }
+
+    // With a branch highlighted, 'p' pushes that branch, as its branch menu's Push says, rather than
+    // the current one. 'work' is current and 'main', a commit ahead of origin, is highlighted.
+    [TestMethod]
+    public async Task TestPushTheHighlightedBranch()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("checkout -q -b work HEAD~1");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+        gmd.Send("Home");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+
+        gmd.Send("p");
+
+        Assert.AreEqual("Pushed 'main'", ScreenText.LastLine(gmd.WaitFor("Pushed 'main'")));
+        Assert.AreEqual(await repo.GitAsync("rev-parse main"), await repo.GitAsync("rev-parse origin/main"));
+        Assert.AreEqual("work", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "Still on work");
     }
 
     // Pulling with 'u', the mirror of the push above: origin has a commit the local branch has
@@ -93,7 +208,8 @@ public class PushPullTest
 
         gmd.Send("u");
 
-        ScreenText.AssertEqual(
+        var screen = gmd.WaitUntilGone("▼");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -104,9 +220,9 @@ public class PushPullTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("▼"),
-            repo.Path
+            ScreenText.Rows(screen, repo.Path, 0, 8)
         );
+        Assert.AreEqual("Pulled 'main'", ScreenText.LastLine(gmd.WaitFor("Pulled 'main'")), "What was done is said");
 
         Assert.AreEqual(
             await repo.GitAsync("rev-parse origin/main"),
@@ -149,10 +265,10 @@ public class PushPullTest
 
         // The diverged branch is named rather than passed over: it keeps its '▼' marker, so
         // silence would look exactly like the pull having failed
-        var message = gmd.WaitFor("Pull/Update All Branches");
+        var message = gmd.WaitFor("Pull All Branches");
         Assert.AreEqual(
             """
-                                  ╭ Pull/Update All Branches ───────────────────────────────────────────────╮
+                                  ╭ Pull All Branches ──────────────────────────────────────────────────────╮
                                   │These branches have both local and remote commits, which an update of all│
                                   │branches cannot merge, since it only fast-forwards a branch it is not on.│
                                   │Switch to the branch and pull it to merge:                               │
@@ -167,7 +283,8 @@ public class PushPullTest
 
         gmd.Send("Enter");
 
-        ScreenText.AssertEqual(
+        var updated = gmd.WaitUntilGone("Pull All Branches");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●work, ▼1, ▲1                                               (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -182,9 +299,9 @@ public class PushPullTest
             ┣╯        Add beta                                                                            dd7891 Test User 24-10-15
             ┗         Initial                                                                             9dc406 Test User 24-10-15
             """,
-            gmd.WaitUntilGone("Pull/Update All Branches"),
-            repo.Path
+            ScreenText.Rows(updated, repo.Path, 0, 12)
         );
+        Assert.AreEqual("Updated 'work'", ScreenText.LastLine(gmd.WaitFor("Updated 'work'")), "What was done is said");
 
         Assert.AreEqual(
             await repo.GitAsync("rev-parse origin/work"),
@@ -196,5 +313,69 @@ public class PushPullTest
             await repo.GitAsync("rev-parse main"),
             "The diverged branch was left as it was"
         );
+    }
+
+    // With changes, the current branch cannot be pulled, and 'Shift-U' says so. It used to say
+    // 'Nothing to pull', with the ▼ of the branch it had left on screen.
+    [TestMethod]
+    public async Task TestPullAllBranchesSaysWhyTheCurrentBranchWasLeft()
+    {
+        using var repo = await E2eRepo.CreateBehindOriginAsync();
+        repo.WriteFile("alpha.txt", "alpha\nchanged\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1");
+
+        gmd.Send("U");
+
+        Assert.AreEqual(
+            "Commit or stash the changes first, then pull 'main'",
+            ScreenText.LastLine(gmd.WaitFor("then pull"))
+        );
+    }
+
+    // Git will not pull a diverged branch until it is told how to join the two sides, and gmd used
+    // to pass on its refusal, a dozen lines of hints. It asks now, Merge or Rebase, and saves the
+    // answer as pull.rebase, where git reads it too.
+    [TestMethod]
+    [DataRow("Merge", "false")]
+    [DataRow("Rebase", "merges")]
+    public async Task TestPullingADivergedBranchAsksHow(string button, string saved)
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Main local");
+
+        gmd.Send("u");
+        StringAssert.Contains(
+            gmd.WaitFor("Pull Diverged Branch"),
+            "'main' has 1 commit not pushed, and origin has 1 commit"
+        );
+        if (button == "Rebase")
+        {
+            gmd.Send("Tab");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Pulled 'main'");
+        Assert.AreEqual(saved, (await repo.GitAsync("config pull.rebase")).Trim());
+        var parents = (await repo.GitAsync("log -1 --format=%P main")).Trim().Split(' ');
+        Assert.AreEqual(button == "Rebase" ? 1 : 2, parents.Length, button == "Rebase" ? "One line" : "A merge");
+    }
+
+    // Once git knows how, whether gmd saved it or the user did, nothing is asked
+    [TestMethod]
+    public async Task TestPullingADivergedBranchAsGitIsConfiguredAsksNothing()
+    {
+        using var repo = await E2eRepo.CreateWithDivergedMainAsync();
+        await repo.GitAsync("checkout -q main");
+        await repo.GitAsync("config pull.rebase false");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Main local");
+
+        gmd.Send("u");
+
+        Assert.IsFalse(gmd.WaitFor("Pulled 'main'").Contains("Pull Diverged Branch"));
     }
 }

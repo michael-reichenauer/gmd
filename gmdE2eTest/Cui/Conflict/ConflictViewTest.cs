@@ -87,11 +87,10 @@ public class ConflictViewTest
         StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "line 40 on dev", "'[' goes back to it");
     }
 
-    // The letter shortcuts are registered in both cases, which is a safety matter rather than
-    // politeness: a key the resolver does not handle falls through to the log view below, where 'U'
-    // pulls every branch and 'P' pushes every branch — neither of them a thing to do to a repository
-    // stopped in the middle of a merge. Upper case is how the menu and the help write a shortcut, so
-    // upper case is what gets pressed.
+    // The letter shortcuts work in both cases. Upper case is how the menu and the help write a
+    // shortcut, so upper case is what gets pressed. It used to be a safety matter too: a key the
+    // resolver did not handle fell through to the log view below, where 'U' pulls every branch and
+    // 'P' pushes every branch. The resolver is modal now, so an unhandled key does nothing at all.
     [TestMethod]
     public async Task TestUpperCaseShortcutsActOnTheConflict()
     {
@@ -209,6 +208,52 @@ public class ConflictViewTest
         gmd.Send("Enter");
         StringAssert.Contains(gmd.WaitUntilGone("Unsaved Decisions"), "all resolved", "Still there to save");
 
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
+        StringAssert.Contains(text, "<<<<<<<", "and nothing has been written to the file");
+    }
+
+    // A key the resolver has no use for does nothing there. The resolver is opened from the diff
+    // view, and an unhandled key used to fall through to it: 'c' is the diff's commit, which closed
+    // the resolver with no word about the decisions made in it and queued a commit behind it. Tab is
+    // the other half: with nothing below to take it, it must not move the focus off the file either,
+    // or every key after it goes nowhere.
+    [TestMethod]
+    public async Task TestKeysTheResolverDoesNotUseDoNothing()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+
+        gmd.Send("c");
+        StringAssert.Contains(gmd.WaitForStable(), "all resolved", "'c' leaves the resolver open");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("2");
+        StringAssert.Contains(gmd.WaitFor("using dev"), "all resolved", "The keys still reach the resolver");
+    }
+
+    // Escape on the question is Stay, like any other way of backing out of it. It used to fall to
+    // Discard and Close, the one answer that loses the decisions, since only Stay's own button was
+    // checked for.
+    [TestMethod]
+    public async Task TestEscapeOnTheUnsavedDecisionsQuestionStays()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+        gmd.Send("Escape");
+        gmd.WaitFor("Unsaved Decisions");
+
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Unsaved Decisions"), "all resolved", "Still there to save");
         var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
         StringAssert.Contains(text, "<<<<<<<", "and nothing has been written to the file");
     }

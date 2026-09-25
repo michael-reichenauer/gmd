@@ -23,13 +23,21 @@ class BranchPushPullCommands : IBranchPushPullCommands
 {
     readonly IViewRepo repo;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
 
-    public BranchPushPullCommands(IViewRepo repo, IProgress progress, IRepoView repoView, IServer server)
+    public BranchPushPullCommands(
+        IViewRepo repo,
+        IProgress progress,
+        IStatusLine status,
+        IRepoView repoView,
+        IServer server
+    )
     {
         this.repo = repo;
         this.progress = progress;
+        this.status = status;
         this.repoView = repoView;
         this.server = server;
     }
@@ -39,12 +47,20 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
-            if (!repo.Repo.Status.IsOk)
-                return new Error("Commit changes before pushing");
+            // Why nothing was pushed is said on the status line, see Notice: none of these is an error.
+            // Changes are no reason, a push sends commits and leaves them where they are.
+            if (repo.Repo.Status.IsMerging)
+                return new Notice(Why.InProgress);
             if (branch == null)
-                return new Error("No current branch to push");
+                return new Notice("No branch is checked out to push");
             if (!branch.HasLocalOnly)
-                return new Error($"No local changes to push on current branch:\n{branch.NiceNameUnique}");
+            {
+                return new Notice(
+                    branch.RemoteName == ""
+                        ? $"'{branch.NiceNameUnique}' is not on origin yet: Push in its branch menu publishes it"
+                        : $"Nothing to push on '{branch.NiceNameUnique}'"
+                );
+            }
 
             if (branch.RemoteName != "")
             { // Cannot push local branch if remote needs to be pulled first
@@ -71,11 +87,19 @@ class BranchPushPullCommands : IBranchPushPullCommands
                         RefreshAndFetch();
                         return Result.Ok;
                     }
-                }
 
-                if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
-                {
-                    return new Error($"Failed to push branch:\n{branch.Name}", ee);
+                    // Force Push was chosen. Only then: this call used to sit after the question
+                    // rather than inside it, so every push of a branch with a remote was a force push.
+                    if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
+                    {
+                        return new Error($"Failed to push branch:\n{branch.Name}", ee);
+                    }
+
+                    // And that is the push: the plain one below would go to the remote a second
+                    // time, and fail if anyone pushed in between, after the force push had worked
+                    Refresh();
+                    status.Info(Pushed($"'{branch.NiceNameUnique}'"));
+                    return Result.Ok;
                 }
             }
 
@@ -85,6 +109,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info(Pushed($"'{branch.NiceNameUnique}'"));
             return Result.Ok;
         });
 
@@ -99,6 +124,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Published '{branch.NiceNameUnique}'");
             return Result.Ok;
         });
 
@@ -111,16 +137,17 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info(Pushed($"'{NiceName(name)}'"));
             return Result.Ok;
         });
 
     public void PushAllBranches() =>
         Do(async () =>
         {
-            if (!repo.Repo.Status.IsOk)
-                return new Error("Commit changes before pulling");
+            if (repo.Repo.Status.IsMerging)
+                return new Notice(Why.InProgress);
             if (!CanPush())
-                return new Error("No local changes to push");
+                return new Notice("Nothing to push");
 
             var branches = BranchesToPush(repo.Repo);
 
@@ -134,6 +161,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info(Pushed(Names(branches.Select(b => b.NiceNameUnique))));
             return Result.Ok;
         });
 
@@ -142,15 +170,21 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
             if (!repo.Repo.Status.IsOk)
-                return new Error("Commit changes before pulling");
+                return new Notice("Commit the changes first, then pull");
             if (branch == null)
-                return new Error("No current branch to pull");
+                return new Notice("No branch is checked out to pull");
             if (branch.RemoteName == "")
-                return new Error("No current remote branch to pull");
+                return new Notice($"'{branch.NiceNameUnique}' is not on origin, so there is nothing to pull");
 
             var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
             if (remoteBranch == null || !remoteBranch.HasRemoteOnly)
-                return new Error("No remote changes on current branch to pull");
+                return new Notice($"Nothing to pull on '{branch.NiceNameUnique}'");
+
+            var way = await EnsurePullWayAsync(remoteBranch);
+            if (way is not bool isToPull)
+                return way.Error;
+            if (!isToPull)
+                return Result.Ok;
 
             if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
             {
@@ -158,6 +192,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Pulled '{branch.NiceNameUnique}'");
             return Result.Ok;
         });
 
@@ -170,6 +205,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             }
 
             Refresh();
+            status.Info($"Updated '{NiceName(name)}'");
             return Result.Ok;
         });
 
@@ -177,8 +213,27 @@ class BranchPushPullCommands : IBranchPushPullCommands
         Do(async () =>
         {
             var currentRemoteName = "";
+            List<string> updated = [];
+
+            // The current branch is pulled with 'git pull', which needs the changes out of the way,
+            // while the others are fetched, which leaves the working tree alone. So they are pulled
+            // all the same, and the current one is said to have been left, as 'Nothing to pull'
+            // would be said with its ▼ on screen.
+            var leftCurrent =
+                !repo.Repo.Status.IsOk && IsCurrentBranchBehind(repo.Repo)
+                    ? repo.Repo.CurrentBranch()?.NiceNameUnique
+                    : null;
             if (CanPullCurrentBranch())
             {
+                if (repo.Repo.BranchByName.TryGetValue(repo.Repo.CurrentBranch()?.RemoteName ?? "", out var current))
+                {
+                    var way = await EnsurePullWayAsync(current);
+                    if (way is not bool isToPull)
+                        return way.Error;
+                    if (!isToPull)
+                        return Result.Ok;
+                }
+
                 Log.Info("Pull current");
                 // Need to treat current branch separately
                 if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
@@ -186,6 +241,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                     return new Error($"Failed to pull current branch", e);
                 }
                 currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
+                updated.Add(repo.Repo.CurrentBranch()?.NiceNameUnique ?? "");
             }
 
             var branches = BranchesToPull(repo.Repo, currentRemoteName).ToList();
@@ -201,9 +257,9 @@ class BranchPushPullCommands : IBranchPushPullCommands
             foreach (var b in branches)
             {
                 if (await server.PullBranchAsync(b.Name, repo.Path) is Error e)
-                {
                     failed.Add($"{b.NiceNameUnique}: {e.AllMessages()}");
-                }
+                else
+                    updated.Add(b.NiceNameUnique);
             }
 
             Refresh();
@@ -212,9 +268,81 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 return new Error($"Failed to pull:\n{string.Join("\n", failed)}");
             if (diverged.Any())
                 ShowDivergedMessage(diverged);
+            else if (!updated.Any())
+                return new Notice(
+                    leftCurrent != null ? $"{Why.Changes}, then pull '{leftCurrent}'" : "Nothing to pull"
+                );
 
+            if (updated.Any())
+            {
+                var left = leftCurrent != null ? $", but not '{leftCurrent}': commit or stash the changes first" : "";
+                status.Info($"Updated {Names(updated)}{left}");
+            }
             return Result.Ok;
         });
+
+    // A branch that has diverged from its remote is joined to it by a merge or a rebase. Git leaves
+    // that to its config, and refuses to guess when none is set: 'fatal: Need to specify how to
+    // reconcile divergent branches', under a dozen lines of hints, which used to be gmd's error. So
+    // gmd asks, once, and saves the answer where git reads it, pull.rebase, so that a pull on the
+    // command line does the same from then on. A branch that is only behind is a fast-forward, which
+    // needs neither. False when the user cancelled.
+    async Task<Result<bool>> EnsurePullWayAsync(Branch remoteBranch)
+    {
+        if (!(remoteBranch.HasRemoteOnly && remoteBranch.HasLocalOnly))
+            return true;
+
+        var localName = remoteBranch.LocalName != "" ? remoteBranch.LocalName : remoteBranch.Name;
+        var configured = await server.IsPullWayConfiguredAsync(localName, repo.Path);
+        if (configured is not bool isConfigured)
+            return configured.Error;
+        if (isConfigured)
+            return true;
+
+        var commits = repo.Repo.ViewCommits.Where(c => c.BranchPrimaryName == remoteBranch.PrimaryName).ToList();
+        var ahead = Commits(commits.Count(c => c.IsAhead));
+        var behind = Commits(commits.Count(c => c.IsBehind));
+        var choice = UI.InfoMessage(
+            "Pull Diverged Branch",
+            $"'{NiceName(remoteBranch.Name)}' has {ahead} not pushed, and origin has {behind}\n"
+                + "not pulled. Merge joins the two with a merge commit, and Rebase\n"
+                + $"moves your {ahead} on top of origin's.\n\n"
+                + "The answer is saved as pull.rebase in the repository's git config,\n"
+                + "so it is not asked again, and git on the command line does the same.",
+            0,
+            ["Merge", "Rebase", "Cancel"]
+        );
+        if (choice is not (0 or 1))
+            return false;
+
+        if (await server.SetPullRebaseAsync(choice == 1, repo.Path) is Error e)
+            return new Error("Failed to save how to pull", e);
+        return true;
+    }
+
+    static string Commits(int count) => count == 1 ? "1 commit" : $"{count} commits";
+
+    // The name a branch is shown with, its local one for a local and remote pair: a branch menu and
+    // a highlighted branch give the pair by its primary name, which is the remote's, 'origin/main'
+    string NiceName(string name)
+    {
+        if (!repo.Repo.BranchByName.TryGetValue(name, out var branch))
+            return name;
+        if (branch.LocalName != "" && repo.Repo.BranchByName.TryGetValue(branch.LocalName, out var local))
+            branch = local;
+        return branch.NiceNameUnique;
+    }
+
+    // What was pushed, and that the changes were not, since that is easy to assume
+    string Pushed(string what) =>
+        repo.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
+
+    // Up to three names, which is what fits a status line, and otherwise how many
+    static string Names(IEnumerable<string> names)
+    {
+        var list = names.ToList();
+        return list.Count <= 3 ? string.Join(", ", list.Select(n => $"'{n}'")) : $"{list.Count} branches";
+    }
 
     public bool CanPush() => CanPush(repo.Repo);
 
@@ -228,8 +356,30 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // are testable without a view. Note that a diverged branch (both local and remote only
     // commits) can neither be pushed nor be part of 'push all branches', since git would reject
     // it as non fast-forward.
+    // Push and Pull of one branch, the one a branch menu is for or the one highlighted when 'p' or
+    // 'u' is pressed: one rule for both, so the key does what the menu item says. A branch not yet
+    // on origin can be pushed, which publishes it. The current branch is pulled with 'git pull',
+    // which merges, so it can be pulled even when diverged; any other branch is updated with a
+    // fetch, which only fast-forwards, and not at all while it is checked out in another worktree.
+    internal static bool CanPushBranch(Repo repo, Branch b) =>
+        (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && !repo.Status.IsMerging;
+
+    internal static string WhyNoPushBranch(Repo repo, Branch b) =>
+        repo.Status.IsMerging ? Why.InProgress : $"Nothing to push on '{b.NiceNameUnique}'";
+
+    internal static bool CanPullBranch(Repo repo, Branch b) =>
+        b.HasRemoteOnly && repo.Status.IsOk && (IsCurrent(b) || !b.HasLocalOnly) && repo.WorktreePathOf(b) == "";
+
+    internal static string WhyNoPullBranch(Repo repo, Branch b) =>
+        !b.HasRemoteOnly ? $"Nothing to pull on '{b.NiceNameUnique}'"
+        : !repo.Status.IsOk ? Why.Changes
+        : repo.WorktreePathOf(b) != "" ? Why.InWorktree(b)
+        : "It has commits of its own too: switch to it, and pull (u) merges the two";
+
+    static bool IsCurrent(Branch b) => b.IsCurrent || b.IsLocalCurrent;
+
     internal static bool CanPush(Repo repo) =>
-        repo.Status.IsOk && repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
+        !repo.Status.IsMerging && repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
 
     internal static bool CanPushCurrentBranch(Repo repo)
     {
@@ -244,7 +394,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 return false;
         }
 
-        return repo.Status.IsOk && branch != null && branch.HasLocalOnly;
+        return !repo.Status.IsMerging && branch != null && branch.HasLocalOnly;
     }
 
     internal static bool CanPull(Repo repo) => repo.Status.IsOk && repo.ViewBranches.Any(b => b.HasRemoteOnly);
@@ -261,6 +411,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
         var remoteBranch = repo.BranchByName[branch.RemoteName];
         return repo.Status.IsOk && remoteBranch != null && remoteBranch.HasRemoteOnly;
     }
+
+    // Whether origin has commits for the current branch, whether or not the changes let it be pulled
+    internal static bool IsCurrentBranchBehind(Repo repo) =>
+        repo.ViewBranches.FirstOrDefault(b => b.IsCurrent) is Branch branch
+        && branch.RemoteName != ""
+        && repo.BranchByName.TryGetValue(branch.RemoteName, out var remote)
+        && remote.HasRemoteOnly;
 
     // The branches 'push all branches' pushes, i.e. one row per branch (a branch and its remote
     // share their primary name)
@@ -308,7 +465,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     {
         var names = string.Join("\n", diverged.Select(b => $"  {b.NiceNameUnique}"));
         UI.InfoMessage(
-            "Pull/Update All Branches",
+            "Pull All Branches",
             "These branches have both local and remote commits, which an update of all\n"
                 + "branches cannot merge, since it only fast-forwards a branch it is not on.\n"
                 + $"Switch to the branch and pull it to merge:\n\n{names}"
@@ -319,5 +476,5 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 }

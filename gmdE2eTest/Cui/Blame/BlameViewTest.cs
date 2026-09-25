@@ -98,6 +98,46 @@ public class BlameViewTest
         Assert.IsTrue(gmd.IsRunning, $"'{key}' should close the blame view, not quit gmd");
     }
 
+    // A key the blame view has no use for does nothing there. It used to fall through to the log view
+    // below, where 'U' updates every branch and 'u' pulls the current one.
+    [TestMethod]
+    public async Task TestLogViewKeysDoNothingInTheBlame()
+    {
+        using var repo = await E2eRepo.CreateBehindOriginAsync();
+        var localMain = await repo.GitAsync("rev-parse main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("▼1");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("Blame  alpha.txt");
+
+        foreach (var key in new[] { "U", "u" })
+        {
+            gmd.Send(key);
+            gmd.WaitForStable();
+        }
+
+        gmd.Send("q");
+        StringAssert.Contains(gmd.WaitUntilGone("Blame  alpha.txt"), "▼1", "Nothing was pulled");
+        Assert.AreEqual(localMain, await repo.GitAsync("rev-parse main"), "main is untouched");
+    }
+
+    // Both cases open the menu, as in the diff view
+    [TestMethod]
+    [DataRow("m")]
+    [DataRow("M")]
+    public async Task TestBlameMenuOpensWithM(string key)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("Blame  alpha.txt");
+
+        gmd.Send(key);
+
+        gmd.WaitFor("Blame: alpha.txt");
+    }
+
     // 'Blame File ...' is the second last item of the commit menu, so 'End' and two 'Up' is the
     // steadier walk to it than counting downwards past the items OnCursorDown skips. One key per
     // Send with a wait after each, since a menu redraw drops whatever was sent behind it.

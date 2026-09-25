@@ -33,23 +33,29 @@ sealed class TempHome : IDisposable
     // the GitHub releases API. That is a network dependency in CI, and a released version newer
     // than the test build would put a '⇓' in the application bar and extra items in the repo
     // menu, mid-test.
-    const string ConfigJson = """
-        {
-          "CheckUpdates": false,
-          "AutoUpdate": false
-        }
-        """;
+    //
+    // The key-hint line is off unless asked for. It is the bottom row of the screen, so with it on
+    // every snapshot of a whole screen would be the rows it asserts, then thirty blank ones, then
+    // the hints; the tests about the hints turn it on.
+    static string ConfigJson(bool isKeyHints) =>
+        $$"""
+            {
+              "CheckUpdates": false,
+              "AutoUpdate": false,
+              "ShowKeyHints": {{(isKeyHints ? "true" : "false")}}
+            }
+            """;
 
     TempHome(string path) => Path = path;
 
     // The folder to point HOME at
     public string Path { get; }
 
-    public static TempHome Create()
+    public static TempHome Create(bool isKeyHints = false)
     {
         var path = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
         var home = new TempHome(path);
-        home.Init();
+        home.Init(isKeyHints);
         return home;
     }
 
@@ -79,7 +85,7 @@ sealed class TempHome : IDisposable
             Log.Warn($"Failed to delete temp home '{Path}', {e}");
     }
 
-    void Init()
+    void Init(bool isKeyHints)
     {
         // All three have to exist before gmd starts: ConfigLogger's static constructor writes
         // the log file and fails fast if it cannot
@@ -87,6 +93,6 @@ sealed class TempHome : IDisposable
         Directory.CreateDirectory(IOPath.Join(Path, ".config"));
         Directory.CreateDirectory(IOPath.Join(Path, "tmp"));
 
-        File.WriteAllText(IOPath.Join(Path, ".gmdconfig"), ConfigJson);
+        File.WriteAllText(IOPath.Join(Path, ".gmdconfig"), ConfigJson(isKeyHints));
     }
 }

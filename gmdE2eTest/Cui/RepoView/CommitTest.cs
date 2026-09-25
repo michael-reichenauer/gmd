@@ -40,6 +40,21 @@ public class CommitTest
         );
     }
 
+    // A file renamed while gmd is open is a change, left to the file monitor to see. A rename keeps
+    // the file's modification time, and the monitor used to date a change by that time, so the
+    // rename looked older than the last read, was taken as seen by it, and never showed.
+    [TestMethod]
+    public async Task TestAFileRenamedWhileGmdIsOpenIsShown()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        File.Move(Path.Join(repo.Path, "alpha.txt"), Path.Join(repo.Path, "renamed.txt"));
+
+        gmd.WaitFor("uncommitted changes");
+    }
+
     // 'c' commits, i.e. the dialog, the git command behind it and the refreshed log view. The one
     // keystroke in this suite that writes a commit.
     [TestMethod]
@@ -126,7 +141,7 @@ public class CommitTest
     }
 
     // Escape cancels the dialog, and cancelling has to leave the repository alone. Note that the
-    // same key one view further out quits gmd, so this also pins that the dialog swallows it.
+    // same key one view further out asks to quit gmd, so this also pins that the dialog swallows it.
     [TestMethod]
     public async Task TestCancelCommitLeavesTheRepoUnchanged()
     {
@@ -142,6 +157,27 @@ public class CommitTest
         Assert.IsTrue(gmd.IsRunning, "Escape in the commit dialog should close it, not quit gmd");
         Assert.AreEqual(" M alpha.txt\n?? epsilon.txt", await repo.GitAsync("status -s"));
         Assert.AreEqual("Add delta", await repo.GitAsync("log --format=%s -1"), "Nothing should be committed");
+    }
+
+    // A binary file in the changes is asked about before the commit dialog opens, and Enter on that
+    // question used to be Undo, which reverts a changed binary file and deletes a new one, with no
+    // way back. Cancel is the default now: it changes nothing, and 'c' again is a key away.
+    [TestMethod]
+    public async Task TestEnterOnTheBinaryFilesQuestionChangesNothing()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        repo.WriteFile("image.bin", "binary\0data");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©1 uncommitted change");
+        gmd.Send("c");
+        gmd.WaitFor("Binary Files Detected");
+
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Binary Files Detected"), "©1 uncommitted change");
+        Assert.IsFalse(gmd.Capture().Contains("Commit 1 change"), "Cancel should not go on to commit");
+        Assert.AreEqual("?? image.bin", await repo.GitAsync("status -s"));
+        Assert.AreEqual("binary\0data", File.ReadAllText(Path.Join(repo.Path, "image.bin")));
     }
 
     // The dialog's one validation rule, which is the difference between a rejected commit and a
@@ -263,7 +299,7 @@ public class CommitTest
         );
 
         gmd.Send("a");
-        var dialog = gmd.WaitFor("Amend 0 changes");
+        var dialog = gmd.WaitFor("Amend the last commit");
 
         // The dialog is the commit one retitled, with the message of the commit being amended
         // filled in and the cursor at its end. '0 changes' because the working tree is clean here:
@@ -271,7 +307,7 @@ public class CommitTest
         Assert.AreEqual(
             """
                                    ╭ Amend ─────────────────────────────────────────────────────────────────╮
-                                   │ Amend 0 changes on 'main':                                             │
+                                   │ Amend the last commit on 'main':                                       │
                                    │                                                                        │
                                    │[Add zeta                                          ]                    │
             """,
@@ -322,9 +358,11 @@ public class CommitTest
 
         gmd.Send("a");
 
-        // No dialog opens. The '▲' ahead markers are gone now that everything is pushed, and the
-        // remote is drawn as its own '(^)' tip beside the local one on the same commit.
-        ScreenText.AssertEqual(
+        // No dialog opens, and the status line says why. The '▲' ahead markers are gone now that
+        // everything is pushed, and the remote is drawn as its own '(^)' tip beside the local one on
+        // the same commit.
+        var screen = gmd.WaitFor("Only a commit not yet pushed can be amended");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -335,9 +373,9 @@ public class CommitTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitForStable(),
-            repo.Path
+            ScreenText.Rows(screen, repo.Path, 0, 8)
         );
+        Assert.AreEqual("Only a commit not yet pushed can be amended", ScreenText.LastLine(screen));
 
         Assert.AreEqual("Add zeta", await repo.GitAsync("log --format=%s -1"), "Nothing should be rewritten");
     }
@@ -345,7 +383,7 @@ public class CommitTest
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
     //
-    // On a clean tree the menu opens with the cursor already on 'Commit Diff ...' — 'Commit ...'
+    // On a clean tree the menu opens with the cursor already on 'Commit Diff' — 'Commit ...'
     // and 'Amend ...' are both disabled, and Menu.Show starts on the first item that is not — so
     // 'Undo' is one move away rather than three.
     [TestMethod]
@@ -385,7 +423,7 @@ public class CommitTest
         gmd.WaitForStable();
 
         gmd.Send("m");
-        gmd.WaitFor("Commit Diff ...");
+        gmd.WaitFor("Commit Diff");
         for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
@@ -446,7 +484,7 @@ public class CommitTest
         gmd.WaitForStable();
 
         gmd.Send("m");
-        gmd.WaitFor("Commit Diff ...");
+        gmd.WaitFor("Commit Diff");
         for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
@@ -479,7 +517,7 @@ public class CommitTest
     // a commit that is not on the current branch (rb != cb). One move up is 'Add gamma' on main,
     // and it is a move that lands there whether the cursor started on row 0 or row 1.
     //
-    // Then seven moves down to it. The menu opens on 'Commit Diff ...' — with nothing to commit,
+    // Then seven moves down to it. The menu opens on 'Commit Diff' — with nothing to commit,
     // 'Commit ...' and 'Amend ...' are both disabled and Menu.Show starts on the first that is not.
     [TestMethod]
     public async Task TestCherryPickACommitFromAnotherBranch()
@@ -491,7 +529,7 @@ public class CommitTest
         gmd.Send("Up");
         gmd.WaitForStable();
         gmd.Send("m");
-        gmd.WaitFor("Cherry Pick Commit to dev");
+        gmd.WaitFor("Cherry Pick into dev");
         for (var i = 0; i < 7; i++)
         {
             gmd.Send("Down");
@@ -500,7 +538,7 @@ public class CommitTest
         gmd.Send("Enter");
 
         // The dialog arrives filled in with the message of the commit being picked
-        gmd.WaitFor("Add gamma, 1 uncommitted changes");
+        gmd.WaitFor("Add gamma, 1 uncommitted change");
         gmd.Send("Enter");
 
         // 'dev' now has its own copy of the commit, with an id of its own, and main still has the
@@ -549,7 +587,7 @@ public class CommitTest
             gmd.WaitForStable();
         }
         gmd.Send("Right");
-        gmd.WaitFor("Stash Changes");
+        gmd.WaitFor("Stash Changes ...");
         gmd.Send("Enter");
         gmd.WaitFor("Stash Message");
         gmd.SendText("stashed work");
@@ -607,5 +645,66 @@ public class CommitTest
             await repo.GitAsync("status --porcelain"),
             "Both the modified file and the untracked one come back"
         );
+    }
+
+    // Dropping a stash asks first, with No the default: its changes exist nowhere else. Stash Drop is
+    // two below Stash Pop, which is where the cursor lands, as in the test above.
+    [TestMethod]
+    public async Task TestStashDropAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateWithStashAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCommitSubMenu(gmd, 3, "Stash Pop");
+        for (int i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("stashed work");
+        gmd.Send("Enter");
+        gmd.WaitFor("Drop the stash?");
+
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Drop the stash?");
+        Assert.AreEqual("stash@{0}: On main: stashed work", await repo.GitAsync("stash list"), "Still there");
+    }
+
+    // Removing a tag asks first, with No the default, and says when it goes from origin too
+    [TestMethod]
+    public async Task TestRemoveTagAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCommitSubMenu(gmd, 4, "Add Tag");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("v1.0");
+        gmd.Send("Enter");
+        gmd.WaitFor("Remove the tag 'v1.0'?");
+
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Remove the tag");
+        Assert.AreEqual("v1.0", await repo.GitAsync("tag"), "Still there");
+    }
+
+    // Opens the commit menu of the current row and the sub menu 'moves' down from the first
+    // enabled item, one key per Send since a menu redraw drops what was sent behind it
+    static void OpenCommitSubMenu(TmuxSession gmd, int moves, string firstItem)
+    {
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        for (int i = 0; i < moves; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor(firstItem);
     }
 }

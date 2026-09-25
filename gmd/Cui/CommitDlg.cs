@@ -40,7 +40,7 @@ class CommitDlg : ICommitDlg
 
         var dlg = new UIDialog(title, 74, 18, (key) => OnKey(repo, key));
 
-        dlg.AddLabel(1, 0, $"{title} {filesCount} changes on '{branchName}':");
+        dlg.AddLabel(1, 0, $"{title} {Changes(filesCount, isAmend)} on '{branchName}':");
         var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both, spellChecker);
 
         message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart, spellChecker);
@@ -132,6 +132,13 @@ class CommitDlg : ICommitDlg
 
         return (subject, message);
     }
+
+    // "1 change", "2 changes", and for an amend with none, which rewords the last commit, what it
+    // does amend
+    static string Changes(int count, bool isAmend) =>
+        count == 0 && isAmend ? "the last commit"
+        : count == 1 ? "1 change"
+        : $"{count} changes";
 
     static string GetMessage(UITextField subject, TextView message)
     {

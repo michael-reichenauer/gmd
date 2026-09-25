@@ -31,6 +31,7 @@ class RepoViewInput
     readonly IUnicodeSetsDlg charDlg;
     readonly IClipboardService clipboard;
     readonly Hoover hoover;
+    readonly IStatusLine status;
 
     bool isRegistered = false;
 
@@ -41,7 +42,8 @@ class RepoViewInput
         IApplicationBar applicationBarView,
         IUnicodeSetsDlg charDlg,
         IClipboardService clipboard,
-        Hoover hoover
+        Hoover hoover,
+        IStatusLine status
     )
     {
         this.host = host;
@@ -51,6 +53,7 @@ class RepoViewInput
         this.charDlg = charDlg;
         this.clipboard = clipboard;
         this.hoover = hoover;
+        this.status = status;
     }
 
     // The repo and the menus of the currently shown repo. Both are replaced every time a repo is
@@ -71,7 +74,7 @@ class RepoViewInput
         isRegistered = true;
 
         // Keys on repo view contents
-        commitsView.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
+        commitsView.RegisterKeyHandler(Key.Esc, QuitAfterAsking);
 
         // Both cases quit, since the help guide documents this key as 'Q'. Note that keys are
         // looked up by exact value, so a case is only handled if it is registered: 'p' and 'P'
@@ -81,6 +84,7 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.Q, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
         commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
+        commitsView.RegisterKeyHandler(Key.M, () => Menus.ShowRepoMenu(0, 0));
         commitsView.RegisterKeyHandler(Key.o, () => Menus.ShowOpenRepoMenu());
         commitsView.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
@@ -96,15 +100,21 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
         commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
-        commitsView.RegisterKeyHandler(Key.p, () => BranchCmds.PushCurrentBranch());
+        commitsView.RegisterKeyHandler(Key.p, OnKeyP);
         commitsView.RegisterKeyHandler(Key.P, () => BranchCmds.PushAllBranches());
-        commitsView.RegisterKeyHandler(Key.u, () => BranchCmds.PullCurrentBranch());
+        commitsView.RegisterKeyHandler(Key.u, OnKeyU);
         commitsView.RegisterKeyHandler(Key.U, () => BranchCmds.PullAllBranches());
-        commitsView.RegisterKeyHandler(Key.D1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => OnKeyF());
-        commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
+        commitsView.RegisterKeyHandler((Key)'/', () => OnKeyF()); // The search key of most other tools
+        // The next and the previous match of the last search, as in less and vim
+        commitsView.RegisterKeyHandler(Key.n, () => BranchCmds.ShowSearchMatch(1));
+        commitsView.RegisterKeyHandler(Key.N, () => BranchCmds.ShowSearchMatch(-1));
+        // A developer's tool, the Unicode sets, and a digit easily hit by accident, so only in a
+        // build run from the source
+        if (Build.IsDevInstance())
+            commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
         commitsView.RegisterKeyHandler(Key.D5, () => BranchCmds.SetBranchManuallyAsync());
 
         commitsView.RegisterKeyHandler(Key.y, () => BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false));
@@ -112,6 +122,8 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.e, OnKeyE);
         commitsView.RegisterKeyHandler(Key.E, OnKeyShiftE);
         commitsView.RegisterKeyHandler(Key.h, () => BranchCmds.HideBranch(GetBranchName()));
+        // Back to the branches shown before the last show or hide, as a browser goes back a page
+        commitsView.RegisterKeyHandler(Key.Backspace, () => BranchCmds.UndoShowOrHide());
         commitsView.RegisterKeyHandler(Key.w, () => BranchCmds.ShowWorktrees());
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
@@ -125,7 +137,9 @@ class RepoViewInput
         commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => OnRightClicked(x + 1, y));
         commitsView.RegisterMouseHandler(MouseFlags.ReportMousePosition, (x, y) => OnMouseMoved(x + 1, y));
 
-        // Keys on commit details view.
+        // Keys on commit details view. Esc too, since a click on the pane gives it the focus, and the
+        // key would then go on to the global binding in Program, which quits without asking.
+        commitDetailsView.View.RegisterKeyHandler(Key.Esc, QuitAfterAsking);
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => host.ToggleDetailsFocus());
         commitDetailsView.View.RegisterKeyHandler(Key.d, () => CommitCmds.ShowCurrentRowDiff());
 
@@ -179,6 +193,9 @@ class RepoViewInput
             case ApplicationBarItem.Gmd:
                 Menus.ShowRepoMenu(x - 5, y);
                 break;
+            case ApplicationBarItem.Operation:
+                Menus.ShowOperationMenu(x - 5, y);
+                break;
             case ApplicationBarItem.Repo:
                 Menus.ShowOpenRepoMenu(x - 5, y);
                 break;
@@ -189,10 +206,13 @@ class RepoViewInput
                 CommitCmds.CommitFromMenu(false);
                 break;
             case ApplicationBarItem.Behind:
-                BranchCmds.PullAllBranches();
+                Menus.ShowPullMenu(x - 5, y);
                 break;
             case ApplicationBarItem.Ahead:
-                BranchCmds.PushAllBranches();
+                Menus.ShowPushMenu(x - 5, y);
+                break;
+            case ApplicationBarItem.HiddenNews:
+                Menus.ShowHiddenNewsMenu(x - 5, y);
                 break;
             case ApplicationBarItem.BranchName:
                 Menus.ShowOpenBranchMenu(x - 5, y);
@@ -210,76 +230,147 @@ class RepoViewInput
                 Cmd.ShowHelp();
                 break;
             case ApplicationBarItem.Close:
-                UI.Shutdown();
+                QuitAfterAsking();
                 break;
         }
     }
 
+    // Esc means close or back everywhere else in gmd, so in the log view one Esc too many is an easy
+    // slip, and it used to quit on the spot. Yes is the default, so Esc then Enter still quits in a
+    // moment, while a second Esc, the likely slip, answers No. 'q' quits at once: nobody presses it
+    // on the way out of something else. The X in the application bar asks too, being a single
+    // click beside the '?' of the help.
+    void QuitAfterAsking()
+    {
+        if (UI.InfoMessage("Quit", "Quit gmd?", 0, ["Yes", "No"]) == 0)
+            UI.Shutdown();
+    }
+
     void OnKeyE()
     {
-        if (hoover.IsBranch)
+        if (!hoover.IsBranch)
         {
-            var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
-            if (branch.LocalName != "")
-                branch = ServerRepo.BranchByName[branch.LocalName];
-            if (!branch.IsCurrent && ServerRepo.Status.IsOk)
-            { // Some other branch merging to current
-                BranchCmds.MergeBranch(hoover.BranchPrimaryName);
-                return;
-            }
-
-            if (branch.IsCurrent && ServerRepo.Status.IsOk)
-            { // Current branch showing menu of branches to merge from
-                var hb = Repo.Graph.BranchByName(branch.Name);
-                Menus.ShowMergeFromMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
-                return;
-            }
+            status.Notice("Highlight a branch with ← → first, and 'e' merges it into the current branch");
+            return;
         }
+        if (!ServerRepo.Status.IsOk)
+        {
+            status.Notice("Commit the changes first, then merge");
+            return;
+        }
+
+        var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
+        if (branch.LocalName != "")
+            branch = ServerRepo.BranchByName[branch.LocalName];
+        if (!branch.IsCurrent)
+        { // Some other branch merging to current
+            BranchCmds.MergeBranch(hoover.BranchPrimaryName);
+            return;
+        }
+
+        // Current branch showing menu of branches to merge from
+        var hb = Repo.Graph.BranchByName(branch.Name);
+        Menus.ShowMergeFromMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
     }
 
     // The mirror of OnKeyE: 'e' merges into the current branch, 'E' merges the current branch out
     // into another one, which git can only do by checking that one out on the way.
     void OnKeyShiftE()
     {
-        if (hoover.IsBranch)
+        if (!hoover.IsBranch)
         {
-            var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
-            if (branch.LocalName != "")
-                branch = ServerRepo.BranchByName[branch.LocalName];
-            // A branch git no longer has would be recreated by the checkout, so it is not offered,
-            // exactly as in the branch menu
-            if (!branch.IsCurrent && branch.IsGitBranch && ServerRepo.Status.IsOk)
-            { // Current branch merging to some other branch
-                BranchCmds.MergeToBranch(branch.Name);
-                return;
-            }
-
-            if (branch.IsCurrent && ServerRepo.Status.IsOk)
-            { // Current branch showing menu of branches to merge to
-                var hb = Repo.Graph.BranchByName(branch.Name);
-                Menus.ShowMergeToMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
-                return;
-            }
+            status.Notice("Highlight a branch with ← → first, and 'E' merges the current branch into it");
+            return;
         }
+        if (!ServerRepo.Status.IsOk)
+        {
+            status.Notice("Commit the changes first, then merge");
+            return;
+        }
+
+        var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
+        if (branch.LocalName != "")
+            branch = ServerRepo.BranchByName[branch.LocalName];
+        if (branch.IsCurrent)
+        { // Current branch showing menu of branches to merge to
+            var hb = Repo.Graph.BranchByName(branch.Name);
+            Menus.ShowMergeToMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
+            return;
+        }
+
+        // A branch git no longer has would be recreated by the checkout, so it is not offered,
+        // exactly as in the branch menu
+        if (!branch.IsGitBranch)
+        {
+            status.Notice($"'{branch.NiceNameUnique}' no longer exists, so nothing can be merged into it");
+            return;
+        }
+
+        // Current branch merging to some other branch
+        BranchCmds.MergeToBranch(branch.Name);
     }
+
+    // 'p' and 'u' act on the highlighted branch, as the other branch keys do and as the branch
+    // menu's Push and Pull say, and on the current branch when none is highlighted. The current
+    // branch goes through the commands that ask before a force push, or pull with a merge.
+    void OnKeyP()
+    {
+        var branch = HooveredBranch();
+        if (branch == null || branch.IsCurrent || branch.IsLocalCurrent)
+        {
+            BranchCmds.PushCurrentBranch();
+            return;
+        }
+
+        if (!BranchPushPullCommands.CanPushBranch(ServerRepo, branch))
+        {
+            status.Notice(BranchPushPullCommands.WhyNoPushBranch(ServerRepo, branch));
+            return;
+        }
+        BranchCmds.PushBranch(hoover.BranchPrimaryName);
+    }
+
+    void OnKeyU()
+    {
+        var branch = HooveredBranch();
+        if (branch == null || branch.IsCurrent || branch.IsLocalCurrent)
+        {
+            BranchCmds.PullCurrentBranch();
+            return;
+        }
+
+        if (!BranchPushPullCommands.CanPullBranch(ServerRepo, branch))
+        {
+            status.Notice(BranchPushPullCommands.WhyNoPullBranch(ServerRepo, branch));
+            return;
+        }
+        BranchCmds.PullBranch(hoover.BranchPrimaryName);
+    }
+
+    // The branch the branch menu would be for, i.e. as the menu's Push and Pull see it
+    Branch? HooveredBranch() => hoover.IsBranch ? ServerRepo.BranchByName[hoover.BranchPrimaryName] : null;
 
     void OnKeyS()
     {
-        if (hoover.IsBranch)
+        if (!hoover.IsBranch)
         {
-            var branchName = hoover.BranchPrimaryName;
-            var currentName = ServerRepo.CurrentBranch().PrimaryName;
-            var branch = ServerRepo.BranchByName[branchName];
-            if (branch.LocalName != "")
-                branchName = branch.LocalName;
-
-            if (branch.PrimaryName != currentName)
-            {
-                BranchCmds.SwitchTo(branchName);
-            }
-
+            status.Notice("Highlight a branch with ← → first, and 's' switches to it");
             return;
         }
+
+        var branchName = hoover.BranchPrimaryName;
+        var currentName = ServerRepo.CurrentBranch().PrimaryName;
+        var branch = ServerRepo.BranchByName[branchName];
+        if (branch.LocalName != "")
+            branchName = branch.LocalName;
+
+        if (branch.PrimaryName == currentName)
+        {
+            status.Notice($"Already on '{branch.NiceNameUnique}'");
+            return;
+        }
+
+        BranchCmds.SwitchTo(branchName);
     }
 
     void OnKeyEnter()
@@ -384,7 +475,10 @@ class RepoViewInput
     {
         var selection = commitsView.Selection;
         if (selection.IsEmpty)
+        {
+            status.Notice("Select rows with Shift-↑↓ first, and Ctrl-C copies them");
             return;
+        }
 
         var (i1, i2) = (selection.I1, selection.I2);
         if (i1 == i2)
@@ -404,7 +498,12 @@ class RepoViewInput
     void CopyToClipboard(string text)
     {
         if (clipboard.Set(text) is Error e)
+        {
             UI.ErrorMessage(e.AllMessages());
+            return;
+        }
+
+        status.Info("Copied to the clipboard");
     }
 
     // The text of a selection that spans several commits: the sid and subject of each selected
@@ -480,8 +579,13 @@ class RepoViewInput
             if (hb.LocalName != "")
                 hb = ServerRepo.BranchByName[hb.LocalName];
             if (!hb.IsCurrent && ServerRepo.Status.IsOk)
-            { // Some other branch merging to current
-                BranchCmds.MergeBranch(hb.Name);
+            { // Some other branch merging to current, after asking: on Linux the middle button is the
+                // habitual paste, so a click meant for something else would merge. Yes is the default,
+                // so a click meant as a merge is still just an Enter away.
+                var current = ServerRepo.CurrentBranch();
+                var question = $"Merge '{hb.ShortNiceUniqueName()}' into '{current.ShortNiceUniqueName()}'?";
+                if (UI.InfoMessage("Merge", question, 0, ["Yes", "No"]) == 0)
+                    BranchCmds.MergeBranch(hb.Name);
                 return;
             }
 

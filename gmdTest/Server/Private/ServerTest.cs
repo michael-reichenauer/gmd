@@ -61,6 +61,53 @@ public class ServerTest
         CollectionAssert.AreEqual(new[] { "origin/main", "main" }, BranchNames(repo), "feat hangs off dev");
     }
 
+    // Undoing a show or hide gives the names of the view before it back to SetShownBranches, so
+    // that has to rebuild exactly that view, the branches hidden along with the one asked for too
+    [TestMethod]
+    public async Task TestSetShownBranchesGivesBackTheViewTheNamesCameFrom()
+    {
+        var b = new RepoBuilder()
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("dev", "d1")
+            .LocalBranch("feat", "f1");
+        var server = b.NewServer();
+        var shown = await b.ViewRepoAsync(ShowBranches.AllActive);
+        var hidden = server.HideBranch(shown, "dev");
+        CollectionAssert.AreEqual(new[] { "origin/main", "main" }, BranchNames(hidden));
+
+        var undone = server.SetShownBranches(hidden, BranchNames(shown));
+
+        CollectionAssert.AreEqual(BranchNames(shown), BranchNames(undone), "feat is back with dev");
+        CollectionAssert.AreEqual(
+            BranchNames(hidden),
+            BranchNames(server.SetShownBranches(undone, BranchNames(hidden)))
+        );
+    }
+
+    // A 'file:' term is asked of git, and the commits must match it and the words both. The answer
+    // is kept for the keys typed after the path, which do not ask git again.
+    [TestMethod]
+    public async Task TestAFileTermNarrowsTheSearchToTheCommitsChangingIt()
+    {
+        var b = ThreeBranches();
+        var git = new FakeGit();
+        git.IdsChangingFiles["x.cs"] = [RepoBuilder.Sha("f1"), RepoBuilder.Sha("d1"), RepoBuilder.Sha("c3")];
+        var server = b.NewServer(git);
+        var repo = await b.ViewRepoAsync();
+
+        var files = AssertOk(await server.GetFilteredRepoAsync(repo, "file:x.cs", 100));
+        var work = AssertOk(await server.GetFilteredRepoAsync(repo, "file:x.cs work", 100));
+
+        CollectionAssert.AreEqual(new[] { "Feature work", "Dev work", "Third" }, Subjects(files));
+        CollectionAssert.AreEqual(new[] { "Feature work", "Dev work" }, Subjects(work));
+        CollectionAssert.AreEqual(new[] { "x.cs" }, git.IdsChangingFilesCalls, "Asked once");
+    }
+
+    static string[] Subjects(Repo repo) => repo.ViewCommits.Select(c => c.Subject).ToArray();
+
     // 'Hide all branches' goes back to just the main branch
     [TestMethod]
     public async Task TestHideAllBranchesLeavesTheMainBranch()

@@ -495,10 +495,10 @@ public class GitIntegrationTest
         Assert.AreEqual("Merge branch 'dev'", status.MergeMessage);
         Assert.AreEqual(d1, status.MergeHeadId);
 
-        // The merged in file is staged as an add, which is counted as modified. See the open issues
-        // in MODERNIZATION.md; this pins that the counts are visibly the ones described.
-        Assert.AreEqual("M:1,A:0,D:0,C:0,R:0", status.ToString());
-        CollectionAssert.AreEqual(new[] { "dev.txt" }, status.ModifiedFiles);
+        // The merged in file is staged as an add, and is counted as one. It used to be counted as
+        // modified, since the status parser trimmed away the column that says staged.
+        Assert.AreEqual("M:0,A:1,D:0,C:0,R:0", status.ToString());
+        CollectionAssert.AreEqual(new[] { "dev.txt" }, status.AddedFiles);
 
         // Committing the merge is what the commit dialog does with the merge message prefilled
         var mergeId = await repo.CommitAsync(status.MergeMessage);
@@ -604,17 +604,24 @@ public class GitIntegrationTest
         Assert.AreEqual(1, after.Conflicted, "Still one conflict, not resolved behind the user's back");
     }
 
-    // The same for a merge, which was already safe — it is here so that the guard cannot regress
-    // for the case that did work
+    // The same for a merge. The diff used to stage nothing during one, which left out a file the
+    // user had added meanwhile; it stages into a copy of the index now, so that file is shown and
+    // the conflict is still left as it is.
     [TestMethod]
     public async Task TestDiffDuringAMergeKeepsTheConflictUnmerged()
     {
         await TwoBranchesThatConflictAsync();
         await repo.Git.MergeBranchAsync("dev", repo.Path);
+        repo.WriteFile("new.txt", "new\n");
 
-        Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
 
+        Assert.AreEqual(
+            "file.txt DiffConflicts, new.txt DiffAdded",
+            string.Join(", ", diff.FileDiffs.Select(f => $"{f.PathAfter} {f.DiffMode}"))
+        );
         Assert.AreNotEqual("", (await repo.GitAsync("ls-files -u")).Trim());
+        Assert.AreEqual("?? new.txt", (await repo.GitAsync("status --porcelain -- new.txt")).Trim());
     }
 
     // 'git commit -am' during a conflicted merge succeeds and commits the '<<<<<<<' markers into
@@ -1559,7 +1566,7 @@ public class GitIntegrationTest
         }
     }
 
-    // GetUncommittedDiff stages the changes, diffs them and resets the index again, since a diff
+    // GetUncommittedDiff stages the changes into a copy of the index and diffs that, since a diff
     // of untracked files is not otherwise possible. This pins that the working folder is left as
     // it was, which the FakeCmd tests can only assert the git commands for.
     [TestMethod]
@@ -1582,6 +1589,123 @@ public class GitIntegrationTest
 
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual("M:1,A:1,D:1,C:0,R:0", status.ToString(), "The staged changes were reset again");
+    }
+
+    // What the user staged is left staged, however they did it; the diff used to stage everything
+    // and then 'git reset', which wiped it. It still shows what staging is needed for: a new file,
+    // and a file moved without 'git mv' as a rename rather than as one deleted and one added.
+    [TestMethod]
+    public async Task TestUncommittedDiffKeepsWhatIsStaged()
+    {
+        await repo.CommitFileAsync("staged.txt", "one\n", "First");
+        await repo.CommitFileAsync("moved.txt", "one\ntwo\nthree\nfour\nfive\n", "Second");
+        repo.WriteFile("staged.txt", "one\nstaged\n");
+        await repo.GitAsync("add staged.txt");
+        File.Move(Path.Join(repo.Path, "moved.txt"), Path.Join(repo.Path, "renamed.txt"));
+        repo.WriteFile("new.txt", "new\n");
+        var staged = await repo.GitAsync("diff --cached --name-status");
+
+        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+
+        Assert.AreEqual(
+            "new.txt DiffAdded, moved.txt -> renamed.txt, staged.txt DiffModified",
+            string.Join(
+                ", ",
+                diff.FileDiffs.Select(f =>
+                    f.IsRenamed ? $"{f.PathBefore} -> {f.PathAfter}" : $"{f.PathAfter} {f.DiffMode}"
+                )
+            )
+        );
+        Assert.AreEqual("M\tstaged.txt", staged.Trim());
+        Assert.AreEqual(staged, await repo.GitAsync("diff --cached --name-status"), "Staged as it was");
+    }
+
+    // Discarding a file puts it back as it was in the last commit, as the question before it says,
+    // in the index as well: staged with another tool, which the diff no longer undoes, a change used
+    // to stay and a new file to be left in the index when discarding restored from the index alone
+    [TestMethod]
+    public async Task TestDiscardingAFileTakesItBackToTheLastCommit()
+    {
+        await repo.CommitFileAsync("staged.txt", "one\n", "First");
+        await repo.CommitFileAsync("deleted.txt", "kept\n", "Second");
+        repo.WriteFile("staged.txt", "one\nstaged\n");
+        await repo.GitAsync("add staged.txt");
+        repo.WriteFile("staged.txt", "one\nstaged\nand more\n");
+        repo.WriteFile("new.txt", "new\n");
+        await repo.GitAsync("add new.txt");
+        await repo.GitAsync("rm -q deleted.txt");
+        repo.WriteFile("untracked.txt", "untracked\n");
+
+        foreach (var path in new[] { "staged.txt", "new.txt", "deleted.txt", "untracked.txt" })
+            AssertOk(await repo.Git.UndoUncommittedFileAsync(path, repo.Path));
+
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "Nothing left, staged or not");
+        Assert.AreEqual("one\n", File.ReadAllText(Path.Join(repo.Path, "staged.txt")));
+        Assert.AreEqual("kept\n", File.ReadAllText(Path.Join(repo.Path, "deleted.txt")));
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, "new.txt")));
+    }
+
+    // With no commit yet, every file is new, staged or not, and is deleted
+    [TestMethod]
+    public async Task TestDiscardingAFileBeforeTheFirstCommitDeletesIt()
+    {
+        repo.WriteFile("staged.txt", "staged\n");
+        await repo.GitAsync("add staged.txt");
+        repo.WriteFile("untracked.txt", "untracked\n");
+
+        AssertOk(await repo.Git.UndoUncommittedFileAsync("staged.txt", repo.Path));
+        AssertOk(await repo.Git.UndoUncommittedFileAsync("untracked.txt", repo.Path));
+
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, "staged.txt")));
+    }
+
+    // The search's 'file:' term: the commits that changed a file whose path contains the text, in
+    // any case and at any depth, newest first. Pins the pathspec, whose '*' crossing '/' is a git
+    // default rather than anything gmd does.
+    [TestMethod]
+    public async Task TestTheCommitsChangingAFile()
+    {
+        Directory.CreateDirectory(Path.Join(repo.Path, "src"));
+        var c1 = await repo.CommitFileAsync("src/Program.cs", "one\n", "Add program");
+        await repo.CommitFileAsync("README.md", "readme\n", "Add readme");
+        var c3 = await repo.CommitFileAsync("src/Program.cs", "two\n", "Change program");
+
+        var ids = Value(await repo.Git.GetIdsChangingFilesAsync("program", 100, repo.Path));
+
+        CollectionAssert.AreEqual(new[] { c3, c1 }, ids.ToArray());
+        Assert.AreEqual(0, Value(await repo.Git.GetIdsChangingFilesAsync("nothing", 100, repo.Path)).Count);
+    }
+
+    // A diverged branch is refused by 'git pull' until git is told how to join the two sides, which
+    // is why gmd asks. Once the answer is saved where git reads it, the pull merges, or rebases the
+    // local commit on top of the remote one.
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task TestPullingADivergedBranch(bool isRebase)
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q --set-upstream origin main");
+        var remote = await repo.CommitFileAsync("b.txt", "b\n", "Remote");
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("reset -q --hard HEAD~1");
+        await repo.CommitFileAsync("c.txt", "c\n", "Local");
+        if (Value(await repo.Git.IsPullWayConfiguredAsync("main", repo.Path)))
+            Assert.Inconclusive("The system git config says how to pull, which this test needs unset");
+
+        var refused = AssertError(await repo.Git.PullCurrentBranchAsync(repo.Path), "Git will not guess");
+        StringAssert.Contains(refused.AllMessages(), "divergent branches");
+
+        Ok(await repo.Git.SetPullRebaseAsync(isRebase, repo.Path));
+        Assert.IsTrue(Value(await repo.Git.IsPullWayConfiguredAsync("main", repo.Path)));
+        Ok(await repo.Git.PullCurrentBranchAsync(repo.Path));
+
+        var parents = (await repo.GitAsync("log -1 --format=%P")).Trim().Split(' ');
+        Assert.AreEqual(isRebase ? 1 : 2, parents.Length, isRebase ? "One line" : "A merge");
+        if (isRebase)
+            Assert.AreEqual(remote, parents[0], "The local commit is on top of the remote one");
     }
 
     // Unwraps a result, failing the test with the git error if the command failed

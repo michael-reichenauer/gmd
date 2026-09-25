@@ -102,6 +102,17 @@ class ContentView : View
         keys[key] = callback;
     }
 
+    // A letter in both cases, given in lower case. Keys are looked up by exact value, so without this
+    // 'M' is not 'm' — and a menu writes its shortcuts in upper case, so that is what gets pressed.
+    // The log view registers its letters one case at a time on purpose, since 'p' and 'P' are
+    // different commands there.
+    public void RegisterLetterHandler(Key letter, OnKeyCallback callback)
+    {
+        Asserter.Requires(letter is >= Key.a and <= Key.z);
+        RegisterKeyHandler(letter, callback);
+        RegisterKeyHandler((Key)char.ToUpperInvariant((char)letter), callback);
+    }
+
     public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
     {
         mouses[mouseFlags] = (x, y) =>

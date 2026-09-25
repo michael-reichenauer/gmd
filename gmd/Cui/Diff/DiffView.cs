@@ -38,6 +38,7 @@ class DiffView : IDiffView
     // The context lines of each file that is not at the default, keyed on path. Only the file the
     // cursor is on is ever stepped, so the others keep whatever they were last shown with.
     readonly Dictionary<string, int> fileContext = [];
+    readonly IHelpDlg helpDlg;
     int rowStartX = 0;
     string commitId = "";
     string repoPath = "";
@@ -57,9 +58,11 @@ class DiffView : IDiffView
         IProgress progress,
         IServer server,
         IClipboardService clipboard,
-        IConflictView conflictView
+        IConflictView conflictView,
+        IHelpDlg helpDlg
     )
     {
+        this.helpDlg = helpDlg;
         this.diffService = diffService;
         this.progress = progress;
         this.server = server;
@@ -125,23 +128,20 @@ class DiffView : IDiffView
     {
         view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
 
-        // Both cases close the diff. Lower case did already, but only by accident: it is not
-        // registered here, so it fell through to the log view's quit handler further down the
-        // toplevel chain, which is Application.RequestStop() and so happened to stop this view
-        // rather than the application. Registering it makes that intended rather than a side
-        // effect of which view the key reached.
-        view.RegisterKeyHandler(Key.Q, () => Application.RequestStop());
-        view.RegisterKeyHandler(Key.q, () => Application.RequestStop());
+        // Letters in both cases, since the menu writes them in upper case. The view is modal (see
+        // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
+        view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
         view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
-        view.RegisterKeyHandler(Key.m, () => ShowMainMenu());
+        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
 
-        view.RegisterKeyHandler(Key.r, () => RefreshDiff());
-        view.RegisterKeyHandler(Key.d, () => RefreshDiff());
-        view.RegisterKeyHandler(Key.s, () => ShowScrollMenu());
-        view.RegisterKeyHandler(Key.u, () => ShowUndoMenu());
-        view.RegisterKeyHandler(Key.c, () => TriggerCommit());
+        view.RegisterLetterHandler(Key.r, () => RefreshDiff());
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
+        view.RegisterLetterHandler(Key.s, () => ShowScrollMenu());
+        view.RegisterLetterHandler(Key.u, () => ShowUndoMenu());
+        view.RegisterLetterHandler(Key.c, () => TriggerCommit());
 
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.
@@ -184,14 +184,14 @@ class DiffView : IDiffView
             "Diff Menu",
             x,
             y,
-            Menu.Items.SubMenu("Scroll to", "S", scrollToItems)
+            Menu.Items.SubMenu("Scroll to", "s", scrollToItems)
                 .SubMenu("Diff File", "", diffItems)
                 .SubMenu("Resolve Conflicts", "Enter", conflictItems)
                 .SubMenu("Run External Merge Tool", "", GetMergeToolItems())
-                .SubMenu("Undo/Restore Uncommitted", "U", undoItems)
+                .SubMenu("Discard Changes", "u", undoItems)
                 // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
-                .Item("Refresh", "R", () => RefreshDiff())
-                .Item("Commit", "C", () => TriggerCommit(), () => undoItems.Any())
+                .Item("Refresh", "r", () => RefreshDiff())
+                .Item("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
                 .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
@@ -216,7 +216,7 @@ class DiffView : IDiffView
         var undoItems = GetUndoItems();
         if (!undoItems.Any())
             return;
-        Menu.Show("Undo/Restore Uncommitted", 1, 2, undoItems);
+        Menu.Show("Discard Changes", 1, 2, undoItems);
     }
 
     void TriggerCommit()
@@ -362,21 +362,28 @@ class DiffView : IDiffView
 
         var binaryPaths = diffService.GetDiffBinaryFilePaths(diffs[0]);
 
-        var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p)));
+        var addedPaths = diffs[0]
+            .FileDiffs.Where(fd => fd.DiffMode == DiffMode.DiffAdded)
+            .Select(fd => fd.PathAfter)
+            .ToHashSet();
+        var undoItems = paths.Select(p => new Common.MenuItem(p, "", () => UndoFile(p, addedPaths.Contains(p))));
         if (undoItems.Count() > 10)
         { // Show files ith sub menu
-            undoItems = new[] { new SubMenu("Uncommitted Files", "", undoItems) };
+            undoItems = [new SubMenu("Files", "", undoItems)];
         }
 
         return Menu
             .Items.Items(undoItems)
             .Separator()
-            .Item("All Uncommitted Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
-            .Item("All Uncommitted Changes", "", () => UndoAll());
+            .Item("Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
+            .Item("All Changes", "", () => UndoAll());
     }
 
     async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)
     {
+        if (!Confirm.UndoFiles(binaryPaths))
+            return;
+
         using (progress.Show())
         {
             foreach (var path in binaryPaths)
@@ -391,8 +398,11 @@ class DiffView : IDiffView
         RefreshDiff();
     }
 
-    async void UndoFile(string path)
+    async void UndoFile(string path, bool isNew)
     {
+        if (!Confirm.UndoFile(path, isNew))
+            return;
+
         using (progress.Show())
         {
             if (await server.UndoUncommittedFileAsync(path, repoPath) is Error e)
@@ -406,6 +416,9 @@ class DiffView : IDiffView
 
     async void UndoAll()
     {
+        if (!Confirm.UndoAllUncommitted())
+            return;
+
         using (progress.Show())
         {
             if (await server.UndoAllUncommittedChangesAsync(repoPath) is Error e)

@@ -41,15 +41,19 @@ class BlameView : IBlameView
 
     record BlameState(string Path, string Reference, int Index, int RowStartX);
 
+    readonly IHelpDlg helpDlg;
+
     public BlameView(
         IBlameService blameService,
         IServer server,
         IProgress progress,
         IDiffView diffView,
         IClipboardService clipboard,
-        Func<ICommitDetailsView> newDetailsView
+        Func<ICommitDetailsView> newDetailsView,
+        IHelpDlg helpDlg
     )
     {
+        this.helpDlg = helpDlg;
         this.blameService = blameService;
         this.server = server;
         this.progress = progress;
@@ -118,10 +122,11 @@ class BlameView : IBlameView
     void RegisterShortcuts(ContentView view)
     {
         view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
-        // Both cases, they are separate keys and the lower case would otherwise fall through to
-        // the log view below and quit the application, see the same note in DiffView
-        view.RegisterKeyHandler(Key.Q, () => Application.RequestStop());
-        view.RegisterKeyHandler(Key.q, () => Application.RequestStop());
+        // Letters in both cases, since the menu writes them in upper case. The view is modal (see
+        // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
+        view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
@@ -137,12 +142,12 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.CursorDown, () => ScrollDetails(1));
         view.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-CommitDetailsView.ContentHeight));
         view.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(CommitDetailsView.ContentHeight));
-        view.RegisterKeyHandler(Key.m, () => ShowMainMenu());
-        view.RegisterKeyHandler(Key.i, CycleDetails);
-        view.RegisterKeyHandler(Key.d, ShowLineCommitDiff);
-        view.RegisterKeyHandler(Key.p, BlamePrevious);
+        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
+        view.RegisterLetterHandler(Key.i, CycleDetails);
+        view.RegisterLetterHandler(Key.d, ShowLineCommitDiff);
+        view.RegisterLetterHandler(Key.p, BlamePrevious);
         view.RegisterKeyHandler(Key.Backspace, Back);
-        view.RegisterKeyHandler(Key.c, CopyLineSha);
+        view.RegisterLetterHandler(Key.c, CopyLineSha);
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
@@ -411,26 +416,26 @@ class BlameView : IBlameView
             x,
             y,
             Menu.Items.Item(
-                    c == null ? "Commit Diff ..." : $"Commit Diff of {(c.IsUncommitted ? "uncommitted" : c.Sid)} ...",
-                    "D",
+                    c == null ? "Commit Diff" : $"Commit Diff of {(c.IsUncommitted ? "uncommitted" : c.Sid)}",
+                    "d",
                     () => ShowLineCommitDiff(),
                     () => c != null
                 )
                 .Item(
-                    hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()}) ..." : "Blame Previous Version ...",
-                    "P",
+                    hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()})" : "Blame Previous Version",
+                    "p",
                     () => BlamePrevious(),
                     () => hasPrevious
                 )
                 .Item("Back", "Backspace", () => Back(), () => backStack.Count > 0)
                 .Separator()
                 .SubMenu("Scroll to Commit", "", GetScrollToItems())
-                .Item("Toggle Commit Details ...", "Enter", () => ToggleDetails())
-                .Item($"Gutter Detail ({details}) ...", "I", () => CycleDetails())
+                .Item("Commit Details", "Enter", () => ToggleDetails())
+                .Item($"Gutter Detail ({details})", "i", () => CycleDetails())
                 .Item("Reset Horizontal Scroll", "", () => ResetScroll(), () => rowStartX > 0)
                 .Separator()
                 .Item("Copy Selected Lines", "Ctrl-C", () => OnCopy(), () => IsSelected)
-                .Item("Copy Commit Sha of Line", "C", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
+                .Item("Copy Commit Id of Line", "c", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }

@@ -57,6 +57,8 @@ class Program
         LogProgramInfoAsync().RunInBackground();
 
         Application.Init();
+        // Only reached when no view above handles Esc, e.g. before a repo is shown. The log view
+        // takes Esc itself and asks before quitting (RepoViewInput.QuitAfterAsking).
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
         UI.HideCursor(); // Hide cursor to avoid flickering
         Application.Driver.Checked = '◙'; // '■'; // ▣';      // Checked box characters

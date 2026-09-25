@@ -8,13 +8,15 @@ interface ICmd
 {
     // The output of a command that exited 0, or a CmdError carrying everything it printed. The
     // caller info is the error's Origin, so that it names the service that ran the command rather
-    // than this class, which every command failure would otherwise share.
+    // than this class, which every command failure would otherwise share. The environment is
+    // variables set for this one command on top of gmd's own, e.g. GIT_INDEX_FILE.
     Result<string> Command(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -25,6 +27,7 @@ interface ICmd
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -38,6 +41,16 @@ interface ICmd
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false
+    );
+
+    // Starts a program that may go on running after it has done what it was started for, e.g. a
+    // browser: waits a moment for it to fail, but never for it to end, and never kills it
+    Task<Result> StartAsync(
+        string path,
+        string args,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
     );
 
     // Runs a command that gets its input on stdin, and waits for it to exit but never for its
@@ -103,19 +116,36 @@ class Cmd : ICmd
     // How long to wait for the error text of a command that has already failed
     const int ErrorReadTimeoutMs = 200;
 
+    // How long a started program has to fail in before it is taken to be running. Openers like
+    // xdg-open hand the page to a browser and exit in well under this.
+    const int StartWaitMs = 1500;
+
+    static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
+
     public Task<Result<string>> RunAsync(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     )
     {
         return Task.Run(() =>
-            Command(path, args, workingDirectory, skipLogError, skipLog, memberName, sourceFilePath, sourceLineNumber)
+            Command(
+                path,
+                args,
+                workingDirectory,
+                skipLogError,
+                skipLog,
+                environment,
+                memberName,
+                sourceFilePath,
+                sourceLineNumber
+            )
         );
     }
 
@@ -147,11 +177,12 @@ class Cmd : ICmd
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     ) =>
-        CommandRaw(path, args, workingDirectory, skipLogError, skipLog)
+        CommandRaw(path, args, workingDirectory, skipLogError, skipLog, environment)
             .ToResult(memberName, sourceFilePath, sourceLineNumber);
 
     public CmdResult CommandRaw(
@@ -159,10 +190,14 @@ class Cmd : ICmd
         string args,
         string workingDirectory,
         bool skipLogError = false,
-        bool skipLog = false
+        bool skipLog = false,
+        IReadOnlyDictionary<string, string>? environment = null
     )
     {
-        var cmdText = $"{path} {args}   [{workingDirectory},";
+        // The variables are part of the logged command, since they can change what it does, as
+        // GIT_INDEX_FILE changes which index a 'git add .' writes to
+        var envText = environment == null ? "" : string.Concat(environment.Select(v => $"{v.Key}={v.Value} "));
+        var cmdText = $"{envText}{path} {args}   [{workingDirectory},";
         var t = Timing.Start();
         try
         {
@@ -189,6 +224,11 @@ class Cmd : ICmd
             using (process)
             {
                 NeverOpenAnEditor(process.StartInfo);
+                InEnglish(process.StartInfo);
+                foreach (var (name, value) in environment ?? Empty)
+                {
+                    process.StartInfo.Environment[name] = value;
+                }
                 if (workingDirectory != "")
                 {
                     process.StartInfo.WorkingDirectory = workingDirectory;
@@ -244,6 +284,122 @@ class Cmd : ICmd
     {
         info.Environment["GIT_EDITOR"] = "true";
         info.Environment["GIT_SEQUENCE_EDITOR"] = "true"; // The todo list of an interactive rebase
+    }
+
+    // Git's messages in English, whatever language the user has set. gmd tells what happened by
+    // them, e.g. 'CONFLICT' after a merge and 'would be overwritten by checkout' when changes stop a
+    // switch, so a translated git ('KONFLIKT') got git's error in a box rather than the conflict
+    // resolver, or the offer to take the changes along.
+    //
+    // LANGUAGE is the one variable gettext reads before LC_ALL, LC_MESSAGES and LANG, and git has no
+    // translation for plain 'en', so the messages are left as written. Nothing else of the locale
+    // changes, the character set included. A 'C' locale ignores LANGUAGE, but is English already.
+    static void InEnglish(ProcessStartInfo info) => info.Environment["LANGUAGE"] = "en";
+
+    // Starts a program that may go on running, e.g. a browser, which a tool like xdg-open starts
+    // for the page and which then outlives it, or which is itself what was started. Neither can be
+    // waited for, since that is for as long as the browser is open, nor killed on a timeout, as
+    // CommandWithStdin does, since that would close the browser.
+    //
+    // So this waits a moment for it to fail, and takes it still running after that as having
+    // worked. Its output is read and dropped for as long as it runs, rather than not redirected,
+    // which would draw it over the UI, or redirected and never read, which blocks a program once
+    // it has written a pipe full. For the same reason the process is not disposed while it runs:
+    // that closes the pipes, and writing to a closed one can end it.
+    public Task<Result> StartAsync(
+        string path,
+        string args,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string sourceFilePath = "",
+        [CallerLineNumber] int sourceLineNumber = 0
+    ) =>
+        Task.Run(() =>
+        {
+            var result = Start(path, args);
+            return result.IsOk ? Result.Ok : new CmdError(result, memberName, sourceFilePath, sourceLineNumber);
+        });
+
+    CmdResult Start(string path, string args)
+    {
+        var cmdText = $"{path} {args}";
+        var t = Timing.Start();
+        try
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = path,
+                    Arguments = args,
+                    UseShellExecute = false,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8,
+                },
+                EnableRaisingEvents = true,
+            };
+            var errorLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            var errorEnd = new TaskCompletionSource();
+
+            // Disposed once it ends, if it is left running: the Exited event is raised only for a
+            // handler already there, so this one is, and the two sides agree on who disposes
+            const int Waited = 0,
+                Running = 1,
+                Ended = 2;
+            var state = Waited;
+            process.Exited += (_, _) =>
+            {
+                if (Interlocked.Exchange(ref state, Ended) == Running)
+                    process.Dispose();
+            };
+            process.OutputDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                    errorLines.Enqueue(e.Data);
+                else
+                    errorEnd.TrySetResult(); // The end of the stream
+            };
+
+            process.Start();
+            process.StandardInput.Close();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            if (!process.WaitForExit(StartWaitMs))
+            {
+                if (Interlocked.CompareExchange(ref state, Running, Waited) == Ended)
+                    process.Dispose(); // It ended just now, before it could be left running
+                Log.Info($"Started: {cmdText} {t}, still running");
+                return new CmdResult(cmdText, "", "");
+            }
+
+            using (process)
+            {
+                if (process.ExitCode != 0)
+                {
+                    // The error output is read on a thread of its own, which a wait with a timeout
+                    // does not wait for, so it can still be at it. Waited for, but only a moment,
+                    // since a program it started can hold the stream open.
+                    errorEnd.Task.Wait(ErrorReadTimeoutMs);
+                    var error = string.Join('\n', errorLines).Trim();
+                    Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    return new CmdResult(cmdText, process.ExitCode, "", error);
+                }
+
+                Log.Info($"Started: {cmdText} {t}");
+                return new CmdResult(cmdText, "", "");
+            }
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            // A program that is not installed lands here, which is expected while looking for one
+            Log.Debug($"Failed: {cmdText} {t}]\n{e.Message}");
+            return new CmdResult(cmdText, -1, "", e.Message);
+        }
     }
 
     // Runs a command that gets its input on stdin, e.g. a clipboard tool, and waits for it to

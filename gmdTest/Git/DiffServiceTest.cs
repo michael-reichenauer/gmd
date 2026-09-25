@@ -515,7 +515,7 @@ public class DiffServiceTest
         await AssertArgsContain(expected, (s, c) => s.GetDiffRangeAsync("a", "b", "Range", c, "/wd"));
         await AssertArgsContain(expected, (s, c) => s.GetRefsDiffAsync("a", "b", "Refs", c, "/wd"));
 
-        // The uncommitted diff also stages and resets, so its diff is not the only call
+        // The uncommitted diff also stages, so its diff is not the only call
         var cmd = new FakeCmd(ShowOutput);
         await new DiffService(cmd).GetUncommittedDiff(contextLines, TempWd());
         CollectionAssert.Contains(
@@ -585,15 +585,28 @@ public class DiffServiceTest
         StringAssert.StartsWith(cmd.Calls[0].Args, "stash show -u ");
     }
 
-    // The uncommitted diff stages everything first, so renamed and added files are included, and
-    // resets the staging afterwards
+    // The uncommitted diff stages everything first, so that new files and renames are included, but
+    // into a copy of the index that git is given as GIT_INDEX_FILE, never into the index itself. It
+    // used to stage the index and 'git reset' it afterwards, which wiped what the user had staged
+    // with other tools.
     [TestMethod]
-    public async Task TestUncommittedDiffStagesAndResets()
+    public async Task TestUncommittedDiffStagesIntoACopyOfTheIndex()
     {
-        var cmd = new FakeCmd(ConflictOutput);
-        var service = new DiffService(cmd);
+        var wd = TempWd();
+        var index = Path.Join(wd, ".git", "index");
+        File.WriteAllText(index, "the index");
+        var copied = "";
+        FakeCmd cmd = null!;
+        cmd = new FakeCmd(
+            (_, args, _) =>
+            {
+                if (args == "add .")
+                    copied = File.ReadAllText(IndexOf(cmd.Calls[^1]));
+                return FakeCmd.Ok(ConflictOutput);
+            }
+        );
 
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await new DiffService(cmd).GetUncommittedDiff(6, wd));
 
         Assert.AreEqual("Uncommitted changes", commitDiff.Message);
         CollectionAssert.AreEqual(
@@ -601,26 +614,17 @@ public class DiffServiceTest
             {
                 "add .",
                 "diff --date=iso --first-parent --root --patch --no-color --find-renames --unified=6 HEAD",
-                "reset",
             },
-            cmd.Calls.Select(c => c.Args).ToArray()
+            cmd.Calls.Select(c => c.Args).ToArray(),
+            "No 'git reset' afterwards"
         );
-    }
-
-    // While a merge is in progress the staging must be left alone, since staging is what marks a
-    // conflict as resolved
-    [TestMethod]
-    public async Task TestUncommittedDiffDoesNotStageWhileMerging()
-    {
-        var wd = TempWd();
-        File.WriteAllText(Path.Join(wd, ".git", "MERGE_MSG"), "Merge branch 'topic'\n");
-        var cmd = new FakeCmd(ConflictOutput);
-        var service = new DiffService(cmd);
-
-        AssertOk(await service.GetUncommittedDiff(6, wd));
-
-        Assert.AreEqual(1, cmd.Calls.Count, "Only the diff itself is run");
-        StringAssert.StartsWith(cmd.Calls[0].Args, "diff --date=iso");
+        var tempIndex = IndexOf(cmd.Calls[0]);
+        Assert.AreNotEqual("", tempIndex);
+        Assert.AreNotEqual(index, tempIndex);
+        Assert.AreEqual(tempIndex, IndexOf(cmd.Calls[1]), "The diff is of what was staged");
+        Assert.AreEqual("the index", copied, "Staged into a copy of the index");
+        Assert.IsFalse(File.Exists(tempIndex), "The copy is deleted afterwards");
+        Assert.AreEqual("the index", File.ReadAllText(index));
     }
 
     // In an empty repo there is no HEAD to diff against, so the staged diff is used instead
@@ -638,27 +642,33 @@ public class DiffServiceTest
         var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
 
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
-        CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), "diff --staged --unified=6");
-        CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), "reset", "The staging is still reset");
+        var staged = cmd.Calls.Single(c => c.Args == "diff --staged --unified=6");
+        Assert.AreEqual(IndexOf(cmd.Calls[0]), IndexOf(staged), "What is staged in the copy");
     }
 
-    // A failing diff must still undo the 'git add .' it did first
+    // A failing diff must still delete the copy of the index it staged into
     [TestMethod]
-    public async Task TestUncommittedDiffResetsWhenDiffFails()
+    public async Task TestUncommittedDiffDeletesTheCopyWhenTheDiffFails()
     {
+        var wd = TempWd();
+        File.WriteAllText(Path.Join(wd, ".git", "index"), "the index");
         var cmd = new FakeCmd(
             (_, args, _) => args.StartsWith("diff") ? FakeCmd.Fail("fatal: bad object") : FakeCmd.Ok("")
         );
         var service = new DiffService(cmd);
 
-        var result = await service.GetUncommittedDiff(6, TempWd());
+        var result = await service.GetUncommittedDiff(6, wd);
 
         AssertError(result, "Expected the git failure to propagate");
-        Assert.AreEqual("add, diff, reset", string.Join(", ", cmd.Calls.Select(c => c.Args.Split(' ')[0])));
+        Assert.AreEqual("add, diff", string.Join(", ", cmd.Calls.Select(c => c.Args.Split(' ')[0])));
+        Assert.IsFalse(File.Exists(IndexOf(cmd.Calls[0])));
     }
 
-    // GetUncommittedDiff reads .git/MERGE_MSG, so it needs a working directory. A plain temp folder
-    // with a .git in it is enough, no repository required.
+    // The index file a command was given, empty if it was given none
+    static string IndexOf(CmdCall call) => call.Environment?.GetValueOrDefault("GIT_INDEX_FILE") ?? "";
+
+    // GetUncommittedDiff copies .git/index, when there is one, so it needs a working directory. A
+    // plain temp folder with a .git in it is enough, no repository required.
     static string TempWd()
     {
         var wd = Path.Join(Path.GetTempPath(), $"gmdTest-diff-{Guid.NewGuid():N}");

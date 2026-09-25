@@ -154,13 +154,13 @@ public class DiffViewTest
         ScreenText.AssertEqual(
             """
             ══════════════════════════════════════╭ Diff Menu ────────────────────────────────╮════════════════════════════════════
-            Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               S >│
+            Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               s >│
             Author:  Test User <test@example.com> │Diff File                                 >│
             Date:    2024-10-15 12:02:00          │Resolve Conflicts                   Enter >│
             Message: Change both files            │Run External Merge Tool                   >│
-                                                  │Undo/Restore Uncommitted                U >│
-            2 Files:                              │Refresh                                 R  │
-              Modified:    long.txt               │Commit                                  C  │
+                                                  │Discard Changes                         u >│
+            2 Files:                              │Refresh                                 r  │
+              Modified:    long.txt               │Commit                                  c  │
               Modified:    short.txt              │More Context of long.txt (15 lines)     +  │
                                                   │Less Context                            -  │
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Focus Left Column                       ←  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -209,5 +209,134 @@ public class DiffViewTest
 
         StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
         Assert.IsTrue(gmd.IsRunning, $"'{key}' should close the diff view, not quit gmd");
+    }
+
+    // A key the diff view has no use for does nothing there. It used to fall through to the log view
+    // below, since the diff was a toplevel that was not modal, and in the log view 'P' pushes every
+    // branch and 'p' the current one — from a screen that shows neither, and says nothing of it.
+    [TestMethod]
+    public async Task TestLogViewKeysDoNothingInTheDiff()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        var remoteMain = await repo.GitAsync("ls-remote origin main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("▲1");
+        gmd.Send("d");
+        gmd.WaitFor("Added: zeta.txt");
+
+        foreach (var key in new[] { "P", "p", "U", "u" })
+        {
+            gmd.Send(key);
+            gmd.WaitForStable();
+        }
+
+        gmd.Send("Escape");
+        StringAssert.Contains(gmd.WaitUntilGone("Added: zeta.txt"), "▲1", "Nothing was pushed");
+        Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
+    }
+
+    // Undoing uncommitted changes from the diff asks first, and No is the default: the item is
+    // chosen from a menu, where the slip is an Enter on the wrong line, and a new file is deleted
+    // with no way to get it back. The question says which of the two it is.
+    [TestMethod]
+    [DataRow("Down", "Delete the new file?")]
+    [DataRow("End", "Discard all uncommitted changes?")]
+    public async Task TestUndoFromTheDiffAsksFirst(string move, string question)
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©2 uncommitted changes");
+        gmd.Send("d");
+        gmd.WaitFor("Added: epsilon.txt");
+        gmd.Send("u");
+        gmd.WaitFor("All Changes");
+        gmd.Send(move);
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor(question);
+
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone(question), "Added: epsilon.txt", "Still in the diff");
+        Assert.AreEqual(" M alpha.txt\n?? epsilon.txt", await repo.GitAsync("status -s"), "Nothing undone");
+    }
+
+    // Both cases open the menu: the menus write their shortcuts in upper case, so that is what gets
+    // pressed
+    [TestMethod]
+    [DataRow("m")]
+    [DataRow("M")]
+    public async Task TestDiffMenuOpensWithM(string key)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("d");
+        gmd.WaitFor("Added: delta.txt");
+
+        gmd.Send(key);
+
+        gmd.WaitFor("Diff Menu");
+    }
+
+    // The help opens from the diff as from the log view, and closing it is back in the diff
+    [TestMethod]
+    [DataRow("?")]
+    [DataRow("F1")]
+    public async Task TestHelpOpensFromTheDiff(string key)
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("d");
+        gmd.WaitFor("Added: delta.txt");
+
+        gmd.Send(key);
+        gmd.WaitFor("Gmd Help Guide");
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Gmd Help Guide"), "Added: delta.txt", "Back in the diff");
+    }
+
+    // A range diff is the changes the selected commits made, which it only is for commits of one
+    // branch: the check for that compared a commit with itself and never refused anything. It says
+    // so on the status line, and diffs a range on one branch. Ctrl-D diffs the rows whatever branch
+    // is highlighted, which showing dev leaves main.
+    [TestMethod]
+    public async Task TestARangeDiffNeedsCommitsOfOneBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+
+        // 'Add gamma' on main and 'More dev work' on dev, the third and fourth rows. The first
+        // Shift-Down selects the row the cursor is on, the second adds the one below.
+        SelectTwoRowsFrom(gmd, 2);
+        gmd.Send("C-d");
+        Assert.AreEqual(
+            "The selected commits are on different branches: select commits of one branch",
+            ScreenText.LastLine(gmd.WaitFor("different branches"))
+        );
+
+        // 'More dev work' and 'Work on dev', both on dev
+        SelectTwoRowsFrom(gmd, 3);
+        gmd.Send("C-d");
+        gmd.WaitFor("dev.txt");
+    }
+
+    static void SelectTwoRowsFrom(TmuxSession gmd, int row)
+    {
+        string[] keys = ["Home", .. Enumerable.Repeat("Down", row), "S-Down", "S-Down"];
+        foreach (var key in keys)
+        {
+            gmd.Send(key);
+            gmd.WaitForStable();
+        }
     }
 }
