@@ -30,7 +30,7 @@ record WebLinks(string RepoUrl, WebHost Host)
         if (host == "" || path == "")
             return null;
 
-        path = path.Trim('/').TrimSuffix(".git").Trim('/');
+        path = Escaped(path.Trim('/').TrimSuffix(".git").Trim('/'));
         var lowerHost = host.ToLowerInvariant();
 
         // Azure DevOps names its web pages differently from its ssh address, and has two of each
@@ -139,6 +139,12 @@ record WebLinks(string RepoUrl, WebHost Host)
     // A branch name in a path keeps its '/', every other character that means something in a URL
     // is escaped: git allows '#', '%' and '&' in a branch name
     static string Path(string name) => string.Join('/', name.Split('/').Select(Uri.EscapeDataString));
+
+    // The repository's path escaped, whether the remote had it escaped or not: an Azure DevOps
+    // project name often has a space, and a link with one in it is two arguments to the program it
+    // is handed to, see BrowserService, and no link at all when copied
+    static string Escaped(string path) =>
+        string.Join('/', path.Split('/').Select(p => Uri.EscapeDataString(Uri.UnescapeDataString(p))));
 
     static string Query(string value) => Uri.EscapeDataString(value);
 }

@@ -134,6 +134,20 @@ public class WebLinksTest
         Assert.AreEqual("git.example.com", links.HostName);
     }
 
+    // A space in the path, as an Azure DevOps project name often has, stays escaped: a link with a
+    // space in it is two arguments to the browser it is handed to, and is no link when copied
+    [TestMethod]
+    [DataRow("https://dev.azure.com/org/My%20Project/_git/repo")]
+    [DataRow("git@ssh.dev.azure.com:v3/org/My%20Project/repo")]
+    [DataRow("git@ssh.dev.azure.com:v3/org/My Project/repo")]
+    public void TestASpaceInThePathStaysEscaped(string remote)
+    {
+        var links = WebLinks.From(remote)!;
+
+        Assert.AreEqual("https://dev.azure.com/org/My%20Project/_git/repo", links.RepoUrl);
+        Assert.AreEqual("https://dev.azure.com/org/My%20Project/_git/repo/commit/abc123", links.Commit("abc123"));
+    }
+
     // Git allows '#', '%' and '&' in a branch name, which would otherwise end the path or the query
     [TestMethod]
     public void TestABranchNameIsEscaped()
