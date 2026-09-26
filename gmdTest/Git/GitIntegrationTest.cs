@@ -32,6 +32,31 @@ public class GitIntegrationTest
         StringAssert.Matches(version, new System.Text.RegularExpressions.Regex(@"^\d+\.\d+"));
     }
 
+    // The reflog is read as git writes it: a branch started with 'checkout -b' says it was created
+    // from HEAD, HEAD's own reflog says which branch that was, and each commit is on the branch it
+    // was made on
+    [TestMethod]
+    public async Task TestReflogRecordsWhereBranchesStartedAndCommitsWereMade()
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("checkout -b feature");
+        var f1 = await repo.CommitFileAsync("file.txt", "two\n", "Feature work");
+
+        var entries = Value(await repo.Git.GetReflogAsync(repo.Path));
+
+        CollectionAssert.IsSubsetOf(
+            new[]
+            {
+                new ReflogEntry(f1, "refs/heads/feature", 0, "commit: Feature work"),
+                new ReflogEntry(c1, "refs/heads/feature", 1, "branch: Created from HEAD"),
+                new ReflogEntry(c1, "refs/heads/main", 0, "commit (initial): Initial"),
+                new ReflogEntry(f1, "HEAD", 0, "commit: Feature work"),
+                new ReflogEntry(c1, "HEAD", 1, "checkout: moving from main to feature"),
+            },
+            entries.ToArray()
+        );
+    }
+
     [TestMethod]
     public async Task TestRootPathIsFoundFromASubFolder()
     {

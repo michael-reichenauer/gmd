@@ -97,6 +97,7 @@ sealed class TempRepo : IDisposable
             new BlameService(cmd),
             new ConflictService(cmd),
             new WorktreeService(cmd),
+            new ReflogService(cmd),
             cmd
         );
     }

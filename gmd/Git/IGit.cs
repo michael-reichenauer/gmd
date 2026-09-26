@@ -99,6 +99,7 @@ interface IGit
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
     Task<Result> ResetHardUntilCommitAsync(string id, string wd);
     Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd);
+    Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd);
     Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
     Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd);
     Task<Result> PruneWorktreesAsync(string wd);
@@ -145,6 +146,12 @@ public record Worktree(
     bool IsPrunable, // The folder is gone, so 'git worktree prune' would forget it
     string PruneReason
 );
+
+// One entry of a reflog, git's local record of where a ref has pointed: the commit it was moved to,
+// the ref ('refs/heads/dev', 'HEAD', or another worktree's 'worktrees/<name>/HEAD'), the entry's
+// index in that ref's reflog (0 is the latest) and git's message for the move, e.g. 'commit: <subject>'
+// or 'branch: Created from main'
+public record ReflogEntry(string Id, string Ref, int Index, string Message);
 
 // What git is in the middle of, i.e. something it has stopped part way through and has to be told
 // to finish or abort. No porcelain command reports this, so it is probed from the files git leaves

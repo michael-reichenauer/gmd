@@ -39,6 +39,12 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) =>
         Task.FromResult<Result<IReadOnlyList<Worktree>>>(Worktrees.ToList());
 
+    // The entries 'git reflog show --all' would report, none unless a test adds them
+    public List<ReflogEntry> Reflog { get; } = [];
+
+    public Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd) =>
+        Task.FromResult<Result<IReadOnlyList<ReflogEntry>>>(Reflog.ToList());
+
     public Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd)
     {
         WorktreeCalls.Add($"add {path} {branchName} {(isNewBranch ? "new" : "existing")} {startPoint}".TrimEnd());

@@ -18,6 +18,7 @@ internal class Git : IGit
     readonly IBlameService blameService;
     readonly IConflictService conflictService;
     readonly IWorktreeService worktreeService;
+    readonly IReflogService reflogService;
     readonly ICmd cmd;
 
     public Git(
@@ -34,10 +35,12 @@ internal class Git : IGit
         IBlameService blameService,
         IConflictService conflictService,
         IWorktreeService worktreeService,
+        IReflogService reflogService,
         ICmd cmd
     )
     {
         this.worktreeService = worktreeService;
+        this.reflogService = reflogService;
         this.logService = logService;
         this.branchService = branchService;
         this.statusService = statusService;
@@ -252,6 +255,8 @@ internal class Git : IGit
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => remoteService.DeleteRemoteTagAsync(name, wd);
 
     public Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) => worktreeService.ListAsync(wd);
+
+    public Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd) => reflogService.GetReflogAsync(wd);
 
     public Task<Result> AddWorktreeAsync(
         string path,
