@@ -80,6 +80,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   by name, so they return records; `UpdateChangeLog` wrote an empty `CHANGELOG.md` when reading
   the log failed.
 
+**Refresh performance on large repos** (2026-09-26)
+
+- Measured first, with an opt-in test (`RefreshTimingTest`) that times each stage of a refresh on a
+  real repo, and only what was worth it changed, each change shown to change nothing: the git log
+  parse (parsed as spans, the same fields for each of 210,000 commits), and the view repo once all branches
+  are shown (lookups by name, and a sort to Sorter's very order without comparing every pair). The
+  numbers and what was left alone are under Findings and Open issues.
+
 **Features added on the way** (each documented in `gmd/doc/help.md`)
 
 - Merge the current branch *into* another branch (`E`, and `Merge to` in the branch menu).
@@ -312,6 +320,23 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Adding the uncommitted commit sets its parent but does not add it to that parent's children,
   while removing it filters the child lists. Invisible today; worth knowing before relying on
   a commit's children.
+
+**Performance** (measured 2026-09-26, see Findings)
+
+- The graph with all branches shown is now nearly all of such a refresh: 4 s for git's 5,900
+  branches, 9 s for kubernetes' 11,000. Of git's 4 s, `GraphCreater.SetBranchesXLocation` is 3.2 s
+  (each branch tested for overlap against every placed one), the sort by column 0.4 s (Sorter, whose
+  order of equal columns is the drawing), `SetGraph` 0.3 s. Only after the user asks for all branches
+  (asked to confirm above 20), but then every refresh pays it.
+- `Cmd.CommandRaw` reads git's output line by line and joins it: 85–120 ms over git's own 210–250 ms
+  for a 30,000-commit log. Every git call goes through it, so a faster read must do what it does: a
+  `\r\n` and a lone `\r` both become `\n`, and the end is trimmed.
+- User branch orders that contradict each other (each after the other, which a rename can leave)
+  make `Sorter.Sort` loop forever, and the overload too, since it makes the same swaps.
+- Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
+  the shown names with a list `Contains`, thousands times thousands once all are shown.
+- `CommitBranchService.DetermineCommitBranch` builds a `branchNames` string no one reads, for every
+  commit: about 10 ms of 30,000.
 
 **The union result, at .NET 11 GA (November 2026)** — the steps are in `UPGRADING.md`
 
@@ -551,6 +576,45 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `BranchNameService` between the stages, so the split that lost every deleted branch's name was
   verified as pure movement and still landed broken. Anything stateful the stages share must be
   `[SingleInstance]`, and the pipeline keeps one test that resolves from the container.
+
+**Performance**
+
+- Measured with `RefreshTimingTest` (Release, median of five warm runs) over the inference corpus
+  and two repos past the 30,000-commit cap, from partial clones: git (5,890 branches, nearly all
+  recovered from merge subjects) and kubernetes (11,008). A refresh of the default view of 30,000
+  commits is about 600 ms, and the augmentation is not the problem:
+
+  | stage (ms) | git | kubernetes |
+  |---|---|---|
+  | `git log` alone, from the shell | 213 | 247 |
+  | reading its output (`Cmd`) | 330 | 330 |
+  | parsing it | 112 → 55–70 | 60 → 42–54 |
+  | augmentation | 140 | 115 |
+  | view repo, default view | 9 | 13 |
+  | view repo, all branches shown | 854 → 35 | 1,566 → 38 |
+  | view repo, refresh while all are shown | 892 → 29 | 1,854 → 32 |
+  | graph, all branches shown (not changed) | 3,980 | 9,570 |
+
+  End to end on git (gmd.log's `Showed`), the default view went from about 650 to 600 ms, and a
+  refresh with all branches shown from 6.0 to 4.7 s. The parse also allocates 270 MB less per refresh
+  of git, and the view repo of all of kubernetes' branches 41 MB rather than 1.9 GB.
+- The augmentation is linear, about 4.5 µs a commit, and no stage stands out (assigning branches
+  85 ms of git's, parents and children 25 ms, the rest a few): nothing worth risking the most subtle
+  code for.
+- Sorter's cost was the number of comparisons, not their price: 60 million for 11,000 branches, so
+  cheaper comparisons could not have fixed it. A branch can only go after its parent, its ancestors
+  and the branches the user ordered it against, and the overload told those makes the old sort's
+  swaps exactly. The swaps have to be exact, since the comparer is partial and the order it leaves
+  unrelated branches in is the graph's columns. Both randomized equivalence tests fail when the
+  candidates or the swap order are wrong.
+- `RefreshTimingTest` runs every stage in one process, so a stage's time depends on the stages before
+  it. The graph of all of Terminal.Gui's branches looked 60% slower after the view repo got faster,
+  and was the same both ways with `DOTNET_TieredCompilation=0`: the long view stage before it had
+  given the tiering compiler time to finish the graph code. Before believing a change in a stage that
+  did not change, time it in isolation.
+- A `--filter=tree:0 --no-checkout` clone is enough for the log and the harness, but `git status` in it
+  fetches trees one by one. The end-to-end run used a `--filter=blob:none --sparse` clone, with its
+  remote pointed nowhere so that gmd's background fetch could not move the corpus under the dumps.
 
 **Terminal.Gui 1.x and the UI**
 
