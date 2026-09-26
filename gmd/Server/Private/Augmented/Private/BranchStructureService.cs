@@ -15,16 +15,22 @@ interface IBranchStructureService
 //   BranchHierarchyService - relates the branches to each other (parent, root and ancestors)
 class BranchStructureService : IBranchStructureService
 {
+    // The stages share the one BranchNameService (a single instance), whose names are one read's
+    static readonly object syncRoot = new();
+
+    readonly IBranchNameService branchNameService;
     readonly ICommitGraphService commitGraphService;
     readonly ICommitBranchService commitBranchService;
     readonly IBranchHierarchyService branchHierarchyService;
 
     public BranchStructureService(
+        IBranchNameService branchNameService,
         ICommitGraphService commitGraphService,
         ICommitBranchService commitBranchService,
         IBranchHierarchyService branchHierarchyService
     )
     {
+        this.branchNameService = branchNameService;
         this.commitGraphService = commitGraphService;
         this.commitBranchService = commitBranchService;
         this.branchHierarchyService = branchHierarchyService;
@@ -32,6 +38,18 @@ class BranchStructureService : IBranchStructureService
 
     public void DetermineCommitBranches(WorkRepo repo, GitRepo gitRepo)
     {
+        lock (syncRoot)
+        {
+            DetermineCommitBranchesOnce(repo, gitRepo);
+        }
+    }
+
+    void DetermineCommitBranchesOnce(WorkRepo repo, GitRepo gitRepo)
+    {
+        // Forget the names parsed from the merge subjects of the read before, which a stage changes
+        // for the graph of its own read, e.g. a foxtrot merge's names are swapped with its parents
+        branchNameService.Clear();
+
         // Start be setting branch tips on tip commits, this will be starting point for determining branches
         commitGraphService.SetGitBranchTipsOnCommits(repo);
 

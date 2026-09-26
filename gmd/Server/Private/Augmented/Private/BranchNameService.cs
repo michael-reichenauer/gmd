@@ -4,6 +4,7 @@ namespace gmd.Server.Private.Augmented.Private;
 
 interface IBranchNameService
 {
+    void Clear();
     void ParseCommitSubject(WorkCommit c);
     bool IsPullMerge(WorkCommit c);
     bool TryGetBranchName(string commitId, out string branchName);
@@ -22,6 +23,8 @@ record Indexes(int from, int into, int direction);
 // names are looked up by the later stages (CommitBranchService, CommitBranchRules), so all of them
 // must share the one instance holding the cache. Hence the single instance: resolved per consumer,
 // the later stages would each get an empty cache and every deleted branch would lose its name.
+// What is remembered is one read's, cleared before the next (see BranchStructureService), since a
+// stage changes it for the read's own graph (ParentsSwapped).
 // cspell:ignore erged
 [SingleInstance]
 class BranchNameService : IBranchNameService
@@ -61,6 +64,13 @@ class BranchNameService : IBranchNameService
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase
     );
     static readonly Indexes indexes = NameRegExpIndexes();
+
+    // Forgets the names of the read before
+    public void Clear()
+    {
+        parsedCommits.Clear();
+        branchNames.Clear();
+    }
 
     public void ParseCommitSubject(WorkCommit c)
     {

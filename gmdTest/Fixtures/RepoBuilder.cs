@@ -416,6 +416,7 @@ class RepoBuilder
         var branchNameService = new BranchNameService();
         return new Augmenter(
             new BranchStructureService(
+                branchNameService,
                 new CommitGraphService(branchNameService),
                 new CommitBranchService(branchNameService, new CommitBranchRules(branchNameService)),
                 new BranchHierarchyService()

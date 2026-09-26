@@ -827,6 +827,30 @@ public class BranchStructureServiceTest
         Assert.AreEqual("origin/main", repo.Branches[BranchOf(repo, "f1")].ParentBranch?.Name);
     }
 
+    // gmd reads a repo again on every change, through the one augmenter and so the one
+    // BranchNameService, whose parsed names the stages of a read share. Each read starts from git's
+    // parent order, so the swap has to be made again: a swap kept in the names from the read before
+    // made the subject no longer read as main merged into feature, nothing was swapped, and main's
+    // own commit was drawn as a deleted branch again.
+    [TestMethod]
+    public async Task TestFoxtrotMergeIsSwappedOnEveryRead()
+    {
+        var builder = new RepoBuilder()
+            .Commit("ff", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "ff", isCurrent: true);
+        var augmenter = RepoBuilder.NewAugmenter();
+
+        await augmenter.GetAugRepoAsync(builder.ToGitRepo());
+        var repo = await augmenter.GetAugRepoAsync(builder.ToGitRepo());
+
+        Assert.IsTrue(CommitOf(repo, "ff").IsParentsSwapped);
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+        Assert.AreEqual($"feature:{RepoBuilder.Sid("f1")}", BranchOf(repo, "f1"));
+    }
+
     // The same merge on feature's own line, where it belongs, is what it says it is and left alone
     [TestMethod]
     public async Task TestMainMergedIntoAFeatureIsNotAFoxtrot()
