@@ -170,7 +170,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Inference, the second round (2026-09-26): the reflog is read and what it witnessed decides a
   commit's branch (`ReflogWitness`, `TryIsWitnessed`): where a commit was made, from a branch's
   reflog or from HEAD's through its checkouts, and which branch a branch was started from. A fact is
-  only taken among the commits' candidates, never above main, never marks a commit likely, and is
+  only taken among the commit's candidates, never above main, never marks a commit likely, and is
   kept in the metadata when it decided between branches (keyed by full id and marked `~`, so older
   gmd versions never read it and it never makes up a branch). The tail of the rule chain is one
   branch point decision (`TryDecideBranchPoint`): integration name › git-flow release name › one name
