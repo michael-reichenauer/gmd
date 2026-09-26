@@ -176,14 +176,19 @@ public class InferenceDumpTest
             .Select(c => (commit: c, into: parser.ParseSubject(c.Subject).Into))
             .Where(m => m.into != "")
             .ToList();
-        var agreeing = named.Count(m =>
-            m.commit.Branch?.NiceName is string name && (name == m.into || name.EndsWith("/" + m.into))
-        );
+        var disagreeing = named
+            .Where(m => !(m.commit.Branch?.NiceName is string name && (name == m.into || name.EndsWith("/" + m.into))))
+            .ToList();
 
         text.AppendLine("#");
         text.AppendLine(
-            $"# Merge subjects: {named.Count} name the branch merged into, {agreeing} are on a branch of that name"
+            $"# Merge subjects: {named.Count} name the branch merged into, "
+                + $"{named.Count - disagreeing.Count} are on a branch of that name"
         );
+        foreach (var (commit, into) in disagreeing)
+        {
+            text.AppendLine($"#   {commit.Sid} {Flags(commit)} made on {into}, inferred {commit.Branch?.Name}");
+        }
     }
 
     static void AppendReflogScore(StringBuilder text, WorkRepo repo, IReadOnlyDictionary<string, string> madeOn)
