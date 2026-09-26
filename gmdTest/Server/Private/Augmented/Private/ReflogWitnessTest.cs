@@ -126,6 +126,39 @@ public class ReflogWitnessTest
         Assert.AreEqual(4, startedFrom.Count);
     }
 
+    // 'Created from HEAD' is paired with the checkout that created the branch, which leaves HEAD's
+    // commit where it was. Not with a later checkout to it from elsewhere: feature made with 'git
+    // branch feature HEAD' on dev, which checks nothing out, then hotfix checked out, and feature
+    // after it, still at its first commit. HEAD was not on hotfix when feature was created.
+    [TestMethod]
+    public void TestABranchCreatedFromHeadIsPairedWithTheCheckoutThatCreatedIt()
+    {
+        var startedFrom = ReflogWitness.StartedFrom([
+            .. Log("refs/heads/feature", ("d1", "branch: Created from HEAD")),
+            .. Log(
+                "HEAD",
+                ("d1", "checkout: moving from hotfix to feature"),
+                ("h1", "checkout: moving from dev to hotfix"),
+                ("d1", "commit: Dev work")
+            ),
+        ]);
+
+        Assert.AreEqual(0, startedFrom.Count, string.Join(", ", startedFrom));
+
+        var sources = ReflogWitness.SourceByBranch([
+            .. Log("refs/heads/feature", ("d1", "branch: Created from HEAD")),
+            .. Log(
+                "HEAD",
+                ("d1", "checkout: moving from other to feature"),
+                ("o1", "checkout: moving from feature to other"),
+                ("d1", "checkout: moving from dev to feature"),
+                ("d1", "commit: Dev work")
+            ),
+        ]);
+
+        Assert.AreEqual("dev", sources["feature"], "The first checkout to it, which created it");
+    }
+
     // The branch each branch was started from, by the same entries as where it was started, and only
     // where they name a branch
     [TestMethod]

@@ -100,7 +100,7 @@ static class ReflogWitness
     // The branches whose reflog says which branch they were started from
     static IEnumerable<Creation> Creations(IReadOnlyList<ReflogEntry> entries)
     {
-        var heads = HeadReflogs(entries).ToList();
+        var creatingCheckouts = CreatingCheckouts(entries);
 
         foreach (
             var e in entries.Where(e => e.Ref.StartsWith(BranchRefPrefix) && e.Message.StartsWith(CreatedFromPrefix))
@@ -109,21 +109,41 @@ static class ReflogWitness
             var branch = e.Ref[BranchRefPrefix.Length..];
             var source = e.Message[CreatedFromPrefix.Length..];
 
-            var name =
-                source == "HEAD"
-                    ? heads
-                        .SelectMany(h => h)
-                        .Where(h =>
-                            h.Id == e.Id && h.Message.StartsWith(CheckoutPrefix) && h.Message.EndsWith(" to " + branch)
-                        )
-                        .Select(h => BranchOrNull(h.Message[CheckoutPrefix.Length..h.Message.LastIndexOf(" to ")]))
-                        .FirstOrDefault()
-                    : BranchOrNull(source);
+            var name = source == "HEAD" ? creatingCheckouts.GetValueOrDefault((e.Id, branch)) : BranchOrNull(source);
             if (name != null && name != branch)
             {
                 yield return new Creation(e.Id, branch, name);
             }
         }
+    }
+
+    // The branch HEAD was on when a branch was created from it, by the commit and the created
+    // branch: the first checkout to the branch at that commit, if it left HEAD's commit where it
+    // was, as 'git checkout -b' and 'git switch -c' do. Any other checkout to it is no creation, e.g.
+    // from hotfix to a feature made before with 'git branch feature HEAD', which checks nothing out,
+    // and HEAD was not on hotfix then. Found in one pass over the HEAD reflogs, rather than a search
+    // of them for each branch created.
+    static Dictionary<(string Id, string Branch), string?> CreatingCheckouts(IReadOnlyList<ReflogEntry> entries)
+    {
+        Dictionary<(string, string), string?> sources = [];
+        foreach (var head in HeadReflogs(entries))
+        {
+            for (var i = 0; i < head.Count; i++)
+            {
+                var e = head[i];
+                var to = e.Message.LastIndexOf(" to ");
+                if (!e.Message.StartsWith(CheckoutPrefix) || to < CheckoutPrefix.Length)
+                    continue;
+
+                var key = (e.Id, e.Message[(to + 4)..]);
+                if (sources.ContainsKey(key))
+                    continue; // A later checkout to the branch, the first is the one that created it
+
+                var isCommitKept = i == 0 || head[i - 1].Id == e.Id;
+                sources[key] = isCommitKept ? BranchOrNull(e.Message[CheckoutPrefix.Length..to]) : null;
+            }
+        }
+        return sources;
     }
 
     // Whether a reflog entry is a commit being made, rather than the ref moving to one that exists
