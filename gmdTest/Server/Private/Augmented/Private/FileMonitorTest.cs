@@ -153,6 +153,33 @@ public class FileMonitorTest
         Assert.AreEqual(1, repoEvents.Count);
     }
 
+    // Pauses can overlap, e.g. a write in the background while a command runs, and the monitor stays
+    // paused until the last of them ends: the first to end resumed it under the command still running
+    [TestMethod]
+    public void TestOverlappingPausesResumeWhenTheLastEnds()
+    {
+        var command = monitor.Pause();
+        using (monitor.Pause()) { }
+
+        monitor.RepoChange(refPath, "refs/heads/main", WatcherChangeTypes.Changed);
+        now += pastDelay;
+        mainThread.Tick();
+        Assert.AreEqual(0, repoEvents.Count);
+
+        command.Dispose();
+        command.Dispose(); // Twice is once
+        mainThread.Tick();
+        Assert.AreEqual(1, repoEvents.Count);
+
+        using (monitor.Pause())
+        {
+            monitor.RepoChange(refPath, "refs/heads/main", WatcherChangeTypes.Changed);
+            now += pastDelay;
+            mainThread.Tick();
+            Assert.AreEqual(1, repoEvents.Count, "Still paused");
+        }
+    }
+
     [TestMethod]
     public void TestSetReadStatusTimeClearsOnlyTheFileChange()
     {

@@ -501,14 +501,9 @@ class AugmentedService : IAugmentedService
     }
 
     // What the reflog witnessed and decided is kept in the metadata, since the reflog expires. The
-    // write is a change to the repo's refs, which the file monitor must not take for a new commit.
-    async Task<Result> KeepWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed)
-    {
-        using (fileMonitor.Pause())
-        {
-            return await metaDataService.AddWitnessedAsync(path, witnessed);
-        }
-    }
+    // file monitor is not paused for it, since it takes no metadata write for a change of the repo.
+    Task<Result> KeepWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed) =>
+        metaDataService.AddWitnessedAsync(path, witnessed);
 
     // GetUpdatedAugmentedRepoStatus an updated augmented repo with new status
     Repo GetUpdatedAugmentedRepoStatus(Repo repo, GitStatus gitStatus)
