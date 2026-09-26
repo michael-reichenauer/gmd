@@ -73,6 +73,25 @@ public class BranchNameServiceTest
         );
     }
 
+    // GitHub names a branch of another repository with its owner, 'owner:branch', e.g. when a fork is
+    // brought up to date with the repository it was forked from. A git ref cannot hold a ':', so it
+    // always separates the owner, and the name was cut there: 'gui-cs' with no target at all. The
+    // fork's branch merged with the same branch of the original is a pull merge like any other.
+    [TestMethod]
+    public void TestOwnerOfABranchIsLeftOut()
+    {
+        Assert.AreEqual(
+            new FromInto("v2_develop", "v2_develop", true, false),
+            Parse("Merge branch 'gui-cs:v2_develop' into v2_develop")
+        );
+        Assert.AreEqual(new FromInto("trunk", "trunk", true, false), Parse("Merge branch 'cli:trunk' into trunk"));
+        Assert.AreEqual(
+            new FromInto("feature/x", "dev", false, false),
+            Parse("Merge branch 'someone:feature/x' into dev")
+        );
+        Assert.AreEqual(new FromInto("PR456", "", false, true), Parse("Merged PR 456: Add a thing"), "Not an owner");
+    }
+
     // Merging another branch from a remote repository is not a pull merge, even though the
     // subject has the same 'of <url>' shape, since the branch is merged into a different branch
     [TestMethod]

@@ -46,8 +46,8 @@ class BranchNameService : IBranchNameService
         + //                    'remote-tracking' optional word when merging remote branches
         @"(?:\s+(?<keyword>pull request #[0-9]+ from|PR|from branch|branches|branch|commit|tag|from))?"
         + // 'branch'|'commit'|'tag'|'from' word ('branches' before 'branch' to match the longer one)
-        $@"\s+'?(?<from>{namePattern})'?"
-        + //          the <from> branch name
+        $@"\s+'?(?:[0-9A-Za-z_.-]+:)?(?<from>{namePattern})'?"
+        + //          the <from> branch name, without GitHub's 'owner:' of another repository's branch
         $@"(?:(?:\s*,|\s+and)\s+'?{namePattern}'?)*"
         + // the other names of an octopus merge, e.g. "branches 'a', 'b' and 'c'"
         @"(?<direction>\s+of\s+[^\s]+)?"
