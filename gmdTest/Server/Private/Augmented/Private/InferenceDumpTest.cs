@@ -37,16 +37,15 @@ public class InferenceDumpTest
         if (RepoPath == "" || OutPath == "")
             Assert.Inconclusive("Only run when GMD_INFER_REPO and GMD_INFER_OUT name a repository and a file");
 
-        var cmd = new Cmd();
-        var git = TempRepo.NewGit(cmd);
+        var git = TempRepo.NewGit(new Cmd());
+        var reflog = AssertOk(await git.GetReflogAsync(RepoPath));
 
-        var repo = await RepoBuilder.NewAugmenter().GetAugRepoAsync(await ReadGitRepoAsync(git));
-        var madeOn = await ReadMadeOnBranchAsync(cmd);
+        var repo = await RepoBuilder.NewAugmenter().GetAugRepoAsync(await ReadGitRepoAsync(git, reflog));
 
-        File.WriteAllText(OutPath, Dump(repo, madeOn));
+        File.WriteAllText(OutPath, Dump(repo, ReflogWitness.MadeOn(reflog)));
     }
 
-    static async Task<GitRepo> ReadGitRepoAsync(IGit git)
+    static async Task<GitRepo> ReadGitRepoAsync(IGit git, IReadOnlyList<ReflogEntry> reflog)
     {
         var log = AssertOk(await git.GetLogAsync(MaxCommitCount, RepoPath));
         var branches = AssertOk(await git.GetBranchesAsync(RepoPath));
@@ -63,72 +62,10 @@ public class InferenceDumpTest
             RepoBuilder.NoChanges,
             metaData,
             stashes,
-            log.Count == MaxCommitCount
+            log.Count == MaxCommitCount,
+            reflog: reflog
         );
     }
-
-    // The branch each commit was made on, by commit id, as far as the reflog still tells. A local
-    // branch's own reflog says it for the commits made on it ('commit: ...', 'commit (merge): ...');
-    // HEAD's reflog says it for the branches since deleted, whose own reflogs went with them, by
-    // following which branch was checked out ('checkout: moving from a to b') when each commit was
-    // made. Moves that made no commit (a fast-forward, a reset, a rebase) say nothing about where a
-    // commit was made, and neither do the commits a rebase makes, on a detached HEAD.
-    static async Task<IReadOnlyDictionary<string, string>> ReadMadeOnBranchAsync(ICmd cmd)
-    {
-        Dictionary<string, string> madeOn = [];
-
-        var branchesLog = AssertOk(await cmd.RunAsync("git", "reflog show --all --format=%H%x00%gD%x00%gs", RepoPath));
-        foreach (var (id, reference, subject) in ReflogEntries(branchesLog))
-        {
-            if (!reference.StartsWith("refs/heads/") || !IsMadeHere(subject))
-                continue;
-            var branch = reference.TrimPrefix("refs/heads/");
-            branch = branch[..branch.LastIndexOf("@{")];
-            madeOn.TryAdd(id, branch);
-        }
-
-        // HEAD's reflog is newest first, so it is followed from the end to know the checked out branch
-        var headLog = AssertOk(await cmd.RunAsync("git", "reflog show --format=%H%x00%gD%x00%gs HEAD", RepoPath));
-        string? current = null;
-        foreach (var (id, _, subject) in ReflogEntries(headLog).Reverse())
-        {
-            if (subject.StartsWith("checkout: moving from "))
-            {
-                var to = subject[(subject.LastIndexOf(" to ") + 4)..];
-                current = IsCommitId(to) ? null : to;
-            }
-            else if (subject.StartsWith("rebase") && subject.Contains("returning to refs/heads/"))
-            {
-                current = subject[(subject.IndexOf("returning to refs/heads/") + 24)..];
-            }
-            else if (subject.StartsWith("rebase"))
-            {
-                current = null; // A rebase runs on a detached HEAD
-            }
-            else if (current != null && IsMadeHere(subject))
-            {
-                madeOn.TryAdd(id, current);
-            }
-        }
-
-        return madeOn;
-    }
-
-    static IEnumerable<(string id, string reference, string subject)> ReflogEntries(string output) =>
-        output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Split('\0'))
-            .Where(parts => parts.Length == 3)
-            .Select(parts => (parts[0], parts[1], parts[2]));
-
-    // Whether a reflog entry is a commit being made, rather than the branch moving to an existing one
-    static bool IsMadeHere(string subject) =>
-        subject.StartsWith("commit")
-        || subject.StartsWith("cherry-pick")
-        || subject.StartsWith("revert")
-        || subject.Contains(": Merge made by");
-
-    static bool IsCommitId(string text) => text.Length >= 7 && text.All(Uri.IsHexDigit);
 
     static string Dump(WorkRepo repo, IReadOnlyDictionary<string, string> madeOn)
     {

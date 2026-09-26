@@ -224,7 +224,17 @@ class AugmentedService : IAugmentedService
         var metaDataTask = metaDataService.GetMetaDataAsync(path);
         var stashesTask = git.GetStashesAsync(path);
         var worktreesTask = git.GetWorktreesAsync(path);
-        await Task.WhenAll(logTask, branchesTask, tagsTask, statusTask, metaDataTask, stashesTask, worktreesTask);
+        var reflogTask = git.GetReflogAsync(path);
+        await Task.WhenAll(
+            logTask,
+            branchesTask,
+            tagsTask,
+            statusTask,
+            metaDataTask,
+            stashesTask,
+            worktreesTask,
+            reflogTask
+        );
 
         // Check all tasks for errors
         if (logTask.Result is not IReadOnlyList<Git.Commit> log)
@@ -250,6 +260,13 @@ class AugmentedService : IAugmentedService
             worktrees = [];
         }
 
+        // The reflog is extra as well: it only makes the branch inference surer, and a repo can have none
+        if (reflogTask.Result is not IReadOnlyList<ReflogEntry> reflog)
+        {
+            Log.Warn($"Failed to read the reflog, {reflogTask.Result.Error}");
+            reflog = [];
+        }
+
         var isTruncated = log.Count == maxCommitCount;
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
@@ -265,7 +282,8 @@ class AugmentedService : IAugmentedService
             metaData,
             stashes,
             isTruncated,
-            worktrees
+            worktrees,
+            reflog: reflog
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 
