@@ -167,6 +167,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
     whether it was on dev or on dev.
   - *Revert Commit* on a pull merge, whose parents gmd swaps, reverted what others had pushed rather
     than the local side the graph shows merged in; the details view listed the parents swapped.
+- Inference, the second round (2026-09-26): the reflog is read and what it witnessed decides a
+  commit's branch (`ReflogWitness`, `TryIsWitnessed`): where a commit was made, from a branch's
+  reflog or from HEAD's through its checkouts, and which branch a branch was started from. A fact is
+  only taken among the commits' candidates, never above main, never marks a commit likely, and is
+  kept in the metadata when it decided between branches (keyed by full id and marked `~`, so older
+  gmd versions never read it and it never makes up a branch). The tail of the rule chain is one
+  branch point decision (`TryDecideBranchPoint`): integration name › git-flow release name › one name
+  for all › clearly most merged in; the likely-child rules are gone, and an undecided branch point is
+  drawn on its most senior name. A repo can name its own integration branches in Config.
 - A commit merged by id (`git merge <sha>`, subject `Merge commit '<sha>' into dev`) was recovered
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
@@ -239,27 +248,24 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Inference pipeline**
 
-- Next round of the rules review (2026-09-26), agreed and not started, to be driven by the dump's
-  numbers:
-  - *The reflog as a witness.* `refs/heads/<b>` entries `commit:`, `commit (merge):`, `cherry-pick:`
-    record exactly the branch a commit was made on, and `branch: Created from <name>` where a branch
-    started; `git reflog show --all --format=%H%x00%gD%x00%gs` reads it all in one process (the dump
-    already parses it). Rules for using it: it only chooses among a commit's candidates, mapped to
-    the primary branch, and never creates a branch (a reset moves commits off the branch they were
-    made on, e.g. three of this repo's commits made on dev live on only through a tag); it never
-    overrides a trunk candidate (a feature fast-forwarded into main would take main's tip); a
-    `commit:` fact decides the commit but sets no `IsLikely`, and only `Created from` is evidence for
-    a branch point (`from HEAD` needs HEAD's reflog); fast-forward, reset, rebase and
-    `refs/remotes/*` entries say nothing. The facts that decide a branch point are saved into the
-    shared metadata as non-user entries, so they outlive the reflog's ~90 days and a fresh clone,
-    keyed by full id: a 6-character sid collides in a large repo, and the metadata rule would then
-    force an unrelated commit (lookups already try the full id after the sid).
-  - *One decision per branch point.* Replace the tail of the chain (the likely-child rules,
-    `GetLikelyBranches`) with one decision over ordered evidence: creation fact › trunk › integration
-    name (configurable in `RepoConfig`, with `release/*` and `hotfix/*` tiers) › branches merged in ›
-    has a remote. Stacked pull requests (a branch started at another published branch's tip, both
-    pushed, most of cli/cli's remaining ambiguity) have no evidence in the graph at all; only a
-    creation fact settles them.
+- Left open by the second round of the rules review (2026-09-26):
+  - Stacked pull requests seen from a clone (a branch started from another branch's commit, both
+    pushed, or the base since merged and deleted) are most of cli/cli's and Terminal.Gui's remaining
+    ambiguity: two deleted branches, or one deleted and one live, meeting where nothing in the graph,
+    the names or the subjects says which was first. Only a creation fact settles them, which the
+    reflog gives the one who made them and the metadata keeps; for anyone else they stay white.
+  - `branch: Created from HEAD` is followed to the branch HEAD was on only through the checkout to
+    the new branch at the same commit, i.e. for `checkout -b` and `switch -c`. `git branch x` makes
+    no checkout, and the reflog entries carry no time to line up with HEAD's (`%gd` with a date
+    would), so which branch it came from is not known.
+  - A repo's own integration branch names are per user (`RepoConfig`), not shared with the metadata.
+    Shared would suit a team convention better, and needs a merge rule for two users' lists.
+  - Not taken as evidence, after measuring: a live branch over a deleted one at a branch point (the
+    base of a stacked pull request is the deleted one as often), a published branch over a local-only
+    one (a local-only branch is the user's own, whose reflog says it), and a deleted branch recovered
+    as main or master for an old trunk (it put Terminal.Gui's v1 main back on main, and split cli's
+    imported ghcs/main into three branches). A name ending in 'release' is not a release branch: a
+    'v1_release' is a trunk of its own, and 'prepare-release' a feature.
 - Tag names are taken for branch names: git-flow's `Merge tag '1.11.0' into develop` names the
   release merge it points at, on master, `1.11.0`, and outranks the better name a pull merge gave the
   same commit (the last merge child parsed wins). Only visible where master's line is lost, as in
@@ -492,6 +498,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   or `upstream`) is catching up and does not count, a pull request always does, even from a fork's
   own trunk, and one merged branch is never enough. Each of those was found by a corpus dump
   deciding wrongly, not by a test.
+- The second round moved no commit in the corpus except where names say more than the graph:
+  Terminal.Gui 389 → 383 ambiguous commits, its old `develop` history now under `v1_develop`, the
+  live branch it was renamed to (which the subject score counts as disagreeing); cli 471 → 475, the
+  commits only the likely-child rule decided. The reflog's effect cannot show in clones, which have
+  none: on a copy of this repo with branches stacked by `checkout -b`, the commit the second started
+  from went from ambiguous to the first, and three of this repo's commits are decided by the reflog,
+  as before. Every candidate rule of this round was first measured, and three were dropped for what
+  the dump showed (listed under Open issues).
 - A rule that decides a commit early stops `TrySetBranch` from repairing it from below, since the
   repair only walks up through ambiguous commits. A new early rule can so take a line away from a
   better, later subject match; the dump shows it as decided commits moving, which is why the
