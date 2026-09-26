@@ -14,6 +14,7 @@ interface ICommitBranchRules
     bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch);
+    bool TryHasSeniorBranch(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOneChildWithLikelyBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryHasMultipleChildrenWithOneLikelyBranch(WorkCommit commit, out WorkBranch? branch);
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch);
@@ -297,6 +298,42 @@ class CommitBranchRules : ICommitBranchRules
 
         branch = null;
         return false;
+    }
+
+    // Commit is where branches meet, and one of them is senior to the others, i.e. the branch they
+    // were started from, which goes on below. An integration branch by name (develop, dev) is senior.
+    // Failing that, so is a branch that clearly more other branches were merged into: at least two,
+    // and at least twice as many as any other, not counting the trunk merged in to bring a branch up
+    // to date. Merge subjects alone cannot tell which branch goes on: a branch merged into another
+    // looks the same whether it is a feature merged back into dev or dev merged into a feature to
+    // bring it up to date, which is why one merged branch is never enough. Only a clear winner decides.
+    public bool TryHasSeniorBranch(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        var groups = commit
+            .Branches.GroupBy(b => b.PrimaryName)
+            .Select(g => (branches: g, primary: repo.Branches[g.Key]))
+            .ToList();
+        if (groups.Count < 2)
+            return false;
+
+        var integration = groups.Where(g => WellKnownBranches.IsIntegrationName(g.primary.NiceName)).ToList();
+        if (integration.Count == 1)
+        {
+            branch = RemoteFirst(integration[0].branches);
+            return true;
+        }
+        if (integration.Count > 1)
+            return false;
+
+        var byMerged = groups.OrderByDescending(g => g.primary.MergedFromNames.Count).ToList();
+        var most = byMerged[0].primary.MergedFromNames.Count;
+        var next = byMerged[1].primary.MergedFromNames.Count;
+        if (most < 2 || most < 2 * next)
+            return false;
+
+        branch = RemoteFirst(byMerged[0].branches);
+        return true;
     }
 
     // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch

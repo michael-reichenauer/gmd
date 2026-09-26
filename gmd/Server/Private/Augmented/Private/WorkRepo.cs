@@ -139,6 +139,11 @@ internal class WorkBranch
     public List<WorkBranch> PullMergeChildBranches = [];
     public List<WorkBranch> Ancestors = [];
 
+    // The names of the branches merged into this branch, by the merge subjects of the commits
+    // assigned to it so far, other than the trunk or an integration branch. Only kept on a primary
+    // branch, see CommitBranchService.
+    public HashSet<string> MergedFromNames = [];
+
     // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)
     {

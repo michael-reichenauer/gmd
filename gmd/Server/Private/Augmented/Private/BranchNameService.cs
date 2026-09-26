@@ -7,6 +7,8 @@ interface IBranchNameService
     void ParseCommitSubject(WorkCommit c);
     bool IsPullMerge(WorkCommit c);
     bool TryGetBranchName(string commitId, out string branchName);
+    string MergedFrom(WorkCommit c);
+    bool IsPullRequest(WorkCommit c);
 }
 
 record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
@@ -67,6 +69,17 @@ class BranchNameService : IBranchNameService
     {
         return branchNames.TryGetValue(commitId, out branchName!) && branchName != "";
     }
+
+    // The name of the branch a merge commit merged in, by its subject, or "" if it names none, or
+    // if it is a pull merge, which merges a branch into itself
+    public string MergedFrom(WorkCommit c)
+    {
+        var fi = ParseCommit(c);
+        return IsPullMergeCommit(fi) ? "" : fi.From;
+    }
+
+    // Whether a merge commit's subject is a pull request's, e.g. 'Merge pull request #1 from x/y'
+    public bool IsPullRequest(WorkCommit c) => ParseCommit(c).IsPullRequest;
 
     public bool IsPullMerge(WorkCommit c)
     {

@@ -384,21 +384,22 @@ public class BranchStructureServiceTest
 
     // Not the other way round: a local branch left pointing at an older commit of a published
     // branch did not make that commit, so it must not take the published branch's history from
-    // there down. It stays as undecided as it was.
+    // there down. It stays as undecided as it was. (Not named dev here, since an integration branch
+    // keeps such a commit by its name, see TestBranchPointOfALiveMergedBranchGoesToTheIntegrationBranch.)
     [TestMethod]
     public async Task TestLocalBranchLeftAtAnOlderCommitDoesNotTakeThePublishedBranch()
     {
         var repo = await new RepoBuilder()
-            .Commit("d2", "Dev 2", "d1")
-            .Commit("d1", "Dev 1", "c1")
+            .Commit("d2", "Work 2", "d1")
+            .Commit("d1", "Work 1", "c1")
             .Commit("c2", "Main 2", "c1")
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "c2", isCurrent: true)
-            .BranchWithRemote("dev", "d2")
+            .BranchWithRemote("work", "d2")
             .LocalBranch("old", "d1")
             .AugmentAsync();
 
-        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.AreEqual("origin/work", BranchOf(repo, "d1"));
         Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
         Assert.AreEqual("Ambiguous", CommitOf(repo, "d1").DecidedBy);
     }
@@ -425,10 +426,11 @@ public class BranchStructureServiceTest
     }
 
     // The commit a branch was started from is shared by both branches, and git records nothing
-    // about which of them it belongs to. It is genuinely ambiguous, so gmd marks it and lets the
-    // user settle it. What it must not do is silently pick the new branch: the branch that was
-    // merged into is the more likely one, and picking the other way also drags the whole hierarchy
-    // with it, since the branch would then look branched out of the branch it merged in.
+    // about which of them it belongs to. What gmd must not do is pick the new branch: picking that
+    // way also drags the whole hierarchy with it, since dev would then look branched out of the
+    // branch it merged in. It used to be marked ambiguous for the user to settle; dev is an
+    // integration branch by its name, so it is decided now (see TestBranchPointOf... below for the
+    // shapes where the merge subjects alone cannot tell).
     //
     //   c2      main, merges dev
     //   |\
@@ -440,7 +442,7 @@ public class BranchStructureServiceTest
     //   |/
     //   c1      main
     [TestMethod]
-    public async Task TestCommitBelowABranchPointIsTheMergedIntoBranchAndAmbiguous()
+    public async Task TestCommitBelowABranchPointIsTheMergedIntoBranch()
     {
         var repo = await new RepoBuilder()
             .Commit("c2", "Merge branch 'dev' into main", "c1", "d2")
@@ -458,13 +460,11 @@ public class BranchStructureServiceTest
         Assert.AreEqual("feature", BranchOf(repo, "f1"));
         Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
 
-        // The shared commit goes to dev, the branch that was merged into, and is marked so the
-        // user can move it to feature if that is where it belongs
+        // The shared commit goes to dev, the branch feature was started from and merged into
         var d1 = CommitOf(repo, "d1");
         Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
-        Assert.IsTrue(d1.IsAmbiguous);
-        Assert.IsTrue(d1.IsAmbiguousTip);
-        CollectionAssert.AreEqual(new[] { "origin/dev", "feature" }, d1.Branches.Select(b => b.Name).ToArray());
+        Assert.IsFalse(d1.IsAmbiguous);
+        Assert.AreEqual("HasSeniorBranch", d1.DecidedBy);
 
         // Which gives the expected hierarchy, main <- dev <- feature
         Assert.AreEqual(RepoBuilder.Sha("d1"), repo.Branches["origin/dev"].BottomID);
@@ -488,7 +488,7 @@ public class BranchStructureServiceTest
             .AugmentAsync();
 
         Assert.AreEqual("dev", BranchOf(repo, "d1"));
-        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.IsFalse(CommitOf(repo, "d1").IsAmbiguous);
         Assert.AreEqual("origin/main", repo.Branches["dev"].ParentBranch?.Name);
         Assert.AreEqual("dev", repo.Branches["feature"].ParentBranch?.Name);
     }
@@ -513,6 +513,165 @@ public class BranchStructureServiceTest
         Assert.AreEqual("origin/dev", d1.Branch?.Name, "The remote branch is preferred over the local one");
         Assert.IsFalse(d1.IsAmbiguous);
         Assert.IsFalse(repo.Branches.Values.Any(b => b.IsAmbiguousBranch));
+    }
+
+    // A branch point where the branch kept going after its merge into dev, i.e. was not deleted. The
+    // merged branch's tip is named by the merge subject, which counted as likely, while dev's commit
+    // above the branch point, a plain one, was not. So the branch point, and all of dev below it,
+    // went to feature, and dev looked branched out of the branch it had merged in. Dev is an
+    // integration branch by its name, and the branch point is where other branches start from it.
+    //
+    //   m       dev, merges feature
+    //   |\
+    //   d3 |    dev, a commit of its own
+    //   | f1    feature, still there
+    //   |/
+    //   d2      dev or feature?
+    //   | c2    main
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestBranchPointOfALiveMergedBranchGoesToTheIntegrationBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ee", "Merge branch 'feature' into dev", "d3", "f1")
+            .Commit("d3", "Dev direct", "d2")
+            .Commit("f1", "Feature work", "d2")
+            .Commit("d2", "Dev 2", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "ee")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d3"));
+        Assert.AreEqual("origin/feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/main", repo.Branches["origin/dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/dev", repo.Branches["origin/feature"].ParentBranch?.Name);
+    }
+
+    // The mirror image, a back-merge: dev merged into feature to bring it up to date. Merge subjects
+    // and the graph cannot tell the two apart, since in both the branch point's two children are one
+    // branch merged into the other. Here the branch named by the merge subject is dev, which is right,
+    // and must stay right.
+    //
+    //   ff      feature, merges dev
+    //   |\
+    //   | d2    dev
+    //   f1 |    feature
+    //   |/
+    //   d1      dev or feature?
+    //   | c2    main
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestBranchPointOfABackMergeGoesToTheBranchMergedFrom()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ff", "Merge branch 'dev' into feature", "f1", "d2")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .BranchWithRemote("feature", "ff")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/dev", repo.Branches["origin/feature"].ParentBranch?.Name);
+    }
+
+    // With names that say nothing, a branch that several other branches were merged into is the one
+    // others start from, rather than a branch that nothing was merged into. One merged branch is not
+    // enough: that is also what a branch brought up to date from the branch it started from has.
+    //
+    //   t4      team, merges b
+    //   t3      team, merges a
+    //   t2 |    team, a commit of its own
+    //   | f1    feature
+    //   |/
+    //   t1      team or feature?
+    [TestMethod]
+    public async Task TestBranchPointGoesToTheBranchSeveralBranchesWereMergedInto()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e4", "Merge branch 'b' into team", "e3", "b1")
+            .Commit("e3", "Merge branch 'a' into team", "e2", "a1")
+            .Commit("e2", "Team 2", "e1")
+            .Commit("f1", "Feature work", "e1")
+            .Commit("b1", "B work", "c1")
+            .Commit("a1", "A work", "c1")
+            .Commit("e1", "Team 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("team", "e4")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/team", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+        Assert.AreEqual("origin/team", repo.Branches["origin/feature"].ParentBranch?.Name);
+    }
+
+    // A branch brought up to date from the trunk, here from two remotes, has had branches merged
+    // into it, but not ones that make it a branch others start from. So the branch point stays as
+    // undecided as it was, rather than going to feature.
+    [TestMethod]
+    public async Task TestTrunkMergedIntoABranchDoesNotMakeItSenior()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f3", "Merge remote-tracking branch 'upstream/main' into feature", "f2", "c3")
+            .Commit("f2", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("e2", "Team 2", "e1")
+            .Commit("f1", "Feature work", "e1")
+            .Commit("c3", "Main 3", "c2")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("e1", "Team 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .BranchWithRemote("team", "e2")
+            .BranchWithRemote("feature", "f3")
+            .AugmentAsync();
+
+        Assert.AreEqual(0, repo.Branches["origin/feature"].MergedFromNames.Count);
+        Assert.IsTrue(CommitOf(repo, "e1").IsAmbiguous);
+    }
+
+    // A pull request is a contribution even when it comes from a fork's own trunk, as it does when
+    // contributors work on their fork's main
+    [TestMethod]
+    public async Task TestPullRequestsFromForkTrunksMakeABranchSenior()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e4", "Merge pull request #2 from bob/main", "e3", "b1")
+            .Commit("e3", "Merge pull request #1 from alice/main", "e2", "a1")
+            .Commit("e2", "Team 2", "e1")
+            .Commit("f1", "Feature work", "e1")
+            .Commit("b1", "Bob's work", "c1")
+            .Commit("a1", "Alice's work", "c1")
+            .Commit("e1", "Team 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("team", "e4")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        CollectionAssert.AreEquivalent(
+            new[] { "alice/main", "bob/main" },
+            repo.Branches["origin/team"].MergedFromNames.ToArray()
+        );
+        Assert.AreEqual("origin/team", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
     }
 
     // The same rule keeps the commits below a series of merges on the branch they were merged into

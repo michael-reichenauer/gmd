@@ -50,6 +50,9 @@ class CommitBranchService : ICommitBranchService
                 c.IsLikely = true;
             }
 
+            // Remember which branches were merged into the branch, see TryHasSeniorBranch
+            AddMergedFromName(repo, c);
+
             // If this commit is a main branch, then its first parent will likely be it too.
             SetMasterBackbone(c);
 
@@ -124,6 +127,16 @@ class CommitBranchService : ICommitBranchService
         { // Commit has one child commit reuse that child commit branch
             return Decided(commit, nameof(rules.TryHasOnlyOneChild), branch!);
         }
+        else if (rules.TryIsMergedBranchesToParent(repo, commit, out branch))
+        { // Checks if a commit with 2 children and if the one child branch is merged into the
+            // other child branch. E.g. like a pull request or feature branch
+            return Decided(commit, nameof(rules.TryIsMergedBranchesToParent), branch!);
+        }
+        else if (rules.TryHasSeniorBranch(repo, commit, out branch))
+        { // Commit is where branches meet, and one of them is the one the others started from, an
+            // integration branch by name or by the branches merged into it
+            return Decided(commit, nameof(rules.TryHasSeniorBranch), branch!);
+        }
         else if (rules.TryHasOneChildWithLikelyBranch(commit, out branch))
         { // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
             return Decided(commit, nameof(rules.TryHasOneChildWithLikelyBranch), branch!);
@@ -135,11 +148,6 @@ class CommitBranchService : ICommitBranchService
         else if (rules.TrySameChildrenBranches(commit, out branch))
         { // For e.g. pull merges, a commit can have two children with same logical branch
             return Decided(commit, nameof(rules.TrySameChildrenBranches), branch!);
-        }
-        else if (rules.TryIsMergedBranchesToParent(repo, commit, out branch))
-        { // Checks if a commit with 2 children and if the one child branch is merged into the
-            // other child branch. E.g. like a pull request or feature branch
-            return Decided(commit, nameof(rules.TryIsMergedBranchesToParent), branch!);
         }
         else if (rules.TryIsChildAmbiguousCommit(commit, out branch))
         { // If one of the commit children is a an ambiguous commit, reuse same branch
@@ -159,6 +167,21 @@ class CommitBranchService : ICommitBranchService
     {
         commit.DecidedBy = rule.TrimPrefix("Try");
         return branch;
+    }
+
+    void AddMergedFromName(WorkRepo repo, WorkCommit c)
+    {
+        if (c.IsAmbiguous || c.ParentIds.Count != 2)
+            return;
+
+        // The trunk merged into a branch is the branch brought up to date, which says nothing about
+        // the branch being one others start from, see TryHasSeniorBranch. A pull request is always a
+        // contribution, even from a fork's own trunk ('Merge pull request #1 from owner/main').
+        var name = branchNameService.MergedFrom(c);
+        if (name != "" && (branchNameService.IsPullRequest(c) || !WellKnownBranches.IsTrunkOrIntegrationName(name)))
+        {
+            repo.Branches[c.Branch!.PrimaryName].MergedFromNames.Add(name);
+        }
     }
 
     static void SetMasterBackbone(WorkCommit c)
