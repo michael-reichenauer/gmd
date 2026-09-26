@@ -149,6 +149,24 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `DetermineAncestors` was written for. A name now goes to the remote branch when both match, an
   ending only matches after a `/`, and the guard is back (a cycle is logged and the branches in it
   left out of the view, since `Sorter.Sort` would not end on them either).
+- Inference, from the review of the rules (2026-09-26), each measured over the corpus below:
+  - A branch point where a feature was merged back and kept went to the feature, with all of the
+    branch it came from below it, whenever that branch had a commit of its own after the fork: the
+    feature's tip counted as likely, named by the merge subject, and the plain commit did not.
+    Decided now by which branch is senior (`TryHasSeniorBranch`).
+  - `git checkout -b` at a published branch's tip, outside gmd, made that branch ambiguous from its
+    tip to its fork, and so did gmd's own *create branch from branch*, which wrote its metadata under
+    the full id while every lookup is by sid (the old entries are found now too).
+  - `git merge origin/main` on main, a pull merge by hand whose subject git writes without `into
+    main`, was not swapped, so others' pushed commits became a side branch named main.
+  - GitHub's `Merge branch 'owner:branch' into x` was cut at the owner: the branch was named after the
+    owner and the target lost.
+  - A foxtrot merge (`Merge branch 'main' into feature`, then main fast-forwarded to it) drew main's
+    line through the feature and main's own commits as a side branch named main.
+  - A commit where branches of one name meet (a deleted branch recovered once per merge) asked
+    whether it was on dev or on dev.
+  - *Revert Commit* on a pull merge, whose parents gmd swaps, reverted what others had pushed rather
+    than the local side the graph shows merged in; the details view listed the parents swapped.
 - A commit merged by id (`git merge <sha>`, subject `Merge commit '<sha>' into dev`) was recovered
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
@@ -221,6 +239,33 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Inference pipeline**
 
+- Next round of the rules review (2026-09-26), agreed and not started, to be driven by the dump's
+  numbers:
+  - *The reflog as a witness.* `refs/heads/<b>` entries `commit:`, `commit (merge):`, `cherry-pick:`
+    record exactly the branch a commit was made on, and `branch: Created from <name>` where a branch
+    started; `git reflog show --all --format=%H%x00%gD%x00%gs` reads it all in one process (the dump
+    already parses it). Rules for using it: it only chooses among a commit's candidates, mapped to
+    the primary branch, and never creates a branch (a reset moves commits off the branch they were
+    made on, e.g. three of this repo's commits made on dev live on only through a tag); it never
+    overrides a trunk candidate (a feature fast-forwarded into main would take main's tip); a
+    `commit:` fact decides the commit but sets no `IsLikely`, and only `Created from` is evidence for
+    a branch point (`from HEAD` needs HEAD's reflog); fast-forward, reset, rebase and
+    `refs/remotes/*` entries say nothing. The facts that decide a branch point are saved into the
+    shared metadata as non-user entries, so they outlive the reflog's ~90 days and a fresh clone,
+    keyed by full id: a 6-character sid collides in a large repo, and the metadata rule would then
+    force an unrelated commit (lookups already try the full id after the sid).
+  - *One decision per branch point.* Replace the tail of the chain (the likely-child rules,
+    `GetLikelyBranches`) with one decision over ordered evidence: creation fact › trunk › integration
+    name (configurable in `RepoConfig`, with `release/*` and `hotfix/*` tiers) › branches merged in ›
+    has a remote. Stacked pull requests (a branch started at another published branch's tip, both
+    pushed, most of cli/cli's remaining ambiguity) have no evidence in the graph at all; only a
+    creation fact settles them.
+- Tag names are taken for branch names: git-flow's `Merge tag '1.11.0' into develop` names the
+  release merge it points at, on master, `1.11.0`, and outranks the better name a pull merge gave the
+  same commit (the last merge child parsed wins). Only visible where master's line is lost, as in
+  gitflow-avh, where master was fast-forwarded to develop.
+- `origin/` is hard-coded in the name matching and in `NiceName`, so a repo whose remote is named
+  otherwise matches names less often.
 - Adding the uncommitted commit sets its parent but does not add it to that parent's children,
   while removing it filters the child lists. Invisible today; worth knowing before relying on
   a commit's children.
@@ -422,6 +467,35 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Characterization tests record behavior, not intent. The pull-all test pinned the diverged-branch
   bug with a comment rationalizing it. The bar for the pipeline is a before/after dump over a real
   repo, not a green suite.
+- The rules review (2026-09-26) measured every change over a corpus: a frozen copy of this repo
+  (with its reflog) and `--filter=blob:none` clones of gitflow-avh (git-flow), sinatra (older
+  history with local pull merges and merged-in sub-projects), Terminal.Gui (develop branches per
+  major version, forks) and cli/cli (pull requests, 255 branches). `InferenceDumpTest` scores each
+  dump against the reflog and against merge subjects that name the branch merged into. Before and
+  after the round, ambiguous commits and merges on the branch their subject names:
+
+  | repo | commits | ambiguous | subject agrees |
+  |---|---|---|---|
+  | gmd | 1948 | 0 → 0 | 319 of 319 → 319 of 319 (reflog 76 of 79 both) |
+  | gitflow-avh | 1184 | 36 → 10 | 8 of 129 → 82 of 129 |
+  | sinatra | 5316 | 445 → 277 | 37 of 127 → 36 of 127 |
+  | Terminal.Gui | 10276 | 549 → 389 | 950 of 1093 → 994 of 1146 |
+  | cli | 13336 | 597 → 471 | 592 of 628 → 609 of 646 |
+
+  (More subjects name a target after the owner-name fix. The one sinatra merge lost is a naming
+  artifact: its 'master' is a merged-in sub-project's, drawn under that sub-project's name.)
+- Merge subjects and the graph cannot tell a feature merged back into dev from dev merged into the
+  feature to bring it up to date: in both, one child of the branch point is merged into the other.
+  Extending the merged-back rule to live branches fixes the first and breaks the second (pinned by
+  `TestBranchPointOfABackMergeGoesToTheBranchMergedFrom`). What tells them apart is seniority, and
+  counting it needs care: the trunk merged into a branch (`main`, `upstream/main`, a bare `origin`
+  or `upstream`) is catching up and does not count, a pull request always does, even from a fork's
+  own trunk, and one merged branch is never enough. Each of those was found by a corpus dump
+  deciding wrongly, not by a test.
+- A rule that decides a commit early stops `TrySetBranch` from repairing it from below, since the
+  repair only walks up through ambiguous commits. A new early rule can so take a line away from a
+  better, later subject match; the dump shows it as decided commits moving, which is why the
+  merged-back rule moved ahead of the seniority rule.
 - A before/after dump through the test wiring cannot see a wiring bug: `RepoBuilder` shares one
   `BranchNameService` between the stages, so the split that lost every deleted branch's name was
   verified as pure movement and still landed broken. Anything stateful the stages share must be
