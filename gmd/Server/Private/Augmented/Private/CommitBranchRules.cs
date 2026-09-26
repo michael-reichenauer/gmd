@@ -15,12 +15,9 @@ interface ICommitBranchRules
     bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch);
-    bool TryHasSeniorBranch(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
-    bool TryHasOnlyOneName(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
-    bool TryHasOneChildWithLikelyBranch(WorkCommit commit, out WorkBranch? branch);
-    bool TryHasMultipleChildrenWithOneLikelyBranch(WorkCommit commit, out WorkBranch? branch);
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch);
     bool TryIsMergedBranchesToParent(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
+    bool TryDecideBranchPoint(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsChildAmbiguousCommit(WorkCommit commit, out WorkBranch? branch);
 }
 
@@ -325,105 +322,63 @@ class CommitBranchRules : ICommitBranchRules
         return false;
     }
 
-    // Commit is where branches meet, and one of them is senior to the others, i.e. the branch they
-    // were started from, which goes on below. An integration branch by name (develop, dev) is senior.
-    // Failing that, so is a branch that clearly more other branches were merged into: at least two,
-    // and at least twice as many as any other, not counting the trunk merged in to bring a branch up
-    // to date. Merge subjects alone cannot tell which branch goes on: a branch merged into another
-    // looks the same whether it is a feature merged back into dev or dev merged into a feature to
-    // bring it up to date, which is why one merged branch is never enough. Only a clear winner decides.
-    public bool TryHasSeniorBranch(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    // Commit is where branches meet, and one of them is the branch the others were started from,
+    // which goes on below. Decided by the evidence in order, the first that tells one branch from the
+    // rest (the trunk is decided before, by TryHasMainBranch):
+    //   - the name: an integration branch (develop, dev) is senior to a release or hotfix branch,
+    //     which is senior to any other, since each is started from the one before;
+    //   - among the branches of the most senior name: when they all have one name, e.g. a deleted
+    //     dev recovered once per merge of it, there is nothing to choose between, and the one most
+    //     branches were merged into goes on, or the first;
+    //   - otherwise the branch that clearly more other branches were merged into: at least two, and
+    //     at least twice as many as any other, not counting the trunk merged in to bring a branch up
+    //     to date.
+    // Merge subjects alone cannot tell which branch goes on: a branch merged into another looks the
+    // same whether it is a feature merged back into dev or dev merged into a feature to bring it up
+    // to date, which is why one merged branch is never enough, and why which child is named by a
+    // merge subject decides nothing either. Without a clear answer the commit is left to the rules
+    // after, and so usually ambiguous.
+    public bool TryDecideBranchPoint(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
         var groups = commit
             .Branches.GroupBy(b => b.PrimaryName)
-            .Select(g => (branches: g, primary: repo.Branches[g.Key]))
+            .Select(g => new BranchGroup(g.ToList(), repo.Branches[g.Key]))
             .ToList();
         if (groups.Count < 2)
             return false;
 
-        var integration = groups.Where(g => WellKnownBranches.IsIntegrationName(g.primary.NiceName)).ToList();
-        if (integration.Count == 1)
-        {
-            branch = RemoteFirst(integration[0].branches);
-            return true;
-        }
-        if (integration.Count > 1)
+        var senior = groups.GroupBy(g => NameTier(g.Primary)).OrderByDescending(t => t.Key).First().ToList();
+        var chosen =
+            senior.Count == 1 ? senior[0]
+            : senior.Select(g => g.Primary.NiceName).Distinct().Count() == 1 ? MostMergedInto(senior)
+            : ClearlyMostMergedInto(senior);
+        if (chosen == null)
             return false;
 
-        var byMerged = groups.OrderByDescending(g => g.primary.MergedFromNames.Count).ToList();
-        var most = byMerged[0].primary.MergedFromNames.Count;
-        var next = byMerged[1].primary.MergedFromNames.Count;
-        if (most < 2 || most < 2 * next)
-            return false;
-
-        branch = RemoteFirst(byMerged[0].branches);
+        branch = RemoteFirst(chosen.Branches);
         return true;
     }
 
-    // Commit is where branches of one name meet, e.g. a deleted branch recovered from the subject of
-    // each merge of it, all named dev. There is nothing for the user to choose between, so the one
-    // most branches were merged into goes on, or failing that the first.
-    public bool TryHasOnlyOneName(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    // The branches of one primary branch among a commit's candidates, e.g. dev and origin/dev
+    record BranchGroup(IReadOnlyList<WorkBranch> Branches, WorkBranch Primary);
+
+    // Not a deleted branch recovered with a trunk's name, which is as often a line of another name,
+    // e.g. an imported project's main, or the local side of a pull merge, as it is an old trunk
+    static int NameTier(WorkBranch primary) =>
+        WellKnownBranches.IsIntegrationName(primary.NiceName) ? 2
+        : WellKnownBranches.IsReleaseName(primary.NiceName) ? 1
+        : 0;
+
+    static BranchGroup MostMergedInto(IReadOnlyList<BranchGroup> groups) =>
+        groups.OrderByDescending(g => g.Primary.MergedFromNames.Count).First();
+
+    static BranchGroup? ClearlyMostMergedInto(IReadOnlyList<BranchGroup> groups)
     {
-        branch = null;
-        var groups = commit
-            .Branches.GroupBy(b => b.PrimaryName)
-            .Select(g => (branches: g, primary: repo.Branches[g.Key]))
-            .ToList();
-        if (groups.Count < 2 || groups.Select(g => g.primary.NiceName).Distinct().Count() != 1)
-            return false;
-
-        branch = RemoteFirst(groups.OrderByDescending(g => g.primary.MergedFromNames.Count).First().branches);
-        return true;
-    }
-
-    // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
-    public bool TryHasOneChildWithLikelyBranch(WorkCommit c, out WorkBranch? branch)
-    {
-        if (c.FirstChildren.Count == 1 && c.FirstChildren[0].IsLikely)
-        { // Commit has one child, which has a likely known branch, use same branch
-            branch = c.FirstChildren[0].Branch;
-            c.IsAmbiguous = c.FirstChildren[0].IsAmbiguous;
-            return true;
-        }
-
-        branch = null;
-        return false;
-    }
-
-    // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
-    public bool TryHasMultipleChildrenWithOneLikelyBranch(WorkCommit c, out WorkBranch? branch)
-    {
-        branch = null;
-        if (c.FirstChildren.Count(c => c.IsLikely) != 1)
-        {
-            return false;
-        }
-
-        // commit has only one child with a likely branch
-        var child = c.FirstChildren.First(c => c.IsLikely);
-        c.IsAmbiguous = child.IsAmbiguous;
-
-        if (child.Branch!.IsRemote)
-        { // The branch is remote, we prefer that
-            branch = child.Branch;
-            return true;
-        }
-
-        if (child.Branch!.RemoteName != "")
-        { // The child branch has a corresponding remote branch, lets try to use that
-            var remoteBranch = c.Branches.FirstOrDefault(b => b.Name == child.Branch!.RemoteName);
-            if (remoteBranch != null)
-            { // The child branch was local and the corresponding remote is also possible,
-                branch = remoteBranch;
-                return true;
-            }
-        }
-
-        branch = child.Branch;
-        c.IsAmbiguous = child.IsAmbiguous;
-        return true;
+        var byMerged = groups.OrderByDescending(g => g.Primary.MergedFromNames.Count).ToList();
+        var most = byMerged[0].Primary.MergedFromNames.Count;
+        var next = byMerged[1].Primary.MergedFromNames.Count;
+        return most >= 2 && most >= 2 * next ? byMerged[0] : null;
     }
 
     // For e.g. pull merges, a commit can have two children with same logical branch

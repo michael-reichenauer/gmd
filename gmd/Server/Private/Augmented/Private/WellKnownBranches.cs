@@ -33,13 +33,23 @@ static class WellKnownBranches
             || last.EndsWith("-development");
     }
 
+    // Whether a nice name is a git-flow release, hotfix or support branch's, which git-flow starts
+    // from develop or the trunk and which others are started from in turn: 'release/1.0' or
+    // 'hotfix/x', also after an owner ('owner/release/1.0'). Not a name ending in 'release': a
+    // 'v1_release' is a trunk of its own, one per major version, rather than started from develop,
+    // and 'prepare-release' is a feature.
+    public static bool IsReleaseName(string name) =>
+        name.Split('/')[..^1].Any(p => p is "release" or "hotfix" or "support");
+
+    // Whether a nice name is a trunk's, also as another remote's or owner's ('upstream/main')
+    public static bool IsTrunkName(string name) => name[(name.LastIndexOf('/') + 1)..] is "main" or "master" or "trunk";
+
     // Whether a name, e.g. from a merge subject, is the trunk's or an integration branch's, also as
     // another remote's, e.g. 'upstream/main', or is a remote's name alone, as 'git merge upstream'
     // writes, which merges that remote's default branch
     public static bool IsTrunkOrIntegrationName(string name)
     {
-        var last = name[(name.LastIndexOf('/') + 1)..];
-        return last is "main" or "master" or "trunk" || IsIntegrationName(name) || name is "origin" or "upstream";
+        return IsTrunkName(name) || IsIntegrationName(name) || name is "origin" or "upstream";
     }
 
     // Name of virtual branch in case of truncated repo log

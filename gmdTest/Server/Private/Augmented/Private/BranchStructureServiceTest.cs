@@ -464,7 +464,7 @@ public class BranchStructureServiceTest
         var d1 = CommitOf(repo, "d1");
         Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
         Assert.IsFalse(d1.IsAmbiguous);
-        Assert.AreEqual("HasSeniorBranch", d1.DecidedBy);
+        Assert.AreEqual("DecideBranchPoint", d1.DecidedBy);
 
         // Which gives the expected hierarchy, main <- dev <- feature
         Assert.AreEqual(RepoBuilder.Sha("d1"), repo.Branches["origin/dev"].BottomID);
@@ -672,6 +672,49 @@ public class BranchStructureServiceTest
         );
         Assert.AreEqual("origin/team", BranchOf(repo, "e1"));
         Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+    }
+
+    // A release branch is started from develop and features are started from it, e.g. a fix for the
+    // release, so where a release branch and another branch meet, the release branch goes on
+    [TestMethod]
+    public async Task TestBranchPointOfAReleaseBranchGoesToIt()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e2", "Release 2", "e1")
+            .Commit("f1", "Fix for the release", "e1")
+            .Commit("e1", "Release 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("release/1.0", "e2")
+            .BranchWithRemote("fix-for-release", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/release/1.0", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+        Assert.AreEqual("origin/release/1.0", repo.Branches["origin/fix-for-release"].ParentBranch?.Name);
+    }
+
+    // Two integration branches of one name, a deleted dev recovered once per merge of it, and a
+    // feature: the feature was started from dev, and which of the two devs goes on does not matter
+    [TestMethod]
+    public async Task TestBranchPointOfIntegrationBranchesOfOneNameGoesToOneOfThem()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'dev' into main", "c2", "d2")
+            .Commit("c2", "Merge branch 'dev' into main", "c1", "e1")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("e1", "Dev other", "d1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("dev", repo.Branches[BranchOf(repo, "d1")].NiceName);
+        Assert.IsFalse(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.AreEqual(BranchOf(repo, "d1"), repo.Branches["origin/feature"].ParentBranch?.Name);
     }
 
     // A deleted branch merged twice is recovered twice, once from each merge subject, both named dev.

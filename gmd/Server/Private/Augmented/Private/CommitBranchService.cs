@@ -50,7 +50,7 @@ class CommitBranchService : ICommitBranchService
                 c.IsLikely = true;
             }
 
-            // Remember which branches were merged into the branch, see TryHasSeniorBranch
+            // Remember which branches were merged into the branch, see TryDecideBranchPoint
             AddMergedFromName(repo, c);
 
             // If this commit is a main branch, then its first parent will likely be it too.
@@ -136,22 +136,9 @@ class CommitBranchService : ICommitBranchService
             // other child branch. E.g. like a pull request or feature branch
             return Decided(commit, nameof(rules.TryIsMergedBranchesToParent), branch!);
         }
-        else if (rules.TryHasSeniorBranch(repo, commit, out branch))
-        { // Commit is where branches meet, and one of them is the one the others started from, an
-            // integration branch by name or by the branches merged into it
-            return Decided(commit, nameof(rules.TryHasSeniorBranch), branch!);
-        }
-        else if (rules.TryHasOnlyOneName(repo, commit, out branch))
-        { // Commit is where branches of one name meet, so there is nothing to choose between
-            return Decided(commit, nameof(rules.TryHasOnlyOneName), branch!);
-        }
-        else if (rules.TryHasOneChildWithLikelyBranch(commit, out branch))
-        { // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
-            return Decided(commit, nameof(rules.TryHasOneChildWithLikelyBranch), branch!);
-        }
-        else if (rules.TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
-        { // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
-            return Decided(commit, nameof(rules.TryHasMultipleChildrenWithOneLikelyBranch), branch!);
+        else if (rules.TryDecideBranchPoint(repo, commit, out branch))
+        { // Commit is where branches meet, and the evidence tells which of them the others started from
+            return Decided(commit, nameof(rules.TryDecideBranchPoint), branch!);
         }
         else if (rules.TrySameChildrenBranches(commit, out branch))
         { // For e.g. pull merges, a commit can have two children with same logical branch
@@ -183,7 +170,7 @@ class CommitBranchService : ICommitBranchService
             return;
 
         // The trunk merged into a branch is the branch brought up to date, which says nothing about
-        // the branch being one others start from, see TryHasSeniorBranch. A pull request is always a
+        // the branch being one others start from, see TryDecideBranchPoint. A pull request is always a
         // contribution, even from a fork's own trunk ('Merge pull request #1 from owner/main').
         var name = branchNameService.MergedFrom(c);
         if (name != "" && (branchNameService.IsPullRequest(c) || !WellKnownBranches.IsTrunkOrIntegrationName(name)))

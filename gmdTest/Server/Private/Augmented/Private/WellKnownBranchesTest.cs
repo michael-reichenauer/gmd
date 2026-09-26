@@ -3,7 +3,7 @@ using gmd.Server.Private.Augmented.Private;
 namespace gmdTest.Server.Private.Augmented.Private;
 
 // The names the inference treats as the trunk's or an integration branch's, which decide both which
-// branch goes on at a branch point and which merges count towards it (see TryHasSeniorBranch)
+// branch goes on at a branch point and which merges count towards it (see TryDecideBranchPoint)
 [TestClass]
 public class WellKnownBranchesTest
 {
@@ -21,6 +21,22 @@ public class WellKnownBranchesTest
         Assert.IsFalse(WellKnownBranches.IsIntegrationName("feature/develop-login"));
         Assert.IsFalse(WellKnownBranches.IsIntegrationName("hotfix-dev"), "Only 'develop' is taken as an ending");
         Assert.IsFalse(WellKnownBranches.IsIntegrationName("devices"));
+    }
+
+    [TestMethod]
+    public void TestReleaseNames()
+    {
+        Assert.IsTrue(WellKnownBranches.IsReleaseName("release/1.0"));
+        Assert.IsTrue(WellKnownBranches.IsReleaseName("hotfix/login"));
+        Assert.IsTrue(WellKnownBranches.IsReleaseName("support/2.x"));
+        Assert.IsTrue(WellKnownBranches.IsReleaseName("owner/release/1.0"));
+
+        Assert.IsFalse(WellKnownBranches.IsReleaseName("feature/release-notes"));
+        Assert.IsFalse(WellKnownBranches.IsReleaseName("prepare-release"), "A feature");
+        Assert.IsFalse(WellKnownBranches.IsReleaseName("v2_release"), "A trunk of its own, one per major version");
+        Assert.IsFalse(WellKnownBranches.IsReleaseName("release"));
+        Assert.IsFalse(WellKnownBranches.IsReleaseName("releases"));
+        Assert.IsFalse(WellKnownBranches.IsReleaseName("dev"));
     }
 
     // The names a branch brought up to date is merged from: the trunk, an integration branch, either
