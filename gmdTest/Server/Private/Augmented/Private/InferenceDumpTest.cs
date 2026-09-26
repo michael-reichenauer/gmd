@@ -20,7 +20,8 @@ namespace gmdTest.Server.Private.Augmented.Private;
 //
 // The reflog is the one record of which branch a commit was made on, as far back as it still goes,
 // so the dump also scores the inference against it: for every commit the reflog says was made on a
-// branch, whether the inference put it on a branch of that name.
+// branch, whether the inference put it on a branch of that name. Merge subjects that name the branch
+// merged into are scored the same way, which works for a clone too, where there is no reflog.
 [TestClass]
 [TestCategory("Integration")]
 public class InferenceDumpTest
@@ -150,6 +151,7 @@ public class InferenceDumpTest
         }
 
         AppendReflogScore(text, repo, madeOn);
+        AppendSubjectScore(text, commits);
 
         text.AppendLine("#");
         text.AppendLine("# Columns: commit, flags (A ambiguous, T ambiguous tip, L likely, U set by the user),");
@@ -161,6 +163,27 @@ public class InferenceDumpTest
         }
 
         return text.ToString();
+    }
+
+    // A merge subject that names the branch merged into, "Merge branch 'a' into b", says which branch
+    // the merge commit was made on, which is a score for any repository, reflog or not. A name matches
+    // with or without an owner in front ('owner/b'), as a branch recovered from a pull request has it.
+    static void AppendSubjectScore(StringBuilder text, IReadOnlyList<WorkCommit> commits)
+    {
+        var parser = new BranchNameService();
+        var named = commits
+            .Where(c => c.ParentIds.Count == 2)
+            .Select(c => (commit: c, into: parser.ParseSubject(c.Subject).Into))
+            .Where(m => m.into != "")
+            .ToList();
+        var agreeing = named.Count(m =>
+            m.commit.Branch?.NiceName is string name && (name == m.into || name.EndsWith("/" + m.into))
+        );
+
+        text.AppendLine("#");
+        text.AppendLine(
+            $"# Merge subjects: {named.Count} name the branch merged into, {agreeing} are on a branch of that name"
+        );
     }
 
     static void AppendReflogScore(StringBuilder text, WorkRepo repo, IReadOnlyDictionary<string, string> madeOn)
