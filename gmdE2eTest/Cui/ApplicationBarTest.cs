@@ -39,4 +39,18 @@ public class ApplicationBarTest
 
         StringAssert.Contains(gmd.WaitUntilGone("▽1"), "Remote work", "Shown, and so seen");
     }
+
+    // The line under the bar spans the terminal however wide it is. It was a label of 200 line chars,
+    // which stopped short of the right edge on a wide terminal.
+    [TestMethod]
+    public async Task TestTheLineUnderTheBarSpansAWideTerminal()
+    {
+        const int Width = 260;
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: Width);
+
+        var line = gmd.WaitFor("Initial").Split('\n')[1];
+
+        Assert.AreEqual(new string('─', Width), line);
+    }
 }

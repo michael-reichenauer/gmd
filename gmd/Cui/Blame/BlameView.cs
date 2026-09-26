@@ -90,7 +90,12 @@ class BlameView : IBlameView
         // A header row of its own rather than a first row of content, so it stays put while the
         // file scrolls. Same label plus border pair as the application bar of the log view.
         header = new UILabel(0, 0);
-        var border = new Label(0, 1, new string('─', 500)) { ColorScheme = ColorSchemes.Border };
+        var border = new HorizontalLine()
+        {
+            X = 0,
+            Y = 1,
+            ColorScheme = ColorSchemes.Border,
+        };
 
         contentView = new ContentView(OnGetContent)
         {

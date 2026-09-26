@@ -61,7 +61,12 @@ class ApplicationBar : View, IApplicationBar
         Width = Dim.Fill();
 
         label = new UILabel(0, 0);
-        var border = new Label(0, 1, new string('─', 200)) { ColorScheme = ColorSchemes.Border };
+        var border = new HorizontalLine()
+        {
+            X = 0,
+            Y = 1,
+            ColorScheme = ColorSchemes.Border,
+        };
 
         Add(label, border);
 

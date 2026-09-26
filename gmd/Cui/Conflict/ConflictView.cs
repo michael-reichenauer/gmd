@@ -89,7 +89,12 @@ class ConflictView : IConflictView
         };
 
         header = new UILabel(0, 0);
-        var border = new Label(0, 1, new string('─', 500)) { ColorScheme = ColorSchemes.Border };
+        var border = new HorizontalLine()
+        {
+            X = 0,
+            Y = 1,
+            ColorScheme = ColorSchemes.Border,
+        };
 
         contentView = new ContentView(OnGetContent)
         {
@@ -103,9 +108,7 @@ class ConflictView : IConflictView
             IsHighlightCurrentIndex = true,
         };
 
-        // Not the Label(x, y, text) constructor: that fixes an absolute frame, so a Pos.AnchorEnd
-        // assigned afterwards is ignored and the rule is drawn at the top of the view instead
-        var resultBorder = new Label(new string('─', 500))
+        var resultBorder = new HorizontalLine()
         {
             X = 0,
             Y = Pos.AnchorEnd(ResultHeight + 1),
