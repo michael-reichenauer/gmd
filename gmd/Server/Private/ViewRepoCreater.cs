@@ -362,8 +362,9 @@ class ViewRepoCreater : IViewRepoCreater
     static List<Commit> FilterOutViewCommits(Repo repo, IReadOnlyList<Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
+        var names = filteredBranches.Select(b => b.Name).ToHashSet();
         return repo
-            .AllCommits.Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
+            .AllCommits.Where(c => names.Contains(c.BranchName))
             .Select(c => c with { IsAhead = false, IsBehind = false })
             .ToList();
     }
@@ -380,12 +381,9 @@ class ViewRepoCreater : IViewRepoCreater
         switch (show)
         {
             case ShowBranches.Specified:
+                var branchByAnyName = BranchByAnyName(repo);
                 showBranches
-                    .Select(name =>
-                        repo.AllBranches.FirstOrDefault(b =>
-                            b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name
-                        )
-                    )
+                    .Select(name => branchByAnyName.GetValueOrDefault(name))
                     .Where(b => b != null)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
                 break;
@@ -429,6 +427,21 @@ class ViewRepoCreater : IViewRepoCreater
 
         var sorted = SortBranches(repo, branches.Values);
         return sorted;
+    }
+
+    // The branch a shown name is, by the first branch that has it as its primary base name, its name
+    // or its primary name. Looked up once for all the names: a refresh after showing all branches
+    // shows thousands of them by name, and searching all branches for each took a quarter second.
+    static Dictionary<string, Branch> BranchByAnyName(Repo repo)
+    {
+        Dictionary<string, Branch> branches = [];
+        foreach (var b in repo.AllBranches)
+        {
+            branches.TryAdd(b.PrimaryBaseName, b);
+            branches.TryAdd(b.Name, b);
+            branches.TryAdd(b.PrimaryName, b);
+        }
+        return branches;
     }
 
     void AddBranchAndAncestorsAndRelatives(Repo repo, Branch? branch, IDictionary<string, Branch> branches)
