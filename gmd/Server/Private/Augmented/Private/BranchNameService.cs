@@ -9,6 +9,8 @@ interface IBranchNameService
     bool TryGetBranchName(string commitId, out string branchName);
     string MergedFrom(WorkCommit c);
     bool IsPullRequest(WorkCommit c);
+    bool IsMergeOfInto(WorkCommit c, string from);
+    void ParentsSwapped(WorkCommit c);
 }
 
 record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
@@ -76,6 +78,26 @@ class BranchNameService : IBranchNameService
     {
         var fi = ParseCommit(c);
         return IsPullMergeCommit(fi) ? "" : fi.From;
+    }
+
+    // Whether a merge commit's subject says the branch 'from' was merged into another named branch,
+    // e.g. "Merge branch 'main' into feature" for 'main'
+    public bool IsMergeOfInto(WorkCommit c, string from)
+    {
+        var fi = ParseCommit(c);
+        return fi.From == from && fi.Into != "" && fi.Into != from;
+    }
+
+    // The parents of a merge were swapped after its subject was parsed (a foxtrot merge, see
+    // CommitGraphService), so the names are pointed the other way, as if the subject had said it:
+    // the merge is on the branch that was merged in, and its other parent on the branch merged into
+    public void ParentsSwapped(WorkCommit c)
+    {
+        var fi = ParseCommit(c);
+        var swapped = fi with { From = fi.Into, Into = fi.From };
+        parsedCommits[c.Id] = swapped;
+        branchNames[c.Id] = swapped.Into;
+        branchNames[c.ParentIds[1]] = swapped.From;
     }
 
     // Whether a merge commit's subject is a pull request's, e.g. 'Merge pull request #1 from x/y'

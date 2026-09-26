@@ -703,6 +703,59 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
     }
 
+    // A foxtrot merge: main merged into feature to bring it up to date, and then main fast-forwarded
+    // to that merge, e.g. by 'git merge feature' on main. Git's first parent of the merge is feature's
+    // commit, so main's line ran through feature, and main's own commit was drawn as a side branch
+    // named main, merged in. The subject says what happened, and on main's line it means main was
+    // merged into, so the parents are swapped, as a pull merge's are: main keeps its own commits on its
+    // line, and feature is drawn as merged into it.
+    //
+    //   ff      main, "Merge branch 'main' into feature"
+    //   |\
+    //   | c2    main
+    //   f1 |    feature
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestFoxtrotMergeOnMainKeepsMainsCommitsOnItsLine()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ff", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "ff", isCurrent: true)
+            .AugmentAsync();
+
+        var merge = CommitOf(repo, "ff");
+        Assert.IsTrue(merge.IsParentsSwapped);
+        Assert.AreEqual(RepoBuilder.Sha("c2"), merge.FirstParent?.Id);
+        Assert.AreEqual("origin/main", BranchOf(repo, "ff"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+        Assert.AreEqual($"feature:{RepoBuilder.Sid("f1")}", BranchOf(repo, "f1"), "Named by the subject");
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
+        Assert.AreEqual("origin/main", repo.Branches[BranchOf(repo, "f1")].ParentBranch?.Name);
+    }
+
+    // The same merge on feature's own line, where it belongs, is what it says it is and left alone
+    [TestMethod]
+    public async Task TestMainMergedIntoAFeatureIsNotAFoxtrot()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ff", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("feature", "ff")
+            .AugmentAsync();
+
+        Assert.IsFalse(CommitOf(repo, "ff").IsParentsSwapped);
+        Assert.AreEqual("origin/feature", BranchOf(repo, "ff"));
+        Assert.AreEqual("origin/feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+    }
+
     // The same rule keeps the commits below a series of merges on the branch they were merged into
     [TestMethod]
     public async Task TestCommitBelowSeveralMergesStaysOnTheMergedIntoBranch()
