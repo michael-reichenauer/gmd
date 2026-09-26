@@ -88,6 +88,10 @@ static class BranchAmbiguity
                 current.Branch.AmbiguousTip = null;
             }
 
+            if (current != commit)
+            { // Moved by the evidence found at a commit further down
+                current.DecidedBy = "Repaired";
+            }
             current.Branch = branch;
             current.IsAmbiguous = false;
             current.IsAmbiguousTip = false;

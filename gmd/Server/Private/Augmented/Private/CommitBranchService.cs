@@ -76,77 +76,84 @@ class CommitBranchService : ICommitBranchService
 
         if (commit.Id == Repo.TruncatedLogCommitId)
         {
-            return BranchFactory.AddTruncatedBranch(repo);
+            return Decided(commit, "Truncated", BranchFactory.AddTruncatedBranch(repo));
         }
         else if (rules.TryIsBranchSetByUser(repo, gitRepo, commit, out WorkBranch? branch))
         { // Commit branch was set/determined by user,
-            return branch!;
+            return Decided(commit, nameof(rules.TryIsBranchSetByUser), branch!);
         }
         else if (rules.TryHasOnlyOneBranch(commit, out branch))
         { // Commit only has one branch, use that
-            return branch!;
+            return Decided(commit, nameof(rules.TryHasOnlyOneBranch), branch!);
         }
         else if (rules.TryIsLocalRemoteBranch(commit, out branch))
         { // Commit has only local and its remote branch, prefer remote remote branch
-            return branch!;
+            return Decided(commit, nameof(rules.TryIsLocalRemoteBranch), branch!);
         }
         else if (rules.TryHasMainBranch(commit, out branch))
         { // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
-            return branch!;
+            return Decided(commit, nameof(rules.TryHasMainBranch), branch!);
         }
         else if (rules.TryIsMergedDeletedBranchTip(repo, commit, out branch))
         { // Commit has no branches and no children, but has a merge child.
             // The commit is a tip of a deleted branch. It might be a deleted remote branch.
             // Lets try determine branch name based on merge child's subject
             // or use a generic branch name based on commit id
-            return branch!;
+            return Decided(commit, nameof(rules.TryIsMergedDeletedBranchTip), branch!);
         }
         else if (rules.TryIsStrangeDeletedBranchTip(repo, commit, out branch))
         { // Commit has no branches and no children, but may have merge children.
             // The commit is a tip of a deleted remote branch.
             // Lets try determine branch name based on merge child's subject
             // or use a generic branch name based on commit id
-            return branch!;
+            return Decided(commit, nameof(rules.TryIsStrangeDeletedBranchTip), branch!);
         }
         else if (rules.TryHasBranchNameInSubject(repo, commit, out branch))
         { // A branch name could be parsed form the commit subject or a child subject.
             // The commit will be set to that branch and also if above (first child) commits have
             // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
             // when a parsable commit subjects are encountered.
-            return branch!;
+            return Decided(commit, nameof(rules.TryHasBranchNameInSubject), branch!);
         }
         else if (rules.TryHasOnlyOneChild(commit, out branch))
         { // Commit has one child commit reuse that child commit branch
-            return branch!;
+            return Decided(commit, nameof(rules.TryHasOnlyOneChild), branch!);
         }
         else if (rules.TryHasOneChildWithLikelyBranch(commit, out branch))
         { // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
-            return branch!;
+            return Decided(commit, nameof(rules.TryHasOneChildWithLikelyBranch), branch!);
         }
         else if (rules.TryHasMultipleChildrenWithOneLikelyBranch(commit, out branch))
         { // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
-            return branch!;
+            return Decided(commit, nameof(rules.TryHasMultipleChildrenWithOneLikelyBranch), branch!);
         }
         else if (rules.TrySameChildrenBranches(commit, out branch))
         { // For e.g. pull merges, a commit can have two children with same logical branch
-            return branch!;
+            return Decided(commit, nameof(rules.TrySameChildrenBranches), branch!);
         }
         else if (rules.TryIsMergedBranchesToParent(repo, commit, out branch))
         { // Checks if a commit with 2 children and if the one child branch is merged into the
             // other child branch. E.g. like a pull request or feature branch
-            return branch!;
+            return Decided(commit, nameof(rules.TryIsMergedBranchesToParent), branch!);
         }
         else if (rules.TryIsChildAmbiguousCommit(commit, out branch))
         { // If one of the commit children is a an ambiguous commit, reuse same branch
             // Log.Info($"Commit {commit.Sid} has ambiguous child commit {branchNames}");
-            return branch!;
+            return Decided(commit, nameof(rules.TryIsChildAmbiguousCommit), branch!);
         }
         // Log.Warn($"Ambiguous branch {commit}");
 
         // Commit, has several possible branches, and we could not determine which branch is best,
         // create a new ambiguous branch. Later commits may fix this by parsing subjects of later
         // commits, or the user has to manually set the branch.
-        return BranchAmbiguity.AddAmbiguousCommit(repo, commit);
+        return Decided(commit, "Ambiguous", BranchAmbiguity.AddAmbiguousCommit(repo, commit));
+    }
+
+    // Records which rule decided the commit, without the 'Try' of the rule's name
+    static WorkBranch Decided(WorkCommit commit, string rule, WorkBranch branch)
+    {
+        commit.DecidedBy = rule.TrimPrefix("Try");
+        return branch;
     }
 
     static void SetMasterBackbone(WorkCommit c)

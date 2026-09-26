@@ -69,6 +69,10 @@ class WorkCommit
     public bool IsLikely { get; set; }
     public bool HasStash { get; set; }
 
+    // The rule that decided the branch of this commit, see CommitBranchService. A trace only, for
+    // the inference dump and for debugging; nothing decides anything by it.
+    public string DecidedBy { get; set; } = "";
+
     public WorkCommit(GitCommit c)
     {
         Id = c.Id;

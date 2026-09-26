@@ -115,6 +115,12 @@ Key types and flow:
   forgotten. Treat all of this as high-risk: change it only with tests, and preserve the
   pipeline comments. The bar these files are held to is a before/after comparison over a real
   repo's history, not just a green suite — see the findings in `MODERNIZATION.md`.
+  `InferenceDumpTest` makes that comparison: it writes what the inference decided for every commit
+  of a repo (branch, the rule that decided it, ambiguity), plus how often it agrees with the reflog,
+  and two dumps are compared with `diff`. Dump a frozen copy (a copied `.git` keeps the reflog):
+  `GMD_INFER_REPO=<repo> GMD_INFER_OUT=<file> dotnet test gmdTest/gmdTest.csproj --filter InferenceDump`.
+  Several repos with different workflows are worth it (git-flow, GitHub pull requests, local pull
+  merges); a `--filter=blob:none --no-checkout` clone is enough and quick.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
