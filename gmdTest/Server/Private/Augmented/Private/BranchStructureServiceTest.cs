@@ -317,6 +317,92 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Branches.Values.Any(b => b.IsCircularAncestors));
     }
 
+    // 'git checkout -b feature' on dev, outside gmd, so nothing records where feature started. Dev's
+    // tip then had three candidates, which no rule decided, and dev was ambiguous from its tip down
+    // to where it started. The tip of a published branch is the last commit made on it, and a local
+    // branch pointing there came later.
+    [TestMethod]
+    public async Task TestLocalBranchStartedAtAPublishedTipLeavesItToThatBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .LocalBranch("feature", "d2")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/dev", repo.Branches["feature"].ParentBranch?.Name, "feature owns nothing yet");
+    }
+
+    // The same once feature has a commit of its own: the commit it started at is still dev's
+    [TestMethod]
+    public async Task TestLocalBranchWithCommitsStartedAtAPublishedTipLeavesItToThatBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "d2")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .LocalBranch("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/dev", repo.Branches["feature"].ParentBranch?.Name);
+    }
+
+    // A branch with unpushed commits is published too: the local tip is where its next push goes
+    [TestMethod]
+    public async Task TestLocalBranchStartedAtAnUnpushedTipLeavesItToThatBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "d2")
+            .Commit("d2", "Dev 2, not pushed", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("dev", "d2", isCurrent: true, remoteTipCommit: "d1", ahead: 1)
+            .LocalBranch("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("dev", repo.Branches["feature"].ParentBranch?.Name);
+    }
+
+    // Not the other way round: a local branch left pointing at an older commit of a published
+    // branch did not make that commit, so it must not take the published branch's history from
+    // there down. It stays as undecided as it was.
+    [TestMethod]
+    public async Task TestLocalBranchLeftAtAnOlderCommitDoesNotTakeThePublishedBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .LocalBranch("old", "d1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.AreEqual("Ambiguous", CommitOf(repo, "d1").DecidedBy);
+    }
+
     // Should the hierarchy ever hold a cycle anyway, the ancestors stop where they come around again
     // and the branches in it are marked, which leaves them out of the view, rather than never ending
     [TestMethod]

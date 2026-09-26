@@ -9,6 +9,7 @@ interface ICommitBranchRules
     bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryIsLocalRemoteBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryHasMainBranch(WorkCommit commit, out WorkBranch? branch);
+    bool TryIsPublishedTipOfLocalBranches(WorkCommit commit, out WorkBranch? branch);
     bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
@@ -115,6 +116,37 @@ class CommitBranchRules : ICommitBranchRules
 
         return false;
     }
+
+    // The commit is the tip of a published branch, and every other candidate is a local branch only,
+    // e.g. a feature started at dev's tip with 'git checkout -b', outside gmd, so nothing recorded
+    // where it started. The tip is the last commit made on the published branch, and a local branch
+    // pointing at it or passing through it came later. Published means the branch has a remote, so
+    // a local tip ahead of it counts too.
+    // Not the other way round: a local branch left pointing at an older commit of a published branch
+    // did not make that commit, and must not take the published branch's history from there down.
+    public bool TryIsPublishedTipOfLocalBranches(WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        var localOnly = commit.Branches.Where(IsLocalOnly).ToList();
+        var published = commit.Branches.Where(b => !IsLocalOnly(b)).ToList();
+        if (localOnly.Count == 0 || published.Count == 0)
+            return false;
+
+        if (published.Any(b => !b.IsGitBranch) || published.Select(b => b.PrimaryName).Distinct().Count() != 1)
+        { // Only one published branch, the local and remote branch of it
+            return false;
+        }
+        if (!published.Any(b => b.TipID == commit.Id))
+        { // The published branch passes through, the commit is not its tip
+            return false;
+        }
+
+        branch = published.FirstOrDefault(b => b.IsRemote) ?? published.First();
+        return true;
+    }
+
+    // A local git branch that has no remote branch, i.e. one that was never pushed
+    static bool IsLocalOnly(WorkBranch b) => b.IsGitBranch && !b.IsRemote && b.RemoteName == "";
 
     // Commit has no branches and no children, but has a merge child.
     // The commit is a tip of a deleted branch. It might be a deleted remote branch.

@@ -94,6 +94,11 @@ class CommitBranchService : ICommitBranchService
         { // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
             return Decided(commit, nameof(rules.TryHasMainBranch), branch!);
         }
+        else if (rules.TryIsPublishedTipOfLocalBranches(commit, out branch))
+        { // Commit is the tip of a published branch, and the other branches are local only, which
+            // were started from it later
+            return Decided(commit, nameof(rules.TryIsPublishedTipOfLocalBranches), branch!);
+        }
         else if (rules.TryIsMergedDeletedBranchTip(repo, commit, out branch))
         { // Commit has no branches and no children, but has a merge child.
             // The commit is a tip of a deleted branch. It might be a deleted remote branch.
