@@ -466,7 +466,7 @@ class ViewRepoCreater : IViewRepoCreater
 
         var branchOrders = repoConfig.Get(repo.Path).BranchOrders;
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
-        Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
+        SortPrimaryBranches(sorted, branchOrders);
 
         // Reinsert the local branches just after its remote branch
         branches
@@ -494,7 +494,29 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
-    static int CompareBranches(Branch b1, Branch b2, List<BranchOrder> branchOrders)
+    // Sorts the primary branches by CompareBranches, with the order of Sorter.Sort. A branch goes after
+    // its parent, its ancestors and the branches the user ordered it against only, which is what the
+    // sort is told, rather than to compare every branch with every other: a view of all branches of a
+    // large repo is thousands of them, and that took seconds.
+    internal static void SortPrimaryBranches(List<Branch> branches, List<BranchOrder> branchOrders)
+    {
+        var byName = branches.ToDictionary(b => b.Name);
+        var byPrimaryName = branches.ToLookup(b => b.PrimaryName);
+        var orderedAgainst = branchOrders
+            .SelectMany(o => new[] { (o.Branch, o.Other), (o.Other, o.Branch) })
+            .ToLookup(p => p.Item1, p => p.Item2);
+
+        IEnumerable<Branch> MayGoAfter(Branch b) =>
+            b
+                .AncestorNames.Prepend(b.ParentBranchName)
+                .Where(byName.ContainsKey)
+                .Select(n => byName[n])
+                .Concat(orderedAgainst[b.PrimaryName].SelectMany(n => byPrimaryName[n]));
+
+        Sorter.Sort(branches, (b1, b2) => CompareBranches(b1, b2, branchOrders), MayGoAfter);
+    }
+
+    internal static int CompareBranches(Branch b1, Branch b2, List<BranchOrder> branchOrders)
     {
         if (b1 == b2)
             return 0;

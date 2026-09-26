@@ -75,6 +75,54 @@ public class SorterTest
         CollectionAssert.AreEqual(new[] { "e", "d", "b", "a", "c" }, list.Select(i => i.Name).ToArray());
     }
 
+    // The sort that is told which items an item can go after must come to the very same order as the
+    // one comparing every pair, also for the items the comparer leaves unordered, and whatever else
+    // it is told. Over random orders of random items, each going after a random few of those before
+    // it in a random order, so that the comparer never has a cycle.
+    [TestMethod]
+    public void TestSortingByWhatCanGoAfterIsTheSameAsComparingEveryPair()
+    {
+        var random = new Random(42);
+        for (var run = 0; run < 2000; run++)
+        {
+            var items = Enumerable.Range(0, random.Next(0, 40)).Select(i => new Item($"i{i}")).ToList();
+            var byRank = items.OrderBy(_ => random.Next()).ToList();
+            var after = items.ToDictionary(
+                i => i,
+                i => byRank.Take(byRank.IndexOf(i)).Where(_ => random.Next(4) == 0).ToHashSet()
+            );
+            int Compare(Item a, Item b) =>
+                after[a].Contains(b) ? 1
+                : after[b].Contains(a) ? -1
+                : 0;
+            IEnumerable<Item> MayGoAfter(Item a) => after[a].Concat(items.Where(_ => random.Next(10) == 0));
+
+            var input = items.OrderBy(_ => random.Next()).ToList();
+            var expected = input.ToList();
+            Sorter.Sort(expected, Compare);
+            var actual = input.ToList();
+            Sorter.Sort(actual, Compare, MayGoAfter);
+
+            CollectionAssert.AreEqual(
+                expected,
+                actual,
+                $"Run {run}: {string.Join(",", expected)} != {string.Join(",", actual)}"
+            );
+        }
+    }
+
+    class Item
+    {
+        public Item(string name)
+        {
+            Name = name;
+        }
+
+        public string Name { get; }
+
+        public override string ToString() => Name;
+    }
+
     static readonly Dictionary<string, string[]> Ancestors = new()
     {
         ["main"] = [],
