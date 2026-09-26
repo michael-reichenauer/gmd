@@ -282,11 +282,155 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Branches.Values.Any(b => b.IsCircularAncestors));
     }
 
+    // A GitHub pull request subject names the head branch with its owner, 'owner/dev', which is
+    // matched to 'dev' by its ending. Both dev and origin/dev end that way, and dev is listed first:
+    // taking it put the commit on the local branch, whose parent is its remote branch, whose parent
+    // was then the local branch again, since it owned nothing. The ancestors of such a pair never
+    // end, so reading the repo never did either (hence the wait: a hang fails rather than never
+    // ending). The commit goes to the primary branch, the remote.
+    //
+    //   e1      main, merges dev by pull request
+    //   |\
+    //   | | f1  feature, started at dev's tip, which gives d1 a third candidate
+    //   | |/
+    //   | d1    dev and origin/dev
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestPullRequestNameGoesToThePrimaryBranchWithoutACycle()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e1", "Merge pull request #1 from owner/dev", "c1", "d1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "e1", isCurrent: true)
+            .BranchWithRemote("dev", "d1")
+            .LocalBranch("feature", "f1")
+            .AugmentAsync()
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.AreEqual("origin/dev", repo.Branches["dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/main", repo.Branches["origin/dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/dev", repo.Branches["feature"].ParentBranch?.Name);
+        Assert.IsFalse(repo.Branches.Values.Any(b => b.IsCircularAncestors));
+    }
+
+    // 'git checkout -b feature' on dev, outside gmd, so nothing records where feature started. Dev's
+    // tip then had three candidates, which no rule decided, and dev was ambiguous from its tip down
+    // to where it started. The tip of a published branch is the last commit made on it, and a local
+    // branch pointing there came later.
+    [TestMethod]
+    public async Task TestLocalBranchStartedAtAPublishedTipLeavesItToThatBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .LocalBranch("feature", "d2")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/dev", repo.Branches["feature"].ParentBranch?.Name, "feature owns nothing yet");
+    }
+
+    // The same once feature has a commit of its own: the commit it started at is still dev's
+    [TestMethod]
+    public async Task TestLocalBranchWithCommitsStartedAtAPublishedTipLeavesItToThatBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "d2")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .LocalBranch("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/dev", repo.Branches["feature"].ParentBranch?.Name);
+    }
+
+    // A branch with unpushed commits is published too: the local tip is where its next push goes
+    [TestMethod]
+    public async Task TestLocalBranchStartedAtAnUnpushedTipLeavesItToThatBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "d2")
+            .Commit("d2", "Dev 2, not pushed", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("dev", "d2", isCurrent: true, remoteTipCommit: "d1", ahead: 1)
+            .LocalBranch("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("dev", repo.Branches["feature"].ParentBranch?.Name);
+    }
+
+    // Not the other way round: a local branch left pointing at an older commit of a published
+    // branch did not make that commit, so it must not take the published branch's history from
+    // there down. It stays as undecided as it was. (Not named dev here, since an integration branch
+    // keeps such a commit by its name, see TestBranchPointOfALiveMergedBranchGoesToTheIntegrationBranch.)
+    [TestMethod]
+    public async Task TestLocalBranchLeftAtAnOlderCommitDoesNotTakeThePublishedBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d2", "Work 2", "d1")
+            .Commit("d1", "Work 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("work", "d2")
+            .LocalBranch("old", "d1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/work", BranchOf(repo, "d1"));
+        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.AreEqual("Ambiguous", CommitOf(repo, "d1").DecidedBy);
+    }
+
+    // Should the hierarchy ever hold a cycle anyway, the ancestors stop where they come around again
+    // and the branches in it are marked, which leaves them out of the view, rather than never ending
+    [TestMethod]
+    public async Task TestACycleInTheHierarchyEndsTheAncestors()
+    {
+        var repo = new WorkRepo(DateTime.UtcNow, "/test/repo", StatusConverter.ToStatus(RepoBuilder.NoChanges));
+        var a = new WorkBranch("a", "a", "a", RepoBuilder.Sha("a1"));
+        var b = new WorkBranch("b", "b", "b", RepoBuilder.Sha("b1"));
+        a.ParentBranch = b;
+        b.ParentBranch = a;
+        repo.Branches["a"] = a;
+        repo.Branches["b"] = b;
+
+        await Task.Run(() => new BranchHierarchyService().DetermineAncestors(repo)).WaitAsync(TimeSpan.FromSeconds(5));
+
+        CollectionAssert.AreEqual(new[] { "b" }, a.Ancestors.Select(x => x.Name).ToArray());
+        CollectionAssert.AreEqual(new[] { "a" }, b.Ancestors.Select(x => x.Name).ToArray());
+        Assert.IsTrue(a.IsCircularAncestors);
+        Assert.IsTrue(b.IsCircularAncestors);
+    }
+
     // The commit a branch was started from is shared by both branches, and git records nothing
-    // about which of them it belongs to. It is genuinely ambiguous, so gmd marks it and lets the
-    // user settle it. What it must not do is silently pick the new branch: the branch that was
-    // merged into is the more likely one, and picking the other way also drags the whole hierarchy
-    // with it, since the branch would then look branched out of the branch it merged in.
+    // about which of them it belongs to. What gmd must not do is pick the new branch: picking that
+    // way also drags the whole hierarchy with it, since dev would then look branched out of the
+    // branch it merged in. It used to be marked ambiguous for the user to settle; dev is an
+    // integration branch by its name, so it is decided now (see TestBranchPointOf... below for the
+    // shapes where the merge subjects alone cannot tell).
     //
     //   c2      main, merges dev
     //   |\
@@ -298,7 +442,7 @@ public class BranchStructureServiceTest
     //   |/
     //   c1      main
     [TestMethod]
-    public async Task TestCommitBelowABranchPointIsTheMergedIntoBranchAndAmbiguous()
+    public async Task TestCommitBelowABranchPointIsTheMergedIntoBranch()
     {
         var repo = await new RepoBuilder()
             .Commit("c2", "Merge branch 'dev' into main", "c1", "d2")
@@ -316,13 +460,11 @@ public class BranchStructureServiceTest
         Assert.AreEqual("feature", BranchOf(repo, "f1"));
         Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
 
-        // The shared commit goes to dev, the branch that was merged into, and is marked so the
-        // user can move it to feature if that is where it belongs
+        // The shared commit goes to dev, the branch feature was started from and merged into
         var d1 = CommitOf(repo, "d1");
         Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
-        Assert.IsTrue(d1.IsAmbiguous);
-        Assert.IsTrue(d1.IsAmbiguousTip);
-        CollectionAssert.AreEqual(new[] { "origin/dev", "feature" }, d1.Branches.Select(b => b.Name).ToArray());
+        Assert.IsFalse(d1.IsAmbiguous);
+        Assert.AreEqual("DecideBranchPoint", d1.DecidedBy);
 
         // Which gives the expected hierarchy, main <- dev <- feature
         Assert.AreEqual(RepoBuilder.Sha("d1"), repo.Branches["origin/dev"].BottomID);
@@ -346,7 +488,7 @@ public class BranchStructureServiceTest
             .AugmentAsync();
 
         Assert.AreEqual("dev", BranchOf(repo, "d1"));
-        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.IsFalse(CommitOf(repo, "d1").IsAmbiguous);
         Assert.AreEqual("origin/main", repo.Branches["dev"].ParentBranch?.Name);
         Assert.AreEqual("dev", repo.Branches["feature"].ParentBranch?.Name);
     }
@@ -372,6 +514,668 @@ public class BranchStructureServiceTest
         Assert.IsFalse(d1.IsAmbiguous);
         Assert.IsFalse(repo.Branches.Values.Any(b => b.IsAmbiguousBranch));
     }
+
+    // A branch point where the branch kept going after its merge into dev, i.e. was not deleted. The
+    // merged branch's tip is named by the merge subject, which counted as likely, while dev's commit
+    // above the branch point, a plain one, was not. So the branch point, and all of dev below it,
+    // went to feature, and dev looked branched out of the branch it had merged in. Dev is an
+    // integration branch by its name, and the branch point is where other branches start from it.
+    //
+    //   m       dev, merges feature
+    //   |\
+    //   d3 |    dev, a commit of its own
+    //   | f1    feature, still there
+    //   |/
+    //   d2      dev or feature?
+    //   | c2    main
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestBranchPointOfALiveMergedBranchGoesToTheIntegrationBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ee", "Merge branch 'feature' into dev", "d3", "f1")
+            .Commit("d3", "Dev direct", "d2")
+            .Commit("f1", "Feature work", "d2")
+            .Commit("d2", "Dev 2", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "ee")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d3"));
+        Assert.AreEqual("origin/feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/main", repo.Branches["origin/dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/dev", repo.Branches["origin/feature"].ParentBranch?.Name);
+    }
+
+    // The mirror image, a back-merge: dev merged into feature to bring it up to date. Merge subjects
+    // and the graph cannot tell the two apart, since in both the branch point's two children are one
+    // branch merged into the other. Here the branch named by the merge subject is dev, which is right,
+    // and must stay right.
+    //
+    //   ff      feature, merges dev
+    //   |\
+    //   | d2    dev
+    //   f1 |    feature
+    //   |/
+    //   d1      dev or feature?
+    //   | c2    main
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestBranchPointOfABackMergeGoesToTheBranchMergedFrom()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ff", "Merge branch 'dev' into feature", "f1", "d2")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .BranchWithRemote("feature", "ff")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d2"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+        Assert.AreEqual("origin/dev", repo.Branches["origin/feature"].ParentBranch?.Name);
+    }
+
+    // With names that say nothing, a branch that several other branches were merged into is the one
+    // others start from, rather than a branch that nothing was merged into. One merged branch is not
+    // enough: that is also what a branch brought up to date from the branch it started from has.
+    //
+    //   t4      team, merges b
+    //   t3      team, merges a
+    //   t2 |    team, a commit of its own
+    //   | f1    feature
+    //   |/
+    //   t1      team or feature?
+    [TestMethod]
+    public async Task TestBranchPointGoesToTheBranchSeveralBranchesWereMergedInto()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e4", "Merge branch 'b' into team", "e3", "b1")
+            .Commit("e3", "Merge branch 'a' into team", "e2", "a1")
+            .Commit("e2", "Team 2", "e1")
+            .Commit("f1", "Feature work", "e1")
+            .Commit("b1", "B work", "c1")
+            .Commit("a1", "A work", "c1")
+            .Commit("e1", "Team 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("team", "e4")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/team", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+        Assert.AreEqual("origin/team", repo.Branches["origin/feature"].ParentBranch?.Name);
+    }
+
+    // A branch brought up to date from the trunk, here from two remotes, has had branches merged
+    // into it, but not ones that make it a branch others start from. So the branch point stays as
+    // undecided as it was, rather than going to feature.
+    [TestMethod]
+    public async Task TestTrunkMergedIntoABranchDoesNotMakeItSenior()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f3", "Merge remote-tracking branch 'upstream/main' into feature", "f2", "c3")
+            .Commit("f2", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("e2", "Team 2", "e1")
+            .Commit("f1", "Feature work", "e1")
+            .Commit("c3", "Main 3", "c2")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("e1", "Team 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .BranchWithRemote("team", "e2")
+            .BranchWithRemote("feature", "f3")
+            .AugmentAsync();
+
+        Assert.AreEqual(0, repo.Branches["origin/feature"].MergedFromNames.Count);
+        Assert.IsTrue(CommitOf(repo, "e1").IsAmbiguous);
+    }
+
+    // A pull request is a contribution even when it comes from a fork's own trunk, as it does when
+    // contributors work on their fork's main
+    [TestMethod]
+    public async Task TestPullRequestsFromForkTrunksMakeABranchSenior()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e4", "Merge pull request #2 from bob/main", "e3", "b1")
+            .Commit("e3", "Merge pull request #1 from alice/main", "e2", "a1")
+            .Commit("e2", "Team 2", "e1")
+            .Commit("f1", "Feature work", "e1")
+            .Commit("b1", "Bob's work", "c1")
+            .Commit("a1", "Alice's work", "c1")
+            .Commit("e1", "Team 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("team", "e4")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        CollectionAssert.AreEquivalent(
+            new[] { "alice/main", "bob/main" },
+            repo.Branches["origin/team"].MergedFromNames.ToArray()
+        );
+        Assert.AreEqual("origin/team", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+    }
+
+    // A release branch is started from develop and features are started from it, e.g. a fix for the
+    // release, so where a release branch and another branch meet, the release branch goes on
+    [TestMethod]
+    public async Task TestBranchPointOfAReleaseBranchGoesToIt()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e2", "Release 2", "e1")
+            .Commit("f1", "Fix for the release", "e1")
+            .Commit("e1", "Release 1", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("release/1.0", "e2")
+            .BranchWithRemote("fix-for-release", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/release/1.0", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+        Assert.AreEqual("origin/release/1.0", repo.Branches["origin/fix-for-release"].ParentBranch?.Name);
+    }
+
+    // Two integration branches of one name, a deleted dev recovered once per merge of it, and a
+    // feature: the feature was started from dev, and which of the two devs goes on does not matter
+    [TestMethod]
+    public async Task TestBranchPointOfIntegrationBranchesOfOneNameGoesToOneOfThem()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'dev' into main", "c2", "d2")
+            .Commit("c2", "Merge branch 'dev' into main", "c1", "e1")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("e1", "Dev other", "d1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        Assert.AreEqual("dev", repo.Branches[BranchOf(repo, "d1")].NiceName);
+        Assert.IsFalse(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.AreEqual(BranchOf(repo, "d1"), repo.Branches["origin/feature"].ParentBranch?.Name);
+    }
+
+    // A repo can name its own integration branches, e.g. staging, which are then taken like develop
+    [TestMethod]
+    public async Task TestConfiguredIntegrationBranchIsTakenLikeDevelop()
+    {
+        RepoBuilder Repo() =>
+            new RepoBuilder()
+                .Commit("e2", "Staging 2", "e1")
+                .Commit("f1", "Feature work", "e1")
+                .Commit("e1", "Staging 1", "c1")
+                .Commit("c2", "Main 2", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c2", isCurrent: true)
+                .BranchWithRemote("staging", "e2")
+                .BranchWithRemote("feature", "f1");
+
+        Assert.IsTrue(CommitOf(await Repo().AugmentAsync(), "e1").IsAmbiguous, "Nothing to go by");
+
+        var repo = await Repo().IntegrationBranches("staging").AugmentAsync();
+        Assert.AreEqual("origin/staging", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+    }
+
+    // Two integration branches of different names and a feature, and nothing to tell the two apart:
+    // the commit stays ambiguous, but it is drawn on an integration branch, which the feature was
+    // started from either way, rather than on the feature, although the feature's commit is the newest
+    [TestMethod]
+    public async Task TestUndecidedBranchPointIsDrawnOnTheMostSeniorName()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "d1")
+            .Commit("e1", "Develop work", "d1")
+            .Commit("d2", "Dev work", "d1")
+            .Commit("d1", "Shared", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .BranchWithRemote("develop", "e1")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        var d1 = CommitOf(repo, "d1");
+        Assert.IsTrue(d1.IsAmbiguous);
+        Assert.AreNotEqual("origin/feature", d1.Branch?.Name);
+        Assert.IsTrue(WellKnownBranches.IsIntegrationName(d1.Branch!.NiceName), d1.Branch.Name);
+    }
+
+    // A deleted branch merged twice is recovered twice, once from each merge subject, both named dev.
+    // Where the two meet there is nothing to choose between, so the commit is not left ambiguous,
+    // which would ask the user whether it is on 'dev' or on 'dev'.
+    //
+    //   c3      main, merges dev
+    //   c2 |    main, merges dev (the other)
+    //   | d2    dev
+    //   e1 |    dev
+    //    \ |
+    //     d1    dev or dev?
+    [TestMethod]
+    public async Task TestBranchPointOfBranchesOfOneNameIsNotAmbiguous()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'dev' into main", "c2", "d2")
+            .Commit("c2", "Merge branch 'dev' into main", "c1", "e1")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("e1", "Dev other", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d2"));
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e1"));
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d1"), "The first of the two");
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+    }
+
+    // Not so for two deleted branches whose merges name no branch: each is recovered as 'branch', a
+    // name that says nothing about being one branch, so the commit where they meet is still ambiguous
+    //
+    //   c3      main, merges b1
+    //   c2 |    main, merges a1
+    //   | | b1
+    //   | a1 |
+    //   |  \ |
+    //   |   d1  one of the two
+    //   |  /
+    //   c1
+    [TestMethod]
+    public async Task TestBranchPointOfUnnamedBranchesIsAmbiguous()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Take in b", "c2", "b1")
+            .Commit("c2", "Take in a", "c1", "a1")
+            .Commit("b1", "Work b", "d1")
+            .Commit("a1", "Work a", "d1")
+            .Commit("d1", "Shared", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"branch:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
+        Assert.AreEqual($"branch:{RepoBuilder.Sid("b1")}", BranchOf(repo, "b1"));
+        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+    }
+
+    // A foxtrot merge: main merged into feature to bring it up to date, and then main fast-forwarded
+    // to that merge, e.g. by 'git merge feature' on main. Git's first parent of the merge is feature's
+    // commit, so main's line ran through feature, and main's own commit was drawn as a side branch
+    // named main, merged in. The subject says what happened, and on main's line it means main was
+    // merged into, so the parents are swapped, as a pull merge's are: main keeps its own commits on its
+    // line, and feature is drawn as merged into it.
+    //
+    //   ff      main, "Merge branch 'main' into feature"
+    //   |\
+    //   | c2    main
+    //   f1 |    feature
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestFoxtrotMergeOnMainKeepsMainsCommitsOnItsLine()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ff", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "ff", isCurrent: true)
+            .AugmentAsync();
+
+        var merge = CommitOf(repo, "ff");
+        Assert.IsTrue(merge.IsParentsSwapped);
+        Assert.AreEqual(RepoBuilder.Sha("c2"), merge.FirstParent?.Id);
+        Assert.AreEqual("origin/main", BranchOf(repo, "ff"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+        Assert.AreEqual($"feature:{RepoBuilder.Sid("f1")}", BranchOf(repo, "f1"), "Named by the subject");
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
+        Assert.AreEqual("origin/main", repo.Branches[BranchOf(repo, "f1")].ParentBranch?.Name);
+    }
+
+    // gmd reads a repo again on every change, through the one augmenter and so the one
+    // BranchNameService, whose parsed names the stages of a read share. Each read starts from git's
+    // parent order, so the swap has to be made again: a swap kept in the names from the read before
+    // made the subject no longer read as main merged into feature, nothing was swapped, and main's
+    // own commit was drawn as a deleted branch again.
+    [TestMethod]
+    public async Task TestFoxtrotMergeIsSwappedOnEveryRead()
+    {
+        var builder = new RepoBuilder()
+            .Commit("ff", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "ff", isCurrent: true);
+        var augmenter = RepoBuilder.NewAugmenter();
+
+        await augmenter.GetAugRepoAsync(builder.ToGitRepo());
+        var repo = await augmenter.GetAugRepoAsync(builder.ToGitRepo());
+
+        Assert.IsTrue(CommitOf(repo, "ff").IsParentsSwapped);
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+        Assert.AreEqual($"feature:{RepoBuilder.Sid("f1")}", BranchOf(repo, "f1"));
+    }
+
+    // The same merge on feature's own line, where it belongs, is what it says it is and left alone
+    [TestMethod]
+    public async Task TestMainMergedIntoAFeatureIsNotAFoxtrot()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ff", "Merge branch 'main' into feature", "f1", "c2")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("feature", "ff")
+            .AugmentAsync();
+
+        Assert.IsFalse(CommitOf(repo, "ff").IsParentsSwapped);
+        Assert.AreEqual("origin/feature", BranchOf(repo, "ff"));
+        Assert.AreEqual("origin/feature", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+    }
+
+    // Stacked branches: feature2 started at feature1's tip with 'git checkout -b', and both pushed.
+    // The graph cannot tell which of the two the shared commit is on, and names and merges say
+    // nothing either. The reflog does: feature2 was created from HEAD, and HEAD was on feature1.
+    //
+    //   e2      feature2
+    //   e1      feature1, and where feature2 started
+    //   | c2    main
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestReflogSaysWhichBranchABranchWasStartedFrom()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e2", "Feature 2 work", "e1")
+            .Commit("e1", "Feature 1 work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("feature1", "e1")
+            .BranchWithRemote("feature2", "e2")
+            .Reflog("refs/heads/feature2", "e2", "commit: Feature 2 work")
+            .Reflog("refs/heads/feature2", "e1", "branch: Created from HEAD")
+            .Reflog("HEAD", "e2", "commit: Feature 2 work")
+            .Reflog("HEAD", "e1", "checkout: moving from feature1 to feature2")
+            .AugmentAsync();
+
+        var e1 = CommitOf(repo, "e1");
+        Assert.AreEqual("origin/feature1", e1.Branch?.Name);
+        Assert.AreEqual("IsWitnessed", e1.DecidedBy);
+        Assert.IsFalse(e1.IsAmbiguous);
+        Assert.IsFalse(e1.IsLikely, "Where a commit was made says nothing about its parent");
+        Assert.AreEqual("origin/feature1", repo.Branches["origin/feature2"].ParentBranch?.Name);
+    }
+
+    // What the reflog decided between branches is to be kept in the metadata, since the reflog expires
+    [TestMethod]
+    public async Task TestReflogDecisionIsToBeKept()
+    {
+        var repo = await StackedBranches()
+            .Reflog("refs/heads/feature2", "e2", "commit: Feature 2 work")
+            .Reflog("refs/heads/feature2", "e1", "branch: Created from HEAD")
+            .Reflog("HEAD", "e2", "commit: Feature 2 work")
+            .Reflog("HEAD", "e1", "checkout: moving from feature1 to feature2")
+            .AugmentAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { new WitnessedBranch(RepoBuilder.Sha("e1"), "feature1") },
+            repo.WitnessedToKeep.ToArray()
+        );
+    }
+
+    // And once kept it decides the same way after the reflog is gone, e.g. in a fresh clone
+    [TestMethod]
+    public async Task TestKeptReflogFactDecidesOnceTheReflogIsGone()
+    {
+        var repo = await StackedBranches().Witnessed("e1", "feature1").AugmentAsync();
+
+        Assert.AreEqual("origin/feature1", BranchOf(repo, "e1"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "e1").DecidedBy);
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count, "Kept already");
+    }
+
+    // A kept fact is still only taken among the branches the commit can be on, and makes up none
+    [TestMethod]
+    public async Task TestKeptReflogFactOfABranchTheCommitIsNotOnDecidesNothing()
+    {
+        var repo = await StackedBranches().Witnessed("e1", "gone").AugmentAsync();
+
+        Assert.IsTrue(CommitOf(repo, "e1").IsAmbiguous);
+        Assert.IsFalse(repo.Branches.Keys.Any(n => n.StartsWith("gone")));
+    }
+
+    // A branch renamed in gmd has its kept facts renamed with it, while HEAD's reflog keeps the old
+    // name in its checkouts, which no branch has now. The kept fact still decides.
+    [TestMethod]
+    public async Task TestKeptReflogFactDecidesWhenTheReflogNamesABranchNoLongerThere()
+    {
+        var repo = await StackedBranches()
+            .Reflog("refs/heads/feature2", "e1", "branch: Created from HEAD")
+            .Reflog("HEAD", "e1", "checkout: moving from old-feature1 to feature2")
+            .Witnessed("e1", "feature1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/feature1", BranchOf(repo, "e1"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "e1").DecidedBy);
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count, "Kept already");
+    }
+
+    static RepoBuilder StackedBranches() =>
+        new RepoBuilder()
+            .Commit("e2", "Feature 2 work", "e1")
+            .Commit("e1", "Feature 1 work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("feature1", "e1")
+            .BranchWithRemote("feature2", "e2");
+
+    // A branch point decided by where it was made, where nothing else could: two ordinary branches,
+    // one merged into the other and kept, which merge subjects alone read the wrong way round
+    [TestMethod]
+    public async Task TestReflogSaysWhichBranchABranchPointWasMadeOn()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ee", "Merge branch 'topic' into base", "e3", "f1")
+            .Commit("e3", "Base direct", "e2")
+            .Commit("f1", "Topic work", "e2")
+            .Commit("e2", "Base 2", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("base", "ee")
+            .BranchWithRemote("topic", "f1")
+            .Reflog("refs/heads/base", "e2", "commit: Base 2")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/base", BranchOf(repo, "e2"));
+        Assert.AreEqual("origin/topic", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/base", repo.Branches["origin/topic"].ParentBranch?.Name);
+    }
+
+    // A commit made on dev and then reset away from it is not on dev any more, so the fact decides
+    // nothing, and no branch is made up for it
+    [TestMethod]
+    public async Task TestReflogFactOfABranchTheCommitIsNotOnDecidesNothing()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("a1", "Work a", "d1")
+            .Commit("b1", "Work b", "d1")
+            .Commit("d1", "Shared work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("feat-a", "a1")
+            .LocalBranch("feat-b", "b1")
+            .Reflog("refs/heads/dev", "d1", "commit: Shared work")
+            .AugmentAsync();
+
+        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.IsFalse(repo.Branches.Keys.Any(n => n.StartsWith("dev")));
+    }
+
+    // Main's commits stay main's: a feature fast-forwarded into main would otherwise take main's tip
+    [TestMethod]
+    public async Task TestReflogFactDoesNotTakeACommitFromMain()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "f1", isCurrent: true)
+            .LocalBranch("feature", "f1")
+            .Reflog("refs/heads/feature", "f1", "commit: Feature work")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/main", BranchOf(repo, "f1"));
+    }
+
+    // A feature merged into dev by a fast-forward: started from dev, a commit made on it, and dev
+    // fast-forwarded to it ('git merge feature' on dev) and gone on. The commit was made on feature,
+    // but dev runs through it and on below, since feature was started from dev: the commit is on
+    // dev's line now. Taken for feature, it gave feature dev's line from there down (Dev 1 too), and
+    // drew dev as started from the feature.
+    //
+    //   d2      dev
+    //   x1      feature, made on it, and dev fast-forwarded to it
+    //   d1      dev, where feature was started
+    //   c1      main
+    [TestMethod]
+    public async Task TestReflogFactDoesNotTakeACommitFromTheBranchItsBranchWasStartedFrom()
+    {
+        var repo = await FastForwardedFeature().AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "x1"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "x1").DecidedBy);
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.AreEqual("origin/main", repo.Branches["origin/dev"].ParentBranch?.Name);
+        CollectionAssert.AreEqual(
+            new[] { new WitnessedBranch(RepoBuilder.Sha("x1"), "dev") },
+            repo.WitnessedToKeep.ToArray(),
+            "Kept as dev's, the way it was decided"
+        );
+    }
+
+    // Once kept, dev's it stays, also when the reflog has lost where feature was started, its oldest
+    // entry, while it still says where the commit was made: the kept fact comes first
+    [TestMethod]
+    public async Task TestKeptReflogFactComesBeforeTheReflogs()
+    {
+        var repo = await FastForwardedFeatureCommits()
+            .Reflog("refs/heads/feature", "x1", "commit: Feature work")
+            .Witnessed("x1", "dev")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "x1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count, "Kept already");
+    }
+
+    // The same as far back as the reflog says which branch each was started from: feature2 started
+    // from feature1 started from base, and base fast-forwarded to feature2's work. Names with no
+    // seniority, so that it is the reflog deciding and not the names.
+    [TestMethod]
+    public async Task TestReflogFactFollowsWhereBranchesWereStartedFrom()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("b2", "Base 2", "x1")
+            .Commit("x1", "Feature 2 work", "b1")
+            .Commit("b1", "Base 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("base", "b2", isCurrent: true)
+            .LocalBranch("feature1", "b1")
+            .LocalBranch("feature2", "x1")
+            .Reflog("refs/heads/feature2", "x1", "commit: Feature 2 work")
+            .Reflog("refs/heads/feature2", "b1", "branch: Created from feature1")
+            .Reflog("refs/heads/feature1", "b1", "branch: Created from base")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/base", BranchOf(repo, "x1"));
+        Assert.AreEqual("origin/base", BranchOf(repo, "b1"));
+    }
+
+    // The other way round it is where the commit was made: topic started from base, and brought up to
+    // date by a fast-forward to base's commit ('git merge base' on topic) before going on. Base was not
+    // started from topic, so base's commit stays base's, and topic starts from it.
+    //
+    //   t1      topic
+    //   b2      base, made on it, and topic fast-forwarded to it
+    //   b1      base, where topic was started
+    //   c1      main
+    [TestMethod]
+    public async Task TestReflogFactKeepsACommitFastForwardedToOnItsBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("t1", "Topic work", "b2")
+            .Commit("b2", "Base 2", "b1")
+            .Commit("b1", "Base 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("base", "b2")
+            .LocalBranch("topic", "t1", isCurrent: true)
+            .Reflog("refs/heads/topic", "t1", "commit: Topic work")
+            .Reflog("refs/heads/topic", "b2", "merge base: Fast-forward")
+            .Reflog("refs/heads/topic", "b1", "branch: Created from base")
+            .Reflog("refs/heads/base", "b2", "commit: Base 2")
+            .Reflog("refs/heads/base", "b1", "commit: Base 1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/base", BranchOf(repo, "b2"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "b2").DecidedBy);
+        Assert.AreEqual("origin/base", repo.Branches["topic"].ParentBranch?.Name);
+    }
+
+    static RepoBuilder FastForwardedFeature() =>
+        FastForwardedFeatureCommits()
+            .Reflog("refs/heads/dev", "d2", "commit: Dev 2")
+            .Reflog("refs/heads/dev", "x1", "merge feature: Fast-forward")
+            .Reflog("refs/heads/dev", "d1", "commit: Dev 1")
+            .Reflog("refs/heads/dev", "c1", "branch: Created from HEAD")
+            .Reflog("refs/heads/feature", "x1", "commit: Feature work")
+            .Reflog("refs/heads/feature", "d1", "branch: Created from HEAD")
+            .Reflog("HEAD", "d2", "commit: Dev 2")
+            .Reflog("HEAD", "x1", "merge feature: Fast-forward")
+            .Reflog("HEAD", "d1", "checkout: moving from feature to dev")
+            .Reflog("HEAD", "x1", "commit: Feature work")
+            .Reflog("HEAD", "d1", "checkout: moving from dev to feature")
+            .Reflog("HEAD", "d1", "commit: Dev 1")
+            .Reflog("HEAD", "c1", "checkout: moving from main to dev");
+
+    static RepoBuilder FastForwardedFeatureCommits() =>
+        new RepoBuilder()
+            .Commit("d2", "Dev 2", "x1")
+            .Commit("x1", "Feature work", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("dev", "d2", isCurrent: true)
+            .LocalBranch("feature", "x1");
 
     // The same rule keeps the commits below a series of merges on the branch they were merged into
     [TestMethod]
@@ -487,5 +1291,48 @@ public class BranchStructureServiceTest
         Assert.IsNull(root.ParentBranch);
         Assert.AreEqual(truncated.Id, root.BottomID, "The root branch now reaches down to the truncated commit");
         Assert.AreEqual("origin/main", repo.Branches["dev"].ParentBranch?.Name);
+    }
+
+    // A remote branch whose tip is not in a truncated log is left out, and its local branch, whose
+    // tip is, is a branch of its own then. It had kept the remote branch as its primary, which the
+    // rules look up, and a merge into it made the whole read of the repo fail.
+    [TestMethod]
+    public async Task TestLocalBranchOfARemoteBranchOutsideTheLogIsABranchOfItsOwn()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("x3", "Merge branch 'topic' into x", "x2", "t1")
+            .Commit("t1", "Topic work", "x2")
+            .Commit("x2", "X work", "c1")
+            .Commit("c1", "Oldest known", "c0") // c0 is not in the log
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("x", "x3", remoteName: "origin/x")
+            .RemoteBranch("origin/x", "c0")
+            .Truncated()
+            .AugmentAsync();
+
+        Assert.IsFalse(repo.Branches.ContainsKey("origin/x"));
+        Assert.AreEqual("x", repo.Branches["x"].PrimaryName);
+        Assert.AreEqual("", repo.Branches["x"].RemoteName);
+        Assert.AreEqual("x", BranchOf(repo, "x3"));
+        Assert.AreEqual("x", BranchOf(repo, "x2"));
+    }
+
+    // And the other way round, a local branch left out, whose remote branch is not: it has no local
+    // branch then, which the UI looks up by name
+    [TestMethod]
+    public async Task TestRemoteBranchOfALocalBranchOutsideTheLogHasNone()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("x2", "X work", "c1")
+            .Commit("c1", "Oldest known", "c0") // c0 is not in the log
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("x", "c0", remoteName: "origin/x")
+            .RemoteBranch("origin/x", "x2")
+            .Truncated()
+            .AugmentAsync();
+
+        Assert.IsFalse(repo.Branches.ContainsKey("x"));
+        Assert.AreEqual("", repo.Branches["origin/x"].LocalName);
+        Assert.AreEqual("origin/x", BranchOf(repo, "x2"));
     }
 }

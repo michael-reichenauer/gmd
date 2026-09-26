@@ -6,15 +6,17 @@ namespace gmd.Server.Private.Augmented.Private;
 static class BranchAmbiguity
 {
     // Sets the branch of the commit and lets the commits above (first children) use that branch as
-    // well as long as they are ambiguous, i.e. 'repairs' the branch of an ambiguous stretch.
-    public static bool TrySetBranch(WorkRepo repo, WorkCommit commit, WorkBranch branch)
+    // well as long as they are ambiguous, i.e. 'repairs' the branch of an ambiguous stretch. The
+    // commits are marked likely, unless the evidence says nothing about their parents, see
+    // CommitBranchRules.TryIsWitnessed.
+    public static bool TrySetBranch(WorkRepo repo, WorkCommit commit, WorkBranch branch, bool isLikely = true)
     {
         // Lets use that as a branch name and also let children (commits above)
         // use that branch if they are an ambiguous branch
         if (branch.TipID == commit.Id)
         { // The commit is branch tip, we should not find higher/previous commit up, since tip would move up
             commit.Branch = branch;
-            commit.IsLikely = true;
+            commit.IsLikely = isLikely;
             commit.Branches.TryAdd(branch);
             return true;
         }
@@ -88,10 +90,14 @@ static class BranchAmbiguity
                 current.Branch.AmbiguousTip = null;
             }
 
+            if (current != commit)
+            { // Moved by the evidence found at a commit further down
+                current.DecidedBy = "Repaired";
+            }
             current.Branch = branch;
             current.IsAmbiguous = false;
             current.IsAmbiguousTip = false;
-            current.IsLikely = true;
+            current.IsLikely = isLikely;
             current.Branches.Clear();
             current.Branches.TryAdd(branch);
 
@@ -114,12 +120,12 @@ static class BranchAmbiguity
         List<WorkBranch>? ambiguousBranches;
         if (!c.Branches.Any())
         {
-            branch = BranchFactory.AddNamedBranch(repo, c, "ambiguous");
+            branch = BranchFactory.AddNamedBranch(repo, c, BranchFactory.AmbiguousName);
             ambiguousBranches = [branch];
         }
         else
         {
-            (branch, ambiguousBranches) = GetLikelyBranches(c);
+            (branch, ambiguousBranches) = GetLikelyBranches(repo, c);
         }
 
         c.IsAmbiguous = true;
@@ -132,7 +138,7 @@ static class BranchAmbiguity
         return branch;
     }
 
-    static (WorkBranch, List<WorkBranch>) GetLikelyBranches(WorkCommit commit)
+    static (WorkBranch, List<WorkBranch>) GetLikelyBranches(WorkRepo repo, WorkCommit commit)
     {
         var ambiguousBranches = commit.Branches;
 
@@ -146,34 +152,18 @@ static class BranchAmbiguity
             return (likelyBranch, ambiguousBranches);
         }
 
-        // Likely child is preferred
-        var likelyChild = commit.FirstChildren.FirstOrDefault(c => c.IsLikely);
-        if (likelyChild != null)
-        {
-            var likelyBranch = likelyChild.Branch!;
-            ambiguousBranches = ambiguousBranches
-                .Concat(commit.FirstChildren.Select(c => c.Branch!))
-                .Distinct()
-                .ToList();
+        // The branch drawn is the likeliest of the children's: the most senior by name, which the
+        // branch point rule could not decide between (CommitBranchRules.TryDecideBranchPoint), then
+        // the child a merge subject named, then the newest child. Not by the branches merged in,
+        // which short of a clear margin puts a stretch under a deleted branch that one pull request
+        // was merged into, rather than the release line it is on.
+        var drawn = commit
+            .FirstChildren.OrderByDescending(c => WellKnownBranches.NameTier(c.Branch!.NiceName, repo.IntegrationNames))
+            .ThenByDescending(c => c.IsLikely)
+            .ThenByDescending(c => c.AuthorTime)
+            .First();
+        ambiguousBranches = ambiguousBranches.Concat(commit.FirstChildren.Select(c => c.Branch!)).Distinct().ToList();
 
-            return (likelyBranch, ambiguousBranches);
-        }
-
-        // Determine the most likely branch (branch of the oldest child)
-        var oldestChild = commit.FirstChildren[0];
-        List<WorkBranch> childBranches = [];
-        foreach (var c in commit.FirstChildren)
-        {
-            if (c.AuthorTime > oldestChild.AuthorTime)
-            {
-                oldestChild = c;
-            }
-            childBranches.Add(c.Branch!);
-        }
-
-        var likelyBranch2 = oldestChild.Branch!;
-        ambiguousBranches = ambiguousBranches.Concat(childBranches).Distinct().ToList();
-
-        return (likelyBranch2, ambiguousBranches);
+        return (drawn.Branch!, ambiguousBranches);
     }
 }

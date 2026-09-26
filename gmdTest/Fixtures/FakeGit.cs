@@ -39,6 +39,12 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) =>
         Task.FromResult<Result<IReadOnlyList<Worktree>>>(Worktrees.ToList());
 
+    // The entries 'git reflog show --all' would report, none unless a test adds them
+    public List<ReflogEntry> Reflog { get; } = [];
+
+    public Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd) =>
+        Task.FromResult<Result<IReadOnlyList<ReflogEntry>>>(Reflog.ToList());
+
     public Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd)
     {
         WorktreeCalls.Add($"add {path} {branchName} {(isNewBranch ? "new" : "existing")} {startPoint}".TrimEnd());
@@ -80,11 +86,19 @@ class FakeGit : IGit
         );
     }
 
-    public Task<Result> SetValueAsync(string key, string value, string wd)
+    // Holds the next write until the task completes, so that a test can start another meanwhile
+    public Task? NextSetValueHeld { get; set; }
+
+    public async Task<Result> SetValueAsync(string key, string value, string wd)
     {
         ValueCalls.Add($"set {key}");
+        var held = NextSetValueHeld;
+        NextSetValueHeld = null;
+        if (held != null)
+            await held;
+
         Values[key] = value;
-        return Task.FromResult(Result.Ok);
+        return Result.Ok;
     }
 
     public Task<Result> PushValueAsync(string key, string wd)
@@ -241,8 +255,14 @@ class FakeGit : IGit
 
     public Task<Result> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
 
-    public Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
-        throw new NotSupportedException();
+    // Recorded rather than thrown, so a test can check what creating a branch remembered
+    public List<string> CreateBranchCalls { get; } = [];
+
+    public Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd)
+    {
+        CreateBranchCalls.Add($"{name} at {sha.Sid()}");
+        return Task.FromResult(Result.Ok);
+    }
 
     // Recorded rather than thrown, so a test can check what the rename did to the branch choices
     public List<string> RenameCalls { get; } = [];

@@ -7,6 +7,10 @@ class RepoConfig
 {
     public bool SyncMetaData { get; set; } = false;
 
+    // The names of this repo's integration branches, e.g. 'staging', which the branch inference takes
+    // like develop and dev: as the branches others are started from (see WellKnownBranches)
+    public List<string> IntegrationBranches { get; set; } = [];
+
     public List<string> Branches { get; set; } = [];
     public Dictionary<string, int> BranchColors { get; set; } = [];
     public List<BranchOrder> BranchOrders { get; set; } = [];

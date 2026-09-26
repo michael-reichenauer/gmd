@@ -80,6 +80,31 @@ public class BranchWriteServiceTest
         Assert.AreEqual("main", name);
     }
 
+    // Creating a branch from another branch remembers that the commit it starts at belongs to the
+    // other branch, which is what keeps that commit off the new one when both point at it. It was
+    // written under the full commit id, while the entries are looked up by sid.
+    [TestMethod]
+    public async Task TestCreateBranchFromBranchRemembersWhereItStartedBySid()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .BranchWithRemote("dev", "d1")
+            .AugmentedRepoAsync();
+        var metaData = new MetaData();
+        var git = new FakeGit();
+        var service = new BranchWriteService(git, new FakeFileMonitor(), new FakeMetaDataService(metaData));
+
+        AssertOk(await service.CreateBranchFromBranchAsync(repo, "feature", "origin/dev", false, "/wd"));
+
+        CollectionAssert.AreEqual(new[] { $"feature at {RepoBuilder.Sid("d1")}" }, git.CreateBranchCalls);
+        CollectionAssert.AreEqual(new[] { RepoBuilder.Sid("d1") }, metaData.CommitBranchBySid.Keys.ToArray());
+        Assert.IsTrue(metaData.TryGetCommitBranch(RepoBuilder.Sha("d1"), out var name, out var isSetByUser));
+        Assert.AreEqual("dev", name);
+        Assert.IsFalse(isSetByUser, "Where a branch started is not a choice of the user");
+    }
+
     static string YoungestOf(Repo repo, string name) =>
         BranchWriteService.YoungestTipName(repo, repo.BranchByName[name]);
 

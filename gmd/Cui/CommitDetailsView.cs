@@ -115,7 +115,7 @@ class CommitDetailsView : ICommitDetailsView
                 Text.Dark("Children:   ")
                     .White(string.Join(", ", commit.AllChildIds.Select(id => id == Repo.UncommittedId ? "" : id.Sid())))
             );
-            newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id => id.Sid()))));
+            newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.GitParentIds.Select(id => id.Sid()))));
             if (commit.IsAhead)
             {
                 newRows.Add(Text.Dark("Remote:   ").Green("▲ pushable"));

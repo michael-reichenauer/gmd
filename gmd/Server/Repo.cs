@@ -104,6 +104,21 @@ public record Commit(
     More More
 )
 {
+    // Whether gmd swapped the parents of this merge, as it does for a pull merge, so that the first of
+    // ParentIds is the one the graph draws on the same line (see CommitGraphService), and git's order
+    // is the other way round
+    public bool IsParentsSwapped { get; init; }
+
+    // The parents in the order git has them, e.g. to be shown to the user
+    public IReadOnlyList<string> GitParentIds => IsParentsSwapped ? [ParentIds[1], ParentIds[0]] : ParentIds;
+
+    // The number git gives the parent drawn on the same line, which is what 'git revert -m' takes to
+    // revert the side merged in, or 0 for a commit that is no merge
+    public int MainlineParentNumber =>
+        ParentIds.Count < 2 ? 0
+        : IsParentsSwapped ? 2
+        : 1;
+
     public override string ToString() => $"{Sid} {Subject} ({BranchName})";
 }
 

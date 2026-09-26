@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 using GitStatus = gmd.Git.Status;
 
@@ -19,6 +20,7 @@ class AugmentedService : IAugmentedService
     readonly IFileMonitor fileMonitor;
     readonly IMetaDataService metaDataService;
     readonly IBranchWriteService branchWriteService;
+    readonly IRepoConfig repoConfig;
 
     internal AugmentedService(
         IGit git,
@@ -26,9 +28,11 @@ class AugmentedService : IAugmentedService
         IWorkRepoConverter converter,
         IFileMonitor fileMonitor,
         IMetaDataService metaDataService,
-        IBranchWriteService branchWriteService
+        IBranchWriteService branchWriteService,
+        IRepoConfig repoConfig
     )
     {
+        this.repoConfig = repoConfig;
         this.git = git;
         this.augmenter = augmenter;
         this.converter = converter;
@@ -224,7 +228,17 @@ class AugmentedService : IAugmentedService
         var metaDataTask = metaDataService.GetMetaDataAsync(path);
         var stashesTask = git.GetStashesAsync(path);
         var worktreesTask = git.GetWorktreesAsync(path);
-        await Task.WhenAll(logTask, branchesTask, tagsTask, statusTask, metaDataTask, stashesTask, worktreesTask);
+        var reflogTask = git.GetReflogAsync(path);
+        await Task.WhenAll(
+            logTask,
+            branchesTask,
+            tagsTask,
+            statusTask,
+            metaDataTask,
+            stashesTask,
+            worktreesTask,
+            reflogTask
+        );
 
         // Check all tasks for errors
         if (logTask.Result is not IReadOnlyList<Git.Commit> log)
@@ -250,6 +264,13 @@ class AugmentedService : IAugmentedService
             worktrees = [];
         }
 
+        // The reflog is extra as well: it only makes the branch inference surer, and a repo can have none
+        if (reflogTask.Result is not IReadOnlyList<ReflogEntry> reflog)
+        {
+            Log.Warn($"Failed to read the reflog, {reflogTask.Result.Error}");
+            reflog = [];
+        }
+
         var isTruncated = log.Count == maxCommitCount;
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
@@ -265,7 +286,9 @@ class AugmentedService : IAugmentedService
             metaData,
             stashes,
             isTruncated,
-            worktrees
+            worktrees,
+            reflog: reflog,
+            integrationNames: repoConfig.Get(path).IntegrationBranches
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 
@@ -378,13 +401,10 @@ class AugmentedService : IAugmentedService
 
         using (fileMonitor.Pause())
         {
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.SetCommitBranch(commitId.Sid(), setNiceName);
-            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            return await metaDataService.UpdateMetaDataAsync(
+                repo.Path,
+                m => m.SetCommitBranch(commitId.Sid(), setNiceName)
+            );
         }
     }
 
@@ -396,13 +416,10 @@ class AugmentedService : IAugmentedService
 
         using (fileMonitor.Pause())
         {
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.SetCommitBranch(ambiguousTip.Sid(), setHumanName);
-            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            return await metaDataService.UpdateMetaDataAsync(
+                repo.Path,
+                m => m.SetCommitBranch(ambiguousTip.Sid(), setHumanName)
+            );
         }
     }
 
@@ -410,14 +427,7 @@ class AugmentedService : IAugmentedService
     {
         using (fileMonitor.Pause())
         {
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.RemoveCommitBranch(commitId.Sid());
-
-            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.RemoveCommitBranch(commitId.Sid()));
         }
     }
 
@@ -479,12 +489,21 @@ class AugmentedService : IAugmentedService
 
         Timing t = Timing.Start();
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo);
+        if (augRepo.WitnessedToKeep.Count > 0)
+        { // Kept after the repo is shown, since nothing waits for it
+            KeepWitnessedAsync(gitRepo.Path, augRepo.WitnessedToKeep).RunInBackground();
+        }
 
         var repo = converter.ToRepo(augRepo);
         repo = Uncommitted.Adjust(repo);
         Log.Info($"Augmented {t} {repo}");
         return repo;
     }
+
+    // What the reflog witnessed and decided is kept in the metadata, since the reflog expires. The
+    // file monitor is not paused for it, since it takes no metadata write for a change of the repo.
+    Task<Result> KeepWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed) =>
+        metaDataService.AddWitnessedAsync(path, witnessed);
 
     // GetUpdatedAugmentedRepoStatus an updated augmented repo with new status
     Repo GetUpdatedAugmentedRepoStatus(Repo repo, GitStatus gitStatus)

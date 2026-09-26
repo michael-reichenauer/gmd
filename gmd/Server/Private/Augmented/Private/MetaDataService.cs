@@ -19,6 +19,26 @@ public class MetaData
         CommitBranchBySid[sid] = branchName;
     }
 
+    // What the reflog witnessed about a commit's branch, kept here since the reflog is local and
+    // expires (see CommitBranchRules.TryIsWitnessed). Keyed by the full commit id, where a choice is
+    // keyed by sid, so an entry never applies to another commit with the same sid, and marked with a
+    // '~', so that it is never taken for a choice: a gmd that reads choices by sid only, as versions
+    // before these entries do, never looks one up.
+    internal void SetWitnessed(string id, string branchName)
+    {
+        CommitBranchBySid[id] = "~" + branchName;
+    }
+
+    internal bool TryGetWitnessedBranch(string id, out string branchName)
+    {
+        branchName = "";
+        if (!CommitBranchBySid.TryGetValue(id, out var name) || !name.StartsWith("~"))
+            return false;
+
+        branchName = name[1..];
+        return true;
+    }
+
     internal void RemoveCommitBranch(string sid)
     {
         SetCommitBranch(sid, ""); // Mark as removed to support sync
@@ -41,15 +61,25 @@ public class MetaData
             { // Branch was set by user, keep it set by user
                 SetCommitBranch(sid, newNiceName);
             }
+            else if (name == "~" + oldNiceName)
+            { // Branch was witnessed by the reflog
+                SetWitnessed(sid, newNiceName);
+            }
         }
     }
 
-    internal bool TryGetCommitBranch(string sid, out string branchName, out bool isSetByUser)
+    // Looked up by the commit's sid, which is what entries are written under, and failing that by
+    // its full id: creating a branch from a branch wrote the full id for a while, and those entries
+    // were never found. The sid comes first, so that a later choice by the user wins over them.
+    internal bool TryGetCommitBranch(string id, out string branchName, out bool isSetByUser)
     {
         branchName = "";
         isSetByUser = false;
 
-        if (CommitBranchBySid.TryGetValue(sid, out var name))
+        if (
+            CommitBranchBySid.TryGetValue(id.Sid(), out var name)
+            || (CommitBranchBySid.TryGetValue(id, out name) && !name.StartsWith("~"))
+        )
         {
             if (name.StartsWith("*"))
             {
@@ -71,18 +101,23 @@ public class MetaData
 interface IMetaDataService
 {
     Task<Result<MetaData>> GetMetaDataAsync(string path);
-    Task<Result> SetMetaDataAsync(string path, MetaData metaData);
+    Task<Result> UpdateMetaDataAsync(string path, Action<MetaData> update);
     Task<Result> FetchMetaDataAsync(string path);
     Task<Result> PushMetaDataAsync(string path);
+    Task<Result> AddWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed);
 }
 
+// The metadata is read, changed and written whole, so every change is made under one lock, each on
+// what the one before wrote. Otherwise a change made in the background, e.g. keeping what the reflog
+// witnessed, and one the user made meanwhile each wrote a copy of its own, and the later write lost
+// the other change. A fetch holds it too, since the pull overwrites the local value it merges into.
 [SingleInstance]
 class MetaDataService : IMetaDataService
 {
     const string metaDataKey = "data";
     readonly IGit git;
     readonly IRepoConfig repoConfig;
-    bool isUpdating = false;
+    readonly SemaphoreSlim changing = new(1, 1);
 
     internal MetaDataService(IGit git, IRepoConfig repoConfig)
     {
@@ -111,21 +146,41 @@ class MetaDataService : IMetaDataService
 
     public async Task<Result> SetMetaDataAsync(string path, MetaData metaData)
     {
-        try
+        using (await LockAsync())
         {
-            isUpdating = true;
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            string json = JsonSerializer.Serialize(metaData, options);
+            return await WriteMetaDataAsync(path, metaData);
+        }
+    }
 
-            if (await git.SetValueAsync(metaDataKey, json, path) is Error e)
-                return e;
-            // Log.Info($"Wrote:\n{json}");
-            return Result.Ok;
-        }
-        finally
+    // Changes the latest metadata and writes it
+    public async Task<Result> UpdateMetaDataAsync(string path, Action<MetaData> update)
+    {
+        using (await LockAsync())
         {
-            isUpdating = false;
+            var read = await GetMetaDataAsync(path);
+            if (read is not MetaData metaData)
+                return read.Error;
+
+            update(metaData);
+            return await WriteMetaDataAsync(path, metaData);
         }
+    }
+
+    async Task<IDisposable> LockAsync()
+    {
+        await changing.WaitAsync();
+        return new Disposable(() => changing.Release());
+    }
+
+    async Task<Result> WriteMetaDataAsync(string path, MetaData metaData)
+    {
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        string json = JsonSerializer.Serialize(metaData, options);
+
+        if (await git.SetValueAsync(metaDataKey, json, path) is Error e)
+            return e;
+        // Log.Info($"Wrote:\n{json}");
+        return Result.Ok;
     }
 
     public async Task<Result> FetchMetaDataAsync(string path)
@@ -136,11 +191,14 @@ class MetaDataService : IMetaDataService
             return Result.Ok;
         }
 
-        if (isUpdating)
+        using (await LockAsync())
         {
-            return Result.Ok;
+            return await FetchAndMergeMetaDataAsync(path);
         }
+    }
 
+    async Task<Result> FetchAndMergeMetaDataAsync(string path)
+    {
         // Lets get current local value so we can merge local and remote values
         var local = await GetMetaDataAsync(path);
         if (local is not MetaData localMetaData)
@@ -169,6 +227,28 @@ class MetaDataService : IMetaDataService
             return e;
 
         return Result.Ok;
+    }
+
+    // Keeps what the reflog witnessed, the facts that are not kept already. Written only when there
+    // is something new, so a repo whose facts are all kept is not written to on every read.
+    public async Task<Result> AddWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed)
+    {
+        using (await LockAsync())
+        {
+            var read = await GetMetaDataAsync(path);
+            if (read is not MetaData metaData)
+                return read.Error;
+
+            var added = witnessed
+                .Where(w => !metaData.TryGetWitnessedBranch(w.Id, out var name) || name != w.BranchName)
+                .ToList();
+            if (added.Count == 0)
+                return Result.Ok;
+
+            added.ForEach(w => metaData.SetWitnessed(w.Id, w.BranchName));
+            Log.Info($"Keeping {added.Count} branches witnessed by the reflog");
+            return await WriteMetaDataAsync(path, metaData);
+        }
     }
 
     public async Task<Result> PushMetaDataAsync(string path)
@@ -216,7 +296,7 @@ class MetaDataService : IMetaDataService
         if (hasChanged)
         { // The local meta data had some new values, or remote was different,
             // We need to set and push the merged collection;
-            if (await SetMetaDataAsync(path, localMetaData) is Error e)
+            if (await WriteMetaDataAsync(path, localMetaData) is Error e)
                 return e;
         }
 

@@ -4,9 +4,14 @@ namespace gmd.Server.Private.Augmented.Private;
 
 interface IBranchNameService
 {
+    void StartRead(WorkRepo repo);
     void ParseCommitSubject(WorkCommit c);
     bool IsPullMerge(WorkCommit c);
     bool TryGetBranchName(string commitId, out string branchName);
+    string MergedFrom(WorkCommit c);
+    bool IsPullRequest(WorkCommit c);
+    bool IsMergeOfInto(WorkCommit c, string from);
+    void ParentsSwapped(WorkCommit c);
 }
 
 record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
@@ -18,6 +23,8 @@ record Indexes(int from, int into, int direction);
 // names are looked up by the later stages (CommitBranchService, CommitBranchRules), so all of them
 // must share the one instance holding the cache. Hence the single instance: resolved per consumer,
 // the later stages would each get an empty cache and every deleted branch would lose its name.
+// What is remembered is one read's, cleared before the next (see BranchStructureService), since a
+// stage changes it for the read's own graph (ParentsSwapped).
 // cspell:ignore erged
 [SingleInstance]
 class BranchNameService : IBranchNameService
@@ -26,6 +33,9 @@ class BranchNameService : IBranchNameService
     readonly Dictionary<string, string> branchNames = [];
 
     readonly FromInto noNames = new FromInto("", "", false, false);
+
+    // Whether the repo read has branches of both trunk names, see IsMatchPullMergeOfTrunk
+    bool hasBothTrunks = false;
 
     static readonly string[] prefixes = ["refs/remotes/origin/", "remotes/origin/", "origin/"];
 
@@ -44,8 +54,8 @@ class BranchNameService : IBranchNameService
         + //                    'remote-tracking' optional word when merging remote branches
         @"(?:\s+(?<keyword>pull request #[0-9]+ from|PR|from branch|branches|branch|commit|tag|from))?"
         + // 'branch'|'commit'|'tag'|'from' word ('branches' before 'branch' to match the longer one)
-        $@"\s+'?(?<from>{namePattern})'?"
-        + //          the <from> branch name
+        $@"\s+'?(?:[0-9A-Za-z_.-]+:)?(?<from>{namePattern})'?"
+        + //          the <from> branch name, without GitHub's 'owner:' of another repository's branch
         $@"(?:(?:\s*,|\s+and)\s+'?{namePattern}'?)*"
         + // the other names of an octopus merge, e.g. "branches 'a', 'b' and 'c'"
         @"(?<direction>\s+of\s+[^\s]+)?"
@@ -58,6 +68,17 @@ class BranchNameService : IBranchNameService
     );
     static readonly Indexes indexes = NameRegExpIndexes();
 
+    // Starts the read of a repo: forgets the names of the read before, and notes whether the repo has
+    // branches of both trunk names, which git's merge subjects cannot tell apart
+    public void StartRead(WorkRepo repo)
+    {
+        parsedCommits.Clear();
+        branchNames.Clear();
+        hasBothTrunks =
+            repo.Branches.Values.Any(b => b.NiceName == "main")
+            && repo.Branches.Values.Any(b => b.NiceName == "master");
+    }
+
     public void ParseCommitSubject(WorkCommit c)
     {
         ParseCommit(c);
@@ -67,6 +88,37 @@ class BranchNameService : IBranchNameService
     {
         return branchNames.TryGetValue(commitId, out branchName!) && branchName != "";
     }
+
+    // The name of the branch a merge commit merged in, by its subject, or "" if it names none, or
+    // if it is a pull merge, which merges a branch into itself
+    public string MergedFrom(WorkCommit c)
+    {
+        var fi = ParseCommit(c);
+        return IsPullMergeCommit(fi) ? "" : fi.From;
+    }
+
+    // Whether a merge commit's subject says the branch 'from' was merged into another named branch,
+    // e.g. "Merge branch 'main' into feature" for 'main'
+    public bool IsMergeOfInto(WorkCommit c, string from)
+    {
+        var fi = ParseCommit(c);
+        return fi.From == from && fi.Into != "" && fi.Into != from;
+    }
+
+    // The parents of a merge were swapped after its subject was parsed (a foxtrot merge, see
+    // CommitGraphService), so the names are pointed the other way, as if the subject had said it:
+    // the merge is on the branch that was merged in, and its other parent on the branch merged into
+    public void ParentsSwapped(WorkCommit c)
+    {
+        var fi = ParseCommit(c);
+        var swapped = fi with { From = fi.Into, Into = fi.From };
+        parsedCommits[c.Id] = swapped;
+        branchNames[c.Id] = swapped.Into;
+        branchNames[c.ParentIds[1]] = swapped.From;
+    }
+
+    // Whether a merge commit's subject is a pull request's, e.g. 'Merge pull request #1 from x/y'
+    public bool IsPullRequest(WorkCommit c) => ParseCommit(c).IsPullRequest;
 
     public bool IsPullMerge(WorkCommit c)
     {
@@ -96,9 +148,13 @@ class BranchNameService : IBranchNameService
         if (fi.Into != "")
         { // Subject does specify own commit, lets check if it is matches a possible child commit
             // subject
-            if (name != fi.Into && name.EndsWith(fi.Into))
-            { // The child branch name is a prefix of the into value, so we can use the child branch name
-                fi = fi with { Into = name };
+            if (name != fi.Into && name.EndsWith("/" + fi.Into))
+            { // The child branch name is the into value with an owner in front, e.g. 'owner/dev' from a
+                // pull request, the same branch, so we can use the child branch name
+                fi = fi with
+                {
+                    Into = name,
+                };
             }
         }
         else
@@ -144,7 +200,7 @@ class BranchNameService : IBranchNameService
             return new FromInto(From: "", Into: TrimBranchName(match.Groups[indexes.into].Value), false, false);
         }
 
-        if (IsMatchPullMerge(match))
+        if (IsMatchPullMerge(match) || (!hasBothTrunks && IsMatchPullMergeOfTrunk(match)))
         {
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
             return new FromInto(
@@ -190,6 +246,21 @@ class BranchNameService : IBranchNameService
         }
 
         return name;
+    }
+
+    // 'git merge origin/main' on main, a pull merge made by hand. Git leaves 'into main' and 'into
+    // master' out of a merge subject, so this is the remote-tracking name of the trunk merged with no
+    // target named. Only this remote's: another remote's main is a fork's upstream. And only in a repo
+    // with one trunk name: with both, e.g. moving from master to main, 'git merge origin/master' on
+    // main writes the same subject, and it is master merged into main.
+    bool IsMatchPullMergeOfTrunk(Match match)
+    {
+        var from = match.Groups[indexes.from].Value;
+        var name = TrimBranchName(from);
+        return name != from
+            && match.Groups[indexes.into].Value == ""
+            && match.Groups[indexes.direction].Value == ""
+            && name is "main" or "master";
     }
 
     bool IsMatchPullMerge(Match match)

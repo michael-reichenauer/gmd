@@ -108,13 +108,23 @@ Key types and flow:
   - `CommitBranchService` — assigns a branch to every commit. `DetermineCommitBranch` is an
     ordered chain of rules where the order *is* the strength of the evidence; the rules
     themselves are `CommitBranchRules`, and `BranchFactory` / `BranchAmbiguity` are what they
-    call when a branch has to be invented or a commit given up on as ambiguous.
+    call when a branch has to be invented or a commit given up on as ambiguous. The reflog is
+    evidence too: `ReflogWitness` turns it into where commits were made and branches started, which
+    decides right after the main branch rule and is kept in the metadata (`MetaData.SetWitnessed`).
+    `CommitGraphService` also swaps the parents of pull merges and foxtrot merges; the server
+    `Commit.IsParentsSwapped` says so, for the commands that need git's order.
   - `BranchHierarchyService` — the last three stages, which relate the branches to each other.
 
   Merge-commit subjects are parsed by `BranchNameService` to recover branch names git has
   forgotten. Treat all of this as high-risk: change it only with tests, and preserve the
   pipeline comments. The bar these files are held to is a before/after comparison over a real
   repo's history, not just a green suite — see the findings in `MODERNIZATION.md`.
+  `InferenceDumpTest` makes that comparison: it writes what the inference decided for every commit
+  of a repo (branch, the rule that decided it, ambiguity), plus how often it agrees with the reflog,
+  and two dumps are compared with `diff`. Dump a frozen copy (a copied `.git` keeps the reflog):
+  `GMD_INFER_REPO=<repo> GMD_INFER_OUT=<file> dotnet test gmdTest/gmdTest.csproj --filter InferenceDump`.
+  Several repos with different workflows are worth it (git-flow, GitHub pull requests, local pull
+  merges); a `--filter=blob:none --no-checkout` clone is enough and quick.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;

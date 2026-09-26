@@ -46,6 +46,96 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("main", augRepo.AllBranches.First(b => b.IsCurrent).Name);
     }
 
+    // Two branches stacked with 'checkout -b', on no remote: the commit the second started at could
+    // be on either as far as the graph goes. The reflog says it was made on the first, and that is
+    // kept in the metadata, for when the reflog is gone.
+    [TestMethod]
+    public async Task TestReflogOfARealRepoDecidesAndIsKept()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("checkout -b feature1");
+        var e1 = await repo.CommitFileAsync("feature1.txt", "one\n", "Feature 1 work");
+        await repo.GitAsync("checkout -b feature2");
+        await repo.CommitFileAsync("feature2.txt", "two\n", "Feature 2 work");
+        await repo.GitAsync("checkout main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+
+        var metaDataService = new MetaDataService(repo.Git, new FakeRepoConfig());
+        var service = RepoBuilder.NewAugmentedService(repo.Git, metaDataService);
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var commit = augRepo.CommitById[e1];
+        Assert.AreEqual("feature1", commit.BranchName);
+        Assert.IsFalse(commit.IsAmbiguous);
+
+        // Kept in the background, after the repo is read
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        string kept = "";
+        while (DateTime.UtcNow < deadline)
+        {
+            if (AssertOk(await metaDataService.GetMetaDataAsync(repo.Path)).TryGetWitnessedBranch(e1, out kept))
+                break;
+            await Task.Delay(50);
+        }
+        Assert.AreEqual("feature1", kept);
+    }
+
+    // A topic merged by a fast-forward into the branch it was started from, which then went on: the
+    // topic's commit is on that branch's line now, as is the branch's own commit below it, though
+    // the reflog says the topic's was made on the topic. Names with no seniority, so that it is the
+    // reflog deciding.
+    [TestMethod]
+    public async Task TestReflogOfARealRepoKeepsAFastForwardedBranchsLine()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("checkout -b base");
+        var b1 = await repo.CommitFileAsync("base.txt", "one\n", "Base 1");
+        await repo.GitAsync("checkout -b topic");
+        var x1 = await repo.CommitFileAsync("topic.txt", "one\n", "Topic work");
+        await repo.GitAsync("checkout base");
+        await repo.GitAsync("merge topic");
+        await repo.CommitFileAsync("base2.txt", "two\n", "Base 2");
+        await repo.GitAsync("checkout main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        Assert.AreEqual("base", augRepo.CommitById[x1].BranchName);
+        Assert.AreEqual("base", augRepo.CommitById[b1].BranchName);
+    }
+
+    // The integration branches configured for the repo are read with it: staging, where a feature
+    // started, goes on below the branch point
+    [TestMethod]
+    public async Task TestConfiguredIntegrationBranchesAreReadWithTheRepo()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("branch staging");
+        await repo.GitAsync("branch feature");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+        await repo.GitAsync("checkout staging");
+        var e1 = await repo.CommitFileAsync("staging.txt", "one\n", "Staging 1");
+        await repo.CommitFileAsync("staging2.txt", "two\n", "Staging 2");
+        await repo.GitAsync($"branch -f feature {e1}");
+        await repo.GitAsync("checkout feature");
+        await repo.CommitFileAsync("feature.txt", "f\n", "Feature work");
+        await repo.GitAsync("reflog expire --expire=now --all"); // The reflog would say it otherwise
+
+        var repoConfig = new FakeRepoConfig();
+        repoConfig.Set(repo.Path, c => c.IntegrationBranches = ["staging"]);
+        var service = RepoBuilder.NewAugmentedService(
+            repo.Git,
+            new FakeMetaDataService(new MetaData()),
+            new FakeFileMonitor(),
+            repoConfig
+        );
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        Assert.AreEqual("staging", augRepo.CommitById[e1].BranchName);
+        Assert.IsFalse(augRepo.CommitById[e1].IsAmbiguous);
+    }
+
     [TestMethod]
     public async Task TestGraphOfARealRepo()
     {

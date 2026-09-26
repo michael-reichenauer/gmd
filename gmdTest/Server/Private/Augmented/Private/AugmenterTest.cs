@@ -223,6 +223,37 @@ public class AugmenterTest
         Assert.AreEqual($"gone:{RepoBuilder.Sid("d1")}", BranchOf(repo, "d1"));
     }
 
+    // A merge commit's own subject names the branch it was made on. A later merge of it may name it
+    // longer, 'owner/dev' by a pull request, which is the same branch and is taken. A different name
+    // that only happens to end the same way, 'hotfix-dev', is not.
+    [TestMethod]
+    public async Task TestOwnSubjectNameIsNotReplacedByANameEndingTheSame()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'hotfix-dev' into main", "c2", "d2")
+            .Commit("d2", "Merge branch 'a' into dev", "d1", "a1")
+            .Commit("a1", "A work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d2"));
+
+        var pullRequest = await new RepoBuilder()
+            .Commit("c3", "Merge pull request #1 from owner/dev", "c2", "d2")
+            .Commit("d2", "Merge branch 'a' into dev", "d1", "a1")
+            .Commit("a1", "A work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"owner/dev:{RepoBuilder.Sid("d2")}", BranchOf(pullRequest, "d2"));
+    }
+
     // A commit merged by id ('git merge <sha>') gets a subject naming the commit rather than a
     // branch, so the merged commit keeps the generic deleted-branch name instead of being named
     // after the id, while the merge commit is still known to be on the branch it was merged into.
@@ -263,6 +294,46 @@ public class AugmenterTest
 
         // The pull merge branch is shown as the same branch as its primary
         Assert.AreEqual("origin/main", repo.Branches[pullMergeBranch].PrimaryName);
+    }
+
+    // The same pull merge made by hand, 'git fetch' then 'git merge origin/main', whose subject git
+    // writes without 'into main'. It was not recognized, so the commits others had pushed became a
+    // side branch named main, while the local ones stayed on the main line.
+    [TestMethod]
+    public async Task TestPullMergeByHandPutsLocalCommitsOnTheirOwnBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c4", "Merge remote-tracking branch 'origin/main'", "c2", "c3")
+            .Commit("c3", "Remote work", "c1")
+            .Commit("c2", "Local work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c4", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/main", BranchOf(repo, "c3"), "Remote commit stays on the remote branch");
+        Assert.AreEqual($"main:{RepoBuilder.Sid("c2")}", BranchOf(repo, "c2"), "Local commit on a pull merge branch");
+        Assert.AreEqual("origin/main", repo.Branches[BranchOf(repo, "c2")].PrimaryName);
+    }
+
+    // But git leaves 'into' out for both trunks, so in a repo that has both, e.g. moving from master to
+    // main, the subject cannot tell a pull merge from one trunk merged into the other: here master
+    // merged into main. Taken for a pull merge of master, its parents were swapped and main's line ran
+    // through master's commit.
+    [TestMethod]
+    public async Task TestMergeOfOneTrunkIntoTheOtherIsNoPullMerge()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m2", "Merge remote-tracking branch 'origin/master'", "m1", "s1")
+            .Commit("s1", "Master work", "c1")
+            .Commit("m1", "Main work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "m2", isCurrent: true)
+            .BranchWithRemote("master", "s1")
+            .AugmentAsync();
+
+        Assert.IsFalse(repo.CommitsById[RepoBuilder.Sha("m2")].IsParentsSwapped);
+        Assert.AreEqual("origin/main", BranchOf(repo, "m1"));
+        Assert.AreEqual("origin/master", BranchOf(repo, "s1"));
     }
 
     // The main branch is picked by name priority, not by which branch is checked out

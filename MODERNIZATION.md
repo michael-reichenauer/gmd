@@ -142,6 +142,60 @@ Add new open issues and findings here as work lands; keep them short and drop th
   stages a dependency on the stateful `BranchNameService`, and the container, resolving per
   dependency, handed each stage its own empty cache. It is `[SingleInstance]` now, and one pipeline
   test resolves from the real container.
+- Reading a repo never ended when a GitHub pull request merge named its head `owner/dev` and dev's
+  tip had a third candidate, e.g. a feature just started there: the name was matched by its ending,
+  to the local `dev` listed before `origin/dev`, and the local branch became the parent of its own
+  parent, since the remote branch then owned nothing. That was the cycle the commented-out guard in
+  `DetermineAncestors` was written for. A name now goes to the remote branch when both match, an
+  ending only matches after a `/`, and the guard is back (a cycle is logged and the branches in it
+  left out of the view, since `Sorter.Sort` would not end on them either).
+- Inference, from the review of the rules (2026-09-26), each measured over the corpus below:
+  - A branch point where a feature was merged back and kept went to the feature, with all of the
+    branch it came from below it, whenever that branch had a commit of its own after the fork: the
+    feature's tip counted as likely, named by the merge subject, and the plain commit did not.
+    Decided now by which branch is senior (`TryHasSeniorBranch`).
+  - `git checkout -b` at a published branch's tip, outside gmd, made that branch ambiguous from its
+    tip to its fork, and so did gmd's own *create branch from branch*, which wrote its metadata under
+    the full id while every lookup is by sid (the old entries are found now too).
+  - `git merge origin/main` on main, a pull merge by hand whose subject git writes without `into
+    main`, was not swapped, so others' pushed commits became a side branch named main.
+  - GitHub's `Merge branch 'owner:branch' into x` was cut at the owner: the branch was named after the
+    owner and the target lost.
+  - A foxtrot merge (`Merge branch 'main' into feature`, then main fast-forwarded to it) drew main's
+    line through the feature and main's own commits as a side branch named main.
+  - A commit where branches of one name meet (a deleted branch recovered once per merge) asked
+    whether it was on dev or on dev.
+  - *Revert Commit* on a pull merge, whose parents gmd swaps, reverted what others had pushed rather
+    than the local side the graph shows merged in; the details view listed the parents swapped.
+- Inference, the second round (2026-09-26): the reflog is read and what it witnessed decides a
+  commit's branch (`ReflogWitness`, `TryIsWitnessed`): where a commit was made, from a branch's
+  reflog or from HEAD's through its checkouts, and which branch a branch was started from. A fact is
+  only taken among the commit's candidates, never above main, never marks a commit likely, and is
+  kept in the metadata when it decided between branches (keyed by full id and marked `~`, so older
+  gmd versions never read it and it never makes up a branch). The tail of the rule chain is one
+  branch point decision (`TryDecideBranchPoint`): integration name › git-flow release name › one name
+  for all › clearly most merged in; the likely-child rules are gone, and an undecided branch point is
+  drawn on its most senior name. A repo can name its own integration branches in Config.
+- The review of the second round before its merge to dev (2026-09-26):
+  - A foxtrot merge was swapped on the first read only: the name service's parse cache, a single
+    instance, outlived the read, and the swap had rewritten it. It is cleared as each read starts.
+  - The reflog gave a feature fast-forwarded into dev (`git merge feature` on dev) dev's line from the
+    feature's commit down, and drew dev as started from it. Where the branch a commit was made on was
+    started from a branch that runs through the commit too, the commit is that branch's now, and a
+    kept fact comes before the reflog's, since a branch's creation entry expires first.
+  - Unnamed recovered branches, all called `branch`, counted as one at a branch point, which was
+    then decided arbitrarily rather than left ambiguous.
+  - Keeping the reflog's facts in the background could lose a choice the user made meanwhile, and
+    resumed the file monitor under a running command. The metadata is changed under one lock
+    (`UpdateMetaDataAsync`), and file monitor pauses are counted.
+  - Only the local branches' and the HEADs' reflogs are read, not the remote branches'; `Created
+    from HEAD` is paired with the checkout that made the branch, in one pass.
+  - A local branch whose remote branch was left out of a truncated log kept it as its primary, and a
+    merge into it failed the read of the repo.
+  - A trunk's merge with no target (`Merge remote-tracking branch 'origin/master'`) is a pull merge
+    only in a repo with one trunk name; with both it is as often one merged into the other.
+  - Dumps before and after, of this repo, gitflow-avh, gmd's clone and Terminal.Gui: one change, a
+    branch point of two unnamed branches in Terminal.Gui ambiguous again, as before the second round.
 - A commit merged by id (`git merge <sha>`, subject `Merge commit '<sha>' into dev`) was recovered
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
@@ -214,11 +268,47 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Inference pipeline**
 
-- The circular-ancestor guard in `BranchHierarchyService.DetermineAncestors` is commented out, so
-  `IsCircularAncestors` is never set and the three `ViewRepoCreater` filters on it are dead. A real
-  cycle would loop forever, and `Sorter.Sort` also never terminates on a cyclic comparer. Find out
-  what produced the cycle before restoring the guard or deleting both. No test: a cycle could not
-  be produced through the public pipeline.
+- Left open by the second round of the rules review (2026-09-26):
+  - Stacked pull requests seen from a clone (a branch started from another branch's commit, both
+    pushed, or the base since merged and deleted) are most of cli/cli's and Terminal.Gui's remaining
+    ambiguity: two deleted branches, or one deleted and one live, meeting where nothing in the graph,
+    the names or the subjects says which was first. Only a creation fact settles them, which the
+    reflog gives the one who made them and the metadata keeps; for anyone else they stay white.
+  - `branch: Created from HEAD` is followed to the branch HEAD was on only through the checkout that
+    created the branch, i.e. for `checkout -b` and `switch -c`. (`git branch x` writes the branch's
+    name, `Created from dev`.) `git branch x HEAD` makes no checkout, `git worktree add -b` starts the
+    new worktree's HEAD reflog with an empty entry, and the reflog entries carry no time to line up
+    with HEAD's (`%gd` with a date would), so which branch those came from is not known.
+  - A repo's own integration branch names are per user (`RepoConfig`), not shared with the metadata.
+    Shared would suit a team convention better, and needs a merge rule for two users' lists.
+  - Not taken as evidence, after measuring: a live branch over a deleted one at a branch point (the
+    base of a stacked pull request is the deleted one as often), a published branch over a local-only
+    one (a local-only branch is the user's own, whose reflog says it), and a deleted branch recovered
+    as main or master for an old trunk (it put Terminal.Gui's v1 main back on main, and split cli's
+    imported ghcs/main into three branches). A name ending in 'release' is not a release branch: a
+    'v1_release' is a trunk of its own, and 'prepare-release' a feature.
+- Left open by the review before merging to dev (2026-09-26):
+  - Every reflog fact that decided between branches is kept in the metadata for good, never pruned,
+    so the metadata grows with the user's own commits, and opening a repo with a reflog now writes
+    `refs/gmd-metadata-key-value/data` into it (on a read-only checkout, a failed write logged on
+    every read). Keeping facts only in repos that already use the metadata, or pruning the ones for
+    commits no branch still passes, is to decide.
+  - `ReflogWitness.BranchOrNull` rejects a name with `@`, which is a valid branch name, while a
+    detached checkout of `origin/dev` counts as being on dev and a checkout of a tag as a branch.
+  - A fast-forward read for the first time after the fast-forwarded branch's creation entry expired
+    still gives the commit to the branch it was made on. A more senior name running through it (dev
+    over a feature) would be a fallback.
+  - With both trunk names in a repo, a pull merge of the trunk by hand is not recognized any more.
+  - `RemoteFirst` is re-implemented in `TryIsPublishedTipOfLocalBranches`; `BranchOrNull` and
+    `IsMatchPullMergeOfTrunk` repeat the prefix and trunk lists of `TrimBranchName` and
+    `WellKnownBranches` (without `trunk`); `WorkCommit.IsParentsSwapped`'s comment says a pull merge
+    only.
+- Tag names are taken for branch names: git-flow's `Merge tag '1.11.0' into develop` names the
+  release merge it points at, on master, `1.11.0`, and outranks the better name a pull merge gave the
+  same commit (the last merge child parsed wins). Only visible where master's line is lost, as in
+  gitflow-avh, where master was fast-forwarded to develop.
+- `origin/` is hard-coded in the name matching and in `NiceName`, so a repo whose remote is named
+  otherwise matches names less often.
 - Adding the uncommitted commit sets its parent but does not add it to that parent's children,
   while removing it filters the child lists. Invisible today; worth knowing before relying on
   a commit's children.
@@ -420,6 +510,43 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Characterization tests record behavior, not intent. The pull-all test pinned the diverged-branch
   bug with a comment rationalizing it. The bar for the pipeline is a before/after dump over a real
   repo, not a green suite.
+- The rules review (2026-09-26) measured every change over a corpus: a frozen copy of this repo
+  (with its reflog) and `--filter=blob:none` clones of gitflow-avh (git-flow), sinatra (older
+  history with local pull merges and merged-in sub-projects), Terminal.Gui (develop branches per
+  major version, forks) and cli/cli (pull requests, 255 branches). `InferenceDumpTest` scores each
+  dump against the reflog and against merge subjects that name the branch merged into. Before and
+  after the round, ambiguous commits and merges on the branch their subject names:
+
+  | repo | commits | ambiguous | subject agrees |
+  |---|---|---|---|
+  | gmd | 1948 | 0 → 0 | 319 of 319 → 319 of 319 (reflog 76 of 79 both) |
+  | gitflow-avh | 1184 | 36 → 10 | 8 of 129 → 82 of 129 |
+  | sinatra | 5316 | 445 → 277 | 37 of 127 → 36 of 127 |
+  | Terminal.Gui | 10276 | 549 → 389 | 950 of 1093 → 994 of 1146 |
+  | cli | 13336 | 597 → 471 | 592 of 628 → 609 of 646 |
+
+  (More subjects name a target after the owner-name fix. The one sinatra merge lost is a naming
+  artifact: its 'master' is a merged-in sub-project's, drawn under that sub-project's name.)
+- Merge subjects and the graph cannot tell a feature merged back into dev from dev merged into the
+  feature to bring it up to date: in both, one child of the branch point is merged into the other.
+  Extending the merged-back rule to live branches fixes the first and breaks the second (pinned by
+  `TestBranchPointOfABackMergeGoesToTheBranchMergedFrom`). What tells them apart is seniority, and
+  counting it needs care: the trunk merged into a branch (`main`, `upstream/main`, a bare `origin`
+  or `upstream`) is catching up and does not count, a pull request always does, even from a fork's
+  own trunk, and one merged branch is never enough. Each of those was found by a corpus dump
+  deciding wrongly, not by a test.
+- The second round moved no commit in the corpus except where names say more than the graph:
+  Terminal.Gui 389 → 383 ambiguous commits, its old `develop` history now under `v1_develop`, the
+  live branch it was renamed to (which the subject score counts as disagreeing); cli 471 → 475, the
+  commits only the likely-child rule decided. The reflog's effect cannot show in clones, which have
+  none: on a copy of this repo with branches stacked by `checkout -b`, the commit the second started
+  from went from ambiguous to the first, and three of this repo's commits are decided by the reflog,
+  as before. Every candidate rule of this round was first measured, and three were dropped for what
+  the dump showed (listed under Open issues).
+- A rule that decides a commit early stops `TrySetBranch` from repairing it from below, since the
+  repair only walks up through ambiguous commits. A new early rule can so take a line away from a
+  better, later subject match; the dump shows it as decided commits moving, which is why the
+  merged-back rule moved ahead of the seniority rule.
 - A before/after dump through the test wiring cannot see a wiring bug: `RepoBuilder` shares one
   `BranchNameService` between the stages, so the split that lost every deleted branch's name was
   verified as pure movement and still landed broken. Anything stateful the stages share must be

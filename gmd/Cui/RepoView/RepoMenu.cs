@@ -38,7 +38,10 @@ class RepoMenu : IRepoMenu
     // The config dialog can turn the key-hint line on or off, which changes the layout
     void ShowConfig()
     {
-        configDlg.Show(repo.Repo.Path);
+        if (configDlg.Show(repo.Repo.Path))
+        { // The integration branches changed, which the branch structure is inferred with
+            repo.RepoView.Refresh();
+        }
         repo.RepoView.UpdateLayout();
     }
 
