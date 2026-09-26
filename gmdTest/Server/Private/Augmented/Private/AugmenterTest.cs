@@ -223,6 +223,37 @@ public class AugmenterTest
         Assert.AreEqual($"gone:{RepoBuilder.Sid("d1")}", BranchOf(repo, "d1"));
     }
 
+    // A merge commit's own subject names the branch it was made on. A later merge of it may name it
+    // longer, 'owner/dev' by a pull request, which is the same branch and is taken. A different name
+    // that only happens to end the same way, 'hotfix-dev', is not.
+    [TestMethod]
+    public async Task TestOwnSubjectNameIsNotReplacedByANameEndingTheSame()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'hotfix-dev' into main", "c2", "d2")
+            .Commit("d2", "Merge branch 'a' into dev", "d1", "a1")
+            .Commit("a1", "A work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d2"));
+
+        var pullRequest = await new RepoBuilder()
+            .Commit("c3", "Merge pull request #1 from owner/dev", "c2", "d2")
+            .Commit("d2", "Merge branch 'a' into dev", "d1", "a1")
+            .Commit("a1", "A work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"owner/dev:{RepoBuilder.Sid("d2")}", BranchOf(pullRequest, "d2"));
+    }
+
     // A commit merged by id ('git merge <sha>') gets a subject naming the commit rather than a
     // branch, so the merged commit keeps the generic deleted-branch name instead of being named
     // after the id, while the merge commit is still known to be on the branch it was merged into.

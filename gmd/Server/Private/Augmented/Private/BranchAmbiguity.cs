@@ -163,19 +163,19 @@ static class BranchAmbiguity
             return (likelyBranch, ambiguousBranches);
         }
 
-        // Determine the most likely branch (branch of the oldest child)
-        var oldestChild = commit.FirstChildren[0];
+        // Failing that, the branch of the newest child is the one drawn
+        var newestChild = commit.FirstChildren[0];
         List<WorkBranch> childBranches = [];
         foreach (var c in commit.FirstChildren)
         {
-            if (c.AuthorTime > oldestChild.AuthorTime)
+            if (c.AuthorTime > newestChild.AuthorTime)
             {
-                oldestChild = c;
+                newestChild = c;
             }
             childBranches.Add(c.Branch!);
         }
 
-        var likelyBranch2 = oldestChild.Branch!;
+        var likelyBranch2 = newestChild.Branch!;
         ambiguousBranches = ambiguousBranches.Concat(childBranches).Distinct().ToList();
 
         return (likelyBranch2, ambiguousBranches);

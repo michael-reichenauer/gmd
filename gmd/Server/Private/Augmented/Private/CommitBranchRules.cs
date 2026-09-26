@@ -275,19 +275,10 @@ class CommitBranchRules : ICommitBranchRules
         if (commit.FirstChildren.Count == 1)
         { // Commit has only one child, ensure commit has same possible branches
             var child = commit.FirstChildren[0];
-            if (commit.Branches.Count != child.Branches.Count)
-            { // Number of branches have changed
+            if (commit.Branches.Count != child.Branches.Count || !commit.Branches.All(child.Branches.Contains))
+            { // Some branch has changed, the order of them does not matter
                 branch = null;
                 return false;
-            }
-
-            for (int i = 0; i < commit.Branches.Count; i++)
-            {
-                if (commit.Branches[i].Name != child.Branches[i].Name)
-                { // Some branch has changed
-                    branch = null;
-                    return false;
-                }
             }
 
             // Commit has one child and same branches, use that child commit branch

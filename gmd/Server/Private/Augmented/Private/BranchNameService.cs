@@ -131,9 +131,13 @@ class BranchNameService : IBranchNameService
         if (fi.Into != "")
         { // Subject does specify own commit, lets check if it is matches a possible child commit
             // subject
-            if (name != fi.Into && name.EndsWith(fi.Into))
-            { // The child branch name is a prefix of the into value, so we can use the child branch name
-                fi = fi with { Into = name };
+            if (name != fi.Into && name.EndsWith("/" + fi.Into))
+            { // The child branch name is the into value with an owner in front, e.g. 'owner/dev' from a
+                // pull request, the same branch, so we can use the child branch name
+                fi = fi with
+                {
+                    Into = name,
+                };
             }
         }
         else
