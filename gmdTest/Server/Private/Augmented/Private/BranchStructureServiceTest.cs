@@ -793,6 +793,35 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
     }
 
+    // Not so for two deleted branches whose merges name no branch: each is recovered as 'branch', a
+    // name that says nothing about being one branch, so the commit where they meet is still ambiguous
+    //
+    //   c3      main, merges b1
+    //   c2 |    main, merges a1
+    //   | | b1
+    //   | a1 |
+    //   |  \ |
+    //   |   d1  one of the two
+    //   |  /
+    //   c1
+    [TestMethod]
+    public async Task TestBranchPointOfUnnamedBranchesIsAmbiguous()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Take in b", "c2", "b1")
+            .Commit("c2", "Take in a", "c1", "a1")
+            .Commit("b1", "Work b", "d1")
+            .Commit("a1", "Work a", "d1")
+            .Commit("d1", "Shared", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"branch:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
+        Assert.AreEqual($"branch:{RepoBuilder.Sid("b1")}", BranchOf(repo, "b1"));
+        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+    }
+
     // A foxtrot merge: main merged into feature to bring it up to date, and then main fast-forwarded
     // to that merge, e.g. by 'git merge feature' on main. Git's first parent of the merge is feature's
     // commit, so main's line ran through feature, and main's own commit was drawn as a side branch

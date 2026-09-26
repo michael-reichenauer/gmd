@@ -120,7 +120,7 @@ static class BranchAmbiguity
         List<WorkBranch>? ambiguousBranches;
         if (!c.Branches.Any())
         {
-            branch = BranchFactory.AddNamedBranch(repo, c, "ambiguous");
+            branch = BranchFactory.AddNamedBranch(repo, c, BranchFactory.AmbiguousName);
             ambiguousBranches = [branch];
         }
         else
