@@ -133,10 +133,11 @@ static class ReflogWitness
         || message.StartsWith("revert")
         || message.Contains(": Merge made by");
 
-    // The reflogs of HEAD and of every other worktree's HEAD, each oldest first
+    // The reflogs of HEAD and of every other worktree's HEAD ('worktrees/x/HEAD', 'main-worktree/HEAD'),
+    // each oldest first. Not a ref under 'refs/' that ends in HEAD, e.g. a remote's 'origin/HEAD'.
     static IEnumerable<List<ReflogEntry>> HeadReflogs(IReadOnlyList<ReflogEntry> entries) =>
         entries
-            .Where(e => e.Ref == "HEAD" || e.Ref.EndsWith("/HEAD"))
+            .Where(e => e.Ref == "HEAD" || (e.Ref.EndsWith("/HEAD") && !e.Ref.StartsWith("refs/")))
             .GroupBy(e => e.Ref)
             .Select(g => g.OrderByDescending(e => e.Index).ToList());
 

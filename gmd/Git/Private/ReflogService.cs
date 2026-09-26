@@ -20,10 +20,18 @@ class ReflogService : IReflogService
 
     // One line per entry: the commit, the entry's selector ('refs/heads/dev@{2}') and the message,
     // separated by NUL, since a message is a commit subject and can hold anything but a newline.
-    // The entries of each ref come together, the latest first.
+    // Each ref's entries are listed latest first, but the refs are interleaved, by time.
+    // Only the reflogs used: '--all' for the HEAD of every worktree, less every ref under 'refs/',
+    // and the local branches back. The remote branches' would be most of it, every fetch adds to
+    // them, and each entry is a commit git reads, on every read of the repo.
     public async Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd)
     {
-        var result = await cmd.RunAsync("git", "reflog show --all --format=%H%x00%gD%x00%gs", wd, true);
+        var result = await cmd.RunAsync(
+            "git",
+            "reflog show --exclude=refs/* --all --glob=refs/heads/* --format=%H%x00%gD%x00%gs",
+            wd,
+            true
+        );
         if (result is not string output)
             return result.Error;
 

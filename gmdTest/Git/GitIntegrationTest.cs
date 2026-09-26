@@ -57,6 +57,35 @@ public class GitIntegrationTest
         );
     }
 
+    // Only the reflogs the branch inference reads, the local branches' and every worktree's HEAD's,
+    // and not the remote branches', which every fetch adds to, nor the stash's
+    [TestMethod]
+    public async Task TestReflogIsReadForTheLocalBranchesAndHeadsOnly()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -u origin main");
+        await repo.CommitFileAsync("file.txt", "two\n", "Second");
+        await repo.GitAsync("push");
+        repo.WriteFile("file.txt", "three\n");
+        await repo.GitAsync("stash");
+        await repo.AddWorktreeAsync("dev");
+
+        var refs = Value(await repo.Git.GetReflogAsync(repo.Path)).Select(e => e.Ref).Distinct().ToList();
+
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                "HEAD",
+                "refs/heads/main",
+                "refs/heads/dev",
+                "worktrees/" + Path.GetFileName(repo.WorktreePath("dev")) + "/HEAD",
+            },
+            refs,
+            string.Join(", ", refs)
+        );
+    }
+
     [TestMethod]
     public async Task TestRootPathIsFoundFromASubFolder()
     {

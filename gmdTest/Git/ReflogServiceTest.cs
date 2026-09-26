@@ -10,10 +10,10 @@ public class ReflogServiceTest
     const string A = "a000000000000000000000000000000000000000";
     const string B = "b000000000000000000000000000000000000000";
 
-    // Output of: git reflog show --all --format=%H%x00%gD%x00%gs
+    // Output of: git reflog show --exclude=refs/* --all --glob=refs/heads/* --format=%H%x00%gD%x00%gs
     //
-    // The entries of each ref come together, the latest first, and every other worktree's HEAD has a
-    // reflog of its own. Assembled rather than pasted, for the NULs.
+    // Each ref's entries are listed latest first (git interleaves the refs, by time), and every other
+    // worktree's HEAD has a reflog of its own. Assembled rather than pasted, for the NULs.
     static readonly string Output = string.Join(
         "\n",
         [
@@ -33,7 +33,10 @@ public class ReflogServiceTest
         var cmd = new FakeCmd(Output);
         var entries = AssertOk(await new ReflogService(cmd).GetReflogAsync("/wd"));
 
-        Assert.AreEqual("reflog show --all --format=%H%x00%gD%x00%gs", cmd.Calls[0].Args);
+        Assert.AreEqual(
+            "reflog show --exclude=refs/* --all --glob=refs/heads/* --format=%H%x00%gD%x00%gs",
+            cmd.Calls[0].Args
+        );
         CollectionAssert.AreEqual(
             new[]
             {
