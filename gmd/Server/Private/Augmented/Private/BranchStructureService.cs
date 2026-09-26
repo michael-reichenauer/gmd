@@ -48,7 +48,7 @@ class BranchStructureService : IBranchStructureService
     {
         // Forget the names parsed from the merge subjects of the read before, which a stage changes
         // for the graph of its own read, e.g. a foxtrot merge's names are swapped with its parents
-        branchNameService.Clear();
+        branchNameService.StartRead(repo);
 
         // Start be setting branch tips on tip commits, this will be starting point for determining branches
         commitGraphService.SetGitBranchTipsOnCommits(repo);

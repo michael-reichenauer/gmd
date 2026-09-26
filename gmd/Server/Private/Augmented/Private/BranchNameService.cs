@@ -4,7 +4,7 @@ namespace gmd.Server.Private.Augmented.Private;
 
 interface IBranchNameService
 {
-    void Clear();
+    void StartRead(WorkRepo repo);
     void ParseCommitSubject(WorkCommit c);
     bool IsPullMerge(WorkCommit c);
     bool TryGetBranchName(string commitId, out string branchName);
@@ -33,6 +33,9 @@ class BranchNameService : IBranchNameService
     readonly Dictionary<string, string> branchNames = [];
 
     readonly FromInto noNames = new FromInto("", "", false, false);
+
+    // Whether the repo read has branches of both trunk names, see IsMatchPullMergeOfTrunk
+    bool hasBothTrunks = false;
 
     static readonly string[] prefixes = ["refs/remotes/origin/", "remotes/origin/", "origin/"];
 
@@ -65,11 +68,15 @@ class BranchNameService : IBranchNameService
     );
     static readonly Indexes indexes = NameRegExpIndexes();
 
-    // Forgets the names of the read before
-    public void Clear()
+    // Starts the read of a repo: forgets the names of the read before, and notes whether the repo has
+    // branches of both trunk names, which git's merge subjects cannot tell apart
+    public void StartRead(WorkRepo repo)
     {
         parsedCommits.Clear();
         branchNames.Clear();
+        hasBothTrunks =
+            repo.Branches.Values.Any(b => b.NiceName == "main")
+            && repo.Branches.Values.Any(b => b.NiceName == "master");
     }
 
     public void ParseCommitSubject(WorkCommit c)
@@ -193,7 +200,7 @@ class BranchNameService : IBranchNameService
             return new FromInto(From: "", Into: TrimBranchName(match.Groups[indexes.into].Value), false, false);
         }
 
-        if (IsMatchPullMerge(match) || IsMatchPullMergeOfTrunk(match))
+        if (IsMatchPullMerge(match) || (!hasBothTrunks && IsMatchPullMergeOfTrunk(match)))
         {
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
             return new FromInto(
@@ -243,7 +250,9 @@ class BranchNameService : IBranchNameService
 
     // 'git merge origin/main' on main, a pull merge made by hand. Git leaves 'into main' and 'into
     // master' out of a merge subject, so this is the remote-tracking name of the trunk merged with no
-    // target named. Only this remote's: another remote's main is a fork's upstream.
+    // target named. Only this remote's: another remote's main is a fork's upstream. And only in a repo
+    // with one trunk name: with both, e.g. moving from master to main, 'git merge origin/master' on
+    // main writes the same subject, and it is master merged into main.
     bool IsMatchPullMergeOfTrunk(Match match)
     {
         var from = match.Groups[indexes.from].Value;

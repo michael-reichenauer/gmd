@@ -315,6 +315,27 @@ public class AugmenterTest
         Assert.AreEqual("origin/main", repo.Branches[BranchOf(repo, "c2")].PrimaryName);
     }
 
+    // But git leaves 'into' out for both trunks, so in a repo that has both, e.g. moving from master to
+    // main, the subject cannot tell a pull merge from one trunk merged into the other: here master
+    // merged into main. Taken for a pull merge of master, its parents were swapped and main's line ran
+    // through master's commit.
+    [TestMethod]
+    public async Task TestMergeOfOneTrunkIntoTheOtherIsNoPullMerge()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m2", "Merge remote-tracking branch 'origin/master'", "m1", "s1")
+            .Commit("s1", "Master work", "c1")
+            .Commit("m1", "Main work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "m2", isCurrent: true)
+            .BranchWithRemote("master", "s1")
+            .AugmentAsync();
+
+        Assert.IsFalse(repo.CommitsById[RepoBuilder.Sha("m2")].IsParentsSwapped);
+        Assert.AreEqual("origin/main", BranchOf(repo, "m1"));
+        Assert.AreEqual("origin/master", BranchOf(repo, "s1"));
+    }
+
     // The main branch is picked by name priority, not by which branch is checked out
     [TestMethod]
     public async Task TestMainBranchIsChosenByNamePriorityNotByCurrent()
