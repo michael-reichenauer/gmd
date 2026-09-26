@@ -97,6 +97,10 @@ class CommitBranchService : ICommitBranchService
         { // Commit, has several possible branches, and one is in the priority list, e.g. main, master, ...
             return Decided(commit, nameof(rules.TryHasMainBranch), branch!);
         }
+        else if (rules.TryIsWitnessed(repo, gitRepo, commit, out branch))
+        { // The reflog witnessed the branch the commit was made on, or was started from
+            return Decided(commit, nameof(rules.TryIsWitnessed), branch!);
+        }
         else if (rules.TryIsPublishedTipOfLocalBranches(commit, out branch))
         { // Commit is the tip of a published branch, and the other branches are local only, which
             // were started from it later

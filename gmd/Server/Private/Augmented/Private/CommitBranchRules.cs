@@ -9,6 +9,7 @@ interface ICommitBranchRules
     bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryIsLocalRemoteBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryHasMainBranch(WorkCommit commit, out WorkBranch? branch);
+    bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsPublishedTipOfLocalBranches(WorkCommit commit, out WorkBranch? branch);
     bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
@@ -117,6 +118,24 @@ class CommitBranchRules : ICommitBranchRules
         }
 
         return false;
+    }
+
+    // The reflog witnessed which branch the commit was made on, or that a branch was started from it
+    // on another branch (see ReflogWitness), which is just what the user means by a commit's branch.
+    // Taken only among the branches the commit can be on: a commit a reset moved off the branch it
+    // was made on is not on it any more, and a fact never makes up a branch, as a choice in the
+    // metadata does. Not above the trunk either, it comes after the main branch rule: a feature
+    // fast-forwarded into main would take main's commits. And the commit is not marked likely, since
+    // where a commit was made says nothing about its parent, e.g. a branch point below a branch's
+    // first commit, which is what the likely-child rules would read it as.
+    public bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        if (!gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var name))
+            return false;
+
+        branch = RemoteFirst(commit.Branches.Where(b => b.NiceName == name));
+        return branch != null && BranchAmbiguity.TrySetBranch(repo, commit, branch, isLikely: false);
     }
 
     // The commit is the tip of a published branch, and every other candidate is a local branch only,

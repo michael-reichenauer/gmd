@@ -46,6 +46,7 @@ class RepoBuilder
     readonly List<GitStash> stashes = [];
     readonly MetaData metaData = new MetaData();
     readonly List<GitWorktree> worktrees = [];
+    readonly List<ReflogEntry> reflog = [];
     readonly Dictionary<string, int> worktreeChanges = [];
 
     GitStatus status = NoChanges;
@@ -164,6 +165,17 @@ class RepoBuilder
     {
         var id = Sha($"5{stashes.Count}a5h");
         stashes.Add(new GitStash(id, name, "main", Sha(parentCommit), Sha($"5{stashes.Count}1nd"), message));
+        return this;
+    }
+
+    // Adds a reflog entry, as 'git reflog show --all' would list it: the entries of each ref are
+    // declared latest first, like the commits, e.g.
+    //     .Reflog("refs/heads/feature", "f1", "commit: Feature work")
+    //     .Reflog("refs/heads/feature", "d1", "branch: Created from HEAD")
+    //     .Reflog("HEAD", "d1", "checkout: moving from dev to feature")
+    public RepoBuilder Reflog(string reference, string commitName, string message)
+    {
+        reflog.Add(new ReflogEntry(Sha(commitName), reference, reflog.Count(e => e.Ref == reference), message));
         return this;
     }
 
@@ -306,7 +318,8 @@ class RepoBuilder
             stashes,
             isTruncated,
             AllWorktrees(),
-            worktreeChanges
+            worktreeChanges,
+            reflog
         );
 
     // The main worktree first, as git lists it, on the current branch

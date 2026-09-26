@@ -6,15 +6,17 @@ namespace gmd.Server.Private.Augmented.Private;
 static class BranchAmbiguity
 {
     // Sets the branch of the commit and lets the commits above (first children) use that branch as
-    // well as long as they are ambiguous, i.e. 'repairs' the branch of an ambiguous stretch.
-    public static bool TrySetBranch(WorkRepo repo, WorkCommit commit, WorkBranch branch)
+    // well as long as they are ambiguous, i.e. 'repairs' the branch of an ambiguous stretch. The
+    // commits are marked likely, unless the evidence says nothing about their parents, see
+    // CommitBranchRules.TryIsWitnessed.
+    public static bool TrySetBranch(WorkRepo repo, WorkCommit commit, WorkBranch branch, bool isLikely = true)
     {
         // Lets use that as a branch name and also let children (commits above)
         // use that branch if they are an ambiguous branch
         if (branch.TipID == commit.Id)
         { // The commit is branch tip, we should not find higher/previous commit up, since tip would move up
             commit.Branch = branch;
-            commit.IsLikely = true;
+            commit.IsLikely = isLikely;
             commit.Branches.TryAdd(branch);
             return true;
         }
@@ -95,7 +97,7 @@ static class BranchAmbiguity
             current.Branch = branch;
             current.IsAmbiguous = false;
             current.IsAmbiguousTip = false;
-            current.IsLikely = true;
+            current.IsLikely = isLikely;
             current.Branches.Clear();
             current.Branches.TryAdd(branch);
 

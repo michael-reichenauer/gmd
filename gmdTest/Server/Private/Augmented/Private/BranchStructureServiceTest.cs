@@ -756,6 +756,98 @@ public class BranchStructureServiceTest
         Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
     }
 
+    // Stacked branches: feature2 started at feature1's tip with 'git checkout -b', and both pushed.
+    // The graph cannot tell which of the two the shared commit is on, and names and merges say
+    // nothing either. The reflog does: feature2 was created from HEAD, and HEAD was on feature1.
+    //
+    //   e2      feature2
+    //   e1      feature1, and where feature2 started
+    //   | c2    main
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestReflogSaysWhichBranchABranchWasStartedFrom()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e2", "Feature 2 work", "e1")
+            .Commit("e1", "Feature 1 work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("feature1", "e1")
+            .BranchWithRemote("feature2", "e2")
+            .Reflog("refs/heads/feature2", "e2", "commit: Feature 2 work")
+            .Reflog("refs/heads/feature2", "e1", "branch: Created from HEAD")
+            .Reflog("HEAD", "e2", "commit: Feature 2 work")
+            .Reflog("HEAD", "e1", "checkout: moving from feature1 to feature2")
+            .AugmentAsync();
+
+        var e1 = CommitOf(repo, "e1");
+        Assert.AreEqual("origin/feature1", e1.Branch?.Name);
+        Assert.AreEqual("IsWitnessed", e1.DecidedBy);
+        Assert.IsFalse(e1.IsAmbiguous);
+        Assert.IsFalse(e1.IsLikely, "Where a commit was made says nothing about its parent");
+        Assert.AreEqual("origin/feature1", repo.Branches["origin/feature2"].ParentBranch?.Name);
+    }
+
+    // A branch point decided by where it was made, where nothing else could: two ordinary branches,
+    // one merged into the other and kept, which merge subjects alone read the wrong way round
+    [TestMethod]
+    public async Task TestReflogSaysWhichBranchABranchPointWasMadeOn()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("ee", "Merge branch 'topic' into base", "e3", "f1")
+            .Commit("e3", "Base direct", "e2")
+            .Commit("f1", "Topic work", "e2")
+            .Commit("e2", "Base 2", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("base", "ee")
+            .BranchWithRemote("topic", "f1")
+            .Reflog("refs/heads/base", "e2", "commit: Base 2")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/base", BranchOf(repo, "e2"));
+        Assert.AreEqual("origin/topic", BranchOf(repo, "f1"));
+        Assert.AreEqual("origin/base", repo.Branches["origin/topic"].ParentBranch?.Name);
+    }
+
+    // A commit made on dev and then reset away from it is not on dev any more, so the fact decides
+    // nothing, and no branch is made up for it
+    [TestMethod]
+    public async Task TestReflogFactOfABranchTheCommitIsNotOnDecidesNothing()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("a1", "Work a", "d1")
+            .Commit("b1", "Work b", "d1")
+            .Commit("d1", "Shared work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("feat-a", "a1")
+            .LocalBranch("feat-b", "b1")
+            .Reflog("refs/heads/dev", "d1", "commit: Shared work")
+            .AugmentAsync();
+
+        Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+        Assert.IsFalse(repo.Branches.Keys.Any(n => n.StartsWith("dev")));
+    }
+
+    // Main's commits stay main's: a feature fast-forwarded into main would otherwise take main's tip
+    [TestMethod]
+    public async Task TestReflogFactDoesNotTakeACommitFromMain()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "f1", isCurrent: true)
+            .LocalBranch("feature", "f1")
+            .Reflog("refs/heads/feature", "f1", "commit: Feature work")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/main", BranchOf(repo, "f1"));
+    }
+
     // The same rule keeps the commits below a series of merges on the branch they were merged into
     [TestMethod]
     public async Task TestCommitBelowSeveralMergesStaysOnTheMergedIntoBranch()
