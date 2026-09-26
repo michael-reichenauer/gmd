@@ -80,6 +80,31 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("feature1", kept);
     }
 
+    // A topic merged by a fast-forward into the branch it was started from, which then went on: the
+    // topic's commit is on that branch's line now, as is the branch's own commit below it, though
+    // the reflog says the topic's was made on the topic. Names with no seniority, so that it is the
+    // reflog deciding.
+    [TestMethod]
+    public async Task TestReflogOfARealRepoKeepsAFastForwardedBranchsLine()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("checkout -b base");
+        var b1 = await repo.CommitFileAsync("base.txt", "one\n", "Base 1");
+        await repo.GitAsync("checkout -b topic");
+        var x1 = await repo.CommitFileAsync("topic.txt", "one\n", "Topic work");
+        await repo.GitAsync("checkout base");
+        await repo.GitAsync("merge topic");
+        await repo.CommitFileAsync("base2.txt", "two\n", "Base 2");
+        await repo.GitAsync("checkout main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        Assert.AreEqual("base", augRepo.CommitById[x1].BranchName);
+        Assert.AreEqual("base", augRepo.CommitById[b1].BranchName);
+    }
+
     // The integration branches configured for the repo are read with it: staging, where a feature
     // started, goes on below the branch point
     [TestMethod]

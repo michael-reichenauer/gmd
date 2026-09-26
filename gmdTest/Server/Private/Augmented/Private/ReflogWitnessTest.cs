@@ -126,6 +126,23 @@ public class ReflogWitnessTest
         Assert.AreEqual(4, startedFrom.Count);
     }
 
+    // The branch each branch was started from, by the same entries as where it was started, and only
+    // where they name a branch
+    [TestMethod]
+    public void TestWhichBranchEachBranchWasStartedFrom()
+    {
+        var sources = ReflogWitness.SourceByBranch([
+            .. Log("refs/heads/a", ("a2", "commit: Work"), ("a1", "branch: Created from origin/dev")),
+            .. Log("refs/heads/d", ("d1", "branch: Created from HEAD")),
+            .. Log("refs/heads/e", ("e1", "branch: Created from 1234567890abcdef1234567890abcdef12345678")),
+            .. Log("HEAD", ("d1", "checkout: moving from feature to d")),
+        ]);
+
+        Assert.AreEqual("dev", sources["a"]);
+        Assert.AreEqual("feature", sources["d"]);
+        Assert.AreEqual(2, sources.Count);
+    }
+
     // Where a commit was made is the better fact: a branch started from dev at a commit made on
     // feature (dev fast-forwarded to it) does not make that commit dev's
     [TestMethod]

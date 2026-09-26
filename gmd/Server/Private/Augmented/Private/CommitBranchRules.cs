@@ -126,20 +126,30 @@ class CommitBranchRules : ICommitBranchRules
     // where a commit was made says nothing about its parent, e.g. a branch point below a branch's
     // first commit, which is what the likely-child rules would read it as.
     //
+    // Except where the branch it was made on was merged by a fast-forward into the branch it was
+    // started from ('git merge feature' on dev): that branch runs through the commit and on below, so
+    // the commit is on its line now, and so is the rest of the merged work below it. Taken for the
+    // branch it was made on, it gave that branch dev's line from there down, and drew dev as started
+    // from it. Followed as far as the reflog says which branch each was started from, e.g. to dev for
+    // a feature2 started from a feature1 started from dev.
+    //
     // The reflog expires, so a fact that decided between branches is kept in the metadata (see
-    // WorkRepo.WitnessedToKeep), and a kept fact is taken the same way once the reflog is gone. The
-    // kept fact is also taken when the reflog's names no branch the commit can be on, e.g. HEAD's
-    // reflog still naming a branch since renamed in gmd, which renamed the kept fact with it.
+    // WorkRepo.WitnessedToKeep), and a kept fact is taken before the reflog's: it was decided while the
+    // reflog said more. A branch's oldest entry, where it was started, is the first to go, and the
+    // commit made on it would then be taken from dev again. The reflog's is taken when nothing is kept,
+    // or what is kept names no branch the commit can be on.
     public bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        var isInReflog = gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var reflogName);
         var isKept = gitRepo.MetaData.TryGetWitnessedBranch(commit.Id, out var keptName);
-        string? name = isInReflog ? reflogName : null;
-        if (name == null || !commit.Branches.Any(b => b.NiceName == name))
-            name = isKept ? keptName : null;
+        var isInReflog = gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var reflogName);
+        string? name =
+            isKept && IsCandidate(commit, keptName) ? keptName
+            : isInReflog && IsCandidate(commit, reflogName!) ? reflogName
+            : null;
         if (name == null)
             return false;
+        name = BranchStartedFrom(gitRepo, commit, name);
 
         branch = RemoteFirst(commit.Branches.Where(b => b.NiceName == name));
         var isChoice = commit.Branches.Select(b => b.PrimaryName).Distinct().Count() > 1;
@@ -151,6 +161,22 @@ class CommitBranchRules : ICommitBranchRules
             repo.WitnessedToKeep.Add(new WitnessedBranch(commit.Id, name));
         }
         return true;
+    }
+
+    static bool IsCandidate(WorkCommit commit, string niceName) => commit.Branches.Any(b => b.NiceName == niceName);
+
+    // The branch the named branch was started from, or the one that one was started from, and so on,
+    // the furthest back that the commit can be on too, or the named branch when there is none
+    static string BranchStartedFrom(GitRepo gitRepo, WorkCommit commit, string name)
+    {
+        var branch = name;
+        HashSet<string> seen = [name];
+        for (var n = name; gitRepo.SourceByBranch.TryGetValue(n, out var source) && seen.Add(source); n = source)
+        {
+            if (IsCandidate(commit, source))
+                branch = source;
+        }
+        return branch;
     }
 
     // The commit is the tip of a published branch, and every other candidate is a local branch only,

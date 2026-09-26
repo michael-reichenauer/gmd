@@ -1026,6 +1026,128 @@ public class BranchStructureServiceTest
         Assert.AreEqual("origin/main", BranchOf(repo, "f1"));
     }
 
+    // A feature merged into dev by a fast-forward: started from dev, a commit made on it, and dev
+    // fast-forwarded to it ('git merge feature' on dev) and gone on. The commit was made on feature,
+    // but dev runs through it and on below, since feature was started from dev: the commit is on
+    // dev's line now. Taken for feature, it gave feature dev's line from there down (Dev 1 too), and
+    // drew dev as started from the feature.
+    //
+    //   d2      dev
+    //   x1      feature, made on it, and dev fast-forwarded to it
+    //   d1      dev, where feature was started
+    //   c1      main
+    [TestMethod]
+    public async Task TestReflogFactDoesNotTakeACommitFromTheBranchItsBranchWasStartedFrom()
+    {
+        var repo = await FastForwardedFeature().AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "x1"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "x1").DecidedBy);
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.AreEqual("origin/main", repo.Branches["origin/dev"].ParentBranch?.Name);
+        CollectionAssert.AreEqual(
+            new[] { new WitnessedBranch(RepoBuilder.Sha("x1"), "dev") },
+            repo.WitnessedToKeep.ToArray(),
+            "Kept as dev's, the way it was decided"
+        );
+    }
+
+    // Once kept, dev's it stays, also when the reflog has lost where feature was started, its oldest
+    // entry, while it still says where the commit was made: the kept fact comes first
+    [TestMethod]
+    public async Task TestKeptReflogFactComesBeforeTheReflogs()
+    {
+        var repo = await FastForwardedFeatureCommits()
+            .Reflog("refs/heads/feature", "x1", "commit: Feature work")
+            .Witnessed("x1", "dev")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "x1"));
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count, "Kept already");
+    }
+
+    // The same as far back as the reflog says which branch each was started from: feature2 started
+    // from feature1 started from base, and base fast-forwarded to feature2's work. Names with no
+    // seniority, so that it is the reflog deciding and not the names.
+    [TestMethod]
+    public async Task TestReflogFactFollowsWhereBranchesWereStartedFrom()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("b2", "Base 2", "x1")
+            .Commit("x1", "Feature 2 work", "b1")
+            .Commit("b1", "Base 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("base", "b2", isCurrent: true)
+            .LocalBranch("feature1", "b1")
+            .LocalBranch("feature2", "x1")
+            .Reflog("refs/heads/feature2", "x1", "commit: Feature 2 work")
+            .Reflog("refs/heads/feature2", "b1", "branch: Created from feature1")
+            .Reflog("refs/heads/feature1", "b1", "branch: Created from base")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/base", BranchOf(repo, "x1"));
+        Assert.AreEqual("origin/base", BranchOf(repo, "b1"));
+    }
+
+    // The other way round it is where the commit was made: topic started from base, and brought up to
+    // date by a fast-forward to base's commit ('git merge base' on topic) before going on. Base was not
+    // started from topic, so base's commit stays base's, and topic starts from it.
+    //
+    //   t1      topic
+    //   b2      base, made on it, and topic fast-forwarded to it
+    //   b1      base, where topic was started
+    //   c1      main
+    [TestMethod]
+    public async Task TestReflogFactKeepsACommitFastForwardedToOnItsBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("t1", "Topic work", "b2")
+            .Commit("b2", "Base 2", "b1")
+            .Commit("b1", "Base 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("base", "b2")
+            .LocalBranch("topic", "t1", isCurrent: true)
+            .Reflog("refs/heads/topic", "t1", "commit: Topic work")
+            .Reflog("refs/heads/topic", "b2", "merge base: Fast-forward")
+            .Reflog("refs/heads/topic", "b1", "branch: Created from base")
+            .Reflog("refs/heads/base", "b2", "commit: Base 2")
+            .Reflog("refs/heads/base", "b1", "commit: Base 1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/base", BranchOf(repo, "b2"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "b2").DecidedBy);
+        Assert.AreEqual("origin/base", repo.Branches["topic"].ParentBranch?.Name);
+    }
+
+    static RepoBuilder FastForwardedFeature() =>
+        FastForwardedFeatureCommits()
+            .Reflog("refs/heads/dev", "d2", "commit: Dev 2")
+            .Reflog("refs/heads/dev", "x1", "merge feature: Fast-forward")
+            .Reflog("refs/heads/dev", "d1", "commit: Dev 1")
+            .Reflog("refs/heads/dev", "c1", "branch: Created from HEAD")
+            .Reflog("refs/heads/feature", "x1", "commit: Feature work")
+            .Reflog("refs/heads/feature", "d1", "branch: Created from HEAD")
+            .Reflog("HEAD", "d2", "commit: Dev 2")
+            .Reflog("HEAD", "x1", "merge feature: Fast-forward")
+            .Reflog("HEAD", "d1", "checkout: moving from feature to dev")
+            .Reflog("HEAD", "x1", "commit: Feature work")
+            .Reflog("HEAD", "d1", "checkout: moving from dev to feature")
+            .Reflog("HEAD", "d1", "commit: Dev 1")
+            .Reflog("HEAD", "c1", "checkout: moving from main to dev");
+
+    static RepoBuilder FastForwardedFeatureCommits() =>
+        new RepoBuilder()
+            .Commit("d2", "Dev 2", "x1")
+            .Commit("x1", "Feature work", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("dev", "d2", isCurrent: true)
+            .LocalBranch("feature", "x1");
+
     // The same rule keeps the commits below a series of merges on the branch they were merged into
     [TestMethod]
     public async Task TestCommitBelowSeveralMergesStaysOnTheMergedIntoBranch()

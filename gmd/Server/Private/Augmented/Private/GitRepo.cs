@@ -64,6 +64,9 @@ class GitRepo
     public IReadOnlyDictionary<string, string> WitnessedBranchById =>
         witnessedBranchById ??= ReflogWitness.BranchByCommit(Reflog);
     IReadOnlyDictionary<string, string>? witnessedBranchById;
+    public IReadOnlyDictionary<string, string> SourceByBranch =>
+        sourceByBranch ??= ReflogWitness.SourceByBranch(Reflog);
+    IReadOnlyDictionary<string, string>? sourceByBranch;
 
     // The names of the repo's own integration branches, as configured for it, see RepoConfig
     public IReadOnlyCollection<string> IntegrationNames { get; }

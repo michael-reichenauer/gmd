@@ -75,6 +75,31 @@ static class ReflogWitness
     public static IReadOnlyDictionary<string, string> StartedFrom(IReadOnlyList<ReflogEntry> entries)
     {
         Dictionary<string, string> startedFrom = [];
+        foreach (var c in Creations(entries))
+        {
+            startedFrom.TryAdd(c.Id, c.Source);
+        }
+        return startedFrom;
+    }
+
+    // The branch each branch was started from, by the branch's name, from the same entries: its own
+    // reflog's oldest, which goes first when the reflog expires
+    public static IReadOnlyDictionary<string, string> SourceByBranch(IReadOnlyList<ReflogEntry> entries)
+    {
+        Dictionary<string, string> sources = [];
+        foreach (var c in Creations(entries))
+        {
+            sources.TryAdd(c.Branch, c.Source);
+        }
+        return sources;
+    }
+
+    // A branch started at a commit from another branch, by name
+    record Creation(string Id, string Branch, string Source);
+
+    // The branches whose reflog says which branch they were started from
+    static IEnumerable<Creation> Creations(IReadOnlyList<ReflogEntry> entries)
+    {
         var heads = HeadReflogs(entries).ToList();
 
         foreach (
@@ -96,11 +121,9 @@ static class ReflogWitness
                     : BranchOrNull(source);
             if (name != null && name != branch)
             {
-                startedFrom.TryAdd(e.Id, name);
+                yield return new Creation(e.Id, branch, name);
             }
         }
-
-        return startedFrom;
     }
 
     // Whether a reflog entry is a commit being made, rather than the ref moving to one that exists
