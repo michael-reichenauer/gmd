@@ -265,6 +265,25 @@ public class AugmenterTest
         Assert.AreEqual("origin/main", repo.Branches[pullMergeBranch].PrimaryName);
     }
 
+    // The same pull merge made by hand, 'git fetch' then 'git merge origin/main', whose subject git
+    // writes without 'into main'. It was not recognized, so the commits others had pushed became a
+    // side branch named main, while the local ones stayed on the main line.
+    [TestMethod]
+    public async Task TestPullMergeByHandPutsLocalCommitsOnTheirOwnBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c4", "Merge remote-tracking branch 'origin/main'", "c2", "c3")
+            .Commit("c3", "Remote work", "c1")
+            .Commit("c2", "Local work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c4", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/main", BranchOf(repo, "c3"), "Remote commit stays on the remote branch");
+        Assert.AreEqual($"main:{RepoBuilder.Sid("c2")}", BranchOf(repo, "c2"), "Local commit on a pull merge branch");
+        Assert.AreEqual("origin/main", repo.Branches[BranchOf(repo, "c2")].PrimaryName);
+    }
+
     // The main branch is picked by name priority, not by which branch is checked out
     [TestMethod]
     public async Task TestMainBranchIsChosenByNamePriorityNotByCurrent()

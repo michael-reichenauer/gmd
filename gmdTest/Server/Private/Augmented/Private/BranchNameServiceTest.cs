@@ -51,6 +51,28 @@ public class BranchNameServiceTest
         Assert.AreEqual(new FromInto("dev", "dev", true, false), Parse("Merge branch 'dev' of git@github.com:x/y"));
     }
 
+    // 'git merge origin/main' on main is a pull merge too, done by hand. Git leaves 'into main' and
+    // 'into master' out of the subject, so from and into cannot be compared; the remote-tracking
+    // name of the trunk with no target is what tells it. Another branch merged the same way is not
+    // one, and neither is a branch of another remote, which is a fork's upstream rather than this
+    // branch's own remote.
+    [TestMethod]
+    public void TestPullMergeOfTheTrunkByHandIsDetected()
+    {
+        Assert.AreEqual(new FromInto("main", "main", true, false), Parse("Merge remote-tracking branch 'origin/main'"));
+        Assert.AreEqual(
+            new FromInto("master", "master", true, false),
+            Parse("Merge remote-tracking branch 'refs/remotes/origin/master'")
+        );
+
+        Assert.AreEqual(new FromInto("dev", "", false, false), Parse("Merge remote-tracking branch 'origin/dev'"));
+        Assert.AreEqual(new FromInto("main", "", false, false), Parse("Merge branch 'main'"));
+        Assert.AreEqual(
+            new FromInto("upstream/main", "", false, false),
+            Parse("Merge remote-tracking branch 'upstream/main'")
+        );
+    }
+
     // Merging another branch from a remote repository is not a pull merge, even though the
     // subject has the same 'of <url>' shape, since the branch is merged into a different branch
     [TestMethod]

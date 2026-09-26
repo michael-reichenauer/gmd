@@ -157,7 +157,7 @@ class BranchNameService : IBranchNameService
             return new FromInto(From: "", Into: TrimBranchName(match.Groups[indexes.into].Value), false, false);
         }
 
-        if (IsMatchPullMerge(match))
+        if (IsMatchPullMerge(match) || IsMatchPullMergeOfTrunk(match))
         {
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
             return new FromInto(
@@ -203,6 +203,19 @@ class BranchNameService : IBranchNameService
         }
 
         return name;
+    }
+
+    // 'git merge origin/main' on main, a pull merge made by hand. Git leaves 'into main' and 'into
+    // master' out of a merge subject, so this is the remote-tracking name of the trunk merged with no
+    // target named. Only this remote's: another remote's main is a fork's upstream.
+    bool IsMatchPullMergeOfTrunk(Match match)
+    {
+        var from = match.Groups[indexes.from].Value;
+        var name = TrimBranchName(from);
+        return name != from
+            && match.Groups[indexes.into].Value == ""
+            && match.Groups[indexes.direction].Value == ""
+            && name is "main" or "master";
     }
 
     bool IsMatchPullMerge(Match match)
