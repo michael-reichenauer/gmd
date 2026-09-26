@@ -86,11 +86,19 @@ class FakeGit : IGit
         );
     }
 
-    public Task<Result> SetValueAsync(string key, string value, string wd)
+    // Holds the next write until the task completes, so that a test can start another meanwhile
+    public Task? NextSetValueHeld { get; set; }
+
+    public async Task<Result> SetValueAsync(string key, string value, string wd)
     {
         ValueCalls.Add($"set {key}");
+        var held = NextSetValueHeld;
+        NextSetValueHeld = null;
+        if (held != null)
+            await held;
+
         Values[key] = value;
-        return Task.FromResult(Result.Ok);
+        return Result.Ok;
     }
 
     public Task<Result> PushValueAsync(string key, string wd)

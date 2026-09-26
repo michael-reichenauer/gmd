@@ -401,13 +401,10 @@ class AugmentedService : IAugmentedService
 
         using (fileMonitor.Pause())
         {
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.SetCommitBranch(commitId.Sid(), setNiceName);
-            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            return await metaDataService.UpdateMetaDataAsync(
+                repo.Path,
+                m => m.SetCommitBranch(commitId.Sid(), setNiceName)
+            );
         }
     }
 
@@ -419,13 +416,10 @@ class AugmentedService : IAugmentedService
 
         using (fileMonitor.Pause())
         {
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.SetCommitBranch(ambiguousTip.Sid(), setHumanName);
-            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            return await metaDataService.UpdateMetaDataAsync(
+                repo.Path,
+                m => m.SetCommitBranch(ambiguousTip.Sid(), setHumanName)
+            );
         }
     }
 
@@ -433,14 +427,7 @@ class AugmentedService : IAugmentedService
     {
         using (fileMonitor.Pause())
         {
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(repo.Path);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.RemoveCommitBranch(commitId.Sid());
-
-            return await metaDataService.SetMetaDataAsync(repo.Path, metaData);
+            return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.RemoveCommitBranch(commitId.Sid()));
         }
     }
 

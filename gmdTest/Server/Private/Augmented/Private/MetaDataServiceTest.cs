@@ -47,6 +47,27 @@ public class MetaDataServiceTest
         Assert.IsTrue(isSetByUser);
     }
 
+    // The metadata is read, changed and written whole, so the changes are made one at a time, each on
+    // what the one before wrote: the reflog's facts are kept in the background, and a choice the user
+    // made meanwhile was lost when the facts were written with the copy read before it
+    [TestMethod]
+    public async Task TestAChangeWaitsForTheOneBefore()
+    {
+        var held = new TaskCompletionSource();
+        git.NextSetValueHeld = held.Task;
+        var id = RepoBuilder.Sha("e1");
+
+        var keeping = service.AddWitnessedAsync(Path, [new WitnessedBranch(id, "feature1")]);
+        var choosing = service.UpdateMetaDataAsync(Path, m => m.SetCommitBranch("abc123", "dev"));
+        held.SetResult();
+        AssertOk(await keeping);
+        AssertOk(await choosing);
+
+        var read = AssertOk(await service.GetMetaDataAsync(Path));
+        Assert.IsTrue(read.TryGetWitnessedBranch(id, out _), "The facts");
+        Assert.IsTrue(read.TryGetCommitBranch("abc123", out _, out _), "The choice");
+    }
+
     // What the reflog witnessed is written only when something is new, so a repo whose facts are
     // all kept is not written to on every read
     [TestMethod]

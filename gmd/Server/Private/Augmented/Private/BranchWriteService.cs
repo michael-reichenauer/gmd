@@ -56,13 +56,10 @@ class BranchWriteService : IBranchWriteService
             if (currentCommit == null || currentBranch == null)
                 return Result.Ok;
 
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.SetBranched(currentCommit.Sid, currentBranch.NiceName);
-            return await metaDataService.SetMetaDataAsync(wd, metaData);
+            return await metaDataService.UpdateMetaDataAsync(
+                wd,
+                m => m.SetBranched(currentCommit.Sid, currentBranch.NiceName)
+            );
         }
     }
 
@@ -83,13 +80,10 @@ class BranchWriteService : IBranchWriteService
             if (await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd) is Error e)
                 return e;
 
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.SetBranched(source.TipId.Sid(), source.NiceName);
-            return await metaDataService.SetMetaDataAsync(wd, metaData);
+            return await metaDataService.UpdateMetaDataAsync(
+                wd,
+                m => m.SetBranched(source.TipId.Sid(), source.NiceName)
+            );
         }
     }
 
@@ -110,13 +104,7 @@ class BranchWriteService : IBranchWriteService
             Commit commit = repo.CommitById[sha];
             var branch = repo.BranchByName[commit.BranchName];
 
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.SetBranched(commit.Sid, branch.NiceName);
-            return await metaDataService.SetMetaDataAsync(wd, metaData);
+            return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Sid, branch.NiceName));
         }
     }
 
@@ -133,13 +121,10 @@ class BranchWriteService : IBranchWriteService
             if (await git.RenameBranchAsync(oldName, newName, wd) is Error e)
                 return e;
 
-            // Get the latest meta data
-            var metaDataResult = await metaDataService.GetMetaDataAsync(wd);
-            if (metaDataResult is not MetaData metaData)
-                return metaDataResult.Error;
-
-            metaData.RenameBranch(NiceName(oldName), NiceName(newName));
-            return await metaDataService.SetMetaDataAsync(wd, metaData);
+            return await metaDataService.UpdateMetaDataAsync(
+                wd,
+                m => m.RenameBranch(NiceName(oldName), NiceName(newName))
+            );
         }
     }
 
