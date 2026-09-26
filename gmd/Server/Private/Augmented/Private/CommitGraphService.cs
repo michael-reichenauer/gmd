@@ -43,7 +43,31 @@ class CommitGraphService : ICommitGraphService
         }
 
         // Remove branches that do not have existing tip commit id,
-        notFoundBranches.ForEach(n => repo.Branches.Remove(n));
+        notFoundBranches.ForEach(n => RemoveBranch(repo, n));
+    }
+
+    // Removes a branch and parts it from the branch it pairs with, which the later stages and the UI
+    // look up by name: a local branch whose remote branch is left out, e.g. with its tip below a
+    // truncated log, is a branch of its own, as one whose remote branch was deleted is (see
+    // Augmenter), and a remote branch whose local branch is left out has none.
+    static void RemoveBranch(WorkRepo repo, string name)
+    {
+        var b = repo.Branches[name];
+        repo.Branches.Remove(name);
+
+        if (b.IsRemote && b.LocalName != "" && repo.Branches.TryGetValue(b.LocalName, out var local))
+        {
+            local.RemoteName = "";
+            local.PrimaryName = local.Name;
+            local.IsPrimary = true;
+            local.RelatedBranches.Add(local);
+        }
+        else if (!b.IsRemote && b.RemoteName != "" && repo.Branches.TryGetValue(b.RemoteName, out var remote))
+        {
+            remote.LocalName = "";
+            remote.IsLocalCurrent = false;
+            remote.RelatedBranches.Remove(b);
+        }
     }
 
     // Update a commit with parents and children to be able to traverse the commit graph

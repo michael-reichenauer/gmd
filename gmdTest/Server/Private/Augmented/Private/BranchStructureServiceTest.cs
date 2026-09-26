@@ -1292,4 +1292,47 @@ public class BranchStructureServiceTest
         Assert.AreEqual(truncated.Id, root.BottomID, "The root branch now reaches down to the truncated commit");
         Assert.AreEqual("origin/main", repo.Branches["dev"].ParentBranch?.Name);
     }
+
+    // A remote branch whose tip is not in a truncated log is left out, and its local branch, whose
+    // tip is, is a branch of its own then. It had kept the remote branch as its primary, which the
+    // rules look up, and a merge into it made the whole read of the repo fail.
+    [TestMethod]
+    public async Task TestLocalBranchOfARemoteBranchOutsideTheLogIsABranchOfItsOwn()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("x3", "Merge branch 'topic' into x", "x2", "t1")
+            .Commit("t1", "Topic work", "x2")
+            .Commit("x2", "X work", "c1")
+            .Commit("c1", "Oldest known", "c0") // c0 is not in the log
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("x", "x3", remoteName: "origin/x")
+            .RemoteBranch("origin/x", "c0")
+            .Truncated()
+            .AugmentAsync();
+
+        Assert.IsFalse(repo.Branches.ContainsKey("origin/x"));
+        Assert.AreEqual("x", repo.Branches["x"].PrimaryName);
+        Assert.AreEqual("", repo.Branches["x"].RemoteName);
+        Assert.AreEqual("x", BranchOf(repo, "x3"));
+        Assert.AreEqual("x", BranchOf(repo, "x2"));
+    }
+
+    // And the other way round, a local branch left out, whose remote branch is not: it has no local
+    // branch then, which the UI looks up by name
+    [TestMethod]
+    public async Task TestRemoteBranchOfALocalBranchOutsideTheLogHasNone()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("x2", "X work", "c1")
+            .Commit("c1", "Oldest known", "c0") // c0 is not in the log
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("x", "c0", remoteName: "origin/x")
+            .RemoteBranch("origin/x", "x2")
+            .Truncated()
+            .AugmentAsync();
+
+        Assert.IsFalse(repo.Branches.ContainsKey("x"));
+        Assert.AreEqual("", repo.Branches["origin/x"].LocalName);
+        Assert.AreEqual("origin/x", BranchOf(repo, "x2"));
+    }
 }
