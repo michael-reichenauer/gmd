@@ -674,6 +674,35 @@ public class BranchStructureServiceTest
         Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
     }
 
+    // A deleted branch merged twice is recovered twice, once from each merge subject, both named dev.
+    // Where the two meet there is nothing to choose between, so the commit is not left ambiguous,
+    // which would ask the user whether it is on 'dev' or on 'dev'.
+    //
+    //   c3      main, merges dev
+    //   c2 |    main, merges dev (the other)
+    //   | d2    dev
+    //   e1 |    dev
+    //    \ |
+    //     d1    dev or dev?
+    [TestMethod]
+    public async Task TestBranchPointOfBranchesOfOneNameIsNotAmbiguous()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'dev' into main", "c2", "d2")
+            .Commit("c2", "Merge branch 'dev' into main", "c1", "e1")
+            .Commit("d2", "Dev 2", "d1")
+            .Commit("e1", "Dev other", "d1")
+            .Commit("d1", "Dev 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d2"));
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e1"));
+        Assert.AreEqual($"dev:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d1"), "The first of the two");
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+    }
+
     // The same rule keeps the commits below a series of merges on the branch they were merged into
     [TestMethod]
     public async Task TestCommitBelowSeveralMergesStaysOnTheMergedIntoBranch()

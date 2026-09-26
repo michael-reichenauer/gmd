@@ -15,6 +15,7 @@ interface ICommitBranchRules
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch);
     bool TryHasSeniorBranch(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
+    bool TryHasOnlyOneName(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOneChildWithLikelyBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryHasMultipleChildrenWithOneLikelyBranch(WorkCommit commit, out WorkBranch? branch);
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch);
@@ -333,6 +334,23 @@ class CommitBranchRules : ICommitBranchRules
             return false;
 
         branch = RemoteFirst(byMerged[0].branches);
+        return true;
+    }
+
+    // Commit is where branches of one name meet, e.g. a deleted branch recovered from the subject of
+    // each merge of it, all named dev. There is nothing for the user to choose between, so the one
+    // most branches were merged into goes on, or failing that the first.
+    public bool TryHasOnlyOneName(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        var groups = commit
+            .Branches.GroupBy(b => b.PrimaryName)
+            .Select(g => (branches: g, primary: repo.Branches[g.Key]))
+            .ToList();
+        if (groups.Count < 2 || groups.Select(g => g.primary.NiceName).Distinct().Count() != 1)
+            return false;
+
+        branch = RemoteFirst(groups.OrderByDescending(g => g.primary.MergedFromNames.Count).First().branches);
         return true;
     }
 

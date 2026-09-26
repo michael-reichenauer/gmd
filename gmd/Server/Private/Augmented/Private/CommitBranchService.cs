@@ -137,6 +137,10 @@ class CommitBranchService : ICommitBranchService
             // integration branch by name or by the branches merged into it
             return Decided(commit, nameof(rules.TryHasSeniorBranch), branch!);
         }
+        else if (rules.TryHasOnlyOneName(repo, commit, out branch))
+        { // Commit is where branches of one name meet, so there is nothing to choose between
+            return Decided(commit, nameof(rules.TryHasOnlyOneName), branch!);
+        }
         else if (rules.TryHasOneChildWithLikelyBranch(commit, out branch))
         { // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
             return Decided(commit, nameof(rules.TryHasOneChildWithLikelyBranch), branch!);
