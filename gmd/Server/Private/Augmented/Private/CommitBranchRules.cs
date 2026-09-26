@@ -127,15 +127,19 @@ class CommitBranchRules : ICommitBranchRules
     // first commit, which is what the likely-child rules would read it as.
     //
     // The reflog expires, so a fact that decided between branches is kept in the metadata (see
-    // WorkRepo.WitnessedToKeep), and a kept fact is taken the same way once the reflog is gone.
+    // WorkRepo.WitnessedToKeep), and a kept fact is taken the same way once the reflog is gone. The
+    // kept fact is also taken when the reflog's names no branch the commit can be on, e.g. HEAD's
+    // reflog still naming a branch since renamed in gmd, which renamed the kept fact with it.
     public bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        var isInReflog = gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var name);
+        var isInReflog = gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var reflogName);
         var isKept = gitRepo.MetaData.TryGetWitnessedBranch(commit.Id, out var keptName);
-        if (!isInReflog && !isKept)
+        string? name = isInReflog ? reflogName : null;
+        if (name == null || !commit.Branches.Any(b => b.NiceName == name))
+            name = isKept ? keptName : null;
+        if (name == null)
             return false;
-        name = isInReflog ? name! : keptName;
 
         branch = RemoteFirst(commit.Branches.Where(b => b.NiceName == name));
         var isChoice = commit.Branches.Select(b => b.PrimaryName).Distinct().Count() > 1;

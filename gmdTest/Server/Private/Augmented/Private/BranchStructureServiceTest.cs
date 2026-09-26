@@ -942,6 +942,22 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Branches.Keys.Any(n => n.StartsWith("gone")));
     }
 
+    // A branch renamed in gmd has its kept facts renamed with it, while HEAD's reflog keeps the old
+    // name in its checkouts, which no branch has now. The kept fact still decides.
+    [TestMethod]
+    public async Task TestKeptReflogFactDecidesWhenTheReflogNamesABranchNoLongerThere()
+    {
+        var repo = await StackedBranches()
+            .Reflog("refs/heads/feature2", "e1", "branch: Created from HEAD")
+            .Reflog("HEAD", "e1", "checkout: moving from old-feature1 to feature2")
+            .Witnessed("e1", "feature1")
+            .AugmentAsync();
+
+        Assert.AreEqual("origin/feature1", BranchOf(repo, "e1"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "e1").DecidedBy);
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count, "Kept already");
+    }
+
     static RepoBuilder StackedBranches() =>
         new RepoBuilder()
             .Commit("e2", "Feature 2 work", "e1")
