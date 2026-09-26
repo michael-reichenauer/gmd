@@ -165,10 +165,10 @@ public class KeyHintsTest
     {
         List<KeyHint> hints = [new("m", "menu"), new("d", "diff"), new("f", "search")];
 
-        Assert.AreEqual("── m menu  d diff  f search ──── ? help ──", KeyHints.ToText(hints, 42).ToString());
-        Assert.AreEqual("── m menu  d diff ── ? help ──", KeyHints.ToText(hints, 30).ToString());
-        Assert.AreEqual("────── ? help ──", KeyHints.ToText(hints, 16).ToString());
-        Assert.AreEqual("── ? help ──", KeyHints.ToText(hints, 12).ToString(), "The help is kept to the last");
+        Assert.AreEqual("────────── m menu  d diff  f search ──── ? help ──", KeyHints.ToText(hints, 50).ToString());
+        Assert.AreEqual("────────── m menu  d diff ── ? help ──", KeyHints.ToText(hints, 38).ToString());
+        Assert.AreEqual("────────────── ? help ──", KeyHints.ToText(hints, 24).ToString());
+        Assert.AreEqual("────────── ? help ──", KeyHints.ToText(hints, 20).ToString(), "The help is kept to the last");
     }
 
     // Set into a border in the color of the line under the application bar, so that it reads as the
@@ -177,10 +177,10 @@ public class KeyHintsTest
     [TestMethod]
     public void TestTheLineIsABorderWithTheKeysInCyan()
     {
-        var text = KeyHints.ToText([new("d", "diff")], 26);
+        var text = KeyHints.ToText([new("d", "diff")], 34);
 
-        Assert.AreEqual("── d diff ────── ? help ──", text.ToString());
-        Assert.AreEqual("MMDCDDDDDDMMMMMMDCDDDDDDMM", Colors(text));
+        Assert.AreEqual("────────── d diff ────── ? help ──", text.ToString());
+        Assert.AreEqual("MMMMMMMMMMDCDDDDDDMMMMMMDCDDDDDDMM", Colors(text));
     }
 
     // A status message takes the line, set into the border the same way: green for what was done,
@@ -188,11 +188,11 @@ public class KeyHintsTest
     [TestMethod]
     public void TestAStatusMessageIsDrawnInTheColorOfItsKind()
     {
-        var info = KeyHints.ToText(new StatusMessage("Pushed 'main'", StatusKind.Info, DateTime.UtcNow), 20);
-        var notice = KeyHints.ToText(new StatusMessage("Nothing to commit", StatusKind.Notice, DateTime.UtcNow), 24);
-        var failure = KeyHints.ToText(new StatusMessage("Fetch failed", StatusKind.Failure, DateTime.UtcNow), 20);
+        var info = KeyHints.ToText(new StatusMessage("Pushed 'main'", StatusKind.Info, DateTime.UtcNow), 28);
+        var notice = KeyHints.ToText(new StatusMessage("Nothing to commit", StatusKind.Notice, DateTime.UtcNow), 32);
+        var failure = KeyHints.ToText(new StatusMessage("Fetch failed", StatusKind.Failure, DateTime.UtcNow), 28);
 
-        Assert.AreEqual("── Pushed 'main' ───", info.ToString());
+        Assert.AreEqual("────────── Pushed 'main' ───", info.ToString());
         Assert.AreEqual(Color.Green, ColorOf(info, "Pushed"));
         Assert.AreEqual(Color.Yellow, ColorOf(notice, "Nothing"));
         Assert.AreEqual(Color.BrightRed, ColorOf(failure, "Fetch"));
@@ -203,10 +203,10 @@ public class KeyHintsTest
     {
         var text = KeyHints.ToText(
             new StatusMessage("Nothing to push on 'feature/login'", StatusKind.Notice, DateTime.UtcNow),
-            20
+            28
         );
 
-        Assert.AreEqual("── Nothing to pu┅ ──", text.ToString());
+        Assert.AreEqual("────────── Nothing to pu┅ ──", text.ToString());
     }
 
     // One letter per cell: 'M' the magenta border, 'C' a cyan key, 'D' the dark rest

@@ -29,8 +29,10 @@ static class KeyHints
     static readonly KeyHint Help = new("?", "help");
     static readonly KeyHint Menu = new("m", "menu");
 
-    // The border runs into the line for this long before the hints, and after the help
-    const string Lead = "──";
+    // The border runs into the line for this long before the hints, and after the help. The lead is
+    // long enough that the hints start clearly inside a line, so the row reads as a border rather
+    // than as one more row of the log.
+    const string Lead = "──────────";
     const string Tail = "──";
 
     public static IReadOnlyList<KeyHint> For(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
@@ -53,7 +55,7 @@ static class KeyHints
     // The hints on one line of the given width, set into the border: as many as fit, from the left,
     // and help at the right, with the border between them
     //
-    //   ── m menu  d diff  f search ──────────────── ? help ──
+    //   ────────── m menu  d diff  f search ──────── ? help ──
     public static Text ToText(IReadOnlyList<KeyHint> hints, int width)
     {
         // The border and its spaces around the hints, the help and the border around it
@@ -84,7 +86,7 @@ static class KeyHints
     // command did, yellow for why a key did nothing, red for what failed in the background. Cut to
     // the line if it is longer.
     //
-    //   ── Pushed 'main' ─────────────────────────────────────
+    //   ────────── Pushed 'main' ─────────────────────────────
     public static Text ToText(StatusMessage message, int width)
     {
         var room = Math.Max(0, width - Lead.Length - 2 - Tail.Length);

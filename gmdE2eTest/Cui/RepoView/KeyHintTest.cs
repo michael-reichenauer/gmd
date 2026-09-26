@@ -38,7 +38,7 @@ public class KeyHintTest
 
 
 
-            ── m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch ────────────────────────── ? help ──
+            ────────── m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch ────────────────── ? help ──
             """,
             gmd.WaitFor("d diff"),
             repo.Path
@@ -104,7 +104,7 @@ public class KeyHintTest
             Add delta
 
 
-            ── m menu  d diff  Enter hide details  ←→ branch  ⇧→ show branch  f search  b new branch ───────────────────── ? help ──
+            ────────── m menu  d diff  Enter hide details  ←→ branch  ⇧→ show branch  f search  b new branch ───────────── ? help ──
             """,
             gmd.WaitFor("hide details"),
             repo.Path
