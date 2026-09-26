@@ -71,7 +71,10 @@ class WorkRepoConverter : IWorkRepoConverter
             IsBranchSetByUser: c.IsBranchSetByUser,
             HasStash: c.HasStash,
             More: More.None
-        );
+        )
+        {
+            IsParentsSwapped = c.IsParentsSwapped,
+        };
     }
 
     Branch ToBranch(WorkBranch b)

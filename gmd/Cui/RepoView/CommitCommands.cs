@@ -392,9 +392,9 @@ class CommitCommands : ICommitCommands
             if (!CanUndoCommit())
                 return Result.Ok;
             var commit = repo.Repo.CommitById[id];
-            var parentIndex = commit.ParentIds.Count == 1 ? 0 : 1;
-
-            if (await server.UndoCommitAsync(id, parentIndex, repo.Path) is Error e)
+            // A merge is reverted against the parent drawn on its line, so it undoes the side drawn as
+            // merged in, which for a pull merge, whose parents gmd swaps, is git's first parent
+            if (await server.UndoCommitAsync(id, commit.MainlineParentNumber, repo.Path) is Error e)
             {
                 return new Error($"Failed to undo commit", e);
             }

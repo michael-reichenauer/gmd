@@ -50,6 +50,7 @@ class WorkCommit
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
     public bool IsBranchSetByUser { get; set; }
+    public bool IsParentsSwapped { get; set; } // A pull merge, see CommitGraphService
     public bool IsUncommitted { get; set; }
 
     public List<string> ParentIds { get; }

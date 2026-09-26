@@ -64,6 +64,7 @@ class CommitGraphService : ICommitGraphService
                 // which would make the remote branch alter commit order whenever local commits
                 // are not updated to remote server in time.
                 (c.ParentIds[1], c.ParentIds[0]) = (c.ParentIds[0], c.ParentIds[1]);
+                c.IsParentsSwapped = true;
             }
 
             if (c.ParentIds.Any() && repo.CommitsById.TryGetValue(c.ParentIds[0], out var firstParent))
