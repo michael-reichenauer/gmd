@@ -105,4 +105,24 @@ public class MetaDataTest
         Assert.IsTrue(isSetByUser);
         Assert.AreEqual(1, metaData.CommitBranchBySid.Count);
     }
+
+    // A commit is looked up by its full id, which finds the entry under its sid, and also the ones
+    // creating a branch from a branch once wrote under the full id. The sid entry comes first, so a
+    // choice the user makes later wins over such an old entry.
+    [TestMethod]
+    public void TestACommitIsFoundBySidAndByFullId()
+    {
+        var id = "abc1234567890abcdef1234567890abcdef12345";
+        var metaData = new MetaData();
+        metaData.SetBranched(id, "dev");
+
+        Assert.IsTrue(metaData.TryGetCommitBranch(id, out var name, out var isSetByUser));
+        Assert.AreEqual("dev", name);
+        Assert.IsFalse(isSetByUser);
+
+        metaData.SetCommitBranch(id.Sid(), "main");
+        Assert.IsTrue(metaData.TryGetCommitBranch(id, out name, out isSetByUser));
+        Assert.AreEqual("main", name);
+        Assert.IsTrue(isSetByUser);
+    }
 }

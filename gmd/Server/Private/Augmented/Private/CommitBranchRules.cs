@@ -33,7 +33,7 @@ class CommitBranchRules : ICommitBranchRules
     public bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Sid, out var branchNiceName, out var isSetByUser))
+        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Id, out var branchNiceName, out var isSetByUser))
         { // Commit has not a branch set by user
             return false;
         }

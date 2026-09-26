@@ -44,12 +44,15 @@ public class MetaData
         }
     }
 
-    internal bool TryGetCommitBranch(string sid, out string branchName, out bool isSetByUser)
+    // Looked up by the commit's sid, which is what entries are written under, and failing that by
+    // its full id: creating a branch from a branch wrote the full id for a while, and those entries
+    // were never found. The sid comes first, so that a later choice by the user wins over them.
+    internal bool TryGetCommitBranch(string id, out string branchName, out bool isSetByUser)
     {
         branchName = "";
         isSetByUser = false;
 
-        if (CommitBranchBySid.TryGetValue(sid, out var name))
+        if (CommitBranchBySid.TryGetValue(id.Sid(), out var name) || CommitBranchBySid.TryGetValue(id, out name))
         {
             if (name.StartsWith("*"))
             {

@@ -241,8 +241,14 @@ class FakeGit : IGit
 
     public Task<Result> CreateBranchAsync(string name, bool isCheckout, string wd) => throw new NotSupportedException();
 
-    public Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd) =>
-        throw new NotSupportedException();
+    // Recorded rather than thrown, so a test can check what creating a branch remembered
+    public List<string> CreateBranchCalls { get; } = [];
+
+    public Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd)
+    {
+        CreateBranchCalls.Add($"{name} at {sha.Sid()}");
+        return Task.FromResult(Result.Ok);
+    }
 
     // Recorded rather than thrown, so a test can check what the rename did to the branch choices
     public List<string> RenameCalls { get; } = [];

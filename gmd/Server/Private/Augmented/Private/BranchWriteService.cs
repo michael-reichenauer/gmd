@@ -88,7 +88,7 @@ class BranchWriteService : IBranchWriteService
             if (metaDataResult is not MetaData metaData)
                 return metaDataResult.Error;
 
-            metaData.SetBranched(source.TipId, source.NiceName);
+            metaData.SetBranched(source.TipId.Sid(), source.NiceName);
             return await metaDataService.SetMetaDataAsync(wd, metaData);
         }
     }
