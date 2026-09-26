@@ -19,4 +19,11 @@ class FakeMetaDataService : IMetaDataService
     public Task<Result> FetchMetaDataAsync(string path) => Task.FromResult(Result.Ok);
 
     public Task<Result> PushMetaDataAsync(string path) => Task.FromResult(Result.Ok);
+
+    // Kept the way MetaDataService keeps them, so a test can see what was
+    public Task<Result> AddWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed)
+    {
+        witnessed.ToList().ForEach(w => metaData.SetWitnessed(w.Id, w.BranchName));
+        return Task.FromResult(Result.Ok);
+    }
 }

@@ -47,6 +47,21 @@ public class MetaDataServiceTest
         Assert.IsTrue(isSetByUser);
     }
 
+    // What the reflog witnessed is written only when something is new, so a repo whose facts are
+    // all kept is not written to on every read
+    [TestMethod]
+    public async Task TestWitnessedBranchesAreWrittenOnlyWhenNew()
+    {
+        var id = RepoBuilder.Sha("e1");
+        AssertOk(await service.AddWitnessedAsync(Path, [new WitnessedBranch(id, "feature1")]));
+        AssertOk(await service.AddWitnessedAsync(Path, [new WitnessedBranch(id, "feature1")]));
+
+        Assert.AreEqual(1, git.ValueCalls.Count(c => c.StartsWith("set")), string.Join(", ", git.ValueCalls));
+        var read = AssertOk(await service.GetMetaDataAsync(Path));
+        Assert.IsTrue(read.TryGetWitnessedBranch(id, out var name));
+        Assert.AreEqual("feature1", name);
+    }
+
     // A repo nobody has made a choice in has no key at all, which is not an error
     [TestMethod]
     public async Task TestGetWithNoStoredValueIsEmptyMetaData()

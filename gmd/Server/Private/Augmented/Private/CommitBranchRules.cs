@@ -128,14 +128,28 @@ class CommitBranchRules : ICommitBranchRules
     // fast-forwarded into main would take main's commits. And the commit is not marked likely, since
     // where a commit was made says nothing about its parent, e.g. a branch point below a branch's
     // first commit, which is what the likely-child rules would read it as.
+    //
+    // The reflog expires, so a fact that decided between branches is kept in the metadata (see
+    // WorkRepo.WitnessedToKeep), and a kept fact is taken the same way once the reflog is gone.
     public bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        if (!gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var name))
+        var isInReflog = gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var name);
+        var isKept = gitRepo.MetaData.TryGetWitnessedBranch(commit.Id, out var keptName);
+        if (!isInReflog && !isKept)
             return false;
+        name = isInReflog ? name! : keptName;
 
         branch = RemoteFirst(commit.Branches.Where(b => b.NiceName == name));
-        return branch != null && BranchAmbiguity.TrySetBranch(repo, commit, branch, isLikely: false);
+        var isChoice = commit.Branches.Select(b => b.PrimaryName).Distinct().Count() > 1;
+        if (branch == null || !BranchAmbiguity.TrySetBranch(repo, commit, branch, isLikely: false))
+            return false;
+
+        if (isChoice && (!isKept || keptName != name))
+        { // The reflog decided between branches, which the metadata should keep
+            repo.WitnessedToKeep.Add(new WitnessedBranch(commit.Id, name));
+        }
+        return true;
     }
 
     // The commit is the tip of a published branch, and every other candidate is a local branch only,

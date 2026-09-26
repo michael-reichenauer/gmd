@@ -179,6 +179,13 @@ class RepoBuilder
         return this;
     }
 
+    // Records that the reflog once witnessed the branch of a commit, as kept in the repo metadata
+    public RepoBuilder Witnessed(string commitName, string branchName)
+    {
+        metaData.SetWitnessed(Sha(commitName), branchName);
+        return this;
+    }
+
     // Records that the user manually set the branch of a commit, as stored in the repo metadata
     public RepoBuilder UserSetBranch(string commitName, string branchName)
     {

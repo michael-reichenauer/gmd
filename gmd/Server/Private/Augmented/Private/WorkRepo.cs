@@ -25,8 +25,15 @@ class WorkRepo
         Status = status;
     }
 
+    // The branches the reflog witnessed that decided a commit between branches, and that the metadata
+    // does not keep yet. Kept there after the repo is read, since the reflog expires.
+    public List<WitnessedBranch> WitnessedToKeep { get; } = [];
+
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
+
+// The branch the reflog witnessed a commit on, by the branch's nice name
+record WitnessedBranch(string Id, string BranchName);
 
 // Read/Write repo used by the AugmentedService while processing and augmenting a git repo
 class WorkCommit

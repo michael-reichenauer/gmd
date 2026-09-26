@@ -790,6 +790,54 @@ public class BranchStructureServiceTest
         Assert.AreEqual("origin/feature1", repo.Branches["origin/feature2"].ParentBranch?.Name);
     }
 
+    // What the reflog decided between branches is to be kept in the metadata, since the reflog expires
+    [TestMethod]
+    public async Task TestReflogDecisionIsToBeKept()
+    {
+        var repo = await StackedBranches()
+            .Reflog("refs/heads/feature2", "e2", "commit: Feature 2 work")
+            .Reflog("refs/heads/feature2", "e1", "branch: Created from HEAD")
+            .Reflog("HEAD", "e2", "commit: Feature 2 work")
+            .Reflog("HEAD", "e1", "checkout: moving from feature1 to feature2")
+            .AugmentAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { new WitnessedBranch(RepoBuilder.Sha("e1"), "feature1") },
+            repo.WitnessedToKeep.ToArray()
+        );
+    }
+
+    // And once kept it decides the same way after the reflog is gone, e.g. in a fresh clone
+    [TestMethod]
+    public async Task TestKeptReflogFactDecidesOnceTheReflogIsGone()
+    {
+        var repo = await StackedBranches().Witnessed("e1", "feature1").AugmentAsync();
+
+        Assert.AreEqual("origin/feature1", BranchOf(repo, "e1"));
+        Assert.AreEqual("IsWitnessed", CommitOf(repo, "e1").DecidedBy);
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count, "Kept already");
+    }
+
+    // A kept fact is still only taken among the branches the commit can be on, and makes up none
+    [TestMethod]
+    public async Task TestKeptReflogFactOfABranchTheCommitIsNotOnDecidesNothing()
+    {
+        var repo = await StackedBranches().Witnessed("e1", "gone").AugmentAsync();
+
+        Assert.IsTrue(CommitOf(repo, "e1").IsAmbiguous);
+        Assert.IsFalse(repo.Branches.Keys.Any(n => n.StartsWith("gone")));
+    }
+
+    static RepoBuilder StackedBranches() =>
+        new RepoBuilder()
+            .Commit("e2", "Feature 2 work", "e1")
+            .Commit("e1", "Feature 1 work", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("feature1", "e1")
+            .BranchWithRemote("feature2", "e2");
+
     // A branch point decided by where it was made, where nothing else could: two ordinary branches,
     // one merged into the other and kept, which merge subjects alone read the wrong way round
     [TestMethod]

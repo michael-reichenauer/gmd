@@ -125,4 +125,28 @@ public class MetaDataTest
         Assert.AreEqual("main", name);
         Assert.IsTrue(isSetByUser);
     }
+
+    // What the reflog witnessed is kept by full id and marked, so it is never taken for a choice,
+    // neither by this lookup nor by a gmd that looks choices up by sid only, and it is renamed
+    // with the branch like a choice
+    [TestMethod]
+    public void TestWitnessedBranchIsKeptApartFromChoices()
+    {
+        var id = "abc1234567890abcdef1234567890abcdef12345";
+        var metaData = new MetaData();
+        metaData.SetWitnessed(id, "dev");
+
+        Assert.IsTrue(metaData.TryGetWitnessedBranch(id, out var name));
+        Assert.AreEqual("dev", name);
+        Assert.IsFalse(metaData.TryGetCommitBranch(id, out _, out _), "Not a choice");
+        Assert.IsFalse(metaData.CommitBranchBySid.ContainsKey(id.Sid()));
+
+        metaData.SetCommitBranch(id.Sid(), "main");
+        Assert.IsTrue(metaData.TryGetCommitBranch(id, out name, out _), "A choice beside it is found as before");
+        Assert.AreEqual("main", name);
+
+        metaData.RenameBranch("dev", "dev2");
+        Assert.IsTrue(metaData.TryGetWitnessedBranch(id, out name));
+        Assert.AreEqual("dev2", name);
+    }
 }

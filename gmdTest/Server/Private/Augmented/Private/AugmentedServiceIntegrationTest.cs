@@ -46,6 +46,40 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("main", augRepo.AllBranches.First(b => b.IsCurrent).Name);
     }
 
+    // Two branches stacked with 'checkout -b', on no remote: the commit the second started at could
+    // be on either as far as the graph goes. The reflog says it was made on the first, and that is
+    // kept in the metadata, for when the reflog is gone.
+    [TestMethod]
+    public async Task TestReflogOfARealRepoDecidesAndIsKept()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("checkout -b feature1");
+        var e1 = await repo.CommitFileAsync("feature1.txt", "one\n", "Feature 1 work");
+        await repo.GitAsync("checkout -b feature2");
+        await repo.CommitFileAsync("feature2.txt", "two\n", "Feature 2 work");
+        await repo.GitAsync("checkout main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+
+        var metaDataService = new MetaDataService(repo.Git, new FakeRepoConfig());
+        var service = RepoBuilder.NewAugmentedService(repo.Git, metaDataService);
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var commit = augRepo.CommitById[e1];
+        Assert.AreEqual("feature1", commit.BranchName);
+        Assert.IsFalse(commit.IsAmbiguous);
+
+        // Kept in the background, after the repo is read
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        string kept = "";
+        while (DateTime.UtcNow < deadline)
+        {
+            if (AssertOk(await metaDataService.GetMetaDataAsync(repo.Path)).TryGetWitnessedBranch(e1, out kept))
+                break;
+            await Task.Delay(50);
+        }
+        Assert.AreEqual("feature1", kept);
+    }
+
     [TestMethod]
     public async Task TestGraphOfARealRepo()
     {

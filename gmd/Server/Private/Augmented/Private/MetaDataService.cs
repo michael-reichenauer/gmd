@@ -19,6 +19,26 @@ public class MetaData
         CommitBranchBySid[sid] = branchName;
     }
 
+    // What the reflog witnessed about a commit's branch, kept here since the reflog is local and
+    // expires (see CommitBranchRules.TryIsWitnessed). Keyed by the full commit id, where a choice is
+    // keyed by sid, so an entry never applies to another commit with the same sid, and marked with a
+    // '~', so that it is never taken for a choice: a gmd that reads choices by sid only, as versions
+    // before these entries do, never looks one up.
+    internal void SetWitnessed(string id, string branchName)
+    {
+        CommitBranchBySid[id] = "~" + branchName;
+    }
+
+    internal bool TryGetWitnessedBranch(string id, out string branchName)
+    {
+        branchName = "";
+        if (!CommitBranchBySid.TryGetValue(id, out var name) || !name.StartsWith("~"))
+            return false;
+
+        branchName = name[1..];
+        return true;
+    }
+
     internal void RemoveCommitBranch(string sid)
     {
         SetCommitBranch(sid, ""); // Mark as removed to support sync
@@ -41,6 +61,10 @@ public class MetaData
             { // Branch was set by user, keep it set by user
                 SetCommitBranch(sid, newNiceName);
             }
+            else if (name == "~" + oldNiceName)
+            { // Branch was witnessed by the reflog
+                SetWitnessed(sid, newNiceName);
+            }
         }
     }
 
@@ -52,7 +76,10 @@ public class MetaData
         branchName = "";
         isSetByUser = false;
 
-        if (CommitBranchBySid.TryGetValue(id.Sid(), out var name) || CommitBranchBySid.TryGetValue(id, out name))
+        if (
+            CommitBranchBySid.TryGetValue(id.Sid(), out var name)
+            || (CommitBranchBySid.TryGetValue(id, out name) && !name.StartsWith("~"))
+        )
         {
             if (name.StartsWith("*"))
             {
@@ -77,6 +104,7 @@ interface IMetaDataService
     Task<Result> SetMetaDataAsync(string path, MetaData metaData);
     Task<Result> FetchMetaDataAsync(string path);
     Task<Result> PushMetaDataAsync(string path);
+    Task<Result> AddWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed);
 }
 
 [SingleInstance]
@@ -172,6 +200,25 @@ class MetaDataService : IMetaDataService
             return e;
 
         return Result.Ok;
+    }
+
+    // Keeps what the reflog witnessed, the facts that are not kept already. Written only when there
+    // is something new, so a repo whose facts are all kept is not written to on every read.
+    public async Task<Result> AddWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed)
+    {
+        var read = await GetMetaDataAsync(path);
+        if (read is not MetaData metaData)
+            return read.Error;
+
+        var added = witnessed
+            .Where(w => !metaData.TryGetWitnessedBranch(w.Id, out var name) || name != w.BranchName)
+            .ToList();
+        if (added.Count == 0)
+            return Result.Ok;
+
+        added.ForEach(w => metaData.SetWitnessed(w.Id, w.BranchName));
+        Log.Info($"Keeping {added.Count} branches witnessed by the reflog");
+        return await SetMetaDataAsync(path, metaData);
     }
 
     public async Task<Result> PushMetaDataAsync(string path)

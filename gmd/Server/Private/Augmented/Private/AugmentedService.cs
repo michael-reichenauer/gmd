@@ -497,11 +497,25 @@ class AugmentedService : IAugmentedService
 
         Timing t = Timing.Start();
         WorkRepo augRepo = await augmenter.GetAugRepoAsync(gitRepo);
+        if (augRepo.WitnessedToKeep.Count > 0)
+        { // Kept after the repo is shown, since nothing waits for it
+            KeepWitnessedAsync(gitRepo.Path, augRepo.WitnessedToKeep).RunInBackground();
+        }
 
         var repo = converter.ToRepo(augRepo);
         repo = Uncommitted.Adjust(repo);
         Log.Info($"Augmented {t} {repo}");
         return repo;
+    }
+
+    // What the reflog witnessed and decided is kept in the metadata, since the reflog expires. The
+    // write is a change to the repo's refs, which the file monitor must not take for a new commit.
+    async Task<Result> KeepWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed)
+    {
+        using (fileMonitor.Pause())
+        {
+            return await metaDataService.AddWitnessedAsync(path, witnessed);
+        }
     }
 
     // GetUpdatedAugmentedRepoStatus an updated augmented repo with new status
