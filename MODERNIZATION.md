@@ -176,6 +176,26 @@ Add new open issues and findings here as work lands; keep them short and drop th
   branch point decision (`TryDecideBranchPoint`): integration name › git-flow release name › one name
   for all › clearly most merged in; the likely-child rules are gone, and an undecided branch point is
   drawn on its most senior name. A repo can name its own integration branches in Config.
+- The review of the second round before its merge to dev (2026-09-26):
+  - A foxtrot merge was swapped on the first read only: the name service's parse cache, a single
+    instance, outlived the read, and the swap had rewritten it. It is cleared as each read starts.
+  - The reflog gave a feature fast-forwarded into dev (`git merge feature` on dev) dev's line from the
+    feature's commit down, and drew dev as started from it. Where the branch a commit was made on was
+    started from a branch that runs through the commit too, the commit is that branch's now, and a
+    kept fact comes before the reflog's, since a branch's creation entry expires first.
+  - Unnamed recovered branches, all called `branch`, counted as one at a branch point, which was
+    then decided arbitrarily rather than left ambiguous.
+  - Keeping the reflog's facts in the background could lose a choice the user made meanwhile, and
+    resumed the file monitor under a running command. The metadata is changed under one lock
+    (`UpdateMetaDataAsync`), and file monitor pauses are counted.
+  - Only the local branches' and the HEADs' reflogs are read, not the remote branches'; `Created
+    from HEAD` is paired with the checkout that made the branch, in one pass.
+  - A local branch whose remote branch was left out of a truncated log kept it as its primary, and a
+    merge into it failed the read of the repo.
+  - A trunk's merge with no target (`Merge remote-tracking branch 'origin/master'`) is a pull merge
+    only in a repo with one trunk name; with both it is as often one merged into the other.
+  - Dumps before and after, of this repo, gitflow-avh, gmd's clone and Terminal.Gui: one change, a
+    branch point of two unnamed branches in Terminal.Gui ambiguous again, as before the second round.
 - A commit merged by id (`git merge <sha>`, subject `Merge commit '<sha>' into dev`) was recovered
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
@@ -254,10 +274,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
     ambiguity: two deleted branches, or one deleted and one live, meeting where nothing in the graph,
     the names or the subjects says which was first. Only a creation fact settles them, which the
     reflog gives the one who made them and the metadata keeps; for anyone else they stay white.
-  - `branch: Created from HEAD` is followed to the branch HEAD was on only through the checkout to
-    the new branch at the same commit, i.e. for `checkout -b` and `switch -c`. `git branch x` makes
-    no checkout, and the reflog entries carry no time to line up with HEAD's (`%gd` with a date
-    would), so which branch it came from is not known.
+  - `branch: Created from HEAD` is followed to the branch HEAD was on only through the checkout that
+    created the branch, i.e. for `checkout -b` and `switch -c`. (`git branch x` writes the branch's
+    name, `Created from dev`.) `git branch x HEAD` makes no checkout, `git worktree add -b` starts the
+    new worktree's HEAD reflog with an empty entry, and the reflog entries carry no time to line up
+    with HEAD's (`%gd` with a date would), so which branch those came from is not known.
   - A repo's own integration branch names are per user (`RepoConfig`), not shared with the metadata.
     Shared would suit a team convention better, and needs a merge rule for two users' lists.
   - Not taken as evidence, after measuring: a live branch over a deleted one at a branch point (the
@@ -266,6 +287,22 @@ Add new open issues and findings here as work lands; keep them short and drop th
     as main or master for an old trunk (it put Terminal.Gui's v1 main back on main, and split cli's
     imported ghcs/main into three branches). A name ending in 'release' is not a release branch: a
     'v1_release' is a trunk of its own, and 'prepare-release' a feature.
+- Left open by the review before merging to dev (2026-09-26):
+  - Every reflog fact that decided between branches is kept in the metadata for good, never pruned,
+    so the metadata grows with the user's own commits, and opening a repo with a reflog now writes
+    `refs/gmd-metadata-key-value/data` into it (on a read-only checkout, a failed write logged on
+    every read). Keeping facts only in repos that already use the metadata, or pruning the ones for
+    commits no branch still passes, is to decide.
+  - `ReflogWitness.BranchOrNull` rejects a name with `@`, which is a valid branch name, while a
+    detached checkout of `origin/dev` counts as being on dev and a checkout of a tag as a branch.
+  - A fast-forward read for the first time after the fast-forwarded branch's creation entry expired
+    still gives the commit to the branch it was made on. A more senior name running through it (dev
+    over a feature) would be a fallback.
+  - With both trunk names in a repo, a pull merge of the trunk by hand is not recognized any more.
+  - `RemoteFirst` is re-implemented in `TryIsPublishedTipOfLocalBranches`; `BranchOrNull` and
+    `IsMatchPullMergeOfTrunk` repeat the prefix and trunk lists of `TrimBranchName` and
+    `WellKnownBranches` (without `trunk`); `WorkCommit.IsParentsSwapped`'s comment says a pull merge
+    only.
 - Tag names are taken for branch names: git-flow's `Merge tag '1.11.0' into develop` names the
   release merge it points at, on master, `1.11.0`, and outranks the better name a pull merge gave the
   same commit (the last merge child parsed wins). Only visible where master's line is lost, as in

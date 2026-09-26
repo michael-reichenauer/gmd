@@ -170,7 +170,7 @@ class RepoBuilder
         return this;
     }
 
-    // Adds a reflog entry, as 'git reflog show --all' would list it: the entries of each ref are
+    // Adds a reflog entry, as 'git reflog show' would list it: the entries of each ref are
     // declared latest first, like the commits, e.g.
     //     .Reflog("refs/heads/feature", "f1", "commit: Feature work")
     //     .Reflog("refs/heads/feature", "d1", "branch: Created from HEAD")
