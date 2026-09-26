@@ -142,6 +142,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   stages a dependency on the stateful `BranchNameService`, and the container, resolving per
   dependency, handed each stage its own empty cache. It is `[SingleInstance]` now, and one pipeline
   test resolves from the real container.
+- Reading a repo never ended when a GitHub pull request merge named its head `owner/dev` and dev's
+  tip had a third candidate, e.g. a feature just started there: the name was matched by its ending,
+  to the local `dev` listed before `origin/dev`, and the local branch became the parent of its own
+  parent, since the remote branch then owned nothing. That was the cycle the commented-out guard in
+  `DetermineAncestors` was written for. A name now goes to the remote branch when both match, an
+  ending only matches after a `/`, and the guard is back (a cycle is logged and the branches in it
+  left out of the view, since `Sorter.Sort` would not end on them either).
 - A commit merged by id (`git merge <sha>`, subject `Merge commit '<sha>' into dev`) was recovered
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
@@ -214,11 +221,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Inference pipeline**
 
-- The circular-ancestor guard in `BranchHierarchyService.DetermineAncestors` is commented out, so
-  `IsCircularAncestors` is never set and the three `ViewRepoCreater` filters on it are dead. A real
-  cycle would loop forever, and `Sorter.Sort` also never terminates on a cyclic comparer. Find out
-  what produced the cycle before restoring the guard or deleting both. No test: a cycle could not
-  be produced through the public pipeline.
 - Adding the uncommitted commit sets its parent but does not add it to that parent's children,
   while removing it filters the child lists. Invisible today; worth knowing before relying on
   a commit's children.

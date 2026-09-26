@@ -217,21 +217,23 @@ class CommitBranchRules : ICommitBranchRules
         }
 
         // Try find a branch with the human name
-        branch = commit.Branches.Find(b => b.NiceName == name);
+        branch = RemoteFirst(commit.Branches.Where(b => b.NiceName == name));
         if (branch != null)
         {
             return branch;
         }
 
-        // Pull requests names include repository as prefix, try check if branch ends with name
-        branch = commit.Branches.Find(b => name.EndsWith(b.NiceName));
-        if (branch != null)
-        {
-            return branch;
-        }
-
-        return branch;
+        // Pull requests names include the owner as prefix, e.g. 'owner/dev', try a branch the name
+        // ends with, as a whole part of it, so that 'hotfix-dev' is not taken for 'dev'
+        return RemoteFirst(commit.Branches.Where(b => name.EndsWith("/" + b.NiceName)));
     }
+
+    // A nice name is shared by a local branch and its remote branch, and the remote branch is the
+    // one a commit belongs to whenever it is a candidate, since it is the primary of the two. Taking
+    // the local branch there made it the parent of its own parent: the remote branch, then owning
+    // nothing, got the local branch as its parent, a cycle.
+    static WorkBranch? RemoteFirst(IEnumerable<WorkBranch> branches) =>
+        branches.OrderBy(b => b.IsRemote ? 0 : 1).FirstOrDefault();
 
     // Commit has one child commit reuse that child commit branch
     public bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)

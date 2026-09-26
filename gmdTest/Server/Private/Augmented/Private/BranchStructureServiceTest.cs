@@ -282,6 +282,62 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Branches.Values.Any(b => b.IsCircularAncestors));
     }
 
+    // A GitHub pull request subject names the head branch with its owner, 'owner/dev', which is
+    // matched to 'dev' by its ending. Both dev and origin/dev end that way, and dev is listed first:
+    // taking it put the commit on the local branch, whose parent is its remote branch, whose parent
+    // was then the local branch again, since it owned nothing. The ancestors of such a pair never
+    // end, so reading the repo never did either (hence the wait: a hang fails rather than never
+    // ending). The commit goes to the primary branch, the remote.
+    //
+    //   e1      main, merges dev by pull request
+    //   |\
+    //   | | f1  feature, started at dev's tip, which gives d1 a third candidate
+    //   | |/
+    //   | d1    dev and origin/dev
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestPullRequestNameGoesToThePrimaryBranchWithoutACycle()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("e1", "Merge pull request #1 from owner/dev", "c1", "d1")
+            .Commit("f1", "Feature work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "e1", isCurrent: true)
+            .BranchWithRemote("dev", "d1")
+            .LocalBranch("feature", "f1")
+            .AugmentAsync()
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.AreEqual("origin/dev", BranchOf(repo, "d1"));
+        Assert.AreEqual("origin/dev", repo.Branches["dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/main", repo.Branches["origin/dev"].ParentBranch?.Name);
+        Assert.AreEqual("origin/dev", repo.Branches["feature"].ParentBranch?.Name);
+        Assert.IsFalse(repo.Branches.Values.Any(b => b.IsCircularAncestors));
+    }
+
+    // Should the hierarchy ever hold a cycle anyway, the ancestors stop where they come around again
+    // and the branches in it are marked, which leaves them out of the view, rather than never ending
+    [TestMethod]
+    public async Task TestACycleInTheHierarchyEndsTheAncestors()
+    {
+        var repo = new WorkRepo(DateTime.UtcNow, "/test/repo", StatusConverter.ToStatus(RepoBuilder.NoChanges));
+        var a = new WorkBranch("a", "a", "a", RepoBuilder.Sha("a1"));
+        var b = new WorkBranch("b", "b", "b", RepoBuilder.Sha("b1"));
+        a.ParentBranch = b;
+        b.ParentBranch = a;
+        repo.Branches["a"] = a;
+        repo.Branches["b"] = b;
+
+        await Task.Run(() => new BranchHierarchyService().DetermineAncestors(repo)).WaitAsync(TimeSpan.FromSeconds(5));
+
+        CollectionAssert.AreEqual(new[] { "b" }, a.Ancestors.Select(x => x.Name).ToArray());
+        CollectionAssert.AreEqual(new[] { "a" }, b.Ancestors.Select(x => x.Name).ToArray());
+        Assert.IsTrue(a.IsCircularAncestors);
+        Assert.IsTrue(b.IsCircularAncestors);
+    }
+
     // The commit a branch was started from is shared by both branches, and git records nothing
     // about which of them it belongs to. It is genuinely ambiguous, so gmd marks it and lets the
     // user settle it. What it must not do is silently pick the new branch: the branch that was
