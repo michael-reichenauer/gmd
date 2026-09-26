@@ -20,13 +20,15 @@ static class WellKnownBranches
     // trunk, e.g. git-flow's 'develop'. At a branch point such a branch is the one that goes on.
     static readonly string[] IntegrationNames = ["develop", "development", "dev"];
 
-    // Whether a nice name is an integration branch's: one of the names above, also as the last part
-    // of a longer name ('owner/develop'), or ending in '_develop' or '-develop', as a repo with one
-    // per major version has them ('v2_develop')
-    public static bool IsIntegrationName(string name)
+    // Whether a nice name is an integration branch's: one of the names above or of the repo's own
+    // (configured per repo, e.g. 'staging'), also as the last part of a longer name ('owner/develop'),
+    // or ending in '_develop' or '-develop', as a repo with one per major version has them ('v2_develop')
+    public static bool IsIntegrationName(string name, IReadOnlyCollection<string>? repoNames = null)
     {
         var last = name[(name.LastIndexOf('/') + 1)..];
         return IntegrationNames.Contains(last)
+            || repoNames?.Contains(name) == true
+            || repoNames?.Contains(last) == true
             || last.EndsWith("_develop")
             || last.EndsWith("-develop")
             || last.EndsWith("_development")
@@ -45,8 +47,8 @@ static class WellKnownBranches
     // started from the trunk, a release or hotfix branch from it or the trunk, and any other from any
     // of them. Not a deleted branch recovered with a trunk's name, which is as often a line of another
     // name, e.g. an imported project's main, or the local side of a pull merge, as an old trunk.
-    public static int NameTier(string niceName) =>
-        IsIntegrationName(niceName) ? 2
+    public static int NameTier(string niceName, IReadOnlyCollection<string>? repoIntegrationNames = null) =>
+        IsIntegrationName(niceName, repoIntegrationNames) ? 2
         : IsReleaseName(niceName) ? 1
         : 0;
 
@@ -56,9 +58,9 @@ static class WellKnownBranches
     // Whether a name, e.g. from a merge subject, is the trunk's or an integration branch's, also as
     // another remote's, e.g. 'upstream/main', or is a remote's name alone, as 'git merge upstream'
     // writes, which merges that remote's default branch
-    public static bool IsTrunkOrIntegrationName(string name)
+    public static bool IsTrunkOrIntegrationName(string name, IReadOnlyCollection<string>? repoIntegrationNames = null)
     {
-        return IsTrunkName(name) || IsIntegrationName(name) || name is "origin" or "upstream";
+        return IsTrunkName(name) || IsIntegrationName(name, repoIntegrationNames) || name is "origin" or "upstream";
     }
 
     // Name of virtual branch in case of truncated repo log

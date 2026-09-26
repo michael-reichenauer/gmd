@@ -80,6 +80,37 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("feature1", kept);
     }
 
+    // The integration branches configured for the repo are read with it: staging, where a feature
+    // started, goes on below the branch point
+    [TestMethod]
+    public async Task TestConfiguredIntegrationBranchesAreReadWithTheRepo()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("branch staging");
+        await repo.GitAsync("branch feature");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+        await repo.GitAsync("checkout staging");
+        var e1 = await repo.CommitFileAsync("staging.txt", "one\n", "Staging 1");
+        await repo.CommitFileAsync("staging2.txt", "two\n", "Staging 2");
+        await repo.GitAsync($"branch -f feature {e1}");
+        await repo.GitAsync("checkout feature");
+        await repo.CommitFileAsync("feature.txt", "f\n", "Feature work");
+        await repo.GitAsync("reflog expire --expire=now --all"); // The reflog would say it otherwise
+
+        var repoConfig = new FakeRepoConfig();
+        repoConfig.Set(repo.Path, c => c.IntegrationBranches = ["staging"]);
+        var service = RepoBuilder.NewAugmentedService(
+            repo.Git,
+            new FakeMetaDataService(new MetaData()),
+            new FakeFileMonitor(),
+            repoConfig
+        );
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        Assert.AreEqual("staging", augRepo.CommitById[e1].BranchName);
+        Assert.IsFalse(augRepo.CommitById[e1].IsAmbiguous);
+    }
+
     [TestMethod]
     public async Task TestGraphOfARealRepo()
     {

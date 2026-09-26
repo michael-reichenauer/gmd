@@ -173,7 +173,13 @@ class CommitBranchService : ICommitBranchService
         // the branch being one others start from, see TryDecideBranchPoint. A pull request is always a
         // contribution, even from a fork's own trunk ('Merge pull request #1 from owner/main').
         var name = branchNameService.MergedFrom(c);
-        if (name != "" && (branchNameService.IsPullRequest(c) || !WellKnownBranches.IsTrunkOrIntegrationName(name)))
+        if (
+            name != ""
+            && (
+                branchNameService.IsPullRequest(c)
+                || !WellKnownBranches.IsTrunkOrIntegrationName(name, repo.IntegrationNames)
+            )
+        )
         {
             repo.Branches[c.Branch!.PrimaryName].MergedFromNames.Add(name);
         }

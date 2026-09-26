@@ -23,6 +23,19 @@ public class WellKnownBranchesTest
         Assert.IsFalse(WellKnownBranches.IsIntegrationName("devices"));
     }
 
+    // A repo's own integration branch names, as configured for it, by name or as the last part
+    [TestMethod]
+    public void TestRepoIntegrationNames()
+    {
+        string[] names = ["staging", "release/next"];
+        Assert.IsTrue(WellKnownBranches.IsIntegrationName("staging", names));
+        Assert.IsTrue(WellKnownBranches.IsIntegrationName("owner/staging", names));
+        Assert.IsTrue(WellKnownBranches.IsIntegrationName("release/next", names));
+        Assert.IsTrue(WellKnownBranches.IsIntegrationName("develop", names), "The well known ones too");
+        Assert.IsFalse(WellKnownBranches.IsIntegrationName("staging"), "Only when configured");
+        Assert.IsTrue(WellKnownBranches.IsTrunkOrIntegrationName("upstream/staging", names));
+    }
+
     [TestMethod]
     public void TestReleaseNames()
     {

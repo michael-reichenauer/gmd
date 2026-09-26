@@ -6,7 +6,8 @@ namespace gmd.Cui;
 
 interface IConfigDlg
 {
-    void Show(string repoPath);
+    // Whether what the repo is read with changed, so it needs reading again
+    bool Show(string repoPath);
 }
 
 class ConfigDlg : IConfigDlg
@@ -22,10 +23,10 @@ class ConfigDlg : IConfigDlg
         this.updater = updater;
     }
 
-    public void Show(string repoPath)
+    public bool Show(string repoPath)
     {
         int width = 60;
-        int height = 18;
+        int height = 22;
 
         var repoConf = repoConfig.Get(repoPath);
         var dlg = new UIDialog("Config", width, height);
@@ -38,38 +39,54 @@ class ConfigDlg : IConfigDlg
             "Push/Sync branch structure metadata to server",
             repoConf.SyncMetaData
         );
+        dlg.AddLabel(1, 3, "Integration branches, besides develop and dev:");
+        var integrationBranches = dlg.AddTextField(1, 5, width - 4, string.Join(", ", repoConf.IntegrationBranches));
 
         // General config
-        dlg.AddLine(1, 3, width - 2);
+        dlg.AddLine(1, 7, width - 2);
 
-        dlg.AddLabel(1, 4, $"General:");
-        var isCheckUpdates = dlg.AddCheckBox(1, 5, "Check for new releases", config.CheckUpdates);
-        var isAutoUpdate = dlg.AddCheckBox(1, 6, "Auto update when starting", config.AutoUpdate);
-        var isAllowPreview = dlg.AddCheckBox(1, 7, "Allow preview releases", config.AllowPreview);
-        var isSpellCheck = dlg.AddCheckBox(1, 8, "Spell check commit messages", config.SpellCheck);
-        var isShowKeyHints = dlg.AddCheckBox(1, 9, "Show key hints at the bottom of the log", config.ShowKeyHints);
-        var isAddGmdToPath = dlg.AddCheckBox(1, 10, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
+        dlg.AddLabel(1, 8, $"General:");
+        var isCheckUpdates = dlg.AddCheckBox(1, 9, "Check for new releases", config.CheckUpdates);
+        var isAutoUpdate = dlg.AddCheckBox(1, 10, "Auto update when starting", config.AutoUpdate);
+        var isAllowPreview = dlg.AddCheckBox(1, 11, "Allow preview releases", config.AllowPreview);
+        var isSpellCheck = dlg.AddCheckBox(1, 12, "Spell check commit messages", config.SpellCheck);
+        var isShowKeyHints = dlg.AddCheckBox(1, 13, "Show key hints at the bottom of the log", config.ShowKeyHints);
+        var isAddGmdToPath = dlg.AddCheckBox(1, 14, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
         isAddGmdToPath.Visible = !Build.IsDevInstance() && Build.IsWindows;
 
-        if (dlg.ShowOkCancel())
-        {
-            // Update repo config
-            repoConfig.Set(repoPath, c => c.SyncMetaData = isSyncMetaData.Checked);
+        if (!dlg.ShowOkCancel())
+            return false;
 
-            // Update general config
-            config.Set(c =>
+        // Update repo config
+        var names = ParseNames(integrationBranches.Text);
+        var isNamesChanged = !names.SequenceEqual(repoConf.IntegrationBranches);
+        repoConfig.Set(
+            repoPath,
+            c =>
             {
-                c.CheckUpdates = isCheckUpdates.Checked;
-                c.AutoUpdate = isAutoUpdate.Checked;
-                c.AllowPreview = isAllowPreview.Checked;
-                c.SpellCheck = isSpellCheck.Checked;
-                c.ShowKeyHints = isShowKeyHints.Checked;
-            });
+                c.SyncMetaData = isSyncMetaData.Checked;
+                c.IntegrationBranches = names;
+            }
+        );
 
-            UpdatePathVariable(isAddGmdToPath.Checked);
-            updater.CheckUpdateAvailableAsync().RunInBackground();
-        }
+        // Update general config
+        config.Set(c =>
+        {
+            c.CheckUpdates = isCheckUpdates.Checked;
+            c.AutoUpdate = isAutoUpdate.Checked;
+            c.AllowPreview = isAllowPreview.Checked;
+            c.SpellCheck = isSpellCheck.Checked;
+            c.ShowKeyHints = isShowKeyHints.Checked;
+        });
+
+        UpdatePathVariable(isAddGmdToPath.Checked);
+        updater.CheckUpdateAvailableAsync().RunInBackground();
+        return isNamesChanged;
     }
+
+    // Branch names as typed, separated by commas or spaces
+    internal static List<string> ParseNames(string text) =>
+        text.Split([',', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
 
     static void UpdatePathVariable(bool isAddGmdToPath)
     {

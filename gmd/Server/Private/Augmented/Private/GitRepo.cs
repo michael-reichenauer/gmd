@@ -22,7 +22,8 @@ class GitRepo
         bool isTruncated,
         IReadOnlyList<GitWorktree>? worktrees = null,
         IReadOnlyDictionary<string, int>? worktreeChanges = null,
-        IReadOnlyList<ReflogEntry>? reflog = null
+        IReadOnlyList<ReflogEntry>? reflog = null,
+        IReadOnlyCollection<string>? integrationNames = null
     )
     {
         TimeStamp = timeStamp;
@@ -37,6 +38,7 @@ class GitRepo
         Worktrees = worktrees ?? [];
         WorktreeChanges = worktreeChanges ?? new Dictionary<string, int>();
         Reflog = reflog ?? [];
+        IntegrationNames = integrationNames ?? [];
     }
 
     public DateTime TimeStamp { get; }
@@ -62,6 +64,9 @@ class GitRepo
     public IReadOnlyDictionary<string, string> WitnessedBranchById =>
         witnessedBranchById ??= ReflogWitness.BranchByCommit(Reflog);
     IReadOnlyDictionary<string, string>? witnessedBranchById;
+
+    // The names of the repo's own integration branches, as configured for it, see RepoConfig
+    public IReadOnlyCollection<string> IntegrationNames { get; }
 
     public override string ToString() =>
         $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";

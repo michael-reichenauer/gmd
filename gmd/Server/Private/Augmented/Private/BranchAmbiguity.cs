@@ -125,7 +125,7 @@ static class BranchAmbiguity
         }
         else
         {
-            (branch, ambiguousBranches) = GetLikelyBranches(c);
+            (branch, ambiguousBranches) = GetLikelyBranches(repo, c);
         }
 
         c.IsAmbiguous = true;
@@ -138,7 +138,7 @@ static class BranchAmbiguity
         return branch;
     }
 
-    static (WorkBranch, List<WorkBranch>) GetLikelyBranches(WorkCommit commit)
+    static (WorkBranch, List<WorkBranch>) GetLikelyBranches(WorkRepo repo, WorkCommit commit)
     {
         var ambiguousBranches = commit.Branches;
 
@@ -158,7 +158,7 @@ static class BranchAmbiguity
         // which short of a clear margin puts a stretch under a deleted branch that one pull request
         // was merged into, rather than the release line it is on.
         var drawn = commit
-            .FirstChildren.OrderByDescending(c => WellKnownBranches.NameTier(c.Branch!.NiceName))
+            .FirstChildren.OrderByDescending(c => WellKnownBranches.NameTier(c.Branch!.NiceName, repo.IntegrationNames))
             .ThenByDescending(c => c.IsLikely)
             .ThenByDescending(c => c.AuthorTime)
             .First();

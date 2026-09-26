@@ -349,7 +349,7 @@ class CommitBranchRules : ICommitBranchRules
             return false;
 
         var senior = groups
-            .GroupBy(g => WellKnownBranches.NameTier(g.Primary.NiceName))
+            .GroupBy(g => WellKnownBranches.NameTier(g.Primary.NiceName, repo.IntegrationNames))
             .OrderByDescending(t => t.Key)
             .First()
             .ToList();

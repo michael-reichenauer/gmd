@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 using gmd.Server;
 using gmd.Server.Private;
@@ -47,6 +48,7 @@ class RepoBuilder
     readonly MetaData metaData = new MetaData();
     readonly List<GitWorktree> worktrees = [];
     readonly List<ReflogEntry> reflog = [];
+    readonly List<string> integrationNames = [];
     readonly Dictionary<string, int> worktreeChanges = [];
 
     GitStatus status = NoChanges;
@@ -176,6 +178,13 @@ class RepoBuilder
     public RepoBuilder Reflog(string reference, string commitName, string message)
     {
         reflog.Add(new ReflogEntry(Sha(commitName), reference, reflog.Count(e => e.Ref == reference), message));
+        return this;
+    }
+
+    // The repo's own integration branch names, as configured for it (RepoConfig.IntegrationBranches)
+    public RepoBuilder IntegrationBranches(params string[] names)
+    {
+        integrationNames.AddRange(names);
         return this;
     }
 
@@ -326,7 +335,8 @@ class RepoBuilder
             isTruncated,
             AllWorktrees(),
             worktreeChanges,
-            reflog
+            reflog,
+            integrationNames
         );
 
     // The main worktree first, as git lists it, on the current branch
@@ -429,7 +439,8 @@ class RepoBuilder
     public static AugmentedService NewAugmentedService(
         IGit git,
         IMetaDataService metaDataService,
-        IFileMonitor fileMonitor
+        IFileMonitor fileMonitor,
+        IRepoConfig? repoConfig = null
     )
     {
         return new AugmentedService(
@@ -438,7 +449,8 @@ class RepoBuilder
             new WorkRepoConverter(),
             fileMonitor,
             metaDataService,
-            new BranchWriteService(git, fileMonitor, metaDataService)
+            new BranchWriteService(git, fileMonitor, metaDataService),
+            repoConfig ?? new FakeRepoConfig()
         );
     }
 }

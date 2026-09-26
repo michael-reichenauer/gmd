@@ -419,11 +419,16 @@ history. That one can be overridden if it is really what you want.
 
 In Git, branch tips are the only items stored. A commit isn't inherently
 tied to a specific branch. Gmd analyzes branch structures and merge
-messages to find a commit's most likely branch. Where branches meet, the one
-the others were started from goes on: main, master or trunk, then an
-integration branch such as develop or dev, then a branch that clearly more
-other branches were merged into. When it cannot decide, the branch is drawn
-white and its tip is labeled `(~ambiguous)`.
+messages to find a commit's most likely branch. Where git's local reflog
+still says which branch a commit was made on, or which branch a branch was
+started from, that decides, and is kept in the branch metadata for when the
+reflog has expired. Otherwise, where branches meet, the one the others were
+started from goes on: main, master or trunk, then an integration branch such
+as develop or dev, then a release, hotfix or support branch, then a branch
+that clearly more other branches were merged into. A repo's own integration
+branches, e.g. staging, can be named in **Config ...** in the repo menu.
+When it cannot decide, the branch is drawn white and its tip is labeled
+`(~ambiguous)`.
 **Set Commit Branch Manually ...** sets the right branch for a commit,
 which is then marked `Φ`. Search for `*` to find the ambiguous branch tips,
 and for `$` to find the commits whose branch was set manually.

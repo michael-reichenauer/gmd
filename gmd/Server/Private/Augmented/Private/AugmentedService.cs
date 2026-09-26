@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 using GitStatus = gmd.Git.Status;
 
@@ -19,6 +20,7 @@ class AugmentedService : IAugmentedService
     readonly IFileMonitor fileMonitor;
     readonly IMetaDataService metaDataService;
     readonly IBranchWriteService branchWriteService;
+    readonly IRepoConfig repoConfig;
 
     internal AugmentedService(
         IGit git,
@@ -26,9 +28,11 @@ class AugmentedService : IAugmentedService
         IWorkRepoConverter converter,
         IFileMonitor fileMonitor,
         IMetaDataService metaDataService,
-        IBranchWriteService branchWriteService
+        IBranchWriteService branchWriteService,
+        IRepoConfig repoConfig
     )
     {
+        this.repoConfig = repoConfig;
         this.git = git;
         this.augmenter = augmenter;
         this.converter = converter;
@@ -283,7 +287,8 @@ class AugmentedService : IAugmentedService
             stashes,
             isTruncated,
             worktrees,
-            reflog: reflog
+            reflog: reflog,
+            integrationNames: repoConfig.Get(path).IntegrationBranches
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 

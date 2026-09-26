@@ -717,6 +717,28 @@ public class BranchStructureServiceTest
         Assert.AreEqual(BranchOf(repo, "d1"), repo.Branches["origin/feature"].ParentBranch?.Name);
     }
 
+    // A repo can name its own integration branches, e.g. staging, which are then taken like develop
+    [TestMethod]
+    public async Task TestConfiguredIntegrationBranchIsTakenLikeDevelop()
+    {
+        RepoBuilder Repo() =>
+            new RepoBuilder()
+                .Commit("e2", "Staging 2", "e1")
+                .Commit("f1", "Feature work", "e1")
+                .Commit("e1", "Staging 1", "c1")
+                .Commit("c2", "Main 2", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c2", isCurrent: true)
+                .BranchWithRemote("staging", "e2")
+                .BranchWithRemote("feature", "f1");
+
+        Assert.IsTrue(CommitOf(await Repo().AugmentAsync(), "e1").IsAmbiguous, "Nothing to go by");
+
+        var repo = await Repo().IntegrationBranches("staging").AugmentAsync();
+        Assert.AreEqual("origin/staging", BranchOf(repo, "e1"));
+        Assert.IsFalse(CommitOf(repo, "e1").IsAmbiguous);
+    }
+
     // Two integration branches of different names and a feature, and nothing to tell the two apart:
     // the commit stays ambiguous, but it is drawn on an integration branch, which the feature was
     // started from either way, rather than on the feature, although the feature's commit is the newest

@@ -18,12 +18,21 @@ class WorkRepo
     public Dictionary<string, Stash> StashById { get; } = [];
     public List<Worktree> Worktrees { get; } = [];
 
-    public WorkRepo(DateTime timeStamp, string path, Status status)
+    public WorkRepo(
+        DateTime timeStamp,
+        string path,
+        Status status,
+        IReadOnlyCollection<string>? integrationNames = null
+    )
     {
         TimeStamp = timeStamp;
         Path = path;
         Status = status;
+        IntegrationNames = integrationNames ?? [];
     }
+
+    // The names of the repo's own integration branches, beside the well known ones, see WellKnownBranches
+    public IReadOnlyCollection<string> IntegrationNames { get; }
 
     // The branches the reflog witnessed that decided a commit between branches, and that the metadata
     // does not keep yet. Kept there after the repo is read, since the reflog expires.
