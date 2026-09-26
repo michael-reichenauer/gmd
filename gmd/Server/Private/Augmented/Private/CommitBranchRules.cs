@@ -348,7 +348,11 @@ class CommitBranchRules : ICommitBranchRules
         if (groups.Count < 2)
             return false;
 
-        var senior = groups.GroupBy(g => NameTier(g.Primary)).OrderByDescending(t => t.Key).First().ToList();
+        var senior = groups
+            .GroupBy(g => WellKnownBranches.NameTier(g.Primary.NiceName))
+            .OrderByDescending(t => t.Key)
+            .First()
+            .ToList();
         var chosen =
             senior.Count == 1 ? senior[0]
             : senior.Select(g => g.Primary.NiceName).Distinct().Count() == 1 ? MostMergedInto(senior)
@@ -362,13 +366,6 @@ class CommitBranchRules : ICommitBranchRules
 
     // The branches of one primary branch among a commit's candidates, e.g. dev and origin/dev
     record BranchGroup(IReadOnlyList<WorkBranch> Branches, WorkBranch Primary);
-
-    // Not a deleted branch recovered with a trunk's name, which is as often a line of another name,
-    // e.g. an imported project's main, or the local side of a pull merge, as it is an old trunk
-    static int NameTier(WorkBranch primary) =>
-        WellKnownBranches.IsIntegrationName(primary.NiceName) ? 2
-        : WellKnownBranches.IsReleaseName(primary.NiceName) ? 1
-        : 0;
 
     static BranchGroup MostMergedInto(IReadOnlyList<BranchGroup> groups) =>
         groups.OrderByDescending(g => g.Primary.MergedFromNames.Count).First();

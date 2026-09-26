@@ -717,6 +717,31 @@ public class BranchStructureServiceTest
         Assert.AreEqual(BranchOf(repo, "d1"), repo.Branches["origin/feature"].ParentBranch?.Name);
     }
 
+    // Two integration branches of different names and a feature, and nothing to tell the two apart:
+    // the commit stays ambiguous, but it is drawn on an integration branch, which the feature was
+    // started from either way, rather than on the feature, although the feature's commit is the newest
+    [TestMethod]
+    public async Task TestUndecidedBranchPointIsDrawnOnTheMostSeniorName()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature work", "d1")
+            .Commit("e1", "Develop work", "d1")
+            .Commit("d2", "Dev work", "d1")
+            .Commit("d1", "Shared", "c1")
+            .Commit("c2", "Main 2", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("dev", "d2")
+            .BranchWithRemote("develop", "e1")
+            .BranchWithRemote("feature", "f1")
+            .AugmentAsync();
+
+        var d1 = CommitOf(repo, "d1");
+        Assert.IsTrue(d1.IsAmbiguous);
+        Assert.AreNotEqual("origin/feature", d1.Branch?.Name);
+        Assert.IsTrue(WellKnownBranches.IsIntegrationName(d1.Branch!.NiceName), d1.Branch.Name);
+    }
+
     // A deleted branch merged twice is recovered twice, once from each merge subject, both named dev.
     // Where the two meet there is nothing to choose between, so the commit is not left ambiguous,
     // which would ask the user whether it is on 'dev' or on 'dev'.

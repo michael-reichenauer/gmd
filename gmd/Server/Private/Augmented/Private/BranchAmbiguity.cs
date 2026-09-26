@@ -152,34 +152,18 @@ static class BranchAmbiguity
             return (likelyBranch, ambiguousBranches);
         }
 
-        // Likely child is preferred
-        var likelyChild = commit.FirstChildren.FirstOrDefault(c => c.IsLikely);
-        if (likelyChild != null)
-        {
-            var likelyBranch = likelyChild.Branch!;
-            ambiguousBranches = ambiguousBranches
-                .Concat(commit.FirstChildren.Select(c => c.Branch!))
-                .Distinct()
-                .ToList();
+        // The branch drawn is the likeliest of the children's: the most senior by name, which the
+        // branch point rule could not decide between (CommitBranchRules.TryDecideBranchPoint), then
+        // the child a merge subject named, then the newest child. Not by the branches merged in,
+        // which short of a clear margin puts a stretch under a deleted branch that one pull request
+        // was merged into, rather than the release line it is on.
+        var drawn = commit
+            .FirstChildren.OrderByDescending(c => WellKnownBranches.NameTier(c.Branch!.NiceName))
+            .ThenByDescending(c => c.IsLikely)
+            .ThenByDescending(c => c.AuthorTime)
+            .First();
+        ambiguousBranches = ambiguousBranches.Concat(commit.FirstChildren.Select(c => c.Branch!)).Distinct().ToList();
 
-            return (likelyBranch, ambiguousBranches);
-        }
-
-        // Failing that, the branch of the newest child is the one drawn
-        var newestChild = commit.FirstChildren[0];
-        List<WorkBranch> childBranches = [];
-        foreach (var c in commit.FirstChildren)
-        {
-            if (c.AuthorTime > newestChild.AuthorTime)
-            {
-                newestChild = c;
-            }
-            childBranches.Add(c.Branch!);
-        }
-
-        var likelyBranch2 = newestChild.Branch!;
-        ambiguousBranches = ambiguousBranches.Concat(childBranches).Distinct().ToList();
-
-        return (likelyBranch2, ambiguousBranches);
+        return (drawn.Branch!, ambiguousBranches);
     }
 }

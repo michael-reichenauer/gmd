@@ -41,6 +41,15 @@ static class WellKnownBranches
     public static bool IsReleaseName(string name) =>
         name.Split('/')[..^1].Any(p => p is "release" or "hotfix" or "support");
 
+    // How senior a branch is by its name, among the branches below the trunk: an integration branch is
+    // started from the trunk, a release or hotfix branch from it or the trunk, and any other from any
+    // of them. Not a deleted branch recovered with a trunk's name, which is as often a line of another
+    // name, e.g. an imported project's main, or the local side of a pull merge, as an old trunk.
+    public static int NameTier(string niceName) =>
+        IsIntegrationName(niceName) ? 2
+        : IsReleaseName(niceName) ? 1
+        : 0;
+
     // Whether a nice name is a trunk's, also as another remote's or owner's ('upstream/main')
     public static bool IsTrunkName(string name) => name[(name.LastIndexOf('/') + 1)..] is "main" or "master" or "trunk";
 
