@@ -5,21 +5,20 @@ namespace gmd.Cui.Common;
 // Terminal.Gui, so it can be tested without a terminal. The view side is in ContentView, which
 // redraws whenever one of the mutating methods here reports that something actually moved.
 //
-// The view height is read through callbacks rather than stored, since a view is resized while it
-// is shown. ViewHeight is the whole view and ContentHeight is what is left of it when the view
-// draws a top border.
+// The height is read through a callback rather than stored, since a view is resized while it is
+// shown. It is the rows the content is drawn in, i.e. less the top border of a view that draws one:
+// all of the math is in those rows, since mixing in the whole view's height once kept the last row of
+// a bordered view out of view.
 class ContentScroll
 {
-    readonly Func<int> getViewHeight;
     readonly Func<int> getContentHeight;
 
     readonly bool isMoveUpDownWrap = false; // Not used yet
 
     int currentIndex = 0;
 
-    internal ContentScroll(Func<int> getViewHeight, Func<int> getContentHeight)
+    internal ContentScroll(Func<int> getContentHeight)
     {
-        this.getViewHeight = getViewHeight;
         this.getContentHeight = getContentHeight;
     }
 
@@ -40,7 +39,6 @@ class ContentScroll
         }
     }
 
-    int ViewHeight => getViewHeight();
     int ContentHeight => getContentHeight();
 
     public void SetTotalCount(int totalCount) => TotalCount = totalCount;
@@ -75,9 +73,9 @@ class ContentScroll
         if (newFirst < 0)
             newFirst = 0;
 
-        if (newFirst + ViewHeight >= TotalCount)
+        if (newFirst + ContentHeight >= TotalCount)
         {
-            newFirst = TotalCount - ViewHeight;
+            newFirst = TotalCount - ContentHeight;
         }
         if (newFirst < 0)
             newFirst = 0;
@@ -139,9 +137,9 @@ class ContentScroll
             FirstIndex = CurrentIndex;
         }
 
-        if (CurrentIndex >= FirstIndex + ViewHeight)
+        if (CurrentIndex >= FirstIndex + ContentHeight)
         { // Need to scroll view down to the new current line
-            FirstIndex = CurrentIndex - ViewHeight + 1;
+            FirstIndex = CurrentIndex - ContentHeight + 1;
         }
         // Log.Info($"move {move}, current: {currentIndex}, first: {FirstIndex}");
 
@@ -172,7 +170,7 @@ class ContentScroll
 
         if (sbStart + sbSize + 1 > ContentHeight)
         {
-            sbStart = ViewHeight - sbSize - 1;
+            sbStart = ContentHeight - sbSize - 1;
             if (sbStart < 0)
             {
                 sbStart = 0;

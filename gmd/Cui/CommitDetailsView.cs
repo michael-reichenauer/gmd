@@ -33,6 +33,7 @@ class CommitDetailsView : ICommitDetailsView
             IsShowCursor = false,
             IsScrollMode = true,
             IsFocus = false,
+            IsKeysForwarded = true, // By the log, and by the blame
             // Height = Dim.Fill(),
         };
 
@@ -137,7 +138,6 @@ class CommitDetailsView : ICommitDetailsView
                 newRows.Add(Text.Dark("Tips:       ").Add(tipText));
             }
             newRows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
-            newRows.Add(Text.Black(""));
 
             SetRows(newRows);
         });

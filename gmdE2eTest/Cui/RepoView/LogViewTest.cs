@@ -422,6 +422,96 @@ public class LogViewTest
         );
     }
 
+    // Tab moves into the details pane, and the cursor and page keys then scroll a message too long
+    // for it rather than move to another commit, which they went on doing, since only the drawn focus
+    // moves. Tab back and they move the commit again.
+    [TestMethod]
+    public async Task TestKeysScrollTheDetailsMovedInto()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var body = string.Join("\n", Enumerable.Range(1, 20).Select(i => $"Body line {i}"));
+        await repo.CommitFileAtAsync("alpha.txt", "one\n", $"Add lines\n\n{body}", TempRepo.BaseTime.AddMinutes(7));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        // The first row of the pane, below its top border, less the scrollbar at the right edge
+        string TopOfDetails(string screen) => ScreenText.Rows(screen, repo.Path, 30, 1).TrimEnd('┃').TrimEnd();
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Children:");
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+
+        gmd.Send("Down");
+        Assert.AreEqual("Branch:     main  (main)", TopOfDetails(gmd.WaitUntilGone("Id:")));
+        gmd.Send("PageDown"); // The 10 rows less the one kept
+        Assert.AreEqual("Body line 3", TopOfDetails(gmd.WaitFor("Body line 12")));
+        gmd.Send("Up");
+        Assert.AreEqual("Body line 2", TopOfDetails(gmd.WaitUntilGone("Body line 12")));
+        gmd.Send("PageUp");
+        StringAssert.StartsWith(TopOfDetails(gmd.WaitFor("Id:")), "Id:");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        StringAssert.StartsWith(TopOfDetails(gmd.WaitFor("Add delta")), "Id:         17d85ba889a1");
+    }
+
+    // The scrollbar is magenta in the pane the keys act on and gray in the other, so Tab moves it
+    // along with the highlighted top border of the details. And the details show one only when there
+    // are rows to scroll: a message that just fills the pane has none, where the blank row the
+    // details used to end with gave it one that nothing moved.
+    [TestMethod]
+    public async Task TestScrollbarsShowWhichPaneTheKeysActOn()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        for (var i = 1; i <= 30; i++) // More commits than the log shows above the details
+            await repo.CommitFileAtAsync("alpha.txt", $"{i}\n", $"Change {i}", t.AddMinutes(10 + i));
+        // Id, Branch, Author, Children and Parents above the 5 rows of the message fill the 10 rows
+        await repo.CommitFileAtAsync(
+            "alpha.txt",
+            "fits\n",
+            "Just fits\n\nSecond line\nThird line\nFourth line",
+            t.AddMinutes(50)
+        );
+        var body = string.Join("\n", Enumerable.Range(1, 20).Select(i => $"Body line {i}"));
+        await repo.CommitFileAtAsync("alpha.txt", "long\n", $"Too long\n\n{body}", t.AddMinutes(51));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        // The color of the last column of the log's rows and of the details' rows, less the rows at
+        // the bottom where no scrollbar is drawn
+        string LogScrollbar() => ScrollbarOf(gmd.CaptureColors(), 2, 27);
+        string DetailsScrollbar() => ScrollbarOf(gmd.CaptureColors(), 30, 10);
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Body line");
+        Assert.AreEqual("MMMMMMMMMMMMMMMMMMMMM", LogScrollbar());
+        Assert.AreEqual("DDDDD", DetailsScrollbar());
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        Assert.AreEqual("DDDDDDDDDDDDDDDDDDDDD", LogScrollbar());
+        Assert.AreEqual("MMMMM", DetailsScrollbar());
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        Assert.AreEqual("MMMMMMMMMMMMMMMMMMMMM", LogScrollbar());
+        Assert.AreEqual("DDDDD", DetailsScrollbar());
+
+        gmd.Send("Down");
+        gmd.WaitFor("Fourth line");
+        Assert.AreEqual("", DetailsScrollbar());
+    }
+
+    static string ScrollbarOf(string escapedCapture, int first, int count) =>
+        string.Concat(
+                ScreenText
+                    .ColorRows(escapedCapture, first, count)
+                    .Split('\n')
+                    .Select(r => r.Length == 120 ? r[^1] : ' ')
+            )
+            .TrimEnd();
+
     [TestMethod]
     public async Task TestCommitMenu()
     {
