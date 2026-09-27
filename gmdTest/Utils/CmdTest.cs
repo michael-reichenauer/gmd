@@ -35,6 +35,22 @@ public class CmdTest
         Assert.AreEqual("en", AssertOk(new Cmd().Command("sh", "-c \"echo $LANGUAGE\"", "")));
     }
 
+    // What a command printed, as the line reader of Process gives it: every line break, '\r\n', '\r'
+    // or '\n', is a '\n', and the end is trimmed. A byte order mark is kept, and an incomplete
+    // character at the very end is dropped. Pinned since a read of the bytes in bulk, which was
+    // measured and not worth it (MODERNIZATION.md), would have to keep all of them.
+    [TestMethod]
+    public void TestOutputIsTheLinesJoinedAndTrimmed()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("Uses sh");
+        string Printed(string format) => AssertOk(new Cmd().Command("sh", $"-c \"printf '{format}'\"", ""));
+
+        Assert.AreEqual("a\nb\nc\n\nd", Printed(@"a\rb\r\nc\r\r\nd  \r\n"));
+        Assert.AreEqual("﻿abc", Printed(@"\357\273\277abc"));
+        Assert.AreEqual("abc", Printed(@"abc\342\202"));
+    }
+
     // StartAsync is for a program that may go on running, a browser: one that fails at once is an
     // error with what it said, as for any command
     [TestMethod]
