@@ -399,7 +399,8 @@ class RepoView : IRepoView, IRepoViewInputHost
         if (!isShowDetails)
             return;
 
-        // Shift focus (unfortunately SetFocus() does not seem to work)
+        // Shift focus (unfortunately SetFocus() does not seem to work), so the log keeps getting the
+        // keys, and forwards those that scroll to the details, see RepoViewInput.ScrollDetails
         commitsView.IsFocus = !commitsView.IsFocus;
         commitDetailsView.View.IsFocus = !commitDetailsView.View.IsFocus;
 

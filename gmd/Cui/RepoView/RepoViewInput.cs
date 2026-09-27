@@ -90,6 +90,9 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         commitsView.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
         commitsView.RegisterKeyHandler(Key.CursorDown, () => OnCursorDown());
+        // Only the details moved into take the page keys, otherwise they page the log as usual
+        commitsView.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-DetailsPage));
+        commitsView.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(DetailsPage));
         commitsView.RegisterKeyHandler(Key.CursorRight | Key.ShiftMask, OnKeyShiftCursorRight);
 
         commitsView.RegisterKeyHandler(Key.r, () => host.RefreshAndFetch());
@@ -446,9 +449,33 @@ class RepoViewInput
         SetHooverBranch(branch, Repo.CurrentIndex);
     }
 
-    void OnCursorUp() => MoveCursor(-1);
+    void OnCursorUp()
+    {
+        if (!ScrollDetails(-1))
+            MoveCursor(-1);
+    }
 
-    void OnCursorDown() => MoveCursor(1);
+    void OnCursorDown()
+    {
+        if (!ScrollDetails(1))
+            MoveCursor(1);
+    }
+
+    // Tab moves into the details pane so a long commit message can be scrolled, but only the drawn
+    // focus moves: Terminal.Gui's own stays on the log, which is sent the keys (SetFocus does not
+    // move it, see RepoView.ToggleDetailsFocus). So the keys that scroll are forwarded from here, as
+    // the blame view does, and are the log's own again when Tab moves back. True when forwarded.
+    bool ScrollDetails(int count)
+    {
+        if (!commitDetailsView.View.IsFocus)
+            return false;
+
+        commitDetailsView.View.Scroll(count);
+        return true;
+    }
+
+    // A page of the details is its rows less one, which is kept in view, as a page of the log is
+    int DetailsPage => commitDetailsView.View.ContentHeight - 1;
 
     // Moving the current row up or down keeps the hoover on its branch, so that holding a cursor
     // key follows a branch down the graph rather than dropping off it at the first row it is not

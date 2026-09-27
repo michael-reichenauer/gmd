@@ -422,6 +422,40 @@ public class LogViewTest
         );
     }
 
+    // Tab moves into the details pane, and the cursor and page keys then scroll a message too long
+    // for it rather than move to another commit, which they went on doing, since only the drawn focus
+    // moves. Tab back and they move the commit again.
+    [TestMethod]
+    public async Task TestKeysScrollTheDetailsMovedInto()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var body = string.Join("\n", Enumerable.Range(1, 20).Select(i => $"Body line {i}"));
+        await repo.CommitFileAtAsync("alpha.txt", "one\n", $"Add lines\n\n{body}", TempRepo.BaseTime.AddMinutes(7));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        // The first row of the pane, below its top border, less the scrollbar at the right edge
+        string TopOfDetails(string screen) => ScreenText.Rows(screen, repo.Path, 30, 1).TrimEnd('┃').TrimEnd();
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Children:");
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+
+        gmd.Send("Down");
+        Assert.AreEqual("Branch:     main  (main)", TopOfDetails(gmd.WaitUntilGone("Id:")));
+        gmd.Send("PageDown"); // The 10 rows less the one kept
+        Assert.AreEqual("Body line 3", TopOfDetails(gmd.WaitFor("Body line 12")));
+        gmd.Send("Up");
+        Assert.AreEqual("Body line 2", TopOfDetails(gmd.WaitUntilGone("Body line 12")));
+        gmd.Send("PageUp");
+        StringAssert.StartsWith(TopOfDetails(gmd.WaitFor("Id:")), "Id:");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        StringAssert.StartsWith(TopOfDetails(gmd.WaitFor("Add delta")), "Id:         17d85ba889a1");
+    }
+
     [TestMethod]
     public async Task TestCommitMenu()
     {
