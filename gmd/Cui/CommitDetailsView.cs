@@ -137,7 +137,6 @@ class CommitDetailsView : ICommitDetailsView
                 newRows.Add(Text.Dark("Tips:       ").Add(tipText));
             }
             newRows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
-            newRows.Add(Text.Black(""));
 
             SetRows(newRows);
         });

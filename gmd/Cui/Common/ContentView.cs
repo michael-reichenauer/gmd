@@ -37,7 +37,7 @@ class ContentView : View
 
     ContentView()
     {
-        scroll = new ContentScroll(() => ViewHeight, () => ContentHeight);
+        scroll = new ContentScroll(() => ContentHeight);
         WantMousePositionReports = true;
         CanFocus = true;
     }
