@@ -328,9 +328,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (each branch tested for overlap against every placed one), the sort by column 0.4 s (Sorter, whose
   order of equal columns is the drawing), `SetGraph` 0.3 s. Only after the user asks for all branches
   (asked to confirm above 20), but then every refresh pays it.
-- `Cmd.CommandRaw` reads git's output line by line and joins it: 85–120 ms over git's own 210–250 ms
-  for a 30,000-commit log. Every git call goes through it, so a faster read must do what it does: a
-  `\r\n` and a lone `\r` both become `\n`, and the end is trimmed.
 - User branch orders that contradict each other (each after the other, which a rename can leave)
   make `Sorter.Sort` loop forever, and the overload too, since it makes the same swaps.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
@@ -587,7 +584,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   | stage (ms) | git | kubernetes |
   |---|---|---|
   | `git log` alone, from the shell | 213 | 247 |
-  | reading its output (`Cmd`) | 330 | 330 |
+  | `git log` through `Cmd`, read in full | 330 | 330 |
   | parsing it | 112 → 55–70 | 60 → 42–54 |
   | augmentation | 140 | 115 |
   | view repo, default view | 9 | 13 |
@@ -598,6 +595,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   End to end on git (gmd.log's `Showed`), the default view went from about 650 to 600 ms, and a
   refresh with all branches shown from 6.0 to 4.7 s. The parse also allocates 270 MB less per refresh
   of git, and the view repo of all of kubernetes' branches 41 MB rather than 1.9 GB.
+- Of the 330 ms `git log` takes through `Cmd`, `Cmd`'s own reading is at most 40 ms, on git's 24 MB
+  log, and nothing measurable on kubernetes' 10 MB. The rest is the pipe, about 45 ms over writing to
+  `/dev/null` in the shell too, and not for its size (a 1 MB pipe, `F_SETPIPE_SZ`, changed nothing),
+  and .NET starting the process, about 30 ms. Reading the bytes in bulk rather than line by line saved
+  about 20 ms on git and nothing on kubernetes: not worth changing what every git call goes through,
+  which would have to keep all the line reader does (pinned in `CmdTest`). What is left is the size of
+  the log itself: `%B`, the full messages, is most of git's 24 MB.
 - The augmentation is linear, about 4.5 µs a commit, and no stage stands out (assigning branches
   85 ms of git's, parents and children 25 ms, the rest a few): nothing worth risking the most subtle
   code for.
