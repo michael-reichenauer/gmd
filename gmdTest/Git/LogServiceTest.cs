@@ -112,6 +112,72 @@ public class LogServiceTest
         var commits = await GetLogAsync(GitLogOutput("\n\n  \nSubject after empty lines"));
 
         Assert.AreEqual("Subject after empty lines", commits[0].Subject);
+        Assert.AreEqual("Subject after empty lines", commits[0].Message);
+    }
+
+    // A line of white space only is empty too, whatever the white space, and the first line that
+    // is not keeps its indentation. What is skipped are whole lines only.
+    [TestMethod]
+    public async Task TestParseMessageSkipsLeadingWhiteSpaceLinesOnly()
+    {
+        var commits = await GetLogAsync(GitLogOutput("\n \t\n\r\n  Indented subject\n\nBody"));
+
+        Assert.AreEqual("  Indented subject\n\nBody", commits[0].Message);
+        Assert.AreEqual("  Indented subject", commits[0].Subject);
+    }
+
+    // Trailing white space is trimmed from the message, and from the subject line
+    [TestMethod]
+    public async Task TestParseMessageTrimsTrailingWhiteSpace()
+    {
+        var commits = await GetLogAsync(GitLogOutput("Subject \t\nBody  \n\n \n"));
+
+        Assert.AreEqual("Subject \t\nBody", commits[0].Message);
+        Assert.AreEqual("Subject", commits[0].Subject);
+    }
+
+    // A message of nothing, or of empty lines only, is an empty message and subject
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("\n")]
+    [DataRow("\n \n\t")]
+    public async Task TestParseEmptyMessage(string message)
+    {
+        var commits = await GetLogAsync(GitLogOutput(message));
+
+        Assert.AreEqual("", commits[0].Message);
+        Assert.AreEqual("", commits[0].Subject);
+    }
+
+    // Records are NUL separated, and a record of white space only, e.g. the newline after the last,
+    // is no commit. A '|' in a message after its first line is part of the message as well.
+    [TestMethod]
+    public async Task TestParseSeveralRecords()
+    {
+        var output =
+            $"{Id1}|2024-10-15 12:34:56 +0200|2024-10-15 12:35:00 +0200|Alice|{Id2}|First\n\nWith a | in it\n\x00"
+            + "\n\x00"
+            + $"{Id2}|2024-10-14 12:34:56 +0200|2024-10-14 12:35:00 +0200|Bob||Second|and more\n\x00\n";
+
+        var commits = await GetLogAsync(output);
+
+        Assert.AreEqual(2, commits.Count);
+        Assert.AreEqual("First\n\nWith a | in it", commits[0].Message);
+        Assert.AreEqual("First", commits[0].Subject);
+        Assert.AreEqual(Id2, commits[1].Id);
+        Assert.AreEqual("Bob", commits[1].Author);
+        Assert.AreEqual(0, commits[1].ParentIds.Length);
+        Assert.AreEqual("Second|and more", commits[1].Message);
+        Assert.AreEqual("Second|and more", commits[1].Subject);
+    }
+
+    // The parents are space separated, and white space around them is not part of an id
+    [TestMethod]
+    public async Task TestParseParentsAroundWhiteSpace()
+    {
+        var commits = await GetLogAsync(GitLogOutput(parents: $" {Id2} {Id1} "));
+
+        CollectionAssert.AreEqual(new[] { Id2, Id1 }, commits[0].ParentIds);
     }
 
     // The root commit has no parents, %P is then empty
@@ -147,7 +213,8 @@ public class LogServiceTest
 
         var result = await log.GetLogAsync(100, "/wd");
 
-        AssertError(result, "Expected a parse error");
+        var error = AssertError(result, "Expected a parse error");
+        StringAssert.Contains(error.Message, $"{Id1}|2024-10-15 12:34:56 +0200|Alice");
     }
 
     [TestMethod]

@@ -362,8 +362,9 @@ class ViewRepoCreater : IViewRepoCreater
     static List<Commit> FilterOutViewCommits(Repo repo, IReadOnlyList<Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
+        var names = filteredBranches.Select(b => b.Name).ToHashSet();
         return repo
-            .AllCommits.Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
+            .AllCommits.Where(c => names.Contains(c.BranchName))
             .Select(c => c with { IsAhead = false, IsBehind = false })
             .ToList();
     }
@@ -380,12 +381,9 @@ class ViewRepoCreater : IViewRepoCreater
         switch (show)
         {
             case ShowBranches.Specified:
+                var branchByAnyName = BranchByAnyName(repo);
                 showBranches
-                    .Select(name =>
-                        repo.AllBranches.FirstOrDefault(b =>
-                            b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name
-                        )
-                    )
+                    .Select(name => branchByAnyName.GetValueOrDefault(name))
                     .Where(b => b != null)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
                 break;
@@ -431,6 +429,21 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
+    // The branch a shown name is, by the first branch that has it as its primary base name, its name
+    // or its primary name. Looked up once for all the names: a refresh after showing all branches
+    // shows thousands of them by name, and searching all branches for each took a quarter second.
+    static Dictionary<string, Branch> BranchByAnyName(Repo repo)
+    {
+        Dictionary<string, Branch> branches = [];
+        foreach (var b in repo.AllBranches)
+        {
+            branches.TryAdd(b.PrimaryBaseName, b);
+            branches.TryAdd(b.Name, b);
+            branches.TryAdd(b.PrimaryName, b);
+        }
+        return branches;
+    }
+
     void AddBranchAndAncestorsAndRelatives(Repo repo, Branch? branch, IDictionary<string, Branch> branches)
     {
         if (branch == null || branches.ContainsKey(branch.Name))
@@ -453,7 +466,7 @@ class ViewRepoCreater : IViewRepoCreater
 
         var branchOrders = repoConfig.Get(repo.Path).BranchOrders;
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
-        Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
+        SortPrimaryBranches(sorted, branchOrders);
 
         // Reinsert the local branches just after its remote branch
         branches
@@ -481,7 +494,29 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
-    static int CompareBranches(Branch b1, Branch b2, List<BranchOrder> branchOrders)
+    // Sorts the primary branches by CompareBranches, with the order of Sorter.Sort. A branch goes after
+    // its parent, its ancestors and the branches the user ordered it against only, which is what the
+    // sort is told, rather than to compare every branch with every other: a view of all branches of a
+    // large repo is thousands of them, and that took seconds.
+    internal static void SortPrimaryBranches(List<Branch> branches, List<BranchOrder> branchOrders)
+    {
+        var byName = branches.ToDictionary(b => b.Name);
+        var byPrimaryName = branches.ToLookup(b => b.PrimaryName);
+        var orderedAgainst = branchOrders
+            .SelectMany(o => new[] { (o.Branch, o.Other), (o.Other, o.Branch) })
+            .ToLookup(p => p.Item1, p => p.Item2);
+
+        IEnumerable<Branch> MayGoAfter(Branch b) =>
+            b
+                .AncestorNames.Prepend(b.ParentBranchName)
+                .Where(byName.ContainsKey)
+                .Select(n => byName[n])
+                .Concat(orderedAgainst[b.PrimaryName].SelectMany(n => byPrimaryName[n]));
+
+        Sorter.Sort(branches, (b1, b2) => CompareBranches(b1, b2, branchOrders), MayGoAfter);
+    }
+
+    internal static int CompareBranches(Branch b1, Branch b2, List<BranchOrder> branchOrders)
     {
         if (b1 == b2)
             return 0;
