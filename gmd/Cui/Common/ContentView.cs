@@ -64,7 +64,15 @@ class ContentView : View
 
     public event Action<Selection>? SelectionChange;
 
+    // Whether the view has the focus as drawn, where two views share the keys and Tab moves between
+    // them: the log and its commit details, and the blame and its. A view on its own leaves it on.
     public bool IsFocus { get; set; } = true;
+
+    // Set on a view that is sent its keys by another, which keeps Terminal.Gui's focus and forwards
+    // them, as the log does to its commit details once Tab moves into them. Tab does not move
+    // Terminal.Gui's focus, so IsFocus alone says whether such a view is focused.
+    public bool IsKeysForwarded { get; set; } = false;
+
     public int FirstIndex => scroll.FirstIndex;
     public int TotalCount => scroll.TotalCount;
     public int CurrentIndex => scroll.CurrentIndex;
@@ -87,6 +95,9 @@ class ContentView : View
     public bool IsCustomShowSelection { get; set; } = false;
 
     public Selection Selection => selection.Selection;
+
+    // Drawn as the view the keys act on: the top border highlighted, the cursor, and the scrollbar in magenta
+    bool IsFocused => IsFocus && (HasFocus || IsKeysForwarded);
 
     public void RegisterKeyHandler(Key key, OnKeyCallback callback)
     {
@@ -392,7 +403,7 @@ class ContentView : View
             return;
         }
         Move(0, 0);
-        if (IsFocus)
+        if (IsFocused)
         {
             Driver.SetAttribute(Color.White);
             Driver.AddStr(new string('━', ViewWidth));
@@ -406,7 +417,7 @@ class ContentView : View
 
     void DrawCursor()
     {
-        if (!IsShowCursor || IsHideCursor || !IsFocus || !HasFocus)
+        if (!IsShowCursor || IsHideCursor || !IsFocused)
         {
             return;
         }
@@ -420,7 +431,7 @@ class ContentView : View
     {
         (int sbStart, int sbEnd) = scroll.GetVerticalScrollbarIndexes();
 
-        var color = HasFocus ? Color.Magenta : Color.Dark;
+        var color = IsFocused ? Color.Magenta : Color.Dark;
         var x = Math.Max(ViewWidth - 1, 0);
         for (int i = sbStart; i <= sbEnd; i++)
         {

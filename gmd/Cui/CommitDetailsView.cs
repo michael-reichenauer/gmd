@@ -33,6 +33,7 @@ class CommitDetailsView : ICommitDetailsView
             IsShowCursor = false,
             IsScrollMode = true,
             IsFocus = false,
+            IsKeysForwarded = true, // By the log, and by the blame
             // Height = Dim.Fill(),
         };
 

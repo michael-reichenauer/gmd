@@ -278,8 +278,11 @@ class RepoView : IRepoView, IRepoViewInputHost
     public void ShowFilter()
     {
         isShowFilter = true;
-        // Make room for filter dialog
-        commitsView.IsFocus = false;
+        // The results are shown in the log, with no cursor since the keys are the search field's, and
+        // the log is what they act on once the search closes, so not the details if Tab moved there
+        if (commitDetailsView.View.IsFocus)
+            ToggleDetailsFocus();
+        commitsView.IsHideCursor = true;
         commitsView.SetNeedsDisplay();
 
         var orgRepo = repo.Repo;
@@ -288,7 +291,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         // Show Commits view normal again
         isShowFilter = false;
-        commitsView.IsFocus = true;
+        commitsView.IsHideCursor = false;
         commitsView.SetFocus();
         commitsView.SetNeedsDisplay();
         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
