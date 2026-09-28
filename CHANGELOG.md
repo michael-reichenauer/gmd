@@ -1,9 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-132 releases:
+133 releases:
 
 ## [Current] - 2026-09-28
+- Version 0.94
+- Updated packages
+- Improve updating functionality
+
+## [v0.91.1429.412] - 2026-09-28
 - Improve UI usability
 - Improve algorithm to determine which branch a commit "belongs" to
 - Improve git log parsing performance

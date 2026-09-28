@@ -10,7 +10,7 @@ class Program
 {
     // Current major.minor version
     public const int MajorVersion = 0;
-    public const int MinorVersion = 91;
+    public const int MinorVersion = 94;
 
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;
@@ -82,7 +82,7 @@ class Program
     async Task LogProgramInfoAsync()
     {
         Log.Info($"Version: {Build.Version()}");
-        Log.Info($"Build    {Build.Time().IsoZone()}");
+        Log.Info($"Build    {Build.Time().ToLocalTime().IsoZone()}");
         Log.Info($"Sha:     {Build.Sha()}");
         Log.Info($"Cmd:     {Environment.CommandLine}");
         Log.Info($"Process: {Environment.ProcessPath}");

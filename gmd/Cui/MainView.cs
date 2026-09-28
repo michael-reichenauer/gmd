@@ -204,9 +204,9 @@ partial class MainView : IMainView
         string msg =
             $"A new release is available.\n\n"
             + $"Current Version: {Build.Version().Txt()}\n"
-            + $"Built:           {Build.Time().Iso()}\n\n"
+            + $"Built:           {Build.Time().ToLocalTime().Iso()}\n\n"
             + $"New Version:     {latest.Txt()} {typeText}\n"
-            + $"Built:           {Build.GetBuildTime(releases.LatestVersion).Iso()}\n\n"
+            + $"Built:           {Build.GetBuildTime(releases.LatestVersion).ToLocalTime().Iso()}\n\n"
             + "Do you want to update?";
 
         var button = UI.InfoMessage("New Release", msg, ["Yes", "No"]);

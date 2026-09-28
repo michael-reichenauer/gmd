@@ -22,7 +22,7 @@ class AboutDlg : IAboutDlg
         var releases = config.Releases;
         var typeText = releases.IsPreview ? "(preview)" : "";
         var gmdVersion = Build.Version();
-        var gmdBuildTime = Build.Time().IsoZone();
+        var gmdBuildTime = Build.Time().ToLocalTime().IsoZone();
         var gmdSha = Build.Sha();
         var gitVersion = config.GitVersion;
 

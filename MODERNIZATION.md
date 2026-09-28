@@ -145,6 +145,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   user-assigned commit's `Φ` lost its white; `diff3`-style conflicts drew the ancestor as part of
   "ours"; the resolver's `]` / `[` skipped the first conflict and its upper-case shortcuts fell
   through to the log view, where `P` is push all.
+- The update check missed a newer release, or kept offering the running one, depending on the time
+  zone. The version is the build time, and a release is tagged with the version CI computes, in UTC,
+  but every gmd computes its own where it runs, and read the build time as local time: the fix for
+  `Build.Version()` throwing just after midnight (above) counted the minutes from local midnight
+  instead, so east of UTC a gmd took itself for newer than a release built within the offset of it
+  (0.91.1429.398 ran as 0.91.1429.518 in UTC+2, above the stable 0.91.1429.412), and west of UTC it
+  took its own release for newer than itself. The times are read as UTC now and shown as local time.
+  A binary installed before that keeps its skew until it has updated once.
 - Every deleted branch was named `branch(n)` instead of the name recovered from its merge subject
   (`Merge branch 'x' into dev` no longer gave `x`): the split of `BranchStructureService` gave three
   stages a dependency on the stateful `BranchNameService`, and the container, resolving per
