@@ -130,7 +130,6 @@ static class KeyHints
         if (repo.Graph.GetRowBranches(repo.CurrentIndex).Any())
             hints.Add(new("←→", "branch"));
         hints.Add(new("⇧→", "show branch"));
-        hints.AddRange(UndoHint(repo));
         if (repo.SearchMatches.IsActive)
             hints.Add(new("n", "next match"));
         hints.Add(new("f", "search"));
@@ -176,7 +175,6 @@ static class KeyHints
             hints.Add(new("Enter", "show/hide"));
         if (!branch.IsMainBranch)
             hints.Add(new("h", "hide"));
-        hints.AddRange(UndoHint(repo));
         if (status.IsOk)
             hints.Add(new("d", "diff"));
         if (branch.IsCurrent)
@@ -213,13 +211,6 @@ static class KeyHints
             yield return new("p", "push");
         if (BranchPushPullCommands.CanPullCurrentBranch(repo.Repo))
             yield return new("u", "pull");
-    }
-
-    // Backspace, once a branch has been shown or hidden, saying which of the two it goes back from
-    static IEnumerable<KeyHint> UndoHint(IViewRepo repo)
-    {
-        if (repo.ShownHistory.Last is ShownChange last)
-            yield return new("Bksp", $"undo {last.Verb.ToLowerInvariant()}");
     }
 
     // A hint with no key is a label, e.g. the name of the branch the keys act on
