@@ -70,7 +70,8 @@ static class Build
     }
 
     // The two last version numbers, i.e. the days since the base build time and the minutes since
-    // midnight of the build day. Takes the build time so it can be tested with a time of its own.
+    // midnight of the build day, both in UTC, so every machine computes the version the release was
+    // tagged with. Takes the build time so it can be tested with a time of its own.
     internal static (int, int) GetTimeSinceBaseTime(DateTime cbt)
     {
         if (!TryParseDateTime(BaseBuildTimeText, out var baseBuildTime))
@@ -92,8 +93,18 @@ static class Build
         return (daysSinceBase, minutesSinceMidnight);
     }
 
-    static bool TryParseDateTime(string text, out DateTime dateTime) =>
-        DateTime.TryParseExact(text, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out dateTime);
+    // The times are UTC ('Z') and must stay UTC. Parsed with the default style, .NET converts them to
+    // local time, and the version then depends on the time zone of the machine computing it: the
+    // release tag is computed on CI, which runs UTC, so a gmd east of UTC took itself for newer than
+    // a later release, and one west of UTC kept being offered its own.
+    internal static bool TryParseDateTime(string text, out DateTime dateTime) =>
+        DateTime.TryParseExact(
+            text,
+            DateFormat,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AdjustToUniversal,
+            out dateTime
+        );
 
     static string AssemblyVersionBuildTime()
     {

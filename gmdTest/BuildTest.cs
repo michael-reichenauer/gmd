@@ -7,10 +7,9 @@ namespace gmdTest;
 // backwards from a version number. These pin the encoding, since a released version and the gmd
 // that reads it are built from different commits and have to agree on it.
 //
-// Note that the base build time is written as UTC ("…T00:00:00Z") but parsed into local time, so
-// the encoding is anchored at midnight only on a machine running UTC — which CI does, and CI is
-// what builds the released versions. The tests below are therefore written to hold in any time
-// zone. See MODERNIZATION.md.
+// The encoding is in UTC: the times are written as UTC ("…T00:00:00Z") and read as UTC, so the
+// version a gmd computes for itself is the one CI tagged its release with, whatever the time zone
+// of the machine it runs on. See MODERNIZATION.md.
 [TestClass]
 public class BuildTest
 {
@@ -20,7 +19,27 @@ public class BuildTest
     [TestMethod]
     public void TestBaseBuildTime()
     {
-        Assert.AreEqual(new DateTimeOffset(2022, 10, 30, 0, 0, 0, TimeSpan.Zero).LocalDateTime, BaseBuildTime);
+        Assert.AreEqual(new DateTime(2022, 10, 30, 0, 0, 0, DateTimeKind.Utc), BaseBuildTime);
+        Assert.AreEqual(DateTimeKind.Utc, BaseBuildTime.Kind);
+    }
+
+    // A preview built at 06:38:39Z is tagged 0.91.1429.398 by CI, which runs UTC. Read as local
+    // time, the same binary called itself 0.91.1429.518 in UTC+2, which is later than the stable
+    // release 0.91.1429.412 built fourteen minutes after it, so that release was never offered.
+    // DateTime equality ignores the kind, and on a UTC machine local time is UTC, hence the kind
+    // is asserted too: that is what fails on CI if the times are read as local again.
+    [TestMethod]
+    public void TestBuildTimeIsReadAsUtcWhateverTheTimeZone()
+    {
+        Assert.IsTrue(Build.TryParseDateTime("2026-09-28T06:38:39Z", out var buildTime));
+
+        Assert.AreEqual(DateTimeKind.Utc, buildTime.Kind);
+        Assert.AreEqual(new DateTime(2026, 9, 28, 6, 38, 39, DateTimeKind.Utc), buildTime);
+        Assert.AreEqual((1429, 398), Build.GetTimeSinceBaseTime(buildTime));
+
+        var releaseBuildTime = Build.GetBuildTime("0.91.1429.412");
+        Assert.AreEqual(DateTimeKind.Utc, releaseBuildTime.Kind);
+        Assert.AreEqual(new DateTime(2026, 9, 28, 6, 52, 0, DateTimeKind.Utc), releaseBuildTime);
     }
 
     [TestMethod]
@@ -59,7 +78,8 @@ public class BuildTest
 
     // The fourth version number is the time of day, so it is always within the day. It used to be
     // counted from midnight UTC while the build time itself was local, which made it negative for
-    // a build made between midnight and the time zone's offset, and Version() then threw.
+    // a build made between midnight and the time zone's offset, and Version() then threw. Both are
+    // UTC now, see TestBuildTimeIsReadAsUtcWhateverTheTimeZone.
     [TestMethod]
     public void TestMinutesSinceMidnightIsTheFourthVersionNumber()
     {
