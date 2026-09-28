@@ -120,19 +120,18 @@ public class KeyHintsTest
         );
     }
 
-    // Once a branch has been shown or hidden, Backspace is offered for going back, next to the key
-    // that shows branches and, on a hoovered branch, next to the one that hides it
+    // Backspace, which undoes the last show or hide of branches, is left out of the hints even once
+    // there is something to undo. The key is in the help, and in the Branches menu (Undo …).
     [TestMethod]
-    public async Task TestBackspaceIsOfferedOnceABranchHasBeenShownOrHidden()
+    public async Task TestBackspaceIsNotOfferedOnceABranchHasBeenShownOrHidden()
     {
         var view = await ViewOf(Fixture().LocalBranch("feature", "d1"), "feature");
-        Assert.IsFalse(Hints(view).Contains("Bksp"), "Nothing to undo yet");
 
         view.ShownHistory.Add(["main"], ["main", "feature"], "Show", "'feature'", "feature");
-        StringAssert.Contains(Hints(view), "⇧→ show branch  Bksp undo show  f search");
+        StringAssert.Contains(Hints(view), "⇧→ show branch  f search");
 
         view.ShownHistory.Add(["main", "feature"], ["main"], "Hide", "'feature'", "feature");
-        StringAssert.Contains(Hints(view, HooverOn(view, "feature", "d1")), "h hide  Bksp undo hide  ");
+        Assert.IsFalse(Hints(view, HooverOn(view, "feature", "d1")).Contains("Bksp"));
     }
 
     // After a search, n steps on to its next match in the log

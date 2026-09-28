@@ -256,8 +256,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 2. **Undo for showing and hiding branches,** e.g. Backspace brings back the previous set. It is
    cheap, and it makes the README's "can be undone at any time" literally true. *Done
    (2026-09-25):* `Backspace` steps back through the shows and hides the user asked for
-   (`ShownHistory`), and says what it undid; *Undo …* under Branches names it, and the key-hint line
-   offers `Bksp undo show` or `undo hide` once there is something to undo.
+   (`ShownHistory`), and says what it undid; *Undo …* under Branches names it. The key-hint line
+   offered `Bksp undo show` or `undo hide` too, and no longer does (2026-09-28).
 3. **Open the branch, the commit or a new pull request in the browser.** *Done (2026-09-25):*
    *Open in Browser* and *Create Pull Request in Browser* in the branch menu, *Open Commit in
    Browser* and *Open Repository in Browser*, for GitHub, GitLab, Bitbucket, Azure DevOps and Gitea
