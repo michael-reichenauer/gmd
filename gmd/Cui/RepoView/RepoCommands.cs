@@ -27,11 +27,17 @@ interface IRepoCommands
     string OperationSummary();
     Task<bool> ConfirmConflictsResolvedAsync(string action);
     void AbortOperation();
+    void ShowConflicts();
     void ContinueOperation();
     void SkipOperationCommit();
 
     void CopyCommitId();
     void CopyCommitMessage();
+
+    void OpenRepoInBrowser();
+    void OpenBranchInBrowser(string name);
+    void OpenCommitInBrowser(string commitId);
+    void OpenNewPullRequest(string name);
 }
 
 class RepoCommands : IRepoCommands
@@ -41,6 +47,7 @@ class RepoCommands : IRepoCommands
     readonly IRepoView repoView;
     readonly IServer server;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly ICloneDlg cloneDlg;
     readonly IInitRepoDlg initRepoDlg;
     readonly IAboutDlg aboutDlg;
@@ -48,25 +55,29 @@ class RepoCommands : IRepoCommands
     readonly Config config;
     readonly IUpdater updater;
     readonly IClipboardService clipboard;
+    readonly IWebCommands webCmds;
 
     internal RepoCommands(
         IViewRepo repo,
         IRepoView repoView,
         IServer server,
         IProgress progress,
+        IStatusLine status,
         ICloneDlg cloneDlg,
         IInitRepoDlg initRepoDlg,
         IAboutDlg aboutDlg,
         IHelpDlg helpDlg,
         Config config,
         IUpdater updater,
-        IClipboardService clipboard
+        IClipboardService clipboard,
+        Func<IViewRepo, IWebCommands> newWebCommands
     )
     {
         this.repo = repo;
         this.repoView = repoView;
         this.server = server;
         this.progress = progress;
+        this.status = status;
         this.cloneDlg = cloneDlg;
         this.initRepoDlg = initRepoDlg;
         this.aboutDlg = aboutDlg;
@@ -74,7 +85,16 @@ class RepoCommands : IRepoCommands
         this.config = config;
         this.updater = updater;
         this.clipboard = clipboard;
+        this.webCmds = newWebCommands(repo);
     }
+
+    public void OpenRepoInBrowser() => webCmds.OpenRepo();
+
+    public void OpenBranchInBrowser(string name) => webCmds.OpenBranch(name);
+
+    public void OpenCommitInBrowser(string commitId) => webCmds.OpenCommit(commitId);
+
+    public void OpenNewPullRequest(string name) => webCmds.OpenNewPullRequest(name);
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
 
@@ -163,6 +183,9 @@ class RepoCommands : IRepoCommands
     public void UndoAllUncommittedChanged() =>
         Do(async () =>
         {
+            if (!Confirm.UndoAllUncommitted())
+                return Result.Ok;
+
             if (await server.UndoAllUncommittedChangesAsync(repo.Path) is Error e)
             {
                 return new Error($"Failed to undo all changes", e);
@@ -175,17 +198,8 @@ class RepoCommands : IRepoCommands
     public void CleanWorkingFolder() =>
         Do(async () =>
         {
-            if (
-                UI.InfoMessage(
-                    "Clean Working Folder",
-                    "Do you want to reset folder\nand delete all untracked files and folders?",
-                    1,
-                    ["Yes", "No"]
-                ) != 0
-            )
-            {
+            if (!Confirm.CleanWorkingFolder())
                 return Result.Ok;
-            }
 
             if (await server.CleanWorkingFolderAsync(repo.Path) is Error e)
             {
@@ -272,6 +286,41 @@ class RepoCommands : IRepoCommands
         return choice == 1;
     }
 
+    // After a command stopped on conflicts: what stopped, the files, and the way on, where there used
+    // to be git's output in a red error box. Resolving is done in the diff of the uncommitted
+    // changes, Enter on a conflicted file opening the resolver, and then a commit or a continue
+    // finishes the operation. Aborting throws it away; chosen here it is not asked about again, since
+    // nothing has been resolved yet to lose.
+    public void ShowConflicts()
+    {
+        var s = repo.Repo.Status;
+        if (!s.IsMerging || s.Conflicted == 0)
+            return; // E.g. resolved by git itself, with rerere
+
+        var name = OperationName();
+        var what = name + (s.OperationBranchName != "" ? $" '{s.OperationBranchName}'" : "");
+        var finish = s.IsFinishedByCommit
+            ? $"commit (c) to finish the {name.ToLower()}"
+            : $"continue (c) the {name.ToLower()}";
+        var text =
+            $"{what} stopped on conflicts in {Count(s.Conflicted, "file")}:\n\n"
+            + $"{FileList(s.ConflictsFiles)}\n\n"
+            + "Resolve them in the diff of the uncommitted changes, where Enter\n"
+            + $"on a file opens it, then {finish}.\n"
+            + "Shift-M opens the repo menu, to abort it later.";
+
+        var choice = UI.InfoMessage(
+            $"{name} Stopped on Conflicts",
+            text,
+            0,
+            ["Resolve Conflicts", $"Abort {name}", "Later"]
+        );
+        if (choice == 0)
+            repo.CommitCmds.ShowUncommittedDiff();
+        else if (choice == 1)
+            Abort(isAsked: true);
+    }
+
     static string UnresolvedText(IReadOnlyList<string> paths, string action) =>
         $"{Count(paths.Count, "file")} still {(paths.Count == 1 ? "has" : "have")} unresolved conflicts:\n\n"
         + $"{FileList(paths)}\n\n"
@@ -292,11 +341,17 @@ class RepoCommands : IRepoCommands
 
     // Throws away everything the operation did and puts the working folder back as it was. It is
     // the only way out of a conflicted rebase, so it is worth confirming rather than a stray key.
-    public void AbortOperation() =>
+    public void AbortOperation() => Abort(isAsked: false);
+
+    void Abort(bool isAsked) =>
         Do(async () =>
         {
             var name = OperationName();
-            if (UI.InfoMessage($"Abort {name}", $"Do you want to abort the {name.ToLower()}?", 1, ["Yes", "No"]) != 0)
+            var isConfirmed =
+                isAsked
+                || UI.InfoMessage($"Abort {name}", $"Do you want to abort the {name.ToLower()}?", 1, ["Yes", "No"])
+                    == 0;
+            if (!isConfirmed)
                 return Result.Ok;
 
             if (await server.AbortOperationAsync(repo.Path) is Error e)
@@ -387,7 +442,7 @@ class RepoCommands : IRepoCommands
             return Result.Ok;
         });
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 
     public void CopyCommitId() =>
         Do(async () =>

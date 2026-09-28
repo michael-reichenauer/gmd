@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 using gmd.Server;
 using gmd.Server.Private;
@@ -46,6 +47,8 @@ class RepoBuilder
     readonly List<GitStash> stashes = [];
     readonly MetaData metaData = new MetaData();
     readonly List<GitWorktree> worktrees = [];
+    readonly List<ReflogEntry> reflog = [];
+    readonly List<string> integrationNames = [];
     readonly Dictionary<string, int> worktreeChanges = [];
 
     GitStatus status = NoChanges;
@@ -164,6 +167,31 @@ class RepoBuilder
     {
         var id = Sha($"5{stashes.Count}a5h");
         stashes.Add(new GitStash(id, name, "main", Sha(parentCommit), Sha($"5{stashes.Count}1nd"), message));
+        return this;
+    }
+
+    // Adds a reflog entry, as 'git reflog show' would list it: the entries of each ref are
+    // declared latest first, like the commits, e.g.
+    //     .Reflog("refs/heads/feature", "f1", "commit: Feature work")
+    //     .Reflog("refs/heads/feature", "d1", "branch: Created from HEAD")
+    //     .Reflog("HEAD", "d1", "checkout: moving from dev to feature")
+    public RepoBuilder Reflog(string reference, string commitName, string message)
+    {
+        reflog.Add(new ReflogEntry(Sha(commitName), reference, reflog.Count(e => e.Ref == reference), message));
+        return this;
+    }
+
+    // The repo's own integration branch names, as configured for it (RepoConfig.IntegrationBranches)
+    public RepoBuilder IntegrationBranches(params string[] names)
+    {
+        integrationNames.AddRange(names);
+        return this;
+    }
+
+    // Records that the reflog once witnessed the branch of a commit, as kept in the repo metadata
+    public RepoBuilder Witnessed(string commitName, string branchName)
+    {
+        metaData.SetWitnessed(Sha(commitName), branchName);
         return this;
     }
 
@@ -306,7 +334,9 @@ class RepoBuilder
             stashes,
             isTruncated,
             AllWorktrees(),
-            worktreeChanges
+            worktreeChanges,
+            reflog,
+            integrationNames
         );
 
     // The main worktree first, as git lists it, on the current branch
@@ -364,13 +394,19 @@ class RepoBuilder
 
     // The view repo the filter dialog renders, i.e. only the commits matching the filter, on the
     // branches those commits are on. The default count is what FilterDlg passes.
-    public async Task<Repo> FilteredViewRepoAsync(string filter, int maxCount = 5000) =>
-        NewViewRepoCreater().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount);
+    public async Task<Repo> FilteredViewRepoAsync(
+        string filter,
+        int maxCount = 5000,
+        IReadOnlySet<string>? onlyIds = null
+    ) => NewViewRepoCreater().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount, onlyIds);
 
     // The real server layer, with git, the file monitor and the config faked out. Needed for the
     // branch show/hide commands, which work on an already created view repo.
-    public IServer NewServer() =>
-        new ServerImpl(NewGit(), NewAugmentedService(), new ViewRepoConverter(), NewViewRepoCreater());
+    public IServer NewServer() => NewServer(NewGit());
+
+    // The same with a git the test holds, for what the server asks of git itself, e.g. a search's files
+    public IServer NewServer(FakeGit git) =>
+        new ServerImpl(git, NewAugmentedService(), new ViewRepoConverter(), NewViewRepoCreater());
 
     // The augmenter with its real collaborators, none of which touch git, disk or the terminal.
     // The wiring mirrors the branch structure pipeline: the commit graph, the branch of every
@@ -380,6 +416,7 @@ class RepoBuilder
         var branchNameService = new BranchNameService();
         return new Augmenter(
             new BranchStructureService(
+                branchNameService,
                 new CommitGraphService(branchNameService),
                 new CommitBranchService(branchNameService, new CommitBranchRules(branchNameService)),
                 new BranchHierarchyService()
@@ -403,7 +440,8 @@ class RepoBuilder
     public static AugmentedService NewAugmentedService(
         IGit git,
         IMetaDataService metaDataService,
-        IFileMonitor fileMonitor
+        IFileMonitor fileMonitor,
+        IRepoConfig? repoConfig = null
     )
     {
         return new AugmentedService(
@@ -412,7 +450,8 @@ class RepoBuilder
             new WorkRepoConverter(),
             fileMonitor,
             metaDataService,
-            new BranchWriteService(git, fileMonitor, metaDataService)
+            new BranchWriteService(git, fileMonitor, metaDataService),
+            repoConfig ?? new FakeRepoConfig()
         );
     }
 }

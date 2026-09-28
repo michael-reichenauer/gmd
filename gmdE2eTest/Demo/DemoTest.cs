@@ -30,8 +30,9 @@ public class DemoTest
 
         using var repo = await DemoRepo.CreateAsync();
 
-        // The commit the demo makes is pinned too, to the demo's 'now'
-        using var gmd = TmuxSession.StartGmd(repo, Width, Height, commitTime: DemoRepo.Now);
+        // The commit the demo makes is pinned too, to the demo's 'now'. The key-hint line is on, as
+        // it is for a user, rather than off as the other end-to-end tests have it (see TempHome).
+        using var gmd = TmuxSession.StartGmd(repo, Width, Height, commitTime: DemoRepo.Now, isKeyHints: true);
         var demo = new DemoRecording(gmd, Width, Height, screen => Rewrite(screen, repo.Path));
 
         // The log: the current branch and main, and ┣╮ markers where hidden branches come and go
@@ -96,12 +97,12 @@ public class DemoTest
         // top row, so that the commit made there is the current one, drawn bright, as it is pushed.
         Press(gmd, demo, "Home", 0.8);
         gmd.Send("c");
-        gmd.WaitFor("Commit 1 changes");
+        gmd.WaitFor("Commit 1 change");
         demo.Frame(1, "commit-dialog");
         demo.Type("Add password reset link", 0.08);
         demo.Frame(1);
         gmd.Send("M-o");
-        gmd.WaitUntilGone("Commit 1 changes");
+        gmd.WaitUntilGone("Commit 1 change");
         gmd.WaitUntilGone("uncommitted changes");
         demo.Frame(2.5, "committed");
         gmd.Send("p");

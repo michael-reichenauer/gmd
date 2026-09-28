@@ -6,12 +6,20 @@ namespace gmd.Cui;
 
 interface IFilterDlg
 {
-    Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
+    Result<SearchPick> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView);
 }
+
+// The commit picked in the search, with what was searched for and every commit it found, in the
+// order listed, for stepping through them in the log afterwards (SearchMatches)
+record SearchPick(Server.Commit Commit, string Filter, IReadOnlyList<string> MatchIds);
 
 class FilterDlg : IFilterDlg
 {
     const int MaxResults = 5000;
+
+    // How long typing has to pause before the files a search names are asked of git, which takes a
+    // moment in a large repo, rather than once for every key of a path being typed
+    static readonly TimeSpan FileSearchDelay = TimeSpan.FromMilliseconds(300);
 
     // The dialog's own height, i.e. how far down the log view has to move to stay clear of it
     const int DialogHeight = 3;
@@ -22,15 +30,20 @@ class FilterDlg : IFilterDlg
     UITextField filterField = null!;
     UILabel statusLabel = null!;
 
-    readonly Dictionary<MouseFlags, OnMouseCallback> mouses = [];
     Action<Repo> onRepoChanged = null!;
     Server.Repo orgRepo = null!;
     Server.Repo currentRepo = null!;
     string currentFilter = null!;
     ContentView resultsView = null!;
-    Result<Server.Commit> selectedCommit;
+    Result<SearchPick> selectedCommit;
     Text repoInfo = Text.Empty;
     int closeX = 0;
+
+    // Which showing of the dialog this is, since it is reused, and whether it is up, so that a search
+    // still running when it closes knows its answer is no longer wanted: shown then, it replaced the
+    // log the user had gone back to with the results, the dialog gone
+    int session;
+    bool isOpen;
 
     internal FilterDlg(IServer server, IBranchColorService branchColorService)
     {
@@ -38,7 +51,7 @@ class FilterDlg : IFilterDlg
         this.branchColorService = branchColorService;
     }
 
-    public Result<Server.Commit> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
+    public Result<SearchPick> Show(Server.Repo repo, Action<Server.Repo> onRepoChanged, ContentView commitsView)
     {
         this.orgRepo = repo;
         this.currentRepo = repo;
@@ -47,6 +60,8 @@ class FilterDlg : IFilterDlg
         this.selectedCommit = new Error("No commit selected");
         this.onRepoChanged = onRepoChanged;
         this.resultsView = commitsView;
+        this.session++;
+        this.isOpen = true;
 
         dlg = new UIDialog(
             "Filter Commits",
@@ -95,6 +110,7 @@ class FilterDlg : IFilterDlg
         finally
         {
             commitsView.Y = orgY;
+            isOpen = false;
         }
 
         return selectedCommit;
@@ -113,7 +129,10 @@ class FilterDlg : IFilterDlg
         { // User selected commit from list
             var commit = currentRepo.ViewCommits[resultsView.CurrentIndex];
             if (commit.BranchName != "<none>")
-                this.selectedCommit = commit;
+            {
+                var matchIds = currentRepo == orgRepo ? [] : currentRepo.ViewCommits.Select(c => c.Id).ToList();
+                this.selectedCommit = new SearchPick(commit, currentFilter ?? "", matchIds);
+            }
             dlg.Close();
             return true;
         }
@@ -152,7 +171,7 @@ class FilterDlg : IFilterDlg
         return false;
     }
 
-    // Support scrolling with mouse wheel (see ContentView.cs for details)
+    // The close X, the mouse wheel, and a click on a result
     bool OnMouseEvent(MouseEvent ev)
     {
         // Log.Info($"OnMouseEvent:  {ev}, {closeX}");
@@ -173,10 +192,18 @@ class FilterDlg : IFilterDlg
             return true;
         }
 
-        if (mouses.TryGetValue(ev.Flags, out var callback))
+        // A click on a result picks it, as Enter does. The results are the log view's rows, below the
+        // dialog, which has the mouse, so the row is worked out from the dialog's own coordinates.
+        var resultRow = ev.Y - DialogHeight;
+        var isOnResult =
+            resultRow >= 0
+            && resultRow < resultsView.ViewHeight
+            && resultsView.FirstIndex + resultRow < currentRepo.ViewCommits.Count;
+        if (ev.Flags.HasFlag(MouseFlags.Button1Clicked) && isOnResult)
         {
-            callback(ev.X, ev.Y);
-            return true;
+            resultsView.SetIndexAtViewY(resultRow);
+            ShowCommitInfo();
+            return OnDialogKey(Key.Enter);
         }
 
         return false;
@@ -184,12 +211,35 @@ class FilterDlg : IFilterDlg
 
     async Task UpdateFilteredResults()
     {
+        var session = this.session;
         var filter = filterField.Text.Trim();
-        if (filter == currentFilter)
+        if (!isOpen || filter == currentFilter)
             return;
         currentFilter = filter;
 
-        if (filter != "" && await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults) is Server.Repo filteredRepo)
+        var terms = SearchTerms.Parse(filter);
+        if (terms.Files.Count > 0)
+        { // Git is asked, once typing pauses, and what it answers is dropped if typing went on
+            await Task.Delay(FileSearchDelay);
+            if (!IsStillWanted(filter, session))
+                return;
+            statusLabel.Text = Text.Dark("Searching the changed files ...");
+        }
+
+        // Nothing to search for is the whole log, as is 'file:' while the path is still to be typed
+        Server.Repo? filteredRepo = null;
+        if (terms.Words.Count + terms.Files.Count > 0)
+        {
+            var result = await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults);
+            if (!IsStillWanted(filter, session))
+                return;
+            if (result is Server.Repo repo)
+                filteredRepo = repo;
+            else
+                Log.Warn($"Failed to search, {result.Error}");
+        }
+
+        if (filteredRepo != null)
         { // Got new filtered repo, update results
             currentRepo = filteredRepo;
             resultsView.MoveToTop();
@@ -204,6 +254,19 @@ class FilterDlg : IFilterDlg
         onRepoChanged(currentRepo);
     }
 
+    // Whether a search that had to wait is still the one to show: not if typing went on, nor once
+    // the dialog has closed, or closed and been shown again
+    bool IsStillWanted(string filter, int session)
+    {
+        if (!isOpen || session != this.session)
+        {
+            Log.Info("Search dropped, the search closed before it was done");
+            return false;
+        }
+
+        return filter == currentFilter;
+    }
+
     void ShowCommitInfo()
     {
         var index = resultsView.CurrentIndex;
@@ -212,7 +275,6 @@ class FilterDlg : IFilterDlg
             statusLabel.Text = repoInfo;
             return;
         }
-        ;
 
         var commit = currentRepo.ViewCommits[index];
         var branch = currentRepo.BranchByName[commit.BranchName];

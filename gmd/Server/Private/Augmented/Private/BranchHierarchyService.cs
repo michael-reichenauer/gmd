@@ -132,14 +132,15 @@ class BranchHierarchyService : IBranchHierarchyService
             var ancestor = b.ParentBranch;
             while (ancestor != null)
             {
-                // if (b.Ancestors.Contains(ancestor))
-                // {   // Debug code in case of circular ancestors (should no happen)
-                //     Log.Error($"Branch {b.Name} has circular ancestor {ancestor.Name}");
-                //     Log.Error("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
-                //     b.IsCircularAncestors = true;
-                //     circularAncestors++;
-                //     break;
-                // }
+                if (ancestor == b || b.Ancestors.Contains(ancestor))
+                { // A cycle, which the hierarchy should never have, but without this reading the repo
+                    // would never end. The branch is left out of the view (see ViewRepoCreater)
+                    Log.Error($"Branch {b.Name} has circular ancestor {ancestor.Name}");
+                    Log.Error("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
+                    b.IsCircularAncestors = true;
+                    circularAncestors++;
+                    break;
+                }
                 b.Ancestors.Add(ancestor);
                 ancestor = ancestor.ParentBranch;
             }

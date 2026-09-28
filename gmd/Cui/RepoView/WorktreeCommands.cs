@@ -20,6 +20,7 @@ class WorktreeCommands : IWorktreeCommands
     readonly IViewRepo repo;
     readonly IRepoView repoView;
     readonly IProgress progress;
+    readonly IStatusLine status;
     readonly IServer server;
     readonly Config config;
     readonly IWorktreesDlg worktreesDlg;
@@ -31,6 +32,7 @@ class WorktreeCommands : IWorktreeCommands
         IViewRepo repo,
         IRepoView repoView,
         IProgress progress,
+        IStatusLine status,
         IServer server,
         Config config,
         IWorktreesDlg worktreesDlg,
@@ -42,6 +44,7 @@ class WorktreeCommands : IWorktreeCommands
         this.repo = repo;
         this.repoView = repoView;
         this.progress = progress;
+        this.status = status;
         this.server = server;
         this.config = config;
         this.worktreesDlg = worktreesDlg;
@@ -254,5 +257,5 @@ class WorktreeCommands : IWorktreeCommands
         return Result.Ok;
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, action);
+    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 }

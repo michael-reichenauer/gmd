@@ -97,6 +97,7 @@ sealed class TempRepo : IDisposable
             new BlameService(cmd),
             new ConflictService(cmd),
             new WorktreeService(cmd),
+            new ReflogService(cmd),
             cmd
         );
     }
@@ -148,7 +149,7 @@ sealed class TempRepo : IDisposable
     // The last one is the reason this is not merely cosmetic. Times must be distinct and
     // increasing, for the same reason RepoBuilder's are.
     //
-    // This goes around IGit rather than through it because ICmd cannot pass environment
+    // This goes around IGit rather than through it because no IGit method takes environment
     // variables, and the committer date can only be set by one: there is no git config and no
     // command line flag for it.
     public async Task<string> CommitAtAsync(string message, DateTimeOffset time)

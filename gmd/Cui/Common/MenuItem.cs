@@ -4,6 +4,11 @@ namespace gmd.Cui.Common;
 record MenuItem(string Text, string Shortcut, Action Action, Func<bool>? CanExecute = null)
 {
     public bool IsDisabled { get; init; }
+
+    // Why the item is greyed out, said on the status line when it is picked anyway, by a click or
+    // its key: a greyed item that says nothing leaves the user to guess. Asked only then, and only
+    // while it is greyed out, so it can name whichever of its conditions failed.
+    public Func<string>? WhyNot { get; init; }
 }
 
 // To create a sub menu
@@ -16,6 +21,10 @@ record SubMenu : MenuItem
     }
 
     public IEnumerable<MenuItem> Children { get; init; }
+
+    // Typing in the sub menu, or in a sub menu of it, closes the menus and calls this with what was
+    // typed, see Menu.OnTypeText. For a long list of names, where typing finds one faster.
+    public Action<string>? OnTypeText { get; init; }
 }
 
 // To create a menu separator line or header line

@@ -33,6 +33,7 @@ class CommitDetailsView : ICommitDetailsView
             IsShowCursor = false,
             IsScrollMode = true,
             IsFocus = false,
+            IsKeysForwarded = true, // By the log, and by the blame
             // Height = Dim.Fill(),
         };
 
@@ -115,7 +116,7 @@ class CommitDetailsView : ICommitDetailsView
                 Text.Dark("Children:   ")
                     .White(string.Join(", ", commit.AllChildIds.Select(id => id == Repo.UncommittedId ? "" : id.Sid())))
             );
-            newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.ParentIds.Select(id => id.Sid()))));
+            newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.GitParentIds.Select(id => id.Sid()))));
             if (commit.IsAhead)
             {
                 newRows.Add(Text.Dark("Remote:   ").Green("▲ pushable"));
@@ -137,7 +138,6 @@ class CommitDetailsView : ICommitDetailsView
                 newRows.Add(Text.Dark("Tips:       ").Add(tipText));
             }
             newRows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
-            newRows.Add(Text.Black(""));
 
             SetRows(newRows);
         });

@@ -58,18 +58,21 @@ sealed class TmuxSession : IDisposable
     // The throwaway HOME the app ran under, so a test can assert what gmd wrote there
     public string Home => home.Path;
 
+    // The key-hint line is off unless isKeyHints, see TempHome
     public static TmuxSession StartGmd(
         TempRepo repo,
         int width = DefaultWidth,
         int height = DefaultHeight,
-        DateTimeOffset? commitTime = null
-    ) => StartGmd(repo.Path, width, height, commitTime);
+        DateTimeOffset? commitTime = null,
+        bool isKeyHints = false
+    ) => StartGmd(repo.Path, width, height, commitTime, isKeyHints);
 
     public static TmuxSession StartGmd(
         string repoPath,
         int width = DefaultWidth,
         int height = DefaultHeight,
         DateTimeOffset? commitTime = null,
+        bool isKeyHints = false,
         params string[] extraArgs
     )
     {
@@ -77,7 +80,7 @@ sealed class TmuxSession : IDisposable
 
         var session = new TmuxSession(
             $"gmd-e2e-{Guid.NewGuid():N}",
-            TempHome.Create(),
+            TempHome.Create(isKeyHints),
             repoPath,
             width,
             height,
@@ -170,6 +173,63 @@ sealed class TmuxSession : IDisposable
         return "";
     }
 
+    // Polls until gmd's log, the gmd.log in its home, contains the text, and returns the whole log.
+    // Cmd logs every git command line it runs, so this is how to assert which git command a key ran
+    // when the screen cannot tell two of them apart, e.g. a push from a force push. The log is
+    // written by a background task, so it is polled rather than read once.
+    public string WaitForLog(string expected, int timeoutMs = DefaultTimeoutMs) =>
+        WaitForLogTimes(expected, 1, timeoutMs);
+
+    // The same for a line gmd writes more than once, e.g. a change event, until it is there 'times'
+    // times, which is how a test waits for the next one after those already logged (LogCount).
+    // Named apart from WaitForLog, whose second parameter is the timeout, also an int.
+    public string WaitForLogTimes(string expected, int times, int timeoutMs = DefaultTimeoutMs) =>
+        PollLog(log => CountOf(log, expected) >= times, $"'{expected}'", timeoutMs);
+
+    // The same for any one of several lines, for a test where either of two things can happen and
+    // both mean that the moment it waits for has passed
+    public string WaitForLogAny(params string[] expected) =>
+        PollLog(
+            log => expected.Any(log.Contains),
+            string.Join(" or ", expected.Select(e => $"'{e}'")),
+            DefaultTimeoutMs
+        );
+
+    string PollLog(Func<string, bool> isDone, string what, int timeoutMs)
+    {
+        var path = Path.Join(Home, "gmd.log");
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var log = "";
+        while (DateTime.UtcNow < deadline)
+        {
+            // gmd has it open for writing, hence the share mode
+            log = File.Exists(path) ? ReadShared(path) : "";
+            if (isDone(log))
+                return log;
+
+            Thread.Sleep(PollMs);
+        }
+
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for {what} in {path}\n{Diagnostics(Capture())}");
+        return log;
+    }
+
+    // How many times the log has a line, so far
+    public int LogCount(string text)
+    {
+        var path = Path.Join(Home, "gmd.log");
+        return File.Exists(path) ? CountOf(ReadShared(path), text) : 0;
+    }
+
+    static int CountOf(string log, string text) => text == "" ? 1 : log.Split(text).Length - 1;
+
+    static string ReadShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     // Whether the terminal cursor is shown, which is how a focused text input shows its caret;
     // the log view and the menus hide it. tmux tracks the visibility the app sets, as it does
     // the screen, so this is what the user sees rather than what the app believes it asked for.
@@ -188,6 +248,32 @@ sealed class TmuxSession : IDisposable
     // Sends keys, e.g. "q", "Down", "Escape", "S-Right". The screen must have settled first, see
     // StableCount.
     public void Send(params string[] keys) => Tmux(["send-keys", "-t", "gmd", .. keys]);
+
+    // Clicks a cell, given 0-based as the rows and columns of a capture are, by typing the SGR mouse
+    // sequences a terminal sends for a press and a release. gmd turns mouse reporting on, and tmux
+    // passes the bytes to it as they are. The button is 0 for the left, 1 the middle, 2 the right.
+    // The screen must have settled first, as for a key.
+    public void Click(int x, int y, int button = 0)
+    {
+        SendText($"\u001b[<{button};{x + 1};{y + 1}M");
+        SendText($"\u001b[<{button};{x + 1};{y + 1}m");
+    }
+
+    // Where a text first is on the screen, 0-based, for clicking it. Every rune gmd draws is one cell
+    // wide, so the index in the row is the column.
+    public static (int X, int Y) PositionOf(string screen, string text)
+    {
+        var rows = screen.Split('\n');
+        for (int y = 0; y < rows.Length; y++)
+        {
+            var x = rows[y].IndexOf(text, StringComparison.Ordinal);
+            if (x != -1)
+                return (x, y);
+        }
+
+        Assert.Fail($"'{text}' is not on the screen:\n{screen}");
+        return (0, 0);
+    }
 
     // Sends text literally, for typing into a dialog, so that e.g. "Down" is five characters
     // rather than a cursor key
@@ -318,6 +404,11 @@ sealed class TmuxSession : IDisposable
             "DISPLAY=",
             "WAYLAND_DISPLAY=",
             "WSL_DISTRO_NAME=",
+            // The same for BrowserService, which would otherwise open a page on the developer's
+            // desktop: VS Code sets BROWSER in its terminals to a helper that opens it on the
+            // machine the developer is sitting at. With no way to open one, gmd copies the link,
+            // which the test can read back as above.
+            "BROWSER=",
             // Nothing may ever block on a credential prompt in a pane nobody is watching
             "GIT_TERMINAL_PROMPT=0",
         ];

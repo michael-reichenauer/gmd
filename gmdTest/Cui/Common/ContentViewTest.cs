@@ -141,6 +141,47 @@ public class ContentViewTest
         Assert.AreEqual(1, view.ContentY);
     }
 
+    // A bordered view with no cursor, i.e. the commit details, scrolls until its last row is at the
+    // bottom, below the border. Scrolling used to stop at the height of the whole view instead, a row
+    // short, which hid the last row: the details padded every commit with a blank row to make up for
+    // it, and with one row more than fits showed a scrollbar that nothing moved.
+    [TestMethod]
+    public void TestBorderedViewScrollsToItsLastRow()
+    {
+        var view = NewView(12);
+        view.IsTopBorder = true;
+        view.IsScrollMode = true;
+
+        view.Scroll(100);
+
+        Assert.AreEqual(3, view.FirstIndex); // The 9 content rows show 3-11
+    }
+
+    [TestMethod]
+    public void TestBorderedViewScrollsTheOneRowThatDoesNotFit()
+    {
+        var view = NewView(10);
+        view.IsTopBorder = true;
+        view.IsScrollMode = true;
+
+        view.Move(1);
+
+        Assert.AreEqual(1, view.FirstIndex);
+    }
+
+    // With a cursor, moving it onto the last row scrolls that row into view, not under the bottom
+    [TestMethod]
+    public void TestBorderedViewMovesTheCursorOntoItsLastRow()
+    {
+        var view = NewView(100);
+        view.IsTopBorder = true;
+
+        view.Move(1000);
+
+        Assert.AreEqual(99, view.CurrentIndex);
+        Assert.AreEqual(91, view.FirstIndex);
+    }
+
     // The cursor is drawn in a margin to the left of the content, and the scrollbar in one to the
     // right, so both are taken off the width the content is asked to fill.
     [TestMethod]

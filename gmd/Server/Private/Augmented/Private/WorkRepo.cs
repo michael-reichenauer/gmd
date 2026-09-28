@@ -18,15 +18,31 @@ class WorkRepo
     public Dictionary<string, Stash> StashById { get; } = [];
     public List<Worktree> Worktrees { get; } = [];
 
-    public WorkRepo(DateTime timeStamp, string path, Status status)
+    public WorkRepo(
+        DateTime timeStamp,
+        string path,
+        Status status,
+        IReadOnlyCollection<string>? integrationNames = null
+    )
     {
         TimeStamp = timeStamp;
         Path = path;
         Status = status;
+        IntegrationNames = integrationNames ?? [];
     }
+
+    // The names of the repo's own integration branches, beside the well known ones, see WellKnownBranches
+    public IReadOnlyCollection<string> IntegrationNames { get; }
+
+    // The branches the reflog witnessed that decided a commit between branches, and that the metadata
+    // does not keep yet. Kept there after the repo is read, since the reflog expires.
+    public List<WitnessedBranch> WitnessedToKeep { get; } = [];
 
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
+
+// The branch the reflog witnessed a commit on, by the branch's nice name
+record WitnessedBranch(string Id, string BranchName);
 
 // Read/Write repo used by the AugmentedService while processing and augmenting a git repo
 class WorkCommit
@@ -50,6 +66,7 @@ class WorkCommit
     public bool IsAmbiguous { get; set; }
     public bool IsAmbiguousTip { get; set; }
     public bool IsBranchSetByUser { get; set; }
+    public bool IsParentsSwapped { get; set; } // A pull merge, see CommitGraphService
     public bool IsUncommitted { get; set; }
 
     public List<string> ParentIds { get; }
@@ -68,6 +85,10 @@ class WorkCommit
 
     public bool IsLikely { get; set; }
     public bool HasStash { get; set; }
+
+    // The rule that decided the branch of this commit, see CommitBranchService. A trace only, for
+    // the inference dump and for debugging; nothing decides anything by it.
+    public string DecidedBy { get; set; } = "";
 
     public WorkCommit(GitCommit c)
     {
@@ -134,6 +155,11 @@ internal class WorkBranch
     public List<WorkBranch> AmbiguousBranches = [];
     public List<WorkBranch> PullMergeChildBranches = [];
     public List<WorkBranch> Ancestors = [];
+
+    // The names of the branches merged into this branch, by the merge subjects of the commits
+    // assigned to it so far, other than the trunk or an integration branch. Only kept on a primary
+    // branch, see CommitBranchService.
+    public HashSet<string> MergedFromNames = [];
 
     // Called when creating a WorkBranch based on a git branch
     public WorkBranch(GitBranch b)

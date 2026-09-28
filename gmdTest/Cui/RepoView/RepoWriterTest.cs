@@ -333,24 +333,17 @@ public class RepoWriterTest
         Assert.IsTrue(IsHighlighted(rows[1]));
     }
 
-    // The highlight is put on the subject, sid, author and time, not on the row: the graph is
-    // built separately and the two are joined afterwards, so the graph keeps its branch colors on
-    // the terminal's own background while the rest of the row is lifted onto the highlight
+    // The highlight is on the whole row, the graph too, so that the node of the current commit is
+    // found without following the row across from the subject. It used to stop at the graph. The
+    // graph keeps its branch colors on it.
     [TestMethod]
-    public async Task TestTheGraphColumnIsNotHighlightedWithItsRow()
+    public async Task TestTheGraphIsHighlightedWithItsRow()
     {
         var row = Rows(await View(), 120, currentIndex: 0)[0];
 
-        Assert.AreNotEqual(
-            Color.Dark.Foreground,
-            row.Fragments[0].Color.Background,
-            "The row opens with a graph rune, which keeps the terminal's own background"
-        );
-        Assert.AreEqual(
-            Color.Dark.Foreground,
-            row.Fragments[^1].Color.Background,
-            "It ends with the time column, which is on the highlight"
-        );
+        Assert.AreEqual(Color.Dark.Foreground, row.Fragments[0].Color.Background, "The graph rune it opens with");
+        Assert.AreEqual(Color.Magenta.Foreground, row.Fragments[0].Color.Foreground, "In main's color still");
+        Assert.AreEqual(Color.Dark.Foreground, row.Fragments[^1].Color.Background, "The time column it ends with");
     }
 
     // Hoovering a branch is the other way of saying where the user is, so the current row stops
@@ -382,8 +375,8 @@ public class RepoWriterTest
         StringAssert.Contains(rows[0], "┺ | Merge branch");
     }
 
-    // Both are applied to the columns after the graph rather than to the whole row, so the graph
-    // keeps its own background either way — see TestTheGraphColumnIsNotHighlightedWithItsRow
+    // The highlight is on the whole row, see TestTheGraphIsHighlightedWithItsRow, and a selection on
+    // the columns after the graph
     static bool IsHighlighted(Text row) => row.Fragments.Any(f => f.Color.Background == Color.Dark.Foreground);
 
     static bool IsSelected(Text row) => row.Fragments.Any(f => f.Color.Background == Color.White.Foreground);

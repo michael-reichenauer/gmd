@@ -67,7 +67,7 @@ public class WorktreeTest
                       │ │  linked  dev                    -               merged    {repo}-dev│ │
                       │ └──────────────────────────────────────────────────────────────────────────────────────────────┘ │
                       │                                                                                                  │
-                      │ [ Open ]  [ Add... ]  [ Remove... ]  [ Prune ]  [ Copy Path ]                         [ Close ]  │
+                      │ [ Open ]  [ Add ... ]  [ Remove ... ]  [ Prune ]  [ Copy Path ]                       [ Close ]  │
                       ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
             """,
             string.Join('\n', rows[4..])
@@ -99,7 +99,7 @@ public class WorktreeTest
         var menu = gmd.WaitFor("Branch: dev");
 
         StringAssert.Contains(menu, "Open Worktree ");
-        Assert.IsFalse(menu.Contains("Switch/Checkout"), "The switch item is replaced, not added to");
+        Assert.IsFalse(menu.Contains("Switch to Branch"), "The switch item is replaced, not added to");
 
         // Taking it opens the worktree: 'dev' becomes current and 'main' is the one held elsewhere
         gmd.Send("Enter");
@@ -171,7 +171,7 @@ public class WorktreeTest
 
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
-        // Down to 'Create Worktree ...', past the disabled 'Rebase and push on' and 'Pull/Update'
+        // Down to 'Create Worktree ...', past the disabled 'Rebase and Push onto' and 'Pull'
         for (var i = 0; i < 6; i++)
         {
             gmd.Send("Down");

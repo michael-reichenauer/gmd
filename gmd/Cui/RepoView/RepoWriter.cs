@@ -93,9 +93,14 @@ class RepoWriter : IRepoWriter
             WriteSid(text, cw, c);
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c);
-            // if (i == hooverIndex && hooverBranchName == "") text.Highlight(); // hoover commit
+            // The current commit, across the whole row, the graph too, so that the node it is on is
+            // found without following the row across from the subject by eye. Not while a branch is
+            // hoovered, since the keys then act on the branch, which the graph shows instead.
             if (i == currentIndex && hooverBranchName == "")
-                text.Highlight(); // current commit
+            {
+                graphText.Highlight();
+                text.Highlight();
+            }
             if (isSelected && c.BranchPrimaryName == crb.PrimaryName)
                 text.Select(); // Selected commit
 

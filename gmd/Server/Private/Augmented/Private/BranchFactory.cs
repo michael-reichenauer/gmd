@@ -5,6 +5,15 @@ namespace gmd.Server.Private.Augmented.Private;
 // is registered in the repo and in the related branches of its primary branch.
 static class BranchFactory
 {
+    // The nice names of the branches recovered with no name to go by: a deleted branch whose merge
+    // subject named none, and a stretch of ambiguous commits. Every such branch is one of its own, so
+    // two of one of these names are no more one branch than any other two.
+    public const string UnnamedName = "branch";
+    public const string AmbiguousName = "ambiguous";
+
+    // Whether a branch's nice name is a name, i.e. not one of the above for want of one
+    public static bool IsNamed(WorkBranch b) => b.IsGitBranch || b.NiceName is not (UnnamedName or AmbiguousName);
+
     public static WorkBranch AddPullMergeBranch(
         WorkRepo repo,
         WorkCommit c,
@@ -47,7 +56,7 @@ static class BranchFactory
     public static WorkBranch AddNamedBranch(WorkRepo repo, WorkCommit c, string name = "")
     {
         var branchName = name != "" ? $"{name}:{c.Sid}" : $"branch:{c.Sid}";
-        var niceName = name != "" ? name : "branch";
+        var niceName = name != "" ? name : UnnamedName;
         var branch = new WorkBranch(name: branchName, primaryName: branchName, niceName: niceName, tipID: c.Id);
 
         repo.Branches[branch.Name] = branch;

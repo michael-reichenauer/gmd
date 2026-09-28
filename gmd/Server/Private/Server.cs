@@ -53,9 +53,47 @@ class Server : IServer
 
     public async Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount)
     {
-        await Task.CompletedTask;
-        return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount);
+        var files = SearchTerms.Parse(filter).Files;
+        if (files.Count == 0)
+            return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount);
+
+        var idsResult = await GetIdsChangingFilesAsync(repo, files, maxCount);
+        if (idsResult is not IReadOnlySet<string> ids)
+            return new Error("Failed to search the changed files", idsResult.Error);
+
+        return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount, ids);
     }
+
+    // The commits that changed files matching every one of the paths, which git is asked for. The
+    // last answer is kept, since the search asks again with every key typed after the path, and
+    // git takes a moment in a large repo.
+    async Task<Result<IReadOnlySet<string>>> GetIdsChangingFilesAsync(
+        Repo repo,
+        IReadOnlyList<string> files,
+        int maxCount
+    )
+    {
+        var key = $"{repo.Path}\n{repo.RepoTimeStamp.Ticks}\n{maxCount}\n{string.Join('\n', files)}";
+        if (lastFileSearch is var (lastKey, lastIds) && lastKey == key)
+            return new Result<IReadOnlySet<string>>(lastIds);
+
+        // All at once, since each is a walk of the whole history
+        var results = await Task.WhenAll(files.Select(file => git.GetIdsChangingFilesAsync(file, maxCount, repo.Path)));
+        HashSet<string>? ids = null;
+        foreach (var result in results)
+        {
+            if (result is not IReadOnlyList<string> fileIds)
+                return result.Error;
+            ids = ids == null ? fileIds.ToHashSet() : ids.Intersect(fileIds).ToHashSet();
+        }
+
+        IReadOnlySet<string> found = ids ?? [];
+        lastFileSearch = (key, found);
+        // Built rather than converted: C# has no user-defined conversion from an interface type
+        return new Result<IReadOnlySet<string>>(found);
+    }
+
+    (string Key, IReadOnlySet<string> Ids)? lastFileSearch;
 
     public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = true)
     {
@@ -176,7 +214,12 @@ class Server : IServer
         return viewRepoCreater.GetViewRepoAsync(repo, branchNames);
     }
 
+    public Repo SetShownBranches(Repo repo, IReadOnlyList<string> branchNames) =>
+        viewRepoCreater.GetViewRepoAsync(repo, branchNames);
+
     public Task<Result> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
+
+    public Task<Result<string>> GetRemoteUrlAsync(string wd) => git.GetRemoteUrlAsync(wd);
 
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         augmentedService.CommitAllChangesAsync(message, isAmend, wd);
@@ -282,6 +325,11 @@ class Server : IServer
     public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) => git.PushCurrentBranchAsync(isForce, wd);
 
     public Task<Result> PullCurrentBranchAsync(string wd) => git.PullCurrentBranchAsync(wd);
+
+    public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
+        git.IsPullWayConfiguredAsync(branchName, wd);
+
+    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => git.SetPullRebaseAsync(isRebase, wd);
 
     public Task<Result> PullBranchAsync(string name, string wd) => git.PullBranchAsync(name, wd);
 

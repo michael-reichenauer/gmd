@@ -9,14 +9,15 @@ interface ICommitBranchRules
     bool TryHasOnlyOneBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryIsLocalRemoteBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryHasMainBranch(WorkCommit commit, out WorkBranch? branch);
+    bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch);
+    bool TryIsPublishedTipOfLocalBranches(WorkCommit commit, out WorkBranch? branch);
     bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch);
-    bool TryHasOneChildWithLikelyBranch(WorkCommit commit, out WorkBranch? branch);
-    bool TryHasMultipleChildrenWithOneLikelyBranch(WorkCommit commit, out WorkBranch? branch);
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch);
     bool TryIsMergedBranchesToParent(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
+    bool TryDecideBranchPoint(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsChildAmbiguousCommit(WorkCommit commit, out WorkBranch? branch);
 }
 
@@ -33,7 +34,7 @@ class CommitBranchRules : ICommitBranchRules
     public bool TryIsBranchSetByUser(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         branch = null;
-        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Sid, out var branchNiceName, out var isSetByUser))
+        if (!gitRepo.MetaData.TryGetCommitBranch(commit.Id, out var branchNiceName, out var isSetByUser))
         { // Commit has not a branch set by user
             return false;
         }
@@ -115,6 +116,99 @@ class CommitBranchRules : ICommitBranchRules
 
         return false;
     }
+
+    // The reflog witnessed which branch the commit was made on, or that a branch was started from it
+    // on another branch (see ReflogWitness), which is just what the user means by a commit's branch.
+    // Taken only among the branches the commit can be on: a commit a reset moved off the branch it
+    // was made on is not on it any more, and a fact never makes up a branch, as a choice in the
+    // metadata does. Not above the trunk either, it comes after the main branch rule: a feature
+    // fast-forwarded into main would take main's commits. And the commit is not marked likely, since
+    // where a commit was made says nothing about its parent, e.g. a branch point below a branch's
+    // first commit, which is what the likely-child rules would read it as.
+    //
+    // Except where the branch it was made on was merged by a fast-forward into the branch it was
+    // started from ('git merge feature' on dev): that branch runs through the commit and on below, so
+    // the commit is on its line now, and so is the rest of the merged work below it. Taken for the
+    // branch it was made on, it gave that branch dev's line from there down, and drew dev as started
+    // from it. Followed as far as the reflog says which branch each was started from, e.g. to dev for
+    // a feature2 started from a feature1 started from dev.
+    //
+    // The reflog expires, so a fact that decided between branches is kept in the metadata (see
+    // WorkRepo.WitnessedToKeep), and a kept fact is taken before the reflog's: it was decided while the
+    // reflog said more. A branch's oldest entry, where it was started, is the first to go, and the
+    // commit made on it would then be taken from dev again. The reflog's is taken when nothing is kept,
+    // or what is kept names no branch the commit can be on.
+    public bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        var isKept = gitRepo.MetaData.TryGetWitnessedBranch(commit.Id, out var keptName);
+        var isInReflog = gitRepo.WitnessedBranchById.TryGetValue(commit.Id, out var reflogName);
+        string? name =
+            isKept && IsCandidate(commit, keptName) ? keptName
+            : isInReflog && IsCandidate(commit, reflogName!) ? reflogName
+            : null;
+        if (name == null)
+            return false;
+        name = BranchStartedFrom(gitRepo, commit, name);
+
+        branch = RemoteFirst(commit.Branches.Where(b => b.NiceName == name));
+        var isChoice = commit.Branches.Select(b => b.PrimaryName).Distinct().Count() > 1;
+        if (branch == null || !BranchAmbiguity.TrySetBranch(repo, commit, branch, isLikely: false))
+            return false;
+
+        if (isChoice && (!isKept || keptName != name))
+        { // The reflog decided between branches, which the metadata should keep
+            repo.WitnessedToKeep.Add(new WitnessedBranch(commit.Id, name));
+        }
+        return true;
+    }
+
+    static bool IsCandidate(WorkCommit commit, string niceName) => commit.Branches.Any(b => b.NiceName == niceName);
+
+    // The branch the named branch was started from, or the one that one was started from, and so on,
+    // the furthest back that the commit can be on too, or the named branch when there is none
+    static string BranchStartedFrom(GitRepo gitRepo, WorkCommit commit, string name)
+    {
+        var branch = name;
+        HashSet<string> seen = [name];
+        for (var n = name; gitRepo.SourceByBranch.TryGetValue(n, out var source) && seen.Add(source); n = source)
+        {
+            if (IsCandidate(commit, source))
+                branch = source;
+        }
+        return branch;
+    }
+
+    // The commit is the tip of a published branch, and every other candidate is a local branch only,
+    // e.g. a feature started at dev's tip with 'git checkout -b', outside gmd, so nothing recorded
+    // where it started. The tip is the last commit made on the published branch, and a local branch
+    // pointing at it or passing through it came later. Published means the branch has a remote, so
+    // a local tip ahead of it counts too.
+    // Not the other way round: a local branch left pointing at an older commit of a published branch
+    // did not make that commit, and must not take the published branch's history from there down.
+    public bool TryIsPublishedTipOfLocalBranches(WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        var localOnly = commit.Branches.Where(IsLocalOnly).ToList();
+        var published = commit.Branches.Where(b => !IsLocalOnly(b)).ToList();
+        if (localOnly.Count == 0 || published.Count == 0)
+            return false;
+
+        if (published.Any(b => !b.IsGitBranch) || published.Select(b => b.PrimaryName).Distinct().Count() != 1)
+        { // Only one published branch, the local and remote branch of it
+            return false;
+        }
+        if (!published.Any(b => b.TipID == commit.Id))
+        { // The published branch passes through, the commit is not its tip
+            return false;
+        }
+
+        branch = published.FirstOrDefault(b => b.IsRemote) ?? published.First();
+        return true;
+    }
+
+    // A local git branch that has no remote branch, i.e. one that was never pushed
+    static bool IsLocalOnly(WorkBranch b) => b.IsGitBranch && !b.IsRemote && b.RemoteName == "";
 
     // Commit has no branches and no children, but has a merge child.
     // The commit is a tip of a deleted branch. It might be a deleted remote branch.
@@ -217,21 +311,23 @@ class CommitBranchRules : ICommitBranchRules
         }
 
         // Try find a branch with the human name
-        branch = commit.Branches.Find(b => b.NiceName == name);
+        branch = RemoteFirst(commit.Branches.Where(b => b.NiceName == name));
         if (branch != null)
         {
             return branch;
         }
 
-        // Pull requests names include repository as prefix, try check if branch ends with name
-        branch = commit.Branches.Find(b => name.EndsWith(b.NiceName));
-        if (branch != null)
-        {
-            return branch;
-        }
-
-        return branch;
+        // Pull requests names include the owner as prefix, e.g. 'owner/dev', try a branch the name
+        // ends with, as a whole part of it, so that 'hotfix-dev' is not taken for 'dev'
+        return RemoteFirst(commit.Branches.Where(b => name.EndsWith("/" + b.NiceName)));
     }
+
+    // A nice name is shared by a local branch and its remote branch, and the remote branch is the
+    // one a commit belongs to whenever it is a candidate, since it is the primary of the two. Taking
+    // the local branch there made it the parent of its own parent: the remote branch, then owning
+    // nothing, got the local branch as its parent, a cycle.
+    static WorkBranch? RemoteFirst(IEnumerable<WorkBranch> branches) =>
+        branches.OrderBy(b => b.IsRemote ? 0 : 1).FirstOrDefault();
 
     // Commit has one child commit reuse that child commit branch
     public bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch)
@@ -239,19 +335,10 @@ class CommitBranchRules : ICommitBranchRules
         if (commit.FirstChildren.Count == 1)
         { // Commit has only one child, ensure commit has same possible branches
             var child = commit.FirstChildren[0];
-            if (commit.Branches.Count != child.Branches.Count)
-            { // Number of branches have changed
+            if (commit.Branches.Count != child.Branches.Count || !commit.Branches.All(child.Branches.Contains))
+            { // Some branch has changed, the order of them does not matter
                 branch = null;
                 return false;
-            }
-
-            for (int i = 0; i < commit.Branches.Count; i++)
-            {
-                if (commit.Branches[i].Name != child.Branches[i].Name)
-                { // Some branch has changed
-                    branch = null;
-                    return false;
-                }
             }
 
             // Commit has one child and same branches, use that child commit branch
@@ -265,52 +352,65 @@ class CommitBranchRules : ICommitBranchRules
         return false;
     }
 
-    // Commit multiple possible git branches but has one child, which has a likely known branch, use same branch
-    public bool TryHasOneChildWithLikelyBranch(WorkCommit c, out WorkBranch? branch)
+    // Commit is where branches meet, and one of them is the branch the others were started from,
+    // which goes on below. Decided by the evidence in order, the first that tells one branch from the
+    // rest (the trunk is decided before, by TryHasMainBranch):
+    //   - the name: an integration branch (develop, dev) is senior to a release or hotfix branch,
+    //     which is senior to any other, since each is started from the one before;
+    //   - among the branches of the most senior name: when they all have one name, e.g. a deleted
+    //     dev recovered once per merge of it, there is nothing to choose between, and the one most
+    //     branches were merged into goes on, or the first. Not when the name is the one every branch
+    //     recovered with no name gets, which says nothing about them being one;
+    //   - otherwise the branch that clearly more other branches were merged into: at least two, and
+    //     at least twice as many as any other, not counting the trunk merged in to bring a branch up
+    //     to date.
+    // Merge subjects alone cannot tell which branch goes on: a branch merged into another looks the
+    // same whether it is a feature merged back into dev or dev merged into a feature to bring it up
+    // to date, which is why one merged branch is never enough, and why which child is named by a
+    // merge subject decides nothing either. Without a clear answer the commit is left to the rules
+    // after, and so usually ambiguous.
+    public bool TryDecideBranchPoint(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
     {
-        if (c.FirstChildren.Count == 1 && c.FirstChildren[0].IsLikely)
-        { // Commit has one child, which has a likely known branch, use same branch
-            branch = c.FirstChildren[0].Branch;
-            c.IsAmbiguous = c.FirstChildren[0].IsAmbiguous;
-            return true;
-        }
-
         branch = null;
-        return false;
+        var groups = commit
+            .Branches.GroupBy(b => b.PrimaryName)
+            .Select(g => new BranchGroup(g.ToList(), repo.Branches[g.Key]))
+            .ToList();
+        if (groups.Count < 2)
+            return false;
+
+        var senior = groups
+            .GroupBy(g => WellKnownBranches.NameTier(g.Primary.NiceName, repo.IntegrationNames))
+            .OrderByDescending(t => t.Key)
+            .First()
+            .ToList();
+        var chosen =
+            senior.Count == 1 ? senior[0]
+            : IsOneName(senior) ? MostMergedInto(senior)
+            : ClearlyMostMergedInto(senior);
+        if (chosen == null)
+            return false;
+
+        branch = RemoteFirst(chosen.Branches);
+        return true;
     }
 
-    // Commit multiple possible git branches but has a child, which has a likely known branch, use same branch
-    public bool TryHasMultipleChildrenWithOneLikelyBranch(WorkCommit c, out WorkBranch? branch)
+    // The branches of one primary branch among a commit's candidates, e.g. dev and origin/dev
+    record BranchGroup(IReadOnlyList<WorkBranch> Branches, WorkBranch Primary);
+
+    static bool IsOneName(IReadOnlyList<BranchGroup> groups) =>
+        groups.All(g => BranchFactory.IsNamed(g.Primary))
+        && groups.Select(g => g.Primary.NiceName).Distinct().Count() == 1;
+
+    static BranchGroup MostMergedInto(IReadOnlyList<BranchGroup> groups) =>
+        groups.OrderByDescending(g => g.Primary.MergedFromNames.Count).First();
+
+    static BranchGroup? ClearlyMostMergedInto(IReadOnlyList<BranchGroup> groups)
     {
-        branch = null;
-        if (c.FirstChildren.Count(c => c.IsLikely) != 1)
-        {
-            return false;
-        }
-
-        // commit has only one child with a likely branch
-        var child = c.FirstChildren.First(c => c.IsLikely);
-        c.IsAmbiguous = child.IsAmbiguous;
-
-        if (child.Branch!.IsRemote)
-        { // The branch is remote, we prefer that
-            branch = child.Branch;
-            return true;
-        }
-
-        if (child.Branch!.RemoteName != "")
-        { // The child branch has a corresponding remote branch, lets try to use that
-            var remoteBranch = c.Branches.FirstOrDefault(b => b.Name == child.Branch!.RemoteName);
-            if (remoteBranch != null)
-            { // The child branch was local and the corresponding remote is also possible,
-                branch = remoteBranch;
-                return true;
-            }
-        }
-
-        branch = child.Branch;
-        c.IsAmbiguous = child.IsAmbiguous;
-        return true;
+        var byMerged = groups.OrderByDescending(g => g.Primary.MergedFromNames.Count).ToList();
+        var most = byMerged[0].Primary.MergedFromNames.Count;
+        var next = byMerged[1].Primary.MergedFromNames.Count;
+        return most >= 2 && most >= 2 * next ? byMerged[0] : null;
     }
 
     // For e.g. pull merges, a commit can have two children with same logical branch

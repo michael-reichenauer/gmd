@@ -11,8 +11,14 @@ static class UI
         action().RunInBackground();
     }
 
+    // Modal, whatever is passed. Terminal.Gui hands a key to every toplevel on the stack until one
+    // handles it, and stops only at a modal one. A Dialog is modal of itself, but the diff, blame and
+    // conflict views are plain toplevels, so a key they did not use went on down to the log view:
+    // 'P' in a diff pushed every branch, and 'c' in the resolver reached the diff below it, which
+    // closed the resolver with its decisions unsaved.
     internal static void RunDialog(Toplevel toplevel)
     {
+        toplevel.Modal = true;
         using (EnableInput())
         {
             Application.Run(toplevel);

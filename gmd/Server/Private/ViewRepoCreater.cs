@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using gmd.Common;
 
 namespace gmd.Server.Private;
@@ -12,7 +11,9 @@ interface IViewRepoCreater
         int count = 1
     );
 
-    Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount);
+    // The commits matching the filter, and only those among 'onlyIds' when it is given, which is
+    // how the files a search names narrow it, see SearchTerms
+    Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount, IReadOnlySet<string>? onlyIds = null);
 }
 
 class ViewRepoCreater : IViewRepoCreater
@@ -45,7 +46,7 @@ class ViewRepoCreater : IViewRepoCreater
         return viewRepo;
     }
 
-    public Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount)
+    public Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount, IReadOnlySet<string>? onlyIds = null)
     {
         using (Timing.Start($"Filtered repo on '{filter}'"))
         {
@@ -66,7 +67,7 @@ class ViewRepoCreater : IViewRepoCreater
             }
             else
             { // Get all commits matching filter
-                filteredCommits = GetFilteredCommits(repo, filter, maxCount);
+                filteredCommits = GetFilteredCommits(repo, filter, maxCount, onlyIds);
             }
 
             if (!filteredCommits.Any())
@@ -89,36 +90,29 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    static IReadOnlyList<Commit> GetFilteredCommits(Repo repo, string filter, int maxCount)
+    // The commits where every word is found in the id, the message (the subject and the body), the
+    // branch, the author, the date or a tag. The message rather than the subject alone, since the
+    // body is where the why of a change is written, and an issue number is often only there.
+    static IReadOnlyList<Commit> GetFilteredCommits(
+        Repo repo,
+        string filter,
+        int maxCount,
+        IReadOnlySet<string>? onlyIds
+    )
     {
         var sc = StringComparison.OrdinalIgnoreCase;
+        var words = SearchTerms.Parse(filter).Words;
 
-        // Need extract all text enclosed by double quotes in filter (for exact matches of them)
-        var matches = Regex.Matches(filter, "\"([^\"]*)\"");
-        var quoted = matches.Select(m => m.Groups[1].Value).ToList();
-
-        // Replace all quoted text, where space is replaced by newlines to make it easier to split on space below.
-        var modifiedFilter = filter;
-        quoted.ForEach(q => modifiedFilter = modifiedFilter.Replace($"\"{q}\"", q.Replace(" ", "\n")));
-
-        // Split on space to get all AND parts of the text (and fix newlines to spaces again)
-        var andParts = modifiedFilter
-            .Split(' ')
-            .Where(p => p != "")
-            .Select(p => p.Replace("\n", " ")) // Replace newlines back to spaces again
-            .ToList();
-
-        // Find all branches matching all AND parts.
         return repo
-            .CommitById.Values.Where(c =>
-                andParts.All(p =>
+            .CommitById.Values.Where(c => onlyIds == null || onlyIds.Contains(c.Id))
+            .Where(c =>
+                words.All(p =>
                     c.Id.Contains(p, sc)
-                    || c.Subject.Contains(p, sc)
+                    || c.Message.Contains(p, sc)
                     || c.BranchName.Contains(p, sc)
                     || c.Author.Contains(p, sc)
                     || c.AuthorTime.IsoDate().Contains(p, sc)
                     || c.BranchNiceUniqueName.Contains(p, sc)
-                    || c.BranchName.Contains(p, sc)
                     || c.Tags.Any(t => t.Name.Contains(p, sc))
                 )
             )
@@ -368,8 +362,9 @@ class ViewRepoCreater : IViewRepoCreater
     static List<Commit> FilterOutViewCommits(Repo repo, IReadOnlyList<Branch> filteredBranches)
     {
         // Return filtered commits, where commit branch does is in filtered branches to be viewed.
+        var names = filteredBranches.Select(b => b.Name).ToHashSet();
         return repo
-            .AllCommits.Where(c => filteredBranches.FirstOrDefault(b => b.Name == c.BranchName) != null)
+            .AllCommits.Where(c => names.Contains(c.BranchName))
             .Select(c => c with { IsAhead = false, IsBehind = false })
             .ToList();
     }
@@ -386,12 +381,9 @@ class ViewRepoCreater : IViewRepoCreater
         switch (show)
         {
             case ShowBranches.Specified:
+                var branchByAnyName = BranchByAnyName(repo);
                 showBranches
-                    .Select(name =>
-                        repo.AllBranches.FirstOrDefault(b =>
-                            b.PrimaryBaseName == name || b.Name == name || b.PrimaryName == name
-                        )
-                    )
+                    .Select(name => branchByAnyName.GetValueOrDefault(name))
                     .Where(b => b != null)
                     .ForEach(b => AddBranchAndAncestorsAndRelatives(repo, b!, branches));
                 break;
@@ -437,6 +429,21 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
+    // The branch a shown name is, by the first branch that has it as its primary base name, its name
+    // or its primary name. Looked up once for all the names: a refresh after showing all branches
+    // shows thousands of them by name, and searching all branches for each took a quarter second.
+    static Dictionary<string, Branch> BranchByAnyName(Repo repo)
+    {
+        Dictionary<string, Branch> branches = [];
+        foreach (var b in repo.AllBranches)
+        {
+            branches.TryAdd(b.PrimaryBaseName, b);
+            branches.TryAdd(b.Name, b);
+            branches.TryAdd(b.PrimaryName, b);
+        }
+        return branches;
+    }
+
     void AddBranchAndAncestorsAndRelatives(Repo repo, Branch? branch, IDictionary<string, Branch> branches)
     {
         if (branch == null || branches.ContainsKey(branch.Name))
@@ -459,7 +466,7 @@ class ViewRepoCreater : IViewRepoCreater
 
         var branchOrders = repoConfig.Get(repo.Path).BranchOrders;
         // Sort on branch hierarchy, For some strange reason, List.Sort does not work, why ????
-        Sorter.Sort(sorted, (b1, b2) => CompareBranches(b1, b2, branchOrders));
+        SortPrimaryBranches(sorted, branchOrders);
 
         // Reinsert the local branches just after its remote branch
         branches
@@ -487,7 +494,29 @@ class ViewRepoCreater : IViewRepoCreater
         return sorted;
     }
 
-    static int CompareBranches(Branch b1, Branch b2, List<BranchOrder> branchOrders)
+    // Sorts the primary branches by CompareBranches, with the order of Sorter.Sort. A branch goes after
+    // its parent, its ancestors and the branches the user ordered it against only, which is what the
+    // sort is told, rather than to compare every branch with every other: a view of all branches of a
+    // large repo is thousands of them, and that took seconds.
+    internal static void SortPrimaryBranches(List<Branch> branches, List<BranchOrder> branchOrders)
+    {
+        var byName = branches.ToDictionary(b => b.Name);
+        var byPrimaryName = branches.ToLookup(b => b.PrimaryName);
+        var orderedAgainst = branchOrders
+            .SelectMany(o => new[] { (o.Branch, o.Other), (o.Other, o.Branch) })
+            .ToLookup(p => p.Item1, p => p.Item2);
+
+        IEnumerable<Branch> MayGoAfter(Branch b) =>
+            b
+                .AncestorNames.Prepend(b.ParentBranchName)
+                .Where(byName.ContainsKey)
+                .Select(n => byName[n])
+                .Concat(orderedAgainst[b.PrimaryName].SelectMany(n => byPrimaryName[n]));
+
+        Sorter.Sort(branches, (b1, b2) => CompareBranches(b1, b2, branchOrders), MayGoAfter);
+    }
+
+    internal static int CompareBranches(Branch b1, Branch b2, List<BranchOrder> branchOrders)
     {
         if (b1 == b2)
             return 0;

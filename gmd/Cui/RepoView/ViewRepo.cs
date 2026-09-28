@@ -21,6 +21,14 @@ interface IViewRepo
 
     string CurrentAuthor { get; }
     IReadOnlyList<Branch> GetCommitBranches(bool isAll);
+
+    // The shows and hides Backspace can undo, and what the last search found, both of which
+    // outlive this view repo, see IRepoView
+    ShownHistory ShownHistory { get; }
+    SearchMatches SearchMatches { get; }
+
+    // The hidden remote branches with commits not yet seen, see HiddenNews
+    IReadOnlyList<HiddenBranchNews> HiddenNews { get; }
 }
 
 class ViewRepo : IViewRepo
@@ -71,4 +79,8 @@ class ViewRepo : IViewRepo
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) => server.GetCommitBranches(Repo, RowCommit.Id, isAll);
 
     public string CurrentAuthor => server.CurrentAuthor;
+
+    public ShownHistory ShownHistory => repoView.ShownHistory;
+    public SearchMatches SearchMatches => repoView.SearchMatches;
+    public IReadOnlyList<HiddenBranchNews> HiddenNews => repoView.HiddenNews;
 }

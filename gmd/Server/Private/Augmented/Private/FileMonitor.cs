@@ -67,7 +67,7 @@ class FileMonitor : IFileMonitor
     ChangeEvent? fileChangedEvent = null;
     ChangeEvent? repoChangedEvent = null;
 
-    bool isPaused = false;
+    int pauseCount = 0;
 
     // The clock the trigger delays are measured against, so tests can drive them without waiting.
     internal Func<DateTime> Now = () => DateTime.UtcNow;
@@ -124,7 +124,7 @@ class FileMonitor : IFileMonitor
     {
         lock (syncRoot)
         {
-            if (isPaused)
+            if (pauseCount > 0)
                 return true;
         }
 
@@ -229,19 +229,25 @@ class FileMonitor : IFileMonitor
         this.workingFolder = workingFolder;
     }
 
+    // Pauses can overlap, e.g. a write in the background while a command runs, so the monitor resumes
+    // when the last one ends, and each ends once however often it is disposed
     public IDisposable Pause()
     {
         lock (syncRoot)
         {
-            isPaused = true;
+            pauseCount++;
         }
         Log.Info("Pause file monitor ...");
 
+        var isEnded = false;
         return new Disposable(() =>
         {
             lock (syncRoot)
             {
-                isPaused = false;
+                if (isEnded)
+                    return;
+                isEnded = true;
+                pauseCount--;
             }
             Log.Info("Resume file monitor");
         });

@@ -15,8 +15,8 @@ tangle of lines. Teams often rebase or squash to keep it readable, which rewrite
 
 Gmd leaves the history as it is and lets you choose what to look at. A developer may follow just
 `main` and their own branch, while a team lead follows `main` and a few feature branches.
-Showing or hiding a branch is instant and can be undone at any time. It works like a squash merge
-that you can take back, and it never touches the history.
+Showing or hiding a branch is instant and can be undone at any time, with `Backspace`. It works like
+a squash merge that you can take back, and it never touches the history.
 
 Git does not record which branch a commit was made on. Gmd works that out from the branch
 structure and the merge messages, and draws each branch in its own column and color. When it
@@ -25,7 +25,9 @@ cannot tell, it marks the branch as ambiguous, and you can set it by hand.
 ## Features
 
 - **Branch visibility**: show and hide branches, pick them from lists of recent, active, your
-  own or deleted branches, and see markers where hidden branches merge in or branch out.
+  own or deleted branches or find one by typing part of its name, and see markers where hidden
+  branches merge in or branch out, and a count of what was pushed to hidden branches since you
+  last looked.
 - **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches. The
   context shown around the changes can be widened for one file at a time, up to the whole file.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its
@@ -35,14 +37,17 @@ cannot tell, it marks the branch as ambiguous, and you can set it by hand.
   abort the operation.
 - **Everyday Git without the syntax**: commit (with spell check), amend, push and pull (every
   shown branch at once if you like), merge in either direction, create, rename and delete
-  branches, tags, stash, squash, cherry pick, undo and uncommit, file history, and search and
-  filter.
+  branches, tags, stash, squash, cherry pick, undo and uncommit, file history, and search of the
+  messages and the changed files, stepping through the matches in the log.
+- **Open in the browser**: a branch, a commit or the repository on GitHub, GitLab, Bitbucket, Azure
+  DevOps or Gitea, or the page for a pull request into the branch the branch was made from.
 - **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and
   open, add or remove them. This includes the worktrees Claude Code creates.
 - **Keyboard and mouse**: every command is in a context menu, the common ones also have a
   single-key shortcut, and the mouse works for highlighting, menus and switching branches.
 - **Works over SSH and in containers**: when no clipboard tool is available, gmd copies through
-  the terminal instead (OSC 52), if the terminal supports it.
+  the terminal instead (OSC 52), if the terminal supports it, and a link it has no browser to open
+  in is copied the same way.
 - **Keeps itself up to date** with a built-in update check and a one-click update.
 - **Shared branch structure** (off by default, turned on per repository): the branch choices you
   make by hand can be pushed with the repository, so everyone sees the same graph.
@@ -64,17 +69,18 @@ A few keys to start with:
 
 | Key       | What it does                                              |
 | --------- | --------------------------------------------------------- |
-| `M`       | The menu of the highlighted branch or the current commit  |
+| `m`       | The menu of the highlighted branch or the current commit  |
 | `←` `→`   | Highlight a branch in the graph                           |
 | `Shift-→` | Choose which branches are shown                           |
 | `Enter`   | Show or hide the commit details                           |
-| `D`       | Diff of the commit                                        |
-| `C`       | Commit                                                    |
+| `d`       | Diff of the commit                                        |
+| `c`       | Commit                                                    |
 | `?`       | Help, with every key and symbol                           |
-| `Q`       | Quit                                                      |
+| `q`       | Quit                                                      |
 
-The [help guide](gmd/doc/help.md) covers the rest, and gmd shows the same guide when you press
-`?`.
+The line at the bottom of the screen shows the keys that do something where the cursor is, and
+changes as it moves. The [help guide](gmd/doc/help.md) covers the rest, and gmd shows the same guide
+when you press `?`.
 
 ## Installation
 
@@ -132,7 +138,7 @@ gmd to PATH environment variable**. Without the installer, download `gmd_windows
 ### Updating
 
 Gmd checks for new releases every hour and shows ⇓ in its top bar when there is one. Click it,
-or pick **Update to Latest Version ...** at the top of the menu. From the command line, run:
+or pick **Update to Latest Version** at the top of the menu. From the command line, run:
 
 ```bash
 gmd --update
@@ -158,7 +164,8 @@ gmd/Git/                         One service per area of git, each running the g
 
 [CLAUDE.md](CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
 written for Claude Code but is just as useful to read yourself. [MODERNIZATION.md](MODERNIZATION.md)
-lists the open issues.
+lists the open issues, and [USABILITY.md](USABILITY.md) is a review of the user experience with
+proposals for improving it.
 
 ### Setting up
 

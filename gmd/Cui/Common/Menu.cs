@@ -10,9 +10,14 @@ class Menu
     readonly int yOrg;
     readonly int altX;
     readonly Action onEscAction;
+    readonly Action<string>? onTypeText;
     readonly Menu? parent;
     Menu? childSubMenu;
-    int childSubMenuIndex;
+
+    // The item of the sub menu that was open last, so that a click on that item, which closes the
+    // sub menu (see OnMouseClicked), is not also taken as opening it again. Only a click: a sub
+    // menu closed from the keyboard clears it, or the next Enter on the item would be swallowed.
+    int childSubMenuIndex = -1;
 
     UIDialog dlg = null!;
     ContentView itemsView = null!;
@@ -27,9 +32,24 @@ class Menu
 
     public const int Center = -int.MaxValue;
 
-    public static void Show(string title, int x, int y, IEnumerable<MenuItem> items, Action? onEscAction = null)
+    // Whether a click outside the menu closes it, as a context menu is closed. A menu whose closing
+    // quits gmd, the start menu, turns it off, since a stray click is not asking to quit.
+    public bool IsClosedOnClickOutside { get; init; } = true;
+
+    // Where a greyed out item says why it is, when it is picked anyway: the status line at the
+    // bottom of the log view, which is left in view behind a menu. Set once, by MainView.
+    internal static IStatusLine? StatusLine { get; set; }
+
+    public static void Show(
+        string title,
+        int x,
+        int y,
+        IEnumerable<MenuItem> items,
+        Action? onEscAction = null,
+        Action<string>? onTypeText = null
+    )
     {
-        var menu = new Menu(x, y, title, null, -1, onEscAction);
+        var menu = new Menu(x, y, title, null, -1, onEscAction, onTypeText);
         menu.Show(items);
     }
 
@@ -48,7 +68,15 @@ class Menu
         Func<bool>? canExecute = null
     ) => new SubMenu(text, shortcut, children, canExecute);
 
-    public Menu(int x, int y, string title, Menu? parent, int altX, Action? onEscAction)
+    public Menu(
+        int x,
+        int y,
+        string title,
+        Menu? parent,
+        int altX,
+        Action? onEscAction,
+        Action<string>? onTypeText = null
+    )
     {
         this.xOrg = x;
         this.yOrg = y;
@@ -56,6 +84,7 @@ class Menu
         this.parent = parent;
         this.altX = altX;
         this.onEscAction = onEscAction ?? (() => { });
+        this.onTypeText = onTypeText;
     }
 
     public void Show(IEnumerable<MenuItem> items)
@@ -154,6 +183,9 @@ class Menu
         (var x, var y) = ToViewCoordinates(screenX, screenY);
         if (!IsInside(x, y))
         { // Clicked outside this menu, close this menu and forward click to parent menu
+            if (parent == null && !IsClosedOnClickOutside)
+                return;
+
             await CloseAsync();
             parent?.OnMouseClicked(screenX, screenY);
             if (parent == null)
@@ -183,11 +215,60 @@ class Menu
         view.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         view.RegisterKeyHandler(Key.CursorRight, () => OpenSubMenu());
 
+        // The key an item shows beside it picks that item, see MenuShortcuts
+        var shortcuts = MenuShortcuts.Of(items);
+        foreach (var (key, index) in shortcuts)
+            view.RegisterKeyHandler(key, () => OnShortcut(index));
+
+        // Any other printable key is typing, where the menu takes it, e.g. to find a branch by name.
+        // Not space, which pages down as in every list.
+        if (onTypeText != null)
+        {
+            for (var c = '!'; c <= '~'; c++)
+            {
+                var typed = c.ToString();
+                if (!shortcuts.ContainsKey((Key)c))
+                    view.RegisterKeyHandler((Key)c, () => OnTypeText(typed));
+            }
+        }
+
         return view;
+    }
+
+    // Closes the menus, the parents too, as picking an item does, and hands on what was typed
+    async void OnTypeText(string typed)
+    {
+        await RootMenu.CloseAsync();
+        onTypeText?.Invoke(typed);
+    }
+
+    // As Enter on the item: a sub menu opens, anything else runs. The cursor is moved there first,
+    // which is what Enter acts on, and so that an opened sub menu is placed beside its item.
+    void OnShortcut(int index)
+    {
+        if (items[index].IsDisabled)
+        {
+            SayWhyNot(items[index]);
+            return;
+        }
+
+        itemsView.Move(index - itemsView.CurrentIndex);
+        OnEnter();
+    }
+
+    // A greyed out item picked anyway says why it is greyed out, rather than nothing happening
+    static void SayWhyNot(MenuItem item)
+    {
+        if (item is MenuSeparator)
+            return;
+
+        var why = item.WhyNot?.Invoke() ?? "";
+        StatusLine?.Notice(why != "" ? why : $"'{item.Text.Trim()}' cannot be used here");
     }
 
     async void OnKeyEsc()
     {
+        ClearParentSubMenuIndex();
         await CloseAsync();
         if (parent == null)
         {
@@ -219,7 +300,8 @@ class Menu
     {
         itemsView.SetIndexAtViewY(y);
         if (CurrentItem.IsDisabled)
-        { // Clicked on disabled item, lets try select next enabled item
+        { // Clicked on disabled item, say why, and select the next enabled item
+            SayWhyNot(CurrentItem);
             if (itemsView.CurrentIndex >= items.Count - 1 && CurrentItem.IsDisabled)
                 OnCursorUp();
             if (CurrentItem.IsDisabled)
@@ -306,7 +388,14 @@ class Menu
     {
         if (parent == null)
             return; // Do not close top level menu on left arrow (only sub menus)
+        ClearParentSubMenuIndex();
         CloseAsync().RunInBackground();
+    }
+
+    void ClearParentSubMenuIndex()
+    {
+        if (parent != null)
+            parent.childSubMenuIndex = -1;
     }
 
     void OpenSubMenu()
@@ -317,7 +406,7 @@ class Menu
             var y = dimensions.Y + (itemsView.CurrentIndex - itemsView.FirstIndex);
 
             var title = sm.Text.Trim();
-            childSubMenu = new Menu(x, y, title, this, dimensions.X, null);
+            childSubMenu = new Menu(x, y, title, this, dimensions.X, null, sm.OnTypeText ?? onTypeText);
             childSubMenuIndex = itemsView.CurrentIndex;
             isFocus = false;
             childSubMenu.Show(sm.Children);

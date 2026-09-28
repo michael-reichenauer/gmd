@@ -299,6 +299,50 @@ public class HooverTest
         Assert.AreEqual(1, hoover.RowIndex); // A hoovered commit is left where it is
     }
 
+    // A repo is shown with the current row where it was, so FollowCurrentIndex keeps a branch that a
+    // delete, a pruning fetch or another repo took away, and the key hints then looked it up by name
+    // on every redraw, which threw and ended gmd. Showing a repo gives such a branch up.
+    [TestMethod]
+    public async Task TestFollowRepoGivesUpABranchTheRepoHasNot()
+    {
+        var (graph, hoover) = await ThreeBranchesGraph();
+        hoover.SetBranch(graph.GetRowBranches(1)[1], 1, 1); // feat
+        var withoutFeat = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .ViewRepoAsync();
+
+        Assert.IsTrue(hoover.FollowRepo(withoutFeat.BranchByName));
+
+        Assert.IsFalse(hoover.IsBranch);
+    }
+
+    [TestMethod]
+    public async Task TestFollowRepoKeepsABranchTheRepoHas()
+    {
+        var (graph, hoover) = await ThreeBranchesGraph();
+        hoover.SetBranch(graph.GetRowBranches(1)[1], 1, 1); // feat
+        var repo = await ThreeBranches().ViewRepoAsync(ShowBranches.AllActive);
+
+        Assert.IsFalse(hoover.FollowRepo(repo.BranchByName));
+
+        Assert.AreEqual("feat", hoover.BranchPrimaryName);
+        Assert.AreEqual(1, hoover.RowIndex);
+    }
+
+    // A hoovered commit has no branch to look up
+    [TestMethod]
+    public async Task TestFollowRepoLeavesAHooveredCommit()
+    {
+        var (graph, hoover) = await ThreeBranchesGraph();
+        hoover.SetCommit(1, graph.Width + 2, 1);
+
+        Assert.IsFalse(hoover.FollowRepo(new Dictionary<string, Branch>()));
+
+        Assert.AreEqual(1, hoover.RowIndex);
+    }
+
     static async Task<(Graph, Hoover)> ThreeBranchesGraph()
     {
         var repo = await ThreeBranches().ViewRepoAsync(ShowBranches.AllActive);

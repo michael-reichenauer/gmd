@@ -21,25 +21,27 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Switch/Checkout to Branch  [S]
-            Merge to main  [E]
+            Switch to Branch  [s]
+            Merge to main  [e]
             Merge from main  [Shift-E]
-            Rebase and push on >  (disabled)
-            Hide Branch  [H]
-            Pull/Update  [U]  (disabled)
-            Push  [P]
-            Create Branch ...  [B]
+            Rebase and Push onto >  (disabled)
+            Hide Branch  [h]
+            Pull  [u]  (disabled)
+            Push  [p]
+            Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...
-            Diff Branch to >  [D]
-            Change Branch Color  [G]
+            Diff Branch to >  [d]
+            Change Branch Color  [g]
+            Open in Browser  (disabled)
+            Create Pull Request in Browser  (disabled)
             ---
-            Show/Open Branch >  [Shift →]
-            Pull/Update All Branches  [Shift-U]
+            Show Branch >  [Shift →]
+            Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
-            Repo Menu >
+            Repo Menu >  [Shift-M]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("dev"))
         );
@@ -52,25 +54,27 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Switch/Checkout to Branch  [S]  (disabled)
-            Merge from >  [E]  (disabled)
+            Switch to Branch  [s]  (disabled)
+            Merge from >  [e]  (disabled)
             Merge to >  [Shift-E]  (disabled)
-            Rebase and push on >  (disabled)
-            Hide Branch  [H]
-            Pull/Update  [U]  (disabled)
-            Push  [P]
-            Create Branch ...  [B]
+            Rebase and Push onto >  (disabled)
+            Hide Branch  [h]
+            Pull  [u]  (disabled)
+            Push  [p]
+            Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...  (disabled)
             Delete Branch ...  (disabled)
-            Diff Branch to >  [D]  (disabled)
-            Change Branch Color  [G]  (disabled)
+            Diff Branch to >  [d]  (disabled)
+            Change Branch Color  [g]  (disabled)
+            Open in Browser
+            Create Pull Request in Browser  (disabled)
             ---
-            Show/Open Branch >  [Shift →]
-            Pull/Update All Branches  [Shift-U]
+            Show Branch >  [Shift →]
+            Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
-            Repo Menu >
+            Repo Menu >  [Shift-M]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main"))
         );
@@ -84,25 +88,27 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Open Worktree /home/me/repo-dev  [S]
-            Merge to main  [E]
+            Open Worktree /home/me/repo-dev  [s]
+            Merge to main  [e]
             Merge from main  [Shift-E]  (disabled)
-            Rebase and push on >  (disabled)
-            Hide Branch  [H]
-            Pull/Update  [U]  (disabled)
-            Push  [P]
-            Create Branch ...  [B]
+            Rebase and Push onto >  (disabled)
+            Hide Branch  [h]
+            Pull  [u]  (disabled)
+            Push  [p]
+            Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...  (disabled)
-            Diff Branch to >  [D]
-            Change Branch Color  [G]
+            Diff Branch to >  [d]
+            Change Branch Color  [g]
+            Open in Browser  (disabled)
+            Create Pull Request in Browser  (disabled)
             ---
-            Show/Open Branch >  [Shift →]
-            Pull/Update All Branches  [Shift-U]
+            Show Branch >  [Shift →]
+            Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
-            Repo Menu >
+            Repo Menu >  [Shift-M]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture().Worktree("/home/me/repo-dev", "dev"))).GetBranchMenuItems("dev"))
         );
@@ -115,7 +121,7 @@ public class MenuItemsTest
         var path = "/home/someone/projects/repository/.claude/worktrees/dev";
         var items = Items(BranchMenuOf(await ViewOf(Fixture().Worktree(path, "dev"))).GetBranchMenuItems("dev"));
 
-        StringAssert.StartsWith(items, "Open Worktree ┅pository/.claude/worktrees/dev  [S]\n");
+        StringAssert.StartsWith(items, "Open Worktree ┅pository/.claude/worktrees/dev  [s]\n");
     }
 
     // From the current branch's side: it can merge from the held branch, but not to it, since
@@ -127,7 +133,7 @@ public class MenuItemsTest
 
         var items = Items(BranchMenuOf(view).GetBranchMenuItems("main"));
 
-        StringAssert.Contains(items, "Merge from >  [E]\n");
+        StringAssert.Contains(items, "Merge from >  [e]\n");
         StringAssert.Contains(items, "Merge to >  [Shift-E]  (disabled)");
     }
 
@@ -141,7 +147,7 @@ public class MenuItemsTest
         var dropped = Titles(menu.GetBranchMenuItems("dev")).Except(Titles(menu.GetBranchMenuItems("dev", true)));
 
         CollectionAssert.AreEqual(
-            new[] { "Show/Open Branch", "Pull/Update All Branches", "Push All Branches", "Repo Menu" },
+            new[] { "Show Branch", "Pull All Branches", "Push All Branches", "Repo Menu" },
             dropped.ToArray()
         );
     }
@@ -154,7 +160,7 @@ public class MenuItemsTest
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
         Assert.AreEqual(16, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(9, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(10, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -167,13 +173,42 @@ public class MenuItemsTest
             ●   main >
                 dev >
             ---
-            Show/Open Branch >  [Shift →]
+            Show Branch >  [Shift →]
             Hide All Branches
-            Pull/Update All Branches  [Shift-U]
+            Undo Show or Hide  [Backspace]  (disabled)
+            Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(view).GetShownBranchesItems())
         );
+    }
+
+    // What the ▽ in the application bar opens: the hidden branches with new commits, and the way to
+    // stop them being news without showing them
+    [TestMethod]
+    public async Task TestTheNewsMenuListsTheHiddenBranchesWithNewCommits()
+    {
+        var view = await ViewOf(Fixture());
+        view.HiddenNews = [new HiddenBranchNews(view.Repo.BranchByName["dev"], 2)];
+
+        Assert.AreEqual(
+            """
+            dev (2 new)
+            ---
+            Mark All as Seen
+            """,
+            Items(BranchMenuOf(view).GetHiddenNewsItems())
+        );
+    }
+
+    // Once a branch has been shown or hidden, the undo item names what Backspace would undo
+    [TestMethod]
+    public async Task TestTheUndoItemNamesTheLastShowOrHide()
+    {
+        var view = await ViewOf(Fixture(), "dev");
+        view.ShownHistory.Add(["main", "dev"], ["main"], "Hide", "'dev'", "dev");
+
+        StringAssert.Contains(Items(BranchMenuOf(view).GetShownBranchesItems()), "Undo Hide 'dev'  [Backspace]\n");
     }
 
     // The order is the current branch, then the branch it was branched from and so on, and the
@@ -190,9 +225,10 @@ public class MenuItemsTest
                 alpha >
                 feature >
             ---
-            Show/Open Branch >  [Shift →]
+            Show Branch >  [Shift →]
             Hide All Branches
-            Pull/Update All Branches  [Shift-U]
+            Undo Show or Hide  [Backspace]  (disabled)
+            Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(view).GetShownBranchesItems())
@@ -241,6 +277,7 @@ public class MenuItemsTest
         Assert.AreEqual(
             """
             --- Rebase 'dev' (3 of 7)  ·  2 conflicts ---
+            Resolve Conflicts
             Continue Rebase
             Skip This Commit
             Abort Rebase
@@ -251,7 +288,8 @@ public class MenuItemsTest
     }
 
     // A merge has no 'Continue' — committing is what finishes one — and nothing to skip. They are
-    // left out rather than greyed, since neither could ever apply to a merge.
+    // left out rather than greyed, since neither could ever apply to a merge. Resolving comes first
+    // while there are conflicts, since they are what keep it from being finished.
     [TestMethod]
     public async Task TestAStoppedMergeOffersOnlyAbort()
     {
@@ -260,6 +298,7 @@ public class MenuItemsTest
         Assert.AreEqual(
             """
             --- Merge  ·  1 conflict ---
+            Resolve Conflicts
             Abort Merge
             ---
             """,
@@ -280,43 +319,51 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Pull/Update All Branches  [Shift-U]
+            Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
-            Search/Filter ...  [F]
-            Refresh/Reload  [R]
-            Clean/Restore Working Folder
-            Worktrees ...  [W]
-            Open/Clone/Init Repo >  [O]
+            Search ...  [f]
+            Next Match  [n]  (disabled)
+            Previous Match  [Shift-N]  (disabled)
+            Refresh  [r]
+            Clean Working Folder
+            Worktrees ...  [w]
+            Open Repository in Browser
+            Open, Clone or Init Repo >  [o]
             Config ...
-            Help ...  [?, F1]
-            About ...
-            Quit  [Q, Esc]
+            Help  [?, F1]
+            About
+            Quit  [q, Esc]
             """,
             Items(RepoMenuOf(await ViewOf(Fixture())).GetRepoMenuItems())
         );
     }
 
-    // Uncommitted changes block everything that would move the working tree from under them
+    // Uncommitted changes block a pull, which would move the working tree from under them, but not
+    // a push, which sends commits and leaves the changes where they are
     [TestMethod]
-    public async Task TestUncommittedChangesDisableThePullAndPushItems()
+    public async Task TestUncommittedChangesDisablePullingButNotPushing()
     {
         var items = Items(RepoMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetRepoMenuItems());
 
-        StringAssert.Contains(items, "Pull/Update All Branches  [Shift-U]  (disabled)");
-        StringAssert.Contains(items, "Push All Branches  [Shift-P]  (disabled)");
+        StringAssert.Contains(items, "Pull All Branches  [Shift-U]  (disabled)");
+        StringAssert.Contains(items, "Push All Branches  [Shift-P]\n");
     }
 
-    // The same two under Branches in the commit menu, where a push of everything is greyed out
-    // the same way, while an update of all branches is a fetch and so is left alone
+    // What does block a push is a merge or rebase stopped part way through, the branch being
+    // unfinished, or HEAD not even on it. The same under Branches in the commit menu.
     [TestMethod]
-    public async Task TestUncommittedChangesDisableThePushAllItemOfTheShownBranches()
+    public async Task TestAnOperationInProgressDisablesPushAll()
     {
-        var items = Items(BranchMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetShownBranchesItems());
+        var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
-        StringAssert.Contains(items, "Pull/Update All Branches  [Shift-U]\nPush All Branches  [Shift-P]  (disabled)");
+        StringAssert.Contains(Items(RepoMenuOf(view).GetRepoMenuItems()), "Push All Branches  [Shift-P]  (disabled)");
+        StringAssert.Contains(
+            Items(BranchMenuOf(view).GetShownBranchesItems()),
+            "Push All Branches  [Shift-P]  (disabled)"
+        );
     }
 
-    // 'Pull/Update' is a fetch for a branch that is not current, and git only fast-forwards one,
+    // 'Pull' is a fetch for a branch that is not current, and git only fast-forwards one,
     // so a diverged branch cannot be updated from here at all and is greyed out. Offering it was
     // the bug: the fetch was rejected as non fast-forward every time.
     [TestMethod]
@@ -324,7 +371,7 @@ public class MenuItemsTest
     {
         var items = Items(BranchMenuOf(await ViewOf(DivergedFixture(), "dev")).GetBranchMenuItems("dev"));
 
-        StringAssert.Contains(items, "Pull/Update  [U]  (disabled)");
+        StringAssert.Contains(items, "Pull  [u]  (disabled)");
     }
 
     // The current branch is pulled with 'git pull', which merges rather than fast-forwards, so the
@@ -334,7 +381,136 @@ public class MenuItemsTest
     {
         var items = Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetBranchMenuItems("main"));
 
-        StringAssert.Contains(items, "Pull/Update  [U]\n");
+        StringAssert.Contains(items, "Pull  [u]\n");
+    }
+
+    // What a click on ▲ in the application bar offers. It used to push every shown branch there and
+    // then; now it is a menu, the current branch or all of them.
+    [TestMethod]
+    public async Task TestThePushMenuOffersTheCurrentBranchOrAll()
+    {
+        Assert.AreEqual(
+            """
+            Push Current Branch  [p]
+            Push All Branches  [Shift-P]
+            """,
+            Items(BranchMenuOf(await ViewOf(AheadFixture())).GetPushItems())
+        );
+    }
+
+    // ... and a diverged current branch is not offered a push at all: it would have to be a force
+    // push, which 'p' asks about first, and that should not be a click away
+    [TestMethod]
+    public async Task TestThePushMenuOffersNoPushOfADivergedBranch()
+    {
+        Assert.AreEqual(
+            """
+            Push Current Branch  [p]  (disabled)
+            Push All Branches  [Shift-P]  (disabled)
+            """,
+            Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPushItems())
+        );
+    }
+
+    // What a click on ▼ offers, the mirror of ▲. A diverged current branch can be pulled, since the
+    // current branch is pulled with 'git pull', which merges.
+    [TestMethod]
+    public async Task TestThePullMenuOffersTheCurrentBranchOrAll()
+    {
+        Assert.AreEqual(
+            """
+            Pull Current Branch  [u]
+            Pull All Branches  [Shift-U]
+            """,
+            Items(BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPullItems())
+        );
+    }
+
+    // Uncommitted changes leave both, as they do the keys: a push leaves the changes where they are
+    [TestMethod]
+    public async Task TestUncommittedChangesLeaveThePushMenu()
+    {
+        Assert.AreEqual(
+            """
+            Push Current Branch  [p]
+            Push All Branches  [Shift-P]
+            """,
+            Items(BranchMenuOf(await ViewOf(AheadFixture().WithStatus(modified: 1))).GetPushItems())
+        );
+    }
+
+    // The keys that pick an item of the branch menu while it is open, which are the keys it shows:
+    // 'u' pulls this branch and 'U' every branch, and 'd' opens the diff sub menu. The key of a
+    // greyed out item (Pull here, which has nothing to pull) says why rather than run it.
+    [TestMethod]
+    public async Task TestTheBranchMenuKeysPickTheItemsShowingThem()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture()))
+            .GetBranchMenuItems("dev")
+            .Select(i => i with { IsDisabled = IsDisabled(i) })
+            .ToList();
+
+        var picked = MenuShortcuts
+            .Of(items)
+            .OrderBy(k => k.Value)
+            .Select(k => $"{KeyName(k.Key)} {items[k.Value].Text}{(items[k.Value].IsDisabled ? "  (says why)" : "")}");
+
+        Assert.AreEqual(
+            """
+            s Switch to Branch
+            S Switch to Branch
+            e Merge to main
+            E Merge from main
+            h Hide Branch
+            H Hide Branch
+            u Pull  (says why)
+            p Push
+            b Create Branch ...
+            B Create Branch ...
+            d Diff Branch to
+            D Diff Branch to
+            g Change Branch Color
+            G Change Branch Color
+            U Pull All Branches
+            P Push All Branches
+            M Repo Menu
+            """,
+            string.Join("\n", picked)
+        );
+    }
+
+    // A greyed out item says why when it is picked anyway, naming the condition that failed
+    [TestMethod]
+    public async Task TestGreyedOutItemsSayWhy()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main").ToList();
+
+        Assert.AreEqual("Already on 'main'", WhyNot(items, "Switch to Branch"));
+        Assert.AreEqual("The main branch cannot be deleted", WhyNot(items, "Delete Branch ..."));
+        Assert.AreEqual("The main branch is always magenta", WhyNot(items, "Change Branch Color"));
+        Assert.AreEqual("Nothing to pull on 'main'", WhyNot(items, "Pull"));
+    }
+
+    // Uncommitted changes are the reason most items are greyed out, and they say so
+    [TestMethod]
+    public async Task TestChangesAreSaidToBeWhyMergingIsGreyedOut()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetBranchMenuItems("dev").ToList();
+
+        Assert.AreEqual("Commit or stash the changes first", WhyNot(items, "Merge to main"));
+        Assert.AreEqual("Commit or stash the changes first", WhyNot(items, "Diff Branch to"));
+    }
+
+    // A diverged current branch cannot be pushed from the ▲ menu, and it says what to do instead
+    [TestMethod]
+    public async Task TestTheGreyedOutPushOfADivergedBranchSaysWhatToDo()
+    {
+        var items = BranchMenuOf(await ViewOf(DivergedCurrentFixture())).GetPushItems().ToList();
+
+        Assert.AreEqual(
+            "The remote has commits to pull first (u), or 'p' asks to force the push",
+            WhyNot(items, "Push Current Branch")
+        );
     }
 
     [TestMethod]
@@ -360,6 +536,16 @@ public class MenuItemsTest
             })
         );
 
+    static string KeyName(Terminal.Gui.Key key) => ((char)key).ToString();
+
+    // The reason a greyed out item gives, which it only has to while it is greyed out
+    static string WhyNot(IReadOnlyList<MenuItem> items, string text)
+    {
+        var item = items.First(i => i.Text == text);
+        Assert.IsTrue(IsDisabled(item), $"'{text}' should be greyed out");
+        return item.WhyNot?.Invoke() ?? "(no reason)";
+    }
+
     static bool IsDisabled(MenuItem i) =>
         i.IsDisabled || !(i.CanExecute?.Invoke() ?? true) || (i is SubMenu sm && !sm.Children.Any());
 
@@ -380,7 +566,21 @@ public class MenuItemsTest
     static IRepoMenu RepoMenuOf(FakeViewRepo view) =>
         new RepoMenu(
             view,
-            new RepoCommands(view, null!, null!, null!, null!, null!, null!, null!, new Config(), null!, null!),
+            new RepoCommands(
+                view,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                new Config(),
+                null!,
+                null!,
+                _ => null!
+            ),
             new Config(),
             null!
         );
@@ -418,6 +618,13 @@ public class MenuItemsTest
             .Commit("c2", "Second", "c1")
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "r1", ahead: 1, behind: 1);
+
+    // 'main' is current with one commit not yet pushed
+    static RepoBuilder AheadFixture() =>
+        new RepoBuilder()
+            .Commit("l1", "Local 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "c1", ahead: 1);
 
     static RepoBuilder Fixture() =>
         new RepoBuilder()

@@ -8,6 +8,7 @@ internal interface ILogService
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
 }
 
 internal class LogService : ILogService
@@ -28,6 +29,25 @@ internal class LogService : ILogService
 
         // Wrap parsing in separate task thread, since it might be a lot of commits to parse
         return await Task.Run(() => ParseLines(output));
+    }
+
+    // The ids of the commits that changed a file whose path contains the text, in any case, newest
+    // first, for a search. A pathspec with no 'glob' magic lets '*' match across '/', so '*text*'
+    // is anywhere in the path. --full-history, since git's default simplification hides a commit
+    // on a side branch whose change the merge left out, and --no-merges, since with the full history
+    // every merge bringing in such a change is listed as well, which would bury the commits made.
+    //
+    // The text is what the user typed: a '"' would end the argument, and git writes paths with '/'
+    // on every platform.
+    public async Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd)
+    {
+        var text = pathText.Replace("\"", "").Replace('\\', '/');
+        var args = $"log --all --full-history --no-merges --format=%H --max-count={maxCount} -- \":(icase)*{text}*\"";
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)
@@ -63,14 +83,21 @@ internal class LogService : ILogService
         return await Task.Run(() => ParseLines(output));
     }
 
+    // Parsed as spans of the output, so that only the fields kept become strings. The log of a large
+    // repo is tens of MB, which splitting into rows, fields and lines copied over and over, about a
+    // hundred milliseconds of a refresh.
     Result<IReadOnlyList<Commit>> ParseLines(string output)
     {
-        var rows = output.Split('\x00');
         var commits = new List<Commit>();
 
-        foreach (var row in rows)
+        var rest = output.AsSpan();
+        while (!rest.IsEmpty)
         {
-            if (row.Trim() == "")
+            // Rows are NUL separated, and one of white space only, e.g. after the last, is no commit
+            var end = rest.IndexOf('\x00');
+            var row = end == -1 ? rest : rest[..end];
+            rest = end == -1 ? [] : rest[(end + 1)..];
+            if (row.IsWhiteSpace())
             {
                 continue;
             }
@@ -85,61 +112,65 @@ internal class LogService : ILogService
         return commits;
     }
 
-    Result<Commit> ParseRow(string row)
+    Result<Commit> ParseRow(ReadOnlySpan<char> row)
     {
-        var rowParts = row.Split('|');
-        if (rowParts.Length < 6)
+        // The fields are '|' separated. The message is the last, and the last range is the rest of
+        // the row, so a message containing '|' is kept whole.
+        Span<Range> fields = stackalloc Range[6];
+        if (row.Split(fields, '|') < 6)
         {
             return new Error($"failed to parse git commit {row}");
         }
 
-        var id = rowParts[0];
+        var id = row[fields[0]].ToString();
         var sid = id.Sid();
         // Git emits the same date format regardless of the user's locale, so parse it culture
         // invariant. Cultures with a non-Gregorian calendar (e.g. ar-SA, th-TH, fa-IR) would
         // otherwise throw or silently parse the year hundreds of years off.
-        var authorTime = DateTime.Parse(rowParts[1], CultureInfo.InvariantCulture);
-        var commitTime = DateTime.Parse(rowParts[2], CultureInfo.InvariantCulture);
-        var author = rowParts[3];
-        var parentIDs = ParseParentIds(rowParts);
-        var message = ParseMessage(rowParts);
+        var authorTime = DateTime.Parse(row[fields[1]], CultureInfo.InvariantCulture);
+        var commitTime = DateTime.Parse(row[fields[2]], CultureInfo.InvariantCulture);
+        var author = row[fields[3]].ToString();
+        var parentIDs = ParseParentIds(row[fields[4]]);
+        var message = ParseMessage(row[fields[5]]);
         var subject = ParseSubject(message);
 
         return new Commit(id, sid, parentIDs, subject, message, author, authorTime, commitTime);
     }
 
-    string[] ParseParentIds(string[] rowParts)
+    string[] ParseParentIds(ReadOnlySpan<char> field)
     {
-        var ids = rowParts[4].Trim();
-        if (ids == "")
+        var ids = field.Trim();
+        if (ids.IsEmpty)
         {
             // No parents, (root commit has no parent)
             return [];
         }
 
-        return ids.Split(' ');
+        return ids.ToString().Split(' ');
     }
 
-    string ParseMessage(string[] rowParts)
+    string ParseMessage(ReadOnlySpan<char> field)
     {
-        // The message might contain one or more "|", if so rejoin these parts into original message
-        var message = rowParts[5];
-        if (rowParts.Length > 6)
+        // Skip leading empty lines, i.e. lines of white space only: the message starts at the line
+        // of the first character that is not white space, or is empty if there is none
+        var first = 0;
+        while (first < field.Length && char.IsWhiteSpace(field[first]))
         {
-            message = string.Join('|', rowParts.Skip(5).ToArray());
+            first++;
+        }
+        if (first == field.Length)
+        {
+            return "";
         }
 
-        // Skip leading empty lines
-        var lines = message.Split('\n');
-        message = string.Join('\n', lines.SkipWhile(l => l.Trim() == ""));
-
-        return message.TrimEnd();
+        var lineStart = field[..first].LastIndexOf('\n') + 1;
+        return field[lineStart..].TrimEnd().ToString();
     }
 
     string ParseSubject(string message)
     {
         // Extract subject line from the first line of the message
-        var lines = message.Split('\n');
-        return lines[0].TrimEnd();
+        var end = message.IndexOf('\n');
+        return (end == -1 ? message.AsSpan() : message.AsSpan(0, end)).TrimEnd().ToString();
     }
 }

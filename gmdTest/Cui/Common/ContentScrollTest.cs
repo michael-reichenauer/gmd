@@ -4,8 +4,8 @@ namespace gmdTest.Cui.Common;
 
 // Where a ContentView is scrolled to, i.e. the first shown row and the row the cursor is on. The
 // view is 10 rows high in most of these, with 100 rows of content, so the numbers are easy to
-// follow. A view that draws a top border has one row less for its content than its height, which
-// is the difference the last few tests are about.
+// follow. The height is that of the content, i.e. less a top border, which ContentView takes off
+// (see ContentViewTest for a bordered view).
 [TestClass]
 public class ContentScrollTest
 {
@@ -194,41 +194,22 @@ public class ContentScrollTest
         Assert.AreEqual((8, 9), scroll.GetVerticalScrollbarIndexes());
     }
 
-    // A top border takes one row of the view, and only some of the math knows that: the scrollbar
-    // and the margin of ScrollToShowIndex use the content height, while the row Scroll() stops at
-    // uses the whole view height. So the last row of a bordered view is reachable by the cursor but
-    // is drawn under the bottom of the view.
+    // One row more than fits is a row to scroll to, and the only case where a scrollbar is shown
     [TestMethod]
-    public void TestTopBorderTakesOneRowFromTheContent()
+    public void TestScrollbarWhenOneRowDoesNotFit()
     {
-        var scroll = NewScroll(100, viewHeight: 10, contentHeight: 9);
-
-        Assert.IsTrue(scroll.Move(1000));
-
-        Assert.AreEqual(99, scroll.CurrentIndex);
-        Assert.AreEqual(90, scroll.FirstIndex); // 9 content rows show 90-98, i.e. not the cursor row
-    }
-
-    // Scrolling while the cursor is on a row below the content used to throw it all the way to the
-    // first row, since the row it was put on, newFirst - ContentHeight - 1, is negative and then
-    // clamped to 0 where a + was meant. Only reachable in a view with a top border, where Move()
-    // lets the cursor onto the row that the border pushed out of view.
-    [TestMethod]
-    public void TestScrollKeepsACursorBelowTheContentOnTheLastShownRow()
-    {
-        var scroll = NewScroll(100, viewHeight: 10, contentHeight: 9);
-        scroll.Move(9); // The 10th row of a view with 9 content rows
-        Assert.AreEqual(0, scroll.FirstIndex);
+        var scroll = NewScroll(11);
+        Assert.AreNotEqual((0, -1), scroll.GetVerticalScrollbarIndexes());
 
         Assert.IsTrue(scroll.Scroll(1));
 
         Assert.AreEqual(1, scroll.FirstIndex);
-        Assert.AreEqual(9, scroll.CurrentIndex); // The last of the rows 1-9 that are now shown
+        Assert.IsFalse(scroll.Scroll(1)); // The last row is now the bottom row of the view
     }
 
-    static ContentScroll NewScroll(int totalCount, int viewHeight = 10, int contentHeight = 10)
+    static ContentScroll NewScroll(int totalCount, int height = 10)
     {
-        var scroll = new ContentScroll(() => viewHeight, () => contentHeight);
+        var scroll = new ContentScroll(() => height);
         scroll.SetTotalCount(totalCount);
         return scroll;
     }

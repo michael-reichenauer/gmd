@@ -41,10 +41,12 @@ partial class MainView : IMainView
         IProgress progress,
         IAboutDlg aboutDlg,
         IUpdater updater,
-        ISpellChecker spellChecker
+        ISpellChecker spellChecker,
+        IStatusLine statusLine
     )
         : base()
     {
+        Menu.StatusLine = statusLine;
         this.repoView = repoView;
         this.git = git;
         this.config = config;
@@ -77,7 +79,14 @@ partial class MainView : IMainView
             ColorScheme = ColorSchemes.Window,
         };
 
-        mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView);
+        // The key hints after the log view, so they are drawn after it in the same pass, which is
+        // when the log view marks them for drawing
+        mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView, repoView.KeyHintView);
+
+        // Hidden until a repo is shown, which is when RepoView.UpdateLayout makes the layout from the
+        // config: before that the start menu is all there is, and no key hinted would work there.
+        // Here rather than in RepoView, whose constructor runs before there is a driver to hide it.
+        repoView.KeyHintView.Visible = false;
         repoView.View.SetFocus();
 
         return mainView;
@@ -109,7 +118,7 @@ partial class MainView : IMainView
         {
             if (path != "" && rootPathResult is Error e)
             { // User specified an invalid folder on command line
-                UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e}");
+                UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e.AllMessages()}");
             }
 
             ShowMainMenu();
@@ -136,7 +145,14 @@ partial class MainView : IMainView
     void ShowMainMenu()
     {
         Log.Info("Show main menu");
-        Menu menu = new Menu(4, 2, "Recent Repos", null, -1, () => OnCancelMenu());
+        // Closing it quits, since it is all there is on screen, so only Esc and 'Quit' close it and a
+        // click beside it is ignored
+        // Titled with what it is for, since it is what gmd shows when it was started outside a
+        // repository, which nothing else on the screen says
+        Menu menu = new Menu(4, 2, "Open a Repository", null, -1, () => OnCancelMenu())
+        {
+            IsClosedOnClickOutside = false,
+        };
 
         if (!config.Releases.IsUpdateAvailable())
         { // Check for update ...
@@ -163,8 +179,8 @@ partial class MainView : IMainView
                 .Item("Browse ...", "", () => ShowBrowseDialog())
                 .Item("Clone ...", "", () => ShowCloneDlg())
                 .Item("Init ...", "", () => ShowInitRepoDlg())
-                .Item("Help ...", "", () => ShowHelp())
-                .Item("About ...", "", () => ShowAbout())
+                .Item("Help", "", () => ShowHelp())
+                .Item("About", "", () => ShowAbout())
                 .Item("Quit", "Esc ", () => Application.RequestStop())
         );
     }
@@ -176,7 +192,7 @@ partial class MainView : IMainView
 
         return Menu
             .Items.Separator("New Release Available !!!")
-            .Item("Update to Latest Version ...", "", () => UpdateRelease().RunInBackground())
+            .Item("Update to Latest Version", "", () => UpdateRelease().RunInBackground())
             .Separator();
     }
 
@@ -212,7 +228,7 @@ partial class MainView : IMainView
             );
             if (await updateTask is Error e)
             {
-                UI.ErrorMessage($"Failed to update:\n{e}");
+                UI.ErrorMessage($"Failed to update:\n{e.AllMessages()}");
                 ShowMainMenu();
                 return;
             }
@@ -240,11 +256,18 @@ partial class MainView : IMainView
         ShowMainMenu();
     }
 
-    IEnumerable<MenuItem> GetRecentRepoItems() =>
-        config
+    // The repositories opened last, or a greyed out line saying there are none yet, rather than a
+    // menu that starts with a bare separator
+    IEnumerable<MenuItem> GetRecentRepoItems()
+    {
+        var items = config
             .RecentFolders.Where(Directory.Exists)
             .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
-            .Take(Config.MaxRecentFolders);
+            .Take(Config.MaxRecentFolders)
+            .ToList();
+
+        return items.Any() ? items : [Menu.Item("No recent repositories", "", () => { }, () => false)];
+    }
 
     void ShowRepo(string path)
     {
@@ -252,7 +275,7 @@ partial class MainView : IMainView
         {
             if (await repoView.ShowInitialRepoAsync(path) is Error e)
             {
-                UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e}");
+                UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e.AllMessages()}");
                 ShowMainMenu();
                 return;
             }
@@ -268,13 +291,19 @@ partial class MainView : IMainView
             return;
         }
 
+        Result cloned;
         using (progress.Show())
         {
-            if (await server.CloneAsync(clone.Uri, clone.Path, "") is Error e)
-            {
-                UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{e}");
-                return;
-            }
+            cloned = await server.CloneAsync(clone.Uri, clone.Path, "");
+        }
+
+        // Back to the start menu on a failure, the one way on from here, as for a repo that fails to
+        // load. The progress is over by then, since the menu is modal and would keep it running.
+        if (cloned is Error e)
+        {
+            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{e.AllMessages()}");
+            ShowMainMenu();
+            return;
         }
 
         ShowRepo(clone.Path);
@@ -289,13 +318,18 @@ partial class MainView : IMainView
             return;
         }
 
+        Result initiated;
         using (progress.Show())
         {
-            if (await server.InitRepoAsync(path, "") is Error e)
-            {
-                UI.ErrorMessage($"Failed to init:\n{path}:\n{e}");
-                return;
-            }
+            initiated = await server.InitRepoAsync(path, "");
+        }
+
+        // Back to the start menu on a failure, as for a failed clone above
+        if (initiated is Error e)
+        {
+            UI.ErrorMessage($"Failed to init:\n{path}:\n{e.AllMessages()}");
+            ShowMainMenu();
+            return;
         }
 
         ShowRepo(path);

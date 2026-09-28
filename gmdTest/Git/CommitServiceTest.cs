@@ -133,21 +133,27 @@ public class CommitServiceTest
 
         await new CommitService(cmd).UndoUncommittedFileAsync("src/a.txt", wd);
 
-        Assert.AreEqual("checkout --force \"src/a.txt\"", cmd.Calls[0].Args);
+        // From the last commit, so that what is staged is discarded too
+        Assert.AreEqual("checkout --force HEAD -- \"src/a.txt\"", cmd.Calls[0].Args);
     }
 
-    // A new file is not known to git, so it cannot be checked out — it is removed instead
+    // A new file is not in the last commit, so it cannot be checked out from it: it is taken out of
+    // the index, in case it was staged, and removed
     [TestMethod]
     public async Task TestUndoUncommittedFileRemovesANewFile()
     {
         File.WriteAllText(Path.Join(wd, "new.txt"), "new");
         var cmd = new FakeCmd(
-            (_, _, _) => FakeCmd.Fail("error: pathspec 'new.txt' did not match any file(s) known to git")
+            (_, args, _) =>
+                args.StartsWith("checkout")
+                    ? FakeCmd.Fail("error: pathspec 'new.txt' did not match any file(s) known to git")
+                    : FakeCmd.Ok("")
         );
 
         var result = await new CommitService(cmd).UndoUncommittedFileAsync("new.txt", wd);
 
         AssertOk(result);
+        Assert.AreEqual("rm --cached --ignore-unmatch -q -- \"new.txt\"", cmd.Calls[1].Args);
         Assert.IsFalse(File.Exists(Path.Join(wd, "new.txt")));
     }
 

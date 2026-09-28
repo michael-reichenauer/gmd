@@ -74,16 +74,15 @@ public class StatusServiceTest
         return status;
     }
 
-    // Note 'added.txt': a staged add ('A  ') is counted as modified, not added, since the leading
-    // status column is trimmed away before the prefixes are compared. Only untracked files ('?? ')
-    // reach AddedFiles. This is invisible today — every consumer either concatenates the file lists
-    // or uses Status.ChangesCount, which is their sum.
+    // Note 'added.txt': a staged add ('A  ') is added, as an untracked file is. It used to be counted
+    // as modified, which went unseen until discarding a file asked whether it was new, to say that
+    // discarding deletes it.
     [TestMethod]
     public async Task TestParseCounts()
     {
         var status = await GetStatusAsync(StatusOutput);
 
-        Assert.AreEqual("M:3,A:2,D:2,C:0,R:1", status.ToString());
+        Assert.AreEqual("M:2,A:3,D:2,C:0,R:1", status.ToString());
     }
 
     [TestMethod]
@@ -91,16 +90,32 @@ public class StatusServiceTest
     {
         var status = await GetStatusAsync(StatusOutput);
 
-        CollectionAssert.AreEqual(new[] { "added.txt", "mod.txt", "stagemod.txt" }, status.ModifiedFiles);
+        CollectionAssert.AreEqual(new[] { "mod.txt", "stagemod.txt" }, status.ModifiedFiles);
     }
 
-    // Git quotes a path containing a space, the quotes are not part of the name
+    // The new files, staged or untracked. Git quotes a path containing a space, the quotes are not
+    // part of the name.
     [TestMethod]
-    public async Task TestParseAddedFilesAreTheUntrackedOnesAndAreUnquoted()
+    public async Task TestParseAddedFilesAreTheNewOnesAndAreUnquoted()
     {
         var status = await GetStatusAsync(StatusOutput);
 
-        CollectionAssert.AreEqual(new[] { "another file.txt", "untracked.txt" }, status.AddedFiles);
+        CollectionAssert.AreEqual(new[] { "added.txt", "another file.txt", "untracked.txt" }, status.AddedFiles);
+    }
+
+    // A new file changed again after it was staged, or deleted again, or only intended to be added
+    // ('git add -N'), is still new: it is not in the last commit
+    [TestMethod]
+    [DataRow("AM added.txt")]
+    [DataRow("AD added.txt")]
+    [DataRow(" A added.txt")]
+    [DataRow(" A a")] // One letter, which the trimmed ' A' leaves one column short of '?? '
+    public async Task TestParseAStagedNewFileIsAdded(string line)
+    {
+        var status = await GetStatusAsync(line);
+
+        Assert.AreEqual(1, status.Added);
+        CollectionAssert.AreEqual(new[] { line[3..] }, status.AddedFiles);
     }
 
     [TestMethod]

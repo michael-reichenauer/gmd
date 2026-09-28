@@ -46,38 +46,64 @@ class CommitMenu : ICommitMenu
 
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
-            .Item("Commit ...", "C", () => cmds.CommitFromMenu(false), () => !isStatusOK)
-            .Item("Amend ...", "A", () => cmds.CommitFromMenu(true), () => !isStatusOK && cc.IsAhead)
-            .Item($"Commit Diff ...", "D", () => cmds.ShowCurrentRowDiff())
+            .Item("Commit ...", "c", () => cmds.CommitFromMenu(false), () => !isStatusOK, () => "Nothing to commit")
+            // Enabled as the 'a' key is: a commit not yet pushed can be amended with no changes too,
+            // to reword its message
+            .Item(
+                "Amend ...",
+                "a",
+                () => cmds.CommitFromMenu(true),
+                () => cc.IsAhead,
+                () => "Only a commit not yet pushed can be amended"
+            )
+            .Item("Commit Diff", "d", () => cmds.ShowCurrentRowDiff())
             .SubMenu("Undo", "", GetCommitUndoItems())
             .SubMenu("Rebase", "", GetRebaseMenuItems())
             .SubMenu("Stash", "", GetStashMenuItems())
-            .SubMenu("Tag", "", GetTagItems(), () => c.Id != Repo.UncommittedId)
+            .SubMenu(
+                "Tag",
+                "",
+                GetTagItems(),
+                () => c.Id != Repo.UncommittedId,
+                () => "A tag is put on a commit: move to one first"
+            )
             .Item(
                 "Create Branch from Commit ...",
-                "B",
+                "b",
                 () => repo.BranchCmds.CreateBranchFromCommit(),
-                () => !c.IsUncommitted
+                () => !c.IsUncommitted,
+                () => "A branch starts at a commit: move to one first"
             )
             .Item(
-                $"Merge From Commit to {cb?.ShortNiceUniqueName()}",
+                $"Merge Commit into {cb?.ShortNiceUniqueName()}",
                 "",
                 () => repo.BranchCmds.MergeBranch(c.Id),
-                () => isStatusOK && rb != cb
+                () => isStatusOK && rb != cb,
+                () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
             )
             .Item(
-                $"Cherry Pick Commit to {cb?.ShortNiceUniqueName()}",
+                $"Cherry Pick into {cb?.ShortNiceUniqueName()}",
                 "",
                 () => cmds.CherryPick(),
-                () => isStatusOK && rb != cb
+                () => isStatusOK && rb != cb,
+                () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
             )
             .Item(
-                "Switch/Checkout to Commit",
+                "Switch to Commit",
                 "",
                 () => repo.BranchCmds.SwitchToCommit(),
-                () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id
+                () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id,
+                () => !isStatusOK ? Why.Changes : "Already on this commit"
             )
-            .Item("Toggle Commit Details ...", "Enter", () => cmds.ToggleDetails())
+            .Item("Commit Details", "Enter", () => cmds.ToggleDetails())
+            // Above the file items rather than at the end, which the walks to Blame File count from
+            .Item(
+                "Open Commit in Browser",
+                "",
+                () => repo.Cmds.OpenCommitInBrowser(c.Id),
+                () => WebCommands.CanOpenCommit(repo.Repo, c),
+                () => WebCommands.WhyNoOpenCommit(repo.Repo, c)
+            )
             // Belongs with the commit items: the files offered are the ones this commit has, even
             // though the history then shown for the chosen one is its full history, hence 'Full'
             .Item("Full File History ...", "", () => cmds.ShowFileHistory())
@@ -87,7 +113,7 @@ class CommitMenu : ICommitMenu
             .Separator()
             // Everything about branches, including showing and hiding them, is under here
             .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
-            .SubMenu("Repo Menu", "", repoMenu.GetRepoMenuItems());
+            .SubMenu("Repo Menu", "Shift-M", repoMenu.GetRepoMenuItems());
     }
 
     IEnumerable<MenuItem> GetCommitUndoItems()
@@ -101,31 +127,41 @@ class CommitMenu : ICommitMenu
 
         return Menu
             .Items.SubMenu(
-                "Undo/Restore an Uncommitted File",
+                "Discard Changes in a File",
                 "",
                 GetUncommittedFileItems(),
-                () => cmds.CanUndoUncommitted()
+                () => cmds.CanUndoUncommitted(),
+                () => "There are no uncommitted changes to undo"
             )
-            .Item($"Undo Commit", "", () => cmds.UndoCommit(id), () => repo.Repo.Status.IsOk)
-            .Item($"Uncommit", "", () => cmds.UncommitLastCommit(), () => cmds.CanUncommitLastCommit())
+            .Item("Revert Commit", "", () => cmds.UndoCommit(id), () => repo.Repo.Status.IsOk, () => Why.Changes)
             .Item(
-                $"Uncommit until {id.Sid()}",
+                "Uncommit Last Commit",
+                "",
+                () => cmds.UncommitLastCommit(),
+                () => cmds.CanUncommitLastCommit(),
+                () => !repo.Repo.Status.IsOk ? Why.Changes : "Only a commit not yet pushed can be uncommitted"
+            )
+            .Item(
+                $"Uncommit {id.Sid()} and Newer",
                 "",
                 () => cmds.UncommitUntilCommit(id),
-                () => repo.Repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent)
+                () => repo.Repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent),
+                () => !repo.Repo.Status.IsOk ? Why.Changes : "Only commits on the current branch can be uncommitted"
             )
             .Separator()
             .Item(
-                "Undo/Restore all Uncommitted Binary Files",
+                "Discard Changes in Binary Files",
                 "",
                 () => cmds.UndoUncommittedFiles(binaryPaths),
-                () => binaryPaths.Any()
+                () => binaryPaths.Any(),
+                () => "There are no uncommitted binary files"
             )
             .Item(
-                "Undo/Restore all Uncommitted Changes",
+                "Discard All Changes",
                 "",
                 () => repo.Cmds.UndoAllUncommittedChanged(),
-                () => cmds.CanUndoUncommitted()
+                () => cmds.CanUndoUncommitted(),
+                () => "There are no uncommitted changes to undo"
             );
     }
 
@@ -140,31 +176,52 @@ class CommitMenu : ICommitMenu
         { // User selected range of commits
             c1 = repo.Repo.ViewCommits[i1];
             c2 = repo.Repo.ViewCommits[i2];
-            if (!c1.IsUncommitted && !c1.IsUncommitted)
+            if (!c1.IsUncommitted && !c2.IsUncommitted)
             {
                 selected = $"{Sid(c1.Id)}...{Sid(c2.Id)}";
             }
         }
 
         return Menu.Items.Item(
-            $"Squash {selected}",
+            selected == "" ? "Squash ..." : $"Squash {selected} ...",
             "",
             () => cmds.SquashCommits(c1!.Id, c2!.Id),
-            () => !selection.IsEmpty && selected != "" && repo.Status.IsOk
+            () => !selection.IsEmpty && selected != "" && repo.Status.IsOk,
+            () => selected == "" ? "Select the commits to squash with Shift-↑↓ first" : Why.Changes
         );
     }
 
     IEnumerable<MenuItem> GetStashMenuItems() =>
         Menu
-            .Items.Item("Stash Changes", "", () => cmds.Stash(), () => !repo.Status.IsOk)
-            .SubMenu("Stash Pop", "", GetStashPopItems(), () => repo.Status.IsOk)
-            .SubMenu("Stash Diff", "", GetStashDiffItems())
-            .SubMenu("Stash Drop", "", GetStashDropItems());
+            .Items.Item(
+                "Stash Changes ...",
+                "",
+                () => cmds.Stash(),
+                () => !repo.Status.IsOk,
+                () => "No changes to stash"
+            )
+            .SubMenu(
+                "Stash Pop",
+                "",
+                GetStashPopItems(),
+                () => repo.Status.IsOk,
+                () => !repo.Status.IsOk ? Why.Changes : NoStashes
+            )
+            .SubMenu("Stash Diff", "", GetStashDiffItems(), whyNot: () => NoStashes)
+            .SubMenu("Stash Drop", "", GetStashDropItems(), whyNot: () => NoStashes);
+
+    const string NoStashes = "There are no stashes";
 
     IEnumerable<MenuItem> GetTagItems() =>
         Menu
-            .Items.Item("Add Tag ...", "T", () => cmds.AddTag(), () => !repo.RowCommit.IsUncommitted)
-            .SubMenu("Remove Tag", "", GetDeleteTagItems());
+            .Items.Item(
+                "Add Tag ...",
+                "t",
+                () => cmds.AddTag(),
+                () => !repo.RowCommit.IsUncommitted,
+                () => "A tag is put on a commit: move to one first"
+            )
+            .SubMenu("Remove Tag", "", GetDeleteTagItems(), whyNot: () => "The commit has no tags");
 
     IEnumerable<MenuItem> GetStashPopItems() =>
         repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashPop(s.Name)));

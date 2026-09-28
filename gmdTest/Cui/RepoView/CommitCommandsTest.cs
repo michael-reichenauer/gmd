@@ -90,7 +90,19 @@ public class CommitCommandsTest
     // The predicates read nothing but repo.Repo, so the progress, server, dialogs and views the
     // constructor takes are never reached
     static CommitCommands Commands(Repo repo) =>
-        new CommitCommands(null!, new FakeViewRepo(repo), null!, null!, null!, null!, null!, null!, null!, null!);
+        new CommitCommands(
+            null!,
+            null!,
+            new FakeViewRepo(repo),
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!
+        );
 
     // A local branch one commit ahead of its remote
     static RepoBuilder Ahead() =>

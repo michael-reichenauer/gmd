@@ -1,9 +1,15 @@
 # Change Log for Gmd
 --------------------
 
-131 releases:
+132 releases:
 
-## [Current] - 2026-09-24
+## [Current] - 2026-09-28
+- Improve UI usability
+- Improve algorithm to determine which branch a commit "belongs" to
+- Improve git log parsing performance
+- Fixed issue with scrolling commit details
+
+## [v0.91.1425.955] - 2026-09-24
 - Ignore Claude worktrees folder
 - Added spell check hint in Commits dialog
 - Build with the .NET 11 SDK for the C# 15 compiler

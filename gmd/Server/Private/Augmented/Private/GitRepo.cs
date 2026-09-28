@@ -1,3 +1,4 @@
+using gmd.Git;
 using GitBranch = gmd.Git.Branch;
 using GitCommit = gmd.Git.Commit;
 using GitStash = gmd.Git.Stash;
@@ -20,7 +21,9 @@ class GitRepo
         IReadOnlyList<GitStash> stashes,
         bool isTruncated,
         IReadOnlyList<GitWorktree>? worktrees = null,
-        IReadOnlyDictionary<string, int>? worktreeChanges = null
+        IReadOnlyDictionary<string, int>? worktreeChanges = null,
+        IReadOnlyList<ReflogEntry>? reflog = null,
+        IReadOnlyCollection<string>? integrationNames = null
     )
     {
         TimeStamp = timeStamp;
@@ -34,6 +37,8 @@ class GitRepo
         IsTruncated = isTruncated;
         Worktrees = worktrees ?? [];
         WorktreeChanges = worktreeChanges ?? new Dictionary<string, int>();
+        Reflog = reflog ?? [];
+        IntegrationNames = integrationNames ?? [];
     }
 
     public DateTime TimeStamp { get; }
@@ -52,6 +57,19 @@ class GitRepo
     // failed is left out.
     public IReadOnlyList<GitWorktree> Worktrees { get; }
     public IReadOnlyDictionary<string, int> WorktreeChanges { get; }
+
+    // The reflogs, which are local and expire, so often short or empty, and what they witnessed about
+    // the branches of commits, see ReflogWitness
+    public IReadOnlyList<ReflogEntry> Reflog { get; }
+    public IReadOnlyDictionary<string, string> WitnessedBranchById =>
+        witnessedBranchById ??= ReflogWitness.BranchByCommit(Reflog);
+    IReadOnlyDictionary<string, string>? witnessedBranchById;
+    public IReadOnlyDictionary<string, string> SourceByBranch =>
+        sourceByBranch ??= ReflogWitness.SourceByBranch(Reflog);
+    IReadOnlyDictionary<string, string>? sourceByBranch;
+
+    // The names of the repo's own integration branches, as configured for it, see RepoConfig
+    public IReadOnlyCollection<string> IntegrationNames { get; }
 
     public override string ToString() =>
         $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";

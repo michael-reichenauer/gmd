@@ -28,7 +28,7 @@ class Augmenter : IAugmenter
     WorkRepo GetAugRepo(GitRepo gitRepo)
     {
         var status = StatusConverter.ToStatus(gitRepo.Status);
-        WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status);
+        WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status, gitRepo.IntegrationNames);
 
         AddAugStashes(repo, gitRepo); // Must be done before adding augmented commits
         AddAugBranches(repo, gitRepo);

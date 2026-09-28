@@ -30,6 +30,10 @@ interface IServer
         int count = 1
     );
     Repo HideBranch(Repo repo, string name, bool hideAllBranches = false);
+
+    // Shows exactly these branches, with their ancestors, as the names of a view repo's own
+    // ViewBranches give it back, which is how a show or hide is undone
+    Repo SetShownBranches(Repo repo, IReadOnlyList<string> branchNames);
     Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
@@ -49,6 +53,7 @@ interface IServer
     // Git commands
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result> FetchAsync(string wd);
+    Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
@@ -69,6 +74,8 @@ interface IServer
     Task<Result> PushBranchAsync(string name, string wd);
     Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);
+    Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd);
+    Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> SwitchToAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
@@ -117,4 +124,14 @@ interface IServer
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
 }
 
-internal record ChangeEvent(DateTime TimeStamp);
+// A change the file monitor saw, with when it was told of the last of the changes it reports,
+// which the debounce is timed by.
+internal record ChangeEvent(DateTime TimeStamp)
+{
+    // A read of the repo that started after the change was told of saw it, since a change is told
+    // of after it is made. One told of later may have been seen or not, so it is read again, which
+    // costs a read now and then but never loses a change. The file's modification time cannot tell
+    // the two apart instead: a rename, a move and a copy that keeps the time all leave one older
+    // than the change, and a file system with a coarse clock rounds it down to before the read.
+    public bool IsSeenBy(Repo repo) => TimeStamp < repo.RepoTimeStamp;
+}

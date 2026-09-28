@@ -1,4 +1,6 @@
+using gmd.Common;
 using gmd.Server;
+using gmd.Server.Private;
 using gmdTest.Fixtures;
 
 namespace gmdTest.Server;
@@ -225,6 +227,229 @@ public class ViewRepoCreaterTest
         var filtered = await builder.FilteredViewRepoAsync("Initial");
         Assert.AreEqual(2, filtered.Worktrees.Count);
     }
+
+    // The shown branches are sorted after their ancestors, i.e. main first and a branch started from
+    // dev after dev, and the branches that are not related are sorted as the user moved them, by
+    // their primary names. Ancestry goes before the user's order, which cannot put 'extra' before
+    // the dev it was started from, and of two orders of the same two branches the first holds.
+    // What is left unordered is in the order the sort leaves it, which is what the graph's columns
+    // are, so a faster sort must leave it the same.
+    [TestMethod]
+    public async Task TestBranchesAreSortedByAncestryAndThenByTheUsersOrder()
+    {
+        var builder = SiblingBranches();
+        var shown = await builder.ViewRepoAsync(ShowBranches.AllActive);
+        CollectionAssert.AreEqual(
+            new[] { "origin/main", "main", "feat1", "feat2", "feat3", "dev", "extra" },
+            BranchNames(shown)
+        );
+
+        builder.Config.Set(
+            "/test/repo",
+            c =>
+                c.BranchOrders = [
+                    new BranchOrder
+                    {
+                        Branch = "feat3",
+                        Other = "feat1",
+                        Order = -1,
+                    },
+                    new BranchOrder
+                    {
+                        Branch = "feat1",
+                        Other = "feat2",
+                        Order = 1,
+                    },
+                    new BranchOrder
+                    {
+                        Branch = "extra",
+                        Other = "dev",
+                        Order = -1,
+                    },
+                    new BranchOrder
+                    {
+                        Branch = "dev",
+                        Other = "feat3",
+                        Order = -1,
+                    },
+                    new BranchOrder
+                    {
+                        Branch = "dev",
+                        Other = "feat3",
+                        Order = 1,
+                    },
+                ]
+        );
+        var ordered = await builder.ViewRepoAsync(ShowBranches.AllActive);
+
+        CollectionAssert.AreEqual(
+            new[] { "origin/main", "main", "dev", "feat3", "feat2", "feat1", "extra" },
+            BranchNames(ordered)
+        );
+    }
+
+    // The branches are sorted by comparing each with only the few it can go after, which must come to
+    // the very same order as comparing every pair, over random hierarchies and random user orders.
+    // The user orders follow a random order the ancestry allows, some twice, some both ways, and some
+    // name a branch that is not shown, as renames and deletes leave them.
+    [TestMethod]
+    public void TestSortingBranchesIsTheSameAsComparingEveryPair()
+    {
+        var random = new Random(42);
+        for (var run = 0; run < 2000; run++)
+        {
+            var (branches, orders) = RandomBranches(random);
+
+            var expected = branches.ToList();
+            Sorter.Sort(expected, (b1, b2) => ViewRepoCreater.CompareBranches(b1, b2, orders));
+            var actual = branches.ToList();
+            ViewRepoCreater.SortPrimaryBranches(actual, orders);
+
+            CollectionAssert.AreEqual(
+                expected.Select(b => b.Name).ToList(),
+                actual.Select(b => b.Name).ToList(),
+                $"Run {run}"
+            );
+        }
+    }
+
+    static (List<Branch>, List<BranchOrder>) RandomBranches(Random random)
+    {
+        var count = random.Next(0, 30);
+        var parents = Enumerable
+            .Range(0, count)
+            .Select(i => i > 0 && random.Next(5) > 0 ? random.Next(i) : -1)
+            .ToList();
+        List<int> Ancestors(int i) => parents[i] == -1 ? [] : [parents[i], .. Ancestors(parents[i])];
+        bool IsRelated(int a, int b) => Ancestors(a).Contains(b) || Ancestors(b).Contains(a);
+
+        // A random order that has every branch after its ancestors, which the user orders follow
+        List<int> ranked = [];
+        while (ranked.Count < count)
+        {
+            var ready = Enumerable
+                .Range(0, count)
+                .Where(i => !ranked.Contains(i) && (parents[i] == -1 || ranked.Contains(parents[i])))
+                .ToList();
+            ranked.Add(ready[random.Next(ready.Count)]);
+        }
+
+        List<BranchOrder> orders = [];
+        var orderCount = count > 1 ? random.Next(0, 2 * count) : 0;
+        for (var n = 0; n < orderCount; n++)
+        {
+            var (a, b) = (random.Next(count), random.Next(count));
+            if (a == b || IsRelated(a, b))
+                continue;
+            var (first, second) = ranked.IndexOf(a) < ranked.IndexOf(b) ? ($"b{a}", $"b{b}") : ($"b{b}", $"b{a}");
+            var order = random.Next(3) switch
+            {
+                0 => new BranchOrder
+                {
+                    Branch = first,
+                    Other = second,
+                    Order = -1,
+                },
+                1 => new BranchOrder
+                {
+                    Branch = second,
+                    Other = first,
+                    Order = 1,
+                },
+                _ => new BranchOrder
+                {
+                    Branch = "gone",
+                    Other = first,
+                    Order = 1,
+                },
+            };
+            orders.Add(order);
+            if (random.Next(5) == 0) // The same again the other way, which the first overrides
+                orders.Add(
+                    new BranchOrder
+                    {
+                        Branch = order.Branch,
+                        Other = order.Other,
+                        Order = -order.Order,
+                    }
+                );
+            if (random.Next(5) == 0) // Each before the other, which orders neither
+                orders.AddRange([
+                    new BranchOrder
+                    {
+                        Branch = first,
+                        Other = second,
+                        Order = -1,
+                    },
+                    new BranchOrder
+                    {
+                        Branch = second,
+                        Other = first,
+                        Order = -1,
+                    },
+                ]);
+        }
+
+        var branches = Enumerable
+            .Range(0, count)
+            .Select(i =>
+                NewBranch($"b{i}", parents[i] == -1 ? "" : $"b{parents[i]}", Ancestors(i).Select(a => $"b{a}"))
+            )
+            .OrderBy(_ => random.Next())
+            .ToList();
+        return (branches, orders);
+    }
+
+    static Branch NewBranch(string name, string parentName, IEnumerable<string> ancestorNames) =>
+        new Branch(
+            Name: name,
+            PrimaryName: name,
+            PrimaryBaseName: name,
+            NiceName: name,
+            NiceNameUnique: name,
+            TipId: "",
+            BottomId: "",
+            IsCurrent: false,
+            IsLocalCurrent: false,
+            IsRemote: false,
+            RemoteName: "",
+            LocalName: "",
+            WorktreePath: "",
+            IsInView: false,
+            IsGitBranch: true,
+            IsDetached: false,
+            IsPrimary: true,
+            IsMainBranch: false,
+            ParentBranchName: parentName,
+            PullMergeParentBranchName: "",
+            HasLocalOnly: false,
+            HasRemoteOnly: false,
+            AmbiguousTipId: "",
+            AmbiguousBranchNames: [],
+            PullMergeBranchNames: [],
+            AncestorNames: ancestorNames.ToList(),
+            RelatedBranchNames: [],
+            IsCircularAncestors: false,
+            X: 0,
+            IsIn: false,
+            IsOut: false
+        );
+
+    static RepoBuilder SiblingBranches() =>
+        new RepoBuilder()
+            .Commit("e1", "Extra work", "d1")
+            .Commit("f3", "Feature 3 work", "c2")
+            .Commit("d1", "Dev work", "c2")
+            .Commit("f2", "Feature 2 work", "c2")
+            .Commit("f1", "Feature 1 work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .LocalBranch("feat1", "f1")
+            .LocalBranch("feat2", "f2")
+            .LocalBranch("feat3", "f3")
+            .LocalBranch("dev", "d1")
+            .LocalBranch("extra", "e1");
 
     static RepoBuilder ThreeBranches() =>
         new RepoBuilder()

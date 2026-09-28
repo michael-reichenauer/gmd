@@ -62,19 +62,32 @@ public class BranchPushPullCommandsTest
         Assert.IsTrue(BranchPushPullCommands.CanPullCurrentBranch(repo));
     }
 
-    // Uncommitted changes block both, since a pull would fail and a push would leave the local
-    // work behind
+    // Uncommitted changes block a pull, which git would refuse, but not a push, which sends commits
+    // and leaves the changes where they are; the push says so when it is done
     [TestMethod]
-    public async Task TestUncommittedChangesBlockPushAndPull()
+    public async Task TestUncommittedChangesBlockPullButNotPush()
     {
-        Assert.IsFalse(BranchPushPullCommands.CanPush(await Ahead().WithStatus(modified: 1).ViewRepoAsync()));
-        Assert.IsFalse(
+        Assert.IsTrue(BranchPushPullCommands.CanPush(await Ahead().WithStatus(modified: 1).ViewRepoAsync()));
+        Assert.IsTrue(
             BranchPushPullCommands.CanPushCurrentBranch(await Ahead().WithStatus(modified: 1).ViewRepoAsync())
         );
         Assert.IsFalse(BranchPushPullCommands.CanPull(await Behind().WithStatus(modified: 1).ViewRepoAsync()));
         Assert.IsFalse(
             BranchPushPullCommands.CanPullCurrentBranch(await Behind().WithStatus(modified: 1).ViewRepoAsync())
         );
+    }
+
+    // Behind whether or not the changes let it be pulled, which is how Pull All tells a current
+    // branch it had to leave from one with nothing to pull
+    [TestMethod]
+    public async Task TestTheCurrentBranchIsBehindWithChangesToo()
+    {
+        Assert.IsTrue(BranchPushPullCommands.IsCurrentBranchBehind(await Behind().ViewRepoAsync()));
+        Assert.IsTrue(
+            BranchPushPullCommands.IsCurrentBranchBehind(await Behind().WithStatus(modified: 1).ViewRepoAsync())
+        );
+        Assert.IsFalse(BranchPushPullCommands.IsCurrentBranchBehind(await Ahead().ViewRepoAsync()));
+        Assert.IsFalse(BranchPushPullCommands.IsCurrentBranchBehind(await LocalOnly().ViewRepoAsync()));
     }
 
     // A branch with no remote is not published yet, so there is nothing to push it to

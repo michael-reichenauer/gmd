@@ -123,6 +123,14 @@ class Hoover
         return isCleared;
     }
 
+    // Called when a repo is shown. The hoovered branch is given up if that repo has no branch of
+    // that name, since what acts on the hoover looks the branch up by name in the shown repo, and
+    // drawing the key hints does so on every redraw. A branch goes when it is deleted, here or
+    // elsewhere, and when a fetch prunes it, and FollowCurrentIndex does not notice, since the
+    // current row need not move. Returns true if the branch was given up.
+    public bool FollowRepo(IReadOnlyDictionary<string, Server.Branch> branchByName) =>
+        IsBranch && !branchByName.ContainsKey(BranchPrimaryName) && Clear();
+
     public override string ToString() =>
         IsBranch ? $"({ColumnIndex},{RowIndex}) {BranchPrimaryName}" : $"({ColumnIndex},{RowIndex}) <commit>";
 }
