@@ -290,6 +290,8 @@ Things to know:
   first) returns a `Notice` (`Cui/Common/StatusLine.cs`), an `Error` the command runner shows on
   the status line at the bottom of the log view rather than in an error box. What a command did is
   said there too, with `IStatusLine.Info`; a key that cannot act says why rather than doing nothing.
+  What a command is doing while git works is said with `using (status.Progress("Pushing 'main'"))`
+  around the git call, shown until it ends, when what it did replaces it or the hints come back.
 - A git command that stops on conflicts returns a `ConflictError` (`Git/ConflictError.cs`, made
   with `ConflictError.ToConflict`). The command runner finds it however deeply it is wrapped,
   refreshes, and shows `RepoCommands.ShowConflicts`, the files and the way on, not the error.
@@ -546,8 +548,8 @@ Seven traps worth knowing before adding one:
   Escape: it leaves the question up, and the next `Enter` quits.
 - A modal dialog is drawn *over* the log view rather than replacing it, so the rows behind it still
   match whatever `WaitFor` is looking for. Use `WaitUntilGone` to mean "closed".
-- **A status message is drawn over the bottom row for five seconds** after a push, a pull, or a key
-  that could not act, since the key hints are off: a whole-screen snapshot taken then has thirty
+- **A status message is drawn over the bottom row for five seconds** after a commit, a push, a pull,
+  or a key that could not act, since the key hints are off: a whole-screen snapshot taken then has thirty
   blank rows and the message in it. Compare the log with `ScreenText.Rows` and the message with
   `ScreenText.LastLine`, as `PushPullTest` does.
 - For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`, and `p` / `u`, which
