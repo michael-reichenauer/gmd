@@ -10,10 +10,18 @@ namespace gmd.Cui.Common;
 // misspelled word.
 class UITextField : TextField
 {
+    readonly Typing typing;
+
     internal UITextField(int x, int y, int w, string text = "")
         : base(x, y, w, text)
     {
         ColorScheme = ColorSchemes.TextField;
+        typing = new Typing(SetNeedsDisplay);
+        TextChanged += _ =>
+        {
+            if (IsSpellCheck)
+                typing.Edited();
+        };
     }
 
     internal ISpellChecker? SpellChecker { get; set; }
@@ -25,7 +33,7 @@ class UITextField : TextField
     bool IsSpellCheck => SpellChecker?.IsEnabled == true;
 
     // The misspelled words drawn red, i.e. all but the one being typed
-    internal int MisspelledCount => Misspelled().Count(s => !(HasFocus && SpellSpans.IsBeingTyped(s, CursorPosition)));
+    internal int MisspelledCount => Misspelled().Count(s => !IsBeingTyped(s));
 
     public new string Text
     {
@@ -93,7 +101,7 @@ class UITextField : TextField
         for (int idx = ScrollOffset; idx < runes.Count && col < Frame.Width; idx++)
         {
             var span = SpellSpans.At(spans, idx);
-            if (span != null && idx != CursorPosition && !(HasFocus && SpellSpans.IsBeingTyped(span, CursorPosition)))
+            if (span != null && idx != CursorPosition && !IsBeingTyped(span))
             {
                 Move(col, 0);
                 Driver.AddRune(runes[idx]);
@@ -103,6 +111,8 @@ class UITextField : TextField
 
         PositionCursor();
     }
+
+    bool IsBeingTyped(WordSpan span) => SpellSpans.IsBeingTyped(span, CursorPosition, HasFocus && typing.IsTyping);
 
     void ShowSpellingSuggestions()
     {

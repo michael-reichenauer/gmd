@@ -16,9 +16,17 @@ class UITextView : TextView
     int spellIndex = -1;
     IReadOnlyList<WordSpan> spellSpans = [];
 
+    readonly Typing typing;
+
     internal UITextView()
     {
-        ContentsChanged += _ => spellLine = null;
+        typing = new Typing(SetNeedsDisplay);
+        ContentsChanged += _ =>
+        {
+            spellLine = null;
+            if (IsSpellCheck)
+                typing.Edited();
+        };
     }
 
     internal ISpellChecker? SpellChecker { get; set; }
@@ -31,12 +39,7 @@ class UITextView : TextView
 
     // The misspelled words drawn red, i.e. all but the one being typed
     internal int MisspelledCount =>
-        MisspelledLines()
-            .Select(
-                (spans, row) =>
-                    spans.Count(s => !(HasFocus && row == CurrentRow && SpellSpans.IsBeingTyped(s, CurrentColumn)))
-            )
-            .Sum();
+        MisspelledLines().Select((spans, row) => spans.Count(s => !(row == CurrentRow && IsBeingTyped(s)))).Sum();
 
     public override bool ProcessKey(KeyEvent keyEvent)
     {
@@ -122,8 +125,10 @@ class UITextView : TextView
         Driver.SetAttribute(SpellSpans.MisspelledColor);
     }
 
-    bool IsBeingTyped(List<Rune> line, WordSpan span) =>
-        HasFocus && ReferenceEquals(line, GetCurrentLine()) && SpellSpans.IsBeingTyped(span, CurrentColumn);
+    bool IsBeingTyped(List<Rune> line, WordSpan span) => ReferenceEquals(line, GetCurrentLine()) && IsBeingTyped(span);
+
+    // Whether a word of the current line is being typed
+    bool IsBeingTyped(WordSpan span) => SpellSpans.IsBeingTyped(span, CurrentColumn, HasFocus && typing.IsTyping);
 
     void ShowSpellingSuggestions()
     {
