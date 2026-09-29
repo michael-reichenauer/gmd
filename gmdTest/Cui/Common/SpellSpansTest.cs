@@ -27,9 +27,16 @@ public class SpellSpansTest
     [TestMethod]
     public void TestIsBeingTypedWhenTheCaretIsAtTheEnd()
     {
-        Assert.IsTrue(SpellSpans.IsBeingTyped(Resonable, 13));
-        Assert.IsFalse(SpellSpans.IsBeingTyped(Resonable, 12));
-        Assert.IsFalse(SpellSpans.IsBeingTyped(Resonable, 14));
+        Assert.IsTrue(SpellSpans.IsBeingTyped(Resonable, 13, isTyping: true));
+        Assert.IsFalse(SpellSpans.IsBeingTyped(Resonable, 12, isTyping: true));
+        Assert.IsFalse(SpellSpans.IsBeingTyped(Resonable, 14, isTyping: true));
+    }
+
+    // A pause finishes the word the caret is at the end of, e.g. the last word of a subject
+    [TestMethod]
+    public void TestIsNotBeingTypedOnceTheTypingPaused()
+    {
+        Assert.IsFalse(SpellSpans.IsBeingTyped(Resonable, 13, isTyping: false));
     }
 
     [TestMethod]

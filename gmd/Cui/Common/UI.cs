@@ -72,6 +72,8 @@ static class UI
         )!;
     }
 
+    internal static void RemoveTimeout(object token) => Application.MainLoop?.RemoveTimeout(token);
+
     internal static void Shutdown()
     {
         Application.RequestStop();
