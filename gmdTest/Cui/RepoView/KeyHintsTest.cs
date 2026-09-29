@@ -183,18 +183,24 @@ public class KeyHintsTest
     }
 
     // A status message takes the line, set into the border the same way: green for what was done,
-    // yellow for why nothing was, red for a failure, and cut with '┅' when it is longer than the line
+    // yellow for why nothing was, red for a failure, cyan for what is being done, and cut with '┅'
+    // when it is longer than the line
     [TestMethod]
     public void TestAStatusMessageIsDrawnInTheColorOfItsKind()
     {
         var info = KeyHints.ToText(new StatusMessage("Pushed 'main'", StatusKind.Info, DateTime.UtcNow), 28);
         var notice = KeyHints.ToText(new StatusMessage("Nothing to commit", StatusKind.Notice, DateTime.UtcNow), 32);
         var failure = KeyHints.ToText(new StatusMessage("Fetch failed", StatusKind.Failure, DateTime.UtcNow), 28);
+        var progress = KeyHints.ToText(
+            new StatusMessage("Pushing 'main'...", StatusKind.Progress, DateTime.UtcNow),
+            32
+        );
 
         Assert.AreEqual("────────── Pushed 'main' ───", info.ToString());
         Assert.AreEqual(Color.Green, ColorOf(info, "Pushed"));
         Assert.AreEqual(Color.Yellow, ColorOf(notice, "Nothing"));
         Assert.AreEqual(Color.BrightRed, ColorOf(failure, "Fetch"));
+        Assert.AreEqual(Color.Cyan, ColorOf(progress, "Pushing"));
     }
 
     [TestMethod]
