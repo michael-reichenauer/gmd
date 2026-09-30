@@ -90,9 +90,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
                     // Force Push was chosen. Only then: this call used to sit after the question
                     // rather than inside it, so every push of a branch with a remote was a force push.
-                    if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
+                    using (status.Progress($"Force pushing '{branch.NiceNameUnique}'"))
                     {
-                        return new Error($"Failed to push branch:\n{branch.Name}", ee);
+                        if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
+                            return new Error($"Failed to push branch:\n{branch.Name}", ee);
                     }
 
                     // And that is the push: the plain one below would go to the remote a second
@@ -103,9 +104,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 }
             }
 
-            if (await server.PushBranchAsync(branch.Name, repo.Path) is Error e)
+            using (status.Progress($"Pushing '{branch.NiceNameUnique}'"))
             {
-                return new Error($"Failed to push branch:\n{branch.Name}", e);
+                if (await server.PushBranchAsync(branch.Name, repo.Path) is Error e)
+                    return new Error($"Failed to push branch:\n{branch.Name}", e);
             }
 
             Refresh();
@@ -118,9 +120,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             var branch = repo.Repo.ViewBranches.First(b => b.IsCurrent);
 
-            if (await server.PushBranchAsync(branch.Name, repo.Path) is Error e)
+            using (status.Progress($"Publishing '{branch.NiceNameUnique}'"))
             {
-                return new Error($"Failed to publish branch:\n{branch.Name}", e);
+                if (await server.PushBranchAsync(branch.Name, repo.Path) is Error e)
+                    return new Error($"Failed to publish branch:\n{branch.Name}", e);
             }
 
             Refresh();
@@ -131,9 +134,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
     public void PushBranch(string name) =>
         Do(async () =>
         {
-            if (await server.PushBranchAsync(name, repo.Path) is Error e)
+            using (status.Progress($"Pushing '{NiceName(name)}'"))
             {
-                return new Error($"Failed to push branch:\n{name}", e);
+                if (await server.PushBranchAsync(name, repo.Path) is Error e)
+                    return new Error($"Failed to push branch:\n{name}", e);
             }
 
             Refresh();
@@ -153,10 +157,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
             foreach (var b in branches)
             {
-                if (await server.PushBranchAsync(b.Name, repo.Path) is Error e)
+                using (status.Progress($"Pushing '{b.NiceNameUnique}'"))
                 {
-                    Refresh();
-                    return new Error($"Failed to push branch {b.Name}", e);
+                    if (await server.PushBranchAsync(b.Name, repo.Path) is Error e)
+                    {
+                        Refresh();
+                        return new Error($"Failed to push branch {b.Name}", e);
+                    }
                 }
             }
 
@@ -186,9 +193,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
             if (!isToPull)
                 return Result.Ok;
 
-            if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
+            using (status.Progress($"Pulling '{branch.NiceNameUnique}'"))
             {
-                return new Error($"Failed to pull current branch", e);
+                if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
+                    return new Error($"Failed to pull current branch", e);
             }
 
             Refresh();
@@ -199,9 +207,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
     public void PullBranch(string name) =>
         Do(async () =>
         {
-            if (await server.PullBranchAsync(name, repo.Path) is Error e)
+            using (status.Progress($"Updating '{NiceName(name)}'"))
             {
-                return new Error($"Failed to pull branch {name}", e);
+                if (await server.PullBranchAsync(name, repo.Path) is Error e)
+                    return new Error($"Failed to pull branch {name}", e);
             }
 
             Refresh();
@@ -236,9 +245,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
                 Log.Info("Pull current");
                 // Need to treat current branch separately
-                if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
+                using (status.Progress($"Pulling '{repo.Repo.CurrentBranch().NiceNameUnique}'"))
                 {
-                    return new Error($"Failed to pull current branch", e);
+                    if (await server.PullCurrentBranchAsync(repo.Path) is Error e)
+                        return new Error($"Failed to pull current branch", e);
                 }
                 currentRemoteName = repo.Repo.CurrentBranch()?.RemoteName ?? "";
                 updated.Add(repo.Repo.CurrentBranch()?.NiceNameUnique ?? "");
@@ -256,10 +266,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
             var failed = new List<string>();
             foreach (var b in branches)
             {
-                if (await server.PullBranchAsync(b.Name, repo.Path) is Error e)
-                    failed.Add($"{b.NiceNameUnique}: {e.AllMessages()}");
-                else
-                    updated.Add(b.NiceNameUnique);
+                using (status.Progress($"Updating '{b.NiceNameUnique}'"))
+                {
+                    if (await server.PullBranchAsync(b.Name, repo.Path) is Error e)
+                        failed.Add($"{b.NiceNameUnique}: {e.AllMessages()}");
+                    else
+                        updated.Add(b.NiceNameUnique);
+                }
             }
 
             Refresh();

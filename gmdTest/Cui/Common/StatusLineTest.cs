@@ -38,6 +38,60 @@ public class StatusLineTest
         Assert.IsNull(status.Current, "and gone when it is");
     }
 
+    // What a command is doing is shown for as long as it takes, not for the seconds of a message,
+    // and taken away when it is done, so the key hints come back
+    [TestMethod]
+    public void TestAProgressIsShownUntilItIsDone()
+    {
+        var now = DateTime.UtcNow;
+        var status = new StatusLine { Now = () => now };
+        var changes = 0;
+        status.Changed += () => changes++;
+
+        var working = status.Progress("Pushing 'main'");
+        now += StatusLine.Duration * 3;
+        Assert.AreEqual("Pushing 'main'...", status.Current?.Text, "Still shown long after a message would be gone");
+        Assert.AreEqual(StatusKind.Progress, status.Current?.Kind);
+
+        working.Dispose();
+        Assert.IsNull(status.Current);
+        Assert.AreEqual(2, changes, "Shown and taken away, and the line redrawn for both");
+    }
+
+    // What the command did replaces what it was doing, and stays for its seconds after the progress
+    // is done, which is how the line goes from "Pushing 'main'..." to "Pushed 'main'"
+    [TestMethod]
+    public void TestWhatWasDoneReplacesTheProgress()
+    {
+        var now = DateTime.UtcNow;
+        var status = new StatusLine { Now = () => now };
+
+        using (status.Progress("Pushing 'main'"))
+        {
+            status.Info("Pushed 'main'");
+        }
+
+        Assert.AreEqual("Pushed 'main'", status.Current?.Text);
+        now += StatusLine.Duration;
+        Assert.IsNull(status.Current, "and gone after its seconds, like any message");
+    }
+
+    // One step after another, as pulling all branches does: each step replaces the one before, and
+    // the one done before it cannot take the next one away
+    [TestMethod]
+    public void TestTheNextProgressIsNotTakenAwayByTheOneBefore()
+    {
+        var status = new StatusLine();
+
+        var first = status.Progress("Updating 'dev'");
+        var second = status.Progress("Updating 'feature'");
+        first.Dispose();
+
+        Assert.AreEqual("Updating 'feature'...", status.Current?.Text);
+        second.Dispose();
+        Assert.IsNull(status.Current);
+    }
+
     [TestMethod]
     public void TestNothingIsShownBeforeAMessage()
     {

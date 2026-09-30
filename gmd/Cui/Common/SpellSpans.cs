@@ -41,9 +41,11 @@ static class SpellSpans
     public static WordSpan? At(IReadOnlyList<WordSpan> spans, int index) =>
         spans.FirstOrDefault(s => s.Contains(index));
 
-    // The word the caret sits right at the end of is still being typed, and is not flagged until
-    // it is finished, so a word is not red for the whole time it is half written.
-    public static bool IsBeingTyped(WordSpan span, int caretIndex) => caretIndex == span.End;
+    // The word the caret sits right at the end of, while the user is typing, is still being typed
+    // and is not flagged until it is finished, so a word is not red for the whole time it is half
+    // written. It is finished by moving off it, or by a pause (Typing), which is what flags the last
+    // word of a subject that the caret never leaves before Enter.
+    public static bool IsBeingTyped(WordSpan span, int caretIndex, bool isTyping) => isTyping && caretIndex == span.End;
 
     // The misspelled word at or after the caret — a word the caret is at the end of counts as at —
     // wrapping around to the first one, or null if there is none.

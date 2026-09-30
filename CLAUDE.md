@@ -17,14 +17,14 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 
 ```bash
 ./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
-./test [args]    # dotnet test gmd.sln "$@", i.e. both gmdTest and gmdE2eTest (~35 s with the build)
-                 #   --filter "TestCategory!=Integration"  fast tests only (~890 tests, ~1 s)
-                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~30 s, in parallel)
+./test [args]    # dotnet test gmd.sln "$@", i.e. both gmdTest and gmdE2eTest (~1 min with the build)
+                 #   --filter "TestCategory!=Integration"  fast tests only (~1100 tests, ~1 s)
+                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~55 s, in parallel)
 ./build          # full release: test + package audit + publish all platforms (slow)
 ./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
 ./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
-./installtools   # devcontainer setup: tools, dotnet local tools, git hooks
+./installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools, git hooks
 ./demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
 ```
 
@@ -94,6 +94,10 @@ gmd/Git/           One service per git area (log, branch, status, diff, blame, c
 gmd/Utils/Cmd.cs   Process launcher for the `git` executable
 ```
 
+Beside the layers: `gmd/Common/` holds the config (`Config`, `ConfigService`, `RepoConfig`), the
+command line (`ProgramCommands`), `Upgrader` and `Spelling/`; `gmd/Installation/Updater.cs` is the
+self-updater.
+
 Key types and flow:
 
 - `gmd/Server/Repo.cs` — the immutable `record Repo` the UI renders. Holds `AllCommits`/
@@ -124,7 +128,10 @@ Key types and flow:
   and two dumps are compared with `diff`. Dump a frozen copy (a copied `.git` keeps the reflog):
   `GMD_INFER_REPO=<repo> GMD_INFER_OUT=<file> dotnet test gmdTest/gmdTest.csproj --filter InferenceDump`.
   Several repos with different workflows are worth it (git-flow, GitHub pull requests, local pull
-  merges); a `--filter=blob:none --no-checkout` clone is enough and quick.
+  merges); a `--filter=blob:none --no-checkout` clone is enough and quick. A change made for speed
+  has `RefreshTimingTest` (`GMD_PERF_REPO=<repo> GMD_PERF_OUT=<file>`, `--filter RefreshTiming`),
+  which times each stage of a refresh and writes what the view repos hold to `<file>.view`, for the
+  same before/after `diff`.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
@@ -136,7 +143,8 @@ Key types and flow:
   cursor is, again with no view; `KeyHintBar` draws it. When a key's behavior changes, check the
   hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
-  `BranchPushPullCommands`, `CommitCommands`, run through `CommandRunner`), menus into `*Menu.cs`.
+  `BranchPushPullCommands`, `CommitCommands`, `WebCommands`, `WorktreeCommands`, run through
+  `CommandRunner`), menus into `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
   its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"Shift-P"` for P,
@@ -151,6 +159,14 @@ Key types and flow:
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
   `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally.
+- Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
+  WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
+  user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`
+  decides which words of a line are prose worth looking up, skipping identifiers, paths and shas.
+  The input side is in `Cui/Common/`: `SpellSpans` (caret and word index math), `SpellHint` (the
+  frame edge saying how many words are misspelled), `Typing` (leaves the word being typed alone
+  until a one second pause) and `TextContextMenu` (the right-click menu, suggestions first), with
+  `UITextField` / `UITextView` as the callers.
 - `Utils/ClipboardService.cs` — copying, which has no one answer: a chain of writers tried in order,
   first one that works wins (`pbcopy`; `wl-copy`/`xclip`/`xsel`, each only when its display server
   is actually there; `clip.exe`; `WindowsClipboard.cs`), falling back to OSC 52
@@ -200,7 +216,8 @@ root, above the layers). The one thing a lower layer needs from the UI is its ma
 goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an event on the UI thread,
 `RunPeriodically` for a timer, implemented by `MainThread` (`Cui/Common/`) over `UI`. `FileMonitor`
 is its only user. Keep it that way: if a lower layer needs something else from the UI, widen that
-interface rather than reaching up.
+interface rather than reaching up. The one exception is `Installation/Updater.cs`, outside the
+layers, which calls `UI.Post` / `UI.InfoMessage` itself to say a new version was installed.
 
 ### Dependency injection
 
@@ -290,6 +307,8 @@ Things to know:
   first) returns a `Notice` (`Cui/Common/StatusLine.cs`), an `Error` the command runner shows on
   the status line at the bottom of the log view rather than in an error box. What a command did is
   said there too, with `IStatusLine.Info`; a key that cannot act says why rather than doing nothing.
+  What a command is doing while git works is said with `using (status.Progress("Pushing 'main'"))`
+  around the git call, shown until it ends, when what it did replaces it or the hints come back.
 - A git command that stops on conflicts returns a `ConflictError` (`Git/ConflictError.cs`, made
   with `ConflictError.ToConflict`). The command runner finds it however deeply it is wrapped,
   refreshes, and shows `RepoCommands.ShowConflicts`, the files and the way on, not the error.
@@ -437,7 +456,12 @@ Assert.AreEqual(
 `Of` is the graph alone, `WithSubjects` adds the commit subject, and `ColorsOf` gives one letter
 per rune telling its color (`M` magenta, `B` blue, `W` white, …), aligned under `Of`. Use raw
 string literals for the expected value — they keep the picture readable and their value is
-unaffected by CSharpier re-indenting them.
+unaffected by CSharpier re-indenting them. `DiffText` does the same for the rows of a diff, and
+both take their color letters from `TextColors`.
+
+The other fakes in `gmdTest/Fixtures/`: `FakeViewRepo` stands in for `IViewRepo`, for the log
+view's writer and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
+is a config whose `Set` sticks, for a test of what a class saves rather than reads.
 
 **`FakeCmd`** (`gmdTest/Utils/`) is a double for `ICmd`, the seam between the git services and
 the `git` executable. Every git service takes `ICmd` in its constructor, so canned output tests
@@ -464,9 +488,11 @@ await repo.GitAsync("reset --hard HEAD~1");         // raw git, for what IGit ha
 ```
 
 The repository is deleted on `Dispose`, and nothing outside its temp folder is ever touched —
-`Dispose` refuses to delete a path it did not create. `GitIntegrationTest` and
-`AugmentedServiceIntegrationTest` both carry `[TestCategory("Integration")]`, which is what the
-fast filter in Commands excludes.
+`Dispose` refuses to delete a path it did not create. `GitIntegrationTest`,
+`AugmentedServiceIntegrationTest` and the process tests in `CmdTest` carry
+`[TestCategory("Integration")]`, which is what the fast filter in Commands excludes; so do
+`InferenceDumpTest` and `RefreshTimingTest`, which are inconclusive unless their variables name a
+repository.
 
 `CommitFileAtAsync` / `CommitAtAsync` / `GitAt` pin the author *and* committer dates. Use them for
 any fixture whose drawn output is asserted: they fix the time column, make the commit ids
@@ -501,10 +527,11 @@ is how "the caret is back in the text field after the menu closed" is asserted.
 Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
 filter above excludes them. They run **in parallel**, eight at a time (`[assembly: Parallelize]` in
 `gmdE2eTest/TestSetup.cs`), which took the tier from about four minutes to about thirty seconds —
-a test is nearly all waiting for a screen to settle, not CPU. What bounds a run now is its longest
-test, the thirty second worktree re-read. `-- MSTest.Parallelize.Workers=1` after the other
-arguments runs them one at a time again. Eight things they do that matter, and that a new test must
-keep doing:
+a test is nearly all waiting for a screen to settle, not CPU. It has since grown to some 160 tests
+and about a minute, so a run is bound by the total spread over eight workers again rather than by
+its longest test, the thirty second worktree re-read. `-- MSTest.Parallelize.Workers=1` after the
+other arguments runs them one at a time again. Eight things they do that matter, and that a new
+test must keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
   under "Running the TUI from a non-interactive shell" for why both halves are mandatory. It also
@@ -546,15 +573,16 @@ Seven traps worth knowing before adding one:
   Escape: it leaves the question up, and the next `Enter` quits.
 - A modal dialog is drawn *over* the log view rather than replacing it, so the rows behind it still
   match whatever `WaitFor` is looking for. Use `WaitUntilGone` to mean "closed".
-- **A status message is drawn over the bottom row for five seconds** after a push, a pull, or a key
-  that could not act, since the key hints are off: a whole-screen snapshot taken then has thirty
-  blank rows and the message in it. Compare the log with `ScreenText.Rows` and the message with
-  `ScreenText.LastLine`, as `PushPullTest` does.
+- **A status message is drawn over the bottom row for five seconds** after a commit, a push, a pull,
+  or a key that could not act, and while git works on one of the first three. With the key hints
+  off, a whole-screen snapshot taken then has thirty blank rows and the message in it. Compare the
+  log with `ScreenText.Rows` and the message with `ScreenText.LastLine`, as `PushPullTest` does.
 - For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`, and `p` / `u`, which
   act on the current branch when nothing is hoovered), **the application bar does not tell you what
-  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — it is set both by the hoover and by the current row's
-  branch, so an operation that moves the row leaves it naming the wrong one. Press `m` and read the
-  `Branch: <name>` menu title; that is the only readout from outside. And expect the hoover to stay
+  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — it is set
+  both by the hoover and by the current row's branch, so an operation that moves the row leaves it
+  naming the wrong one. Press `m` and read the `Branch: <name>` menu title; that is the only
+  readout from outside. And expect the hoover to stay
   where it was after a command rather than follow what appeared: after `Enter` opens a branch it is
   still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
 - **A letter sent to an open menu picks the item showing it** (`MenuShortcuts`), as Enter would.
@@ -600,9 +628,11 @@ Other things to know:
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `HiddenNews`, `KeyHints`, `BranchFinder`,
-  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain
-  string, which is how `GraphText` snapshots `GraphWriter` output with no driver at all.
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
+  `HiddenNews`, `KeyHints`, `BranchFinder`, `MenuDimensions`, `MenuRows`, `MenuShortcuts`,
+  `TextContextMenu`, `SpellSpans`, `SpellHint`, `WorktreeRows`, `BlameColumns` and
+  `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain string, which is
+  how `GraphText` snapshots `GraphWriter` output with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
 - `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
@@ -639,6 +669,10 @@ message.
   call, because a `rebase --continue` opening the user's editor would hang gmd behind the terminal
   it owns. It is done there and not per command line because `GIT_EDITOR` beats
   `-c core.editor=…`, so a flag is silently ineffective for any user who has that set.
+- **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
+  resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
+  `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,
+  `.gmdconfig`, shared by all worktrees).
 - **Git speaks English to gmd.** `Cmd.InEnglish` sets `LANGUAGE=en` on the same processes, since
   gmd recognizes outcomes by git's messages (`CONFLICT`, `would be overwritten by checkout`, …),
   and a translated git turned each of those into a plain error box. Match on git's English text.

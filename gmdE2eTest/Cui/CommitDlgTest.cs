@@ -16,9 +16,12 @@ public class CommitDlgTest
 {
     // Misspelled words in the commit dialog are drawn in red: in the subject field, which has no
     // per character color hook and is overdrawn, and in the body, which has one. The word the
-    // caret is still at the end of is being typed and is left alone until it is finished. F7 opens
-    // the suggestions for the misspelled word at or after the caret, Enter on one replaces the
-    // word, and Ctrl+G is the same key — with nothing misspelled after the caret it wraps around.
+    // caret is at the end of while typing is left alone until it is finished, by moving off it or
+    // by a pause, which is what flags the last word of a subject before Enter commits it. That
+    // word is white only for the moment of the pause, too short to assert without racing it, so
+    // what is asserted is the pause having finished it. F7 opens the suggestions for the
+    // misspelled word at or after the caret, Enter on one replaces the word, and Ctrl+G is the
+    // same key — with nothing misspelled after the caret it wraps around.
     [TestMethod]
     public async Task TestCommitDialogSpellCheck()
     {
@@ -29,19 +32,11 @@ public class CommitDlgTest
         gmd.WaitFor("Commit 2 changes");
 
         gmd.SendText("Fix resonable issu");
-        gmd.WaitFor("Fix resonable issu");
-        Assert.AreEqual(
-            "                       -DWWW rrrrrrrrr WWWW                                D                    m",
-            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1),
-            "'resonable' is red, 'issu' is still being typed"
-        );
-
-        gmd.SendText(" ");
-        gmd.WaitForStable();
+        gmd.WaitFor("2 misspelled words");
         Assert.AreEqual(
             "                       -DWWW rrrrrrrrr rrrr                                D                    m",
             ScreenText.ColorRows(gmd.CaptureColors(), 14, 1),
-            "The space finished 'issu'"
+            "The pause finished 'issu', with no space typed after it"
         );
 
         gmd.Send("Tab"); // Into the message body
@@ -208,8 +203,8 @@ public class CommitDlgTest
 
     // While any word is red, the bottom edge of the message frame says how many and how to get at
     // the suggestions; otherwise it is the plain edge. It counts the subject as well as the body,
-    // follows the same rule as the color, i.e. a word still being typed is not counted, and keeps
-    // up with what the spelling menu does to the text.
+    // follows the same rule as the color, i.e. a word still being typed is counted once the typing
+    // pauses, and keeps up with what the spelling menu does to the text.
     [TestMethod]
     public async Task TestCommitDialogSpellingHint()
     {
@@ -224,28 +219,23 @@ public class CommitDlgTest
             "Nothing typed yet, so the plain edge"
         );
 
-        gmd.SendText("Fix resonable issu");
+        gmd.SendText("Fix resonable issu"); // 'issu' is finished by the pause
         ScreenText.AssertEqual(
             """
-                                   │└─ 1 misspelled word, F7 or right-click for suggestions ───────────────┘│
+                                   │└─ 2 misspelled words, F7 or right-click for suggestions ──────────────┘│
             """,
-            ScreenText.Rows(gmd.WaitFor("misspelled"), repo.Path, 26, 1)
+            ScreenText.Rows(gmd.WaitFor("2 misspelled words"), repo.Path, 26, 1)
         );
         Assert.AreEqual(
-            "                       -DD r rrrrrrrrrr rrrrD DD DD DDDDDDDDDDD DDD DDDDDDDDDDD DDDDDDDDDDDDDDDDm",
+            "                       -DD r rrrrrrrrrr rrrrrD DD DD DDDDDDDDDDD DDD DDDDDDDDDDD DDDDDDDDDDDDDDDm",
             ScreenText.ColorRows(gmd.CaptureColors(), 26, 1),
             "The count is red, the rest of the edge dark"
         );
 
-        gmd.SendText(" "); // Finishes 'issu'
-        gmd.WaitFor("2 misspelled words");
-
         gmd.Send("Tab"); // Into the message body
         gmd.WaitForStable();
         gmd.SendText("Sumerize the brnach");
-        gmd.WaitFor("3 misspelled words"); // 'brnach' is still being typed
-        gmd.Send("Left");
-        gmd.WaitFor("4 misspelled words");
+        gmd.WaitFor("4 misspelled words"); // 'brnach' too, once the typing paused
 
         // Replacing a word from the spelling menu is counted at once
         gmd.Send("F7");

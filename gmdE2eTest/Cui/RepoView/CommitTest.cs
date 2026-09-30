@@ -89,7 +89,8 @@ public class CommitTest
 
         // The uncommitted row is gone, the new commit is at the top with the branch tip on it, and
         // its sid and time are the pinned ones — not masked, because the session pinned the dates
-        ScreenText.AssertEqual(
+        var committed = gmd.WaitUntilGone("uncommitted changes");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -100,8 +101,12 @@ public class CommitTest
             ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
             ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("uncommitted changes"),
-            repo.Path
+            ScreenText.Rows(committed, repo.Path, 0, 8)
+        );
+        Assert.AreEqual(
+            "Committed to 'main'",
+            ScreenText.LastLine(gmd.WaitFor("Committed to 'main'")),
+            "What was done is said"
         );
 
         // And the repository really changed, which the screen alone does not prove. Both files are
@@ -213,6 +218,7 @@ public class CommitTest
     // the same progress, but closing the commit dialog in between left the marquee behind the
     // application bar (see Progress.Activated), so a long commit looked like a hung gmd. The commit
     // is slowed down by a pre-commit hook that sleeps, which is what a big commit does to git.
+    // The status line says what is going on meanwhile, and then what was done.
     [TestMethod]
     public async Task TestCommitShowsProgressWhileGitWorks()
     {
@@ -233,9 +239,13 @@ public class CommitTest
         // flight, i.e. that the marquee is for it and not for the refresh after it.
         var working = gmd.WaitForMoving(IsMarqueeShown, "the progress marquee");
         StringAssert.Contains(working, "uncommitted changes");
+        var saying = gmd.WaitForMoving(s => s.Contains("Committing"), "the progress message");
+        Assert.AreEqual("Committing to 'main'...", ScreenText.LastLine(saying));
+        StringAssert.Contains(saying, "uncommitted changes", "Said while the commit is still in flight");
 
         // Once the commit is through the marquee is gone and the commit is at the top
-        ScreenText.AssertEqual(
+        var committed = gmd.WaitUntilGone("uncommitted changes");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -246,8 +256,12 @@ public class CommitTest
             ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
             ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("uncommitted changes"),
-            repo.Path
+            ScreenText.Rows(committed, repo.Path, 0, 8)
+        );
+        Assert.AreEqual(
+            "Committed to 'main'",
+            ScreenText.LastLine(gmd.WaitFor("Committed to 'main'")),
+            "What was done is said"
         );
     }
 
@@ -320,7 +334,8 @@ public class CommitTest
 
         // Same row, same position, new message and a new id — and the time column does not move,
         // since amending keeps the author date and only the committer date is rewritten
-        ScreenText.AssertEqual(
+        var committed = gmd.WaitFor("Add zeta amended");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -331,8 +346,12 @@ public class CommitTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitFor("Add zeta amended"),
-            repo.Path
+            ScreenText.Rows(committed, repo.Path, 0, 8)
+        );
+        Assert.AreEqual(
+            "Amended the last commit",
+            ScreenText.LastLine(gmd.WaitFor("Amended the last commit")),
+            "What was done is said"
         );
 
         // One commit was rewritten rather than added, and it is still the one commit that is ahead
@@ -543,7 +562,8 @@ public class CommitTest
 
         // 'dev' now has its own copy of the commit, with an id of its own, and main still has the
         // original — the same subject on two branches is what a cherry-pick looks like
-        ScreenText.AssertEqual(
+        var committed = gmd.WaitUntilGone("uncommitted");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -552,8 +572,12 @@ public class CommitTest
             ┃╭┺   Work on dev                                                                  ee3602 Test User      24-10-15 12:01
             ┗╯    Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("uncommitted"),
-            repo.Path
+            ScreenText.Rows(committed, repo.Path, 0, 6)
+        );
+        Assert.AreEqual(
+            "Committed to 'dev'",
+            ScreenText.LastLine(gmd.WaitFor("Committed to 'dev'")),
+            "What was done is said"
         );
 
         Assert.AreEqual(

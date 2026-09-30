@@ -5,6 +5,7 @@ enum StatusKind
     Info, // What a command did, e.g. "Pushed main"
     Notice, // Why a key did nothing, and what to do instead
     Failure, // Something that failed in the background, e.g. the fetch
+    Progress, // What a command is doing while it runs, e.g. "Pushing 'main'..."
 }
 
 record StatusMessage(string Text, StatusKind Kind, DateTime ShownAt);
@@ -12,6 +13,9 @@ record StatusMessage(string Text, StatusKind Kind, DateTime ShownAt);
 // The one line message at the bottom of the log view, shown for a few seconds in place of the key
 // hints: what a command did, or why a key did nothing. It replaces both the silence of a key that
 // could not act and the red error box for what is not an error, which had to be dismissed.
+//
+// A command that takes a while also says what it is doing while it runs, e.g. "Pushing 'main'...",
+// which what it did then replaces, so the line goes from the one to the other.
 //
 // This is only the message and how long it is shown; the log view draws it, see KeyHintBar.
 interface IStatusLine
@@ -25,6 +29,10 @@ interface IStatusLine
     void Info(string text);
     void Notice(string text);
     void Failure(string text);
+
+    // Shown until disposed rather than for a few seconds, with "..." added, and gone then unless
+    // another message has taken its place, which is what the command did, shown for its seconds
+    Disposable Progress(string text);
 }
 
 [SingleInstance]
@@ -39,7 +47,13 @@ class StatusLine : IStatusLine
 
     public event Action? Changed;
 
-    public StatusMessage? Current => message != null && Now() - message.ShownAt < Duration ? message : null;
+    public StatusMessage? Current =>
+        message switch
+        {
+            null => null,
+            { Kind: StatusKind.Progress } => message,
+            _ => Now() - message.ShownAt < Duration ? message : null,
+        };
 
     public void Info(string text) => Show(text, StatusKind.Info);
 
@@ -47,10 +61,23 @@ class StatusLine : IStatusLine
 
     public void Failure(string text) => Show(text, StatusKind.Failure);
 
-    void Show(string text, StatusKind kind)
+    public Disposable Progress(string text)
+    {
+        var shown = Show($"{text}...", StatusKind.Progress);
+        return new Disposable(() =>
+        {
+            if (!ReferenceEquals(message, shown))
+                return; // Replaced, by what the command did or by the next step's progress
+            message = null;
+            Changed?.Invoke();
+        });
+    }
+
+    StatusMessage Show(string text, StatusKind kind)
     {
         message = new StatusMessage(text, kind, Now());
         Changed?.Invoke();
+        return message;
     }
 }
 

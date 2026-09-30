@@ -196,6 +196,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    key-hint line for five seconds (over the log's bottom row with hints off), via `IStatusLine` and
    `Notice`: `c`/`a`/`t` with nothing to act on, `s`/`e`/`E` with no branch highlighted, Ctrl-C with
    nothing selected, the push and pull guards and results, and a fetch that starts failing.
+   *Progress too (2026-09-29):* a commit, push or pull says what it is doing while git works, in
+   cyan ("Committing to 'main'..."), which what it did then replaces ("Committed to 'main'").
 4. **An operation in progress is shown in the top bar,** e.g. `MERGING · 2 conflicts`.
    - Clicking it offers Continue, Skip and Abort, and a key opens the Repo menu.
    - A conflict is reported in an info box with a *Resolve Conflicts* button.

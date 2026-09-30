@@ -83,8 +83,8 @@ static class KeyHints
     }
 
     // A status message, in place of the hints and set into the border the same way: green for what a
-    // command did, yellow for why a key did nothing, red for what failed in the background. Cut to
-    // the line if it is longer.
+    // command did, yellow for why a key did nothing, red for what failed in the background, and cyan
+    // for what a command is doing while it runs. Cut to the line if it is longer.
     //
     //   ────────── Pushed 'main' ─────────────────────────────
     public static Text ToText(StatusMessage message, int width)
@@ -96,6 +96,7 @@ static class KeyHints
         {
             StatusKind.Info => Color.Green,
             StatusKind.Notice => Color.Yellow,
+            StatusKind.Progress => Color.Cyan,
             _ => Color.BrightRed,
         };
 

@@ -127,7 +127,10 @@ class CommitCommands : ICommitCommands
             if (result == CommitResult.NothingToCommit)
                 return new Notice(isAmend ? "Only a commit not yet pushed can be amended" : "Nothing to commit");
             if (result == CommitResult.Committed)
+            {
                 Refresh();
+                status.Info(isAmend ? "Amended the last commit" : $"Committed to '{CurrentBranchName()}'");
+            }
             return Result.Ok;
         });
 
@@ -163,13 +166,17 @@ class CommitCommands : ICommitCommands
         if (!commitDlg.Show(repo, isAmend, commits, out var message))
             return CommitResult.Cancelled;
 
-        if (await server.CommitAllChangesAsync(message, isAmend, repo.Path) is Error e)
+        // A pre-commit hook can make a commit take a while, e.g. one that formats the code
+        using (status.Progress(isAmend ? "Amending the last commit" : $"Committing to '{CurrentBranchName()}'"))
         {
-            return new Error($"Failed to commit", e);
+            if (await server.CommitAllChangesAsync(message, isAmend, repo.Path) is Error e)
+                return new Error($"Failed to commit", e);
         }
 
         return CommitResult.Committed;
     }
+
+    string CurrentBranchName() => repo.Repo.CurrentBranch().NiceNameUnique;
 
     // A rebase, an 'am', and a cherry pick or revert of several commits are finished by continuing
     // them, not by committing: 'git commit' makes the commit git stopped on but leaves the

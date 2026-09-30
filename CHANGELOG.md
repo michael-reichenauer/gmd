@@ -1,9 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-133 releases:
+134 releases:
 
-## [Current] - 2026-09-28
+## [Current] - 2026-09-30
+- Say what a commit, push or pull is doing while git works
+
+## [v0.94.1429.782] - 2026-09-28
 - Version 0.94
 - Updated packages
 - Improve updating functionality

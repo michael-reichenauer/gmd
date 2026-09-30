@@ -345,7 +345,8 @@ public class BranchTest
 
         gmd.Send("Enter");
 
-        ScreenText.AssertEqual(
+        var committed = gmd.WaitUntilGone("uncommitted changes");
+        Assert.AreEqual(
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -358,8 +359,12 @@ public class BranchTest
             ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
             ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
             """,
-            gmd.WaitUntilGone("uncommitted changes"),
-            repo.Path
+            ScreenText.Rows(committed, repo.Path, 0, 10)
+        );
+        Assert.AreEqual(
+            "Committed to 'dev'",
+            ScreenText.LastLine(gmd.WaitFor("Committed to 'dev'")),
+            "What was done is said"
         );
 
         // A real merge commit, i.e. two parents: dev's tip and main's tip
