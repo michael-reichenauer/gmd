@@ -45,6 +45,32 @@ public class ServerTest
         Assert.AreEqual(repo.RepoTimeStamp, hidden.RepoTimeStamp);
     }
 
+    // The branches at a commit, which Enter shows or hides, include one that starts there with no
+    // commits of its own, which has no child commit to be found by
+    [TestMethod]
+    public async Task TestTheBranchesOfACommitIncludeOneWithNoCommitsOfItsOwn()
+    {
+        var b = new RepoBuilder()
+            .Commit("c3", "Third", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .LocalBranch("testing", "c2")
+            .DetachedHead("c2");
+        var server = b.NewServer();
+        var repo = await b.ViewRepoAsync();
+
+        var hidden = server.GetCommitBranches(repo, RepoBuilder.Sha("c2"), isAll: false);
+        var all = server.GetCommitBranches(
+            server.ShowBranch(repo, "testing", false),
+            RepoBuilder.Sha("c2"),
+            isAll: true
+        );
+
+        CollectionAssert.AreEqual(new[] { "testing" }, hidden.Select(b => b.Name).ToArray());
+        CollectionAssert.AreEqual(new[] { "testing" }, all.Select(b => b.Name).ToArray(), "Not the detached HEAD");
+    }
+
     // Hiding a branch leaves the other shown branches alone
     [TestMethod]
     public async Task TestHideBranchRemovesOnlyThatBranch()

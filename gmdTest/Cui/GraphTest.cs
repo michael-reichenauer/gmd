@@ -59,6 +59,38 @@ public class GraphTest
         );
     }
 
+    // A branch with no commits of its own yet, e.g. one just made with 'git branch', has no child
+    // commit to show where it branches out, but it does branch out, at its tip. Hidden, it is the same
+    // dark '╯' as any hidden branch; it used to have no sign at all, so the user did not know of it.
+    [TestMethod]
+    public async Task TestAHiddenBranchWithNoCommitsOfItsOwnIsAMoreMarker()
+    {
+        var b = new RepoBuilder()
+            .Commit("c3", "Third", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .LocalBranch("testing", "c2");
+
+        Assert.AreEqual(
+            """
+            ┣─┺  Third
+            ┣╯   Second
+            ┗    Initial
+            """,
+            GraphText.WithSubjects(await b.ViewRepoAsync())
+        );
+        Assert.AreEqual(
+            """
+            ┣─┺    Third
+            ┣───┺  Second
+            ┗      Initial
+            """,
+            GraphText.WithSubjects(await b.ViewRepoAsync("testing")),
+            "Shown, it is a tip on main's commit"
+        );
+    }
+
     // Showing dev moves its commits into the graph, in their own column to the right of main. The
     // '╭' is where dev branched out of main and the '╮' is where it was merged back in.
     [TestMethod]

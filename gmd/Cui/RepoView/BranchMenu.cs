@@ -771,8 +771,11 @@ class BranchMenu : IBranchMenu
             { // Is a branch merge in '╮' branch
                 isBranchIn = true;
             }
-            else if (cic.AllChildIds.ContainsBy(id => repo.Repo.CommitById[id].BranchName == branch.Name))
-            { // Is branch out '╯' branch
+            else if (
+                cic.AllChildIds.ContainsBy(id => repo.Repo.CommitById[id].BranchName == branch.Name)
+                || repo.Repo.BranchesStartingAt(cic.Id).ContainsBy(b => b.PrimaryName == branch.PrimaryName)
+            )
+            { // Is branch out '╯' branch, one with commits or one with none of its own yet
                 isBranchOut = true;
             }
         }

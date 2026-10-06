@@ -87,6 +87,10 @@ class GraphCreater : IGraphCreater
 
     static void SetGraph(Graph graph, Repo repo, IReadOnlyList<GraphBranch> branches)
     {
+        // A hidden branch with no commits of its own has no child commit to tell where it branches
+        // out, and is found by its tip instead
+        var hiddenStartIds = repo.BranchesWithNoCommits().Where(b => !b.IsInView).Select(b => b.TipId).ToHashSet();
+
         foreach (var b in branches)
         {
             bool isAmbiguous = false; // Is set to true if commit is ambiguous, changes branch color
@@ -118,7 +122,13 @@ class GraphCreater : IGraphCreater
                     DrawMerge(graph, repo, c, b);
                 }
 
-                if (repo.Filter == "" && null != c.AllChildIds.FirstOrDefault(id => !repo.CommitById[id].IsInView))
+                if (
+                    repo.Filter == ""
+                    && (
+                        null != c.AllChildIds.FirstOrDefault(id => !repo.CommitById[id].IsInView)
+                        || hiddenStartIds.Contains(c.Id)
+                    )
+                )
                 {
                     DrawMoreBranchOut(graph, c, b); // Drawing  ╯
                 }

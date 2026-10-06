@@ -26,6 +26,20 @@ static class RepoExtensions
             : "";
     }
 
+    // The branches that start at a commit with no commits of their own: their tip is the commit, but
+    // the commit is another branch's, e.g. a branch just made with 'git branch' or by another tool,
+    // before anything is committed on it. Such a branch has no child commit to show where it branches
+    // out, so this is how it is found there. A twin of the commit's own branch is that branch, and the
+    // detached HEAD is always shown, so neither is among them.
+    public static IEnumerable<Branch> BranchesStartingAt(this Repo repo, string commitId) =>
+        repo.BranchesWithNoCommits().Where(b => b.TipId == commitId);
+
+    // The same for every commit, for drawing them all at once
+    public static IEnumerable<Branch> BranchesWithNoCommits(this Repo repo) =>
+        repo.AllBranches.Where(b =>
+            !b.IsDetached && repo.CommitById.TryGetValue(b.TipId, out var tip) && tip.BranchPrimaryName != b.PrimaryName
+        );
+
     // The worktrees other than the one this repo was read from
     public static IReadOnlyList<Worktree> OtherWorktrees(this Repo repo) =>
         repo.Worktrees.Where(w => !w.IsCurrent).ToList();

@@ -75,7 +75,10 @@ public class ApplicationBarTest
         gmd.WaitFor("✦1");
 
         gmd.Send("S-Right");
-        gmd.WaitFor("type to find");
+        // First the branches branching out at the commit, agent among them, since it starts there
+        StringAssert.Contains(gmd.WaitFor("type to find"), "╯ agent");
+        gmd.Send("Down");
+        gmd.WaitForStable();
         gmd.Send("Right");
 
         Assert.IsFalse(gmd.WaitFor("agent (new branch)").Contains("✦1"), "Seen once listed");

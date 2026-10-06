@@ -266,6 +266,24 @@ public class MenuItemsTest
         StringAssert.Contains(items[0], "dev", "The branch of the commit the cursor is on");
     }
 
+    // A branch with no commits of its own yet branches out at its tip, and is offered there as any
+    // branch branching out is, marked '╯' as the graph marks it
+    [TestMethod]
+    public async Task TestABranchWithNoCommitsOfItsOwnIsOfferedWhereItBranchesOut()
+    {
+        var view = await ViewOf(
+            new RepoBuilder()
+                .Commit("c3", "Third", "c2")
+                .Commit("c2", "Second", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c3", isCurrent: true)
+                .LocalBranch("testing", "c2")
+        );
+        view.CurrentIndex = 1; // On 'Second'
+
+        Assert.AreEqual("  ╯ testing", Titles(BranchMenuOf(view).GetShowBranchItems())[0]);
+    }
+
     // A stopped operation heads the repo menu, since it is the most urgent thing about the repo
     // while it lasts, and self-hides when there is none
 
