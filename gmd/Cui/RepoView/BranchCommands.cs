@@ -28,12 +28,14 @@ interface IBranchCommands
     void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
+    void CreateBranchFromLostCommit(string commitId, string madeOnName);
     void RenameBranch(string name);
     void DeleteBranch(string name);
     void MergeBranch(string name);
     void MergeToBranch(string targetName);
     void RebaseBranchOnto(string onto);
     void UndoLastChange(string branchName);
+    void RecoverLostCommits();
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -119,12 +121,17 @@ class BranchCommands : IBranchCommands
     // Undoing the last change of a branch
     public void UndoLastChange(string branchName) => undoCmds.UndoLastChange(branchName);
 
+    public void RecoverLostCommits() => undoCmds.RecoverLostCommits();
+
     // Creating and deleting branches
     public void CreateBranch() => createCmds.CreateBranch();
 
     public void CreateBranchFromBranch(string name) => createCmds.CreateBranchFromBranch(name);
 
     public void CreateBranchFromCommit() => createCmds.CreateBranchFromCommit();
+
+    public void CreateBranchFromLostCommit(string commitId, string madeOnName) =>
+        createCmds.CreateBranchFromLostCommit(commitId, madeOnName);
 
     public void RenameBranch(string name) => createCmds.RenameBranch(name);
 

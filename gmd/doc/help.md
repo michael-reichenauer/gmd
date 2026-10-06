@@ -275,6 +275,14 @@ shown, their colors and their order.
     needs a clean tree. It asks nothing, since undoing again redoes it
     (**Redo ...**). A commit already pushed is not undone, and an undo never
     pushes: what origin has stays there.
+  - **Recover Lost Commits ...**: the commits no branch, tag or stash has
+    any more, which git's reflogs still know of: what a `reset --hard`, a
+    rebase or an amend left behind, the work of a deleted branch, commits
+    made on a detached HEAD. One row per line of work, with the branch it
+    was made on and what took it out of the history; older versions of
+    commits that are still there, which an amend or a rebase leaves, are
+    listed last, dark. `Enter` or `d` shows the diff, and `b` creates a
+    branch at it, which brings it back. Git keeps them for about 30 days.
   - **Discard Changes in a File**: `git checkout --force HEAD -- <file>`,
     staged changes too, or a new file is unstaged and deleted
   - **Revert Commit**: `git revert --no-commit <commit-sha>`

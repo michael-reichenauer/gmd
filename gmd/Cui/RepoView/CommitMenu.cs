@@ -138,6 +138,8 @@ class CommitMenu : ICommitMenu
                 () => BranchUndo.WhyNot(repo.Repo, current, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, current, step)
             )
+            // The work no branch has any more, which the reflogs still know of
+            .Item("Recover Lost Commits ...", "", () => repo.BranchCmds.RecoverLostCommits())
             .Separator()
             .SubMenu(
                 "Discard Changes in a File",

@@ -121,4 +121,20 @@ public class LostWorkIntegrationTest
 
         Assert.AreEqual(0, (await LostWorkAsync()).Count);
     }
+
+    // A branch made at a lost commit brings it back, though the repo it was picked from has no
+    // such commit to say which branch the new one branches out of
+    [TestMethod]
+    public async Task TestABranchAtALostCommitBringsItBack()
+    {
+        await CommitAsync("a.txt", "Initial");
+        var lost = await CommitAsync("b.txt", "Second");
+        await repo.GitAsync("reset --hard HEAD~1");
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        AssertOk(await service.CreateBranchFromCommitAsync(augmented, "restored", lost, false, repo.Path));
+
+        Assert.AreEqual(lost, (await repo.GitAsync("rev-parse restored")).Trim());
+        Assert.AreEqual(0, (await LostWorkAsync()).Count);
+    }
 }

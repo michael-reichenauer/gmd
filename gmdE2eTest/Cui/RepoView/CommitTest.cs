@@ -406,7 +406,7 @@ public class CommitTest
     // and 'Amend ...' are both disabled, and Menu.Show starts on the first item that is not — so
     // 'Undo' is one move away rather than three. In it the cursor starts on 'Undo Commit', the last
     // change of the branch, and 'Discard Changes in a File' is disabled, so 'Uncommit Last Commit' is
-    // two moves down, past 'Revert Commit'.
+    // three moves down, past 'Recover Lost Commits ...' and 'Revert Commit'.
     [TestMethod]
     public async Task TestUncommitTheLastCommit()
     {
@@ -420,7 +420,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("Right");
         gmd.WaitFor("Uncommit");
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
