@@ -270,6 +270,9 @@ internal class Git : IGit
 
     public Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd) => reflogService.GetReflogAsync(wd);
 
+    public Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd) =>
+        reflogService.GetRefReflogsAsync(refs, wd);
+
     public Task<Result> AddWorktreeAsync(
         string path,
         string branchName,

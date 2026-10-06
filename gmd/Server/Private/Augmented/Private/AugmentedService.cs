@@ -279,6 +279,8 @@ class AugmentedService : IAugmentedService
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
 
+        var remoteReflog = await GetDivergedRemoteReflogAsync(branches, path);
+
         // Combine all git info into one git repo info object
         var config = repoConfig.Get(path);
         var gitRepo = new GitRepo(
@@ -294,11 +296,33 @@ class AugmentedService : IAugmentedService
             worktrees,
             reflog: reflog,
             integrationNames: config.IntegrationBranches,
-            recordedSteps: config.UndoSteps
+            recordedSteps: config.UndoSteps,
+            remoteReflog: remoteReflog
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 
         return gitRepo;
+    }
+
+    // The reflogs of the remote branches that have diverged from their local branches, read after the
+    // branches since it is them that say which. That is usually none, and then nothing is read, so a
+    // refresh waits for this only when there is something to tell: whether origin was force pushed,
+    // see RemoteRewrites. It is extra, like the reflog, and a failure only means nothing is told.
+    async Task<IReadOnlyList<ReflogEntry>> GetDivergedRemoteReflogAsync(IReadOnlyList<Git.Branch> branches, string path)
+    {
+        var refs = branches
+            .Where(b => !b.IsRemote && b.RemoteName != "" && b.AheadCount > 0 && b.BehindCount > 0)
+            .Select(b => $"refs/remotes/{b.RemoteName}")
+            .ToList();
+        if (refs.Count == 0)
+            return [];
+
+        if (await git.GetRefReflogsAsync(refs, path) is not IReadOnlyList<ReflogEntry> reflog)
+        {
+            Log.Warn($"Failed to read the reflogs of {string.Join(", ", refs)}");
+            return [];
+        }
+        return reflog;
     }
 
     // The number of uncommitted changes in each of the other worktrees, read in parallel. Only

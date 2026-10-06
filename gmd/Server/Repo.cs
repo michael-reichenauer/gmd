@@ -54,6 +54,11 @@ record Repo
     // nothing to undo, e.g. one whose reflog starts where it was made, is not in it.
     public IReadOnlyDictionary<string, UndoStep> UndoSteps { get; init; } = new Dictionary<string, UndoStep>();
 
+    // The local branches whose remote branch a force push rewrote since they were built on it, by the
+    // local branch's name. Usually none.
+    public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; init; } =
+        new Dictionary<string, RemoteRewrite>();
+
     public static Repo Empty { get; } =
         new Repo(
             "",

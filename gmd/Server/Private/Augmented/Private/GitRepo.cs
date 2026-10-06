@@ -25,7 +25,8 @@ class GitRepo
         IReadOnlyDictionary<string, int>? worktreeChanges = null,
         IReadOnlyList<ReflogEntry>? reflog = null,
         IReadOnlyCollection<string>? integrationNames = null,
-        IReadOnlyDictionary<string, RecordedStep>? recordedSteps = null
+        IReadOnlyDictionary<string, RecordedStep>? recordedSteps = null,
+        IReadOnlyList<ReflogEntry>? remoteReflog = null
     )
     {
         TimeStamp = timeStamp;
@@ -42,6 +43,7 @@ class GitRepo
         Reflog = reflog ?? [];
         IntegrationNames = integrationNames ?? [];
         RecordedSteps = recordedSteps ?? new Dictionary<string, RecordedStep>();
+        RemoteReflog = remoteReflog ?? [];
     }
 
     public DateTime TimeStamp { get; }
@@ -76,6 +78,10 @@ class GitRepo
 
     // The last changes gmd made to branches that their reflogs alone would name wrong, see RepoConfig
     public IReadOnlyDictionary<string, RecordedStep> RecordedSteps { get; }
+
+    // The reflogs of the remote branches that have diverged from their local branches, which tell a
+    // force push on origin from new commits on both sides, see RemoteRewrites. Usually none.
+    public IReadOnlyList<ReflogEntry> RemoteReflog { get; }
 
     public override string ToString() =>
         $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";

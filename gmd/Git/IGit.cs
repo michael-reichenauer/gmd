@@ -113,6 +113,9 @@ interface IGit
     Task<Result> ResetBranchAsync(string id, bool isKeep, string wd);
     Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd);
     Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd);
+
+    // The reflogs of the given refs only, e.g. 'refs/remotes/origin/dev'
+    Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd);
     Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
     Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd);
     Task<Result> PruneWorktreesAsync(string wd);

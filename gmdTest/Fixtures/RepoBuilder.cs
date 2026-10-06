@@ -48,6 +48,8 @@ class RepoBuilder
     readonly MetaData metaData = new MetaData();
     readonly List<GitWorktree> worktrees = [];
     readonly List<ReflogEntry> reflog = [];
+    readonly List<ReflogEntry> remoteReflog = [];
+    readonly Dictionary<string, string> copies = [];
     readonly List<string> integrationNames = [];
     readonly Dictionary<string, int> worktreeChanges = [];
     readonly Dictionary<string, RecordedStep> recordedSteps = [];
@@ -95,6 +97,16 @@ class RepoBuilder
                 authorTime
             )
         );
+        return this;
+    }
+
+    // A copy of another commit, as a rebase, an amend or a cherry pick makes: a commit of its own,
+    // with the original's subject, author and author time, which is what tells a copy. The original
+    // may be declared before or after it.
+    public RepoBuilder CopyOf(string name, string originalName, params string[] parents)
+    {
+        Commit(name, "", parents);
+        copies[Sha(name)] = Sha(originalName);
         return this;
     }
 
@@ -203,6 +215,17 @@ class RepoBuilder
             Moves = moves,
             IsRedo = isRedo,
         };
+        return this;
+    }
+
+    // Adds an entry to a remote branch's reflog, which is read for a diverged branch only, latest
+    // first like the others, e.g. .RemoteReflog("origin/main", "b2", "fetch: forced-update")
+    public RepoBuilder RemoteReflog(string remoteBranch, string commitName, string message)
+    {
+        var reference = $"refs/remotes/{remoteBranch}";
+        remoteReflog.Add(
+            new ReflogEntry(Sha(commitName), reference, remoteReflog.Count(e => e.Ref == reference), message)
+        );
         return this;
     }
 
@@ -351,7 +374,7 @@ class RepoBuilder
         new GitRepo(
             BaseTime,
             path,
-            commits,
+            WithCopies(),
             branches,
             tags,
             status,
@@ -362,8 +385,28 @@ class RepoBuilder
             worktreeChanges,
             reflog,
             integrationNames,
-            recordedSteps
+            recordedSteps,
+            remoteReflog
         );
+
+    // The commits, with each copy given its original's subject, author and author time
+    List<GitCommit> WithCopies()
+    {
+        var byId = commits.ToDictionary(c => c.Id);
+        return commits
+            .Select(c =>
+                copies.TryGetValue(c.Id, out var originalId) && byId[originalId] is var original
+                    ? c with
+                    {
+                        Subject = original.Subject,
+                        Message = original.Message,
+                        Author = original.Author,
+                        AuthorTime = original.AuthorTime,
+                    }
+                    : c
+            )
+            .ToList();
+    }
 
     // The main worktree first, as git lists it, on the current branch
     IReadOnlyList<GitWorktree> AllWorktrees()

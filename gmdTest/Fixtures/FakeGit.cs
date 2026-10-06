@@ -45,6 +45,9 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd) =>
         Task.FromResult<Result<IReadOnlyList<ReflogEntry>>>(Reflog.ToList());
 
+    public Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd)
     {
         WorktreeCalls.Add($"add {path} {branchName} {(isNewBranch ? "new" : "existing")} {startPoint}".TrimEnd());
