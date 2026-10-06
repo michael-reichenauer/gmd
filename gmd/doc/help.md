@@ -109,7 +109,10 @@ to show and hide branches, and to pull/update or push all of them.
 
 Which branches are shown is up to you, which is how gmd gives a clean log
 without rebasing or squashing. Showing a branch also shows the branches it
-was made from, and the main branch is always shown.
+was made from, and the main branch is always shown. So is the branch you
+are on, once it becomes current: switched to in gmd, checked out in a
+terminal or by another tool, or the one gmd or a worktree opens on. Hidden
+again, it stays hidden until it next becomes current.
 
 - `Shift-→` opens **Show Branch**: first the branches that merge in or
   branch out at the current commit, then the Recent, Active, My Active

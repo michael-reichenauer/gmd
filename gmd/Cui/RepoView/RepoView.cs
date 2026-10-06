@@ -84,6 +84,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly Hoover hoover = new Hoover();
     readonly ShownHistory shownHistory = new();
     readonly SearchMatches searchMatches = new();
+    readonly CurrentBranchShown currentBranchShown = new();
     IReadOnlyList<HiddenBranchNews> hiddenNews = [];
     readonly RepoViewInput input;
 
@@ -533,6 +534,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             if (viewRepoResult is not Server.Repo viewRepo)
                 return viewRepoResult.Error;
 
+            viewRepo = WithCurrentBranchShown(viewRepo);
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
             UpdateWorktreesStatus();
@@ -561,6 +563,7 @@ class RepoView : IRepoView, IRepoViewInputHost
                 return;
             }
 
+            viewRepo = WithCurrentBranchShown(viewRepo);
             ShowRepo(viewRepo);
             UpdateWorktreesStatus();
 
@@ -603,9 +606,22 @@ class RepoView : IRepoView, IRepoViewInputHost
         }
     }
 
+    // The current branch is shown once it has become current, e.g. checked out in a terminal, see
+    // CurrentBranchShown. Not scrolled to, since this is mostly a refresh the user did not ask for.
+    Server.Repo WithCurrentBranchShown(Server.Repo viewRepo)
+    {
+        var name = currentBranchShown.ToShow(viewRepo);
+        if (name == "")
+            return viewRepo;
+
+        Log.Info($"Show '{name}', which has become current");
+        return server.ShowBranch(viewRepo, name, false);
+    }
+
     void ShowRepo(Server.Repo serverRepo)
     {
         repo = newViewRepo(this, serverRepo);
+        currentBranchShown.Shown(serverRepo);
         menuService = newMenuService(repo);
         hoover.FollowRepo(serverRepo.BranchByName); // Redrawn below
         keyHintBar.Visible = IsKeyHintBarShown; // Once there is a repo, the hints are for it

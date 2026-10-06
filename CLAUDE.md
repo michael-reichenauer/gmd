@@ -629,7 +629,7 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
-  `HiddenNews`, `KeyHints`, `BranchFinder`, `MenuDimensions`, `MenuRows`, `MenuShortcuts`,
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `MenuDimensions`, `MenuRows`, `MenuShortcuts`,
   `TextContextMenu`, `SpellSpans`, `SpellHint`, `WorktreeRows`, `BlameColumns` and
   `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain string, which is
   how `GraphText` snapshots `GraphWriter` output with no driver at all.
