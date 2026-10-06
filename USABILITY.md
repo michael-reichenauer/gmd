@@ -279,7 +279,9 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    being which branches: new ones too, with no commits of their own yet, and local ones never
    pushed, e.g. the branch Claude Code makes in a worktree of its own. A branch made elsewhere is
    told of rather than shown, since showing each one would fill the log of a busy repository; the
-   one exception is the current branch, shown once it becomes current (`CurrentBranchShown`).
+   one exception is the current branch, shown once it becomes current (`CurrentBranchShown`). And
+   listed is seen, so *Mark All as Seen* is gone: a count that stayed until each branch was shown
+   or marked would never go in a busy repository, and what the user wanted was to know.
 6. **Merge or rebase on pull,** asked once and remembered. *Done (2026-09-25):* with git's default
    config, pulling a diverged branch failed outright ("Need to specify how to reconcile divergent
    branches", under a dozen lines of hints). gmd now asks, Merge or Rebase, when git has no

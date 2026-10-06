@@ -184,7 +184,7 @@ public class MenuItemsTest
     }
 
     // What the ✦ in the application bar opens: the hidden branches with new commits or that are new
-    // themselves, and the way to stop them being news without showing them
+    // themselves. Listing them is seeing them, so there is no item to mark them seen.
     [TestMethod]
     public async Task TestTheNewsMenuListsTheHiddenBranchesWithSomethingNew()
     {
@@ -199,11 +199,22 @@ public class MenuItemsTest
             """
             dev (2 new)
             main (new branch)
-            ---
-            Mark All as Seen
             """,
             Items(BranchMenuOf(view).GetHiddenNewsItems())
         );
+    }
+
+    // The New group of Show Branch lists the same, and opening it is looking at them
+    [TestMethod]
+    public async Task TestTheNewGroupOfShowBranchListsTheNewsAndSeesThemOnOpening()
+    {
+        var view = await ViewOf(Fixture());
+        view.HiddenNews = [new HiddenBranchNews(view.Repo.BranchByName["dev"], 2)];
+
+        var group = BranchMenuOf(view).GetShowBranchItems().OfType<SubMenu>().First(m => m.Text.Trim() == "New");
+
+        Assert.AreEqual("dev (2 new)", Items(group.Children));
+        Assert.IsNotNull(group.OnOpen, "Marks them seen");
     }
 
     // Once a branch has been shown or hidden, the undo item names what Backspace would undo

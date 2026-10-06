@@ -32,6 +32,9 @@ interface IRepoView
     // The hidden branches with something not yet seen, see HiddenNews
     IReadOnlyList<HiddenBranchNews> HiddenNews { get; }
 
+    // The hidden branches with something new have been looked at, listed, and so are news no more
+    void MarkHiddenNewsSeen(IReadOnlyList<HiddenBranchNews> looked);
+
     Task<Result> ShowInitialRepoAsync(string path);
     Task<Result> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
@@ -664,6 +667,28 @@ class RepoView : IRepoView, IRepoViewInputHost
         }
 
         hiddenNews = Cui.RepoView.HiddenNews.Of(serverRepo, seen);
+    }
+
+    // Looking at the list is seeing what is in it, as far as it was when listed: something new since
+    // is still news. The repo is not shown again, since this is called from a menu, whose commands
+    // hold the repo of when it was made, which a refresh may have replaced since; showing that one
+    // would take the log back to it.
+    public void MarkHiddenNewsSeen(IReadOnlyList<HiddenBranchNews> looked)
+    {
+        if (looked.Count == 0)
+            return;
+
+        var serverRepo = repo.Repo;
+        var seen = Cui.RepoView.HiddenNews.Looked(serverRepo, repoConfig.Get(serverRepo.Path).SeenTips, looked);
+        repoConfig.Set(serverRepo.Path, s => s.SeenTips = seen);
+
+        // The news of a search's results would be of the branches the search shows
+        var names = looked.Select(n => n.Branch.Name).ToHashSet();
+        hiddenNews =
+            serverRepo.Filter == ""
+                ? Cui.RepoView.HiddenNews.Of(serverRepo, seen)
+                : hiddenNews.Where(n => !names.Contains(n.Branch.Name)).ToList();
+        applicationBarView.SetRepo(serverRepo, hiddenNews.Count);
     }
 
     void ScrollToBranch(string branchName)

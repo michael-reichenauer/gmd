@@ -12,11 +12,13 @@ record HiddenBranchNews(Branch Branch, int Count, bool IsNew = false);
 // saying so, which is the cost of a tidy log. gmd tells rather than shows, since showing every new
 // branch would fill the log of a busy repository after every fetch.
 //
-// What is new is what the user has not seen: for each branch the tip it had when it was last shown is
-// remembered (RepoConfig.SeenTips, so it holds across sessions), and the branch's own commits above
-// that tip are new. A branch that was not there then is new, with or without commits of its own. The
-// first time, when nothing is remembered, every tip is taken as seen, rather than every branch the
-// repository ever had being news.
+// What is new is what the user has not seen: for each branch the tip it had when it was last shown,
+// or listed as news, is remembered (RepoConfig.SeenTips, so it holds across sessions), and the
+// branch's own commits above that tip are new. Listed is seen, since what the user wants is to know
+// of it, and a count that stayed until each branch was shown would never go in a busy repository. A
+// branch that was not there then is new, with or without commits of its own. The first time, when
+// nothing is remembered, every tip is taken as seen, rather than every branch the repository ever
+// had being news.
 //
 // The branches are the remote ones and the local ones with no remote branch, i.e. never pushed or
 // with the remote branch deleted; a local branch with one is told of by it. The branch the user is on
@@ -78,11 +80,24 @@ static class HiddenNews
         return seen;
     }
 
+    // The tips of the branches listed as news, taken as seen now that the user has looked at them, as
+    // they were when listed
+    public static Dictionary<string, string> Looked(
+        Repo repo,
+        IReadOnlyDictionary<string, string> seenTips,
+        IEnumerable<HiddenBranchNews> looked
+    )
+    {
+        var seen = seenTips.ToDictionary(t => t.Key, t => t.Value);
+        looked.ForEach(n => seen[n.Branch.Name] = TipOf(repo, n.Branch));
+        return seen;
+    }
+
     public static bool IsSame(IReadOnlyDictionary<string, string> a, IReadOnlyDictionary<string, string> b) =>
         a.Count == b.Count && a.All(t => b.TryGetValue(t.Key, out var v) && v == t.Value);
 
-    // Every tip taken as seen, for the first time and for 'Mark All as Seen'
-    public static Dictionary<string, string> AllSeen(Repo repo) =>
+    // Every tip taken as seen, for the first time
+    static Dictionary<string, string> AllSeen(Repo repo) =>
         NewsBranches(repo).ToDictionary(b => b.Name, b => TipOf(repo, b));
 
     // A branch that is new by name, but is one the user has seen under its other name: a local branch

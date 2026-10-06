@@ -25,6 +25,10 @@ record SubMenu : MenuItem
     // Typing in the sub menu, or in a sub menu of it, closes the menus and calls this with what was
     // typed, see Menu.OnTypeText. For a long list of names, where typing finds one faster.
     public Action<string>? OnTypeText { get; init; }
+
+    // Called as the sub menu opens, once its items are made and before they are shown, for one whose
+    // opening means something: the new branches are seen once they have been looked at
+    public Action? OnOpen { get; init; }
 }
 
 // To create a menu separator line or header line

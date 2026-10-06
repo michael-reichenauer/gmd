@@ -198,6 +198,30 @@ public class HiddenNewsTest
         Assert.AreEqual("origin/feature 1", Text(news));
     }
 
+    // Listing a branch as news is seeing it, as far as it was when listed: more pushed to it since is
+    // news again
+    [TestMethod]
+    public async Task TestAListedBranchIsSeenAsItWasWhenListed()
+    {
+        var remembered = Seen(("origin/main", "c1"), ("origin/feature", "f1"));
+        var repo = await Fixture().ViewRepoAsync();
+        var listed = HiddenNews.Of(repo, remembered);
+
+        var seen = HiddenNews.Looked(repo, remembered, listed);
+
+        Assert.AreEqual("", Text(HiddenNews.Of(repo, seen)));
+        var later = await new RepoBuilder()
+            .Commit("f4", "Feature 4", "f3")
+            .Commit("f3", "Feature 3", "f2")
+            .Commit("f2", "Feature 2", "f1")
+            .Commit("f1", "Feature 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .BranchWithRemote("feature", "f4")
+            .ViewRepoAsync();
+        Assert.AreEqual("origin/feature 1", Text(HiddenNews.Of(later, HiddenNews.Seen(later, seen))));
+    }
+
     // A branch that is gone is forgotten, so that one made again with the same name is new
     [TestMethod]
     public async Task TestAGoneBranchIsForgotten()

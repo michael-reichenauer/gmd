@@ -131,11 +131,11 @@ again, it stays hidden until it next becomes current.
   before it, one step at a time. **Undo** under **Branches** in the commit
   menu does the same, and names what it would undo.
 - ✦ in the top bar counts the hidden branches with something new since you
-  last had them shown: commits pushed to them, or the branch itself, pushed
-  by someone else or made here by another tool, e.g. in a worktree of its
-  own. A click lists those branches, and **New** at the top of **Show
-  Branch** does too; showing one is seeing it. **Mark All as Seen** clears
-  the rest without showing them.
+  last saw them: commits pushed to them, or the branch itself, pushed by
+  someone else or made here by another tool, e.g. in a worktree of its own.
+  A click lists those branches, and **New** at the top of **Show Branch**
+  does too. Listed is seen: the ✦ goes, and the branches stay hidden unless
+  you pick one to show it.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
 
