@@ -116,7 +116,7 @@ interface IServer
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> StashDropAsync(string name, string wd);
-    Task<Result<string>> GetChangeLogAsync();
+    Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
     Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
     Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);

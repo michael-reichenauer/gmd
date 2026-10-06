@@ -654,14 +654,21 @@ message.
 
 ## Gotchas
 
-- **`CHANGELOG.md` is generated — never hand-edit it.** `gmd --updatechangelog` rewrites it
-  from git history, driven by the `post-commit` hook (`gmd/tools/post-commit-sample`, installed
-  by `./installtools`) on the `main` branch only.
+- **`CHANGELOG.md` is generated — never hand-edit it.** CI makes it in the release commit of every
+  release from `main` (see the version bullet below), with `gmd --updatechangelog v<version>`, which
+  rewrites it from main's history: each version tag starts a release, and its notes are the lists
+  written in the merge commit messages (`Server/Private/ChangeLog.cs`).
 - **`gmd/Build.cs` contains CI placeholders.** The literals `"BUILD_TIME"` and `"BUILD_SHA"`
   are `sed`-replaced by `.github/workflows/build-and-release.yml`. Do not rename, reformat or
   move that file or those strings.
 - **Version lives in `gmd/Program.cs`** (`MajorVersion`/`MinorVersion`); the last two version
-  components are derived from build time in `Build.cs`.
+  components are derived from build time in `Build.cs`. Major is hand-edited; the minor is raised by
+  CI. A push to `main` makes a **release commit** (`Release v<version>`) on top of it, which raises
+  `MinorVersion` by one and regenerates `CHANGELOG.md`, and that commit is built, tagged and
+  released, and pushed only once the tests pass. Dev releases keep the minor they have. So pull
+  `main` before merging `dev` into it, and merge `main` into `dev` after a release: until then dev's
+  pre-releases are numbered below the stable release, and the updater offers a preview only when it
+  is newer.
 - **A Debug build rewrites source files** (CSharpier formatting — see above). Do not be
   surprised by a dirty working tree after `dotnet build`.
 - **No git process gmd starts can open an editor.** `Cmd.NeverOpenAnEditor` forces `GIT_EDITOR`

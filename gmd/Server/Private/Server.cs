@@ -1,4 +1,3 @@
-using System.Text;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -514,70 +513,13 @@ class Server : IServer
 
     public Task<Result> StashDropAsync(string name, string wd) => git.StashDropAsync(name, wd);
 
-    public async Task<Result<string>> GetChangeLogAsync()
+    public async Task<Result<string>> GetChangeLogAsync(string? newRelease = null)
     {
         var repoResult = await GetRepoAsync("", ["main"]);
         if (repoResult is not Repo repo)
             return repoResult.Error;
 
-        var nextTag = "Current";
-        var nextTagDate = DateTime.UtcNow;
-        var totalText = new StringBuilder();
-        var text = "";
-        var count = 0;
-        foreach (Commit c in repo.ViewCommits)
-        {
-            var message = c.Message;
-            var parts = c.Message.Split('\n');
-            if (c.ParentIds.Count > 1 && parts.Length > 2 && parts[1].Trim() == "")
-            {
-                message = string.Join('\n', parts.Skip(2));
-            }
-            else if (parts.Length == 1)
-            {
-                message = $"- {parts[0]}";
-            }
-
-            // Adjust some message lines
-            message = message
-                .Split('\n')
-                .Select(l =>
-                {
-                    if (l.StartsWith("- Fix "))
-                        l = $"- Fixed {l[6..]}";
-                    if (l.StartsWith("- Add "))
-                        l = $"- Added {l[6..]}";
-                    if (l.StartsWith("- Update "))
-                        l = $"- Updated {l[9..]}";
-                    return l;
-                })
-                .Join("\n");
-
-            var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name[1..], out var _));
-            if (tag != null)
-            { // New version
-                if (text.Trim() != "")
-                {
-                    if (nextTag == "Current")
-                    {
-                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.IsoDate()}\n{text}\n");
-                    }
-                    else
-                    {
-                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.IsoDate()}\n{text}\n");
-                    }
-                }
-
-                nextTag = tag.Name;
-                nextTagDate = c.AuthorTime;
-                text = "";
-                count++;
-            }
-
-            text += message;
-        }
-
-        return $"\n{count} releases:\n{totalText}";
+        return ChangeLog.Create(repo, newRelease, DateTime.UtcNow);
     }
 
     public Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>

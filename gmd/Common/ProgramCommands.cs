@@ -43,7 +43,7 @@ class ProgramCommands : IProgramCommands
         }
         if (HasOptions(args, "--updatechangelog"))
         {
-            return new CommandResult(true, UpdateChangeLog());
+            return new CommandResult(true, UpdateChangeLog(OptionValue(args, "--updatechangelog")));
         }
 
         return new CommandResult(false, 0);
@@ -59,7 +59,9 @@ class ProgramCommands : IProgramCommands
               --version           Show current version
               --update|-u         Update gmd to latest version (downloading from GitHub)
               --changelog         Show change log
-              --updatechangelog   Update change log file CHANGELOG.md
+              --updatechangelog [<version>]
+                                  Update change log file CHANGELOG.md, with the commits since the
+                                  latest release headed <version> rather than Current
               -d <path>           Show repo for working folder specified by <path>
               -m                  Show main menu even if in working folder
               --help|-h|-?        Show command line help.
@@ -124,31 +126,39 @@ class ProgramCommands : IProgramCommands
         return 0;
     }
 
-    int UpdateChangeLog()
+    // Fails with a non-zero exit code, since CI runs it to make the release commit on main
+    int UpdateChangeLog(string? newRelease)
     {
-        Task.Run(async () =>
+        return Task.Run(async () =>
+        {
+            Console.WriteLine($"Generating change log ...");
+            var logResult = await server.GetChangeLogAsync(newRelease);
+            if (logResult is not string log)
             {
-                Console.WriteLine($"Generating change log ...");
-                var logResult = await server.GetChangeLogAsync();
-                if (logResult is not string log)
-                {
-                    Console.WriteLine($"Failed to get change log, {logResult.Error}");
-                    return;
-                }
+                Console.WriteLine($"Failed to get change log, {logResult.Error}");
+                return -1;
+            }
 
-                var text = $"# Change Log for Gmd\n--------------------\n{log}";
-                if (Result.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
-                {
-                    Console.WriteLine($"Failed to write change log, {e}");
-                }
-                Console.WriteLine($"Generated change log");
-            })
-            .Wait();
-        return 0;
+            var text = $"# Change Log for Gmd\n--------------------\n{log}";
+            if (Result.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
+            {
+                Console.WriteLine($"Failed to write change log, {e}");
+                return -1;
+            }
+            Console.WriteLine($"Generated change log");
+            return 0;
+        }).Result;
     }
 
     static bool HasOptions(string[] args, params string[] options)
     {
         return options.Any(x => args.Contains(x));
+    }
+
+    // The argument after an option, unless it is missing or is another option
+    static string? OptionValue(string[] args, string option)
+    {
+        var index = Array.IndexOf(args, option);
+        return index >= 0 && index + 1 < args.Length && !args[index + 1].StartsWith('-') ? args[index + 1] : null;
     }
 }
