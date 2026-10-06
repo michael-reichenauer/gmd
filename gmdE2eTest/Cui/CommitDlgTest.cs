@@ -360,6 +360,43 @@ public class CommitDlgTest
         StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "[Subject ", "The message is as it was");
     }
 
+    // Ctrl-A after a merge adds the subjects of the merged commits to the message, oldest first,
+    // and nothing else of their messages: whole messages made a merge message too long to read.
+    // The merge of 'dev' into main in the fixture says nothing in its subject and lists nothing,
+    // so it adds nothing.
+    [TestMethod]
+    public async Task TestCtrlAAddsTheSubjectsOfTheMergedCommits()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.CommitFileAtAsync(
+            "epsilon.txt",
+            "epsilon\n",
+            "Add epsilon\n\nA body that explains at length why, which the merge does not need.",
+            TempRepo.BaseTime.AddMinutes(7)
+        );
+        await repo.GitAsync("checkout -q dev"); // Merge main into dev, since dev is already in main
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left"); // Hoovers main, the branch the cursor row is on
+        gmd.WaitForStable();
+        gmd.Send("e");
+        gmd.WaitFor("Commit 3 changes");
+
+        gmd.Send("C-a");
+        ScreenText.AssertEqual(
+            """
+                                   │[Merge branch 'main' into dev                      ]                    │
+                                   │┌──────────────────────────────────────────────────────────────────────┐│
+                                   ││- Add gamma                                                           ││
+                                   ││- Add delta                                                           ││
+                                   ││- Add epsilon                                                         ││
+                                   ││                                                                      ││
+                                   ││                                                                      ││
+            """,
+            ScreenText.Rows(gmd.WaitFor("- Add epsilon"), repo.Path, 14, 7)
+        );
+    }
+
     // One change is '1 change', not '1 changes'
     [TestMethod]
     public async Task TestOneChangeIsSaidInTheSingular()
