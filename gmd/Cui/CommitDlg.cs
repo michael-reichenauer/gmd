@@ -73,30 +73,31 @@ class CommitDlg : ICommitDlg
         if (commits == null || commits.Count == 0)
             return;
 
-        // Indent all lines except the first in a commit message
-        static string Indent(string msg) =>
-            string.Join(
-                '\n',
-                msg.Split('\n')
-                    .Where((l, i) => !(i == 0 && l.StartsWith("Merge ") && !(i == 1 && l == ""))) // Skip "Merge " subjects and empty line after subject
-                    .Select((l, i) => i == 0 ? l : $"{l}")
-            );
-
         var msg = message.Text.ToString();
         if (msg != "")
         {
             msg += "\n";
         }
 
-        var text = commits
-            .Reverse()
-            .Select(c => Indent(c.Message))
-            .Where(m => m.Trim() != "")
-            .Select(m => $"- {m}")
-            .Join("\n");
-        text = text.Split('\n').Where(m => m.Trim() != "-").Select(l => l.TrimEnd()).Join("\n");
-        message.Text = $"{msg}{text}";
+        message.Text = $"{msg}{MergedSubjects(commits)}";
         message.SetNeedsDisplay();
+    }
+
+    // The list Ctrl-A adds to the message of a merge: the subjects of the merged commits, oldest
+    // first, one per line. Only the subject, since whole messages made a merge message too long to
+    // read. A merge git named ('Merge branch ...') says nothing in its subject, so its list is
+    // taken instead, i.e. the lines of its body that are list items, which is what Ctrl-A wrote when
+    // it was made. That is what merging dev into main carries over: the lists of the branches that
+    // were merged into dev, whose own commits are not among the merged ones.
+    internal static string MergedSubjects(IReadOnlyList<Server.Commit> commits) =>
+        commits.Reverse().SelectMany(Subjects).Join("\n");
+
+    static IEnumerable<string> Subjects(Server.Commit commit)
+    {
+        if (commit.ParentIds.Count > 1 && commit.Subject.StartsWith("Merge "))
+            return commit.Message.Split('\n').Skip(1).Select(l => l.TrimEnd()).Where(l => l.StartsWith("- "));
+
+        return commit.Subject.Trim() == "" ? [] : [$"- {commit.Subject}"];
     }
 
     static (string, string) ParseMessage(IViewRepo repo, bool isAmend)

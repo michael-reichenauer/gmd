@@ -50,7 +50,7 @@ In dialogs and text fields:
 | ---------- | ---------------------------------------------------------- |
 | Alt-O      | OK, e.g. to commit while typing in the message box         |
 | Ctrl-D     | Show the diff of what is committed, in the commit dialog   |
-| Ctrl-A     | After a merge, add the merged commits' messages            |
+| Ctrl-A     | After a merge, add the merged commits' subjects            |
 | F7         | Spelling suggestions (also Ctrl-G)                         |
 | Shift-F10  | Text menu: spelling, copy, paste (also right-click)        |
 | Esc        | Cancel                                                     |
@@ -228,8 +228,9 @@ shown, their colors and their order.
   Displays additional commit details.
 - **Commit ...** (`c`):
   Commit all uncommitted changes, with warnings for large or binary files.
-  After a merge made in gmd, `Ctrl-A` in the dialog adds the messages of
-  the merged commits.
+  After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
+  the merged commits, one per line, and for a merged merge the list in its
+  message.
 - **Commit Diff** (`d`):
   View a side-by-side diff of commit changes.
   Within the view: `+` shows more of the file the cursor is on around its
