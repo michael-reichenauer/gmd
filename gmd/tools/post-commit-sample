@@ -1,9 +1,0 @@
-#!/bin/sh
-
-# Only run on main branch
-current_branch=$(git symbolic-ref --short HEAD)
-if [ "$current_branch" != "main" ]; then
-    exit 0
-fi
-
-gmd --updatechangelog
