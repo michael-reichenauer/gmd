@@ -11,6 +11,13 @@ interface IGit
     // The ids of the commits that changed a file whose path contains the text, for a search
     Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
+
+    // The commits reachable from the given ids that no branch, tag or stash reaches any more
+    Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    );
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<Result<Status>> GetStatusAsync(string wd);

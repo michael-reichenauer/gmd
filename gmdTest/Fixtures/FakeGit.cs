@@ -135,6 +135,12 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    ) => throw new NotSupportedException();
+
     public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         throw new NotSupportedException();
 

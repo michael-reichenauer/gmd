@@ -254,4 +254,31 @@ public class LogServiceTest
         CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
         StringAssert.EndsWith(cmd.Calls[0].Args, "--max-count=50 -- \":(icase)*gmd/Cui x*\"");
     }
+
+    // The ids are given in chunks a Windows command line holds, each walked with everything kept
+    // taken away, and a commit two chunks both reach is listed once
+    [TestMethod]
+    public async Task TestUnreachableCommitsAreReadInChunks()
+    {
+        var cmd = new FakeCmd(GitLogOutput());
+        var ids = Enumerable.Range(0, 900).Select(i => i.ToString("x40")).ToList();
+
+        var commits = AssertOk(await new LogService(cmd).GetUnreachableCommitsAsync(ids, ["5a5a"], "/wd"));
+
+        Assert.AreEqual(3, cmd.Calls.Count);
+        StringAssert.StartsWith(cmd.Calls[0].Args, "log --ignore-missing -z --date-order --pretty=");
+        StringAssert.EndsWith(cmd.Calls[0].Args, $"{ids[399]} --not --all 5a5a");
+        StringAssert.Contains(cmd.Calls[1].Args, $" {ids[400]} ");
+        StringAssert.EndsWith(cmd.Calls[2].Args, $"{ids[899]} --not --all 5a5a");
+        Assert.AreEqual(1, commits.Count);
+    }
+
+    [TestMethod]
+    public async Task TestNoUnreachableCommitsWithoutIds()
+    {
+        var cmd = new FakeCmd(GitLogOutput());
+
+        Assert.AreEqual(0, AssertOk(await new LogService(cmd).GetUnreachableCommitsAsync([], [], "/wd")).Count);
+        Assert.AreEqual(0, cmd.Calls.Count);
+    }
 }

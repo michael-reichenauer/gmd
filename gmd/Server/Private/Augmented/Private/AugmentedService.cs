@@ -14,6 +14,10 @@ class AugmentedService : IAugmentedService
 {
     const int maxCommitCount = 30000; // Increase performance in case of very large repos
 
+    // The commits the reflogs mention that are looked up as maybe lost, the newest: each ref's
+    // reflog is latest first, and a reflog of years can name many thousands
+    const int maxLostCandidates = 1200;
+
     readonly IGit git;
     readonly IAugmenter augmenter;
     readonly IWorkRepoConverter converter;
@@ -459,6 +463,36 @@ class AugmentedService : IAugmentedService
             );
             return Result.Ok;
         }
+    }
+
+    // The lines of work no branch, tag or stash has any more, which the reflogs still mention. Read
+    // when asked, not with the repo: it is a log of the commits the repo does not have, which is
+    // nothing to wait for on every refresh. The reflog is read again for it, since the repo does not
+    // keep it.
+    public async Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo)
+    {
+        var reflogResult = await git.GetReflogAsync(repo.Path);
+        if (reflogResult is not IReadOnlyList<ReflogEntry> reflog)
+            return new Error("Failed to read the reflog", reflogResult.Error);
+
+        var candidates = reflog
+            .OrderBy(e => e.Index)
+            .Select(e => e.Id)
+            .Distinct()
+            .Where(id => !repo.CommitById.ContainsKey(id))
+            .Take(maxLostCandidates)
+            .ToList();
+        if (candidates.Count == 0)
+            return new List<LostWork>();
+
+        var stashes = repo.Stashes.Select(s => s.Id).ToList();
+        var lostResult = await git.GetUnreachableCommitsAsync(candidates, stashes, repo.Path);
+        if (lostResult is not IReadOnlyList<Git.Commit> lost)
+            return new Error("Failed to read the commits no branch has", lostResult.Error);
+
+        var localNames = repo.AllBranches.Where(b => b.IsGitBranch && !b.IsRemote).Select(b => b.Name).ToHashSet();
+        var reachable = repo.AllCommits.Select(c => (c.Author, c.AuthorTime));
+        return LostWorkFinder.Find(reflog, lost, reachable, localNames).ToList();
     }
 
     // A branch that is not checked out has no files to take back, so it is just moved, and only if

@@ -69,6 +69,12 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         logService.GetMergeLogAsync(reference, wd);
 
+    public Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    ) => logService.GetUnreachableCommitsAsync(ids, alsoReached, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
         logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
 
