@@ -98,6 +98,9 @@ interface IGit
     Task<Result> PushTagAsync(string name, string wd);
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
     Task<Result> ResetHardUntilCommitAsync(string id, string wd);
+
+    // Moves the current branch to a commit, with the files (keep) or without them (mixed)
+    Task<Result> ResetBranchAsync(string id, bool isKeep, string wd);
     Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd);
     Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd);
     Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);

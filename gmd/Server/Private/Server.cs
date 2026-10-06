@@ -483,6 +483,8 @@ class Server : IServer
 
     public Task<Result> UncommitUntilCommitAsync(string id, string wd) => git.UncommitUntilCommitAsync(id, wd);
 
+    public Task<Result> UndoStepAsync(Repo repo, UndoStep step) => augmentedService.UndoStepAsync(repo, step);
+
     public Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 

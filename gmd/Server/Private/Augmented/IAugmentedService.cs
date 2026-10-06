@@ -50,4 +50,5 @@ interface IAugmentedService
     Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
+    Task<Result> UndoStepAsync(Repo repo, UndoStep step);
 }

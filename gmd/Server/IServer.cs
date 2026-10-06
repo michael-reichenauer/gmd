@@ -112,6 +112,9 @@ interface IServer
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
+
+    // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see AugmentedService
+    Task<Result> UndoStepAsync(Repo repo, UndoStep step);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);

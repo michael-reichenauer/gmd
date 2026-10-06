@@ -250,6 +250,9 @@ internal class Git : IGit
     public Task<Result> ResetHardUntilCommitAsync(string id, string wd) =>
         commitService.ResetHardUntilCommitAsync(id, wd);
 
+    public Task<Result> ResetBranchAsync(string id, bool isKeep, string wd) =>
+        commitService.ResetBranchAsync(id, isKeep, wd);
+
     public Task<Result> PushTagAsync(string name, string wd) => remoteService.PushTagAsync(name, wd);
 
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => remoteService.DeleteRemoteTagAsync(name, wd);

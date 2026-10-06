@@ -397,6 +397,57 @@ class AugmentedService : IAugmentedService
         return Result.Ok;
     }
 
+    // Takes back the last change of a branch, or redoes the change an undo took back. The current
+    // branch is reset in the way that loses nothing uncommitted, see UndoStep.Mode. The reset is an
+    // entry in the branch's reflog like any other, so the change it took back is recorded with it,
+    // and Undo again names that change and redoes it, rather than undoing "a reset".
+    public async Task<Result> UndoStepAsync(Repo repo, UndoStep step)
+    {
+        if (!repo.BranchByName.TryGetValue(step.BranchName, out var branch) || branch.IsRemote)
+            return new Error($"There is no local branch '{step.BranchName}'");
+        if (branch.WorktreePath != "")
+            return new Error($"'{step.BranchName}' is checked out in another worktree, so it is undone there");
+        if (!branch.IsCurrent)
+            return new Error($"'{step.BranchName}' is not the current branch");
+
+        using (fileMonitor.Pause())
+        {
+            var isKeep = step.Mode == UndoMode.Keep || (step.Mode == UndoMode.KeepWhenClean && repo.Status.IsOk);
+            if (await git.ResetBranchAsync(step.TargetId, isKeep, repo.Path) is Error e)
+                return e;
+
+            RecordStep(
+                repo,
+                step.BranchName,
+                new RecordedStep
+                {
+                    Kind = step.Kind.ToString(),
+                    Name = step.Name,
+                    BeforeId = step.TipId,
+                    AfterId = step.TargetId,
+                    Moves = 1,
+                    IsRedo = !step.IsRedo,
+                }
+            );
+            return Result.Ok;
+        }
+    }
+
+    // Records a change gmd made to a branch as its latest, see RepoConfig.UndoSteps, and forgets the
+    // records of branches that are gone
+    void RecordStep(Repo repo, string branchName, RecordedStep step) =>
+        repoConfig.Set(
+            repo.Path,
+            c =>
+            {
+                foreach (var name in c.UndoSteps.Keys.Where(n => !repo.BranchByName.ContainsKey(n)).ToList())
+                {
+                    c.UndoSteps.Remove(name);
+                }
+                c.UndoSteps[branchName] = step;
+            }
+        );
+
     public async Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setNiceName)
     {
         Log.Info($"Set {commitId.Sid()} to {setNiceName} ...");

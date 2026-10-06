@@ -33,6 +33,7 @@ interface IBranchCommands
     void MergeBranch(string name);
     void MergeToBranch(string targetName);
     void RebaseBranchOnto(string onto);
+    void UndoLastChange(string branchName);
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -68,6 +69,7 @@ class BranchCommands : IBranchCommands
     readonly IBranchCreateCommands createCmds;
     readonly IBranchPushPullCommands pushPullCmds;
     readonly IWorktreeCommands worktreeCmds;
+    readonly IUndoCommands undoCmds;
     readonly IFindBranchDlg findBranchDlg;
 
     public BranchCommands(
@@ -83,7 +85,8 @@ class BranchCommands : IBranchCommands
         IRepoConfig repoConfig,
         Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
         Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands,
-        Func<IViewRepo, IRepoView, IWorktreeCommands> newWorktreeCommands
+        Func<IViewRepo, IRepoView, IWorktreeCommands> newWorktreeCommands,
+        Func<IViewRepo, IRepoView, IUndoCommands> newUndoCommands
     )
     {
         this.worktreeCmds = newWorktreeCommands(repo, repoView);
@@ -99,6 +102,7 @@ class BranchCommands : IBranchCommands
         this.repoConfig = repoConfig;
         this.createCmds = newCreateCommands(repo, repoView);
         this.pushPullCmds = newPushPullCommands(repo, repoView);
+        this.undoCmds = newUndoCommands(repo, repoView);
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -111,6 +115,9 @@ class BranchCommands : IBranchCommands
 
     public void RefreshAndFetch(string addName = "", string commitId = "") =>
         repoView.RefreshAndFetch(addName, commitId);
+
+    // Undoing the last change of a branch
+    public void UndoLastChange(string branchName) => undoCmds.UndoLastChange(branchName);
 
     // Creating and deleting branches
     public void CreateBranch() => createCmds.CreateBranch();

@@ -10,6 +10,7 @@ interface ICommitService
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
     Task<Result> ResetHardUntilCommitAsync(string id, string wd);
+    Task<Result> ResetBranchAsync(string id, bool isKeep, string wd);
 }
 
 // cSpell:ignore pathspec
@@ -121,6 +122,14 @@ class CommitService : ICommitService
     public async Task<Result> ResetHardUntilCommitAsync(string id, string wd)
     {
         return await cmd.RunAsync("git", $"reset --hard {id}", wd);
+    }
+
+    // Moves the current branch back to where it was, as Undo does: '--keep' moves the files too,
+    // and refuses rather than overwrite a file with uncommitted changes, while '--mixed' leaves the
+    // files as they are, so what the branch no longer has shows up as uncommitted changes
+    public async Task<Result> ResetBranchAsync(string id, bool isKeep, string wd)
+    {
+        return await cmd.RunAsync("git", $"reset {(isKeep ? "--keep" : "--mixed")} {id}", wd);
     }
 
     static bool IsFileUnknown(Error error, string path)

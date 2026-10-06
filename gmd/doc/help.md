@@ -266,6 +266,15 @@ shown, their colors and their order.
   squash them into one commit with a new message.
 - **Undo** (in the commit menu, and `u` in the diff of the uncommitted
   changes). The items that throw changes away for good ask first:
+  - **Undo** the last change of the current branch, named after it, e.g.
+    **Undo Rebase** or **Undo Commit 'Fix'**: the branch goes back to where
+    it was before, as git's reflog of the branch has it, whether the change
+    was made in gmd or not. Nothing uncommitted is lost: a commit or amend
+    undone leaves its changes uncommitted (`git reset --mixed`), and any
+    other change takes the files back with it (`git reset --keep`), which
+    needs a clean tree. It asks nothing, since undoing again redoes it
+    (**Redo ...**). A commit already pushed is not undone, and an undo never
+    pushes: what origin has stays there.
   - **Discard Changes in a File**: `git checkout --force HEAD -- <file>`,
     staged changes too, or a new file is unstaged and deleted
   - **Revert Commit**: `git revert --no-commit <commit-sha>`

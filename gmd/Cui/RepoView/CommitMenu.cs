@@ -125,8 +125,21 @@ class CommitMenu : ICommitMenu
             .Where(f => !Files.IsText(Path.Join(repo.Path, f)))
             .ToList();
 
+        // The last change of the current branch, which the reflog says, and its undo, which a
+        // second Undo takes back
+        var current = repo.Repo.CurrentBranch();
+        var step = BranchUndo.StepOf(repo.Repo, current);
+
         return Menu
-            .Items.SubMenu(
+            .Items.Item(
+                BranchUndo.Label(step),
+                "",
+                () => repo.BranchCmds.UndoLastChange(current.Name),
+                () => BranchUndo.WhyNot(repo.Repo, current, step) == "",
+                () => BranchUndo.WhyNot(repo.Repo, current, step)
+            )
+            .Separator()
+            .SubMenu(
                 "Discard Changes in a File",
                 "",
                 GetUncommittedFileItems(),
