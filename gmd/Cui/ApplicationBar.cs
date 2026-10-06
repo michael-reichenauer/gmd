@@ -32,8 +32,8 @@ interface IApplicationBar
     event Action<int, int, ApplicationBarItem> ItemClicked;
     void SetBranch(GraphBranch branch);
 
-    // The repo, and how many commits the hidden branches have that the user has not seen
-    void SetRepo(Server.Repo repo, int hiddenNewCount);
+    // The repo, and how many hidden branches have something the user has not seen
+    void SetRepo(Server.Repo repo, int hiddenNewsCount);
 }
 
 class ApplicationBar : View, IApplicationBar
@@ -143,7 +143,7 @@ class ApplicationBar : View, IApplicationBar
         base.Redraw(bounds);
     }
 
-    public void SetRepo(Server.Repo repo, int hiddenNewCount)
+    public void SetRepo(Server.Repo repo, int hiddenNewsCount)
     {
         var behindCount = repo.ViewCommits.Where(c => c.IsBehind).Count();
         var aheadCount = repo.ViewCommits.Where(c => c.IsAhead).Count();
@@ -159,9 +159,10 @@ class ApplicationBar : View, IApplicationBar
             behindCount > 0 ? Common.Text.Dark(", ").BrightBlue("▼").Dark($"{behindCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Ahead] =
             aheadCount > 0 ? Common.Text.Dark(", ").Green("▲").Dark($"{aheadCount}") : Common.Text.Empty;
-        // A hollow ▼: commits to be had, as ▼ is, but on branches that are not shown
+        // The hidden branches with something new. A star rather than the hollow ▼ it was, which was
+        // easily taken for ▼, the commits to pull on the shown branches.
         items[(int)ApplicationBarItem.HiddenNews] =
-            hiddenNewCount > 0 ? Common.Text.Dark(", ").BrightBlue("▽").Dark($"{hiddenNewCount}") : Common.Text.Empty;
+            hiddenNewsCount > 0 ? Common.Text.Dark(", ").BrightBlue("✦").Dark($"{hiddenNewsCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Stash] =
             stashCount > 0 ? Common.Text.Dark(", ").White("ß").Dark($"{stashCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Worktrees] = GetWorktrees(repo);

@@ -317,6 +317,34 @@ public class BranchTest
         Assert.AreEqual("dev", await repo.GitAsync("rev-parse --abbrev-ref HEAD"));
     }
 
+    // A branch checked out outside gmd, in a terminal or by another tool, is shown once gmd reads the
+    // repo again, as one switched to with 's' is. It used to stay hidden, so the log did not show the
+    // branch being worked on. Only when it becomes current: hidden again, it stays hidden.
+    [TestMethod]
+    public async Task TestABranchCheckedOutOutsideGmdIsShown()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        Assert.IsFalse(gmd.WaitFor("Initial").Contains("More dev work"), "dev is hidden");
+
+        await repo.GitAsync("checkout -q dev");
+
+        StringAssert.Contains(gmd.WaitFor("(● dev)"), "More dev work");
+
+        // Down to dev's tip, the fourth row, and hide it
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("h");
+        gmd.WaitUntilGone("More dev work");
+
+        // A change to the refs, which the file monitor reads the repo again for
+        await repo.GitAsync("tag t1 main");
+        Assert.IsFalse(gmd.WaitFor("t1").Contains("More dev work"), "Still current, not become so");
+    }
+
     // 'e' merges the hoovered branch into the current one. It does not commit by itself: the merge
     // is left uncommitted and the commit dialog opens on top of it with the message filled in,
     // which is the one thing about this flow that cannot be guessed from the key table.

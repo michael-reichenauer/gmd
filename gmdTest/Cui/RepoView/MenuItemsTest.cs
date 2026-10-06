@@ -183,22 +183,38 @@ public class MenuItemsTest
         );
     }
 
-    // What the ▽ in the application bar opens: the hidden branches with new commits, and the way to
-    // stop them being news without showing them
+    // What the ✦ in the application bar opens: the hidden branches with new commits or that are new
+    // themselves. Listing them is seeing them, so there is no item to mark them seen.
     [TestMethod]
-    public async Task TestTheNewsMenuListsTheHiddenBranchesWithNewCommits()
+    public async Task TestTheNewsMenuListsTheHiddenBranchesWithSomethingNew()
     {
         var view = await ViewOf(Fixture());
-        view.HiddenNews = [new HiddenBranchNews(view.Repo.BranchByName["dev"], 2)];
+        view.HiddenNews =
+        [
+            new HiddenBranchNews(view.Repo.BranchByName["dev"], 2),
+            new HiddenBranchNews(view.Repo.BranchByName["origin/main"], 0, IsNew: true),
+        ];
 
         Assert.AreEqual(
             """
             dev (2 new)
-            ---
-            Mark All as Seen
+            main (new branch)
             """,
             Items(BranchMenuOf(view).GetHiddenNewsItems())
         );
+    }
+
+    // The New group of Show Branch lists the same, and opening it is looking at them
+    [TestMethod]
+    public async Task TestTheNewGroupOfShowBranchListsTheNewsAndSeesThemOnOpening()
+    {
+        var view = await ViewOf(Fixture());
+        view.HiddenNews = [new HiddenBranchNews(view.Repo.BranchByName["dev"], 2)];
+
+        var group = BranchMenuOf(view).GetShowBranchItems().OfType<SubMenu>().First(m => m.Text.Trim() == "New");
+
+        Assert.AreEqual("dev (2 new)", Items(group.Children));
+        Assert.IsNotNull(group.OnOpen, "Marks them seen");
     }
 
     // Once a branch has been shown or hidden, the undo item names what Backspace would undo
@@ -248,6 +264,24 @@ public class MenuItemsTest
             items.Skip(1).ToArray()
         );
         StringAssert.Contains(items[0], "dev", "The branch of the commit the cursor is on");
+    }
+
+    // A branch with no commits of its own yet branches out at its tip, and is offered there as any
+    // branch branching out is, marked '╯' as the graph marks it
+    [TestMethod]
+    public async Task TestABranchWithNoCommitsOfItsOwnIsOfferedWhereItBranchesOut()
+    {
+        var view = await ViewOf(
+            new RepoBuilder()
+                .Commit("c3", "Third", "c2")
+                .Commit("c2", "Second", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c3", isCurrent: true)
+                .LocalBranch("testing", "c2")
+        );
+        view.CurrentIndex = 1; // On 'Second'
+
+        Assert.AreEqual("  ╯ testing", Titles(BranchMenuOf(view).GetShowBranchItems())[0]);
     }
 
     // A stopped operation heads the repo menu, since it is the most urgent thing about the repo

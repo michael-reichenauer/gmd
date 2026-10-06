@@ -84,7 +84,7 @@ fetch failed.
 | o      | Branch shown in the graph (in branch menus)                  |
 | ▼      | Commit not yet pulled (blue subject)                         |
 | ▲      | Commit not yet pushed (green subject)                        |
-| ▽      | New commits on hidden branches, since last shown (top bar)   |
+| ✦      | Hidden branches with something new (top bar)                 |
 | ß      | Stash based on commit                                        |
 | ⇓      | Available update to download (use menu)                      |
 | ┅      | Truncated name/text                                          |
@@ -109,12 +109,15 @@ to show and hide branches, and to pull/update or push all of them.
 
 Which branches are shown is up to you, which is how gmd gives a clean log
 without rebasing or squashing. Showing a branch also shows the branches it
-was made from, and the main branch is always shown.
+was made from, and the main branch is always shown. So is the branch you
+are on, once it becomes current: switched to in gmd, checked out in a
+terminal or by another tool, or the one gmd or a worktree opens on. Hidden
+again, it stays hidden until it next becomes current.
 
 - `Shift-→` opens **Show Branch**: first the branches that merge in or
-  branch out at the current commit, then the Recent, Active, My Active
-  (where the last commit is yours), Active and Deleted, and Ambiguous
-  branches.
+  branch out at the current commit, then New (see ✦ below), Recent, Active,
+  My Active (where the last commit is yours), Active and Deleted, and
+  Ambiguous branches.
 - Typing in that menu, or in its sub menus, opens **Find Branch** with what
   was typed. The list narrows as more of the name is typed, every word has
   to be in it, and the names it starts a part of come first. `Enter` or a
@@ -127,10 +130,12 @@ was made from, and the main branch is always shown.
 - `Backspace` undoes the last show or hide, going back to the branches shown
   before it, one step at a time. **Undo** under **Branches** in the commit
   menu does the same, and names what it would undo.
-- ▽ in the top bar counts the commits pushed to hidden branches since you
-  last had them shown. A click lists those branches, and **New Commits** at
-  the top of **Show Branch** does too; showing one is seeing it. **Mark All
-  as Seen** clears the rest without showing them.
+- ✦ in the top bar counts the hidden branches with something new since you
+  last saw them: commits pushed to them, or the branch itself, pushed by
+  someone else or made here by another tool, e.g. in a worktree of its own.
+  A click lists those branches, and **New** at the top of **Show Branch**
+  does too. Listed is seen: the ✦ goes, and the branches stay hidden unless
+  you pick one to show it.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
 

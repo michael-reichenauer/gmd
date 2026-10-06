@@ -105,16 +105,20 @@ class Server : IServer
         var commit = repo.CommitById[commitId];
         var branch = repo.BranchByName[commit.BranchName];
 
-        return commit
+        var branchNames = commit
             .AllChildIds.Concat(commit.ParentIds) // All children and parents commit ids
             .Select(id => repo.CommitById[id]) // As commits
             .Where(cc => cc.BranchPrimaryName != commit.BranchPrimaryName) // Skip same branch
             .Concat(commit.Id == branch.TipId ? [commit] : []) // Add commit branch if tip
             .Where(FilterOnShown) // Exclude shown branches (or not)
-            .Select(cc => cc.BranchPrimaryName)
-            .Distinct()
-            .Select(n => repo.BranchByName[n])
-            .ToList();
+            .Select(cc => cc.BranchPrimaryName);
+
+        // And the branches starting here with no commits of their own, which no child commit tells of
+        var startingNames = repo.BranchesStartingAt(commitId)
+            .Where(b => isAll || !b.IsInView)
+            .Select(b => b.PrimaryName);
+
+        return branchNames.Concat(startingNames).Distinct().Select(n => repo.BranchByName[n]).ToList();
     }
 
     public IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount)

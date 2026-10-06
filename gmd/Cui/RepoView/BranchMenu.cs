@@ -16,7 +16,7 @@ interface IBranchMenu
     void ShowHiddenNewsMenu(int x, int y);
 
     IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false);
-    IEnumerable<MenuItem> GetHiddenNewsItems();
+    IReadOnlyList<MenuItem> GetHiddenNewsItems();
     IEnumerable<MenuItem> GetPushItems();
     IEnumerable<MenuItem> GetPullItems();
     IEnumerable<MenuItem> GetShowBranchItems();
@@ -82,30 +82,33 @@ class BranchMenu : IBranchMenu
         Menu.Show("Pull", x, y + 2, GetPullItems());
     }
 
-    // What the ▽ in the application bar opens: the hidden branches with commits not yet seen
+    // What the ✦ in the application bar opens: the hidden branches with something not yet seen, which
+    // are seen once listed, so the ✦ goes as the menu opens
     public void ShowHiddenNewsMenu(int x, int y)
     {
-        Menu.Show("New on Hidden Branches", x, y + 2, GetHiddenNewsItems());
+        var news = repo.HiddenNews;
+        if (news.Count == 0)
+            return;
+
+        var items = ToHiddenNewsItems(news);
+        cmds.MarkHiddenNewsSeen(news);
+        Menu.Show("New on Hidden Branches", x, y + 2, items);
     }
 
-    // Each hidden branch with commits not yet seen, the most recently changed first, which picking
-    // shows, and so marks as seen. The rest can be marked as seen without showing them, for branches
-    // the user does not follow and that would otherwise stay news.
-    public IEnumerable<MenuItem> GetHiddenNewsItems() =>
-        repo
-            .HiddenNews.Select(n =>
-                Menu.Item($"{n.Branch.NiceNameUnique} ({n.Count} new)", "", () => cmds.ShowBranch(n.Branch.Name, false))
+    public IReadOnlyList<MenuItem> GetHiddenNewsItems() => ToHiddenNewsItems(repo.HiddenNews);
+
+    // Each hidden branch with something not yet seen, the most recently changed first, which picking
+    // shows. Made at once rather than deferred, since listing them marks them seen, after which the
+    // news they are made from is gone.
+    IReadOnlyList<MenuItem> ToHiddenNewsItems(IReadOnlyList<HiddenBranchNews> news) =>
+        news.Select(n =>
+                Menu.Item(
+                    $"{n.Branch.NiceNameUnique} ({(n.IsNew ? "new branch" : $"{n.Count} new")})",
+                    "",
+                    () => cmds.ShowBranch(n.Branch.Name, false)
+                )
             )
-            .Concat(
-                Menu.Items.Separator()
-                    .Item(
-                        "Mark All as Seen",
-                        "",
-                        () => cmds.MarkHiddenNewsSeen(),
-                        () => repo.HiddenNews.Count > 0,
-                        () => "There is nothing new on the hidden branches"
-                    )
-            );
+            .ToList();
 
     // What the ▲ and ▼ in the application bar open. A click on either used to push or pull every
     // shown branch there and then, so a stray click changed the remote; now it offers the current
@@ -533,11 +536,19 @@ class BranchMenu : IBranchMenu
             .Take(RecentCount);
 
         var ambiguousBranches = allBranches.Where(b => b.AmbiguousTipId != "").OrderBy(b => b.NiceNameUnique);
+        var news = repo.HiddenNews;
 
         var items = Menu
             .Items.Items(GetCommitInOutItems())
-            // First when there is any, since it is what has changed since the user last looked
-            .SubMenu(repo.HiddenNews.Count > 0, "    New Commits", "", GetHiddenNewsItems())
+            // First when there is any, since it is what has changed since the user last looked; and
+            // seen once looked at, as in the ✦ menu
+            .SubMenu(
+                news.Count > 0,
+                "    New",
+                "",
+                ToHiddenNewsItems(news),
+                onOpen: () => cmds.MarkHiddenNewsSeen(news)
+            )
             .SubMenu(
                 "    Recent",
                 "",
@@ -760,8 +771,11 @@ class BranchMenu : IBranchMenu
             { // Is a branch merge in '╮' branch
                 isBranchIn = true;
             }
-            else if (cic.AllChildIds.ContainsBy(id => repo.Repo.CommitById[id].BranchName == branch.Name))
-            { // Is branch out '╯' branch
+            else if (
+                cic.AllChildIds.ContainsBy(id => repo.Repo.CommitById[id].BranchName == branch.Name)
+                || repo.Repo.BranchesStartingAt(cic.Id).ContainsBy(b => b.PrimaryName == branch.PrimaryName)
+            )
+            { // Is branch out '╯' branch, one with commits or one with none of its own yet
                 isBranchOut = true;
             }
         }

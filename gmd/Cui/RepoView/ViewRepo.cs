@@ -27,7 +27,7 @@ interface IViewRepo
     ShownHistory ShownHistory { get; }
     SearchMatches SearchMatches { get; }
 
-    // The hidden remote branches with commits not yet seen, see HiddenNews
+    // The hidden branches with something not yet seen, see HiddenNews
     IReadOnlyList<HiddenBranchNews> HiddenNews { get; }
 }
 

@@ -202,7 +202,7 @@ class ViewRepoCreater : IViewRepoCreater
         var augRepo = new Repo(
             repo.Path,
             DateTime.UtcNow,
-            repo.TimeStamp,
+            repo.RepoTimeStamp,
             viewCommits,
             viewBranches,
             allCommits,

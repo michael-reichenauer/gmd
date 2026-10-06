@@ -13,7 +13,7 @@ interface IBranchCommands
     void HideBranch(string name, bool hideAllBranches = false);
     void UndoShowOrHide();
     void ShowSearchMatch(int direction);
-    void MarkHiddenNewsSeen();
+    void MarkHiddenNewsSeen(IReadOnlyList<HiddenBranchNews> looked);
 
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -248,14 +248,7 @@ class BranchCommands : IBranchCommands
         );
     }
 
-    // Takes every remote branch's tip as seen, so that the hidden ones have nothing new until more is
-    // pushed to them
-    public void MarkHiddenNewsSeen()
-    {
-        repoConfig.Set(repo.Path, s => s.SeenTips = HiddenNews.AllSeen(repo.Repo));
-        repoView.UpdateRepoTo(repo.Repo);
-        status.Info("The new commits on the hidden branches are marked as seen");
-    }
+    public void MarkHiddenNewsSeen(IReadOnlyList<HiddenBranchNews> looked) => repoView.MarkHiddenNewsSeen(looked);
 
     // A show or hide the user asked for, so that Backspace can undo it
     void RecordShown(Repo newRepo, string verb, string what, string name) =>
