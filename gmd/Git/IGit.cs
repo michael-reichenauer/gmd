@@ -75,6 +75,9 @@ interface IGit
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+
+    // Moves a branch that is not checked out from one commit to another, refused if it has moved
+    Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
     Task<Result> UndoAllUncommittedChangesAsync(string wd);

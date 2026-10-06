@@ -398,7 +398,8 @@ class AugmentedService : IAugmentedService
     }
 
     // Takes back the last change of a branch, or redoes the change an undo took back. The current
-    // branch is reset in the way that loses nothing uncommitted, see UndoStep.Mode. The reset is an
+    // branch is reset in the way that loses nothing uncommitted, see UndoStep.Mode, and any other is
+    // just moved, unless it is checked out in another worktree, whose files would no longer match. The reset is an
     // entry in the branch's reflog like any other, so the change it took back is recorded with it,
     // and Undo again names that change and redoes it, rather than undoing "a reset".
     public async Task<Result> UndoStepAsync(Repo repo, UndoStep step)
@@ -407,14 +408,19 @@ class AugmentedService : IAugmentedService
             return new Error($"There is no local branch '{step.BranchName}'");
         if (branch.WorktreePath != "")
             return new Error($"'{step.BranchName}' is checked out in another worktree, so it is undone there");
-        if (!branch.IsCurrent)
-            return new Error($"'{step.BranchName}' is not the current branch");
 
         using (fileMonitor.Pause())
         {
-            var isKeep = step.Mode == UndoMode.Keep || (step.Mode == UndoMode.KeepWhenClean && repo.Status.IsOk);
-            if (await git.ResetBranchAsync(step.TargetId, isKeep, repo.Path) is Error e)
-                return e;
+            if (branch.IsCurrent)
+            {
+                var isKeep = step.Mode == UndoMode.Keep || (step.Mode == UndoMode.KeepWhenClean && repo.Status.IsOk);
+                if (await git.ResetBranchAsync(step.TargetId, isKeep, repo.Path) is Error e)
+                    return e;
+            }
+            else if (await MoveBranchAsync(step, repo.Path) is Error moveError)
+            {
+                return moveError;
+            }
 
             RecordStep(
                 repo,
@@ -431,6 +437,17 @@ class AugmentedService : IAugmentedService
             );
             return Result.Ok;
         }
+    }
+
+    // A branch that is not checked out has no files to take back, so it is just moved, and only if
+    // it is still where the step found it, which git checks as it moves it
+    async Task<Result> MoveBranchAsync(UndoStep step, string wd)
+    {
+        var message = $"undo: moving to {step.TargetId}";
+        var result = await git.MoveBranchAsync(step.BranchName, step.TargetId, step.TipId, message, wd);
+        return result is CmdError e && e.ErrorOutput.Contains("but expected")
+            ? new Error($"'{step.BranchName}' has moved since it was read, so it was left where it is", e)
+            : result;
     }
 
     // Records a change gmd made to a branch as its latest, see RepoConfig.UndoSteps, and forgets the

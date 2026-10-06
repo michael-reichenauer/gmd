@@ -32,6 +32,7 @@ public class MenuItemsTest
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...
+            Undo Last Change  (disabled)
             Diff Branch to >  [d]
             Change Branch Color  [g]
             Open in Browser  (disabled)
@@ -65,6 +66,7 @@ public class MenuItemsTest
             Create Worktree ...
             Rename Branch ...  (disabled)
             Delete Branch ...  (disabled)
+            Undo Last Change  (disabled)
             Diff Branch to >  [d]  (disabled)
             Change Branch Color  [g]  (disabled)
             Open in Browser
@@ -99,6 +101,7 @@ public class MenuItemsTest
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...  (disabled)
+            Undo Last Change  (disabled)
             Diff Branch to >  [d]
             Change Branch Color  [g]
             Open in Browser  (disabled)

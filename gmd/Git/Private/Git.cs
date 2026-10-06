@@ -199,6 +199,9 @@ internal class Git : IGit
     public Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         branchService.DeleteLocalBranchAsync(name, isForced, wd);
 
+    public Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd) =>
+        branchService.MoveBranchAsync(name, toId, fromId, message, wd);
+
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) =>
         remoteService.DeleteRemoteBranchAsync(name, wd);
 

@@ -314,7 +314,12 @@ shown, their colors and their order.
   switches to the target branch, merges, opens the commit dialog there,
   and switches back once the merge is committed. Cancelling the commit, or
   a merge that conflicts, leaves you on the target branch, which is where
-  the merge has to be finished.
+  the merge has to be finished. **Undo Merge** in the target's branch menu
+  takes it back.
+- **Undo** in a branch menu: the last change of that branch, as **Undo** in
+  the commit menu is for the current one (see below). A branch that is not
+  checked out is just moved back (`git update-ref`), and only if nothing
+  has moved it since; one checked out in another worktree is undone there.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on

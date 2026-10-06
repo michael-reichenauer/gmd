@@ -276,6 +276,9 @@ class FakeGit : IGit
     public Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd) => throw new NotSupportedException();

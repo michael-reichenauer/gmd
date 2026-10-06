@@ -152,4 +152,83 @@ public class UndoIntegrationTest
         Assert.AreEqual("made since\n", Read("b.txt"));
         Assert.AreEqual("?? b.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
     }
+
+    // Merge from (Shift-E) merges into a branch and switches back, so the merge is the last change
+    // of a branch that is not checked out: that branch is moved back, and nothing else is touched
+    [TestMethod]
+    public async Task TestUndoAMergeIntoABranchNotCheckedOut()
+    {
+        var c1 = await repo.CommitFileAsync("a.txt", "one\n", "Initial");
+        await repo.GitAsync("checkout -b feature");
+        var f1 = await repo.CommitFileAsync("f.txt", "f\n", "Feature");
+        await repo.GitAsync("checkout main");
+        await repo.GitAsync("merge --no-ff -m \"Merge branch 'feature'\" feature");
+        await repo.GitAsync("checkout feature");
+
+        var undone = await UndoAsync("main");
+
+        Assert.AreEqual((StepKind.Merge, "feature"), (undone.Kind, undone.Name));
+        Assert.AreEqual(c1, (await repo.GitAsync("rev-parse main")).Trim());
+        Assert.AreEqual(f1, await repo.HeadIdAsync());
+        Assert.AreEqual("feature", (await repo.GitAsync("branch --show-current")).Trim());
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+
+        var (_, redo) = await LastStepAsync("main");
+        Assert.AreEqual((StepKind.Merge, "feature", true), (redo.Kind, redo.Name, redo.IsRedo));
+    }
+
+    // gmd pulls a branch that is not checked out with 'fetch origin x:x', which moves it in place
+    [TestMethod]
+    public async Task TestUndoThePullOfABranchNotCheckedOut()
+    {
+        await repo.CommitFileAsync("a.txt", "one\n", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -u origin main");
+        await repo.GitAsync("checkout -b other");
+        var o1 = await repo.CommitFileAsync("o.txt", "one\n", "Other one");
+        var o2 = await repo.CommitFileAsync("o.txt", "two\n", "Other two");
+        await repo.GitAsync("push -u origin other");
+        await repo.GitAsync("checkout main");
+        await repo.GitAsync($"branch -f other {o1}");
+        await repo.GitAsync("fetch origin other:other");
+        Assert.AreEqual(o2, (await repo.GitAsync("rev-parse other")).Trim());
+
+        var undone = await UndoAsync("other");
+
+        Assert.AreEqual(StepKind.Pull, undone.Kind);
+        Assert.AreEqual(o1, (await repo.GitAsync("rev-parse other")).Trim());
+    }
+
+    // The branch is moved only from where the step found it: one moved since is left where it is
+    [TestMethod]
+    public async Task TestABranchMovedSinceItWasReadIsLeftWhereItIs()
+    {
+        var c1 = await repo.CommitFileAsync("a.txt", "one\n", "Initial");
+        await repo.GitAsync("branch other");
+        await repo.GitAsync("checkout other");
+        await repo.CommitFileAsync("o.txt", "one\n", "Other one");
+        await repo.GitAsync("checkout main");
+        var (augmented, step) = await LastStepAsync("other");
+        await repo.GitAsync($"branch -f other {c1}");
+
+        var error = AssertError(await service.UndoStepAsync(augmented, step));
+
+        StringAssert.Contains(error.Message, "'other' has moved since it was read");
+        Assert.AreEqual(c1, (await repo.GitAsync("rev-parse other")).Trim());
+    }
+
+    // A branch checked out in another worktree is moved only there, since that worktree's files
+    // would otherwise no longer match its branch
+    [TestMethod]
+    public async Task TestNotABranchCheckedOutInAnotherWorktree()
+    {
+        await repo.CommitFileAsync("a.txt", "one\n", "Initial");
+        var path = await repo.AddWorktreeAsync("dev");
+        File.WriteAllText(Path.Join(path, "d.txt"), "d\n");
+        await repo.GitAsync($"-C \"{path}\" add .");
+        await repo.GitAsync($"-C \"{path}\" commit -m Dev");
+        var (augmented, step) = await LastStepAsync("dev");
+
+        AssertError(await service.UndoStepAsync(augmented, step));
+    }
 }

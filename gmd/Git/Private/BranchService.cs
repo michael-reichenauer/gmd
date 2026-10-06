@@ -10,6 +10,7 @@ interface IBranchService
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+    Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd);
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
@@ -96,6 +97,14 @@ class BranchService : IBranchService
         string args = $"branch --delete {name}";
         args = isForced ? args + " -D" : args;
         return await cmd.RunAsync("git", args, wd);
+    }
+
+    // Moves a branch that is not checked out, with the message its reflog gets, and only if it is
+    // still at fromId: git compares and moves in one step, so a branch something else moved in the
+    // meantime is left where it is rather than losing what moved it
+    public async Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd)
+    {
+        return await cmd.RunAsync("git", $"update-ref -m \"{message}\" refs/heads/{name} {toId} {fromId}", wd);
     }
 
     public async Task<Result> MergeBranchAsync(string name, string wd)
