@@ -210,10 +210,13 @@ class ViewRepoConverter : IViewRepoConverter
         viewBranches = viewBranches.Select((b, i) => b with { IsInView = true }).ToList();
         viewBranches.ForEach(b => allBranches[branchIndexByName[b.Name]] = b);
 
+        // The repo time stamp is when the read the repo came from started, which says what changes it
+        // has seen (ChangeEvent.IsSeenBy). Showing other branches of it reads nothing, so it keeps it:
+        // the time the view repo was made would take a change made during the read as seen.
         return new Repo(
             repo.Path,
             timeStamp,
-            repo.TimeStamp,
+            repo.RepoTimeStamp,
             viewCommits,
             viewBranches,
             allCommits,

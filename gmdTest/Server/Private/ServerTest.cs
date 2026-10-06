@@ -27,6 +27,24 @@ public class ServerTest
         CollectionAssert.AreEqual(new[] { "origin/main", "main", "origin/dev", "dev", "feat" }, BranchNames(repo));
     }
 
+    // Showing a branch reads nothing, so the repo it gives has seen the changes the read had seen and
+    // no more: given the time the view was made instead, a change made while the repo was being read
+    // would count as seen (ChangeEvent.IsSeenBy) and never be shown
+    [TestMethod]
+    public async Task TestShowBranchKeepsTheRepoTimeStampOfTheRead()
+    {
+        var b = ThreeBranches();
+        var server = b.NewServer();
+        var repo = await b.ViewRepoAsync();
+        Assert.IsTrue(repo.RepoTimeStamp < repo.TimeStamp, "the view is made after the read");
+
+        var shown = server.ShowBranch(repo, "dev", includeAmbiguous: false);
+        var hidden = server.HideBranch(shown, "dev");
+
+        Assert.AreEqual(repo.RepoTimeStamp, shown.RepoTimeStamp);
+        Assert.AreEqual(repo.RepoTimeStamp, hidden.RepoTimeStamp);
+    }
+
     // Hiding a branch leaves the other shown branches alone
     [TestMethod]
     public async Task TestHideBranchRemovesOnlyThatBranch()
