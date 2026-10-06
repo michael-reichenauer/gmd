@@ -29,7 +29,7 @@ interface IRepoView
     // What the last search found, for n and Shift-N, kept here for the same reason
     SearchMatches SearchMatches { get; }
 
-    // The hidden remote branches with commits not yet seen, see HiddenNews
+    // The hidden branches with something not yet seen, see HiddenNews
     IReadOnlyList<HiddenBranchNews> HiddenNews { get; }
 
     Task<Result> ShowInitialRepoAsync(string path);
@@ -631,7 +631,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         // Not while a search shows its results, which are not what the user has seen of the branches
         if (serverRepo.Filter == "")
             UpdateHiddenNews(serverRepo);
-        applicationBarView.SetRepo(serverRepo, hiddenNews.Sum(n => n.Count));
+        applicationBarView.SetRepo(serverRepo, hiddenNews.Count);
 
         commitsView.SetNeedsDisplay();
         OnCurrentIndexChange();
@@ -649,10 +649,19 @@ class RepoView : IRepoView, IRepoViewInputHost
     // The shown branches are seen, and what is new on the hidden ones is counted against what was
     void UpdateHiddenNews(Server.Repo serverRepo)
     {
-        var seenTips = repoConfig.Get(serverRepo.Path).SeenTips;
-        var seen = Cui.RepoView.HiddenNews.Seen(serverRepo, seenTips);
-        if (!Cui.RepoView.HiddenNews.IsSame(seen, seenTips))
-            repoConfig.Set(serverRepo.Path, s => s.SeenTips = seen);
+        var config = repoConfig.Get(serverRepo.Path);
+        var seen = Cui.RepoView.HiddenNews.Seen(serverRepo, config.SeenTips, config.IsSeenTipsForAll);
+        if (!config.IsSeenTipsForAll || !Cui.RepoView.HiddenNews.IsSame(seen, config.SeenTips))
+        {
+            repoConfig.Set(
+                serverRepo.Path,
+                s =>
+                {
+                    s.SeenTips = seen;
+                    s.IsSeenTipsForAll = true;
+                }
+            );
+        }
 
         hiddenNews = Cui.RepoView.HiddenNews.Of(serverRepo, seen);
     }

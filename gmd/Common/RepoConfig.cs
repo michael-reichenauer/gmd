@@ -15,9 +15,12 @@ class RepoConfig
     public Dictionary<string, int> BranchColors { get; set; } = [];
     public List<BranchOrder> BranchOrders { get; set; } = [];
 
-    // The tip each remote branch had when it was last shown, by name, for telling what is new on
-    // the hidden ones, see HiddenNews
+    // The tip each branch had when it was last shown, by name, for telling what is new on the hidden
+    // ones, see HiddenNews
     public Dictionary<string, string> SeenTips { get; set; } = [];
+
+    // False for SeenTips as an older gmd left it, which held only the remote branches, see HiddenNews.Seen
+    public bool IsSeenTipsForAll { get; set; } = false;
 }
 
 public class BranchOrder

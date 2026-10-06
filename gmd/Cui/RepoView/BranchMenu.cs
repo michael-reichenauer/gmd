@@ -82,19 +82,23 @@ class BranchMenu : IBranchMenu
         Menu.Show("Pull", x, y + 2, GetPullItems());
     }
 
-    // What the ▽ in the application bar opens: the hidden branches with commits not yet seen
+    // What the ✦ in the application bar opens: the hidden branches with something not yet seen
     public void ShowHiddenNewsMenu(int x, int y)
     {
         Menu.Show("New on Hidden Branches", x, y + 2, GetHiddenNewsItems());
     }
 
-    // Each hidden branch with commits not yet seen, the most recently changed first, which picking
+    // Each hidden branch with something not yet seen, the most recently changed first, which picking
     // shows, and so marks as seen. The rest can be marked as seen without showing them, for branches
     // the user does not follow and that would otherwise stay news.
     public IEnumerable<MenuItem> GetHiddenNewsItems() =>
         repo
             .HiddenNews.Select(n =>
-                Menu.Item($"{n.Branch.NiceNameUnique} ({n.Count} new)", "", () => cmds.ShowBranch(n.Branch.Name, false))
+                Menu.Item(
+                    $"{n.Branch.NiceNameUnique} ({(n.IsNew ? "new branch" : $"{n.Count} new")})",
+                    "",
+                    () => cmds.ShowBranch(n.Branch.Name, false)
+                )
             )
             .Concat(
                 Menu.Items.Separator()
@@ -537,7 +541,7 @@ class BranchMenu : IBranchMenu
         var items = Menu
             .Items.Items(GetCommitInOutItems())
             // First when there is any, since it is what has changed since the user last looked
-            .SubMenu(repo.HiddenNews.Count > 0, "    New Commits", "", GetHiddenNewsItems())
+            .SubMenu(repo.HiddenNews.Count > 0, "    New", "", GetHiddenNewsItems())
             .SubMenu(
                 "    Recent",
                 "",

@@ -183,17 +183,22 @@ public class MenuItemsTest
         );
     }
 
-    // What the ▽ in the application bar opens: the hidden branches with new commits, and the way to
-    // stop them being news without showing them
+    // What the ✦ in the application bar opens: the hidden branches with new commits or that are new
+    // themselves, and the way to stop them being news without showing them
     [TestMethod]
-    public async Task TestTheNewsMenuListsTheHiddenBranchesWithNewCommits()
+    public async Task TestTheNewsMenuListsTheHiddenBranchesWithSomethingNew()
     {
         var view = await ViewOf(Fixture());
-        view.HiddenNews = [new HiddenBranchNews(view.Repo.BranchByName["dev"], 2)];
+        view.HiddenNews =
+        [
+            new HiddenBranchNews(view.Repo.BranchByName["dev"], 2),
+            new HiddenBranchNews(view.Repo.BranchByName["origin/main"], 0, IsNew: true),
+        ];
 
         Assert.AreEqual(
             """
             dev (2 new)
+            main (new branch)
             ---
             Mark All as Seen
             """,
