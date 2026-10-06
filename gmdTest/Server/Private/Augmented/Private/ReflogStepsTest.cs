@@ -110,4 +110,179 @@ public class ReflogStepsTest
     {
         Assert.AreEqual(mode, new UndoStep("dev", kind, "", Id("a2"), Id("a1"), false, false).Mode);
     }
+
+    static IReadOnlyDictionary<string, UndoStep> Steps(RepoBuilder builder) =>
+        ReflogSteps.StepsByBranch(builder.ToGitRepo());
+
+    // Two commits on main and one on a feature started from it, each in the branch's own reflog
+    static RepoBuilder TwoBranches() =>
+        new RepoBuilder()
+            .LocalBranch("main", "a2", isCurrent: true)
+            .LocalBranch("feature", "b1")
+            .Reflog("refs/heads/main", "a2", "commit: Two")
+            .Reflog("refs/heads/main", "a1", "commit (initial): One")
+            .Reflog("refs/heads/feature", "b1", "commit: Feature")
+            .Reflog("refs/heads/feature", "a1", "branch: Created from main");
+
+    // Each local branch's last change is the newest move in its own reflog, back to where it was
+    // before, whether it is checked out or not
+    [TestMethod]
+    public void TestTheLastChangeOfEachLocalBranch()
+    {
+        var steps = Steps(TwoBranches());
+
+        Assert.AreEqual(new UndoStep("main", StepKind.Commit, "Two", Id("a2"), Id("a1"), false, false), steps["main"]);
+        Assert.AreEqual(
+            new UndoStep("feature", StepKind.Commit, "Feature", Id("b1"), Id("a1"), false, false),
+            steps["feature"]
+        );
+    }
+
+    // A branch whose reflog starts where it was made has nothing before it to go back to, and one
+    // with no reflog has no last change at all
+    [TestMethod]
+    public void TestNoStepForABranchJustMadeOrWithoutAReflog()
+    {
+        var steps = Steps(
+            new RepoBuilder()
+                .LocalBranch("main", "a1", isCurrent: true)
+                .LocalBranch("feature", "a1")
+                .LocalBranch("other", "a1")
+                .Reflog("refs/heads/main", "a1", "commit (initial): One")
+                .Reflog("refs/heads/feature", "a1", "branch: Created from main")
+        );
+
+        Assert.AreEqual(0, steps.Count, string.Join(", ", steps.Values));
+    }
+
+    // The reflog is written with the branch, so a branch that is not where its reflog says was moved
+    // by something that wrote none, and its reflog says nothing about how it got there
+    [TestMethod]
+    public void TestNoStepWhenTheBranchIsNotWhereItsReflogSays()
+    {
+        var steps = Steps(
+            new RepoBuilder()
+                .LocalBranch("main", "a3", isCurrent: true)
+                .Reflog("refs/heads/main", "a2", "commit: Two")
+                .Reflog("refs/heads/main", "a1", "commit (initial): One")
+        );
+
+        Assert.AreEqual(0, steps.Count);
+    }
+
+    // A rename moved nothing, so the change before it is the last one
+    [TestMethod]
+    public void TestARenameIsNoChange()
+    {
+        var steps = Steps(
+            new RepoBuilder()
+                .LocalBranch("dev", "a2", isCurrent: true)
+                .Reflog("refs/heads/dev", "a2", "Branch: renamed refs/heads/main to refs/heads/dev")
+                .Reflog("refs/heads/dev", "a2", "commit: Two")
+                .Reflog("refs/heads/dev", "a1", "commit (initial): One")
+        );
+
+        Assert.AreEqual(new UndoStep("dev", StepKind.Commit, "Two", Id("a2"), Id("a1"), false, false), steps["dev"]);
+    }
+
+    // A tip on the remote branch is pushed, i.e. undoing it here leaves it there; one with commits
+    // to push is not, and neither is one whose remote branch is gone
+    [TestMethod]
+    [DataRow(0, true, true)]
+    [DataRow(1, true, false)]
+    [DataRow(0, false, false)]
+    public void TestWhetherTheTipIsPushed(int ahead, bool hasRemote, bool isPushed)
+    {
+        var builder = new RepoBuilder()
+            .LocalBranch("main", "a2", isCurrent: true, remoteName: "origin/main", ahead: ahead)
+            .Reflog("refs/heads/main", "a2", "commit: Two")
+            .Reflog("refs/heads/main", "a1", "commit (initial): One");
+        if (hasRemote)
+            builder.RemoteBranch("origin/main", ahead == 0 ? "a2" : "a1");
+
+        Assert.AreEqual(isPushed, Steps(builder)["main"].IsPushed);
+    }
+
+    // A squash is several moves; gmd records it, and the record names the last change for as long
+    // as those moves are the newest in the reflog
+    [TestMethod]
+    public void TestARecordedSquashIsTheLastChangeWhileItIsTheLatest()
+    {
+        var builder = new RepoBuilder()
+            .LocalBranch("main", "a3", isCurrent: true)
+            .Reflog("refs/heads/main", "a3", "commit: Squashed")
+            .Reflog("refs/heads/main", "a0", "reset: moving to a0")
+            .Reflog("refs/heads/main", "a2", "commit: Two")
+            .Reflog("refs/heads/main", "a1", "commit: One")
+            .Reflog("refs/heads/main", "a0", "commit (initial): Zero")
+            .RecordedStep("main", StepKind.Squash, "Squashed", "a2", moves: 2);
+
+        Assert.AreEqual(
+            new UndoStep("main", StepKind.Squash, "Squashed", Id("a3"), Id("a2"), false, false),
+            Steps(builder)["main"]
+        );
+    }
+
+    // Anything that moved the branch since shifts the moves, and the reflog's own latest is taken
+    [TestMethod]
+    public void TestARecordedSquashIsStaleOnceTheBranchMoved()
+    {
+        var builder = new RepoBuilder()
+            .LocalBranch("main", "a4", isCurrent: true)
+            .Reflog("refs/heads/main", "a4", "commit: Later")
+            .Reflog("refs/heads/main", "a3", "commit: Squashed")
+            .Reflog("refs/heads/main", "a0", "reset: moving to a0")
+            .Reflog("refs/heads/main", "a2", "commit: Two")
+            .RecordedStep("main", StepKind.Squash, "Squashed", "a2", moves: 2);
+
+        Assert.AreEqual(
+            new UndoStep("main", StepKind.Commit, "Later", Id("a4"), Id("a3"), false, false),
+            Steps(builder)["main"]
+        );
+    }
+
+    // An undo is a reset, which gmd records as the change it took back, so Undo again redoes it
+    [TestMethod]
+    public void TestARecordedUndoIsRedone()
+    {
+        var builder = new RepoBuilder()
+            .LocalBranch("main", "a1", isCurrent: true)
+            .Reflog("refs/heads/main", "a1", "reset: moving to a1")
+            .Reflog("refs/heads/main", "a2", "commit: Two")
+            .Reflog("refs/heads/main", "a1", "commit (initial): One")
+            .RecordedStep("main", StepKind.Commit, "Two", "a2", afterCommit: "a1", isRedo: true);
+
+        Assert.AreEqual(
+            new UndoStep("main", StepKind.Commit, "Two", Id("a1"), Id("a2"), false, true),
+            Steps(builder)["main"]
+        );
+    }
+
+    // A record for where the branch is not is stale, however many moves it says
+    [TestMethod]
+    public void TestARecordWithAnotherEndIsStale()
+    {
+        var builder = new RepoBuilder()
+            .LocalBranch("main", "a1", isCurrent: true)
+            .Reflog("refs/heads/main", "a1", "reset: moving to a1")
+            .Reflog("refs/heads/main", "a2", "commit: Two")
+            .RecordedStep("main", StepKind.Commit, "Two", "a2", afterCommit: "a9", isRedo: true);
+
+        Assert.AreEqual(StepKind.Reset, Steps(builder)["main"].Kind);
+    }
+
+    // The steps are carried all the way to the repo the UI renders, filtered or not
+    [TestMethod]
+    public async Task TestTheStepsReachTheViewRepo()
+    {
+        var builder = new RepoBuilder()
+            .Commit("a2", "Two", "a1")
+            .Commit("a1", "One")
+            .LocalBranch("main", "a2", isCurrent: true)
+            .Reflog("refs/heads/main", "a2", "commit: Two")
+            .Reflog("refs/heads/main", "a1", "commit (initial): One");
+
+        Assert.AreEqual(StepKind.Commit, (await builder.ViewRepoAsync()).UndoSteps["main"].Kind);
+        Assert.AreEqual(StepKind.Commit, (await builder.FilteredViewRepoAsync("Two")).UndoSteps["main"].Kind);
+    }
 }

@@ -21,6 +21,24 @@ class RepoConfig
 
     // False for SeenTips as an older gmd left it, which held only the remote branches, see HiddenNews.Seen
     public bool IsSeenTipsForAll { get; set; } = false;
+
+    // The last change gmd made to a branch, by branch name, where the branch's reflog alone would name
+    // it wrong: a squash, which is several moves, and an undo, which is a reset that Undo again redoes.
+    // Taken only while the reflog still lists it as the latest, see ReflogSteps.StepsByBranch.
+    public Dictionary<string, RecordedStep> UndoSteps { get; set; } = [];
+}
+
+// A change gmd made to a branch: the branch was at BeforeId, the change wrote Moves entries to the
+// branch's reflog, and left it at AfterId, or wherever its last entry says when that is empty. Kind
+// is a StepKind name, and Name what the change was of.
+public class RecordedStep
+{
+    public string Kind { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string BeforeId { get; set; } = "";
+    public string AfterId { get; set; } = "";
+    public int Moves { get; set; } = 1;
+    public bool IsRedo { get; set; } = false;
 }
 
 public class BranchOrder

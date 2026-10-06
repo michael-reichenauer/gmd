@@ -33,6 +33,7 @@ class Augmenter : IAugmenter
         AddAugStashes(repo, gitRepo); // Must be done before adding augmented commits
         AddAugBranches(repo, gitRepo);
         AddAugWorktrees(repo, gitRepo); // After the branches, which it marks
+        repo.UndoSteps = ReflogSteps.StepsByBranch(gitRepo); // From the branches' own reflogs
         AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
         SetCommitHasStash(repo);

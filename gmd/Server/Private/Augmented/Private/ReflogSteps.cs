@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using gmd.Common;
 using gmd.Git;
 
 namespace gmd.Server.Private.Augmented.Private;
@@ -61,6 +62,60 @@ static class ReflogSteps
 
         return (StepKind.Other, "");
     }
+
+    // The last change of each local branch, by branch name: the newest move in its reflog, and where
+    // the branch was before it. Only while the reflog says where the branch is, which it does since
+    // git writes it with the branch, unless a tool moved the branch without it. A change gmd recorded
+    // itself (RepoConfig.UndoSteps) is taken instead while the reflog still lists it as the latest.
+    // Nothing for a branch whose reflog starts where it was made, or that has none. Runs on every read
+    // of the repo, so it only ever looks things up, and never throws on a reflog it did not expect.
+    public static IReadOnlyDictionary<string, UndoStep> StepsByBranch(GitRepo gitRepo)
+    {
+        var reflogs = BranchReflogs(gitRepo.Reflog);
+        var remoteNames = gitRepo.Branches.Where(b => b.IsRemote).Select(b => b.Name).ToHashSet();
+
+        Dictionary<string, UndoStep> steps = [];
+        foreach (var b in gitRepo.Branches.Where(b => !b.IsRemote && !b.IsDetached))
+        {
+            if (!reflogs.TryGetValue(b.Name, out var log) || log.Count == 0 || log[0].Id != b.TipID)
+                continue;
+
+            // On the remote branch, i.e. nothing to push: undoing it here leaves it there
+            var isPushed = b.RemoteName != "" && remoteNames.Contains(b.RemoteName) && b.AheadCount == 0;
+
+            if (gitRepo.RecordedSteps.TryGetValue(b.Name, out var recorded) && IsLatest(recorded, log))
+            {
+                var recordedKind = Enum.TryParse<StepKind>(recorded.Kind, out var k) ? k : StepKind.Other;
+                steps[b.Name] = new UndoStep(
+                    b.Name,
+                    recordedKind,
+                    recorded.Name,
+                    b.TipID,
+                    recorded.BeforeId,
+                    isPushed,
+                    recorded.IsRedo
+                );
+                continue;
+            }
+
+            if (log.Count < 2)
+                continue;
+            var (kind, name) = KindOf(log[0].Message);
+            if (kind is StepKind.Created or StepKind.Renamed)
+                continue;
+            steps[b.Name] = new UndoStep(b.Name, kind, name, b.TipID, log[1].Id, isPushed, false);
+        }
+        return steps;
+    }
+
+    // Whether a recorded change is still the latest of the branch, i.e. its moves are the newest
+    // entries of the reflog and the one before them is where it started. Anything that moved the
+    // branch since, in gmd or not, shifts them, and the reflog's own latest entry is taken instead.
+    static bool IsLatest(RecordedStep recorded, IReadOnlyList<ReflogEntry> log) =>
+        recorded.Moves >= 1
+        && log.Count > recorded.Moves
+        && log[recorded.Moves].Id == recorded.BeforeId
+        && (recorded.AfterId == "" || log[0].Id == recorded.AfterId);
 
     // The entries of one ref's reflog, latest first, with each run of entries at the same commit
     // collapsed to the oldest of them: that one is the move, and the newer ones moved nothing, e.g. a

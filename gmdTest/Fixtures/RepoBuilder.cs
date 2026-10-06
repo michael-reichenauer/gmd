@@ -50,6 +50,7 @@ class RepoBuilder
     readonly List<ReflogEntry> reflog = [];
     readonly List<string> integrationNames = [];
     readonly Dictionary<string, int> worktreeChanges = [];
+    readonly Dictionary<string, RecordedStep> recordedSteps = [];
 
     GitStatus status = NoChanges;
     bool isTruncated = false;
@@ -178,6 +179,30 @@ class RepoBuilder
     public RepoBuilder Reflog(string reference, string commitName, string message)
     {
         reflog.Add(new ReflogEntry(Sha(commitName), reference, reflog.Count(e => e.Ref == reference), message));
+        return this;
+    }
+
+    // A change gmd recorded itself as the last of a branch, as kept in RepoConfig.UndoSteps: a squash,
+    // which wrote 'moves' entries to the branch's reflog, or an undo, which a redo takes back
+    public RepoBuilder RecordedStep(
+        string branch,
+        StepKind kind,
+        string name,
+        string beforeCommit,
+        int moves = 1,
+        string afterCommit = "",
+        bool isRedo = false
+    )
+    {
+        recordedSteps[branch] = new RecordedStep
+        {
+            Kind = kind.ToString(),
+            Name = name,
+            BeforeId = Sha(beforeCommit),
+            AfterId = afterCommit == "" ? "" : Sha(afterCommit),
+            Moves = moves,
+            IsRedo = isRedo,
+        };
         return this;
     }
 
@@ -336,7 +361,8 @@ class RepoBuilder
             AllWorktrees(),
             worktreeChanges,
             reflog,
-            integrationNames
+            integrationNames,
+            recordedSteps
         );
 
     // The main worktree first, as git lists it, on the current branch

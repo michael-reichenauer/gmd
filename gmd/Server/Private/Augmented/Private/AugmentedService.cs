@@ -276,6 +276,7 @@ class AugmentedService : IAugmentedService
             return EmptyGitRepo(path, tags, status, metaData);
 
         // Combine all git info into one git repo info object
+        var config = repoConfig.Get(path);
         var gitRepo = new GitRepo(
             timeStamp,
             path,
@@ -288,7 +289,8 @@ class AugmentedService : IAugmentedService
             isTruncated,
             worktrees,
             reflog: reflog,
-            integrationNames: repoConfig.Get(path).IntegrationBranches
+            integrationNames: config.IntegrationBranches,
+            recordedSteps: config.UndoSteps
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 

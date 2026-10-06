@@ -38,6 +38,9 @@ class WorkRepo
     // does not keep yet. Kept there after the repo is read, since the reflog expires.
     public List<WitnessedBranch> WitnessedToKeep { get; } = [];
 
+    // The last change of each local branch, which Undo takes back, by branch name, see ReflogSteps
+    public IReadOnlyDictionary<string, UndoStep> UndoSteps { get; set; } = new Dictionary<string, UndoStep>();
+
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 
