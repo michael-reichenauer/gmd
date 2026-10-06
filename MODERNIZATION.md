@@ -128,6 +128,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   told of before the read started (`ChangeEvent.IsSeenBy`), and one that comes during a read or a
   search is looked at again once the next repo is shown. Dating a change by the file's modification
   time instead was tried and lost renames: a moved file keeps its old time, so it looked seen.
+  Showing or hiding a branch then still moved the repo time stamp up to when the view was made,
+  after the read; it keeps the read's now (`ViewRepoConverter.ToViewRepo`), which mattered once the
+  current branch came to be shown straight after a read (`CurrentBranchShown`).
 - Pulling a diverged branch failed, with git's dozen lines of hints as the error, for anyone who
   has not set `pull.rebase`, which recent git refuses to guess. gmd asks once and saves the answer.
 - Pull all stopped at the first diverged branch, leaving every branch after it unpulled; the branch
