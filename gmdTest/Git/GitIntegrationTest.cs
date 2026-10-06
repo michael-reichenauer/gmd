@@ -2,6 +2,7 @@ using gmd.Git;
 using gmd.Git.Private;
 using gmd.Server.Private.Augmented.Private;
 using gmdTest.Fixtures;
+using StepKind = gmd.Server.StepKind;
 
 namespace gmdTest.Git;
 
@@ -83,6 +84,68 @@ public class GitIntegrationTest
             },
             refs,
             string.Join(", ", refs)
+        );
+    }
+
+    // What Undo names each change by is the branch reflog's message, so each way of moving a branch
+    // is made for real here and classified, newest first, as git lists them
+    [TestMethod]
+    public async Task TestBranchReflogMessagesAreClassifiedAsTheChangesTheyRecord()
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -u origin main");
+        await repo.CommitFileAsync("b.txt", "b\n", "Second");
+        await repo.GitAsync("commit --amend -m Amended");
+        await repo.GitAsync("checkout -b feature");
+        await repo.CommitFileAsync("f.txt", "f\n", "Feature");
+        await repo.GitAsync("checkout main");
+        await repo.GitAsync("merge --no-ff -m \"Merge branch 'feature'\" feature");
+        await repo.GitAsync("reset --hard HEAD~1");
+        await repo.GitAsync("merge feature");
+        var third = await repo.CommitFileAsync("c.txt", "c\n", "Third");
+        await repo.GitAsync("revert --no-edit HEAD");
+        await repo.GitAsync("checkout -b pick main~3");
+        await repo.CommitFileAsync("p.txt", "p\n", "Picked");
+        await repo.GitAsync("checkout main");
+        await repo.GitAsync("cherry-pick pick");
+        await repo.GitAsync($"reset --hard {third}");
+        await repo.GitAsync("checkout feature");
+        await repo.GitAsync("rebase main");
+        await repo.GitAsync("checkout main");
+        await repo.GitAsync("push");
+        await repo.GitAsync("reset --hard HEAD~1");
+        await repo.GitAsync("pull");
+        await repo.GitAsync("push origin feature");
+        await repo.GitAsync("branch -f feature feature~1");
+        await repo.GitAsync("fetch origin feature:feature");
+
+        var reflogs = ReflogSteps.BranchReflogs(Value(await repo.Git.GetReflogAsync(repo.Path)));
+        StepKind[] Kinds(string branch) => reflogs[branch].Select(e => ReflogSteps.KindOf(e.Message).Kind).ToArray();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                StepKind.Pull,
+                StepKind.Uncommit,
+                StepKind.Reset,
+                StepKind.CherryPick,
+                StepKind.Revert,
+                StepKind.Commit,
+                StepKind.Merge,
+                StepKind.Uncommit,
+                StepKind.Merge,
+                StepKind.Amend,
+                StepKind.Commit,
+                StepKind.Commit,
+            },
+            Kinds("main"),
+            string.Join("\n", reflogs["main"].Select(e => e.Message))
+        );
+        CollectionAssert.AreEqual(
+            new[] { StepKind.Pull, StepKind.Reset, StepKind.Rebase, StepKind.Commit, StepKind.Created },
+            Kinds("feature"),
+            string.Join("\n", reflogs["feature"].Select(e => e.Message))
         );
     }
 
