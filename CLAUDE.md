@@ -132,6 +132,11 @@ Key types and flow:
   has `RefreshTimingTest` (`GMD_PERF_REPO=<repo> GMD_PERF_OUT=<file>`, `--filter RefreshTiming`),
   which times each stage of a refresh and writes what the view repos hold to `<file>.view`, for the
   same before/after `diff`.
+- The reflog is read for three more things, none of which touch the inference: Undo, the last
+  change of each local branch from its own reflog (`ReflogSteps`, `Repo.UndoSteps`, with gmd's own
+  record of a squash and of an undo in `RepoConfig.UndoSteps`); Recover Lost Commits, the commits
+  no ref reaches (`LostWorkFinder`, read only when asked); and a force push on origin, from the
+  reflogs of the remote branches that have diverged (`RemoteRewrites`, `Repo.RemoteRewrites`).
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
@@ -143,8 +148,8 @@ Key types and flow:
   cursor is, again with no view; `KeyHintBar` draws it. When a key's behavior changes, check the
   hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
-  `BranchPushPullCommands`, `CommitCommands`, `WebCommands`, `WorktreeCommands`, run through
-  `CommandRunner`), menus into `*Menu.cs`.
+  `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`,
+  run through `CommandRunner`), menus into `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
   its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"Shift-P"` for P,
@@ -629,10 +634,11 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
-  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `MenuDimensions`, `MenuRows`, `MenuShortcuts`,
-  `TextContextMenu`, `SpellSpans`, `SpellHint`, `WorktreeRows`, `BlameColumns` and
-  `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain string, which is
-  how `GraphText` snapshots `GraphWriter` output with no driver at all.
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
+  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
+  `WorktreeRows`, `LostWorkRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
+  flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
+  with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
 - `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.

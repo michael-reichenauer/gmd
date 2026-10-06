@@ -296,6 +296,18 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    commit's node is found at a glance. The first two wait for the Terminal.Gui 2.x port, recorded
    in MODERNIZATION.md with the reasons.
 
+8. **A way back from what moves a branch.** *Done (2026-10-06):* the reflog, which git keeps for
+   every move of a branch, is what Safety's "a way back" for the cheap mistakes needed, and what
+   most users never reach on the command line. *Undo* takes back the last change of a branch,
+   named after it (a commit, an amend, a merge, a pull, a rebase, a squash, a reset), losing
+   nothing uncommitted, and Undo again redoes it; it asks nothing, being undoable. *Recover Lost
+   Commits* lists what a reset, a rebase, an amend or a deleted branch left behind, and brings a
+   line back with a branch. A force push on origin is said once it is fetched, and a pull then moves
+   the branch's own commits onto the new version rather than merging the two; *Restore origin*
+   puts origin back, asking first, since that is a force push too. Left for later: a key for Undo
+   and a key hint, and a way back from Discard All Changes and Drop Stash, which the reflog does not
+   record (see MODERNIZATION.md).
+
 ---
 
 ## Small bugs found along the way
