@@ -263,6 +263,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   clipped. `BlameView` works around it with `Width = Dim.Fill()`; the setter is the fix.
 - Pull all only considers shown branches; a hidden branch that is behind is neither pulled nor
   counted in `▼`. `help.md` says "all displayed branches", so arguably right.
+- Squashing pushed commits while the branch has commits of its own on top squashes those in too:
+  `AugmentedService.SquashCommits` walks the commits to pick back from
+  `BranchByName[c1.BranchName].TipId`, which for pushed commits is the remote branch, so the local
+  commits above it are not picked back and end up in the squash. Undo Squash takes it back. Walk
+  from the current local branch's tip instead; `UndoIntegrationTest`'s ignored
+  `TestSquashPushedCommitsKeepsTheLocalCommitOnTop` is the regression test.
 - A repo with no commits still offers Uncommit (git refuses the reset). Ctrl+O is documented as
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
   lists only shown branches, so with only `main` shown it is an empty box.

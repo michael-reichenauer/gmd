@@ -351,6 +351,10 @@ class AugmentedService : IAugmentedService
             if (!branch.IsCurrent && !branch.IsLocalCurrent)
                 return new Error("Commits not on current branch");
 
+            // Where the branch was before, for Undo, which the squash is recorded for below. A squash
+            // waits for a clean tree, so the local branch's tip is git's own, not the uncommitted row.
+            var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote);
+
             // Create a backup branch (in case of errors)
             var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
             if (await git.CreateBranchAsync(tmpName, false, repo.Path) is Error backupError)
@@ -387,6 +391,24 @@ class AugmentedService : IAugmentedService
                     return new Error($"Failed to cherry pick {commit.Sid}", pickError);
                 if (await git.CommitAllChangesAsync(commit.Message, false, repo.Path) is Error pickCommitError)
                     return new Error($"Failed to commit cherry pick {commit.Sid}", pickCommitError);
+            }
+
+            // The squash is several moves of the branch, one entry each in its reflog: the reset of
+            // the newer commits, if any, the reset of the squashed ones, their commit and the commit of
+            // each newer one picked back. Recorded as one change, so that Undo takes it back whole.
+            if (local != null)
+            {
+                RecordStep(
+                    repo,
+                    local.Name,
+                    new RecordedStep
+                    {
+                        Kind = nameof(StepKind.Squash),
+                        Name = message.Split('\n')[0].Trim(),
+                        BeforeId = local.TipId,
+                        Moves = (preCommits.Any() ? 1 : 0) + 2 + preCommits.Count,
+                    }
+                );
             }
 
             // Remove temp backup branch

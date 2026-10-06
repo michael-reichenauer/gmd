@@ -231,4 +231,47 @@ public class UndoIntegrationTest
 
         AssertError(await service.UndoStepAsync(augmented, step));
     }
+
+    // A squash is several moves of the branch, which gmd records as one change, so a single undo
+    // puts back the commits it squashed and the newer ones it picked back on top
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task TestUndoASquashAsOneStep(bool hasNewerCommits)
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        var older = await repo.CommitFileAsync("b.txt", "b\n", "Older");
+        var newer = await repo.CommitFileAsync("c.txt", "c\n", "Newer");
+        var tip = hasNewerCommits ? await repo.CommitFileAsync("d.txt", "d\n", "On top") : newer;
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+        AssertOk(await service.SquashCommits(augmented, newer, older, "Squashed"));
+        Assert.AreEqual(hasNewerCommits ? "On top" : "Squashed", (await repo.GitAsync("log --format=%s -1")).Trim());
+
+        var undone = await UndoAsync();
+
+        Assert.AreEqual((StepKind.Squash, "Squashed", tip), (undone.Kind, undone.Name, undone.TargetId));
+        Assert.AreEqual(tip, await repo.HeadIdAsync());
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+    }
+
+    // Squashing pushed commits while the branch has a commit of its own on top: the commit on top
+    // has to stay a commit of its own, on top of the squash. It is not: the commits to pick back are
+    // walked from the remote branch's tip, so the local one is squashed in with the others (Undo
+    // Squash does bring it back). Kept for when it is fixed, see MODERNIZATION.md.
+    [TestMethod]
+    [Ignore("Squash walks the newer commits from the remote branch's tip, see MODERNIZATION.md")]
+    public async Task TestSquashPushedCommitsKeepsTheLocalCommitOnTop()
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        var older = await repo.CommitFileAsync("b.txt", "b\n", "Older");
+        var newer = await repo.CommitFileAsync("c.txt", "c\n", "Newer");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -u origin main");
+        await repo.CommitFileAsync("d.txt", "d\n", "Local on top");
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        AssertOk(await service.SquashCommits(augmented, newer, older, "Squashed"));
+
+        Assert.AreEqual("Local on top\nSquashed\nInitial", (await repo.GitAsync("log --format=%s")).Trim());
+    }
 }
