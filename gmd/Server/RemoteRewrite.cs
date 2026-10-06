@@ -7,6 +7,7 @@ namespace gmd.Server;
 public record RemoteRewrite(
     string BranchName, // The local branch
     string RemoteName, // Its remote branch, e.g. 'origin/dev'
+    string LocalTipId, // Where the local branch is, in git, i.e. never the uncommitted row
     string ForkPointId, // The old remote tip the local branch was built on
     string OldTipId, // What origin had before the rewrite, as last fetched
     string NewTipId, // What origin has now

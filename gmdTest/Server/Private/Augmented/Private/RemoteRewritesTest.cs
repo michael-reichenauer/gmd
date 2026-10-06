@@ -37,7 +37,19 @@ public class RemoteRewritesTest
         var rewrite = Find(Rewritten())["dev"];
 
         Assert.AreEqual(
-            new RemoteRewrite("dev", "origin/dev", Id("a3"), Id("a3"), Id("b2"), 1, 2, rewrite.DroppedIds, false, true),
+            new RemoteRewrite(
+                "dev",
+                "origin/dev",
+                Id("c1"),
+                Id("a3"),
+                Id("a3"),
+                Id("b2"),
+                1,
+                2,
+                rewrite.DroppedIds,
+                false,
+                true
+            ),
             rewrite
         );
         CollectionAssert.AreEqual(new[] { Id("a3") }, rewrite.DroppedIds.ToArray());

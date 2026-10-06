@@ -166,6 +166,16 @@ it (`u`) to join the two sides. The first time, gmd asks whether to merge
 them or to rebase your commits on top, unless git's `pull.rebase` already
 says, and saves the answer there, for git on the command line as well.
 
+Unless the remote branch was rewritten by a force push, e.g. someone
+rebased or amended it and pushed: then the branch has the old version and
+origin the new one, and a merge would put every commit in twice. gmd tells
+the two apart by the remote branch's reflog, says so on the status line
+when it first sees it, and a pull asks first, then moves your own commits
+onto the new version and leaves the old one out, whatever `pull.rebase`
+says (as `git pull --rebase` would). A branch that is not checked out is
+pulled that way, and by `Shift-U`, when it has no commits of its own. The
+question names any commit the force push dropped.
+
 **Open in Browser** in a branch menu opens the branch on the site hosting
 the remote (GitHub, GitLab, Bitbucket, Azure DevOps or Gitea), and **Create
 Pull Request in Browser** the page for a pull request into the branch it

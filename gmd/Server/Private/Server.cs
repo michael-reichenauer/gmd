@@ -487,6 +487,9 @@ class Server : IServer
 
     public Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo) => augmentedService.GetLostWorkAsync(repo);
 
+    public Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite) =>
+        augmentedService.PullRewrittenAsync(repo, rewrite);
+
     public Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 

@@ -519,6 +519,59 @@ class AugmentedService : IAugmentedService
         return LostWorkFinder.Find(reflog, lost, reachable, localNames).ToList();
     }
 
+    // Pulls a branch whose remote branch a force push rewrote: its own commits are moved onto the new
+    // version, and the old version's commits are left out (Recover Lost Commits finds them), rather
+    // than merged in, which would put every commit in twice. The current branch is rebased, and the
+    // pull is recorded, so that Undo names it a pull; a branch that is not checked out can only take
+    // the new version, i.e. when it has no commits of its own, which moves it only if it is still
+    // where it was read.
+    public async Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite)
+    {
+        if (!repo.BranchByName.TryGetValue(rewrite.BranchName, out var branch) || branch.IsRemote)
+            return new Error($"There is no local branch '{rewrite.BranchName}'");
+        if (branch.WorktreePath != "")
+            return new Error($"'{rewrite.BranchName}' is checked out in another worktree, so it is pulled there");
+
+        using (fileMonitor.Pause())
+        {
+            if (branch.IsCurrent)
+            {
+                if (await git.RebaseOntoRemoteAsync(rewrite.RemoteName, rewrite.ForkPointId, repo.Path) is Error e)
+                    return e;
+
+                RecordStep(
+                    repo,
+                    rewrite.BranchName,
+                    new RecordedStep
+                    {
+                        Kind = nameof(StepKind.Pull),
+                        BeforeId = rewrite.LocalTipId,
+                        Moves = 1,
+                    }
+                );
+                return Result.Ok;
+            }
+
+            if (rewrite.OwnCount > 0)
+                return new Error($"'{rewrite.BranchName}' has commits of its own, so it is pulled when checked out");
+
+            var message = $"pull: rewritten {rewrite.RemoteName}";
+            var moved = await git.MoveBranchAsync(
+                rewrite.BranchName,
+                rewrite.NewTipId,
+                rewrite.LocalTipId,
+                message,
+                repo.Path
+            );
+            return moved is CmdError moveError && moveError.ErrorOutput.Contains("but expected")
+                ? new Error(
+                    $"'{rewrite.BranchName}' has moved since it was read, so it was left where it is",
+                    moveError
+                )
+                : moved;
+        }
+    }
+
     // A branch that is not checked out has no files to take back, so it is just moved, and only if
     // it is still where the step found it, which git checks as it moves it
     async Task<Result> MoveBranchAsync(UndoStep step, string wd)

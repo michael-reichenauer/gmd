@@ -12,6 +12,7 @@ public class ForcePushesTest
         new RemoteRewrite(
             "dev",
             "origin/dev",
+            RepoBuilder.Sha("c1"),
             RepoBuilder.Sha("a3"),
             RepoBuilder.Sha("a3"),
             RepoBuilder.Sha(tip),
@@ -50,5 +51,52 @@ public class ForcePushesTest
         Assert.IsNull(notes.Untold(RepoWith(Rewrite())));
         Assert.IsNotNull(notes.Untold(RepoWith(Rewrite(tip: "b3"))), "Rewritten again");
         Assert.IsNull(notes.Untold(RepoWith(Rewrite(isByYou: true, tip: "b4"))));
+    }
+
+    // dev had a1 <- a2 <- a3 on origin and Own work on top here; a force push copied a2 onto b1 and
+    // dropped a3
+    static Task<Repo> RewrittenAsync() =>
+        new RepoBuilder()
+            .Commit("e1", "Main", "a1")
+            .Commit("c1", "Own work", "a3")
+            .CopyOf("b2", "a2", "b1")
+            .Commit("b1", "Moved on", "a1")
+            .Commit("a3", "Dropped", "a2")
+            .Commit("a2", "Kept", "a1")
+            .Commit("a1", "Initial")
+            .LocalBranch("main", "e1")
+            .LocalBranch("dev", "c1", isCurrent: true, remoteName: "origin/dev", ahead: 3, behind: 2)
+            .RemoteBranch("origin/dev", "b2")
+            .RemoteReflog("origin/dev", "b2", "fetch: forced-update")
+            .RemoteReflog("origin/dev", "a3", "update by push")
+            .ViewRepoAsync();
+
+    [TestMethod]
+    public async Task TestThePullQuestion()
+    {
+        var repo = await RewrittenAsync();
+
+        Assert.AreEqual(
+            """
+            'origin/dev' was rewritten by a force push,
+            so 'dev' has the old version of it.
+
+            Pull moves your 1 commit onto the new version, and leaves out
+            the 2 commits of the old one, which Recover Lost Commits finds.
+            It does not merge the two, which would put every commit in twice.
+
+            The force push dropped 1 commit, which the new version does not have:
+              a30000 Dropped
+            If that was a mistake, Restore origin/dev in the branch menu puts it back.
+            """,
+            ForcePushes.PullQuestion(repo, repo.RemoteRewrites["dev"])
+        );
+    }
+
+    [TestMethod]
+    public void TestWhatIsSaidOncePulled()
+    {
+        Assert.AreEqual("Moved your 1 commit onto the rewritten 'origin/dev'", ForcePushes.Pulled(Rewrite()));
+        Assert.AreEqual("Updated 'dev' to the rewritten 'origin/dev'", ForcePushes.Pulled(Rewrite(own: 0)));
     }
 }

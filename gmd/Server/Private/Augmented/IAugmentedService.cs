@@ -52,4 +52,5 @@ interface IAugmentedService
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
     Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo);
+    Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite);
 }

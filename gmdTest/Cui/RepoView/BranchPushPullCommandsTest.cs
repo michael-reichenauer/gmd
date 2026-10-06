@@ -155,6 +155,47 @@ public class BranchPushPullCommandsTest
         );
     }
 
+    // A branch that is not checked out and whose remote branch a force push rewrote is pulled by
+    // taking the new version, which it can when it has no commits of its own to move onto it
+    [TestMethod]
+    public async Task TestARewrittenBranchNotCheckedOutIsPulledWhenItHasNoCommitsOfItsOwn()
+    {
+        var repo = await Rewritten(hasOwnCommit: false).ViewRepoAsync("div");
+
+        Assert.IsTrue(BranchPushPullCommands.CanPullBranch(repo, repo.BranchByName["origin/div"]));
+    }
+
+    [TestMethod]
+    public async Task TestARewrittenBranchNotCheckedOutWithCommitsOfItsOwnIsNot()
+    {
+        var repo = await Rewritten(hasOwnCommit: true).ViewRepoAsync("div");
+        var branch = repo.BranchByName["origin/div"];
+
+        Assert.IsFalse(BranchPushPullCommands.CanPullBranch(repo, branch));
+        Assert.AreEqual(
+            "'origin/div' was rewritten by a force push: switch to 'div', and pull moves your 1 commit onto it",
+            BranchPushPullCommands.WhyNoPullBranch(repo, branch)
+        );
+    }
+
+    // 'div' had v0 on origin, which a force push replaced with its copy v1, on b1
+    static RepoBuilder Rewritten(bool hasOwnCommit)
+    {
+        var builder = new RepoBuilder();
+        if (hasOwnCommit)
+            builder.Commit("w1", "Own work", "v0");
+        return builder
+            .CopyOf("v1", "v0", "b1")
+            .Commit("b1", "Moved on", "c2")
+            .Commit("v0", "Div work", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("div", hasOwnCommit ? "w1" : "v0", remoteTipCommit: "v1", ahead: 1, behind: 2)
+            .RemoteReflog("origin/div", "v1", "fetch: forced-update")
+            .RemoteReflog("origin/div", "v0", "update by push");
+    }
+
     // The status is the callers' check, not the branch lists'
     [TestMethod]
     public async Task TestPushAllBranchListIgnoresUncommittedChanges()

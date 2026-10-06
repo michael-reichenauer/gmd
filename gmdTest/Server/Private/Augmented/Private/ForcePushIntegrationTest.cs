@@ -46,7 +46,7 @@ public class ForcePushIntegrationTest
     // dev on origin is Initial <- Kept <- Dropped, and here it has a commit of its own on top. The
     // other clone drops 'Dropped', copies 'Kept' onto a new commit of its own and force pushes, and
     // this one fetches.
-    async Task<(string Kept, string Dropped, string Own, string NewTip)> ForcePushedAsync()
+    async Task<(string Kept, string Dropped, string Own, string NewTip)> ForcePushedAsync(bool hasOwnCommit = true)
     {
         await CommitAsync("a.txt", "Initial");
         await repo.AddOriginAsync();
@@ -55,7 +55,7 @@ public class ForcePushIntegrationTest
         var kept = await CommitAsync("k.txt", "Kept");
         var dropped = await CommitAsync("d.txt", "Dropped");
         await repo.GitAsync("push -u origin dev");
-        var own = await CommitAsync("o.txt", "Own work");
+        var own = hasOwnCommit ? await CommitAsync("o.txt", "Own work") : dropped;
 
         other = repo.Path + "-other";
         repo.TrackFolder(other);
@@ -142,5 +142,49 @@ public class ForcePushIntegrationTest
             (feature, true, true, 0, 0),
             (rewrite.OldTipId, rewrite.IsByYou, rewrite.IsRestorable, rewrite.OwnCount, rewrite.DroppedIds.Count)
         );
+    }
+
+    // The pull moves the commit of its own onto the new version and leaves the old one out, rather
+    // than merging the two, and is named a pull by Undo
+    [TestMethod]
+    public async Task TestPullMovesTheOwnCommitsOntoTheNewVersion()
+    {
+        var (_, _, own, newTip) = await ForcePushedAsync();
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        AssertOk(await service.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
+
+        Assert.AreEqual("Own work\nKept\nTheirs\nInitial", (await repo.GitAsync("log --format=%s dev")).Trim());
+        Assert.AreEqual(newTip, (await repo.GitAsync("rev-parse dev~1")).Trim());
+        var pulled = AssertOk(await service.GetRepoAsync(repo.Path));
+        Assert.AreEqual(0, pulled.RemoteRewrites.Count);
+        Assert.AreEqual((StepKind.Pull, own), (pulled.UndoSteps["dev"].Kind, pulled.UndoSteps["dev"].TargetId));
+    }
+
+    // With no commits of its own, a branch that is not checked out just takes the new version
+    [TestMethod]
+    public async Task TestPullTakesTheNewVersionOfABranchNotCheckedOut()
+    {
+        var (_, _, _, newTip) = await ForcePushedAsync(hasOwnCommit: false);
+        await repo.GitAsync("checkout main");
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        AssertOk(await service.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
+
+        Assert.AreEqual(newTip, (await repo.GitAsync("rev-parse dev")).Trim());
+        Assert.AreEqual(StepKind.Pull, AssertOk(await service.GetRepoAsync(repo.Path)).UndoSteps["dev"].Kind);
+    }
+
+    // A branch that is not checked out cannot have its own commits moved onto the new version
+    [TestMethod]
+    public async Task TestABranchNotCheckedOutWithCommitsOfItsOwnIsNotPulled()
+    {
+        var (_, _, own, _) = await ForcePushedAsync();
+        await repo.GitAsync("checkout main");
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        AssertError(await service.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
+
+        Assert.AreEqual(own, (await repo.GitAsync("rev-parse dev")).Trim());
     }
 }

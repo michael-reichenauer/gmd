@@ -378,4 +378,35 @@ public class PushPullTest
 
         Assert.IsFalse(gmd.WaitFor("Pulled 'main'").Contains("Pull Diverged Branch"));
     }
+
+    // A branch whose remote branch someone rewrote by a force push: said once it is found, and pulled
+    // by moving the commit of its own onto the new version, after a question with Cancel as the
+    // default, rather than merged with the old version
+    [TestMethod]
+    public async Task TestPullARewrittenBranch()
+    {
+        using var repo = await E2eRepo.CreateWithRewrittenOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            "'origin/main' was rewritten by a force push: Pull moves your 1 commit onto it",
+            ScreenText.LastLine(gmd.WaitFor("was rewritten by a force push"))
+        );
+
+        gmd.Send("u");
+        var dialog = gmd.WaitFor("Pull Rewritten Branch");
+        StringAssert.Contains(dialog, "Pull moves your 1 commit onto the new version");
+        gmd.Send("Left"); // From Cancel, the default, to Pull
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved your 1 commit onto the rewritten 'origin/main'",
+            ScreenText.LastLine(gmd.WaitFor("Moved your 1 commit"))
+        );
+        Assert.AreEqual(
+            "Add zeta\nAdd delta, reworded\nMerge branch 'dev' into main",
+            await repo.GitAsync("log --format=%s -3 main")
+        );
+    }
 }

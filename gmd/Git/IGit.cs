@@ -60,6 +60,9 @@ interface IGit
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
+
+    // Moves the current branch's commits after the fork point onto its remote branch, e.g. 'origin/dev'
+    Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
     Task<Result> AbortOperationAsync(string wd);
     Task<Result> ContinueOperationAsync(string wd);

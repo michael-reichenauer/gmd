@@ -157,6 +157,9 @@ internal class Git : IGit
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
         branchService.RebaseOntoAsync(newBase, oldBase, wd);
 
+    public Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd) =>
+        branchService.RebaseOntoRemoteAsync(remoteName, forkPointId, wd);
+
     public Task<Result> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
 
     public Task<Result> AbortOperationAsync(string wd) => conflictService.AbortOperationAsync(wd);

@@ -118,6 +118,10 @@ interface IServer
 
     // The lines of work no branch, tag or stash has any more, which the reflogs still mention
     Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo);
+
+    // Pulls a branch whose remote branch a force push rewrote (Repo.RemoteRewrites): its own commits
+    // are moved onto the new version, rather than the two versions merged
+    Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);

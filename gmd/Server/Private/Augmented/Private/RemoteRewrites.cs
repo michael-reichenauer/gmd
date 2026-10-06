@@ -73,6 +73,7 @@ static class RemoteRewrites
         return new RemoteRewrite(
             local.Name,
             local.RemoteName,
+            local.TipID,
             fork.Id,
             log[oldIndex].Id,
             remoteTip,

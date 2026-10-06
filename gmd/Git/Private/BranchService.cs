@@ -14,6 +14,7 @@ interface IBranchService
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
+    Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
 }
 
@@ -119,6 +120,19 @@ class BranchService : IBranchService
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
         return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
+    }
+
+    // Moves the current branch's own commits, the ones after where it was built on its remote branch,
+    // onto the remote branch, which a force push rewrote: what 'git pull --rebase' does with the fork
+    // point it finds, done whatever pull.rebase says. A merge among them is kept as a merge.
+    public async Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd)
+    {
+        var rsp = await cmd.RunAsync(
+            "git",
+            $"rebase --rebase-merges --onto refs/remotes/{remoteName} {forkPointId}",
+            wd
+        );
+        return ConflictError.ToConflict(rsp, "The pull stopped on conflicts");
     }
 
     public async Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd)

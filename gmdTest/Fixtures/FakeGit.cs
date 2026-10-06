@@ -229,6 +229,9 @@ class FakeGit : IGit
 
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) => throw new NotSupportedException();
 
+    public Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> CherryPickAsync(string sha, string wd) => throw new NotSupportedException();
 
     public Task<Result> AbortOperationAsync(string wd) => throw new NotSupportedException();
