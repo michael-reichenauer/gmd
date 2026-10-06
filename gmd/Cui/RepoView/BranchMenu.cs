@@ -171,6 +171,7 @@ class BranchMenu : IBranchMenu
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
         var currentName = cb.ShortNiceUniqueName();
         var step = BranchUndo.StepOf(repo.Repo, b);
+        var rewrite = ForcePushes.RewriteOf(repo.Repo, b);
 
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
@@ -231,6 +232,15 @@ class BranchMenu : IBranchMenu
                 () => cmds.PushBranch(branchName),
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
+            )
+            // Only for a branch whose remote branch a force push rewrote, see ForcePushes
+            .Item(
+                rewrite != null,
+                rewrite != null ? ForcePushes.RestoreLabel(rewrite) : "",
+                "",
+                () => cmds.RestoreOrigin(branchName),
+                () => rewrite?.IsRestorable == true,
+                () => rewrite != null ? ForcePushes.WhyNoRestore(rewrite) : ""
             )
             .Item("Create Branch ...", "b", () => cmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it

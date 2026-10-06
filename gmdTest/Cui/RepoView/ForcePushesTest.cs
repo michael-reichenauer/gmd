@@ -18,6 +18,7 @@ public class ForcePushesTest
             RepoBuilder.Sha(tip),
             own,
             2,
+            3,
             Enumerable.Range(0, dropped).Select(i => RepoBuilder.Sha($"d{i}")).ToList(),
             isByYou,
             true
@@ -98,5 +99,32 @@ public class ForcePushesTest
     {
         Assert.AreEqual("Moved your 1 commit onto the rewritten 'origin/dev'", ForcePushes.Pulled(Rewrite()));
         Assert.AreEqual("Updated 'dev' to the rewritten 'origin/dev'", ForcePushes.Pulled(Rewrite(own: 0)));
+    }
+
+    [TestMethod]
+    public async Task TestWhatRestoringOriginSays()
+    {
+        var repo = await RewrittenAsync();
+        var rewrite = repo.RemoteRewrites["dev"];
+
+        Assert.AreEqual("Restore origin/dev from before the Force Push ...", ForcePushes.RestoreLabel(rewrite));
+        Assert.AreEqual(
+            """
+            Put 'origin/dev' back as it was before the force push?
+
+            It gets a30000 Dropped again, and the 2 commits
+            of the new version leave it. This is a force push too: everyone
+            who pulled the new version has to deal with it in turn.
+            """,
+            ForcePushes.RestoreQuestion(repo, rewrite)
+        );
+        Assert.AreEqual(
+            "Put 'origin/dev' back at a30000, as it was before the force push",
+            ForcePushes.Restored(rewrite)
+        );
+        Assert.AreEqual(
+            "Commits were pushed to 'origin/dev' after the force push: putting it back would drop them",
+            ForcePushes.WhyNoRestore(rewrite)
+        );
     }
 }

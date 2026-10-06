@@ -13,6 +13,7 @@ interface IBranchPushPullCommands
     void PullCurrentBranch();
     void PullBranch(string name);
     void PullAllBranches();
+    void RestoreOrigin(string name);
     bool CanPushCurrentBranch();
     bool CanPush();
     bool CanPull();
@@ -244,6 +245,33 @@ class BranchPushPullCommands : IBranchPushPullCommands
         status.Info(ForcePushes.Pulled(rewrite));
         return Result.Ok;
     }
+
+    // Puts a remote branch a force push rewrote back as it was, after asking, since that is a force
+    // push too: a mistaken one taken back, or gmd's Rebase undone on origin as well as here. Only if
+    // nothing was pushed on top of the rewrite, and only while origin is where it was last fetched.
+    public void RestoreOrigin(string name) =>
+        Do(async () =>
+        {
+            if (
+                !repo.Repo.BranchByName.TryGetValue(name, out var branch)
+                || ForcePushes.RewriteOf(repo.Repo, branch) is not RemoteRewrite rewrite
+            )
+                return new Notice($"'{NiceName(name)}' was not rewritten by a force push");
+            if (!rewrite.IsRestorable)
+                return new Notice(ForcePushes.WhyNoRestore(rewrite));
+            if (!Confirm.RestoreOrigin(rewrite.RemoteName, ForcePushes.RestoreQuestion(repo.Repo, rewrite)))
+                return Result.Ok;
+
+            using (status.Progress($"Restoring '{rewrite.RemoteName}'"))
+            {
+                if (await server.RestoreOriginAsync(rewrite, repo.Path) is Error e)
+                    return new Error($"Failed to restore '{rewrite.RemoteName}'", e);
+            }
+
+            Refresh();
+            status.Info(ForcePushes.Restored(rewrite));
+            return Result.Ok;
+        });
 
     public void PullAllBranches() =>
         Do(async () =>

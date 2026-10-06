@@ -187,4 +187,35 @@ public class ForcePushIntegrationTest
 
         Assert.AreEqual(own, (await repo.GitAsync("rev-parse dev")).Trim());
     }
+
+    // Origin is put back as it was before the force push, and the other clone, which made it, then
+    // sees its own branch rewritten in turn
+    [TestMethod]
+    public async Task TestRestoreOriginPutsTheOldVersionBack()
+    {
+        var (_, dropped, _, _) = await ForcePushedAsync();
+        var rewrite = AssertOk(await service.GetRepoAsync(repo.Path)).RemoteRewrites["dev"];
+
+        AssertOk(await repo.Git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, repo.Path));
+
+        Assert.AreEqual(dropped, (await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse dev")).Trim());
+        Assert.AreEqual(0, AssertOk(await service.GetRepoAsync(repo.Path)).RemoteRewrites.Count);
+        await repo.GitAsync($"-C \"{other}\" fetch -q origin");
+        var seenThere = AssertOk(await service.GetRepoAsync(other)).RemoteRewrites["dev"];
+        Assert.AreEqual((dropped, false), (seenThere.NewTipId, seenThere.IsByYou));
+    }
+
+    // Someone pushed since the last fetch: origin is not where it was read, so it is left alone
+    [TestMethod]
+    public async Task TestRestoreOriginIsRefusedWhenOriginMovedSince()
+    {
+        await ForcePushedAsync();
+        var rewrite = AssertOk(await service.GetRepoAsync(repo.Path)).RemoteRewrites["dev"];
+        var later = await CommitInOtherAsync("l.txt", "Later");
+        await repo.GitAsync($"-C \"{other}\" push -q origin dev");
+
+        AssertError(await repo.Git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, repo.Path));
+
+        Assert.AreEqual(later, (await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse dev")).Trim());
+    }
 }

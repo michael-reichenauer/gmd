@@ -46,12 +46,15 @@ static class BranchUndo
         $"{(step.IsRedo ? "Redoing" : "Undoing")} {Phrase(step)} on '{step.BranchName}'";
 
     // What the status line says once it has run. An undo can be undone in turn, which redoes the
-    // change; a change that is on origin is still there, since an undo never pushes.
+    // change; a change that is on origin is still there, since an undo never pushes. A rebase or a
+    // squash that was pushed was force pushed, which the branch menu's Restore takes back on origin.
     public static string Done(UndoStep step)
     {
         var done = $"{(step.IsRedo ? "Redid" : "Undid")} {Phrase(step)} on '{step.BranchName}'";
         if (step.IsRedo)
             return done;
+        if (step.IsPushed && step.Kind is StepKind.Rebase or StepKind.Squash)
+            return $"{done}, origin still has it: Restore in the branch menu puts origin back too";
         return step.IsPushed && step.Kind != StepKind.Pull
             ? $"{done}, origin still has it: Undo again redoes it"
             : $"{done}: Undo again redoes it";

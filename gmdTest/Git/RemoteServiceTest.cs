@@ -187,6 +187,16 @@ public class RemoteServiceTest
         );
     }
 
+    // Origin is put back only while it is where it was last fetched, which the lease checks
+    [TestMethod]
+    public async Task TestPushRestore()
+    {
+        Assert.AreEqual(
+            "push --porcelain --force-with-lease=refs/heads/dev:b2 origin a3:refs/heads/dev",
+            await ArgsOf(s => s.PushRestoreAsync("origin/dev", "a3", "b2", "/wd"))
+        );
+    }
+
     [TestMethod]
     public async Task TestPullRef()
     {

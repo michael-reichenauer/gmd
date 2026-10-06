@@ -61,6 +61,10 @@ public class BranchUndoTest
             "Redid the amend of 'Fix' on 'dev'",
             BranchUndo.Done(Step(StepKind.Amend, "Fix", isRedo: true))
         );
+        Assert.AreEqual(
+            "Undid the rebase on 'dev', origin still has it: Restore in the branch menu puts origin back too",
+            BranchUndo.Done(Step(StepKind.Rebase, isPushed: true))
+        );
     }
 
     // main with two commits, and the last change of each branch as its reflog has it

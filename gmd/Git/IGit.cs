@@ -53,6 +53,9 @@ interface IGit
     Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> PushRefForceAsync(string name, string wd);
+
+    // Force pushes a remote branch back to a commit, if it is still at the expected one
+    Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
     Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);

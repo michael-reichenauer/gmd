@@ -13,6 +13,7 @@ public record RemoteRewrite(
     string NewTipId, // What origin has now
     int OwnCount, // The local branch's own commits on top of the fork point, never on origin
     int OldCopyCount, // The commits of the old version the local branch has
+    int NewCount, // The commits of the new version, which origin has and the local branch has not
     // The commits of the old version with no copy in the new one, by author and author time: what the
     // force push dropped, rather than rewrote
     IReadOnlyList<string> DroppedIds,

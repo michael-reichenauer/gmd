@@ -490,6 +490,9 @@ class Server : IServer
     public Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite) =>
         augmentedService.PullRewrittenAsync(repo, rewrite);
 
+    public Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd) =>
+        git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, wd);
+
     public Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 

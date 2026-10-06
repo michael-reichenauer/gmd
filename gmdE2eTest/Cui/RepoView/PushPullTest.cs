@@ -409,4 +409,39 @@ public class PushPullTest
             await repo.GitAsync("log --format=%s -3 main")
         );
     }
+
+    // A force push on origin taken back from the branch menu: origin gets the old version again,
+    // after a question with No as the default. For 'main', the current branch, the menu starts on
+    // 'Hide Branch', the first item it can act on, and the item is three moves down, past 'Pull'
+    // and 'Push'.
+    [TestMethod]
+    public async Task TestRestoreOriginFromBeforeTheForcePush()
+    {
+        using var repo = await E2eRepo.CreateWithRewrittenOriginAsync();
+        var oldTip = await repo.GitAsync("rev-parse main~1");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("was rewritten by a force push");
+
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Restore origin/main from before the Force Push");
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Put 'origin/main' back"), "This is a force push too");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            $"Put 'origin/main' back at {oldTip[..6]}, as it was before the force push",
+            ScreenText.LastLine(gmd.WaitFor("Put 'origin/main' back at"))
+        );
+        Assert.AreEqual(oldTip, await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main"));
+    }
 }

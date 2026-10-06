@@ -133,6 +133,9 @@ internal class Git : IGit
 
     public Task<Result> PushRefForceAsync(string name, string wd) => remoteService.PushRefForceAsync(name, wd);
 
+    public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
+        remoteService.PushRestoreAsync(name, oldId, expectedId, wd);
+
     public Task<Result> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
 
     public Task<Result> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);

@@ -46,6 +46,7 @@ public class RemoteRewritesTest
                 Id("b2"),
                 1,
                 2,
+                2,
                 rewrite.DroppedIds,
                 false,
                 true

@@ -70,6 +70,24 @@ static class ForcePushes
         + "the new one for everyone. Pull first, which moves your\n"
         + "commits onto the new version, and then push.";
 
+    // The menu item that puts origin back
+    public static string RestoreLabel(RemoteRewrite r) => $"Restore {r.RemoteName} from before the Force Push ...";
+
+    // Why origin is not put back: what was pushed on top of the rewrite would be lost with it
+    public static string WhyNoRestore(RemoteRewrite r) =>
+        $"Commits were pushed to '{r.RemoteName}' after the force push: putting it back would drop them";
+
+    // Asked before origin is put back, which is a force push of its own, for everyone
+    public static string RestoreQuestion(Repo repo, RemoteRewrite r) =>
+        $"Put '{r.RemoteName}' back as it was before the force push?\n\n"
+        + $"It gets {r.OldTipId.Sid()} {SubjectOf(repo, r.OldTipId)} again, and the {Commits(r.NewCount)}\n"
+        + "of the new version leave it. This is a force push too: everyone\n"
+        + "who pulled the new version has to deal with it in turn.";
+
+    // What the status line says once origin is put back
+    public static string Restored(RemoteRewrite r) =>
+        $"Put '{r.RemoteName}' back at {r.OldTipId.Sid()}, as it was before the force push";
+
     const int MaxListed = 5;
 
     static string SubjectOf(Repo repo, string id) => repo.CommitById.TryGetValue(id, out var c) ? c.Subject : "";

@@ -176,6 +176,13 @@ says (as `git pull --rebase` would). A branch that is not checked out is
 pulled that way, and by `Shift-U`, when it has no commits of its own. The
 question names any commit the force push dropped.
 
+If the force push was a mistake, **Restore origin/... from before the Force
+Push ...** in the branch menu puts the old version back on origin. That is
+a force push too, for everyone, so it asks first, and it is refused if
+anything was pushed since the last fetch (`--force-with-lease`) or on top
+of the rewrite. It also takes gmd's own **Rebase**, which force pushes,
+back on origin after **Undo Rebase** took it back here.
+
 **Open in Browser** in a branch menu opens the branch on the site hosting
 the remote (GitHub, GitLab, Bitbucket, Azure DevOps or Gitea), and **Create
 Pull Request in Browser** the page for a pull request into the branch it

@@ -44,6 +44,7 @@ interface IBranchCommands
     void PullCurrentBranch();
     void PullBranch(string name);
     void PullAllBranches();
+    void RestoreOrigin(string name);
     bool CanPushCurrentBranch();
     bool CanPush();
     bool CanPull();
@@ -151,6 +152,8 @@ class BranchCommands : IBranchCommands
     public void PullBranch(string name) => pushPullCmds.PullBranch(name);
 
     public void PullAllBranches() => pushPullCmds.PullAllBranches();
+
+    public void RestoreOrigin(string name) => pushPullCmds.RestoreOrigin(name);
 
     public bool CanPushCurrentBranch() => pushPullCmds.CanPushCurrentBranch();
 

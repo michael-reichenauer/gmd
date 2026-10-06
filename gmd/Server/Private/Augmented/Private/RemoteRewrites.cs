@@ -67,7 +67,8 @@ static class RemoteRewrites
 
         var inFork = Ancestors(fork.Id, commitById);
         var oldCopies = inFork.Where(id => !inRemote.Contains(id)).ToList();
-        var newVersion = inRemote.Where(id => !inFork.Contains(id)).Select(id => KeyOf(commitById[id])).ToHashSet();
+        var newIds = inRemote.Where(id => !inFork.Contains(id)).ToList();
+        var newVersion = newIds.Select(id => KeyOf(commitById[id])).ToHashSet();
         var dropped = oldCopies.Where(id => !newVersion.Contains(KeyOf(commitById[id]))).ToList();
 
         return new RemoteRewrite(
@@ -79,6 +80,7 @@ static class RemoteRewrites
             remoteTip,
             inLocal.Count(id => !inFork.Contains(id)),
             oldCopies.Count,
+            newIds.Count,
             dropped,
             rewriteEntry.Message.StartsWith("update by push"),
             oldIndex == 1
