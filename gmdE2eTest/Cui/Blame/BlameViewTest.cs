@@ -141,6 +141,32 @@ public class BlameViewTest
     // 'Blame File ...' is the second last item of the commit menu, so 'End' and two 'Up' is the
     // steadier walk to it than counting downwards past the items OnCursorDown skips. One key per
     // Send with a wait after each, since a menu redraw drops whatever was sent behind it.
+    // 'i' copies the line's commit id and Shift-I its whole message, as they copy a commit's in the
+    // log view; the message from the log, since the blame has only its subject. 'g' steps the
+    // gutter's detail down, the author first.
+    [TestMethod]
+    public async Task TestCopyTheLineCommitIdAndMessage()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\n", "Add lines\n\nA body line.", t.AddMinutes(7));
+
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("two");
+
+        gmd.Send("i");
+        var id = gmd.WaitForClipboard();
+        Assert.AreEqual(await repo.GitAsync("rev-parse HEAD"), id);
+
+        gmd.Send("I");
+        Assert.AreEqual("Add lines\n\nA body line.", gmd.WaitForClipboard(previous: id));
+
+        gmd.Send("g");
+        gmd.WaitUntilGone("Test User"); // The author is dropped first
+    }
+
     static void OpenBlameOf(TmuxSession gmd, string path)
     {
         gmd.Send("m");

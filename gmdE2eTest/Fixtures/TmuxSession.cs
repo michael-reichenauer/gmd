@@ -158,15 +158,16 @@ sealed class TmuxSession : IDisposable
         return result.IsOk ? result.Output : "";
     }
 
-    // Polls until something has been copied. The copy is a side effect rather than something the
-    // screen shows, so there is nothing for WaitFor to look at.
-    public string WaitForClipboard(int timeoutMs = DefaultTimeoutMs)
+    // Polls until something has been copied, or something other than what was copied before. The
+    // copy is a side effect rather than something the screen shows, so there is nothing for WaitFor
+    // to look at.
+    public string WaitForClipboard(string previous = "", int timeoutMs = DefaultTimeoutMs)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
         while (DateTime.UtcNow < deadline)
         {
             var text = Clipboard();
-            if (text != "")
+            if (text != "" && text != previous)
                 return text;
 
             Thread.Sleep(PollMs);

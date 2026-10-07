@@ -452,10 +452,11 @@ the same pane the log view shows, which follows the cursor as you move down
 the lines (`Tab` moves into it to scroll a long message). `d` shows the
 diff of the current line's commit, `p` blames the version before it (so a
 reformat or a rename can be stepped past to the change that actually
-matters) and `Backspace` steps back out again, `i` cycles how much of each
+matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column
-stays put, `c` copies the current line's commit id, `Ctrl-C` copies the
-selected lines, `m` opens the menu, and `Esc` or `q` closes the view.
+stays put, `i` copies the current line's commit id and `Shift-I` its
+message, as in the log, `Ctrl-C` copies the selected lines, `m` opens the
+menu, and `Esc` or `q` closes the view.
 
 
 ## Resolving Conflicts

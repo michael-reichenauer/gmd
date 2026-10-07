@@ -241,7 +241,9 @@ Both are reworked, see proposal D.1.
 1. The file checklist in the commit dialog (Tier 4, item 1, below).
 2. Copy Commit Id and Copy Commit Message in the commit menu, with a key. *Done (2026-10-07):*
    `i` and `Shift-I`, and the commit menu's items, each saying on the status line what it copied;
-   the uncommitted row says it is no commit yet.
+   the uncommitted row says it is no commit yet. Blame copies its line's commit with the same two
+   keys, so its gutter detail moved from `i` to `g`, and `c` copies nothing there any more, where
+   in the log it commits (one of the letters the usability review found meaning two things).
 3. Reword, fix up and drop, for the commits not yet pushed.
 4. Light themes, `NO_COLOR`, and branch colors that do not lean on red against green, with the
    Terminal.Gui 2.x port.

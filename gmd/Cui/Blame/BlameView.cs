@@ -148,11 +148,14 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-CommitDetailsView.ContentHeight));
         view.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(CommitDetailsView.ContentHeight));
         view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
-        view.RegisterLetterHandler(Key.i, CycleDetails);
+        view.RegisterLetterHandler(Key.g, CycleDetails); // The gutter
         view.RegisterLetterHandler(Key.d, ShowLineCommitDiff);
         view.RegisterLetterHandler(Key.p, BlamePrevious);
         view.RegisterKeyHandler(Key.Backspace, Back);
-        view.RegisterLetterHandler(Key.c, CopyLineSha);
+        // The line's commit id and message, as 'i' and Shift-I copy a commit's in the log view, so
+        // one case each rather than both
+        view.RegisterKeyHandler(Key.i, CopyLineId);
+        view.RegisterKeyHandler(Key.I, CopyLineMessage);
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
@@ -400,13 +403,29 @@ class BlameView : IBlameView
         contentView.ClearSelection();
     }
 
-    void CopyLineSha()
+    void CopyLineId()
     {
         var row = CurrentRow;
         if (row == null || row.Commit.IsUncommitted)
             return;
 
         if (clipboard.Set(row.Commit.Id) is Error e)
+            UI.ErrorMessage(e.AllMessages());
+    }
+
+    // The whole message, which the blame does not have, only its subject: the shown log has it, as
+    // for the details pane (OnCurrentIndexChange), and the subject is the fallback for a commit
+    // beyond the log's cap
+    void CopyLineMessage()
+    {
+        var row = CurrentRow;
+        if (row == null || row.Commit.IsUncommitted)
+            return;
+
+        var message = repo.CommitById.TryGetValue(row.Commit.Id, out var commit)
+            ? commit.Message.TrimEnd()
+            : row.Commit.Subject;
+        if (clipboard.Set(message) is Error e)
             UI.ErrorMessage(e.AllMessages());
     }
 
@@ -436,11 +455,17 @@ class BlameView : IBlameView
                 .Separator()
                 .SubMenu("Scroll to Commit", "", GetScrollToItems())
                 .Item("Commit Details", "Enter", () => ToggleDetails())
-                .Item($"Gutter Detail ({details})", "i", () => CycleDetails())
+                .Item($"Gutter Detail ({details})", "g", () => CycleDetails())
                 .Item("Reset Horizontal Scroll", "", () => ResetScroll(), () => rowStartX > 0)
                 .Separator()
                 .Item("Copy Selected Lines", "Ctrl-C", () => OnCopy(), () => IsSelected)
-                .Item("Copy Commit Id of Line", "c", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
+                .Item("Copy Commit Id of Line", "i", () => CopyLineId(), () => c != null && !c.IsUncommitted)
+                .Item(
+                    "Copy Commit Message of Line",
+                    "Shift-I",
+                    () => CopyLineMessage(),
+                    () => c != null && !c.IsUncommitted
+                )
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }
