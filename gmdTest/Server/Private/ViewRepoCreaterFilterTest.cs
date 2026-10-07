@@ -174,29 +174,22 @@ public class ViewRepoCreaterFilterTest
         Assert.AreEqual("", (await Fixture().ViewRepoAsync()).Filter);
     }
 
-    // '$' is the commits whose branch could not be inferred and the user said which it was, i.e.
-    // the way to find the choices made in this repo
+    // '*' and '$' are searched for as text like anything else. They were search words of their own,
+    // '*' for the ambiguous branch tips and '$' for the commits whose branch the user set, which no
+    // one could guess; Ambiguous in Show Branch lists the first, and Φ in the graph marks the second.
     [TestMethod]
-    public async Task TestDollarShowsTheCommitsWhoseBranchTheUserSet()
+    public async Task TestStarAndDollarAreSearchedForAsText()
     {
-        var repo = await new RepoBuilder()
+        var ambiguous = await Ambiguous().FilteredViewRepoAsync("*");
+        var userSet = await new RepoBuilder()
             .Commit("c2", "Second", "c1")
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "c2", isCurrent: true)
             .UserSetBranch("c1", "main")
             .FilteredViewRepoAsync("$");
 
-        CollectionAssert.AreEqual(new[] { "Initial" }, Subjects(repo));
-    }
-
-    // '*' is the other half of the same job: the commits gmd could not decide a branch for and is
-    // asking about
-    [TestMethod]
-    public async Task TestStarShowsTheAmbiguousBranchTips()
-    {
-        var repo = await Ambiguous().FilteredViewRepoAsync("*");
-
-        CollectionAssert.AreEqual(new[] { "Shared" }, Subjects(repo));
+        CollectionAssert.AreEqual(new[] { NoMatchesRow }, Subjects(ambiguous));
+        CollectionAssert.AreEqual(new[] { NoMatchesRow }, Subjects(userSet));
     }
 
     // Nothing matched, so the view is the one placeholder row saying so. It is on the virtual

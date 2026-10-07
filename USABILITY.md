@@ -273,7 +273,9 @@ Both are reworked, see proposal D.1.
    or a test pass, and its question lists what git's dry run says it deletes, so a `.env` meant to
    be kept is seen before Yes. The `5` key is gone, *Set Commit Branch Manually* stays in the
    branch menu. `g` stays, since automatic branch colors often collide and changing one is how two
-   branches are told apart; `<=` / `=>` never had keys.
+   branches are told apart; `<=` / `=>` never had keys. *And the search words (2026-10-07):* `*`
+   and `$` are searched for as text now; *Ambiguous* in Show Branch lists the ambiguous branches,
+   and `Φ` in the graph marks a commit whose branch was set by hand.
 
 **D. Reach:**
 
@@ -324,7 +326,7 @@ Shorter menus (C.5, part 3):
 - [x] 11. **Rare and risky items moved:** *Clean Working Folder* under Undo as *Discard All Changes
   and Ignored Files*, its question listing what it deletes; the `5` key gone; `g` kept, since the
   branch colors often collide; `<=` / `=>` had no keys already; and the `Sorter.Sort` hang fixed. S
-- [ ] 12. **The `*` and `$` search words** kept or dropped, to decide. S
+- [x] 12. **The `*` and `$` search words** dropped. S
 
 Getting around:
 
