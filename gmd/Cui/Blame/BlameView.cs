@@ -1,5 +1,7 @@
+using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
+using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -42,6 +44,11 @@ class BlameView : IBlameView
     record BlameState(string Path, string Reference, int Index, int RowStartX);
 
     readonly IHelpDlg helpDlg;
+    readonly Config config;
+    KeyHintBar? hintBar;
+
+    // The bottom row, for the key hints, unless they are turned off
+    int HintsHeight => hintBar != null ? 1 : 0;
 
     public BlameView(
         IBlameService blameService,
@@ -50,10 +57,12 @@ class BlameView : IBlameView
         IDiffView diffView,
         IClipboardService clipboard,
         Func<ICommitDetailsView> newDetailsView,
-        IHelpDlg helpDlg
+        IHelpDlg helpDlg,
+        Config config
     )
     {
         this.helpDlg = helpDlg;
+        this.config = config;
         this.blameService = blameService;
         this.server = server;
         this.progress = progress;
@@ -97,21 +106,41 @@ class BlameView : IBlameView
             ColorScheme = ColorSchemes.Border,
         };
 
+        hintBar = config.ShowKeyHints
+            ? new KeyHintBar(
+                () =>
+                    KeyHints.ForBlame(
+                        isShowDetails,
+                        CurrentRow?.Commit.PreviousId is not (null or ""),
+                        backStack.Count > 0
+                    ),
+                () => null
+            )
+            : null;
+
         contentView = new ContentView(OnGetContent)
         {
             X = 0,
             Y = 2,
             Width = Dim.Fill(),
-            Height = Dim.Fill(),
+            Height = Dim.Fill(HintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
             IsCursorMargin = false,
             IsCustomShowSelection = true,
         };
 
+        // Above the key hints, as the log view has its details
         detailsView = newDetailsView();
+        detailsView.View.Y = Pos.AnchorEnd(CommitDetailsView.ContentHeight + HintsHeight);
 
         blameView.Add(header, border, contentView, detailsView.View);
+        if (hintBar is KeyHintBar bar)
+        {
+            blameView.Add(bar);
+            // 'p' and Backspace are offered for the line's commit, and for having stepped back
+            contentView.CurrentIndexChange += () => bar.SetNeedsDisplay();
+        }
         RegisterShortcuts(contentView);
         detailsView.View.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
         detailsView.View.RegisterKeyHandler(Key.Enter, ToggleDetails);
@@ -239,13 +268,13 @@ class BlameView : IBlameView
 
         if (isShowDetails)
         {
-            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight + HintsHeight);
             detailsView.View.Height = CommitDetailsView.ContentHeight;
             OnCurrentIndexChange();
         }
         else
         {
-            contentView.Height = Dim.Fill();
+            contentView.Height = Dim.Fill(HintsHeight);
             detailsView.View.Height = 0;
             contentView.IsFocus = true;
             detailsView.View.IsFocus = false;
@@ -253,6 +282,7 @@ class BlameView : IBlameView
 
         contentView.SetNeedsDisplay();
         detailsView.View.SetNeedsDisplay();
+        hintBar?.SetNeedsDisplay(); // Enter shows or hides the details
     }
 
     // Focus moves to the details so a long commit message can be scrolled, as in the log view.

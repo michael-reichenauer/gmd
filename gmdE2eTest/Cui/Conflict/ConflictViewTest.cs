@@ -318,6 +318,20 @@ public class ConflictViewTest
 
     // The conflicts of the uncommitted merge, reached the way a user reaches them: the diff of the
     // uncommitted changes, its Resolve Conflicts menu, and the one conflicted file in it
+    // The resolver's key hints, on its bottom row below the result pane, which names what 1 to 4
+    // and 0 take for the conflict under the cursor
+    [TestMethod]
+    public async Task TestTheResolverHasHintsOfItsOwn()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        OpenTheResolver(gmd);
+
+        var screen = gmd.WaitFor("] [ next, previous");
+        StringAssert.Contains(ScreenText.LastLine(screen), "m menu  Esc close  ] [ next, previous  s save");
+        StringAssert.Contains(screen, "press 1 for HEAD", "The result pane is still there, above the hints");
+    }
+
     static void OpenTheResolver(TmuxSession gmd)
     {
         gmd.WaitFor("CONFLICTS");

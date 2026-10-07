@@ -167,6 +167,31 @@ public class BlameViewTest
         gmd.WaitUntilGone("Test User"); // The author is dropped first
     }
 
+    // The key hints of the blame view, on its bottom row as the log has them: 'p' for a line whose
+    // commit changed an older version, and the details pane opening above the line
+    [TestMethod]
+    public async Task TestBlameHasHintsOfItsOwn()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\n", "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "one\nTWO\n", "Change a line", t.AddMinutes(8));
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("TWO");
+        gmd.Send("Down");
+
+        var hints = ScreenText.LastLine(gmd.WaitFor("p previous")).TrimStart('─', ' ');
+        StringAssert.StartsWith(hints, "m menu  Esc close  Enter details  d diff  p previous  i copy id  g gutter ─");
+        StringAssert.EndsWith(hints, "? help");
+
+        gmd.Send("Enter");
+        var screen = gmd.WaitFor("hide details");
+        StringAssert.Contains(screen, "Id:", "The details are shown");
+        StringAssert.Contains(ScreenText.LastLine(screen), "Enter hide details", "With the hints still under them");
+    }
+
     static void OpenBlameOf(TmuxSession gmd, string path)
     {
         gmd.Send("m");

@@ -162,5 +162,22 @@ public class KeyHintTest
     }
 
     // The hints, with the stretch of border between them and the help written ' | '
+    // The diff view has a line of its own, as do blame and the resolver (see their tests): its keys,
+    // the way back first, and nothing about the log, which is behind it and takes no keys
+    [TestMethod]
+    public async Task TestTheDiffHasHintsOfItsOwn()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
+        gmd.WaitFor("d diff");
+
+        gmd.Send("d");
+
+        Assert.AreEqual(
+            "m menu  Esc close  + - context  s to file  ←→ columns | ? help",
+            Hints(gmd.WaitFor("Esc close"))
+        );
+    }
+
     static string Hints(string screen) => Regex.Replace(ScreenText.LastLine(screen), " ─+ ", " | ");
 }

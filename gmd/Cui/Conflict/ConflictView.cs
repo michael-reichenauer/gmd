@@ -1,4 +1,6 @@
+using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -40,9 +42,18 @@ class ConflictView : IConflictView
     bool isResolved;
     bool isMovedToFirstHunk;
 
-    public ConflictView(IServer server, IProgress progress, IConflictRowService rowService, IHelpDlg helpDlg)
+    readonly Config config;
+
+    public ConflictView(
+        IServer server,
+        IProgress progress,
+        IConflictRowService rowService,
+        IHelpDlg helpDlg,
+        Config config
+    )
     {
         this.helpDlg = helpDlg;
+        this.config = config;
         this.server = server;
         this.progress = progress;
         this.rowService = rowService;
@@ -96,12 +107,14 @@ class ConflictView : IConflictView
             ColorScheme = ColorSchemes.Border,
         };
 
+        // The keys worth knowing here on the bottom row, below the result pane, unless turned off
+        var hintsHeight = config.ShowKeyHints ? 1 : 0;
         contentView = new ContentView(OnGetContent)
         {
             X = 0,
             Y = 2,
             Width = Dim.Fill(),
-            Height = Dim.Fill(ResultHeight + 1),
+            Height = Dim.Fill(ResultHeight + 1 + hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
             IsCursorMargin = false,
@@ -111,13 +124,13 @@ class ConflictView : IConflictView
         var resultBorder = new HorizontalLine()
         {
             X = 0,
-            Y = Pos.AnchorEnd(ResultHeight + 1),
+            Y = Pos.AnchorEnd(ResultHeight + 1 + hintsHeight),
             ColorScheme = ColorSchemes.Border,
         };
         resultView = new ContentView(OnGetResultContent)
         {
             X = 0,
-            Y = Pos.AnchorEnd(ResultHeight),
+            Y = Pos.AnchorEnd(ResultHeight + hintsHeight),
             Width = Dim.Fill(),
             Height = ResultHeight,
             IsShowCursor = false,
@@ -130,6 +143,8 @@ class ConflictView : IConflictView
         };
 
         view.Add(header, border, contentView, resultBorder, resultView);
+        if (config.ShowKeyHints)
+            view.Add(new KeyHintBar(KeyHints.ForConflict, () => null));
         RegisterShortcuts(contentView);
 
         // The result pane follows the cursor, so walking the file walks through the decisions

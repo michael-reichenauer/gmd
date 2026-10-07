@@ -52,6 +52,47 @@ static class KeyHints
             new("file:", "search changed files"),
         ];
 
+    // The side views' lines, drawn by a KeyHintBar of their own. 'Esc close' comes early in each,
+    // since getting back to the log is the first thing to know in a view that covers it.
+    public static IReadOnlyList<KeyHint> ForDiff(bool isUncommitted, bool hasConflicts)
+    {
+        List<KeyHint> hints = [Menu, new("Esc", "close")];
+        if (hasConflicts)
+            hints.Add(new("Enter", "resolve"));
+        if (isUncommitted)
+            hints.Add(new("c", "commit"));
+        hints.AddRange([new("+ -", "context"), new("s", "to file")]);
+        if (isUncommitted)
+            hints.Add(new("u", "discard"));
+        hints.Add(new("←→", "columns"));
+        return hints;
+    }
+
+    public static IReadOnlyList<KeyHint> ForBlame(bool isDetailsShown, bool hasPrevious, bool canGoBack)
+    {
+        List<KeyHint> hints = [Menu, new("Esc", "close"), new("Enter", isDetailsShown ? "hide details" : "details")];
+        hints.Add(new("d", "diff"));
+        if (hasPrevious)
+            hints.Add(new("p", "previous"));
+        if (canGoBack)
+            hints.Add(new("Backspace", "back"));
+        hints.AddRange([new("i", "copy id"), new("g", "gutter")]);
+        return hints;
+    }
+
+    // 1, 2, 3, 4 and 0 are said by the resolver's own result pane, for the conflict under the cursor
+    public static IReadOnlyList<KeyHint> ForConflict() =>
+        [
+            Menu,
+            new("Esc", "close"),
+            new("] [", "next, previous"),
+            new("s", "save"),
+            new("e", "edit"),
+            new("b", "ancestor"),
+            new("a", "whole file"),
+            new("u", "clear"),
+        ];
+
     // The hints on one line of the given width, set into the border: as many as fit, from the left,
     // and help at the right, with the border between them
     //

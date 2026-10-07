@@ -162,6 +162,37 @@ public class KeyHintsTest
 
     // The line: the border, the hints from the left, the border on to the help at the right, and what
     // does not fit dropped from the end rather than cut, so every hint shown is whole
+    // The diff, blame and conflict views have lines of their own, each its view's keys, the way back
+    // to the log early on. The diff offers commit and discard for the uncommitted changes only, and
+    // Enter for a conflict; blame offers 'p' for a line with an older version and Backspace after
+    // stepping back to one.
+    [TestMethod]
+    public void TestTheSideViewsHaveHintsOfTheirOwn()
+    {
+        static string Line(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
+
+        Assert.AreEqual(
+            "m menu  Esc close  + - context  s to file  ←→ columns",
+            Line(KeyHints.ForDiff(isUncommitted: false, hasConflicts: false))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  Enter resolve  c commit  + - context  s to file  u discard  ←→ columns",
+            Line(KeyHints.ForDiff(isUncommitted: true, hasConflicts: true))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  Enter details  d diff  i copy id  g gutter",
+            Line(KeyHints.ForBlame(isDetailsShown: false, hasPrevious: false, canGoBack: false))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  Enter hide details  d diff  p previous  Backspace back  i copy id  g gutter",
+            Line(KeyHints.ForBlame(isDetailsShown: true, hasPrevious: true, canGoBack: true))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  ] [ next, previous  s save  e edit  b ancestor  a whole file  u clear",
+            Line(KeyHints.ForConflict())
+        );
+    }
+
     [TestMethod]
     public void TestTheLineDropsTheHintsThatDoNotFit()
     {

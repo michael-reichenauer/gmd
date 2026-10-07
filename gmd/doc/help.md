@@ -101,7 +101,8 @@ Each item can be clicked:
 -------------------------------------------------------------------------
 
 The line at the bottom shows the keys that do something where the cursor
-is, and changes as it moves. **Config ...** in the repo menu turns it off.
+is, and changes as it moves; the diff, blame and conflict views have one of
+their own. **Config ...** in the repo menu turns them off.
 While a commit, push or pull runs it says what is being done, in cyan. For
 a few seconds after a command it says what the command did, or why a key
 or a greyed out menu item did nothing, and in red when a fetch failed.
