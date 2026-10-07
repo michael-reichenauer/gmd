@@ -141,6 +141,22 @@ static class E2eRepo
         return repo;
     }
 
+    // The same with origin's 'main' taken back a commit by someone's force push, dropping 'Add delta',
+    // and fetched here, where 'main' still has it with 'Add zeta' on top. Made inside the bare origin,
+    // so no second clone is needed. That leaves 'main' just ahead, with nothing to pull, so a plain
+    // push would put 'Add delta' back.
+    public static async Task<TempRepo> CreateWithDroppedOnOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+        var origin = repo.Path + "-origin";
+
+        var mergeOfDev = (await repo.GitAsync("rev-parse main~2")).Trim();
+        await repo.GitAsync($"-C \"{origin}\" update-ref refs/heads/main {mergeOfDev}");
+        await repo.GitAsync("fetch -q origin");
+
+        return repo;
+    }
+
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
     // and gives 'Pull' something to do.

@@ -109,6 +109,25 @@ public class ForcePushesTest
         );
     }
 
+    // A push that would put back what a force push dropped, since there is nothing new to pull first
+    [TestMethod]
+    public void TestThePushBackWarning()
+    {
+        Assert.AreEqual(
+            """
+            'origin/dev' was rewritten by a force push that dropped
+            1 commit, and 'dev' still has it.
+
+            Push puts it back on origin, for everyone, which is right
+            only if dropping it was a mistake. Otherwise pull first,
+            which leaves it out, and then push.
+            """,
+            ForcePushes.PushBackWarning(Rewrite(dropped: 1) with { NewCount = 0 })
+        );
+        Assert.IsTrue(ForcePushes.IsPushedBack(Rewrite() with { NewCount = 0 }));
+        Assert.IsFalse(ForcePushes.IsPushedBack(Rewrite()), "Diverged, which git refuses a plain push of");
+    }
+
     [TestMethod]
     public void TestWhatIsSaidOncePulled()
     {

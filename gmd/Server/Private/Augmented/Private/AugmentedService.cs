@@ -279,7 +279,7 @@ class AugmentedService : IAugmentedService
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
 
-        var remoteReflog = await GetDivergedRemoteReflogAsync(branches, path);
+        var remoteReflog = await GetRemoteReflogAsync(branches, path);
 
         // Combine all git info into one git repo info object. The config's collections are copied: it
         // is the live one, which a command changes (RecordStep) while the augmentation reads the git
@@ -306,14 +306,15 @@ class AugmentedService : IAugmentedService
         return gitRepo;
     }
 
-    // The reflogs of the remote branches that have diverged from their local branches, read after the
-    // branches since it is them that say which. That is usually none, and then nothing is read, so a
-    // refresh waits for this only when there is something to tell: whether origin was force pushed,
-    // see RemoteRewrites. It is extra, like the reflog, and a failure only means nothing is told.
-    async Task<IReadOnlyList<ReflogEntry>> GetDivergedRemoteReflogAsync(IReadOnlyList<Git.Branch> branches, string path)
+    // The reflogs of the remote branches whose local branches have commits not on them, read after the
+    // branches since it is them that say which: whether origin was force pushed, see RemoteRewrites.
+    // Not only the diverged ones, since a force push that only dropped commits leaves the local branch
+    // just ahead, with a push that puts them back. With every branch pushed nothing is read. It is
+    // extra, like the reflog, and a failure only means nothing is told.
+    async Task<IReadOnlyList<ReflogEntry>> GetRemoteReflogAsync(IReadOnlyList<Git.Branch> branches, string path)
     {
         var refs = branches
-            .Where(b => !b.IsRemote && b.RemoteName != "" && b.AheadCount > 0 && b.BehindCount > 0)
+            .Where(b => !b.IsRemote && b.RemoteName != "" && b.AheadCount > 0)
             .Select(b => $"refs/remotes/{b.RemoteName}")
             .ToList();
         if (refs.Count == 0)

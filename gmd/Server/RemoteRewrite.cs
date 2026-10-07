@@ -3,7 +3,8 @@ namespace gmd.Server;
 // A remote branch rewritten by a force push since its local branch was built on it, e.g. a teammate
 // rebased and pushed it, or gmd's Rebase pushed it and the rebase was then undone here. The local
 // branch has the old version, origin the new one: a pull that merged the two would put every commit
-// in twice, and a push of the merge would put the old version back on origin for everyone.
+// in twice, and a push of the merge would put the old version back on origin for everyone. A force
+// push that only dropped commits leaves nothing to pull, and a plain push would put them back.
 public record RemoteRewrite(
     string BranchName, // The local branch
     string RemoteName, // Its remote branch, e.g. 'origin/dev'

@@ -176,6 +176,11 @@ says (as `git pull --rebase` would). A branch that is not checked out is
 pulled that way, and by `Shift-U`, when it has no commits of its own. The
 question names any commit the force push dropped.
 
+A force push that only dropped commits leaves nothing to pull, but the
+branch still has them, so a plain push would put them back on origin: `p`
+asks first, and `Shift-P` leaves the branch out. Pull (`u`) takes the new
+version, as above.
+
 If the force push was a mistake, **Restore origin/... from before the Force
 Push ...** in the branch menu puts the old version back on origin. That is
 a force push too, for everyone, so it asks first, and it is refused if

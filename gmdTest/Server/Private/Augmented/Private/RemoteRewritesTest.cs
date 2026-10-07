@@ -79,6 +79,114 @@ public class RemoteRewritesTest
         Assert.AreEqual(2, Find(builder)["dev"].OwnCount);
     }
 
+    // dev had a1 <- a2 <- a3 on origin, and a commit of its own, c1, on top here. Someone reset it back
+    // to a1 and force pushed, which leaves dev here just ahead, with nothing to pull: a plain push
+    // would put a2 and a3 back.
+    static RepoBuilder Dropped(RepoBuilder builder, int behind = 0) =>
+        builder
+            .Commit("c1", "Own work", "a3")
+            .Commit("a3", "Dropped", "a2")
+            .Commit("a2", "Dropped too", "a1")
+            .Commit("a1", "Initial")
+            .LocalBranch("dev", "c1", isCurrent: true, remoteName: "origin/dev", ahead: 3, behind: behind);
+
+    [TestMethod]
+    public void TestAForcePushThatOnlyDroppedCommits()
+    {
+        var builder = Dropped(new RepoBuilder())
+            .RemoteBranch("origin/dev", "a1")
+            .RemoteReflog("origin/dev", "a1", "fetch: forced-update")
+            .RemoteReflog("origin/dev", "a3", "update by push");
+
+        var rewrite = Find(builder)["dev"];
+
+        Assert.AreEqual(
+            new RemoteRewrite(
+                "dev",
+                "origin/dev",
+                Id("c1"),
+                Id("a3"),
+                Id("a3"),
+                Id("a1"),
+                1,
+                2,
+                0,
+                rewrite.DroppedIds,
+                false,
+                true
+            ),
+            rewrite
+        );
+        CollectionAssert.AreEquivalent(new[] { Id("a2"), Id("a3") }, rewrite.DroppedIds.ToArray());
+    }
+
+    // The same with a commit pushed on top of the drop since, b1, which makes dev diverged
+    [TestMethod]
+    public void TestAForcePushThatDroppedCommitsWithOneOnTopSince()
+    {
+        var builder = Dropped(new RepoBuilder().Commit("b1", "On top", "a1"), behind: 1)
+            .RemoteBranch("origin/dev", "b1")
+            .RemoteReflog("origin/dev", "b1", "fetch: fast-forward")
+            .RemoteReflog("origin/dev", "a1", "fetch: forced-update")
+            .RemoteReflog("origin/dev", "a3", "update by push");
+
+        var rewrite = Find(builder)["dev"];
+
+        Assert.AreEqual(
+            (Id("a3"), Id("a3"), Id("b1"), 1, 1, 2, false),
+            (
+                rewrite.ForkPointId,
+                rewrite.OldTipId,
+                rewrite.NewTipId,
+                rewrite.OwnCount,
+                rewrite.NewCount,
+                rewrite.DroppedIds.Count,
+                rewrite.IsRestorable
+            )
+        );
+    }
+
+    // A branch rebuilt on the new version, as a pull of the rewrite leaves it, and then ahead with a
+    // commit of its own, has nothing of the old version to put back
+    [TestMethod]
+    public void TestABranchBuiltOnTheNewVersionIsNoRewrite()
+    {
+        var builder = new RepoBuilder()
+            .Commit("c2", "Own work", "b2")
+            .CopyOf("b2", "a2", "b1")
+            .Commit("b1", "Moved on", "a1")
+            .Commit("a3", "Dropped", "a2")
+            .Commit("a2", "Kept", "a1")
+            .Commit("a1", "Initial")
+            .LocalBranch("dev", "c2", isCurrent: true, remoteName: "origin/dev", ahead: 1)
+            .RemoteBranch("origin/dev", "b2")
+            .RemoteReflog("origin/dev", "b2", "fetch: forced-update")
+            .RemoteReflog("origin/dev", "a3", "update by push");
+
+        Assert.AreEqual(0, Find(builder).Count);
+    }
+
+    // A branch that merged the new version into the old one, as a 'git pull' that merges leaves it,
+    // is not told: the merge is made, and moving it onto the new version is not what a pull can offer
+    [TestMethod]
+    public void TestABranchThatMergedTheNewVersionIsNotTold()
+    {
+        var builder = new RepoBuilder()
+            .Commit("x1", "Merge origin/dev into dev", "c1", "b2")
+            .Commit("c1", "Own work", "a3")
+            .CopyOf("b2", "a2", "b1")
+            .Commit("b1", "Moved on", "a1")
+            .Commit("a3", "Dropped", "a2")
+            .Commit("a2", "Kept", "a1")
+            .Commit("a1", "Initial")
+            .LocalBranch("dev", "x1", isCurrent: true, remoteName: "origin/dev", ahead: 4)
+            .RemoteBranch("origin/dev", "b2")
+            .RemoteReflog("origin/dev", "b2", "fetch: forced-update")
+            .RemoteReflog("origin/dev", "a3", "update by push");
+
+        Assert.AreEqual(0, Find(builder).Count);
+    }
+
     // New commits on both sides is no rewrite: what the local branch was built on is still in
     // origin's history
     [TestMethod]

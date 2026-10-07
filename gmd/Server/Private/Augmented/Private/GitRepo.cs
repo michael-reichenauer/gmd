@@ -79,8 +79,8 @@ class GitRepo
     // The last changes gmd made to branches that their reflogs alone would name wrong, see RepoConfig
     public IReadOnlyDictionary<string, RecordedStep> RecordedSteps { get; }
 
-    // The reflogs of the remote branches that have diverged from their local branches, which tell a
-    // force push on origin from new commits on both sides, see RemoteRewrites. Usually none.
+    // The reflogs of the remote branches whose local branches have commits not on them, which tell a
+    // force push on origin from new commits on either side, see RemoteRewrites
     public IReadOnlyList<ReflogEntry> RemoteReflog { get; }
 
     public override string ToString() =>

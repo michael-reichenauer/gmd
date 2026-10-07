@@ -410,6 +410,40 @@ public class PushPullTest
         );
     }
 
+    // A force push that only dropped a commit leaves 'main' just ahead, and a plain push of it would
+    // put the commit back on origin: said once it is found, and the push asks first, with Cancel as
+    // the default. Pull, with nothing new on origin, moves the commit of its own onto the new version.
+    [TestMethod]
+    public async Task TestPushAfterAForcePushThatDroppedACommit()
+    {
+        using var repo = await E2eRepo.CreateWithDroppedOnOriginAsync();
+        var newTip = await repo.GitAsync("rev-parse origin/main");
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            "'origin/main' was rewritten by a force push, dropping 1 commit: Pull moves your 1 commit onto it",
+            ScreenText.LastLine(gmd.WaitFor("was rewritten by a force push"))
+        );
+
+        gmd.Send("p");
+        StringAssert.Contains(gmd.WaitFor("Push Warning"), "Push puts it back on origin");
+        gmd.Send("Enter"); // Cancel, the default
+        gmd.WaitUntilGone("Push Warning");
+        Assert.AreEqual(newTip, await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main"));
+
+        gmd.Send("u");
+        gmd.WaitFor("Pull Rewritten Branch");
+        gmd.Send("Left"); // From Cancel, the default, to Pull
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved your 1 commit onto the rewritten 'origin/main'",
+            ScreenText.LastLine(gmd.WaitFor("Moved your 1 commit"))
+        );
+        Assert.AreEqual("Add zeta\nMerge branch 'dev' into main", await repo.GitAsync("log --format=%s -2 main"));
+    }
+
     // A force push on origin taken back from the branch menu: origin gets the old version again,
     // after a question with No as the default. For 'main', the current branch, the menu starts on
     // 'Hide Branch', the first item it can act on, and the item is three moves down, past 'Pull'

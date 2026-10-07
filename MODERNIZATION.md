@@ -117,7 +117,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
     a branch to bring it back.
   - A force push on origin told from new commits on both sides, by the remote branch's reflog and the
     fork point (`RemoteRewrites`); pulled by moving the branch's own commits onto the new version
-    rather than merging the two; and origin put back from before it, with a lease.
+    rather than merging the two; and origin put back from before it, with a lease. One that only
+    dropped commits leaves the branch just ahead, which `merge-base --fork-point` cannot tell (the
+    commit origin went back to is in the local branch too), so it is found by origin's old tip being
+    in the local branch, and a plain push of it asks first.
 
 **Bugs fixed** (the ones a user could hit; all have regression tests)
 
@@ -290,6 +293,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - A lost line of work's time is its tip's commit time, since the reflog entries carry none.
   - With no remote reflog (expired after 90 days, `core.logAllRefUpdates` off, a fresh clone), a
     force push is not told from new commits on both sides, and a pull merges as before.
+  - A branch that merged the rewritten version into the old one (a `git pull` that merges) is not
+    told, though its push puts the old version back; and the commits of the old version the local
+    branch never had, fetched but not pulled, are not in the log, so they are not counted dropped.
   - Restoring discarded changes and dropped stashes is not done: the reflog records neither, but
     git prints a dropped stash's id, and `git stash create` before a discard would keep one.
 - A repo with no commits still offers Uncommit (git refuses the reset). Ctrl+O is documented as
@@ -527,7 +533,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
     cannot run git (no working folder, stdout never read), so the ids go in chunks of 400, about
     16K characters, under the 32K a Windows command line holds.
   - A remote branch's reflog says `fetch …: fast-forward` or `forced-update`, and `update by push`
-    for a push from here, forced or not. It is read only for the branches that have diverged.
+    for a push from here, forced or not. It is read only for the branches with commits not pushed.
     `git reflog show a b` reads several refs at once, and a ref with no reflog is left out silently.
   - `merge-base --fork-point`, which `pull --rebase` uses, is the newest entry of the remote
     branch's reflog that the local branch has; `RemoteRewrites` finds it from the log in memory.

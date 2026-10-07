@@ -161,6 +161,47 @@ public class ForcePushIntegrationTest
         Assert.AreEqual((StepKind.Pull, own), (pulled.UndoSteps["dev"].Kind, pulled.UndoSteps["dev"].TargetId));
     }
 
+    // The other clone only drops 'Dropped', resetting dev back to 'Kept' and force pushing: dev here is
+    // then just ahead, with nothing to pull, which a plain push would take and put 'Dropped' back with.
+    // Found all the same, and pulled by moving the commit of its own onto 'Kept'.
+    [TestMethod]
+    public async Task TestAForcePushThatOnlyDroppedCommitsIsFoundAndPulled()
+    {
+        await CommitAsync("a.txt", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -u origin main");
+        await repo.GitAsync("checkout -b dev");
+        var kept = await CommitAsync("k.txt", "Kept");
+        var dropped = await CommitAsync("d.txt", "Dropped");
+        await repo.GitAsync("push -u origin dev");
+        await CommitAsync("o.txt", "Own work");
+        other = repo.Path + "-other";
+        repo.TrackFolder(other);
+        await repo.GitAsync($"clone -q -b dev \"{repo.Path}-origin\" \"{other}\"");
+        await repo.GitAsync($"-C \"{other}\" reset -q --hard {kept}");
+        await repo.GitAsync($"-C \"{other}\" push -q --force origin dev");
+        await repo.GitAsync("fetch origin");
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+        var rewrite = augmented.RemoteRewrites["dev"];
+
+        AssertOk(await service.PullRewrittenAsync(augmented, rewrite));
+
+        Assert.AreEqual(
+            (dropped, kept, 1, 0, false, true),
+            (
+                rewrite.ForkPointId,
+                rewrite.NewTipId,
+                rewrite.OwnCount,
+                rewrite.NewCount,
+                rewrite.IsByYou,
+                rewrite.IsRestorable
+            )
+        );
+        CollectionAssert.AreEqual(new[] { dropped }, rewrite.DroppedIds.ToArray());
+        Assert.AreEqual("Own work\nKept\nInitial", (await repo.GitAsync("log --format=%s dev")).Trim());
+        Assert.AreEqual(0, AssertOk(await service.GetRepoAsync(repo.Path)).RemoteRewrites.Count);
+    }
+
     // A branch merged in is not moved with the own commits: its commits keep their ids, and the merge
     // is made again on the new version
     [TestMethod]

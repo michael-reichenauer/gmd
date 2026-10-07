@@ -43,8 +43,8 @@ static class ForcePushes
             $"'{r.RemoteName}' was rewritten by a force push{by},\n"
             + $"so '{r.BranchName}' has the old version of it.\n\n"
             + $"{pull}, and leaves out\n"
-            + $"the {Commits(r.OldCopyCount)} of the old one, which Recover Lost Commits finds.\n"
-            + "It does not merge the two, which would put every commit in twice.";
+            + $"the {Commits(r.OldCopyCount)} of the old one, which Recover Lost Commits finds."
+            + (r.NewCount > 0 ? "\nIt does not merge the two, which would put every commit in twice." : "");
         if (r.DroppedIds.Count == 0)
             return question;
 
@@ -76,6 +76,21 @@ static class ForcePushes
         + "Force Push puts the old version back on origin, dropping\n"
         + "the new one for everyone. Pull first, which moves your\n"
         + "commits onto the new version, and then push.";
+
+    // A force push that only dropped commits leaves the local branch with nothing to pull, just ahead,
+    // so a plain push of it is taken, and puts what was dropped back on origin
+    public static bool IsPushedBack(RemoteRewrite r) => r.NewCount == 0;
+
+    // The push question when that is so
+    public static string PushBackWarning(RemoteRewrite r)
+    {
+        var them = r.DroppedIds.Count == 1 ? "it" : "them";
+        return $"'{r.RemoteName}' was rewritten by a force push that dropped\n"
+            + $"{Commits(r.DroppedIds.Count)}, and '{r.BranchName}' still has {them}.\n\n"
+            + $"Push puts {them} back on origin, for everyone, which is right\n"
+            + $"only if dropping {them} was a mistake. Otherwise pull first,\n"
+            + $"which leaves {them} out, and then push.";
+    }
 
     // The menu item that puts origin back
     public static string RestoreLabel(RemoteRewrite r) => $"Restore {r.RemoteName} from before the Force Push ...";

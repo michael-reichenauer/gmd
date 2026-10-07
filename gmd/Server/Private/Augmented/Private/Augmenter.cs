@@ -34,7 +34,7 @@ class Augmenter : IAugmenter
         AddAugBranches(repo, gitRepo);
         AddAugWorktrees(repo, gitRepo); // After the branches, which it marks
         repo.UndoSteps = ReflogSteps.StepsByBranch(gitRepo); // From the branches' own reflogs
-        repo.RemoteRewrites = RemoteRewrites.Find(gitRepo); // From the diverged remote branches' reflogs
+        repo.RemoteRewrites = RemoteRewrites.Find(gitRepo); // From the remote branches' reflogs
         AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
         SetCommitHasStash(repo);

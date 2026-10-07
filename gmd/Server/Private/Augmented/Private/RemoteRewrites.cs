@@ -3,12 +3,13 @@ using GitCommit = gmd.Git.Commit;
 
 namespace gmd.Server.Private.Augmented.Private;
 
-// The remote branches a force push rewrote since their local branches were built on them. Told from
-// new commits on both sides by the remote branch's reflog, which says where origin was each time it
-// was fetched or pushed: the local branch was built on one of those, its fork point, as 'git pull
-// --rebase' finds it, and when that is no longer in the remote branch's history, the remote branch
-// was rewritten. Only the diverged branches' reflogs are read (AugmentedService), and with none, or
-// an expired one, there is no fork point and nothing is said. No git and no view here.
+// The remote branches a force push rewrote since their local branches were built on them. Told by
+// the remote branch's reflog, which says where origin was each time it was fetched or pushed: the
+// local branch was built on one of those, its fork point, as 'git pull --rebase' finds it, and when
+// that is no longer in the remote branch's history, the remote branch was rewritten. Only the reflogs
+// of the branches with commits not on origin are read (AugmentedService), since a branch with none
+// has nothing of the old version to put back, and with none, or an expired one, there is no fork
+// point and nothing is said. No git and no view here.
 static class RemoteRewrites
 {
     const string RemoteRefPrefix = "refs/remotes/";
@@ -50,23 +51,38 @@ static class RemoteRewrites
         IReadOnlyDictionary<string, GitCommit> commitById
     )
     {
-        var inLocal = Ancestors(local.TipID, commitById);
-        var inRemote = Ancestors(remoteTip, commitById);
-
-        // The newest place origin was that the local branch was built on; still in origin's history
-        // means new commits on both sides, which is no rewrite
-        var fork = log.FirstOrDefault(e => inLocal.Contains(e.Id));
-        if (fork == null || inRemote.Contains(fork.Id))
-            return null;
-
         // Where origin was before the rewrite: the newest place it was that it no longer has, and the
-        // entry after it is the rewrite itself, a fetch of someone's force push or a push from here
+        // entry after it is the rewrite itself, a fetch of someone's force push or a push from here.
+        // Found first, since there is nearly never one, and then nothing more is walked.
+        var inRemote = Ancestors(remoteTip, commitById);
         var oldIndex = log.FindIndex(e => !inRemote.Contains(e.Id));
         if (oldIndex < 1)
             return null;
+        var oldTip = log[oldIndex];
         var rewriteEntry = log[oldIndex - 1];
 
-        var inFork = Ancestors(fork.Id, commitById);
+        // The newest place origin was that the local branch was built on; still in origin's history
+        // means new commits on both sides, which is no rewrite
+        var inLocal = Ancestors(local.TipID, commitById);
+        var fork = log.FirstOrDefault(e => inLocal.Contains(e.Id));
+        if (fork == null)
+            return null;
+        HashSet<string>? inFork = null;
+        if (inRemote.Contains(fork.Id))
+        {
+            // Unless the force push only dropped commits, taking origin back to a commit the old
+            // version was built on: the local branch then seems built on that, since it has every
+            // commit of it, but it was built on the old version, which it has too. That is a rewrite
+            // no pull shows, with nothing new to pull, while a push puts the dropped commits back.
+            if (!inLocal.Contains(oldTip.Id))
+                return null;
+            inFork = Ancestors(oldTip.Id, commitById);
+            if (!inFork.Contains(fork.Id))
+                return null;
+            fork = oldTip;
+        }
+
+        inFork ??= Ancestors(fork.Id, commitById);
         var oldCopies = inFork.Where(id => !inRemote.Contains(id)).ToList();
         var newIds = inRemote.Where(id => !inFork.Contains(id)).ToList();
         var newVersion = newIds.Select(id => KeyOf(commitById[id])).ToHashSet();
@@ -77,7 +93,7 @@ static class RemoteRewrites
             local.RemoteName,
             local.TipID,
             fork.Id,
-            log[oldIndex].Id,
+            oldTip.Id,
             remoteTip,
             OwnCount(commits, inLocal, inFork, fork.Id),
             oldCopies.Count,
