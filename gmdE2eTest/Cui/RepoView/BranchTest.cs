@@ -187,7 +187,9 @@ public class BranchTest
         Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "Renaming does not check out");
     }
 
-    // Deleting a branch, which is one item below the rename above and so one move further down
+    // Deleting a branch, which is one item below the rename above and so one move further down. The
+    // dialog's default is Cancel, so Enter on the item and Enter again leaves the branch where it is,
+    // and OK is a Left away.
     [TestMethod]
     public async Task TestDeleteBranch()
     {
@@ -204,6 +206,47 @@ public class BranchTest
         gmd.Send("Right");
         gmd.WaitForStable();
 
+        OpenDeleteBranch(gmd);
+        Assert.AreEqual(
+            """
+                                                  ╭ Delete Branch ───────────────────────────╮
+                                                  │ Delete: dev                              │
+                                                  │                                          │
+                                                  │ ◙ Delete Local                           │
+                                                  │ □ Delete Remote                          │
+                                                  │ □ Force Delete                           │
+                                                  │                                          │
+                                                  │                                          │
+                                                  │                                          │
+                                                  │           [ OK ] [◦ Cancel ◦]            │
+                                                  ╰──────────────────────────────────────────╯
+            """,
+            ScreenText.Rows(gmd.WaitFor("Delete Local"), repo.Path, 14, 11)
+        );
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Delete Local");
+        StringAssert.Matches(
+            await repo.GitAsync("branch --list"),
+            new System.Text.RegularExpressions.Regex(@"\bdev\b"),
+            "Enter cancels"
+        );
+
+        OpenDeleteBranch(gmd);
+        gmd.Send("Left"); // From Cancel, the default, to OK
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Delete Local");
+        StringAssert.DoesNotMatch(
+            await repo.GitAsync("branch --list"),
+            new System.Text.RegularExpressions.Regex(@"\bdev\b"),
+            "The branch is gone from git"
+        );
+    }
+
+    // 'Delete Branch ...' in the menu of dev, hoovered, eight moves down
+    static void OpenDeleteBranch(TmuxSession gmd)
+    {
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
         for (var i = 0; i < 8; i++)
@@ -212,15 +255,7 @@ public class BranchTest
             gmd.WaitForStable();
         }
         gmd.Send("Enter");
-        gmd.WaitFor("Delete Branch");
-        gmd.Send("Enter");
-
-        gmd.WaitUntilGone("Delete Branch");
-        StringAssert.DoesNotMatch(
-            await repo.GitAsync("branch --list"),
-            new System.Text.RegularExpressions.Regex(@"\bdev\b"),
-            "The branch is gone from git"
-        );
+        gmd.WaitFor("Delete Local");
     }
 
     [TestMethod]

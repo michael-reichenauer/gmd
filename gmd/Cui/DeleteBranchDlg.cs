@@ -19,7 +19,10 @@ class DeleteBranchDlg : IDeleteBranchDlg
         var (isLocalCheck, isRemoteCheck) = BranchSides.Add(dlg, "Delete", branchName, isLocal, isRemote);
         var isForceCheck = dlg.AddCheckBox(1, 4, "Force Delete", false);
 
-        if (!dlg.ShowOkCancel())
+        // Cancel is the default, so that Enter on the menu item and Enter again does not delete, on
+        // origin too, which is a push. Restore Deleted Branch brings a branch back, but one deleted on
+        // origin is gone for everyone else until then.
+        if (!dlg.ShowOkCancel(isCancelDefault: true))
             return new Error();
 
         return new DeleteBranchResult(isLocalCheck.Checked, isRemoteCheck.Checked, isForceCheck.Checked);

@@ -141,7 +141,8 @@ public class DeletedBranchesDlgTest
     }
 
     // Down the branch menu to 'Delete Branch ...', which is a different number of moves with origin,
-    // where more items are enabled, and OK in the delete dialog, whose boxes are on for each side
+    // where more items are enabled, and OK in the delete dialog, whose boxes are on for each side.
+    // Cancel is its default, so OK is a Left away.
     static void DeleteHooveredBranch(TmuxSession gmd, int moves)
     {
         gmd.Send("m");
@@ -153,6 +154,8 @@ public class DeletedBranchesDlgTest
         }
         gmd.Send("Enter");
         gmd.WaitFor("Delete Local");
+        gmd.Send("Left"); // From Cancel, the default, to OK
+        gmd.WaitForStable();
         gmd.Send("Enter");
         gmd.WaitUntilGone("Delete Local");
     }
