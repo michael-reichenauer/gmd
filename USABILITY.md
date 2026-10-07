@@ -173,6 +173,8 @@ Files*), spell checking, and the worktrees dialog.
   blame and resolver.
 - A force push on origin takes more of the branch section than anything else, for the rarest case.
 
+Both are reworked, see proposal D.1.
+
 ### 5. Other questions worth asking
 
 - **How often is the inference wrong?** `InferenceDumpTest` dumps what it decided for every commit,
@@ -233,7 +235,13 @@ Files*), spell checking, and the worktrees dialog.
 **D. Reach:**
 
 1. The README and the help reworked: what is on the screen first, then the everyday tasks, then
-   the reference; who gmd is for and its limits; what it stores and sends.
+   the reference; who gmd is for and its limits; what it stores and sends. *Done (2026-10-07):*
+   the help starts with its contents and a tour of the screen (the graph with and without a hidden
+   branch, the highlighted branch, the top bar item by item), then Everyday Tasks, then the
+   reference, with the errors of part 4 fixed. The README sets `git log --graph` of the demo
+   repository beside gmd's first screen of it, and adds Reading the Graph, Is Gmd for You? with
+   the known limits, Gmd and AI Coding Agents, the first five minutes, and What Gmd Stores and
+   Sends; its development half is `CONTRIBUTING.md` now.
 2. Homebrew, Scoop or winget, and AUR packages, and a build for Intel Macs.
 3. Issue templates, linked from About and the README.
 4. Captions in the animation, saying which key is pressed.
