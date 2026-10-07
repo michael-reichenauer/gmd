@@ -13,7 +13,7 @@ static class Why
 
     // What a push waits for: not changes, which a push leaves where they are, but a merge or rebase
     // stopped part way through, when the branch is not what it will be, or not even checked out
-    public const string InProgress = "Finish or abort what is in progress first, see Shift-M";
+    public const string InProgress = "Finish or abort what is in progress first, see ⇧m";
 
     // A branch gmd knows only from the message of the merge that brought it in, drawn '~'
     public static string Deleted(Branch b) => $"'{b.NiceNameUnique}' was deleted: gmd knows it from a merge message";

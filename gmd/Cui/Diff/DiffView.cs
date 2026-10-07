@@ -1,5 +1,7 @@
+using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Cui.Conflict;
+using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -30,7 +32,9 @@ class DiffView : IDiffView
     private readonly IServer server;
     readonly IClipboardService clipboard;
     readonly IConflictView conflictView;
+    readonly Config config;
     ContentView contentView = null!;
+    KeyHintBar? hintBar;
     CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
     DiffReload reload = null!;
@@ -59,10 +63,12 @@ class DiffView : IDiffView
         IServer server,
         IClipboardService clipboard,
         IConflictView conflictView,
-        IHelpDlg helpDlg
+        IHelpDlg helpDlg,
+        Config config
     )
     {
         this.helpDlg = helpDlg;
+        this.config = config;
         this.diffService = diffService;
         this.progress = progress;
         this.server = server;
@@ -102,12 +108,14 @@ class DiffView : IDiffView
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };
+        // The keys worth knowing here on the bottom row, as the log view has them, unless turned off
+        var hintsHeight = config.ShowKeyHints ? 1 : 0;
         contentView = new ContentView(OnGetContent)
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
-            Height = Dim.Fill(),
+            Height = Dim.Fill(hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
             IsCursorMargin = false,
@@ -115,6 +123,14 @@ class DiffView : IDiffView
         };
 
         diffView.Add(contentView);
+        hintBar = config.ShowKeyHints
+            ? new KeyHintBar(
+                () => KeyHints.ForDiff(this.commitId == Repo.UncommittedId, conflictState.Files.Count > 0),
+                () => null
+            )
+            : null;
+        if (hintBar != null)
+            diffView.Add(hintBar);
         RegisterShortcuts(contentView);
 
         contentView.SetNeedsDisplay();
@@ -137,8 +153,9 @@ class DiffView : IDiffView
         view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
 
         view.RegisterLetterHandler(Key.r, () => RefreshDiff());
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
+        // The help, as in every view, at the part about this one
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.DiffSection));
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.DiffSection));
         view.RegisterLetterHandler(Key.s, () => ShowScrollMenu());
         view.RegisterLetterHandler(Key.u, () => ShowUndoMenu());
         view.RegisterLetterHandler(Key.c, () => TriggerCommit());
@@ -519,6 +536,7 @@ class DiffView : IDiffView
     {
         diffs = newDiffs;
         diffRows = diffService.ToDiffRows(diffs, fileContext, ConflictPaths());
+        hintBar?.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
 
         // The old selection covers rows that no longer hold what they did, and a copy would take
         // whatever now sits there

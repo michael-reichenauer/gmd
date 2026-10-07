@@ -128,7 +128,7 @@ public class FilterDlgTest
         gmd.WaitFor("Match 3 of 3");
         gmd.Send("n");
         Assert.AreEqual(
-            "No more matches for 'dev' below: Shift-N goes back up",
+            "No more matches for 'dev' below: ⇧n goes back up",
             ScreenText.LastLine(gmd.WaitFor("No more matches"))
         );
         gmd.Send("N");

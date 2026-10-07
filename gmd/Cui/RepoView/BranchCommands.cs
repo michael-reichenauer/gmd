@@ -263,7 +263,7 @@ class BranchCommands : IBranchCommands
 
         status.Notice(
             direction > 0
-                ? $"No more matches for '{search.Filter}' below: Shift-N goes back up"
+                ? $"No more matches for '{search.Filter}' below: ⇧n goes back up"
                 : $"No more matches for '{search.Filter}' above: n goes down"
         );
     }

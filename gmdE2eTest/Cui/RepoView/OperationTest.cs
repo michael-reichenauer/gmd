@@ -43,7 +43,7 @@ public class OperationTest
                                        │                                                                │
                                        │Resolve them in the diff of the uncommitted changes, where Enter│
                                        │on a file opens it, then commit (c) to finish the merge.        │
-                                       │Shift-M opens the repo menu, to abort it later.                 │
+                                       │⇧m opens the repo menu, to abort it later.                      │
                                        │                                                                │
                                        │       [◦ Resolve Conflicts ◦] [ Abort Merge ] [ Later ]        │
                                        ╰────────────────────────────────────────────────────────────────╯

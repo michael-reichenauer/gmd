@@ -279,7 +279,8 @@ public class DiffViewTest
         gmd.WaitFor("Diff Menu");
     }
 
-    // The help opens from the diff as from the log view, and closing it is back in the diff
+    // The help opens from the diff as from the log view, at the part about the diff, and closing it
+    // is back in the diff
     [TestMethod]
     [DataRow("?")]
     [DataRow("F1")]
@@ -292,10 +293,11 @@ public class DiffViewTest
         gmd.WaitFor("Added: delta.txt");
 
         gmd.Send(key);
-        gmd.WaitFor("Gmd Help Guide");
+        var help = gmd.WaitFor("## Diff and Blame");
+        Assert.IsFalse(help.Contains("Gmd Help Guide"), "Scrolled to the section, past the top");
         gmd.Send("Escape");
 
-        StringAssert.Contains(gmd.WaitUntilGone("Gmd Help Guide"), "Added: delta.txt", "Back in the diff");
+        StringAssert.Contains(gmd.WaitUntilGone("## Diff and Blame"), "Added: delta.txt", "Back in the diff");
     }
 
     // A range diff is the changes the selected commits made, which it only is for commits of one

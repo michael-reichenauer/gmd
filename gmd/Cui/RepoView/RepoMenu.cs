@@ -58,14 +58,14 @@ class RepoMenu : IRepoMenu
             .Items.Items(GetOperationItems())
             .Item(
                 "Pull All Branches",
-                "Shift-U",
+                "⇧u",
                 () => repo.BranchCmds.PullAllBranches(),
                 () => isStatusOK,
                 () => Why.Changes
             )
             .Item(
                 "Push All Branches",
-                "Shift-P",
+                "⇧p",
                 () => repo.BranchCmds.PushAllBranches(),
                 () => !repo.Repo.Status.IsMerging,
                 () => Why.InProgress
@@ -80,7 +80,7 @@ class RepoMenu : IRepoMenu
             )
             .Item(
                 "Previous Match",
-                "Shift-N",
+                "⇧n",
                 () => repo.BranchCmds.ShowSearchMatch(-1),
                 () => repo.SearchMatches.IsActive,
                 () => NoSearch

@@ -1,8 +1,10 @@
 # Gmd Help Guide
 
 What is on the screen comes first, then the everyday tasks, then the
-reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel, and
-close with Esc.
+reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel. `m`
+lists the sections to jump to, `]` and `[` go to the next and the previous
+one, and Esc closes. Opened in the diff, blame or conflict view, the help
+starts at the part about it.
 
 - Reading the Log
 - Showing and Hiding Branches
@@ -101,7 +103,8 @@ Each item can be clicked:
 -------------------------------------------------------------------------
 
 The line at the bottom shows the keys that do something where the cursor
-is, and changes as it moves. **Config ...** in the repo menu turns it off.
+is, and changes as it moves; the diff, blame and conflict views have one of
+their own. **Config ...** in the repo menu turns them off.
 While a commit, push or pull runs it says what is being done, in cyan. For
 a few seconds after a command it says what the command did, or why a key
 or a greyed out menu item did nothing, and in red when a fetch failed.
@@ -174,7 +177,8 @@ repository.
 
 The most used keys of the log view. The menus show the key of every command
 that has one, and pressing it in an open menu picks that item. Keys are
-written as they are typed: `c` is the c key, and `Shift-P` is P.
+written as they are typed: `c` is the c key, and `Shift-P` is P, which the
+menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 
 ---------------------------------------------------------------------------
 | Key        | Description                                                |

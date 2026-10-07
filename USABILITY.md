@@ -256,8 +256,17 @@ Both are reworked, see proposal D.1.
    full in the log, the blame gutter, Recover Lost Commits and Restore Deleted Branch; the subject
    column gives up the two columns, and a narrow log still shows the date alone.
 2. A help that is easier to get around: wider on a wide terminal, a contents to jump from, and
-   opening at the part about the view it was opened from.
-3. A key-hint line in the diff and blame views too.
+   opening at the part about the view it was opened from. *Done (2026-10-07), taller rather than
+   wider:* the box is as tall as the terminal, `m` lists the sections to jump to and `]` and `[`
+   step through them, the title saying so, and the diff, blame and conflict views open it at the
+   part about them. It is no wider, since the text is written to 77 columns: a wider box would be
+   blank space, and rewrapping the text would break its tables and pictures, for lines that read
+   worse the longer they get.
+3. A key-hint line in the diff and blame views too. *Done (2026-10-07), the resolver too:* each
+   view's keys on its bottom row, `Esc close` early on, as the log has them and turned off with
+   them: the diff's `c commit` and `u discard` for the uncommitted changes and `Enter resolve` for a
+   conflict, blame's `p previous` for a line with an older version, and the resolver's moves and
+   whole-file keys, below its result pane, which names what 1 to 4 and 0 take.
 4. The resolver's status line naming the sides: "press 1 (HEAD), 2 (dev), 3, 4 or 0". *Done
    (2026-10-07):* "Conflict 1 is not resolved yet — press 1 for HEAD, 2 for dev, 3 or 4 for both,
    0 for neither", the sides in the colors of their column titles.
@@ -330,8 +339,8 @@ Shorter menus (C.5, part 3):
 
 Getting around:
 
-- [ ] 13. **Key hints in the diff and blame views** (C.3). M
-- [ ] 14. **A help that is easier to get around** (C.2): wider on a wide terminal, a contents to
+- [x] 13. **Key hints in the diff and blame views** (C.3), and in the conflict resolver. M
+- [x] 14. **A help that is easier to get around** (C.2): wider on a wide terminal, a contents to
   jump from, opening at the view's own section. M
 
 Bigger features:
@@ -529,7 +538,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    Config. This is the biggest single gain for someone new. *Done (2026-09-25):* `KeyHints`, keys
    written as typed (`P` is Shift-P), with `c continue` during a rebase and `d resolve` on
    conflicts. The diff and blame views have no such line yet; the conflict resolver's status line
-   already names its keys.
+   already names its keys. *Since (2026-10-07):* the diff, blame and conflict views have lines of
+   their own, see the product review's step 13.
 2. **In a menu, pressing the letter it shows runs that item,** and typing in a long branch list
    narrows it. *The letters are done (2026-09-25):* `MenuShortcuts`, both cases of a letter unless
    the menu also shows it as `Shift-`, and a greyed out item's key does nothing. *Type-to-find is
@@ -593,6 +603,9 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    ask for a clean tree.
 6. **Write keys in the help and the README the way they are pressed.** *Done (2026-09-25):* menus,
    help and README write `c` for the c key and `Shift-P` for P; the key-hint line writes `⇧p`.
+   *Since (2026-10-07):* the menus write `⇧p` as well, and so do the status messages and the
+   reasons a greyed out item gives, so what is drawn writes a key one way; the help and the
+   README keep `Shift-P` in their text, the help saying once that ⇧ is Shift.
 
 ### Tier 4: bigger bets, to decide later
 
