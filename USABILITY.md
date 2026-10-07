@@ -214,7 +214,10 @@ Both are reworked, see proposal D.1.
    main and dev. 29 more branches are hidden: ⇧→ shows one, or Enter on ┣╮." Perhaps the count in
    the top bar for good.
 3. **Say something when gmd crashes:** once the screen is given back, a line with the path of the
-   log and where to report it; and the project's link in About.
+   log and where to report it; and the project's link in About. *Done (2026-10-07):* what failed,
+   the log's path and that the next start begins it anew, and the issues link, on stderr once the
+   terminal is given back (`Program.CrashMessage`), with exit code 1; About lists the project, the
+   issues and the log.
 4. **One name for one menu** (Show Branch), one way of writing its key, and merge items that name
    both branches: *Merge dev into main*, *Merge main into dev*.
 
@@ -262,7 +265,7 @@ First impression:
 
 - [x] 1. **No git prompt on the screen** (A.1): git runs with nothing to ask on, and a failed login
   says what to do (`ssh-add`, a credential helper). A test with the ssh stand-in. M
-- [ ] 2. **A word on a crash** (A.3): the log's path and the issues link once the terminal is given
+- [x] 2. **A word on a crash** (A.3): the log's path and the issues link once the terminal is given
   back, and the project's link in About. S
 - [ ] 3. **Say what is hidden** (A.2): once per repository, on the status line, how many branches
   are hidden and how to show one. S

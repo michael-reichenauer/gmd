@@ -310,7 +310,8 @@ turns off. Nothing else is sent: there is no telemetry.
 Report a problem, or suggest something, in the
 [issues](https://github.com/michael-reichenauer/gmd/issues), with the version from **About** in the
 repo menu or from `gmd --version`. `~/gmd.log` is the first place to look when something goes
-wrong.
+wrong; **About** shows where it is, and if gmd itself fails, it says so when it ends, with the same
+links. The log is begun anew on every start, so copy it before starting gmd again.
 
 ## Contributing
 

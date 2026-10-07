@@ -27,6 +27,9 @@ static class ConfigLogger
         Init(path);
     }
 
+    // Where the log is written, ~/gmd.log, for what About and a crash tell the user
+    public static string FilePath => LogPath;
+
     public static Task CloseAsync()
     {
         try

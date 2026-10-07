@@ -273,6 +273,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   the raw terminal never sends (product review, `USABILITY.md`, 2026-10-07). Git now has nothing to
   ask on (`Cmd.NeverAskOnTheTerminal`), ssh asks gmd itself as its askpass (`Askpass`), which
   answers nothing, and the failure says what to do instead (`LoginError`).
+- A crash ended gmd without a word, as if it had simply quit, and with exit code 0
+  (`ExceptionHandling.Shutdown`, whose dialog was commented out). Once Terminal.Gui has given the
+  terminal back, `Main` now says what failed, where the log is, that the next start begins it
+  anew, and where to report it (`Program.CrashMessage`), and exits with 1; About has the project's
+  links and the log's path. Tried with a throw on the main loop and in a background task.
 
 ---
 
@@ -315,9 +320,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
     in once with git in a terminal, after which GCM has the token stored and gmd's fetches use it.
     Showing GCM's own terminal prompts in gmd would need GCM to ask an askpass, which as far as its
     documentation says it does not; to check before promising it.
-- An unhandled exception is logged and gmd exits without a word on the screen
-  (`ExceptionHandling.Shutdown`, whose call to `ShowExceptionDialog` is commented out). A line on
-  stderr once the terminal is given back, naming `~/gmd.log` and where to report it, is the least.
+- An exception on a thread of its own, rather than on the UI main loop or in a task, ends the
+  process in `AppDomain.UnhandledException` before `Main` gets to say so (see the crash fix under
+  Bugs fixed). Nothing in gmd starts such a thread today.
 - F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
 - *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
