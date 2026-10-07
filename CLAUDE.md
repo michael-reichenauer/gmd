@@ -166,7 +166,9 @@ Key types and flow:
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
-  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally.
+  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
+  the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
+  Lost Commits, Restore Deleted Branch); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
   WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
   user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`

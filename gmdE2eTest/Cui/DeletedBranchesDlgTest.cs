@@ -64,7 +64,8 @@ public class DeletedBranchesDlgTest
             repo.Path
         );
 
-        again.Send("Enter");
+        // Shift or Caps Lock on, the key restores as 'r' and Enter do
+        again.Send("R");
         again.WaitFor("Restored 'dev'");
         Assert.AreEqual(devTip, (await repo.GitAsync("rev-parse dev")).Trim());
     }
