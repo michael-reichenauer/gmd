@@ -281,7 +281,9 @@ class AugmentedService : IAugmentedService
 
         var remoteReflog = await GetDivergedRemoteReflogAsync(branches, path);
 
-        // Combine all git info into one git repo info object
+        // Combine all git info into one git repo info object. The config's collections are copied: it
+        // is the live one, which a command changes (RecordStep) while the augmentation reads the git
+        // repo off the UI thread.
         var config = repoConfig.Get(path);
         var gitRepo = new GitRepo(
             timeStamp,
@@ -295,8 +297,8 @@ class AugmentedService : IAugmentedService
             isTruncated,
             worktrees,
             reflog: reflog,
-            integrationNames: config.IntegrationBranches,
-            recordedSteps: config.UndoSteps,
+            integrationNames: config.IntegrationBranches.ToList(),
+            recordedSteps: config.UndoSteps.ToDictionary(),
             remoteReflog: remoteReflog
         );
         Log.Info($"GitRepo {t} {gitRepo}");
