@@ -16,7 +16,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - .NET 8 → .NET 10, Terminal.Gui 1.17.1 → 1.19.0 (which fixed the 100% CPU spin on Linux and
   macOS), Autofac 9, DiffPlex 1.9, MSTest 4. Four unused packages and all stale .NET 7 references
   removed.
-- CSharpier is the single formatter: on save, on build, on commit and in CI. `.editorconfig` holds
+- CSharpier is the single formatter: on save, on build and in CI. `.editorconfig` holds
   only naming and non-layout rules. `.git-blame-ignore-revs` hides the bulk reformat from blame.
 - CI runs on every branch: a fast test job for feature branches and pull requests, the full
   multi-platform build and release for `main`/`dev`. `./build` now fails when a publish fails, and

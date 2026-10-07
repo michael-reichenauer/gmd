@@ -217,7 +217,7 @@ public class CommitTest
     // The progress marquee while the commit runs. A push always showed it, and a commit ran under
     // the same progress, but closing the commit dialog in between left the marquee behind the
     // application bar (see Progress.Activated), so a long commit looked like a hung gmd. The commit
-    // is slowed down by a pre-commit hook that sleeps, which is what a big commit does to git.
+    // is slowed down by a pre-commit hook that sleeps, as a hook that formats the code slows a big one.
     // The status line says what is going on meanwhile, and then what was done.
     [TestMethod]
     public async Task TestCommitShowsProgressWhileGitWorks()
