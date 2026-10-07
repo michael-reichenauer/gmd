@@ -393,7 +393,7 @@ throw changes away for good ask first.
   a merge that conflicts, leaves you on the target branch, which is where
   the merge has to be finished. **Undo Merge** in the target's branch menu
   takes it back.
-- **Squash ...** (under **Rebase** in the commit menu):
+- **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message.
 - **Rename Branch ...**:

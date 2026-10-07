@@ -329,17 +329,10 @@ class BranchMenu : IBranchMenu
             .Items(GetMoveBranchItems(branchName))
             .Separator()
             // The limited menu is the one under a branch in the Branches sub menu of the commit menu,
-            // which already offers these at its root, and the repo menu beside it
+            // which already offers these at its root, and the repo menu beside it. Pull All and Push
+            // All are not here: they are no command of one branch, and the repo menu, the ▲ and ▼
+            // menus and Shift-U and Shift-P all have them.
             .Items(!isLimited, [ShowBranchSubMenu()])
-            .Item(!isLimited, "Pull All Branches", "Shift-U", () => cmds.PullAllBranches())
-            .Item(
-                !isLimited,
-                "Push All Branches",
-                "Shift-P",
-                () => cmds.PushAllBranches(),
-                () => !repo.Repo.Status.IsMerging,
-                () => Why.InProgress
-            )
             .Item(
                 "Set Commit Branch Manually ...",
                 "",
@@ -612,8 +605,9 @@ class BranchMenu : IBranchMenu
 
     // Everything about branches, for the commit menu: the branches currently shown in the graph,
     // each item opening that branch's own menu, so a branch operation is reachable without first
-    // hoovering the branch with the ← / → keys, followed by the items that show and hide branches
-    // and the ones that pull and push all of them.
+    // hoovering the branch with the ← / → keys, which reach only the branches on the cursor's row,
+    // followed by the items that show and hide branches. Pulling and pushing all of them is in the
+    // repo menu and the ▲ and ▼ menus.
     public IEnumerable<MenuItem> GetShownBranchesItems()
     {
         var isStatusOK = repo.Repo.Status.IsOk;
@@ -629,14 +623,6 @@ class BranchMenu : IBranchMenu
                         () => cmds.UndoShowOrHide(),
                         () => repo.ShownHistory.Last != null,
                         () => "No branch has been shown or hidden to undo"
-                    )
-                    .Item("Pull All Branches", "Shift-U", () => cmds.PullAllBranches())
-                    .Item(
-                        "Push All Branches",
-                        "Shift-P",
-                        () => cmds.PushAllBranches(),
-                        () => !repo.Repo.Status.IsMerging,
-                        () => Why.InProgress
                     )
             );
     }

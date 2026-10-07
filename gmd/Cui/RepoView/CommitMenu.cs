@@ -56,9 +56,11 @@ class CommitMenu : ICommitMenu
                 () => cc.IsAhead,
                 () => "Only a commit not yet pushed can be amended"
             )
+            // Straight in the menu rather than in a 'Rebase' sub menu of its own, which held nothing
+            // else and named a rebase that it is not
+            .Items(GetSquashItems())
             .Item("Commit Diff", "d", () => cmds.ShowCurrentRowDiff())
             .SubMenu("Undo", "", GetCommitUndoItems())
-            .SubMenu("Rebase", "", GetRebaseMenuItems())
             .SubMenu("Stash", "", GetStashMenuItems())
             .SubMenu(
                 "Tag",
@@ -196,7 +198,8 @@ class CommitMenu : ICommitMenu
             );
     }
 
-    IEnumerable<MenuItem> GetRebaseMenuItems()
+    // Squashes the commits selected with Shift-↑↓, which the item names once there are some
+    IEnumerable<MenuItem> GetSquashItems()
     {
         var selection = repo.RepoView.Selection;
         var (i1, i2) = (selection.I1, selection.I2);

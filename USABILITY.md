@@ -261,7 +261,12 @@ Both are reworked, see proposal D.1.
 4. The resolver's status line naming the sides: "press 1 (HEAD), 2 (dev), 3, 4 or 0". *Done
    (2026-10-07):* "Conflict 1 is not resolved yet — press 1 for HEAD, 2 for dev, 3 or 4 for both,
    0 for neither", the sides in the colors of their column titles.
-5. The menu trims of part 3.
+5. The menu trims of part 3. *The duplicates are done (2026-10-07):* Pull All and Push All are in
+   the repo menu, the ▲ and ▼ menus and on `Shift-U` and `Shift-P`, and no longer in the branch menu
+   or *Branches*; in an open branch menu `Shift-P` and `Shift-U` now pick that branch's own Push and
+   Pull, as a menu picks the item showing a letter in either case. *Squash ...* is in the commit
+   menu itself, where the *Rebase* sub menu held it alone. *Branches* keeps the menu of each shown
+   branch, since `←` `→` reach only the branches on the cursor's row.
 
 **D. Reach:**
 
@@ -306,8 +311,9 @@ Quick wins:
 
 Shorter menus (C.5, part 3):
 
-- [ ] 10. **No duplicates:** Pull All and Push All out of the branch menu, *Squash ...* straight
-  into the commit menu, *Branches* cut to showing and hiding. S
+- [x] 10. **No duplicates:** Pull All and Push All out of the branch menu and out of *Branches*,
+  and *Squash ...* straight into the commit menu. *Branches* keeps the menu of each shown branch,
+  the one way by keyboard to a branch that does not cross the cursor's row. S
 - [ ] 11. **Rare and risky items moved:** *Clean Working Folder* under Undo, the `5` key gone, `g`
   and `<=` / `=>` to the menu only, and the `Sorter.Sort` hang fixed. S
 - [ ] 12. **The `*` and `$` search words** kept or dropped, to decide. S

@@ -39,8 +39,6 @@ public class MenuItemsTest
             Create Pull Request in Browser  (disabled)
             ---
             Show Branch >  [Shift-→]
-            Pull All Branches  [Shift-U]
-            Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
             Repo Menu >  [Shift-M]
             """,
@@ -73,8 +71,6 @@ public class MenuItemsTest
             Create Pull Request in Browser  (disabled)
             ---
             Show Branch >  [Shift-→]
-            Pull All Branches  [Shift-U]
-            Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
             Repo Menu >  [Shift-M]
             """,
@@ -108,8 +104,6 @@ public class MenuItemsTest
             Create Pull Request in Browser  (disabled)
             ---
             Show Branch >  [Shift-→]
-            Pull All Branches  [Shift-U]
-            Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
             Repo Menu >  [Shift-M]
             """,
@@ -149,10 +143,7 @@ public class MenuItemsTest
 
         var dropped = Titles(menu.GetBranchMenuItems("dev")).Except(Titles(menu.GetBranchMenuItems("dev", true)));
 
-        CollectionAssert.AreEqual(
-            new[] { "Show Branch", "Pull All Branches", "Push All Branches", "Repo Menu" },
-            dropped.ToArray()
-        );
+        CollectionAssert.AreEqual(new[] { "Show Branch", "Repo Menu" }, dropped.ToArray());
     }
 
     // The point of the class comment: the same menu is a different number of key presses away from
@@ -162,8 +153,8 @@ public class MenuItemsTest
     {
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
-        Assert.AreEqual(16, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(10, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(14, EnabledCount(menu.GetBranchMenuItems("dev")));
+        Assert.AreEqual(8, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -179,8 +170,6 @@ public class MenuItemsTest
             Show Branch >  [Shift-→]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
-            Pull All Branches  [Shift-U]
-            Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(view).GetShownBranchesItems())
         );
@@ -227,7 +216,7 @@ public class MenuItemsTest
         var view = await ViewOf(Fixture(), "dev");
         view.ShownHistory.Add(["main", "dev"], ["main"], "Hide", "'dev'", "dev");
 
-        StringAssert.Contains(Items(BranchMenuOf(view).GetShownBranchesItems()), "Undo Hide 'dev'  [Backspace]\n");
+        StringAssert.Contains(Items(BranchMenuOf(view).GetShownBranchesItems()), "Undo Hide 'dev'  [Backspace]");
     }
 
     // The order is the current branch, then the branch it was branched from and so on, and the
@@ -247,8 +236,6 @@ public class MenuItemsTest
             Show Branch >  [Shift-→]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
-            Pull All Branches  [Shift-U]
-            Push All Branches  [Shift-P]
             """,
             Items(BranchMenuOf(view).GetShownBranchesItems())
         );
@@ -387,17 +374,13 @@ public class MenuItemsTest
     }
 
     // What does block a push is a merge or rebase stopped part way through, the branch being
-    // unfinished, or HEAD not even on it. The same under Branches in the commit menu.
+    // unfinished, or HEAD not even on it
     [TestMethod]
     public async Task TestAnOperationInProgressDisablesPushAll()
     {
         var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
         StringAssert.Contains(Items(RepoMenuOf(view).GetRepoMenuItems()), "Push All Branches  [Shift-P]  (disabled)");
-        StringAssert.Contains(
-            Items(BranchMenuOf(view).GetShownBranchesItems()),
-            "Push All Branches  [Shift-P]  (disabled)"
-        );
     }
 
     // 'Pull' is a fetch for a branch that is not current, and git only fast-forwards one,
@@ -476,9 +459,10 @@ public class MenuItemsTest
         );
     }
 
-    // The keys that pick an item of the branch menu while it is open, which are the keys it shows:
-    // 'u' pulls this branch and 'U' every branch, and 'd' opens the diff sub menu. The key of a
-    // greyed out item (Pull here, which has nothing to pull) says why rather than run it.
+    // The keys that pick an item of the branch menu while it is open, which are the keys it shows,
+    // in both cases: 'u' and 'U' pull this branch, since the menu no longer has Pull All Branches,
+    // which 'U' picked, and 'd' opens the diff sub menu. The key of a greyed out item (Pull here,
+    // which has nothing to pull) says why rather than run it.
     [TestMethod]
     public async Task TestTheBranchMenuKeysPickTheItemsShowingThem()
     {
@@ -501,15 +485,15 @@ public class MenuItemsTest
             h Hide Branch
             H Hide Branch
             u Pull  (says why)
+            U Pull  (says why)
             p Push
+            P Push
             b Create Branch ...
             B Create Branch ...
             d Diff Branch to
             D Diff Branch to
             g Change Branch Color
             G Change Branch Color
-            U Pull All Branches
-            P Push All Branches
             M Repo Menu
             """,
             string.Join("\n", picked)
