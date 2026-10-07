@@ -120,8 +120,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
     the last time it was checked out. gmd records each side it deletes instead (`RepoConfig.
     DeletedBranches`, `DeletedBranchRecords`), and restores from the record: the branch at its tip,
     tracking what it tracked, and origin's pushed back with an empty lease, so a branch of the name
-    pushed since is not overwritten. A record is forgotten once a branch of the name is back or its
-    tip is gone (`rev-list --no-walk --ignore-missing`). Deletes outside gmd are not recorded.
+    pushed since is not overwritten. A record is the two sides of one pair, the local branch and the
+    remote branch it tracked, and deletes are joined by that pair rather than by name, since two
+    deletes of a name can be branches that have nothing to do with each other: joined by name, a
+    restore pushed an old `origin/tmp` back with a new local `tmp`. A side is forgotten once it is
+    restored, a branch of its name is back or its tip is gone (`rev-list --no-walk
+    --ignore-missing`). The upstream goes back as config (`branch.<name>.remote` / `.merge`), not with
+    `branch --set-upstream-to`, which refuses a remote branch with no remote-tracking ref, deleted too
+    and not restored yet, or left out by a narrowed fetch refspec. Deletes outside gmd are not recorded.
   - A force push on origin told from new commits on both sides, by the remote branch's reflog and the
     fork point (`RemoteRewrites`); pulled by moving the branch's own commits onto the new version
     rather than merging the two; and origin put back from before it, with a lease. One that only
@@ -305,6 +311,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
     branch never had, fetched but not pulled, are not in the log, so they are not counted dropped.
   - Restoring discarded changes and dropped stashes is not done: the reflog records neither, but
     git prints a dropped stash's id, and `git stash create` before a discard would keep one.
+  - Restore Deleted Branch tells whether a branch of a record's name is back from the augmented
+    repo, which leaves out a branch whose tip is outside the `maxCommitCount` log window. In a repo
+    that large, such a branch counts as absent: the record is listed, and git refuses the restore.
 - A repo with no commits still offers Uncommit (git refuses the reset). Ctrl+O is documented as
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
   lists only shown branches, so with only `main` shown it is an empty box.

@@ -93,7 +93,7 @@ interface IGit
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
 
-    // Makes a local branch track a remote branch, e.g. 'origin/feature'
+    // Makes a local branch track a remote branch, e.g. 'origin/feature', whether it is there or not
     Task<Result> SetUpstreamAsync(string name, string remoteName, string wd);
 
     // Moves a branch that is not checked out from one commit to another, refused if it has moved

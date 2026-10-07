@@ -140,13 +140,16 @@ class UndoCommands : IUndoCommands
                     return Result.Ok;
             }
 
+            Result restored;
             using (status.Progress(DeletedBranchRows.Restoring(deleted, isLocal)))
             {
-                if (await server.RestoreBranchAsync(repo.Repo, deleted, isLocal, isRemote) is Error e)
-                    return new Error($"Failed to restore '{deleted.Name}'", e);
+                restored = await server.RestoreBranchAsync(repo.Repo, deleted, isLocal, isRemote);
             }
 
+            // Shown even when a part failed, since a side can be back then, which the error says
             repoView.Refresh(isLocal ? deleted.Name : deleted.RemoteName);
+            if (restored is Error e)
+                return e;
             status.Info(DeletedBranchRows.Restored(deleted, isLocal, isRemote));
             return Result.Ok;
         });

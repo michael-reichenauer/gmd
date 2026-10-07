@@ -102,10 +102,20 @@ class BranchService : IBranchService
     }
 
     // Makes a local branch track a remote branch, e.g. 'origin/feature', which git forgets when the
-    // branch is deleted: the '[branch "<name>"]' config section goes with it
+    // branch is deleted: the '[branch "<name>"]' config section goes with it. Written as git writes it,
+    // rather than with 'branch --set-upstream-to', which refuses a remote branch there is no
+    // remote-tracking ref of: one deleted too and not pushed back yet, or one a narrowed fetch refspec
+    // leaves out. The branch tracks it once it is there, as a branch whose remote branch is gone does.
     public async Task<Result> SetUpstreamAsync(string name, string remoteName, string wd)
     {
-        return await cmd.RunAsync("git", $"branch --set-upstream-to={remoteName} {name}", wd);
+        var separator = remoteName.IndexOf('/');
+        if (separator < 1)
+            return new Error($"Not a remote branch: '{remoteName}'");
+        var (remote, branch) = (remoteName[..separator], remoteName[(separator + 1)..]);
+
+        if (await cmd.RunAsync("git", $"config branch.{name}.remote {remote}", wd) is Error e)
+            return e;
+        return await cmd.RunAsync("git", $"config branch.{name}.merge refs/heads/{branch}", wd);
     }
 
     // Moves a branch that is not checked out, with the message its reflog gets, and only if it is

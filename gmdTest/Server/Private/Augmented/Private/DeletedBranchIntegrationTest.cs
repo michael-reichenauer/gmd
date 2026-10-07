@@ -53,6 +53,14 @@ public class DeletedBranchIntegrationTest
     async Task<string> UpstreamAsync(string name) =>
         (await repo.GitAllowFailAsync($"rev-parse --abbrev-ref {name}@{{upstream}}")).Trim();
 
+    // What the branch is set to track, whether that is there or not, as 'origin refs/heads/dev'
+    async Task<string> UpstreamConfigAsync(string name) =>
+        (
+            (await repo.GitAllowFailAsync($"config branch.{name}.remote")).Trim()
+            + " "
+            + (await repo.GitAllowFailAsync($"config branch.{name}.merge")).Trim()
+        ).Trim();
+
     List<RecordedDelete> Records => config.Get(repo.Path).DeletedBranches;
 
     // main on origin, and dev pushed with one commit and a second one not pushed, with main checked out
@@ -107,6 +115,7 @@ public class DeletedBranchIntegrationTest
         Assert.AreEqual(tip, await TipAsync("dev"));
         Assert.AreEqual(pushedTip, await OriginTipAsync("dev"));
         Assert.AreEqual("origin/dev", await UpstreamAsync("dev"));
+        Assert.AreEqual(0, Records.Count, "Both sides are back, so the record is forgotten as they are");
         Assert.AreEqual(0, (await DeletedAsync()).Count);
     }
 
@@ -127,7 +136,8 @@ public class DeletedBranchIntegrationTest
     }
 
     // Restoring one side leaves the other to restore later, and the local branch, restored before
-    // origin's, tracks it once it is back
+    // origin's, is set to track it, and tracks it once it is back. The row left has the subject of
+    // origin's tip, which is what is restored then.
     [TestMethod]
     public async Task TestTheSidesRestoredOneAtATime()
     {
@@ -138,9 +148,9 @@ public class DeletedBranchIntegrationTest
 
         Assert.AreEqual(tip, await TipAsync("dev"));
         Assert.AreEqual("", await OriginTipAsync("dev"));
-        Assert.AreEqual("", await UpstreamAsync("dev"), "Nothing to track yet");
+        Assert.AreEqual("origin refs/heads/dev", await UpstreamConfigAsync("dev"), "Set, though it is not there yet");
         var remoteLeft = (await DeletedAsync()).Single();
-        Assert.AreEqual(("dev", "", "origin/dev", pushedTip, "More dev work"), Fields(remoteLeft));
+        Assert.AreEqual(("dev", "", "origin/dev", pushedTip, "Dev work"), Fields(remoteLeft));
 
         await RestoreAsync(remoteLeft, false, true);
 
@@ -161,7 +171,10 @@ public class DeletedBranchIntegrationTest
 
         var error = AssertError(await service.RestoreBranchAsync(await ReadAsync(), deleted, false, true));
 
-        StringAssert.Contains(error.Message, "Origin has a branch 'origin/dev' again");
+        Assert.AreEqual(
+            "Origin has a branch 'origin/dev' again, which was left as it is, so nothing was restored",
+            error.Message
+        );
         Assert.AreEqual(main, await OriginTipAsync("dev"));
         Assert.AreEqual(
             0,
@@ -193,6 +206,62 @@ public class DeletedBranchIntegrationTest
         Records.Add(new RecordedDelete { Name = "dev", TipId = RepoBuilder.Sha("dead") });
 
         Assert.AreEqual(0, (await DeletedAsync()).Count);
+        Assert.AreEqual(0, Records.Count);
+    }
+
+    // Restored and later deleted again, a branch is where it was the last time: nothing of the
+    // first delete is left to join the second, which would offer to push origin's old tip back
+    [TestMethod]
+    public async Task TestABranchRestoredAndDeletedAgainIsWhereItWasTheLastTime()
+    {
+        var (_, pushedTip) = await DevOnOriginAsync();
+        await DeleteAsync("dev", "origin/dev");
+        await RestoreAsync((await DeletedAsync()).Single(), true, true);
+        await repo.GitAsync("checkout -q dev");
+        var newTip = await repo.CommitFileAsync("f.txt", "f\n", "Newer dev work");
+        await repo.GitAsync("checkout -q main");
+        await repo.GitAsync("push -q origin --delete dev");
+
+        await DeleteAsync("dev", "");
+
+        var deleted = (await DeletedAsync()).Single();
+        Assert.AreEqual(("dev", newTip, "", "", "Newer dev work"), Fields(deleted));
+        Assert.AreNotEqual(pushedTip, deleted.RemoteTipId);
+    }
+
+    // A local branch tracking nothing and a remote branch no local branch tracked are two branches,
+    // though they have a name, so restoring the one leaves the other alone
+    [TestMethod]
+    public async Task TestUnrelatedBranchesOfANameAreRestoredApart()
+    {
+        await DevOnOriginAsync();
+        await repo.GitAsync("branch --unset-upstream dev");
+        await DeleteAsync("", "origin/dev");
+        await DeleteAsync("dev", "");
+
+        var deleted = await DeletedAsync();
+        Assert.AreEqual(2, deleted.Count);
+        var local = deleted.Single(d => d.IsLocal);
+        Assert.IsFalse(local.IsRemote);
+
+        await RestoreAsync(local, true, false);
+
+        Assert.AreEqual("", await UpstreamConfigAsync("dev"), "It tracked nothing, and still does");
+        Assert.AreEqual("", await OriginTipAsync("dev"));
+        Assert.IsTrue((await DeletedAsync()).Single().IsRemote, "Origin's is still there to restore");
+    }
+
+    // A branch the repo given no longer has, since a refresh while the delete dialog was shown read
+    // it as gone, is said rather than thrown on, and nothing is deleted
+    [TestMethod]
+    public async Task TestABranchGoneSinceItWasPickedIsNotDeleted()
+    {
+        await DevOnOriginAsync();
+
+        var error = AssertError(await service.DeleteBranchAsync(await ReadAsync(), "dev", "origin/gone", true));
+
+        Assert.AreEqual("There is no branch 'origin/gone' any more, so nothing was deleted", error.Message);
+        StringAssert.Contains(await repo.GitAsync("branch --list dev"), "dev", "Not deleted");
         Assert.AreEqual(0, Records.Count);
     }
 
