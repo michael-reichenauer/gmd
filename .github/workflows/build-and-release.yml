@@ -66,25 +66,30 @@ jobs:
 
   # Push to main/dev, which publishes a release, plus a manual run from the Actions tab on any
   # branch, which is the way to check the windows and macOS packaging without merging. A manual
-  # run only publishes if it is on main/dev, which the 'isPublish' output below decides.
+  # run only publishes if it is on main/dev, which the 'isPublish' output below decides. A release
+  # from main is made from a release commit of its own, with the next minor version and the change
+  # log, see 'Create release commit' below.
   build_test_release_job:
     if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     name: Build, Test and Release Job
 
     steps:
+      # The whole history and the tags, which the change log of a release from main is made from
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      # Inject current build time and git sha into gmd/Build.cs, which uses them for
-      # version handling and to let the built-in updater detect newer versions.
-      - name: Update git sha and build time
+      # Inject current build time into gmd/Build.cs, which uses it for version handling and to let
+      # the built-in updater detect newer versions. Done first, since the release commit below
+      # needs the version the release will have. The git sha is injected after that commit.
+      - name: Update build time
         shell: bash
         run: |
           BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          echo Build $BUILD_TIME ${{github.sha}}
+          echo Build time $BUILD_TIME
           sed -i "s/BUILD_TIME/$BUILD_TIME/g" gmd/Build.cs
-          sed -i "s/BUILD_SHA/${{github.sha}}/g" gmd/Build.cs
           git log -3 --format=full
 
       # See the same step in test_job above
@@ -105,16 +110,69 @@ jobs:
           dotnet tool restore
           dotnet csharpier check .
 
+      # Every release from main gets a minor version of its own: this commit raises MinorVersion in
+      # gmd/Program.cs and regenerates CHANGELOG.md with the new version heading the notes of the
+      # merge, and it is what is built, tagged and released. It is pushed only once the tests have
+      # passed, see 'Push release commit'. Dev releases keep the minor version they have.
+      - name: Create release commit (main)
+        id: release
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          MINOR="$(sed -n 's/^ *public const int MinorVersion = \([0-9]*\);.*/\1/p' gmd/Program.cs)"
+          if [ -z "$MINOR" ]; then
+            echo "Error: no 'public const int MinorVersion = <n>;' in gmd/Program.cs"
+            exit 1
+          fi
+          sed -i "s/public const int MinorVersion = $MINOR;/public const int MinorVersion = $((MINOR + 1));/" gmd/Program.cs
+
+          # The same version as the release build below, which has the same Program.cs and build time
+          dotnet build gmd/gmd.csproj -v quiet --nologo
+          VERSION="$(gmd/bin/Debug/net10.0/gmd --version)"
+          echo "Release version: $VERSION"
+          gmd/bin/Debug/net10.0/gmd --updatechangelog "v$VERSION"
+
+          # The subject is how the change log knows a release commit (gmd/Server/Private/ChangeLog.cs).
+          # Only these two files: gmd/Build.cs holds the injected build time.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Release v$VERSION" -- gmd/Program.cs CHANGELOG.md
+          git show --stat HEAD
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      # The sha of what is built: the release commit on main, the pushed commit otherwise
+      - name: Update git sha
+        shell: bash
+        run: |
+          BUILD_SHA="$(git rev-parse HEAD)"
+          echo Build sha $BUILD_SHA
+          sed -i "s/BUILD_SHA/$BUILD_SHA/g" gmd/Build.cs
+
       - name: Build & Test
         id: build
         run: |
           echo Build on branch: ${{ github.ref }}
           ./build
-          echo "version=$(./gmd_linux_x64 --version)" >> $GITHUB_OUTPUT
-          echo Version: $(./gmd_linux_x64 --version)
+          VERSION="$(./gmd_linux_x64 --version)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo Version: $VERSION
+          RELEASE_VERSION="${{ steps.release.outputs.version }}"
+          if [ -n "$RELEASE_VERSION" ] && [ "$VERSION" != "$RELEASE_VERSION" ]; then
+            echo "Error: built $VERSION, but the release commit is for $RELEASE_VERSION"
+            exit 1
+          fi
           echo "isRelease=${{ github.ref == 'refs/heads/main' }}" >> $GITHUB_OUTPUT
           echo "isPreRelease=${{ github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
           echo "isPublish=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' }}" >> $GITHUB_OUTPUT
+
+      # After the tests and before the release, whose tag goes on this commit. A plain push, so it
+      # fails, and nothing is released, if main has moved since this run started. Pushed with the
+      # GITHUB_TOKEN, which starts no workflow run, so this push does not release again.
+      - name: Push release commit (main)
+        if: steps.release.outputs.sha != ''
+        run: git push origin HEAD:main
 
       # 'gmd_linux' is a copy of the x64 binary kept under the original asset name, since
       # the built-in updater falls back to it (see gmd/Installation/Updater.cs).
@@ -124,14 +182,15 @@ jobs:
 
       # 'target_commitish' is where the new tag is created, and it must be set: it defaults to
       # the repository default branch ('main'), so without it every dev pre-release tagged the
-      # tip of main rather than the dev commit that triggered the run. github.sha is that commit
-      # for a push, and the tip of the chosen branch for a manual run.
+      # tip of main rather than the dev commit that triggered the run. On main it is the release
+      # commit. Otherwise github.sha is the commit that triggered the run for a push, and the tip of
+      # the chosen branch for a manual run.
       - name: Create release and upload assets
         if: steps.build.outputs.isPublish == 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.build.outputs.version }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ steps.release.outputs.sha || github.sha }}
           name: Version ${{ steps.build.outputs.version }}
           draft: false
           prerelease: ${{ steps.build.outputs.isPreRelease == 'true' }}

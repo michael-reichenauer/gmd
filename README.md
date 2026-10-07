@@ -26,8 +26,8 @@ cannot tell, it marks the branch as ambiguous, and you can set it by hand.
 
 - **Branch visibility**: show and hide branches, pick them from lists of recent, active, your
   own or deleted branches or find one by typing part of its name, and see markers where hidden
-  branches merge in or branch out, and a count of what was pushed to hidden branches since you
-  last looked.
+  branches merge in or branch out, and a count of the hidden branches with something new since
+  you last looked, new branches included.
 - **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches. The
   context shown around the changes can be widened for one file at a time, up to the whole file.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its
@@ -171,7 +171,7 @@ proposals for improving it.
 
 The easiest way is the devcontainer, locally in VS Code with Docker or in GitHub Codespaces. It
 installs both .NET SDKs, and `./installtools` then adds the tools that the scripts and the
-end-to-end tests use (tmux, lnav, the git hooks).
+end-to-end tests use (tmux, lnav, agg).
 
 To set up a machine yourself you need:
 
@@ -191,7 +191,7 @@ To set up a machine yourself you need:
 | `./build -l`       | The same, but publish only for Linux (x64 and arm64), which is much faster |
 | `./log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
 | `./updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
-| `./installtools`   | Set up the devcontainer: tools, dotnet local tools and git hooks          |
+| `./installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
 | `./demo`           | Re-record the animation above, by running a scripted session in tmux     |
 
 On Windows, `run.bat`, `build.bat` (`-w` builds Windows only) and `log.bat` do the same.
@@ -207,14 +207,16 @@ The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runt
 
 ### Conventions
 
-- **Formatting** belongs to [CSharpier](https://csharpier.com). A Debug build formats the code,
-  and the pre-commit hook and CI check it. Don't format by hand.
+- **Formatting** belongs to [CSharpier](https://csharpier.com). VS Code formats on save, a Debug
+  build formats the code, and CI checks it. Don't format by hand.
 - **Branches**: `main` holds the releases and `dev` the pre-releases, and CI publishes a GitHub
-  release on every push to either one. Work on a feature branch and target `dev`.
+  release on every push to either one. A release from `main` gets the next minor version, in a
+  release commit CI adds to `main`, so pull `main` before merging into it and merge it back into
+  `dev` afterwards. Work on a feature branch and target `dev`.
 - **Tests** go with every bug fix. The unit tests are in `gmdTest/`, laid out like `gmd/`, and the
   end-to-end tests, which drive the real executable in tmux, are in `gmdE2eTest/`.
-- **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, so don't edit
-  it by hand.
+- **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, in CI's release
+  commit on `main`, so don't edit it by hand.
 
 ## Third-party components
 

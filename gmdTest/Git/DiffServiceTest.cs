@@ -1,5 +1,6 @@
 using gmd.Git;
 using gmd.Git.Private;
+using gmdTest.Fixtures;
 using gmdTest.Utils;
 
 namespace gmdTest.Git;
@@ -561,6 +562,43 @@ public class DiffServiceTest
         Assert.AreEqual("", commitDiff.Id);
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
         Assert.AreEqual("diff --find-renames --unified=6 --full-index a~..b", cmd.Calls[0].Args);
+    }
+
+    // A range from a root commit has no 'a~' to start from, so it is diffed from the empty tree, as
+    // Recover Lost Commits asks for the line of a deleted orphan branch
+    [TestMethod]
+    public async Task TestGetDiffRangeFromARootCommitIsFromTheEmptyTree()
+    {
+        var root = RepoBuilder.Sha("a1");
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.EndsWith("~..b") ? FakeCmd.Fail($"fatal: ambiguous argument '{root}~..b': unknown revision")
+                : args.StartsWith("rev-list") ? FakeCmd.Ok($"{root}\n")
+                : FakeCmd.Ok(ConflictOutput)
+        );
+
+        AssertOk(await new DiffService(cmd).GetDiffRangeAsync(root, "b", "Range", 6, "/wd"));
+
+        Assert.AreEqual(
+            "diff --find-renames --unified=6 --full-index 4b825dc642cb6eb9a060e54bf8d69288fbee4904 b",
+            cmd.Calls[2].Args
+        );
+    }
+
+    // One that is not a root fails as it did: a missing 'a~' is no reason to diff from nothing
+    [TestMethod]
+    public async Task TestGetDiffRangeFromACommitThatIsNoRootFails()
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.EndsWith("~..b") ? FakeCmd.Fail("fatal: ambiguous argument 'a~..b': unknown revision")
+                : args.StartsWith("rev-list") ? FakeCmd.Fail("fatal: bad object a")
+                : FakeCmd.Ok(ConflictOutput)
+        );
+
+        AssertError(await new DiffService(cmd).GetDiffRangeAsync("a", "b", "Range", 6, "/wd"));
+
+        Assert.AreEqual(2, cmd.Calls.Count);
     }
 
     [TestMethod]

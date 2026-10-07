@@ -13,7 +13,7 @@ interface IBranchCommands
     void HideBranch(string name, bool hideAllBranches = false);
     void UndoShowOrHide();
     void ShowSearchMatch(int direction);
-    void MarkHiddenNewsSeen();
+    void MarkHiddenNewsSeen(IReadOnlyList<HiddenBranchNews> looked);
 
     void SwitchTo(string branchName);
     void SwitchToCommit();
@@ -28,11 +28,15 @@ interface IBranchCommands
     void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
+    void CreateBranchFromLostCommit(string commitId, string madeOnName);
     void RenameBranch(string name);
     void DeleteBranch(string name);
     void MergeBranch(string name);
     void MergeToBranch(string targetName);
     void RebaseBranchOnto(string onto);
+    void UndoLastChange(string branchName);
+    void RecoverLostCommits();
+    void RestoreDeletedBranch();
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -41,6 +45,7 @@ interface IBranchCommands
     void PullCurrentBranch();
     void PullBranch(string name);
     void PullAllBranches();
+    void RestoreOrigin(string name);
     bool CanPushCurrentBranch();
     bool CanPush();
     bool CanPull();
@@ -68,6 +73,7 @@ class BranchCommands : IBranchCommands
     readonly IBranchCreateCommands createCmds;
     readonly IBranchPushPullCommands pushPullCmds;
     readonly IWorktreeCommands worktreeCmds;
+    readonly IUndoCommands undoCmds;
     readonly IFindBranchDlg findBranchDlg;
 
     public BranchCommands(
@@ -83,7 +89,8 @@ class BranchCommands : IBranchCommands
         IRepoConfig repoConfig,
         Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
         Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands,
-        Func<IViewRepo, IRepoView, IWorktreeCommands> newWorktreeCommands
+        Func<IViewRepo, IRepoView, IWorktreeCommands> newWorktreeCommands,
+        Func<IViewRepo, IRepoView, IUndoCommands> newUndoCommands
     )
     {
         this.worktreeCmds = newWorktreeCommands(repo, repoView);
@@ -99,6 +106,7 @@ class BranchCommands : IBranchCommands
         this.repoConfig = repoConfig;
         this.createCmds = newCreateCommands(repo, repoView);
         this.pushPullCmds = newPushPullCommands(repo, repoView);
+        this.undoCmds = newUndoCommands(repo, repoView);
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -112,12 +120,22 @@ class BranchCommands : IBranchCommands
     public void RefreshAndFetch(string addName = "", string commitId = "") =>
         repoView.RefreshAndFetch(addName, commitId);
 
+    // Undoing the last change of a branch
+    public void UndoLastChange(string branchName) => undoCmds.UndoLastChange(branchName);
+
+    public void RecoverLostCommits() => undoCmds.RecoverLostCommits();
+
+    public void RestoreDeletedBranch() => undoCmds.RestoreDeletedBranch();
+
     // Creating and deleting branches
     public void CreateBranch() => createCmds.CreateBranch();
 
     public void CreateBranchFromBranch(string name) => createCmds.CreateBranchFromBranch(name);
 
     public void CreateBranchFromCommit() => createCmds.CreateBranchFromCommit();
+
+    public void CreateBranchFromLostCommit(string commitId, string madeOnName) =>
+        createCmds.CreateBranchFromLostCommit(commitId, madeOnName);
 
     public void RenameBranch(string name) => createCmds.RenameBranch(name);
 
@@ -137,6 +155,8 @@ class BranchCommands : IBranchCommands
     public void PullBranch(string name) => pushPullCmds.PullBranch(name);
 
     public void PullAllBranches() => pushPullCmds.PullAllBranches();
+
+    public void RestoreOrigin(string name) => pushPullCmds.RestoreOrigin(name);
 
     public bool CanPushCurrentBranch() => pushPullCmds.CanPushCurrentBranch();
 
@@ -248,14 +268,7 @@ class BranchCommands : IBranchCommands
         );
     }
 
-    // Takes every remote branch's tip as seen, so that the hidden ones have nothing new until more is
-    // pushed to them
-    public void MarkHiddenNewsSeen()
-    {
-        repoConfig.Set(repo.Path, s => s.SeenTips = HiddenNews.AllSeen(repo.Repo));
-        repoView.UpdateRepoTo(repo.Repo);
-        status.Info("The new commits on the hidden branches are marked as seen");
-    }
+    public void MarkHiddenNewsSeen(IReadOnlyList<HiddenBranchNews> looked) => repoView.MarkHiddenNewsSeen(looked);
 
     // A show or hide the user asked for, so that Backspace can undo it
     void RecordShown(Repo newRepo, string verb, string what, string name) =>

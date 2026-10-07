@@ -15,9 +15,51 @@ class RepoConfig
     public Dictionary<string, int> BranchColors { get; set; } = [];
     public List<BranchOrder> BranchOrders { get; set; } = [];
 
-    // The tip each remote branch had when it was last shown, by name, for telling what is new on
-    // the hidden ones, see HiddenNews
+    // The tip each branch had when it was last shown, by name, for telling what is new on the hidden
+    // ones, see HiddenNews
     public Dictionary<string, string> SeenTips { get; set; } = [];
+
+    // False for SeenTips as an older gmd left it, which held only the remote branches, see HiddenNews.Seen
+    public bool IsSeenTipsForAll { get; set; } = false;
+
+    // The last change gmd made to a branch, by branch name, where the branch's reflog alone would name
+    // it wrong: a squash, which is several moves, and an undo, which is a reset that Undo again redoes.
+    // Taken only while the reflog still lists it as the latest, see ReflogSteps.StepsByBranch.
+    public Dictionary<string, RecordedStep> UndoSteps { get; set; } = [];
+
+    // The branches gmd deleted, newest first, which Restore Deleted Branch brings back: git deletes a
+    // branch's reflog with it, so nothing else says where it was. A side is forgotten once it is
+    // restored, a branch of its name is back or its commit is gone, see DeletedBranchRecords.
+    public List<RecordedDelete> DeletedBranches { get; set; } = [];
+}
+
+// A change gmd made to a branch: the branch was at BeforeId, the change wrote Moves entries to the
+// branch's reflog, and left it at AfterId, or wherever its last entry says when that is empty. Kind
+// is a StepKind name, and Name what the change was of.
+public class RecordedStep
+{
+    public string Kind { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string BeforeId { get; set; } = "";
+    public string AfterId { get; set; } = "";
+    public int Moves { get; set; } = 1;
+    public bool IsRedo { get; set; } = false;
+}
+
+// A branch gmd deleted, here, on origin or both, the two sides of one pair: the local branch Name
+// was at TipId, and the remote branch RemoteName it tracked at RemoteTipId. A tip is "" for a side
+// that was not deleted, or is forgotten. Name is also the local branch that tracked a remote branch
+// deleted alone, which was kept, or "" when none did; RemoteName is also the remote branch a local
+// branch deleted alone tracked, which was kept, or "" when it tracked none.
+public class RecordedDelete
+{
+    public string Name { get; set; } = "";
+    public string TipId { get; set; } = "";
+    public string RemoteName { get; set; } = "";
+    public string RemoteTipId { get; set; } = "";
+    public string Subject { get; set; } = ""; // TipId's
+    public string RemoteSubject { get; set; } = ""; // RemoteTipId's
+    public DateTime Time { get; set; }
 }
 
 public class BranchOrder

@@ -24,7 +24,7 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
 ./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
-./installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools, git hooks
+./installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
 ./demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
 ```
 
@@ -132,6 +132,14 @@ Key types and flow:
   has `RefreshTimingTest` (`GMD_PERF_REPO=<repo> GMD_PERF_OUT=<file>`, `--filter RefreshTiming`),
   which times each stage of a refresh and writes what the view repos hold to `<file>.view`, for the
   same before/after `diff`.
+- The reflog is read for three more things, none of which touch the inference: Undo, the last
+  change of each local branch from its own reflog (`ReflogSteps`, `Repo.UndoSteps`, with gmd's own
+  record of a squash and of an undo in `RepoConfig.UndoSteps`); Recover Lost Commits, the commits
+  no ref reaches (`LostWorkFinder`, read only when asked); and a force push on origin, from the
+  reflogs of the remote branches whose local branches have commits not pushed (`RemoteRewrites`,
+  `Repo.RemoteRewrites`). A deleted branch is the one thing the reflog cannot bring back, since git
+  deletes the branch's reflog with it, so gmd records each branch it deletes itself
+  (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
@@ -143,8 +151,8 @@ Key types and flow:
   cursor is, again with no view; `KeyHintBar` draws it. When a key's behavior changes, check the
   hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
-  `BranchPushPullCommands`, `CommitCommands`, `WebCommands`, `WorktreeCommands`, run through
-  `CommandRunner`), menus into `*Menu.cs`.
+  `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`,
+  run through `CommandRunner`), menus into `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
   its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"Shift-P"` for P,
@@ -158,7 +166,9 @@ Key types and flow:
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
-  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally.
+  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
+  the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
+  Lost Commits, Restore Deleted Branch); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
   WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
   user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`
@@ -331,10 +341,13 @@ literal keeps the line endings of its source file: with a CRLF checkout every mu
 value in the tests becomes `\r\n`, and some 80 of them fail on Windows. A Debug build repairs such
 a tree, since the format pass rewrites the endings before compiling.
 
-It runs in four places: on save in VS Code (`editor.formatOnSave` + the `csharpier-vscode`
-extension), on build (the `CSharpier.MsBuild` package in both `.csproj` files), on commit
-(`.git/hooks/pre-commit`, from `gmd/tools/pre-commit-sample`), and in CI. The MSBuild integration
-behaves differently per configuration, which matters:
+It runs in three places: on save in VS Code (`editor.formatOnSave` + the `csharpier-vscode`
+extension), on build (the `CSharpier.MsBuild` package in every `.csproj`, which formats the whole
+project folder, and every `.cs` file is in one), and in CI. There is deliberately no pre-commit
+hook: the one there was started CSharpier once per staged file, so a merge commit, which stages
+every file the branch changed, took half a minute or more, and the three above already cover it —
+`./test` before every commit is a Debug build. The MSBuild integration behaves differently per
+configuration, which matters:
 
 - **Debug** — *formats* the sources in place before compiling. A `dotnet build` can therefore
   modify files in the working tree. This is intended.
@@ -629,10 +642,11 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
-  `HiddenNews`, `KeyHints`, `BranchFinder`, `MenuDimensions`, `MenuRows`, `MenuShortcuts`,
-  `TextContextMenu`, `SpellSpans`, `SpellHint`, `WorktreeRows`, `BlameColumns` and
-  `ConflictResolution` exist. `Text.ToString()` flattens styled output to a plain string, which is
-  how `GraphText` snapshots `GraphWriter` output with no driver at all.
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
+  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
+  flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
+  with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
   terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
 - `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
@@ -654,14 +668,21 @@ message.
 
 ## Gotchas
 
-- **`CHANGELOG.md` is generated — never hand-edit it.** `gmd --updatechangelog` rewrites it
-  from git history, driven by the `post-commit` hook (`gmd/tools/post-commit-sample`, installed
-  by `./installtools`) on the `main` branch only.
+- **`CHANGELOG.md` is generated — never hand-edit it.** CI makes it in the release commit of every
+  release from `main` (see the version bullet below), with `gmd --updatechangelog v<version>`, which
+  rewrites it from main's history: each version tag starts a release, and its notes are the lists
+  written in the merge commit messages (`Server/Private/ChangeLog.cs`).
 - **`gmd/Build.cs` contains CI placeholders.** The literals `"BUILD_TIME"` and `"BUILD_SHA"`
   are `sed`-replaced by `.github/workflows/build-and-release.yml`. Do not rename, reformat or
   move that file or those strings.
 - **Version lives in `gmd/Program.cs`** (`MajorVersion`/`MinorVersion`); the last two version
-  components are derived from build time in `Build.cs`.
+  components are derived from build time in `Build.cs`. Major is hand-edited; the minor is raised by
+  CI. A push to `main` makes a **release commit** (`Release v<version>`) on top of it, which raises
+  `MinorVersion` by one and regenerates `CHANGELOG.md`, and that commit is built, tagged and
+  released, and pushed only once the tests pass. Dev releases keep the minor they have. So pull
+  `main` before merging `dev` into it, and merge `main` into `dev` after a release: until then dev's
+  pre-releases are numbered below the stable release, and the updater offers a preview only when it
+  is newer.
 - **A Debug build rewrites source files** (CSharpier formatting — see above). Do not be
   surprised by a dirty working tree after `dotnet build`.
 - **No git process gmd starts can open an editor.** `Cmd.NeverOpenAnEditor` forces `GIT_EDITOR`

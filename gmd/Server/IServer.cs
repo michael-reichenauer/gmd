@@ -99,7 +99,10 @@ interface IServer
     Task<Result> UseWholeFileAsync(string path, bool isOurs, string wd);
     Task<Result> KeepConflictedFileAsync(string path, string wd);
     Task<Result> DeleteConflictedAsync(string path, string wd);
-    Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+
+    // Deletes a branch on origin, here or both (a name is "" for a side not to delete), and records it
+    // for Restore Deleted Branch, since git deletes a branch's reflog with it
+    Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo);
     Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
@@ -112,11 +115,28 @@ interface IServer
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
+
+    // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see AugmentedService
+    Task<Result> UndoStepAsync(Repo repo, UndoStep step);
+
+    // The lines of work no branch, tag or stash has any more, which the reflogs still mention
+    Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo);
+
+    // The branches gmd deleted that can be brought back, newest first, and bringing one back
+    Task<Result<IReadOnlyList<DeletedBranch>>> GetDeletedBranchesAsync(Repo repo);
+    Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote);
+
+    // Pulls a branch whose remote branch a force push rewrote (Repo.RemoteRewrites): its own commits
+    // are moved onto the new version, rather than the two versions merged
+    Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite);
+
+    // Force pushes a rewritten remote branch back as it was before the rewrite, if no one pushed since
+    Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> StashDropAsync(string name, string wd);
-    Task<Result<string>> GetChangeLogAsync();
+    Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
     Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
     Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);

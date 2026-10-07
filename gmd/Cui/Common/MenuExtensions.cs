@@ -23,11 +23,12 @@ static class MenuExtensions
         string shortcut,
         IEnumerable<MenuItem> children,
         Func<bool>? canExecute = null,
-        Func<string>? whyNot = null
+        Func<string>? whyNot = null,
+        Action? onOpen = null
     )
     {
         if (condition)
-            items.Add(new SubMenu(title, shortcut, children, canExecute) { WhyNot = whyNot });
+            items.Add(new SubMenu(title, shortcut, children, canExecute) { WhyNot = whyNot, OnOpen = onOpen });
         return items;
     }
 

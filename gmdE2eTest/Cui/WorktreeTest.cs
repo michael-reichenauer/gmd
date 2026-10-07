@@ -262,7 +262,8 @@ public class WorktreeTest
     }
 
     // Removing a worktree from the dialog, with its branch: 'r' is the Remove action's key while
-    // the list has the focus, and the branch box is offered checked since 'dev' is merged into main
+    // the list has the focus, and the branch box is offered checked since 'dev' is merged into main.
+    // The status line says how to bring the branch back, as a delete from the branch menu does.
     [TestMethod]
     public async Task TestRemoveWorktreeAndItsBranchFromTheDialog()
     {
@@ -284,6 +285,10 @@ public class WorktreeTest
         gmd.WaitUntilGone("Remove Worktree");
         var list = gmd.WaitFor("Kind    Branch");
         Assert.IsFalse(list.Contains("linked"), "The linked worktree is gone from the list");
+        Assert.AreEqual(
+            "Deleted 'dev': Restore Deleted Branch in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Deleted 'dev'"))
+        );
         gmd.Send("Escape");
         gmd.WaitUntilGone("Kind    Branch");
 

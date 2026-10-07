@@ -11,6 +11,7 @@ interface IBranchCreateCommands
     void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
+    void CreateBranchFromLostCommit(string commitId, string madeOnName);
     void RenameBranch(string name);
     void DeleteBranch(string name);
 }
@@ -112,35 +113,52 @@ class BranchCreateCommands : IBranchCreateCommands
     public void CreateBranchFromCommit() =>
         Do(async () =>
         {
-            var branchName = "";
-            try
-            {
-                var commit = repo.RowCommit;
-                var commitBranchName = commit.BranchName;
-
-                if (createBranchDlg.Show(commitBranchName, commit.Sid) is not CreateBranchResult rsp)
-                    return Result.Ok;
-
-                var created = await server.CreateBranchFromCommitAsync(
-                    repo.Repo,
-                    rsp.Name,
-                    commit.Id,
-                    rsp.IsCheckout,
-                    repo.Path
-                );
-                if (created is Error e)
-                {
-                    return new Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
-            }
-            finally
-            {
-                Refresh(branchName);
-            }
+            var commit = repo.RowCommit;
+            return await CreateBranchAtAsync(commit.BranchName, commit.Id, "", true);
         });
+
+    // A branch at a commit no branch has any more, brought back from Recover Lost Commits: named as
+    // the branch it was made on when that name is free, since that is most often what is being
+    // brought back, and not published by default, since what was lost was never more than local
+    public void CreateBranchFromLostCommit(string commitId, string madeOnName) =>
+        Do(async () =>
+        {
+            var isNameFree =
+                madeOnName != ""
+                && !repo.Repo.BranchByName.ContainsKey(madeOnName)
+                && !repo.Repo.BranchByName.ContainsKey($"origin/{madeOnName}");
+            var from = madeOnName != "" ? madeOnName : "lost commit";
+            return await CreateBranchAtAsync(from, commitId, isNameFree ? madeOnName : "", false);
+        });
+
+    async Task<Result> CreateBranchAtAsync(string fromName, string commitId, string name, bool isPublish)
+    {
+        var branchName = "";
+        try
+        {
+            if (createBranchDlg.Show(fromName, commitId.Sid(), name, isPublish) is not CreateBranchResult rsp)
+                return Result.Ok;
+
+            var created = await server.CreateBranchFromCommitAsync(
+                repo.Repo,
+                rsp.Name,
+                commitId,
+                rsp.IsCheckout,
+                repo.Path
+            );
+            if (created is Error e)
+            {
+                return new Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
+        }
+        finally
+        {
+            Refresh(branchName);
+        }
+    }
 
     // Renames both the local and the remote branch, since renaming only the local branch would
     // hardly be visible: the local branch would still track the old remote branch, and gmd shows
@@ -196,6 +214,9 @@ class BranchCreateCommands : IBranchCreateCommands
             }
         });
 
+    // Deletes the branch here, on origin or both, as the dialog says, and says how to bring it back,
+    // since gmd records what it deleted (see AugmentedService.DeleteBranchAsync). Both sides are
+    // checked for unmerged commits before either is deleted.
     public void DeleteBranch(string name) =>
         Do(async () =>
         {
@@ -206,36 +227,29 @@ class BranchCreateCommands : IBranchCreateCommands
             if (deleteBranchDlg.Show(name, isLocal, isRemote) is not DeleteBranchResult rsp)
                 return Result.Ok;
 
-            var newName = "";
-
-            if (rsp.IsRemote && remoteBranch != null)
+            var local = rsp.IsLocal ? localBranch : null;
+            var remote = rsp.IsRemote ? remoteBranch : null;
+            if (local == null && remote == null)
+                return Result.Ok;
+            foreach (var branch in new[] { remote, local }.OfType<Server.Branch>())
             {
-                if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(remoteBranch))
+                if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(branch))
                 {
-                    return new Error($"Branch {remoteBranch.Name}\nnot fully merged, use force option to delete.");
+                    return new Error($"Branch {branch.Name}\nnot fully merged, use force option to delete.");
                 }
-
-                if (await server.DeleteRemoteBranchAsync(remoteBranch.Name, repo.Path) is Error e)
-                {
-                    return new Error($"Failed to delete remote branch {remoteBranch.Name}", e);
-                }
-                newName = remoteBranch.PrimaryBaseName;
             }
 
-            if (rsp.IsLocal && localBranch != null)
+            Result deleted;
+            var deletedName = local?.Name ?? remote!.Name;
+            using (status.Progress($"Deleting '{deletedName}'"))
             {
-                if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(localBranch))
-                {
-                    return new Error($"Branch {localBranch.Name}\nnot fully merged, use force option to delete.");
-                }
-                if (await server.DeleteLocalBranchAsync(localBranch.Name, rsp.IsForce, repo.Path) is Error e)
-                {
-                    return new Error($"Failed to delete local branch {localBranch.Name}", e);
-                }
-                newName = localBranch.PrimaryBaseName;
+                deleted = await server.DeleteBranchAsync(repo.Repo, local?.Name ?? "", remote?.Name ?? "", rsp.IsForce);
             }
 
-            Refresh(newName);
+            Refresh((local ?? remote)!.PrimaryBaseName);
+            if (deleted is Error e)
+                return e;
+            status.Info(DeletedBranchRows.Deleted(deletedName, local != null && remote != null));
             return Result.Ok;
         });
 

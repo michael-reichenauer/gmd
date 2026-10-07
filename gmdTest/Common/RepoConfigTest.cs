@@ -36,6 +36,35 @@ public class RepoConfigTest
         CollectionAssert.AreEqual(new[] { "dev" }, config.Get(main).Branches);
     }
 
+    // What gmd recorded of its own changes survives a round trip through the file, as Undo reads it
+    [TestMethod]
+    public void TestRecordedStepsAreKept()
+    {
+        var main = Path.Join(root, "main");
+        Directory.CreateDirectory(Path.Join(main, ".git"));
+        var config = new RepoConfigImpl(new FileStore());
+
+        config.Set(
+            main,
+            c =>
+                c.UndoSteps["dev"] = new RecordedStep
+                {
+                    Kind = "Squash",
+                    Name = "Squashed",
+                    BeforeId = "a1",
+                    AfterId = "a2",
+                    Moves = 3,
+                    IsRedo = true,
+                }
+        );
+
+        var step = new RepoConfigImpl(new FileStore()).Get(main).UndoSteps["dev"];
+        Assert.AreEqual(
+            ("Squash", "Squashed", "a1", "a2", 3, true),
+            (step.Kind, step.Name, step.BeforeId, step.AfterId, step.Moves, step.IsRedo)
+        );
+    }
+
     // A linked worktree shares the repository's config: it is one file, in the common git dir,
     // and writing it through the worktree must not try to write into the worktree's '.git' file
     [TestMethod]

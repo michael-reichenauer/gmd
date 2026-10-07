@@ -338,11 +338,14 @@ class UIDialog
         views.Add(view);
     }
 
-    internal bool ShowOkCancel(View? setViewFocused = null)
+    // OK is the default, i.e. what Enter does, unless Cancel is asked for, for a dialog a slip of
+    // Enter should not run. Cancel then has the focus too, since Enter on a focused button presses it
+    // whatever the default is, so OK is a deliberate Left (or Tab) and Enter, or a click.
+    internal bool ShowOkCancel(View? setViewFocused = null, bool isCancelDefault = false)
     {
-        AddDlgOK();
-        AddDlgCancel();
-        return Show(setViewFocused);
+        AddDlgOK(!isCancelDefault);
+        var cancel = AddDlgCancel(isCancelDefault);
+        return Show(setViewFocused ?? (isCancelDefault ? cancel : null));
     }
 
     internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null, Action<View>? onAfterShow = null)

@@ -217,7 +217,7 @@ public class CommitTest
     // The progress marquee while the commit runs. A push always showed it, and a commit ran under
     // the same progress, but closing the commit dialog in between left the marquee behind the
     // application bar (see Progress.Activated), so a long commit looked like a hung gmd. The commit
-    // is slowed down by a pre-commit hook that sleeps, which is what a big commit does to git.
+    // is slowed down by a pre-commit hook that sleeps, as a hook that formats the code slows a big one.
     // The status line says what is going on meanwhile, and then what was done.
     [TestMethod]
     public async Task TestCommitShowsProgressWhileGitWorks()
@@ -404,7 +404,9 @@ public class CommitTest
     //
     // On a clean tree the menu opens with the cursor already on 'Commit Diff' — 'Commit ...'
     // and 'Amend ...' are both disabled, and Menu.Show starts on the first item that is not — so
-    // 'Undo' is one move away rather than three.
+    // 'Undo' is one move away rather than three. In it the cursor starts on 'Undo Commit', the last
+    // change of the branch, and 'Discard Changes in a File' is disabled, so 'Uncommit Last Commit' is
+    // four moves down, past 'Recover Lost Commits ...', 'Restore Deleted Branch ...' and 'Revert Commit'.
     [TestMethod]
     public async Task TestUncommitTheLastCommit()
     {
@@ -418,14 +420,57 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("Right");
         gmd.WaitFor("Uncommit");
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        for (var i = 0; i < 4; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
         gmd.Send("Enter");
 
         // The commit is gone and what it added is back in the working tree as an untracked file
         gmd.WaitFor("uncommitted");
         Assert.AreEqual("Merge branch 'dev' into main", await repo.GitAsync("log --format=%s -1"));
         Assert.AreEqual("?? delta.txt", await repo.GitAsync("status --porcelain"));
+    }
+
+    // Undo of the branch's last change, named after it, and Undo again, which redoes it. The undo of
+    // a commit leaves its changes in the working tree, as Uncommit does; the redo commits them back.
+    // With the changes there 'Commit ...' is enabled, so the second time 'Undo' is two moves away.
+    [TestMethod]
+    public async Task TestUndoTheLastCommitAndRedoIt()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("Undo Commit 'Add delta'");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Undid the commit 'Add delta' on 'main'");
+        Assert.AreEqual("Undid the commit 'Add delta' on 'main': Undo again redoes it", ScreenText.LastLine(screen));
+        Assert.AreEqual("Merge branch 'dev' into main", await repo.GitAsync("log --format=%s -1"));
+        Assert.AreEqual("?? delta.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+
+        gmd.WaitFor("uncommitted");
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        for (var i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("Redo Commit 'Add delta'");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Redid the commit 'Add delta' on 'main'");
+        Assert.AreEqual("Add delta", await repo.GitAsync("log --format=%s -1"));
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
     }
 
     // Squashing a range of commits into one. The range is a shift-selection of two rows, which is

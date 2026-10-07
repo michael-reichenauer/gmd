@@ -1,4 +1,3 @@
-using System.Text;
 using gmd.Git;
 using gmd.Server.Private.Augmented;
 
@@ -106,16 +105,20 @@ class Server : IServer
         var commit = repo.CommitById[commitId];
         var branch = repo.BranchByName[commit.BranchName];
 
-        return commit
+        var branchNames = commit
             .AllChildIds.Concat(commit.ParentIds) // All children and parents commit ids
             .Select(id => repo.CommitById[id]) // As commits
             .Where(cc => cc.BranchPrimaryName != commit.BranchPrimaryName) // Skip same branch
             .Concat(commit.Id == branch.TipId ? [commit] : []) // Add commit branch if tip
             .Where(FilterOnShown) // Exclude shown branches (or not)
-            .Select(cc => cc.BranchPrimaryName)
-            .Distinct()
-            .Select(n => repo.BranchByName[n])
-            .ToList();
+            .Select(cc => cc.BranchPrimaryName);
+
+        // And the branches starting here with no commits of their own, which no child commit tells of
+        var startingNames = repo.BranchesStartingAt(commitId)
+            .Where(b => isAll || !b.IsInView)
+            .Select(b => b.PrimaryName);
+
+        return branchNames.Concat(startingNames).Distinct().Select(n => repo.BranchByName[n]).ToList();
     }
 
     public IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount)
@@ -441,8 +444,8 @@ class Server : IServer
 
     static Git.ConflictKind ToGitConflictKind(ConflictKind kind) => ViewRepoConverter.ToGitConflictKind(kind);
 
-    public Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
-        git.DeleteLocalBranchAsync(name, isForced, wd);
+    public Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce) =>
+        augmentedService.DeleteBranchAsync(repo, localName, remoteName, isForce);
 
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) => git.DeleteRemoteBranchAsync(name, wd);
 
@@ -480,6 +483,22 @@ class Server : IServer
 
     public Task<Result> UncommitUntilCommitAsync(string id, string wd) => git.UncommitUntilCommitAsync(id, wd);
 
+    public Task<Result> UndoStepAsync(Repo repo, UndoStep step) => augmentedService.UndoStepAsync(repo, step);
+
+    public Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo) => augmentedService.GetLostWorkAsync(repo);
+
+    public Task<Result<IReadOnlyList<DeletedBranch>>> GetDeletedBranchesAsync(Repo repo) =>
+        augmentedService.GetDeletedBranchesAsync(repo);
+
+    public Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote) =>
+        augmentedService.RestoreBranchAsync(repo, deleted, isLocal, isRemote);
+
+    public Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite) =>
+        augmentedService.PullRewrittenAsync(repo, rewrite);
+
+    public Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd) =>
+        git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, wd);
+
     public Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 
@@ -514,70 +533,13 @@ class Server : IServer
 
     public Task<Result> StashDropAsync(string name, string wd) => git.StashDropAsync(name, wd);
 
-    public async Task<Result<string>> GetChangeLogAsync()
+    public async Task<Result<string>> GetChangeLogAsync(string? newRelease = null)
     {
         var repoResult = await GetRepoAsync("", ["main"]);
         if (repoResult is not Repo repo)
             return repoResult.Error;
 
-        var nextTag = "Current";
-        var nextTagDate = DateTime.UtcNow;
-        var totalText = new StringBuilder();
-        var text = "";
-        var count = 0;
-        foreach (Commit c in repo.ViewCommits)
-        {
-            var message = c.Message;
-            var parts = c.Message.Split('\n');
-            if (c.ParentIds.Count > 1 && parts.Length > 2 && parts[1].Trim() == "")
-            {
-                message = string.Join('\n', parts.Skip(2));
-            }
-            else if (parts.Length == 1)
-            {
-                message = $"- {parts[0]}";
-            }
-
-            // Adjust some message lines
-            message = message
-                .Split('\n')
-                .Select(l =>
-                {
-                    if (l.StartsWith("- Fix "))
-                        l = $"- Fixed {l[6..]}";
-                    if (l.StartsWith("- Add "))
-                        l = $"- Added {l[6..]}";
-                    if (l.StartsWith("- Update "))
-                        l = $"- Updated {l[9..]}";
-                    return l;
-                })
-                .Join("\n");
-
-            var tag = c.Tags.FirstOrDefault(t => t.Name.StartsWith('v') && Version.TryParse(t.Name[1..], out var _));
-            if (tag != null)
-            { // New version
-                if (text.Trim() != "")
-                {
-                    if (nextTag == "Current")
-                    {
-                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.IsoDate()}\n{text}\n");
-                    }
-                    else
-                    {
-                        totalText.Append($"\n## [{nextTag}] - {nextTagDate.IsoDate()}\n{text}\n");
-                    }
-                }
-
-                nextTag = tag.Name;
-                nextTagDate = c.AuthorTime;
-                text = "";
-                count++;
-            }
-
-            text += message;
-        }
-
-        return $"\n{count} releases:\n{totalText}";
+        return ChangeLog.Create(repo, newRelease, DateTime.UtcNow);
     }
 
     public Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>

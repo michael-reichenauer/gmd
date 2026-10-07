@@ -14,6 +14,10 @@ class AugmentedService : IAugmentedService
 {
     const int maxCommitCount = 30000; // Increase performance in case of very large repos
 
+    // The commits the reflogs mention that are looked up as maybe lost, the newest: each ref's
+    // reflog is latest first, and a reflog of years can name many thousands
+    const int maxLostCandidates = 1200;
+
     readonly IGit git;
     readonly IAugmenter augmenter;
     readonly IWorkRepoConverter converter;
@@ -275,7 +279,12 @@ class AugmentedService : IAugmentedService
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
 
-        // Combine all git info into one git repo info object
+        var remoteReflog = await GetRemoteReflogAsync(branches, path);
+
+        // Combine all git info into one git repo info object. The config's collections are copied: it
+        // is the live one, which a command changes (RecordStep) while the augmentation reads the git
+        // repo off the UI thread.
+        var config = repoConfig.Get(path);
         var gitRepo = new GitRepo(
             timeStamp,
             path,
@@ -288,11 +297,35 @@ class AugmentedService : IAugmentedService
             isTruncated,
             worktrees,
             reflog: reflog,
-            integrationNames: repoConfig.Get(path).IntegrationBranches
+            integrationNames: config.IntegrationBranches.ToList(),
+            recordedSteps: config.UndoSteps.ToDictionary(),
+            remoteReflog: remoteReflog
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 
         return gitRepo;
+    }
+
+    // The reflogs of the remote branches whose local branches have commits not on them, read after the
+    // branches since it is them that say which: whether origin was force pushed, see RemoteRewrites.
+    // Not only the diverged ones, since a force push that only dropped commits leaves the local branch
+    // just ahead, with a push that puts them back. With every branch pushed nothing is read. It is
+    // extra, like the reflog, and a failure only means nothing is told.
+    async Task<IReadOnlyList<ReflogEntry>> GetRemoteReflogAsync(IReadOnlyList<Git.Branch> branches, string path)
+    {
+        var refs = branches
+            .Where(b => !b.IsRemote && b.RemoteName != "" && b.AheadCount > 0)
+            .Select(b => $"refs/remotes/{b.RemoteName}")
+            .ToList();
+        if (refs.Count == 0)
+            return [];
+
+        if (await git.GetRefReflogsAsync(refs, path) is not IReadOnlyList<ReflogEntry> reflog)
+        {
+            Log.Warn($"Failed to read the reflogs of {string.Join(", ", refs)}");
+            return [];
+        }
+        return reflog;
     }
 
     // The number of uncommitted changes in each of the other worktrees, read in parallel. Only
@@ -349,21 +382,34 @@ class AugmentedService : IAugmentedService
             if (!branch.IsCurrent && !branch.IsLocalCurrent)
                 return new Error("Commits not on current branch");
 
+            // The local branch, which the squash moves, and where it was before, for Undo, which the
+            // squash is recorded for below. A squash waits for a clean tree, so the local branch's tip
+            // is git's own, not the uncommitted row.
+            var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote);
+
+            // The commits on top of the squashed ones, to be picked back onto the squash, walked from
+            // the local branch's tip. Not from the tip of the branch the commits are on: commits
+            // already pushed are on the remote branch, whose tip is below the local one's when there
+            // are commits on top not pushed yet, and those were squashed in with the others. A commit
+            // that is not on the local branch's line, e.g. one only origin has when the two have
+            // diverged, is refused before anything is changed, rather than the branch reset onto it.
+            var preCommits = new List<Commit>();
+            var c = repo.CommitById[local?.TipId ?? branch.TipId];
+            while (c.Id != c1.Id)
+            {
+                preCommits.Add(c);
+                if (c.ParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.ParentIds[0], out var parent))
+                    return new Error(
+                        $"Only commits on the current branch can be squashed, and {c1.Sid} is not on "
+                            + $"'{local?.NiceNameUnique ?? branch.NiceNameUnique}'"
+                    );
+                c = parent;
+            }
+
             // Create a backup branch (in case of errors)
             var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
             if (await git.CreateBranchAsync(tmpName, false, repo.Path) is Error backupError)
                 return new Error("Failed to create backup branch", backupError);
-
-            // Remember commits before squash to be cherry picked back
-            var preCommits = new List<Commit>();
-            var c = repo.CommitById[branch.TipId];
-            while (c.Id != c1.Id)
-            {
-                preCommits.Add(c);
-                if (!c.ParentIds.Any())
-                    break;
-                c = repo.CommitById[c.ParentIds[0]];
-            }
 
             // Remove all prefix commits on current branch until the first commit to squash
             if (preCommits.Any())
@@ -387,6 +433,24 @@ class AugmentedService : IAugmentedService
                     return new Error($"Failed to commit cherry pick {commit.Sid}", pickCommitError);
             }
 
+            // The squash is several moves of the branch, one entry each in its reflog: the reset of
+            // the newer commits, if any, the reset of the squashed ones, their commit and the commit of
+            // each newer one picked back. Recorded as one change, so that Undo takes it back whole.
+            if (local != null)
+            {
+                RecordStep(
+                    repo,
+                    local.Name,
+                    new RecordedStep
+                    {
+                        Kind = nameof(StepKind.Squash),
+                        Name = message.Split('\n')[0].Trim(),
+                        BeforeId = local.TipId,
+                        Moves = (preCommits.Any() ? 1 : 0) + 2 + preCommits.Count,
+                    }
+                );
+            }
+
             // Remove temp backup branch
             if (await git.DeleteLocalBranchAsync(tmpName, true, repo.Path) is Error deleteError)
                 return new Error("Failed to delete backup branch", deleteError);
@@ -394,6 +458,331 @@ class AugmentedService : IAugmentedService
 
         return Result.Ok;
     }
+
+    // Takes back the last change of a branch, or redoes the change an undo took back. The current
+    // branch is reset in the way that loses nothing uncommitted, see UndoStep.Mode, and any other is
+    // just moved, unless it is checked out in another worktree, whose files would no longer match.
+    // Either only from where the step found it, so a commit made since is not taken back with it.
+    // The reset is an entry in the branch's reflog like any other, so the change it took back is
+    // recorded with it, and Undo again names that change and redoes it, rather than undoing "a reset".
+    public async Task<Result> UndoStepAsync(Repo repo, UndoStep step)
+    {
+        if (!repo.BranchByName.TryGetValue(step.BranchName, out var branch) || branch.IsRemote)
+            return new Error($"There is no local branch '{step.BranchName}'");
+        if (branch.WorktreePath != "")
+            return new Error($"'{step.BranchName}' is checked out in another worktree, so it is undone there");
+
+        using (fileMonitor.Pause())
+        {
+            if (branch.IsCurrent)
+            {
+                var isKeep = step.Mode == UndoMode.Keep || (step.Mode == UndoMode.KeepWhenClean && repo.Status.IsOk);
+                if (
+                    await git.ResetBranchAsync(step.BranchName, step.TargetId, step.TipId, isKeep, repo.Path) is Error e
+                )
+                    return e;
+            }
+            else if (await MoveBranchAsync(step, repo.Path) is Error moveError)
+            {
+                return moveError;
+            }
+
+            RecordStep(
+                repo,
+                step.BranchName,
+                new RecordedStep
+                {
+                    Kind = step.Kind.ToString(),
+                    Name = step.Name,
+                    BeforeId = step.TipId,
+                    AfterId = step.TargetId,
+                    Moves = 1,
+                    IsRedo = !step.IsRedo,
+                }
+            );
+            return Result.Ok;
+        }
+    }
+
+    // The lines of work no branch, tag or stash has any more, which the reflogs still mention. Read
+    // when asked, not with the repo: it is a log of the commits the repo does not have, which is
+    // nothing to wait for on every refresh. The reflog is read again for it, since the repo does not
+    // keep it.
+    public async Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo)
+    {
+        var reflogResult = await git.GetReflogAsync(repo.Path);
+        if (reflogResult is not IReadOnlyList<ReflogEntry> reflog)
+            return new Error("Failed to read the reflog", reflogResult.Error);
+
+        var candidates = reflog
+            .OrderBy(e => e.Index)
+            .Select(e => e.Id)
+            .Distinct()
+            .Where(id => !repo.CommitById.ContainsKey(id))
+            .Take(maxLostCandidates)
+            .ToList();
+        if (candidates.Count == 0)
+            return new List<LostWork>();
+
+        var stashes = repo.Stashes.Select(s => s.Id).ToList();
+        var lostResult = await git.GetUnreachableCommitsAsync(candidates, stashes, repo.Path);
+        if (lostResult is not IReadOnlyList<Git.Commit> lost)
+            return new Error("Failed to read the commits no branch has", lostResult.Error);
+
+        var localNames = repo.AllBranches.Where(b => b.IsGitBranch && !b.IsRemote).Select(b => b.Name).ToHashSet();
+        var reachable = repo.AllCommits.Select(c => (c.Author, c.AuthorTime));
+        return LostWorkFinder.Find(reflog, lost, reachable, localNames).ToList();
+    }
+
+    // Deletes a branch on origin, here or both, origin's first, and records each side once it is gone,
+    // so that Restore Deleted Branch can bring it back: git deletes a branch's reflog with the branch,
+    // so nothing else would say where it was. A name is "" for a side not to delete. The branches are
+    // looked up in the repo given, which can be newer than the one they were picked in, since a
+    // refresh runs while a dialog is shown, so one can be gone.
+    public async Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce)
+    {
+        Branch? GitBranch(string name) => repo.BranchByName.TryGetValue(name, out var b) && b.IsGitBranch ? b : null;
+        string SubjectOf(string id) => repo.CommitById.TryGetValue(id, out var c) ? c.Subject : "";
+
+        var local = localName != "" ? GitBranch(localName) : null;
+        var remote = remoteName != "" ? GitBranch(remoteName) : null;
+        var missingName =
+            localName != "" && local == null ? localName
+            : remoteName != "" && remote == null ? remoteName
+            : "";
+        if (missingName != "")
+            return new Error($"There is no branch '{missingName}' any more, so nothing was deleted");
+
+        using (fileMonitor.Pause())
+        {
+            if (remote != null)
+            {
+                if (await git.DeleteRemoteBranchAsync(remote.Name, repo.Path) is Error e)
+                    return new Error($"Failed to delete remote branch {remote.Name}", e);
+                RecordDelete(
+                    repo,
+                    new RecordedDelete
+                    {
+                        Name = remote.LocalName,
+                        RemoteName = remote.Name,
+                        RemoteTipId = remote.TipId,
+                        RemoteSubject = SubjectOf(remote.TipId),
+                        Time = DateTime.Now,
+                    }
+                );
+            }
+
+            // Both sides deleted are one record, which takes the place of origin's recorded above
+            if (local != null)
+            {
+                if (await git.DeleteLocalBranchAsync(local.Name, isForce, repo.Path) is Error e)
+                    return new Error($"Failed to delete local branch {local.Name}", e);
+                RecordDelete(
+                    repo,
+                    new RecordedDelete
+                    {
+                        Name = local.Name,
+                        TipId = local.TipId,
+                        Subject = SubjectOf(local.TipId),
+                        RemoteName = remote?.Name ?? local.RemoteName,
+                        RemoteTipId = remote?.TipId ?? "",
+                        RemoteSubject = remote != null ? SubjectOf(remote.TipId) : "",
+                        Time = DateTime.Now,
+                    }
+                );
+            }
+        }
+
+        return Result.Ok;
+    }
+
+    // The branches gmd deleted that can be restored, newest first, see DeletedBranchRecords.Restorable.
+    // Read when asked, since whether git still has their commits is a question for git. The sides
+    // that cannot be restored are forgotten.
+    public async Task<Result<IReadOnlyList<DeletedBranch>>> GetDeletedBranchesAsync(Repo repo)
+    {
+        var records = repoConfig.Get(repo.Path).DeletedBranches.ToList();
+        if (records.Count == 0)
+            return new List<DeletedBranch>();
+
+        var existingResult = await git.GetExistingCommitIdsAsync(DeletedBranchRecords.TipIds(records), repo.Path);
+        if (existingResult is not IReadOnlySet<string> existing)
+            return new Error("Failed to look up the commits of the deleted branches", existingResult.Error);
+
+        var restorable = records
+            .Select(r => (Record: r, Deleted: DeletedBranchRecords.Restorable(r, repo, existing)))
+            .ToList();
+        var unrestorable = restorable
+            .Select(r => DeletedBranchRecords.Unrestorable(r.Record, r.Deleted))
+            .OfType<RecordedDelete>()
+            .ToList();
+        if (unrestorable.Count > 0)
+        {
+            repoConfig.Set(
+                repo.Path,
+                c => unrestorable.ForEach(sides => DeletedBranchRecords.Forget(c.DeletedBranches, sides))
+            );
+        }
+
+        return restorable.Select(r => r.Deleted).OfType<DeletedBranch>().ToList();
+    }
+
+    // Brings a deleted branch back, the sides asked for: origin's pushed back at its tip, but only
+    // while origin has no branch of the name, so one someone pushed since is not overwritten, and the
+    // local branch at its tip, tracking the remote branch it tracked. Origin's first, since that is
+    // what can be refused, and a refusal then leaves nothing half done. Each side is forgotten in the
+    // records once it is back, so a later delete of the name is not joined with it.
+    public async Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote)
+    {
+        isLocal = isLocal && deleted.IsLocal;
+        isRemote = isRemote && deleted.IsRemote;
+
+        using (fileMonitor.Pause())
+        {
+            if (isRemote)
+            {
+                if (
+                    await git.PushRestoreAsync(deleted.RemoteName, deleted.RemoteTipId, "", repo.Path)
+                    is Error pushError
+                )
+                {
+                    return pushError is CmdError cmdError && cmdError.Output.Contains("stale info")
+                        ? new Error(
+                            $"Origin has a branch '{deleted.RemoteName}' again, which was left as it is, so nothing was restored",
+                            pushError
+                        )
+                        : new Error($"Failed to push '{deleted.RemoteName}' back, so nothing was restored", pushError);
+                }
+                ForgetRestored(repo, deleted, false, true);
+            }
+
+            if (isLocal)
+            {
+                if (
+                    await git.CreateBranchFromCommitAsync(deleted.Name, deleted.TipId, false, repo.Path)
+                    is Error createError
+                )
+                {
+                    return new Error(
+                        isRemote
+                            ? $"Restored '{deleted.RemoteName}', but failed to create '{deleted.Name}' again"
+                            : $"Failed to create '{deleted.Name}' again",
+                        createError
+                    );
+                }
+                ForgetRestored(repo, deleted, true, false);
+
+                // Git deleted what the branch tracked with it, which is written back whether the remote
+                // branch is there or not: deleted too and not restored yet, the branch tracks it once it is
+                if (
+                    deleted.RemoteName != ""
+                    && await git.SetUpstreamAsync(deleted.Name, deleted.RemoteName, repo.Path) is Error upstreamError
+                )
+                {
+                    var where = isRemote ? " here and on origin" : "";
+                    return new Error(
+                        $"Restored '{deleted.Name}'{where}, but failed to make it track '{deleted.RemoteName}'",
+                        upstreamError
+                    );
+                }
+            }
+        }
+
+        return Result.Ok;
+    }
+
+    // Records a branch gmd deleted, see RepoConfig.DeletedBranches
+    void RecordDelete(Repo repo, RecordedDelete deleted) =>
+        repoConfig.Set(repo.Path, c => DeletedBranchRecords.Add(c.DeletedBranches, deleted));
+
+    void ForgetRestored(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote) =>
+        repoConfig.Set(
+            repo.Path,
+            c =>
+                DeletedBranchRecords.Forget(
+                    c.DeletedBranches,
+                    DeletedBranchRecords.Restored(deleted, isLocal, isRemote)
+                )
+        );
+
+    // Pulls a branch whose remote branch a force push rewrote: its own commits are moved onto the new
+    // version, and the old version's commits are left out (Recover Lost Commits finds them), rather
+    // than merged in, which would put every commit in twice. The current branch is rebased, and the
+    // pull is recorded, so that Undo names it a pull; a branch that is not checked out can only take
+    // the new version, i.e. when it has no commits of its own, which moves it only if it is still
+    // where it was read.
+    public async Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite)
+    {
+        if (!repo.BranchByName.TryGetValue(rewrite.BranchName, out var branch) || branch.IsRemote)
+            return new Error($"There is no local branch '{rewrite.BranchName}'");
+        if (branch.WorktreePath != "")
+            return new Error($"'{rewrite.BranchName}' is checked out in another worktree, so it is pulled there");
+
+        using (fileMonitor.Pause())
+        {
+            if (branch.IsCurrent)
+            {
+                if (await git.RebaseOntoRemoteAsync(rewrite.RemoteName, rewrite.ForkPointId, repo.Path) is Error e)
+                    return e;
+
+                RecordStep(
+                    repo,
+                    rewrite.BranchName,
+                    new RecordedStep
+                    {
+                        Kind = nameof(StepKind.Pull),
+                        BeforeId = rewrite.LocalTipId,
+                        Moves = 1,
+                    }
+                );
+                return Result.Ok;
+            }
+
+            if (rewrite.OwnCount > 0)
+                return new Error($"'{rewrite.BranchName}' has commits of its own, so it is pulled when checked out");
+
+            var message = $"pull: rewritten {rewrite.RemoteName}";
+            var moved = await git.MoveBranchAsync(
+                rewrite.BranchName,
+                rewrite.NewTipId,
+                rewrite.LocalTipId,
+                message,
+                repo.Path
+            );
+            return moved is CmdError moveError && moveError.ErrorOutput.Contains("but expected")
+                ? new Error(
+                    $"'{rewrite.BranchName}' has moved since it was read, so it was left where it is",
+                    moveError
+                )
+                : moved;
+        }
+    }
+
+    // A branch that is not checked out has no files to take back, so it is just moved, and only if
+    // it is still where the step found it, which git checks as it moves it
+    async Task<Result> MoveBranchAsync(UndoStep step, string wd)
+    {
+        var message = $"undo: moving to {step.TargetId}";
+        var result = await git.MoveBranchAsync(step.BranchName, step.TargetId, step.TipId, message, wd);
+        return result is CmdError e && e.ErrorOutput.Contains("but expected")
+            ? new Error($"'{step.BranchName}' has moved since it was read, so it was left where it is", e)
+            : result;
+    }
+
+    // Records a change gmd made to a branch as its latest, see RepoConfig.UndoSteps, and forgets the
+    // records of branches that are gone
+    void RecordStep(Repo repo, string branchName, RecordedStep step) =>
+        repoConfig.Set(
+            repo.Path,
+            c =>
+            {
+                foreach (var name in c.UndoSteps.Keys.Where(n => !repo.BranchByName.ContainsKey(n)).ToList())
+                {
+                    c.UndoSteps.Remove(name);
+                }
+                c.UndoSteps[branchName] = step;
+            }
+        );
 
     public async Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setNiceName)
     {

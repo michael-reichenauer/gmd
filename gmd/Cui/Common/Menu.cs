@@ -409,7 +409,9 @@ class Menu
             childSubMenu = new Menu(x, y, title, this, dimensions.X, null, sm.OnTypeText ?? onTypeText);
             childSubMenuIndex = itemsView.CurrentIndex;
             isFocus = false;
-            childSubMenu.Show(sm.Children);
+            var children = sm.Children.ToList();
+            sm.OnOpen?.Invoke();
+            childSubMenu.Show(children);
             childSubMenu = null;
             isFocus = true;
         }

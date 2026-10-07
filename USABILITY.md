@@ -168,7 +168,9 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    as their menus write them.
 2. Esc in the log view asks "Quit gmd?" with **Yes as the default**, and so does the top bar's `X`.
    Esc then Enter quits quickly, and an accidental double Esc cancels. `q` still quits at once.
-3. Safe defaults: *Cancel* in *Binary Files Detected*, and Esc means *Stay* in *Unsaved Decisions*.
+3. Safe defaults: *Cancel* in *Binary Files Detected* and in *Delete Branch* (whose box for origin
+   is checked when there is one, so Enter, Enter deleted there too, a push; 2026-10-07), and Esc
+   means *Stay* in *Unsaved Decisions*.
 4. Discard all, discard a file, drop a stash and remove a tag ask first. The default is No, and the
    question says what will be lost.
 5. `p` is a plain push. It force-pushes only when *Force Push* is chosen.
@@ -274,7 +276,19 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 5. **A count of the incoming commits on hidden branches.** *Done (2026-09-25):* ▽ in the top bar
    counts the commits pushed to hidden remote branches since each was last shown, remembered per
    repository (`HiddenNews`, `RepoConfig.SeenTips`). A click lists them, as *New Commits* in Show
-   Branch does, and *Mark All as Seen* clears what is not followed.
+   Branch does, and *Mark All as Seen* clears what is not followed. *Since (2026-10-06):* ✦ rather
+   than ▽, which was easily taken for ▼, and it counts branches rather than commits, the question
+   being which branches: new ones too, with no commits of their own yet, and local ones never
+   pushed, e.g. the branch Claude Code makes in a worktree of its own. A branch made elsewhere is
+   told of rather than shown, since showing each one would fill the log of a busy repository; the
+   one exception is the current branch, shown once it becomes current (`CurrentBranchShown`). And
+   listed is seen, so *Mark All as Seen* is gone: a count that stayed until each branch was shown
+   or marked would never go in a busy repository, and what the user wanted was to know.
+   ╯ was considered instead of ✦ (2026-10-07) and turned down: in the graph and the branch menus
+   it means a hidden branch branching out at a commit, a fact of the history that a log shows many
+   of, so `╯3` would read as three hidden branches rather than as something new to look at, and in
+   Show Branch it would mean both, a few lines apart. Alone in the top bar a box-drawing glyph also
+   looks like a broken frame corner, where ✦ is as solid as the markers beside it.
 6. **Merge or rebase on pull,** asked once and remembered. *Done (2026-09-25):* with git's default
    config, pulling a diverged branch failed outright ("Need to specify how to reconcile divergent
    branches", under a dozen lines of hints). gmd now asks, Merge or Rebase, when git has no
@@ -288,6 +302,20 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    *The last is done (2026-09-25):* the current row's highlight covers the graph as well, so the
    commit's node is found at a glance. The first two wait for the Terminal.Gui 2.x port, recorded
    in MODERNIZATION.md with the reasons.
+
+8. **A way back from what moves a branch.** *Done (2026-10-06):* the reflog, which git keeps for
+   every move of a branch, is what Safety's "a way back" for the cheap mistakes needed, and what
+   most users never reach on the command line. *Undo* takes back the last change of a branch,
+   named after it (a commit, an amend, a merge, a pull, a rebase, a squash, a reset), losing
+   nothing uncommitted, and Undo again redoes it; it asks nothing, being undoable. *Recover Lost
+   Commits* lists what a reset, a rebase, an amend or a deleted branch left behind, and brings a
+   line back with a branch. *Restore Deleted Branch* (2026-10-07) brings back a branch gmd deleted,
+   whose reflog git deletes with it, from gmd's own record, origin's side too, asking first since
+   that is a push; the status line says so after every delete. A force push on origin is said once
+   it is fetched, and a pull then moves the branch's own commits onto the new version rather than
+   merging the two; *Restore origin* puts origin back, asking first, since that is a force push too. Left for later: a key for Undo
+   and a key hint, and a way back from Discard All Changes and Drop Stash, which the reflog does not
+   record (see MODERNIZATION.md).
 
 ---
 

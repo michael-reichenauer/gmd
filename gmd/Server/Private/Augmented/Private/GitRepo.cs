@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 using GitBranch = gmd.Git.Branch;
 using GitCommit = gmd.Git.Commit;
@@ -23,7 +24,9 @@ class GitRepo
         IReadOnlyList<GitWorktree>? worktrees = null,
         IReadOnlyDictionary<string, int>? worktreeChanges = null,
         IReadOnlyList<ReflogEntry>? reflog = null,
-        IReadOnlyCollection<string>? integrationNames = null
+        IReadOnlyCollection<string>? integrationNames = null,
+        IReadOnlyDictionary<string, RecordedStep>? recordedSteps = null,
+        IReadOnlyList<ReflogEntry>? remoteReflog = null
     )
     {
         TimeStamp = timeStamp;
@@ -39,6 +42,8 @@ class GitRepo
         WorktreeChanges = worktreeChanges ?? new Dictionary<string, int>();
         Reflog = reflog ?? [];
         IntegrationNames = integrationNames ?? [];
+        RecordedSteps = recordedSteps ?? new Dictionary<string, RecordedStep>();
+        RemoteReflog = remoteReflog ?? [];
     }
 
     public DateTime TimeStamp { get; }
@@ -70,6 +75,13 @@ class GitRepo
 
     // The names of the repo's own integration branches, as configured for it, see RepoConfig
     public IReadOnlyCollection<string> IntegrationNames { get; }
+
+    // The last changes gmd made to branches that their reflogs alone would name wrong, see RepoConfig
+    public IReadOnlyDictionary<string, RecordedStep> RecordedSteps { get; }
+
+    // The reflogs of the remote branches whose local branches have commits not on them, which tell a
+    // force push on origin from new commits on either side, see RemoteRewrites
+    public IReadOnlyList<ReflogEntry> RemoteReflog { get; }
 
     public override string ToString() =>
         $"B:{Branches.Count}, C:{Commits.Count}, T:{Tags.Count}, S:{Status} @{TimeStamp.IsoMs()}";

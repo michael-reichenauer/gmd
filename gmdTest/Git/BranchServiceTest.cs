@@ -359,6 +359,40 @@ public class BranchServiceTest
         Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
     }
 
+    // A branch that is not checked out is moved with update-ref, which takes the commit the branch
+    // has to be at for it to be moved, and the message its reflog gets
+    [TestMethod]
+    public async Task TestMoveBranch()
+    {
+        var cmd = new FakeCmd("");
+        var service = new BranchService(cmd);
+
+        await service.MoveBranchAsync("dev", "a1", "a2", "undo: moving to a1", "/wd");
+
+        Assert.AreEqual("update-ref -m \"undo: moving to a1\" refs/heads/dev a1 a2", cmd.Calls[0].Args);
+        Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
+    }
+
+    // What a restored branch tracks again, which git forgot when it was deleted, written as git writes
+    // it, so that a remote branch not there yet is no failure. The remote is the name's first part.
+    [TestMethod]
+    public async Task TestSetUpstream()
+    {
+        var cmd = new FakeCmd("");
+        var service = new BranchService(cmd);
+
+        AssertOk(await service.SetUpstreamAsync("feat", "origin/feature/x", "/wd"));
+
+        Assert.AreEqual(
+            """
+            config branch.feat.remote origin
+            config branch.feat.merge refs/heads/feature/x
+            """,
+            string.Join("\n", cmd.Calls.Select(c => c.Args))
+        );
+        AssertError(await service.SetUpstreamAsync("feat", "feature", "/wd"));
+    }
+
     // Merge, rebase, rebase onto and cherry pick all turn a conflict into the same error, since
     // git reports conflicts as a failed command with 'CONFLICT' in the output
     [TestMethod]

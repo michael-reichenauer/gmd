@@ -11,6 +11,16 @@ interface IGit
     // The ids of the commits that changed a file whose path contains the text, for a search
     Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
+
+    // The commits reachable from the given ids that no branch, tag or stash reaches any more
+    Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    );
+
+    // The ones of the ids that are commits git still has
+    Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
@@ -46,6 +56,10 @@ interface IGit
     Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> PushRefForceAsync(string name, string wd);
+
+    // Force pushes a remote branch back to a commit, if it is still at the expected one, or creates it
+    // there, if it does not exist, when the expected one is ""
+    Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
     Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
@@ -53,6 +67,9 @@ interface IGit
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
+
+    // Moves the current branch's commits after the fork point onto its remote branch, e.g. 'origin/dev'
+    Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
     Task<Result> AbortOperationAsync(string wd);
     Task<Result> ContinueOperationAsync(string wd);
@@ -75,6 +92,12 @@ interface IGit
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+
+    // Makes a local branch track a remote branch, e.g. 'origin/feature', whether it is there or not
+    Task<Result> SetUpstreamAsync(string name, string remoteName, string wd);
+
+    // Moves a branch that is not checked out from one commit to another, refused if it has moved
+    Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
@@ -98,8 +121,15 @@ interface IGit
     Task<Result> PushTagAsync(string name, string wd);
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
     Task<Result> ResetHardUntilCommitAsync(string id, string wd);
+
+    // Moves the current branch from one commit to another, with the files (keep) or without them
+    // (mixed), refused if it has moved or is no longer checked out
+    Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd);
     Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd);
     Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd);
+
+    // The reflogs of the given refs only, e.g. 'refs/remotes/origin/dev'
+    Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd);
     Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
     Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd);
     Task<Result> PruneWorktreesAsync(string wd);

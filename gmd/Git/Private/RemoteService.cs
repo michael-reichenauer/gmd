@@ -12,6 +12,7 @@ interface IRemoteService
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result> PushRefForceAsync(string name, string wd);
+    Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
     Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> PushTagAsync(string name, string wd);
@@ -158,6 +159,18 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
         var args = $"push --porcelain origin --set-upstream --force {refs}";
+        return await cmd.RunAsync("git", args, wd);
+    }
+
+    // Puts a remote branch back at a commit it was at, a force push, but only while it is still where
+    // it was last fetched: someone who pushed since is not overwritten, the push is refused instead.
+    // An empty expectedId is a lease that the branch does not exist, i.e. a deleted branch put back
+    // only while no one has pushed a branch of the name since.
+    public async Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd)
+    {
+        name = TrimRemotePrefix(name);
+        var args =
+            $"push --porcelain --force-with-lease=refs/heads/{name}:{expectedId} origin {oldId}:refs/heads/{name}";
         return await cmd.RunAsync("git", args, wd);
     }
 

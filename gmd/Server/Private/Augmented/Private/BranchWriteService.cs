@@ -101,7 +101,10 @@ class BranchWriteService : IBranchWriteService
             if (await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd) is Error e)
                 return e;
 
-            Commit commit = repo.CommitById[sha];
+            // A commit the repo does not have, i.e. one no branch reached until now (a lost commit
+            // brought back), has no branch to record the new one as branching out of
+            if (!repo.CommitById.TryGetValue(sha, out var commit))
+                return Result.Ok;
             var branch = repo.BranchByName[commit.BranchName];
 
             return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Sid, branch.NiceName));

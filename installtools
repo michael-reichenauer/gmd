@@ -73,14 +73,21 @@ echo "Restore dotnet local tools (CSharpier) ..."
 dotnet tool restore
 
 echo ""
-echo "Install git post commit hook ..."
-cp ./gmd/tools/post-commit-sample ./.git/hooks/post-commit
-chmod +x ./.git/hooks/post-commit
+echo "Remove the git post commit hook that made the change log ..."
+# CI makes CHANGELOG.md now, in the release commit on main. The hook once installed here would
+# otherwise rewrite it after every commit on main, and the pull of CI's one would then conflict.
+if grep -qs updatechangelog ./.git/hooks/post-commit; then
+  rm ./.git/hooks/post-commit
+fi
 
 echo ""
-echo "Install git pre commit hook (CSharpier formatting) ..."
-cp ./gmd/tools/pre-commit-sample ./.git/hooks/pre-commit
-chmod +x ./.git/hooks/pre-commit
+echo "Remove the git pre commit hook that formatted the code ..."
+# A Debug build formats the code and CI checks it. The hook once installed here started CSharpier
+# once per staged file, so a merge commit, which stages every file the branch changed, took half a
+# minute or more.
+if grep -qs csharpier ./.git/hooks/pre-commit; then
+  rm ./.git/hooks/pre-commit
+fi
 
 echo ""
 echo "Done"

@@ -50,6 +50,15 @@ record Repo
     // Every worktree of the repository, the one this repo was read from included (IsCurrent)
     public IReadOnlyList<Worktree> Worktrees { get; init; } = [];
 
+    // The last change of each local branch, which Undo takes back, by branch name. A branch with
+    // nothing to undo, e.g. one whose reflog starts where it was made, is not in it.
+    public IReadOnlyDictionary<string, UndoStep> UndoSteps { get; init; } = new Dictionary<string, UndoStep>();
+
+    // The local branches whose remote branch a force push rewrote since they were built on it, by the
+    // local branch's name. Usually none.
+    public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; init; } =
+        new Dictionary<string, RemoteRewrite>();
+
     public static Repo Empty { get; } =
         new Repo(
             "",

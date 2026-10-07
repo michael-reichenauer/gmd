@@ -50,7 +50,7 @@ In dialogs and text fields:
 | ---------- | ---------------------------------------------------------- |
 | Alt-O      | OK, e.g. to commit while typing in the message box         |
 | Ctrl-D     | Show the diff of what is committed, in the commit dialog   |
-| Ctrl-A     | After a merge, add the merged commits' messages            |
+| Ctrl-A     | After a merge, add the merged commits' subjects            |
 | F7         | Spelling suggestions (also Ctrl-G)                         |
 | Shift-F10  | Text menu: spelling, copy, paste (also right-click)        |
 | Esc        | Cancel                                                     |
@@ -84,7 +84,7 @@ fetch failed.
 | o      | Branch shown in the graph (in branch menus)                  |
 | ▼      | Commit not yet pulled (blue subject)                         |
 | ▲      | Commit not yet pushed (green subject)                        |
-| ▽      | New commits on hidden branches, since last shown (top bar)   |
+| ✦      | Hidden branches with something new (top bar)                 |
 | ß      | Stash based on commit                                        |
 | ⇓      | Available update to download (use menu)                      |
 | ┅      | Truncated name/text                                          |
@@ -109,12 +109,15 @@ to show and hide branches, and to pull/update or push all of them.
 
 Which branches are shown is up to you, which is how gmd gives a clean log
 without rebasing or squashing. Showing a branch also shows the branches it
-was made from, and the main branch is always shown.
+was made from, and the main branch is always shown. So is the branch you
+are on, once it becomes current: switched to in gmd, checked out in a
+terminal or by another tool, or the one gmd or a worktree opens on. Hidden
+again, it stays hidden until it next becomes current.
 
 - `Shift-→` opens **Show Branch**: first the branches that merge in or
-  branch out at the current commit, then the Recent, Active, My Active
-  (where the last commit is yours), Active and Deleted, and Ambiguous
-  branches.
+  branch out at the current commit, then New (see ✦ below), Recent, Active,
+  My Active (where the last commit is yours), Active and Deleted, and
+  Ambiguous branches.
 - Typing in that menu, or in its sub menus, opens **Find Branch** with what
   was typed. The list narrows as more of the name is typed, every word has
   to be in it, and the names it starts a part of come first. `Enter` or a
@@ -127,10 +130,12 @@ was made from, and the main branch is always shown.
 - `Backspace` undoes the last show or hide, going back to the branches shown
   before it, one step at a time. **Undo** under **Branches** in the commit
   menu does the same, and names what it would undo.
-- ▽ in the top bar counts the commits pushed to hidden branches since you
-  last had them shown. A click lists those branches, and **New Commits** at
-  the top of **Show Branch** does too; showing one is seeing it. **Mark All
-  as Seen** clears the rest without showing them.
+- ✦ in the top bar counts the hidden branches with something new since you
+  last saw them: commits pushed to them, or the branch itself, pushed by
+  someone else or made here by another tool, e.g. in a worktree of its own.
+  A click lists those branches, and **New** at the top of **Show Branch**
+  does too. Listed is seen: the ✦ goes, and the branches stay hidden unless
+  you pick one to show it.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
 
@@ -160,6 +165,28 @@ only fast-forwards the branches it is not on. Switch to the branch and pull
 it (`u`) to join the two sides. The first time, gmd asks whether to merge
 them or to rebase your commits on top, unless git's `pull.rebase` already
 says, and saves the answer there, for git on the command line as well.
+
+Unless the remote branch was rewritten by a force push, e.g. someone
+rebased or amended it and pushed: then the branch has the old version and
+origin the new one, and a merge would put every commit in twice. gmd tells
+the two apart by the remote branch's reflog, says so on the status line
+when it first sees it, and a pull asks first, then moves your own commits
+onto the new version and leaves the old one out, whatever `pull.rebase`
+says (as `git pull --rebase` would). A branch that is not checked out is
+pulled that way, and by `Shift-U`, when it has no commits of its own. The
+question names any commit the force push dropped.
+
+A force push that only dropped commits leaves nothing to pull, but the
+branch still has them, so a plain push would put them back on origin: `p`
+asks first, and `Shift-P` leaves the branch out. Pull (`u`) takes the new
+version, as above.
+
+If the force push was a mistake, **Restore origin/... from before the Force
+Push ...** in the branch menu puts the old version back on origin. That is
+a force push too, for everyone, so it asks first, and it is refused if
+anything was pushed since the last fetch (`--force-with-lease`) or on top
+of the rewrite. It also takes gmd's own **Rebase**, which force pushes,
+back on origin after **Undo Rebase** took it back here.
 
 **Open in Browser** in a branch menu opens the branch on the site hosting
 the remote (GitHub, GitLab, Bitbucket, Azure DevOps or Gitea), and **Create
@@ -228,8 +255,9 @@ shown, their colors and their order.
   Displays additional commit details.
 - **Commit ...** (`c`):
   Commit all uncommitted changes, with warnings for large or binary files.
-  After a merge made in gmd, `Ctrl-A` in the dialog adds the messages of
-  the merged commits.
+  After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
+  the merged commits, one per line, and for a merged merge the list in its
+  message.
 - **Commit Diff** (`d`):
   View a side-by-side diff of commit changes.
   Within the view: `+` shows more of the file the cursor is on around its
@@ -260,6 +288,32 @@ shown, their colors and their order.
   squash them into one commit with a new message.
 - **Undo** (in the commit menu, and `u` in the diff of the uncommitted
   changes). The items that throw changes away for good ask first:
+  - **Undo** the last change of the current branch, named after it, e.g.
+    **Undo Rebase** or **Undo Commit 'Fix'**: the branch goes back to where
+    it was before, as git's reflog of the branch has it, whether the change
+    was made in gmd or not. Nothing uncommitted is lost: a commit or amend
+    undone leaves its changes uncommitted (`git reset --mixed`), and any
+    other change takes the files back with it (`git reset --keep`), which
+    needs a clean tree. It asks nothing, since undoing again redoes it
+    (**Redo ...**). A commit already pushed is not undone, and an undo never
+    pushes: what origin has stays there.
+  - **Recover Lost Commits ...**: the commits no branch, tag or stash has
+    any more, which git's reflogs still know of: what a `reset --hard`, a
+    rebase or an amend left behind, the work of a deleted branch, commits
+    made on a detached HEAD. One row per line of work, with the branch it
+    was made on and what took it out of the history; older versions of
+    commits that are still there, which an amend or a rebase leaves, are
+    listed last, dark. `Enter` or `d` shows the diff, and `b` creates a
+    branch at it, which brings it back. Git keeps them for about 30 days.
+  - **Restore Deleted Branch ...**: the branches gmd deleted, newest
+    first, with the side each was deleted on: local, remote or both. Git
+    deletes a branch's reflog with the branch, so gmd records where it was
+    when it deletes one. `Enter` or `r` brings it back where it was,
+    tracking what it tracked. A branch deleted on origin asks which sides
+    to restore first, since restoring origin's is a push, and origin's is
+    left alone if someone pushed a branch of the name since. A branch
+    deleted outside gmd is not listed: Recover Lost Commits finds its work,
+    if no other branch has it.
   - **Discard Changes in a File**: `git checkout --force HEAD -- <file>`,
     staged changes too, or a new file is unstaged and deleted
   - **Revert Commit**: `git revert --no-commit <commit-sha>`
@@ -299,7 +353,12 @@ shown, their colors and their order.
   switches to the target branch, merges, opens the commit dialog there,
   and switches back once the merge is committed. Cancelling the commit, or
   a merge that conflicts, leaves you on the target branch, which is where
-  the merge has to be finished.
+  the merge has to be finished. **Undo Merge** in the target's branch menu
+  takes it back.
+- **Undo** in a branch menu: the last change of that branch, as **Undo** in
+  the commit menu is for the current one (see below). A branch that is not
+  checked out is just moved back (`git update-ref`), and only if nothing
+  has moved it since; one checked out in another worktree is undone there.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on

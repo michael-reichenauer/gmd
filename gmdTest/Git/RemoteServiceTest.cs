@@ -187,6 +187,26 @@ public class RemoteServiceTest
         );
     }
 
+    // Origin is put back only while it is where it was last fetched, which the lease checks
+    [TestMethod]
+    public async Task TestPushRestore()
+    {
+        Assert.AreEqual(
+            "push --porcelain --force-with-lease=refs/heads/dev:b2 origin a3:refs/heads/dev",
+            await ArgsOf(s => s.PushRestoreAsync("origin/dev", "a3", "b2", "/wd"))
+        );
+    }
+
+    // A deleted branch is pushed back with a lease that origin has no branch of the name
+    [TestMethod]
+    public async Task TestPushRestoreOfADeletedBranch()
+    {
+        Assert.AreEqual(
+            "push --porcelain --force-with-lease=refs/heads/dev: origin a3:refs/heads/dev",
+            await ArgsOf(s => s.PushRestoreAsync("origin/dev", "a3", "", "/wd"))
+        );
+    }
+
     [TestMethod]
     public async Task TestPullRef()
     {

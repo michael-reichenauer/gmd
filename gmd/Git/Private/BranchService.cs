@@ -10,9 +10,12 @@ interface IBranchService
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+    Task<Result> SetUpstreamAsync(string name, string remoteName, string wd);
+    Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd);
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
+    Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
 }
 
@@ -98,6 +101,31 @@ class BranchService : IBranchService
         return await cmd.RunAsync("git", args, wd);
     }
 
+    // Makes a local branch track a remote branch, e.g. 'origin/feature', which git forgets when the
+    // branch is deleted: the '[branch "<name>"]' config section goes with it. Written as git writes it,
+    // rather than with 'branch --set-upstream-to', which refuses a remote branch there is no
+    // remote-tracking ref of: one deleted too and not pushed back yet, or one a narrowed fetch refspec
+    // leaves out. The branch tracks it once it is there, as a branch whose remote branch is gone does.
+    public async Task<Result> SetUpstreamAsync(string name, string remoteName, string wd)
+    {
+        var separator = remoteName.IndexOf('/');
+        if (separator < 1)
+            return new Error($"Not a remote branch: '{remoteName}'");
+        var (remote, branch) = (remoteName[..separator], remoteName[(separator + 1)..]);
+
+        if (await cmd.RunAsync("git", $"config branch.{name}.remote {remote}", wd) is Error e)
+            return e;
+        return await cmd.RunAsync("git", $"config branch.{name}.merge refs/heads/{branch}", wd);
+    }
+
+    // Moves a branch that is not checked out, with the message its reflog gets, and only if it is
+    // still at fromId: git compares and moves in one step, so a branch something else moved in the
+    // meantime is left where it is rather than losing what moved it
+    public async Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd)
+    {
+        return await cmd.RunAsync("git", $"update-ref -m \"{message}\" refs/heads/{name} {toId} {fromId}", wd);
+    }
+
     public async Task<Result> MergeBranchAsync(string name, string wd)
     {
         //  name = RemoteService.TrimRemotePrefix(name);
@@ -110,6 +138,19 @@ class BranchService : IBranchService
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
         return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
+    }
+
+    // Moves the current branch's own commits, the ones after where it was built on its remote branch,
+    // onto the remote branch, which a force push rewrote: what 'git pull --rebase' does with the fork
+    // point it finds, done whatever pull.rebase says. A merge among them is kept as a merge.
+    public async Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd)
+    {
+        var rsp = await cmd.RunAsync(
+            "git",
+            $"rebase --rebase-merges --onto refs/remotes/{remoteName} {forkPointId}",
+            wd
+        );
+        return ConflictError.ToConflict(rsp, "The pull stopped on conflicts");
     }
 
     public async Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd)

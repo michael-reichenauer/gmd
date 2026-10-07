@@ -202,7 +202,7 @@ class ViewRepoCreater : IViewRepoCreater
         var augRepo = new Repo(
             repo.Path,
             DateTime.UtcNow,
-            repo.TimeStamp,
+            repo.RepoTimeStamp,
             viewCommits,
             viewBranches,
             allCommits,
@@ -213,6 +213,8 @@ class ViewRepoCreater : IViewRepoCreater
         )
         {
             Worktrees = repo.Worktrees,
+            UndoSteps = repo.UndoSteps,
+            RemoteRewrites = repo.RemoteRewrites,
         };
 
         // Convert to a view repo
