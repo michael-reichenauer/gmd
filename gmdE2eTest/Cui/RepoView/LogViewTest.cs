@@ -550,9 +550,9 @@ public class LogViewTest
             ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                4e73d2 Test User      2024-10-15 12:05
             ┣    Add│Commit ...                          c  │                                4a15fb Test User      2024-10-15 12:04
             ┣╯   Add│Amend ...                           a  │                                dd7891 Test User      2024-10-15 12:01
-            ┗    Ini│Commit Diff                         d  │                                9dc406 Test User      2024-10-15 12:00
+            ┗    Ini│Squash ...                             │                                9dc406 Test User      2024-10-15 12:00
+                    │Commit Diff                         d  │
                     │Undo                                  >│
-                    │Rebase                                >│
                     │Stash                                 >│
                     │Tag                                   >│
                     │Create Branch from Commit ...       b  │
@@ -628,8 +628,6 @@ public class LogViewTest
                                                               │Show Branch         Shift-→ >│
                                                               │Hide All Branches            │
                                                               │Undo Show 'dev'   Backspace  │
-                                                              │Pull All Branches   Shift-U  │
-                                                              │Push All Branches   Shift-P  │
                                                               ╰─────────────────────────────╯
             """,
             ScreenText.Rows(branches, repo.Path, 22, 12)
@@ -656,9 +654,9 @@ public class LogViewTest
                     │Create Branch ...                    b  ││Show Branch         Shift-→ >│
                     │Create Worktree ...                     ││Hide All Branches            │
                     │Rename Branch ...                       ││Undo Show 'dev'   Backspace  │
-                    │Delete Branch ...                       ││Pull All Branches   Shift-U  │
-                    │Undo Commit 'More dev work'             ││Push All Branches   Shift-P  │
-                    │Diff Branch to                       d >│╰─────────────────────────────╯
+                    │Delete Branch ...                       │╰─────────────────────────────╯
+                    │Undo Commit 'More dev work'             │
+                    │Diff Branch to                       d >│
                     │Change Branch Color                  g  │
                     │Open in Browser                         │
                     │Create Pull Request in Browser          │
