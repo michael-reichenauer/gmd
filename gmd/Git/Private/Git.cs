@@ -232,6 +232,9 @@ internal class Git : IGit
 
     public Task<Result> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
 
+    public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) =>
+        commitService.GetFilesToCleanAsync(wd);
+
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) =>
         commitService.UndoCommitAsync(id, parentIndex, wd);
 

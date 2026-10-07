@@ -751,6 +751,36 @@ public class CommitTest
         Assert.AreEqual("v1.0", await repo.GitAsync("tag"), "Still there");
     }
 
+    // Discarding all changes and the ignored files makes the folder as a fresh clone has it, which
+    // also deletes what git ignores on purpose, such as a .env file of secrets. So the question
+    // lists what would be deleted, git's dry run of the clean, and No is the default.
+    [TestMethod]
+    public async Task TestDiscardingTheIgnoredFilesListsThemAndAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.CommitFileAtAsync(".gitignore", ".env\nbin/\n", "Ignore secrets", TempRepo.BaseTime.AddMinutes(7));
+        File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
+        Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
+        File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Ignore secrets");
+
+        OpenCommitSubMenu(gmd, 1, "Recover Lost Commits");
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        var question = gmd.WaitFor("as a fresh clone");
+        StringAssert.Contains(question, "Discard All Changes and Ignored Files");
+        StringAssert.Contains(question, "  .env");
+        StringAssert.Contains(question, "  bin/");
+
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("as a fresh clone");
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "No is the default, so nothing is deleted");
+    }
+
     // Opens the commit menu of the current row and the sub menu 'moves' down from the first
     // enabled item, one key per Send since a menu redraw drops what was sent behind it
     static void OpenCommitSubMenu(TmuxSession gmd, int moves, string firstItem)

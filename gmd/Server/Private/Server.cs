@@ -476,6 +476,8 @@ class Server : IServer
 
     public Task<Result> CleanWorkingFolderAsync(string wd) => git.CleanWorkingFolderAsync(wd);
 
+    public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => git.GetFilesToCleanAsync(wd);
+
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) =>
         git.UndoCommitAsync(id, parentIndex, wd);
 

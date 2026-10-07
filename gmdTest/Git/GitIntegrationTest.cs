@@ -1839,6 +1839,23 @@ public class GitIntegrationTest
     }
 
     // Unwraps a result, failing the test with the git error if the command failed
+    // The dry run is read by git's own words ("Would remove ..."), so this is the canary for them: an
+    // ignored file, an ignored folder named once, an untracked file, and the tracked ones left out
+    [TestMethod]
+    public async Task TestTheFilesToCleanAreTheIgnoredAndUntrackedOnes()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAsync(".gitignore", ".env\nbin/\n", "Ignore");
+        File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
+        Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
+        File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
+        File.WriteAllText(Path.Join(repo.Path, "notes.txt"), "untracked\n");
+
+        var files = Value(await repo.Git.GetFilesToCleanAsync(repo.Path));
+
+        CollectionAssert.AreEquivalent(new[] { ".env", "bin/", "notes.txt" }, files.ToArray());
+    }
+
     static T Value<T>(Result<T> result)
         where T : notnull => AssertOk(result, "Git failed");
 

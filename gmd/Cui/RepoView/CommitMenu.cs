@@ -195,7 +195,10 @@ class CommitMenu : ICommitMenu
                 () => repo.Cmds.UndoAllUncommittedChanged(),
                 () => cmds.CanUndoUncommitted(),
                 () => "There are no uncommitted changes to undo"
-            );
+            )
+            // The same and the ignored files too, i.e. the folder as a fresh clone would have it.
+            // Enabled with no changes as well, since deleting what git ignores is reason enough.
+            .Item("Discard All Changes and Ignored Files", "", () => repo.Cmds.CleanWorkingFolder());
     }
 
     // Squashes the commits selected with Shift-↑↓, which the item names once there are some

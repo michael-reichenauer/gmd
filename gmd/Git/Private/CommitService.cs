@@ -6,6 +6,7 @@ interface ICommitService
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
@@ -98,6 +99,22 @@ class CommitService : ICommitService
             return e;
 
         return await cmd.RunAsync("git", "clean -fxd", wd);
+    }
+
+    // What CleanWorkingFolderAsync would delete, as git's dry run of the same clean lists it: every
+    // file git does not track, the ignored ones too, a folder named once rather than its files
+    public async Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd)
+    {
+        var result = await cmd.RunAsync("git", "clean -n -x -d", wd);
+        if (result is not string output)
+            return result.Error;
+
+        const string Prefix = "Would remove ";
+        return output
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Where(l => l.StartsWith(Prefix))
+            .Select(l => l[Prefix.Length..])
+            .ToList();
     }
 
     public async Task<Result> UndoCommitAsync(string id, int parentIndex, string wd)

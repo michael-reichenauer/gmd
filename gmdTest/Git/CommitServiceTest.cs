@@ -153,6 +153,18 @@ public class CommitServiceTest
         CollectionAssert.AreEqual(new[] { "reset --hard", "clean -fxd" }, ArgsOf(cmd));
     }
 
+    // What the clean would delete is git's dry run of the same clean, a folder once rather than its files
+    [TestMethod]
+    public async Task TestTheFilesToCleanAreTheDryRunOfTheClean()
+    {
+        var cmd = new FakeCmd("Would remove .env\nWould remove bin/\nWould remove notes.txt\n");
+
+        var files = AssertOk(await new CommitService(cmd).GetFilesToCleanAsync(wd));
+
+        CollectionAssert.AreEqual(new[] { ".env", "bin/", "notes.txt" }, files.ToArray());
+        CollectionAssert.AreEqual(new[] { "clean -n -x -d" }, ArgsOf(cmd));
+    }
+
     [TestMethod]
     public async Task TestUndoUncommittedFile()
     {

@@ -195,10 +195,15 @@ class RepoCommands : IRepoCommands
             return Result.Ok;
         });
 
+    // Discard All Changes and Ignored Files, in the commit menu's Undo. The question lists what
+    // would be deleted, as git's dry run of the same clean has it.
     public void CleanWorkingFolder() =>
         Do(async () =>
         {
-            if (!Confirm.CleanWorkingFolder())
+            var toDeleteResult = await server.GetFilesToCleanAsync(repo.Path);
+            if (toDeleteResult is not IReadOnlyList<string> toDelete)
+                return new Error("Failed to list the files to delete", toDeleteResult.Error);
+            if (!Confirm.CleanWorkingFolder(toDelete))
                 return Result.Ok;
 
             if (await server.CleanWorkingFolderAsync(repo.Path) is Error e)
