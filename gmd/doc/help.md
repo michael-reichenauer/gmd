@@ -47,9 +47,10 @@ column of its own, right of the branch it was made from:
     ┣╯    Add beta
     ┗     Initial
 
-The thin lines between the columns show where a branch was made (`╭` down
-to `╯`) and where it was merged (`╮` down to `╰`). After the graph, each
-row has:
+The thin lines between the columns join a commit to a parent in another
+column: `╮` down to `╰` where the branch on the right was merged into the
+one on its left, and `╭` down to `╯` where it was made from the one on its
+left, or had that one merged into it. After the graph, each row has:
 
 - the subject, after `●` for the commit checked out, `©` for uncommitted
   changes, or `▲` and `▼` for a commit not yet pushed or pulled
