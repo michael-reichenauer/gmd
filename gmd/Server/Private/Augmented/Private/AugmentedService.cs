@@ -460,9 +460,10 @@ class AugmentedService : IAugmentedService
 
     // Takes back the last change of a branch, or redoes the change an undo took back. The current
     // branch is reset in the way that loses nothing uncommitted, see UndoStep.Mode, and any other is
-    // just moved, unless it is checked out in another worktree, whose files would no longer match. The reset is an
-    // entry in the branch's reflog like any other, so the change it took back is recorded with it,
-    // and Undo again names that change and redoes it, rather than undoing "a reset".
+    // just moved, unless it is checked out in another worktree, whose files would no longer match.
+    // Either only from where the step found it, so a commit made since is not taken back with it.
+    // The reset is an entry in the branch's reflog like any other, so the change it took back is
+    // recorded with it, and Undo again names that change and redoes it, rather than undoing "a reset".
     public async Task<Result> UndoStepAsync(Repo repo, UndoStep step)
     {
         if (!repo.BranchByName.TryGetValue(step.BranchName, out var branch) || branch.IsRemote)
@@ -475,7 +476,9 @@ class AugmentedService : IAugmentedService
             if (branch.IsCurrent)
             {
                 var isKeep = step.Mode == UndoMode.Keep || (step.Mode == UndoMode.KeepWhenClean && repo.Status.IsOk);
-                if (await git.ResetBranchAsync(step.TargetId, isKeep, repo.Path) is Error e)
+                if (
+                    await git.ResetBranchAsync(step.BranchName, step.TargetId, step.TipId, isKeep, repo.Path) is Error e
+                )
                     return e;
             }
             else if (await MoveBranchAsync(step, repo.Path) is Error moveError)

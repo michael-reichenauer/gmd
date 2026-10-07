@@ -217,6 +217,23 @@ public class UndoIntegrationTest
         Assert.AreEqual(c1, (await repo.GitAsync("rev-parse other")).Trim());
     }
 
+    // The same for the branch checked out, which is reset rather than moved: a commit made since the
+    // repo was read, e.g. in a terminal, would otherwise be taken back with the one the step names
+    [TestMethod]
+    public async Task TestTheCurrentBranchMovedSinceItWasReadIsLeftWhereItIs()
+    {
+        await repo.CommitFileAsync("a.txt", "one\n", "Initial");
+        await repo.CommitFileAsync("a.txt", "two\n", "Second");
+        var (augmented, step) = await LastStepAsync();
+        var c3 = await repo.CommitFileAsync("b.txt", "three\n", "Third");
+
+        var error = AssertError(await service.UndoStepAsync(augmented, step));
+
+        StringAssert.Contains(error.Message, "'main' has moved since it was read");
+        Assert.AreEqual(c3, await repo.HeadIdAsync());
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+    }
+
     // A branch checked out in another worktree is moved only there, since that worktree's files
     // would otherwise no longer match its branch
     [TestMethod]

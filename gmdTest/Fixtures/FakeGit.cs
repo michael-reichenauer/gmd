@@ -334,5 +334,6 @@ class FakeGit : IGit
 
     public Task<Result> ResetHardUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
 
-    public Task<Result> ResetBranchAsync(string id, bool isKeep, string wd) => throw new NotSupportedException();
+    public Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd) =>
+        throw new NotSupportedException();
 }

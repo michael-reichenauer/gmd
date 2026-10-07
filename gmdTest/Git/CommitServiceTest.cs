@@ -26,6 +26,33 @@ public class CommitServiceTest
 
     static string[] ArgsOf(FakeCmd cmd) => cmd.Calls.Select(c => c.Args).ToArray();
 
+    // The reset of the current branch is made only while HEAD is on that branch, where it was read
+    [TestMethod]
+    [DataRow("a1\nrefs/heads/main\n", null, DisplayName = "Where it was read")]
+    [DataRow("a2\nrefs/heads/main\n", "'main' has moved since it was read", DisplayName = "Moved")]
+    [DataRow("a1\nrefs/heads/dev\n", "'main' is no longer checked out", DisplayName = "Switched")]
+    [DataRow("a1\nHEAD\n", "'main' is no longer checked out", DisplayName = "Detached")]
+    public async Task TestResetBranchOnlyFromWhereItWasRead(string head, string? error)
+    {
+        var cmd = new FakeCmd((_, args, _) => FakeCmd.Ok(args.StartsWith("rev-parse") ? head : ""));
+
+        var result = await new CommitService(cmd).ResetBranchAsync("main", "a0", "a1", true, wd);
+
+        if (error == null)
+        {
+            AssertOk(result);
+            CollectionAssert.AreEqual(
+                new[] { "rev-parse HEAD --symbolic-full-name HEAD", "reset --keep a0" },
+                ArgsOf(cmd)
+            );
+        }
+        else
+        {
+            StringAssert.StartsWith(AssertError(result).Message, error);
+            Assert.AreEqual(1, cmd.Calls.Count, "Not reset");
+        }
+    }
+
     // Everything is staged first, so untracked files are committed too
     [TestMethod]
     public async Task TestCommitStagesEverythingFirst()
