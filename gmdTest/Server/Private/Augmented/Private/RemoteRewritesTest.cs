@@ -56,6 +56,29 @@ public class RemoteRewritesTest
         CollectionAssert.AreEqual(new[] { Id("a3") }, rewrite.DroppedIds.ToArray());
     }
 
+    // The own commits are those the pull moves, made on the fork point or on them: the merge of main
+    // and the commit under it, not the commits of main the merge brought, which stay as they are
+    [TestMethod]
+    public void TestTheCommitsOfABranchMergedInAreNotOwn()
+    {
+        var builder = new RepoBuilder()
+            .Commit("x1", "Merge branch 'main' into dev", "c1", "m2")
+            .Commit("c1", "Own work", "a3")
+            .Commit("m2", "Main two", "m1")
+            .Commit("m1", "Main one", "a1")
+            .CopyOf("b2", "a2", "b1")
+            .Commit("b1", "Moved on", "a1")
+            .Commit("a3", "Dropped", "a2")
+            .Commit("a2", "Kept", "a1")
+            .Commit("a1", "Initial")
+            .LocalBranch("dev", "x1", isCurrent: true, remoteName: "origin/dev", ahead: 6, behind: 2)
+            .RemoteBranch("origin/dev", "b2")
+            .RemoteReflog("origin/dev", "b2", "fetch: forced-update")
+            .RemoteReflog("origin/dev", "a3", "update by push");
+
+        Assert.AreEqual(2, Find(builder)["dev"].OwnCount);
+    }
+
     // New commits on both sides is no rewrite: what the local branch was built on is still in
     // origin's history
     [TestMethod]

@@ -11,7 +11,7 @@ public record RemoteRewrite(
     string ForkPointId, // The old remote tip the local branch was built on
     string OldTipId, // What origin had before the rewrite, as last fetched
     string NewTipId, // What origin has now
-    int OwnCount, // The local branch's own commits on top of the fork point, never on origin
+    int OwnCount, // The local branch's own commits, made on the fork point or on them, which a pull moves
     int OldCopyCount, // The commits of the old version the local branch has
     int NewCount, // The commits of the new version, which origin has and the local branch has not
     // The commits of the old version with no copy in the new one, by author and author time: what the

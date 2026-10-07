@@ -161,6 +161,26 @@ public class ForcePushIntegrationTest
         Assert.AreEqual((StepKind.Pull, own), (pulled.UndoSteps["dev"].Kind, pulled.UndoSteps["dev"].TargetId));
     }
 
+    // A branch merged in is not moved with the own commits: its commits keep their ids, and the merge
+    // is made again on the new version
+    [TestMethod]
+    public async Task TestPullLeavesTheCommitsOfABranchMergedInAsTheyAre()
+    {
+        var (_, _, _, newTip) = await ForcePushedAsync();
+        await repo.GitAsync("checkout main");
+        var mainWork = await CommitAsync("m.txt", "Main work");
+        await repo.GitAsync("checkout dev");
+        await repo.GitAsync("merge --no-ff -m \"Merge main\" main");
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+        var rewrite = augmented.RemoteRewrites["dev"];
+
+        AssertOk(await service.PullRewrittenAsync(augmented, rewrite));
+
+        Assert.AreEqual(2, rewrite.OwnCount);
+        Assert.AreEqual(mainWork, (await repo.GitAsync("rev-parse dev^2")).Trim());
+        Assert.AreEqual(newTip, (await repo.GitAsync("rev-parse dev~2")).Trim());
+    }
+
     // With no commits of its own, a branch that is not checked out just takes the new version
     [TestMethod]
     public async Task TestPullTakesTheNewVersionOfABranchNotCheckedOut()

@@ -36,7 +36,7 @@ static class RemoteRewrites
                 || !logs.TryGetValue(RemoteRefPrefix + b.RemoteName, out var log)
             )
                 continue;
-            if (Find(b, remoteTip, log, commitById) is RemoteRewrite rewrite)
+            if (Find(b, remoteTip, log, gitRepo.Commits, commitById) is RemoteRewrite rewrite)
                 rewrites[b.Name] = rewrite;
         }
         return rewrites;
@@ -46,6 +46,7 @@ static class RemoteRewrites
         Git.Branch local,
         string remoteTip,
         List<ReflogEntry> log,
+        IReadOnlyList<GitCommit> commits,
         IReadOnlyDictionary<string, GitCommit> commitById
     )
     {
@@ -78,7 +79,7 @@ static class RemoteRewrites
             fork.Id,
             log[oldIndex].Id,
             remoteTip,
-            inLocal.Count(id => !inFork.Contains(id)),
+            OwnCount(commits, inLocal, inFork, fork.Id),
             oldCopies.Count,
             newIds.Count,
             dropped,
@@ -102,6 +103,32 @@ static class RemoteRewrites
             }
         }
         return ancestors;
+    }
+
+    // The local branch's own commits, which a pull moves onto the new version: those made on the fork
+    // point, or on one of them. Not every commit it has that the fork point has not: a merge of
+    // another branch, e.g. main, brings that branch's commits too, which the rebase leaves as they are,
+    // since --rebase-merges keeps a merged branch on its own base.
+    static int OwnCount(
+        IReadOnlyList<GitCommit> commits,
+        IReadOnlySet<string> inLocal,
+        IReadOnlySet<string> inFork,
+        string forkId
+    )
+    {
+        HashSet<string> own = [];
+        // Oldest first, so a commit's parents come before it: the log lists none before its children
+        for (var i = commits.Count - 1; i >= 0; i--)
+        {
+            var c = commits[i];
+            if (
+                inLocal.Contains(c.Id)
+                && !inFork.Contains(c.Id)
+                && c.ParentIds.Any(p => p == forkId || own.Contains(p))
+            )
+                own.Add(c.Id);
+        }
+        return own.Count;
     }
 
     // What a commit keeps when it is rewritten, which tells a copy of it
