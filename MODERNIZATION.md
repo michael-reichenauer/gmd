@@ -753,6 +753,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Terminal.Gui 1.x and the UI**
 
+- A dialog with keys of its own (`UIDialog`'s `CustomDialog`) used to override `ProcessHotKey`
+  without calling the base, so its views got no hot keys at all, and `ContentView` takes its keys as
+  hot keys: a list in such a dialog never ticked or moved, however it was focused. It found nothing
+  until the commit dialog got its file list (2026-10-07); the dialog's keys go first now, then its
+  views'.
 - Blocking the main loop (`.Result`, `.Wait()`) deadlocks: the `SynchronizationContext` posts every
   continuation to the loop being blocked. Load before the view opens and pass the data in.
 - `SetFocus()` does not move the keyboard, and `ContentView.ProcessHotKey` returns early without
