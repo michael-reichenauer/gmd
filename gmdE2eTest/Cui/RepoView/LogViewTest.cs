@@ -630,7 +630,7 @@ public class LogViewTest
                                                             │Undo Show 'dev'   Backspace  │
                                                             ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 22, 12)
+            ScreenText.Rows(branches, repo.Path, 23, 12)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -643,19 +643,19 @@ public class LogViewTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │Copy Commit Message              ⇧i  │                               ╭ dev ──────────────────────────────╮
-                     │Open Commit in Browser               │                               │Switch to Branch                s  │
-                     │Full File History ...                │                               │Merge dev into main             e  │
-                     │Blame File ...                       │                               │Merge main into dev            ⇧e  │
-                     │─────────────────────────────────────│╭ Branches ───────────────────╮│Rebase and Push onto              >│
-                     │Branches                            >││●   main                    >││Hide Branch                     h  │
-                     │Repo Menu                        ⇧m >││    dev                     >││Pull                            u  │
-                     ╰─────────────────────────────────────╯│─────────────────────────────││Push                            p  │
-                                                            │Show Branch              ⇧→ >││Create Branch ...               b  │
-                                                            │Hide All Branches            ││Create Worktree ...                │
-                                                            │Undo Show 'dev'   Backspace  ││Rename Branch ...                  │
-                                                            ╰─────────────────────────────╯│Delete Branch ...                  │
-                                                                                           │Undo Commit 'More dev work'        │
+                     │Copy Commit Id                    i  │                               ╭ dev ──────────────────────────────╮
+                     │Copy Commit Message              ⇧i  │                               │Switch to Branch                s  │
+                     │Open Commit in Browser               │                               │Merge dev into main             e  │
+                     │Full File History ...                │                               │Merge main into dev            ⇧e  │
+                     │Blame File ...                       │                               │Rebase and Push onto              >│
+                     │─────────────────────────────────────│╭ Branches ───────────────────╮│Hide Branch                     h  │
+                     │Branches                            >││●   main                    >││Pull                            u  │
+                     │Repo Menu                        ⇧m >││    dev                     >││Push                            p  │
+                     ╰─────────────────────────────────────╯│─────────────────────────────││Create Branch ...               b  │
+                                                            │Show Branch              ⇧→ >││Create Worktree ...                │
+                                                            │Hide All Branches            ││Rename Branch ...                  │
+                                                            │Undo Show 'dev'   Backspace  ││Delete Branch ...                  │
+                                                            ╰─────────────────────────────╯│Undo Commit 'More dev work'        │
                                                                                            │Diff Branch to                  d >│
                                                                                            │Change Branch Color             g  │
                                                                                            │Open in Browser                    │

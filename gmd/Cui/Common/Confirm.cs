@@ -103,6 +103,21 @@ static class Confirm
                 : $"Remove the tag '{name}'?"
         );
 
+    // Undo brings a dropped commit back, but a slip of the finger should not need it: the commit's
+    // changes leave the branch with it, and later commits are rewritten
+    internal static bool DropCommit(string sid, string subject, string branchName) =>
+        Ask(
+            "Drop Commit",
+            $"""
+            Drop the commit from '{branchName}'?
+
+              {sid} {subject}
+
+            Its changes leave the branch with it, and the commits
+            after it are rewritten without it. Undo brings it back.
+            """
+        );
+
     // Putting a remote branch back as it was before a force push, which is one in turn, for everyone
     internal static bool RestoreOrigin(string remoteName, string question) => Ask($"Restore {remoteName}", question);
 

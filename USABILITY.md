@@ -104,7 +104,10 @@ Ranked by how soon someone new meets the gap.
    and nothing calls them (`RepoCommands.cs:447-458`). It is one of the commonest things done in a
    log.
 5. **Reword, fix up or drop a commit not yet pushed.** Squash is the only rewrite there is. Kept to
-   commits not yet pushed, these stay true to leaving the shared history alone.
+   commits not yet pushed, these stay true to leaving the shared history alone. *Done
+   (2026-10-07):* as Amend and Drop of any commit not pushed yet, see B.3. Amend had only checked
+   'ahead of the remote', so it refused the last commit of a branch never pushed, which Uncommit
+   took back; one rule for not pushed now serves all of them (`CommitRewrite`).
 6. **A second remote.** `origin` is written into the fetch, the push and the name matching
    (`RemoteService.cs:33`), so a fork cannot follow its `upstream`.
 7. **Smaller gaps:** a stash apply that keeps the stash; a list of the tags, and pushing them; the
@@ -249,7 +252,17 @@ Both are reworked, see proposal D.1.
    the uncommitted row says it is no commit yet. Blame copies its line's commit with the same two
    keys, so its gutter detail moved from `i` to `g`, and `c` copies nothing there any more, where
    in the log it commits (one of the letters the usability review found meaning two things).
-3. Reword, fix up and drop, for the commits not yet pushed.
+3. Reword, fix up and drop, for the commits not yet pushed. *Done (2026-10-07):* reword and fix up
+   are one item, **Amend <id> ...** in the commit menu of an older commit, the commit dialog with
+   its message and the changed files, none ticked; **Drop <id>** is under Undo, beside Revert
+   Commit, and asks first. Both are git's own rebase (an `amend!` commit folded in with
+   `--autosquash`, and `rebase --onto`), so a conflict stops it as any rebase, for the resolver
+   and Continue or Abort, and Undo takes each back as one change. Refused, with the reason, for a
+   merge or past one, which the rebase would flatten, and with another branch or a tag on the
+   commit or after it, which would keep the old commits; the server asks git the same before it
+   rewrites. The `a` key still amends the last commit only. Squash keeps its reset and
+   cherry-pick, which stops half done on a conflict: moving it onto the same rebase is left for
+   later.
 4. Light themes, `NO_COLOR`, and branch colors that do not lean on red against green, with the
    Terminal.Gui 2.x port.
 5. A second remote, read only at first: fetch `upstream` and show its branches.
@@ -352,7 +365,8 @@ Bigger features:
 
 - [x] 15. **Choose what to commit** (B.1): a file checklist in the commit dialog, every file ticked.
   L
-- [ ] 16. **Reword, fix up and drop** commits not yet pushed (B.3). L
+- [x] 16. **Reword, fix up and drop** commits not yet pushed (B.3): Amend and Drop of any commit
+  not pushed yet. L
 - [ ] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `GIT_ASKPASS` and
   `SSH_ASKPASS`, asking in a dialog of the gmd that started git. The design, Git Credential
   Manager included, is in `MODERNIZATION.md` (open issues, Product). M

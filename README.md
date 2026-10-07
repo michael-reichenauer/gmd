@@ -156,9 +156,11 @@ once. Gmd keeps that readable rather than letting it flood the log:
 
 **Do it without the syntax**
 
-- **Everyday Git**: commit all the changes or the files you tick (with spell check), amend, push and pull (every shown branch at once
-  if you like), merge in either direction, create, rename and delete branches, tags, stash,
-  squash, cherry pick, and file history.
+- **Everyday Git**: commit all the changes or the files you tick (with spell check), push and pull
+  (every shown branch at once if you like), merge in either direction, create, rename and delete
+  branches, tags, stash, cherry pick, and file history.
+- **Tidy up before you push**: amend any commit not pushed yet, with a new message or the changes
+  you tick, drop one, or squash several, and Undo takes each back.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to
   each other, with the common ancestor at hand, and when you are done you can continue, skip or
   abort the operation.

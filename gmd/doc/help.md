@@ -172,6 +172,9 @@ repository.
 - **Show another branch:** `Shift-→`, and type part of its name.
 - **Undo a mistake:** **Undo** in the commit menu (`m`) takes back the last
   change of the branch you are on, e.g. a commit, a merge or a pull.
+- **Fix a commit not pushed yet:** `m` on it, then **Amend <id> ...** for a
+  new message, or the changes you tick, or both, or **Drop <id>** under
+  **Undo** to take it out of the branch. `a` amends the last commit.
 
 
 ## Keys
@@ -362,6 +365,11 @@ throw changes away for good ask first.
   changes): `git checkout --force HEAD -- <file>`, staged changes too, or
   a new file is unstaged and deleted
 - **Revert Commit**: `git revert --no-commit <commit-sha>`
+- **Drop <commit-sha>**: takes a commit not pushed yet out of the branch,
+  `git rebase --onto <commit-sha>~ <commit-sha>`, asked first. The commits
+  after it are rewritten without it, and Undo brings it back. Not for a
+  merge, or past one, nor with another branch or a tag on it or after it,
+  which would keep the old commits.
 - **Uncommit Last Commit**: `git reset HEAD~1`, the changes stay uncommitted
 - **Uncommit <commit-sha> and Newer**: `git reset --soft <commit-sha>~`, so
   that commit and the ones after it are uncommitted
@@ -382,6 +390,17 @@ throw changes away for good ask first.
   After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
   the merged commits, one per line, and for a merged merge the list in its
   message.
+- **Amend ...** (`a`) and **Amend <commit-sha> ...**:
+  `a` amends the last commit while it is not pushed: its message, and the
+  files ticked in the dialog. The commit menu of an older commit not pushed
+  yet has an Amend of its own, with that commit's message and the changed
+  files, none ticked at first: a new message, the ticked changes, or both.
+  It is git's own way: an "amend!" commit of them, folded in by
+  `git rebase -i --autosquash`, with the files left unticked put aside and
+  back. Undo takes it back. It has the limits Drop has, in Undo and
+  Recovery. A later commit that conflicts with the changes stops the rebase
+  there: resolve and continue, or abort, which leaves them in the "amend!"
+  commit on top.
 - **Search ...** (`f` or `/`):
   Type to filter the log down to the commits that match, by id, message
   (the subject and the body), branch, author, date (yyyy-mm-dd) or tag.

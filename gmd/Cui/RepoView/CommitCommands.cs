@@ -36,6 +36,8 @@ interface ICommitCommands
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void SquashCommits(string id1, string id2);
+    void AmendOlderCommit(string id);
+    void DropCommit(string id);
     void CherryPick();
 
     void AddTag();
@@ -147,7 +149,7 @@ class CommitCommands : ICommitCommands
 
         if (!isAmend && repo.Repo.Status.IsOk)
             return CommitResult.NothingToCommit;
-        if (isAmend && !repo.Repo.CurrentCommit().IsAhead)
+        if (isAmend && !CommitRewrite.IsNotPushed(repo.Repo, repo.Repo.CurrentCommit()))
             return CommitResult.NothingToCommit;
 
         if (repo.Repo.CurrentBranch().IsDetached == true)
@@ -490,19 +492,67 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
+    // An older commit, given a new message, the changes in the files ticked, or both, in the commit
+    // dialog. Opened from the menu as Commit is, with a moment's delay, see CommitFromMenu.
+    public void AmendOlderCommit(string id) =>
+        UI.AddTimeout(
+            TimeSpan.FromMilliseconds(100),
+            (_) =>
+            {
+                Do(() => AmendOlderCommitAsync(id));
+                return false;
+            }
+        );
+
+    async Task<Result> AmendOlderCommitAsync(string id)
+    {
+        var commit = repo.Repo.CommitById[id];
+        if (CommitRewrite.WhyNotAmend(repo.Repo, commit) is var whyNot && whyNot != "")
+            return new Notice(whyNot);
+
+        if (!commitDlg.ShowAmend(repo, commit, out var message, out var paths))
+            return Result.Ok;
+
+        using (status.Progress($"Amending {commit.Sid}"))
+        {
+            if (await server.AmendOlderCommitAsync(repo.Repo, id, message, paths) is Error e)
+                return new Error($"Failed to amend {commit.Sid}", e);
+        }
+
+        Refresh();
+        status.Info($"Amended '{message.Split('\n')[0].Trim()}' on '{CurrentBranchName()}': Undo takes it back");
+        return Result.Ok;
+    }
+
+    // Takes a commit out of the current branch, asked first, since its changes go with it
+    public void DropCommit(string id) =>
+        Do(async () =>
+        {
+            var commit = repo.Repo.CommitById[id];
+            if (CommitRewrite.WhyNotDrop(repo.Repo, commit) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+            if (!Confirm.DropCommit(commit.Sid, commit.Subject, CurrentBranchName()))
+                return Result.Ok;
+
+            using (status.Progress($"Dropping {commit.Sid}"))
+            {
+                if (await server.DropCommitAsync(repo.Repo, id) is Error e)
+                    return new Error($"Failed to drop {commit.Sid}", e);
+            }
+
+            Refresh();
+            status.Info($"Dropped '{commit.Subject}' from '{CurrentBranchName()}': Undo brings it back");
+            return Result.Ok;
+        });
+
     public bool CanUncommitLastCommit()
     {
         if (!repo.Repo.ViewCommits.Any())
             return false;
 
-        var c = repo.Repo.ViewCommits[0];
-        var b = repo.Repo.BranchByName[repo.Repo.ViewCommits[0].BranchName];
-
-        // The clean tree is required of both halves, not just of 'is ahead'. Without the
-        // parentheses '&&' binds tighter than '||', so a branch that was never pushed offered this
-        // with changes in the tree — and with changes the top row is the virtual uncommitted commit
-        // rather than a commit, so the reset would have taken back a row the user was not on.
-        return repo.Repo.Status.IsOk && (c.IsAhead || (!b.IsRemote && b.RemoteName == ""));
+        // A clean tree, since with changes the top row is the virtual uncommitted commit rather than
+        // a commit, so the reset would take back a row the user was not on
+        return repo.Repo.Status.IsOk && CommitRewrite.IsNotPushed(repo.Repo, repo.Repo.ViewCommits[0]);
     }
 
     public void UndoUncommittedFile(string path) =>

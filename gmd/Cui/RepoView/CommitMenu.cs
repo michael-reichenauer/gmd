@@ -53,9 +53,10 @@ class CommitMenu : ICommitMenu
                 "Amend ...",
                 "a",
                 () => cmds.CommitFromMenu(true),
-                () => cc.IsAhead,
+                () => CommitRewrite.IsNotPushed(repo.Repo, cc),
                 () => "Only a commit not yet pushed can be amended"
             )
+            .Items(GetAmendOlderItems(c, cc))
             // Straight in the menu rather than in a 'Rebase' sub menu of its own, which held nothing
             // else and named a rebase that it is not
             .Items(GetSquashItems())
@@ -145,6 +146,7 @@ class CommitMenu : ICommitMenu
         // second Undo takes back
         var current = repo.Repo.CurrentBranch();
         var step = BranchUndo.StepOf(repo.Repo, current);
+        var whyNotDrop = CommitRewrite.WhyNotDrop(repo.Repo, repo.RowCommit);
 
         return Menu
             .Items.Item(
@@ -167,6 +169,15 @@ class CommitMenu : ICommitMenu
                 () => "There are no uncommitted changes to undo"
             )
             .Item("Revert Commit", "", () => cmds.UndoCommit(id), () => repo.Repo.Status.IsOk, () => Why.Changes)
+            // Revert's twin for a commit not pushed yet: out of the branch rather than undone by
+            // another commit
+            .Item(
+                repo.RowCommit.IsUncommitted ? "Drop Commit" : $"Drop {id.Sid()}",
+                "",
+                () => cmds.DropCommit(id),
+                () => whyNotDrop == "",
+                () => whyNotDrop
+            )
             .Item(
                 "Uncommit Last Commit",
                 "",
@@ -199,6 +210,24 @@ class CommitMenu : ICommitMenu
             // The same and the ignored files too, i.e. the folder as a fresh clone would have it.
             // Enabled with no changes as well, since deleting what git ignores is reason enough.
             .Item("Discard All Changes and Ignored Files", "", () => repo.Cmds.CleanWorkingFolder());
+    }
+
+    // The amend of the commit the menu is for, when that is an older one than the last, whose own
+    // amend is the item above it, with the 'a' key. The key amends the last commit wherever the
+    // cursor is, so that only an item naming the commit rewrites an older one.
+    IEnumerable<MenuItem> GetAmendOlderItems(Commit c, Commit cc)
+    {
+        if (c.IsUncommitted || c.Id == cc.Id)
+            return [];
+
+        var whyNot = CommitRewrite.WhyNotAmend(repo.Repo, c);
+        return Menu.Items.Item(
+            $"Amend {Sid(c.Id)} ...",
+            "",
+            () => cmds.AmendOlderCommit(c.Id),
+            () => whyNot == "",
+            () => whyNot
+        );
     }
 
     // Squashes the commits selected with Shift-↑↓, which the item names once there are some
