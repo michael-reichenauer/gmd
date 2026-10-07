@@ -444,14 +444,19 @@ class RepoCommands : IRepoCommands
 
     void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 
+    // The id or the message of the commit on the cursor's row (i, Shift-I), the commonest things
+    // copied from a log. The uncommitted changes have neither yet.
     public void CopyCommitId() =>
         Do(async () =>
         {
             await Task.Yield();
             var commit = repo.RowCommit;
+            if (commit.IsUncommitted)
+                return new Notice(WhyNoCopy);
             if (clipboard.Set(commit.Id) is Error e)
                 return new Error("Failed to copy the commit id", e);
 
+            status.Info($"Copied the id of {commit.Sid}");
             return Result.Ok;
         });
 
@@ -460,9 +465,14 @@ class RepoCommands : IRepoCommands
         {
             await Task.Yield();
             var commit = repo.RowCommit;
+            if (commit.IsUncommitted)
+                return new Notice(WhyNoCopy);
             if (clipboard.Set(commit.Message.TrimEnd()) is Error e)
                 return new Error("Failed to copy the commit message", e);
 
+            status.Info($"Copied the message of {commit.Sid}");
             return Result.Ok;
         });
+
+    internal const string WhyNoCopy = "The uncommitted changes are no commit yet: move to one first";
 }

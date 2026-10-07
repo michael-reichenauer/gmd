@@ -103,6 +103,8 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
         commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
+        commitsView.RegisterKeyHandler(Key.i, () => Cmd.CopyCommitId());
+        commitsView.RegisterKeyHandler(Key.I, () => Cmd.CopyCommitMessage());
         commitsView.RegisterKeyHandler(Key.p, OnKeyP);
         commitsView.RegisterKeyHandler(Key.P, () => BranchCmds.PushAllBranches());
         commitsView.RegisterKeyHandler(Key.u, OnKeyU);

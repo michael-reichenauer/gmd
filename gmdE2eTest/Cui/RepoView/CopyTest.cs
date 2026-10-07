@@ -59,4 +59,42 @@ public class CopyTest
             gmd.WaitForClipboard()
         );
     }
+
+    // 'i' copies the id of the commit on the cursor's row, and Shift-I its message, the commonest
+    // things copied from a log, and each says what it copied. The commit menu has both.
+    [TestMethod]
+    public async Task TestCopyTheCommitIdAndMessage()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("i");
+        Assert.AreEqual(await repo.GitAsync("rev-parse main"), gmd.WaitForClipboard());
+        Assert.AreEqual("Copied the id of 17d85b", ScreenText.LastLine(gmd.WaitFor("Copied the id")));
+
+        // The status line is written after the copy, so once it shows, the clipboard has it
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("I");
+        Assert.AreEqual("Copied the message of 4e73d2", ScreenText.LastLine(gmd.WaitFor("Copied the message")));
+        Assert.AreEqual("Merge branch 'dev' into main", gmd.Clipboard());
+    }
+
+    // The uncommitted changes are no commit, so there is no id or message to copy, which is said
+    [TestMethod]
+    public async Task TestTheUncommittedChangesHaveNoIdToCopy()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+
+        gmd.Send("i");
+
+        Assert.AreEqual(
+            "The uncommitted changes are no commit yet: move to one first",
+            ScreenText.LastLine(gmd.WaitFor("no commit yet"))
+        );
+        Assert.AreEqual("", gmd.Clipboard(), "Nothing was copied");
+    }
 }

@@ -560,6 +560,8 @@ public class LogViewTest
                     │Cherry Pick into main                  │
                     │Switch to Commit                       │
                     │Commit Details                  Enter  │
+                    │Copy Commit Id                      i  │
+                    │Copy Commit Message           Shift-I  │
                     │Open Commit in Browser                 │
                     │Full File History ...                  │
                     │Blame File ...                         │
@@ -630,7 +632,7 @@ public class LogViewTest
                                                               │Push All Branches   Shift-P  │
                                                               ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 20, 12)
+            ScreenText.Rows(branches, repo.Path, 22, 12)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -645,18 +647,18 @@ public class LogViewTest
             """
                     ╭ dev ───────────────────────────────────╮
                     │Switch to Branch                     s  │
-                    │Merge dev into main                  e  │╭ Branches ───────────────────╮
-                    │Merge main into dev            Shift-E  ││●   main                    >│
-                    │Rebase and Push onto                   >││    dev                     >│
-                    │Hide Branch                          h  ││─────────────────────────────│
-                    │Pull                                 u  ││Show Branch         Shift-→ >│
-                    │Push                                 p  ││Hide All Branches            │
-                    │Create Branch ...                    b  ││Undo Show 'dev'   Backspace  │
-                    │Create Worktree ...                     ││Pull All Branches   Shift-U  │
-                    │Rename Branch ...                       ││Push All Branches   Shift-P  │
-                    │Delete Branch ...                       │╰─────────────────────────────╯
-                    │Undo Commit 'More dev work'             │
-                    │Diff Branch to                       d >│
+                    │Merge dev into main                  e  │
+                    │Merge main into dev            Shift-E  │
+                    │Rebase and Push onto                   >│╭ Branches ───────────────────╮
+                    │Hide Branch                          h  ││●   main                    >│
+                    │Pull                                 u  ││    dev                     >│
+                    │Push                                 p  ││─────────────────────────────│
+                    │Create Branch ...                    b  ││Show Branch         Shift-→ >│
+                    │Create Worktree ...                     ││Hide All Branches            │
+                    │Rename Branch ...                       ││Undo Show 'dev'   Backspace  │
+                    │Delete Branch ...                       ││Pull All Branches   Shift-U  │
+                    │Undo Commit 'More dev work'             ││Push All Branches   Shift-P  │
+                    │Diff Branch to                       d >│╰─────────────────────────────╯
                     │Change Branch Color                  g  │
                     │Open in Browser                         │
                     │Create Pull Request in Browser          │

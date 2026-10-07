@@ -237,7 +237,9 @@ Both are reworked, see proposal D.1.
 **B. Expected features:**
 
 1. The file checklist in the commit dialog (Tier 4, item 1, below).
-2. Copy Commit Id and Copy Commit Message in the commit menu, with a key.
+2. Copy Commit Id and Copy Commit Message in the commit menu, with a key. *Done (2026-10-07):*
+   `i` and `Shift-I`, and the commit menu's items, each saying on the status line what it copied;
+   the uncommitted row says it is no commit yet.
 3. Reword, fix up and drop, for the commits not yet pushed.
 4. Light themes, `NO_COLOR`, and branch colors that do not lean on red against green, with the
    Terminal.Gui 2.x port.
@@ -288,7 +290,7 @@ First impression:
 
 Quick wins:
 
-- [ ] 6. **Copy the commit id and message** (B.2): in the commit menu, with a key. S
+- [x] 6. **Copy the commit id and message** (B.2): in the commit menu, with a key. S
 - [ ] 7. **Add Tag asks before it pushes** (part 2), as every other push does. S
 - [ ] 8. **The year in the dates** (C.1): `2026-03-10`, in the log, blame and the lists. M (every
   snapshot with a date changes)

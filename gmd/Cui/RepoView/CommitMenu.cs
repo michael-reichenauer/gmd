@@ -96,6 +96,20 @@ class CommitMenu : ICommitMenu
                 () => !isStatusOK ? Why.Changes : "Already on this commit"
             )
             .Item("Commit Details", "Enter", () => cmds.ToggleDetails())
+            .Item(
+                "Copy Commit Id",
+                "i",
+                () => repo.Cmds.CopyCommitId(),
+                () => !c.IsUncommitted,
+                () => RepoCommands.WhyNoCopy
+            )
+            .Item(
+                "Copy Commit Message",
+                "Shift-I",
+                () => repo.Cmds.CopyCommitMessage(),
+                () => !c.IsUncommitted,
+                () => RepoCommands.WhyNoCopy
+            )
             // Above the file items rather than at the end, which the walks to Blame File count from
             .Item(
                 "Open Commit in Browser",
