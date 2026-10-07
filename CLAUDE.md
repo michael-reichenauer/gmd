@@ -137,7 +137,9 @@ Key types and flow:
   record of a squash and of an undo in `RepoConfig.UndoSteps`); Recover Lost Commits, the commits
   no ref reaches (`LostWorkFinder`, read only when asked); and a force push on origin, from the
   reflogs of the remote branches whose local branches have commits not pushed (`RemoteRewrites`,
-  `Repo.RemoteRewrites`).
+  `Repo.RemoteRewrites`). A deleted branch is the one thing the reflog cannot bring back, since git
+  deletes the branch's reflog with it, so gmd records each branch it deletes itself
+  (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
@@ -164,7 +166,9 @@ Key types and flow:
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
-  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally.
+  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
+  the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
+  Lost Commits, Restore Deleted Branch); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
   WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
   user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`
@@ -640,7 +644,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

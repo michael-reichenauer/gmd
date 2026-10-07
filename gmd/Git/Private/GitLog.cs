@@ -14,6 +14,7 @@ internal interface ILogService
         IReadOnlyList<string> alsoReached,
         string wd
     );
+    Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
 }
 
 internal class LogService : ILogService
@@ -89,6 +90,25 @@ internal class LogService : ILogService
             commits.AddRange(parsed.Where(c => listed.Add(c.Id)));
         }
         return commits;
+    }
+
+    // The ones of the ids that are commits git still has, since one no ref or reflog reaches is
+    // pruned by a gc in time. 'rev-list --no-walk' lists just the commits given, and
+    // '--ignore-missing' passes over an id git does not have rather than failing on it.
+    public async Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd)
+    {
+        HashSet<string> existing = [];
+        foreach (var chunk in ids.Chunk(IdsPerCall))
+        {
+            var args = $"rev-list --no-walk --ignore-missing {string.Join(' ', chunk)}";
+            var result = await cmd.RunAsync("git", args, wd);
+            if (result is not string output)
+                return result.Error;
+            existing.UnionWith(
+                output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            );
+        }
+        return existing;
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)

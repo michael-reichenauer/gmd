@@ -163,7 +163,9 @@ class RemoteService : IRemoteService
     }
 
     // Puts a remote branch back at a commit it was at, a force push, but only while it is still where
-    // it was last fetched: someone who pushed since is not overwritten, the push is refused instead
+    // it was last fetched: someone who pushed since is not overwritten, the push is refused instead.
+    // An empty expectedId is a lease that the branch does not exist, i.e. a deleted branch put back
+    // only while no one has pushed a branch of the name since.
     public async Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd)
     {
         name = TrimRemotePrefix(name);

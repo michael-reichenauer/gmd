@@ -36,6 +36,7 @@ interface IBranchCommands
     void RebaseBranchOnto(string onto);
     void UndoLastChange(string branchName);
     void RecoverLostCommits();
+    void RestoreDeletedBranch();
 
     void PushCurrentBranch();
     void PushBranch(string name);
@@ -123,6 +124,8 @@ class BranchCommands : IBranchCommands
     public void UndoLastChange(string branchName) => undoCmds.UndoLastChange(branchName);
 
     public void RecoverLostCommits() => undoCmds.RecoverLostCommits();
+
+    public void RestoreDeletedBranch() => undoCmds.RestoreDeletedBranch();
 
     // Creating and deleting branches
     public void CreateBranch() => createCmds.CreateBranch();

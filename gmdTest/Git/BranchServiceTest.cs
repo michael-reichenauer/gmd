@@ -373,6 +373,26 @@ public class BranchServiceTest
         Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
     }
 
+    // What a restored branch tracks again, which git forgot when it was deleted, written as git writes
+    // it, so that a remote branch not there yet is no failure. The remote is the name's first part.
+    [TestMethod]
+    public async Task TestSetUpstream()
+    {
+        var cmd = new FakeCmd("");
+        var service = new BranchService(cmd);
+
+        AssertOk(await service.SetUpstreamAsync("feat", "origin/feature/x", "/wd"));
+
+        Assert.AreEqual(
+            """
+            config branch.feat.remote origin
+            config branch.feat.merge refs/heads/feature/x
+            """,
+            string.Join("\n", cmd.Calls.Select(c => c.Args))
+        );
+        AssertError(await service.SetUpstreamAsync("feat", "feature", "/wd"));
+    }
+
     // Merge, rebase, rebase onto and cherry pick all turn a conflict into the same error, since
     // git reports conflicts as a failed command with 'CONFLICT' in the output
     [TestMethod]

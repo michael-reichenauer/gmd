@@ -302,9 +302,11 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    named after it (a commit, an amend, a merge, a pull, a rebase, a squash, a reset), losing
    nothing uncommitted, and Undo again redoes it; it asks nothing, being undoable. *Recover Lost
    Commits* lists what a reset, a rebase, an amend or a deleted branch left behind, and brings a
-   line back with a branch. A force push on origin is said once it is fetched, and a pull then moves
-   the branch's own commits onto the new version rather than merging the two; *Restore origin*
-   puts origin back, asking first, since that is a force push too. Left for later: a key for Undo
+   line back with a branch. *Restore Deleted Branch* (2026-10-07) brings back a branch gmd deleted,
+   whose reflog git deletes with it, from gmd's own record, origin's side too, asking first since
+   that is a push; the status line says so after every delete. A force push on origin is said once
+   it is fetched, and a pull then moves the branch's own commits onto the new version rather than
+   merging the two; *Restore origin* puts origin back, asking first, since that is a force push too. Left for later: a key for Undo
    and a key hint, and a way back from Discard All Changes and Drop Stash, which the reflog does not
    record (see MODERNIZATION.md).
 

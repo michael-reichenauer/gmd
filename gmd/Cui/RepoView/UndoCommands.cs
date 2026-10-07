@@ -5,11 +5,13 @@ using gmd.Server;
 namespace gmd.Cui.RepoView;
 
 // The way back from the commands that move branches, which the reflog makes possible: undoing the
-// last change of a branch, undoing that undo, and bringing back the work no branch has any more
+// last change of a branch, undoing that undo, and bringing back the work no branch has any more. And
+// the way back from deleting a branch, whose reflog git deletes with it, which gmd records itself.
 interface IUndoCommands
 {
     void UndoLastChange(string branchName);
     void RecoverLostCommits();
+    void RestoreDeletedBranch();
 }
 
 class UndoCommands : IUndoCommands
@@ -21,6 +23,8 @@ class UndoCommands : IUndoCommands
     readonly IServer server;
     readonly ILostWorkDlg lostWorkDlg;
     readonly IDiffView diffView;
+    readonly IDeletedBranchesDlg deletedBranchesDlg;
+    readonly IRestoreBranchDlg restoreBranchDlg;
 
     public UndoCommands(
         IViewRepo repo,
@@ -29,7 +33,9 @@ class UndoCommands : IUndoCommands
         IRepoView repoView,
         IServer server,
         ILostWorkDlg lostWorkDlg,
-        IDiffView diffView
+        IDiffView diffView,
+        IDeletedBranchesDlg deletedBranchesDlg,
+        IRestoreBranchDlg restoreBranchDlg
     )
     {
         this.repo = repo;
@@ -39,6 +45,8 @@ class UndoCommands : IUndoCommands
         this.server = server;
         this.lostWorkDlg = lostWorkDlg;
         this.diffView = diffView;
+        this.deletedBranchesDlg = deletedBranchesDlg;
+        this.restoreBranchDlg = restoreBranchDlg;
     }
 
     // Asks nothing first, since undoing again redoes it, and says on the status line what it did
@@ -98,6 +106,52 @@ class UndoCommands : IUndoCommands
                         return Result.Ok;
                 }
             }
+        });
+
+    // The branches gmd deleted, in a list to bring one back from. A branch that was only deleted here
+    // is restored when picked, since that only makes a branch, which deleting again takes back; one
+    // deleted on origin asks which sides to restore first, since restoring origin's is a push.
+    public void RestoreDeletedBranch() =>
+        Do(async () =>
+        {
+            IReadOnlyList<DeletedBranch> branches;
+            using (status.Progress("Looking for deleted branches"))
+            {
+                var branchesResult = await server.GetDeletedBranchesAsync(repo.Repo);
+                if (branchesResult is not IReadOnlyList<DeletedBranch> found)
+                    return new Error("Failed to look for deleted branches", branchesResult.Error);
+                branches = found;
+            }
+            if (branches.Count == 0)
+                return new Notice(
+                    "No deleted branch to restore: gmd keeps the branches it deleted, until they are back"
+                );
+
+            if (deletedBranchesDlg.Show(branches) is not DeletedBranch deleted)
+                return Result.Ok;
+
+            var (isLocal, isRemote) = (deleted.IsLocal, false);
+            if (deleted.IsRemote)
+            {
+                if (restoreBranchDlg.Show(deleted) is not RestoreBranchResult rsp)
+                    return Result.Ok;
+                (isLocal, isRemote) = (rsp.IsLocal, rsp.IsRemote);
+                if (!isLocal && !isRemote)
+                    return Result.Ok;
+            }
+
+            Result restored;
+            using (status.Progress(DeletedBranchRows.Restoring(deleted, isLocal)))
+            {
+                restored = await server.RestoreBranchAsync(repo.Repo, deleted, isLocal, isRemote);
+            }
+
+            // Shown even when a part failed, since a side can be back then, which the error says
+            repoView.Refresh(isLocal ? deleted.Name : deleted.RemoteName);
+            if (restored is Error e)
+                return e;
+            status.Info(DeletedBranchRows.Restored(deleted, isLocal, isRemote));
+            return Result.Ok;
         });
 
     // The diff of the whole line of work, from where it left the history that is still there, or of

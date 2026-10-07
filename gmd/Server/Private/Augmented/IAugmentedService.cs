@@ -52,5 +52,8 @@ interface IAugmentedService
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
     Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo);
+    Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce);
+    Task<Result<IReadOnlyList<DeletedBranch>>> GetDeletedBranchesAsync(Repo repo);
+    Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote);
     Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite);
 }

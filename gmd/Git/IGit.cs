@@ -18,6 +18,9 @@ interface IGit
         IReadOnlyList<string> alsoReached,
         string wd
     );
+
+    // The ones of the ids that are commits git still has
+    Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
@@ -54,7 +57,8 @@ interface IGit
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> PushRefForceAsync(string name, string wd);
 
-    // Force pushes a remote branch back to a commit, if it is still at the expected one
+    // Force pushes a remote branch back to a commit, if it is still at the expected one, or creates it
+    // there, if it does not exist, when the expected one is ""
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
     Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
@@ -88,6 +92,9 @@ interface IGit
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+
+    // Makes a local branch track a remote branch, e.g. 'origin/feature', whether it is there or not
+    Task<Result> SetUpstreamAsync(string name, string remoteName, string wd);
 
     // Moves a branch that is not checked out from one commit to another, refused if it has moved
     Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd);

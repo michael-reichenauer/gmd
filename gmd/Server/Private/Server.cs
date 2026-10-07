@@ -444,8 +444,8 @@ class Server : IServer
 
     static Git.ConflictKind ToGitConflictKind(ConflictKind kind) => ViewRepoConverter.ToGitConflictKind(kind);
 
-    public Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
-        git.DeleteLocalBranchAsync(name, isForced, wd);
+    public Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce) =>
+        augmentedService.DeleteBranchAsync(repo, localName, remoteName, isForce);
 
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) => git.DeleteRemoteBranchAsync(name, wd);
 
@@ -486,6 +486,12 @@ class Server : IServer
     public Task<Result> UndoStepAsync(Repo repo, UndoStep step) => augmentedService.UndoStepAsync(repo, step);
 
     public Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo) => augmentedService.GetLostWorkAsync(repo);
+
+    public Task<Result<IReadOnlyList<DeletedBranch>>> GetDeletedBranchesAsync(Repo repo) =>
+        augmentedService.GetDeletedBranchesAsync(repo);
+
+    public Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote) =>
+        augmentedService.RestoreBranchAsync(repo, deleted, isLocal, isRemote);
 
     public Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite) =>
         augmentedService.PullRewrittenAsync(repo, rewrite);
