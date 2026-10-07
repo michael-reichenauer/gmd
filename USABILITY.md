@@ -256,7 +256,12 @@ Both are reworked, see proposal D.1.
    full in the log, the blame gutter, Recover Lost Commits and Restore Deleted Branch; the subject
    column gives up the two columns, and a narrow log still shows the date alone.
 2. A help that is easier to get around: wider on a wide terminal, a contents to jump from, and
-   opening at the part about the view it was opened from.
+   opening at the part about the view it was opened from. *Done (2026-10-07), taller rather than
+   wider:* the box is as tall as the terminal, `m` lists the sections to jump to and `]` and `[`
+   step through them, the title saying so, and the diff, blame and conflict views open it at the
+   part about them. It is no wider, since the text is written to 77 columns: a wider box would be
+   blank space, and rewrapping the text would break its tables and pictures, for lines that read
+   worse the longer they get.
 3. A key-hint line in the diff and blame views too. *Done (2026-10-07), the resolver too:* each
    view's keys on its bottom row, `Esc close` early on, as the log has them and turned off with
    them: the diff's `c commit` and `u discard` for the uncommitted changes and `Enter resolve` for a
@@ -335,7 +340,7 @@ Shorter menus (C.5, part 3):
 Getting around:
 
 - [x] 13. **Key hints in the diff and blame views** (C.3), and in the conflict resolver. M
-- [ ] 14. **A help that is easier to get around** (C.2): wider on a wide terminal, a contents to
+- [x] 14. **A help that is easier to get around** (C.2): wider on a wide terminal, a contents to
   jump from, opening at the view's own section. M
 
 Bigger features:

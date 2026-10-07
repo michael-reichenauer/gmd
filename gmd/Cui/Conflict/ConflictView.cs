@@ -174,8 +174,9 @@ class ConflictView : IConflictView
         // views below, where 'U' pulls every branch, 'P' pushes every branch and the diff's 'c'
         // closed the resolver without asking about the decisions made in it.
         view.RegisterLetterHandler(Key.q, Close);
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
+        // The help, as in every view, at the part about this one
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.ConflictSection));
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.ConflictSection));
         view.RegisterLetterHandler(Key.u, () => Choose(HunkChoice.None));
         view.RegisterLetterHandler(Key.n, () => GotoHunk(1));
         view.RegisterLetterHandler(Key.p, () => GotoHunk(-1));

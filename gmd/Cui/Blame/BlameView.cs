@@ -159,8 +159,9 @@ class BlameView : IBlameView
         // Letters in both cases, since the menu writes them in upper case. The view is modal (see
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
         view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
+        // The help, as in every view, at the part about this one
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.DiffSection));
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.DiffSection));
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);

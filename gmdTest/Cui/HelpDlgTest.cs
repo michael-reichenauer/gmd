@@ -30,4 +30,33 @@ public class HelpDlgTest
 
         Assert.AreEqual("Press Enter on Commit ... for more", rows.Single().ToString());
     }
+
+    // The diff, blame and conflict views open the help at the part about them, by its heading, so
+    // a heading renamed in help.md must be renamed in HelpDlg too, or the help opens at the top
+    [TestMethod]
+    public void TestTheSectionsTheViewsOpenAtAreInTheHelp()
+    {
+        var content = AssertOk(Files.GetEmbeddedFileContentText(HelpDlg.HelpFile));
+
+        var names = HelpDlg.Sections(content).Select(s => s.Name).ToList();
+
+        CollectionAssert.Contains(names, HelpDlg.DiffSection);
+        CollectionAssert.Contains(names, HelpDlg.ConflictSection);
+    }
+
+    // ']' goes to the next heading below the top of the view and '[' to the one above, or to the top
+    // of the help before the first one
+    [TestMethod]
+    public void TestTheSectionsAreSteppedThrough()
+    {
+        var sections = HelpDlg.Sections("# Title\n\n## One\ntext\n## Two\ntext\n");
+
+        CollectionAssert.AreEqual(new[] { ("One", 2), ("Two", 4) }, sections.ToArray());
+        Assert.AreEqual(2, HelpDlg.SectionIndexFrom(sections, 0, 1));
+        Assert.AreEqual(4, HelpDlg.SectionIndexFrom(sections, 2, 1));
+        Assert.AreEqual(-1, HelpDlg.SectionIndexFrom(sections, 4, 1), "None after the last");
+        Assert.AreEqual(2, HelpDlg.SectionIndexFrom(sections, 4, -1));
+        Assert.AreEqual(2, HelpDlg.SectionIndexFrom(sections, 3, -1), "Into a section, back to its heading");
+        Assert.AreEqual(0, HelpDlg.SectionIndexFrom(sections, 2, -1), "Before the first is the top");
+    }
 }

@@ -153,8 +153,9 @@ class DiffView : IDiffView
         view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
 
         view.RegisterLetterHandler(Key.r, () => RefreshDiff());
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
+        // The help, as in every view, at the part about this one
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.DiffSection));
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.DiffSection));
         view.RegisterLetterHandler(Key.s, () => ShowScrollMenu());
         view.RegisterLetterHandler(Key.u, () => ShowUndoMenu());
         view.RegisterLetterHandler(Key.c, () => TriggerCommit());

@@ -1,8 +1,10 @@
 # Gmd Help Guide
 
 What is on the screen comes first, then the everyday tasks, then the
-reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel, and
-close with Esc.
+reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel. `m`
+lists the sections to jump to, `]` and `[` go to the next and the previous
+one, and Esc closes. Opened in the diff, blame or conflict view, the help
+starts at the part about it.
 
 - Reading the Log
 - Showing and Hiding Branches
