@@ -305,6 +305,15 @@ shown, their colors and their order.
     commits that are still there, which an amend or a rebase leaves, are
     listed last, dark. `Enter` or `d` shows the diff, and `b` creates a
     branch at it, which brings it back. Git keeps them for about 30 days.
+  - **Restore Deleted Branch ...**: the branches gmd deleted, newest
+    first, with the side each was deleted on: local, remote or both. Git
+    deletes a branch's reflog with the branch, so gmd records where it was
+    when it deletes one. `Enter` or `r` brings it back where it was,
+    tracking what it tracked. A branch deleted on origin asks which sides
+    to restore first, since restoring origin's is a push, and origin's is
+    left alone if someone pushed a branch of the name since. A branch
+    deleted outside gmd is not listed: Recover Lost Commits finds its work,
+    if no other branch has it.
   - **Discard Changes in a File**: `git checkout --force HEAD -- <file>`,
     staged changes too, or a new file is unstaged and deleted
   - **Revert Commit**: `git revert --no-commit <commit-sha>`

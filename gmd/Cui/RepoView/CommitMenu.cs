@@ -140,6 +140,8 @@ class CommitMenu : ICommitMenu
             )
             // The work no branch has any more, which the reflogs still know of
             .Item("Recover Lost Commits ...", "", () => repo.BranchCmds.RecoverLostCommits())
+            // The branches gmd deleted, whose reflogs git deleted with them
+            .Item("Restore Deleted Branch ...", "", () => repo.BranchCmds.RestoreDeletedBranch())
             .Separator()
             .SubMenu(
                 "Discard Changes in a File",

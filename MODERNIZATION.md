@@ -115,6 +115,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - *Recover Lost Commits*: the lines of work no ref reaches, which the reflogs still mention
     (`LostWorkFinder`), with the branch each was made on, what took it out of the history, a diff and
     a branch to bring it back.
+  - *Restore Deleted Branch* (2026-10-07): git deletes a branch's reflog with the branch (and its
+    upstream config), so the reflog cannot undo a delete; HEAD's reflog only has where the branch was
+    the last time it was checked out. gmd records each side it deletes instead (`RepoConfig.
+    DeletedBranches`, `DeletedBranchRecords`), and restores from the record: the branch at its tip,
+    tracking what it tracked, and origin's pushed back with an empty lease, so a branch of the name
+    pushed since is not overwritten. A record is forgotten once a branch of the name is back or its
+    tip is gone (`rev-list --no-walk --ignore-missing`). Deletes outside gmd are not recorded.
   - A force push on origin told from new commits on both sides, by the remote branch's reflog and the
     fork point (`RemoteRewrites`); pulled by moving the branch's own commits onto the new version
     rather than merging the two; and origin put back from before it, with a lease. One that only

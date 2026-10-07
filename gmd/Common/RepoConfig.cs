@@ -26,6 +26,11 @@ class RepoConfig
     // it wrong: a squash, which is several moves, and an undo, which is a reset that Undo again redoes.
     // Taken only while the reflog still lists it as the latest, see ReflogSteps.StepsByBranch.
     public Dictionary<string, RecordedStep> UndoSteps { get; set; } = [];
+
+    // The branches gmd deleted, newest first and one per name, which Restore Deleted Branch brings
+    // back: git deletes a branch's reflog with it, so nothing else says where it was. Forgotten once a
+    // branch of the name is back or its commits are gone, see AugmentedService.GetDeletedBranchesAsync.
+    public List<RecordedDelete> DeletedBranches { get; set; } = [];
 }
 
 // A change gmd made to a branch: the branch was at BeforeId, the change wrote Moves entries to the
@@ -39,6 +44,19 @@ public class RecordedStep
     public string AfterId { get; set; } = "";
     public int Moves { get; set; } = 1;
     public bool IsRedo { get; set; } = false;
+}
+
+// A branch gmd deleted, here, on origin or both: the local branch Name was at TipId, and the remote
+// branch RemoteName at RemoteTipId. Either tip is empty when that side was not deleted; RemoteName
+// is also the remote branch a deleted local branch tracked, which was kept, or "" when it had none.
+public class RecordedDelete
+{
+    public string Name { get; set; } = "";
+    public string TipId { get; set; } = "";
+    public string RemoteName { get; set; } = "";
+    public string RemoteTipId { get; set; } = "";
+    public string Subject { get; set; } = ""; // The tip's, the local one's when both were deleted
+    public DateTime Time { get; set; }
 }
 
 public class BranchOrder

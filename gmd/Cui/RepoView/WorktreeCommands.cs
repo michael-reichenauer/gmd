@@ -231,7 +231,7 @@ class WorktreeCommands : IWorktreeCommands
         // A deliberately checked box on a branch named as unmerged is the consent to lose it
         if (rsp.IsDeleteBranch && branch != null)
         {
-            if (await server.DeleteLocalBranchAsync(branch.Name, isUnmerged, current.Path) is Error deleteError)
+            if (await server.DeleteBranchAsync(current, branch.Name, "", isUnmerged) is Error deleteError)
                 return new Error($"Worktree removed, but failed to delete branch {branch.Name}", deleteError);
         }
 

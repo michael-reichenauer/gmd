@@ -137,7 +137,9 @@ Key types and flow:
   record of a squash and of an undo in `RepoConfig.UndoSteps`); Recover Lost Commits, the commits
   no ref reaches (`LostWorkFinder`, read only when asked); and a force push on origin, from the
   reflogs of the remote branches whose local branches have commits not pushed (`RemoteRewrites`,
-  `Repo.RemoteRewrites`).
+  `Repo.RemoteRewrites`). A deleted branch is the one thing the reflog cannot bring back, since git
+  deletes the branch's reflog with it, so gmd records each branch it deletes itself
+  (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
@@ -640,7 +642,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

@@ -534,6 +534,144 @@ class AugmentedService : IAugmentedService
         return LostWorkFinder.Find(reflog, lost, reachable, localNames).ToList();
     }
 
+    // Deletes a branch on origin, here or both, origin's first, and records each side once it is gone,
+    // so that Restore Deleted Branch can bring it back: git deletes a branch's reflog with the branch,
+    // so nothing else would say where it was. A name is "" for a side not to delete.
+    public async Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce)
+    {
+        var local = localName != "" ? repo.BranchByName[localName] : null;
+        var remote = remoteName != "" ? repo.BranchByName[remoteName] : null;
+        var name = local?.Name ?? remote?.Name.TrimPrefix("origin/") ?? "";
+        string SubjectOf(string id) => repo.CommitById.TryGetValue(id, out var c) ? c.Subject : "";
+
+        using (fileMonitor.Pause())
+        {
+            if (remote != null)
+            {
+                if (await git.DeleteRemoteBranchAsync(remote.Name, repo.Path) is Error e)
+                    return new Error($"Failed to delete remote branch {remote.Name}", e);
+                RecordDelete(
+                    repo,
+                    new RecordedDelete
+                    {
+                        Name = name,
+                        RemoteName = remote.Name,
+                        RemoteTipId = remote.TipId,
+                        Subject = SubjectOf(remote.TipId),
+                        Time = DateTime.Now,
+                    }
+                );
+            }
+
+            if (local != null)
+            {
+                if (await git.DeleteLocalBranchAsync(local.Name, isForce, repo.Path) is Error e)
+                    return new Error($"Failed to delete local branch {local.Name}", e);
+                RecordDelete(
+                    repo,
+                    new RecordedDelete
+                    {
+                        Name = name,
+                        TipId = local.TipId,
+                        RemoteName = local.RemoteName,
+                        Subject = SubjectOf(local.TipId),
+                        Time = DateTime.Now,
+                    }
+                );
+            }
+        }
+
+        return Result.Ok;
+    }
+
+    // The branches gmd deleted that can be restored, newest first, see DeletedBranchRecords.Restorable.
+    // Read when asked, since whether git still has their commits is a question for git. The records
+    // of the others are forgotten.
+    public async Task<Result<IReadOnlyList<DeletedBranch>>> GetDeletedBranchesAsync(Repo repo)
+    {
+        var records = repoConfig.Get(repo.Path).DeletedBranches.ToList();
+        if (records.Count == 0)
+            return new List<DeletedBranch>();
+
+        var existingResult = await git.GetExistingCommitIdsAsync(DeletedBranchRecords.TipIds(records), repo.Path);
+        if (existingResult is not IReadOnlySet<string> existing)
+            return new Error("Failed to look up the commits of the deleted branches", existingResult.Error);
+
+        var restorable = records
+            .Select(r => (Record: r, Deleted: DeletedBranchRecords.Restorable(r, repo, existing)))
+            .ToList();
+        var gone = restorable.Where(r => r.Deleted == null).Select(r => r.Record).ToList();
+        if (gone.Count > 0)
+        {
+            repoConfig.Set(
+                repo.Path,
+                c => c.DeletedBranches.RemoveAll(r => gone.Any(g => DeletedBranchRecords.IsSame(r, g)))
+            );
+        }
+
+        return restorable.Where(r => r.Deleted != null).Select(r => r.Deleted!).ToList();
+    }
+
+    // Brings a deleted branch back, the sides asked for: the local branch at its tip, tracking the
+    // remote branch it tracked if that is there, and origin's pushed back at its tip, but only while
+    // origin has no branch of the name, so one someone pushed since is not overwritten. Its record is
+    // forgotten with the next read, once a branch of the name is back.
+    public async Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote)
+    {
+        isLocal = isLocal && deleted.IsLocal;
+        isRemote = isRemote && deleted.IsRemote;
+
+        using (fileMonitor.Pause())
+        {
+            if (
+                isLocal
+                && await git.CreateBranchFromCommitAsync(deleted.Name, deleted.TipId, false, repo.Path) is Error e
+            )
+                return new Error($"Failed to create '{deleted.Name}' again", e);
+
+            if (
+                isRemote
+                && await git.PushRestoreAsync(deleted.RemoteName, deleted.RemoteTipId, "", repo.Path) is Error pushError
+            )
+            {
+                return pushError is CmdError cmdError && cmdError.Output.Contains("stale info")
+                    ? new Error($"Origin has a branch '{deleted.RemoteName}' again, so it was left as it is", pushError)
+                    : new Error($"Failed to push '{deleted.RemoteName}' back", pushError);
+            }
+
+            // Git forgot what the local branch tracked when it deleted it. One restored before origin's,
+            // which tracks nothing, tracks it once origin's is back.
+            var isRemoteThere =
+                isRemote
+                || (
+                    repo.BranchByName.TryGetValue(deleted.RemoteName, out var remote)
+                    && remote.IsGitBranch
+                    && remote.IsRemote
+                );
+            var isLocalUntracked =
+                repo.BranchByName.TryGetValue(deleted.Name, out var local)
+                && local.IsGitBranch
+                && !local.IsRemote
+                && local.RemoteName == "";
+            if (
+                (isLocal || (isRemote && isLocalUntracked))
+                && deleted.RemoteName != ""
+                && isRemoteThere
+                && await git.SetUpstreamAsync(deleted.Name, deleted.RemoteName, repo.Path) is Error upstreamError
+            )
+                return new Error(
+                    $"Restored '{deleted.Name}', but failed to track '{deleted.RemoteName}'",
+                    upstreamError
+                );
+        }
+
+        return Result.Ok;
+    }
+
+    // Records a branch gmd deleted, see RepoConfig.DeletedBranches
+    void RecordDelete(Repo repo, RecordedDelete deleted) =>
+        repoConfig.Set(repo.Path, c => DeletedBranchRecords.Add(c.DeletedBranches, deleted));
+
     // Pulls a branch whose remote branch a force push rewrote: its own commits are moved onto the new
     // version, and the old version's commits are left out (Recover Lost Commits finds them), rather
     // than merged in, which would put every commit in twice. The current branch is rebased, and the
