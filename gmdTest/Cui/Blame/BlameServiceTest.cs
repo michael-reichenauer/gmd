@@ -107,12 +107,12 @@ public class BlameServiceTest
 
         Assert.AreEqual(
             """
-            ┌ 111111 Author1     25-01-05 │   1┃one
-            │                             │   2┃two
-            └                             │   3┃three
-            ┌ 222222 Author2     24-01-05 │   4┃four
-            └                             │   5┃five
-            ╺ 333333 Author3     23-01-05 │   6┃six
+            ┌ 111111 Author1     2025-01-05 │   1┃one
+            │                               │   2┃two
+            └                               │   3┃three
+            ┌ 222222 Author2     2024-01-05 │   4┃four
+            └                               │   5┃five
+            ╺ 333333 Author3     2023-01-05 │   6┃six
             """,
             Draw(blame)
         );
@@ -125,8 +125,8 @@ public class BlameServiceTest
 
         Assert.AreEqual(
             """
-            ╺ 111111 Author1     25-01-05 │   1┃one
-            ╺ ©      Uncommitted          │   2┃two
+            ╺ 111111 Author1     2025-01-05 │   1┃one
+            ╺ ©      Uncommitted            │   2┃two
             """,
             Draw(blame)
         );
@@ -139,8 +139,8 @@ public class BlameServiceTest
 
         Assert.AreEqual(
             """
-            ┌ 111111 25-01-05 │   1┃one
-            └                 │   2┃two
+            ┌ 111111 2025-01-05 │   1┃one
+            └                   │   2┃two
             """,
             Draw(blame, BlameDetails.Compact)
         );
@@ -249,7 +249,7 @@ public class BlameServiceTest
 
         // 36 of gutter leaves 34 for the code, so the last column becomes the cut marker
         Assert.AreEqual(
-            "╺ 111111 Author1     25-01-05 │   1┃" + new string('x', 33) + "…",
+            "╺ 111111 Author1     2025-01-05 │   1┃" + new string('x', 31) + "…",
             Draw(blame, BlameDetails.Full, 70)
         );
     }

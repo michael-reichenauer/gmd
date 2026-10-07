@@ -29,12 +29,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ©2                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   ©2 uncommitted changes                                                (● main)                       NN-NN-NN NN:NN
-            ┣  ● Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣   ©2 uncommitted changes                                              (● main)                       NNNN-NN-NN NN:NN
+            ┣  ● Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.MaskTimes(ScreenText.Of(gmd.WaitFor("Initial"), repo.Path), "uncommitted")
         );
@@ -94,12 +94,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add epsilon                                                          (● main) 2d0391 Test User      24-10-15 12:07
-            ┣    Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
+            ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -249,12 +249,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add epsilon                                                          (● main) 2d0391 Test User      24-10-15 12:07
-            ┣    Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
+            ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -301,12 +301,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Add zeta                                                            (● main) 4dd1e9 Test User      24-10-15 12:07
-            ┣╯    Add delta                                                     (^/main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+             ╭┺ ●▲Add zeta                                                          (● main) 4dd1e9 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("Initial"),
             repo.Path
@@ -339,12 +339,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Add zeta amended                                                    (● main) 9df2d6 Test User      24-10-15 12:07
-            ┣╯    Add delta                                                     (^/main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+             ╭┺ ●▲Add zeta amended                                                  (● main) 9df2d6 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -385,12 +385,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣─┺ ● Add zeta                                                         (^)(● main) 4dd1e9 Test User      24-10-15 12:07
-            ┣     Add delta                                                             [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
+            ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(screen, repo.Path, 0, 8)
         );
@@ -509,11 +509,11 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▼2, ▲1                                               (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Commit number 02                                                    (● main) 96a909 Test User      24-10-15 12:04
-            ┣│   ▼Commit number 03                                                    (^/main) c02add Test User      24-10-15 12:03
-            ┣│   ▼Commit number 02                                                             8332dd Test User      24-10-15 12:02
-            ┣╯    Commit number 01                                                             5692a8 Test User      24-10-15 12:01
-            ┗     Commit number 00                                                             a823b7 Test User      24-10-15 12:00
+             ╭┺ ●▲Commit number 02                                                  (● main) 96a909 Test User      2024-10-15 12:04
+            ┣│   ▼Commit number 03                                                  (^/main) c02add Test User      2024-10-15 12:03
+            ┣│   ▼Commit number 02                                                           8332dd Test User      2024-10-15 12:02
+            ┣╯    Commit number 01                                                           5692a8 Test User      2024-10-15 12:01
+            ┗     Commit number 00                                                           a823b7 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("▲"),
             repo.Path
@@ -612,10 +612,10 @@ public class CommitTest
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-              ┣ ● Add gamma                                                            (● dev) b03776 Test User      24-10-15 12:03
-            ┣ ┃   Add gamma                                                             (main) de2e9a Test User      24-10-15 12:02
-            ┃╭┺   Work on dev                                                                  ee3602 Test User      24-10-15 12:01
-            ┗╯    Initial                                                                      9dc406 Test User      24-10-15 12:00
+              ┣ ● Add gamma                                                          (● dev) b03776 Test User      2024-10-15 12:03
+            ┣ ┃   Add gamma                                                           (main) de2e9a Test User      2024-10-15 12:02
+            ┃╭┺   Work on dev                                                                ee3602 Test User      2024-10-15 12:01
+            ┗╯    Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 6)
         );
@@ -668,11 +668,11 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ß1                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣ ß● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣ ß● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitUntilGone("uncommitted"),
             repo.Path

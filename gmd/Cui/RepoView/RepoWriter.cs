@@ -118,7 +118,7 @@ class RepoWriter : IRepoWriter
         // Normal columns when content width is wide enough
         int commitWidth = width - (graphWidth + markersWidth);
         int authorWidth = 15;
-        int timeWidth = 15;
+        int timeWidth = 17; // ' yyyy-MM-dd HH:mm', the year in full, since '26-03-10' reads as 26 March
         int sidWidth = IShowSid ? 7 : 0;
 
         if (commitWidth < 70)
@@ -131,12 +131,12 @@ class RepoWriter : IRepoWriter
         { // Reducing sid, author and and time if narrow view
             sidWidth = 0;
             authorWidth = 10;
-            timeWidth = 9;
+            timeWidth = 11; // ' yyyy-MM-dd', the date alone
         }
         else if (commitWidth < 110)
         { // Reducing  author and and time if narrow view
             authorWidth = 10;
-            timeWidth = 9;
+            timeWidth = 11;
         }
 
         int subjectWidth = commitWidth - sidWidth - authorWidth - timeWidth;
@@ -352,7 +352,7 @@ class RepoWriter : IRepoWriter
 
     static void WriteTime(TextBuilder text, Columns cw, Commit c)
     {
-        var txt = Txt(" " + c.AuthorTime.ToString("yy-MM-dd HH:mm"), cw.Time);
+        var txt = Txt(" " + c.AuthorTime.ToString("yyyy-MM-dd HH:mm"), cw.Time);
         text.Dark(txt);
     }
 

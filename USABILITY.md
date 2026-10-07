@@ -250,7 +250,9 @@ Both are reworked, see proposal D.1.
 **C. Polish:**
 
 1. The year in the dates. `26-03-10` (`RepoWriter.cs:355`) reads as 26 March in much of the world;
-   `2026-03-10`, or a relative time for the recent ones, does not.
+   `2026-03-10`, or a relative time for the recent ones, does not. *Done (2026-10-07):* the year in
+   full in the log, the blame gutter, Recover Lost Commits and Restore Deleted Branch; the subject
+   column gives up the two columns, and a narrow log still shows the date alone.
 2. A help that is easier to get around: wider on a wide terminal, a contents to jump from, and
    opening at the part about the view it was opened from.
 3. A key-hint line in the diff and blame views too.
@@ -294,7 +296,7 @@ Quick wins:
 
 - [x] 6. **Copy the commit id and message** (B.2): in the commit menu, with a key. S
 - [x] 7. **Add Tag asks before it pushes** (part 2), as every other push does. S
-- [ ] 8. **The year in the dates** (C.1): `2026-03-10`, in the log, blame and the lists. M (every
+- [x] 8. **The year in the dates** (C.1): `2026-03-10`, in the log, blame and the lists. M (every
   snapshot with a date changes)
 - [ ] 9. **The resolver names the sides** (C.4): "press 1 (HEAD), 2 (dev), 3, 4 or 0". S
 

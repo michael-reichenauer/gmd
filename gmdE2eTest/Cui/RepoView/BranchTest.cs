@@ -30,11 +30,11 @@ public class BranchTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
 
 
 
@@ -67,11 +67,11 @@ public class BranchTest
             """
              Gmd {repo}, ●feature                                                    (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣─┺ ● Add delta                                            (main)(● feature)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            ┣─┺ ● Add delta                                          (main)(● feature)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("(● feature)"),
             repo.Path
@@ -171,13 +171,13 @@ public class BranchTest
             """
              Gmd {repo}, ●main                                                       (dev2) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   ● Add delta                                                     (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣│    Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┃╰╊   More dev work                                                         (dev2) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            ┣   ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣│    Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┃╰╊   More dev work                                                       (dev2) af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺   Work on dev                                                                d997ad Test User      2024-10-15 12:02
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("(dev2)"),
             repo.Path
@@ -287,11 +287,11 @@ public class BranchTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                (● main)[v1.0][v2.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add delta                                              (● main)[v1.0][v2.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("[v2.0]"),
             repo.Path
@@ -376,13 +376,13 @@ public class BranchTest
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣     Add delta                                                       (main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣│    Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┃╰╊ ● More dev work                                                        (● dev) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            ┣     Add delta                                                     (main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣│    Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┃╰╊ ● More dev work                                                      (● dev) af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺   Work on dev                                                                d997ad Test User      2024-10-15 12:02
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(gmd.WaitFor("(● dev)"), repo.Path, 0, 9)
         );
@@ -438,7 +438,7 @@ public class BranchTest
         var screen = gmd.WaitFor("Commit 2 changes");
         Assert.AreEqual(
             """
-             ╭╊  ©Merge branch 'main' into dev, 2 uncommitted changes                  (● dev)                       NN-NN-NN NN:NN
+             ╭╊  ©Merge branch 'main' into dev, 2 uncommitted changes                (● dev)                       NNNN-NN-NN NN:NN
             """,
             ScreenText.MaskTimes(ScreenText.Rows(screen, repo.Path, 2, 1), "uncommitted")
         );
@@ -451,14 +451,14 @@ public class BranchTest
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭╊ ● Merge branch 'main' into dev                                         (● dev) 60e4d8 Test User      24-10-15 12:07
-            ┣╯┃   Add delta                                                       (main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮┃   Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣│┃   Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┃╰╊   More dev work                                                                af3ee6 Test User      24-10-15 12:03
-            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+             ╭╊ ● Merge branch 'main' into dev                                       (● dev) 60e4d8 Test User      2024-10-15 12:07
+            ┣╯┃   Add delta                                                     (main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮┃   Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣│┃   Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┃╰╊   More dev work                                                              af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺   Work on dev                                                                d997ad Test User      2024-10-15 12:02
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 10)
         );
@@ -496,9 +496,9 @@ public class BranchTest
         // Only the shown branches are offered, so the menu lists dev and nothing else
         Assert.AreEqual(
             """
-            ┣│ ╭ Merge into main ─╮                                                            4a15fb Test User      24-10-15 12:04
-            ┃╰╊│ o  dev           │                                                      (dev) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺╰──────────────────╯                                                            d997ad Test User      24-10-15 12:02
+            ┣│ ╭ Merge into main ─╮                                                          4a15fb Test User      2024-10-15 12:04
+            ┃╰╊│ o  dev           │                                                    (dev) af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺╰──────────────────╯                                                          d997ad Test User      2024-10-15 12:02
             """,
             ScreenText.Rows(gmd.WaitFor("Merge into main"), repo.Path, 4, 3)
         );
@@ -536,7 +536,7 @@ public class BranchTest
         var screen = gmd.WaitFor("Commit 2 changes");
         Assert.AreEqual(
             """
-             ╭╊  ©Merge branch 'main' into dev, 2 uncommitted changes                  (● dev)                       NN-NN-NN NN:NN
+             ╭╊  ©Merge branch 'main' into dev, 2 uncommitted changes                (● dev)                       NNNN-NN-NN NN:NN
             """,
             ScreenText.MaskTimes(ScreenText.Rows(screen, repo.Path, 2, 1), "uncommitted")
         );
@@ -549,14 +549,14 @@ public class BranchTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭╊   Merge branch 'main' into dev                                           (dev) 60e4d8 Test User      24-10-15 12:07
-            ┣╯┃ ● Add delta                                                     (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮┃   Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣│┃   Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┃╰╊   More dev work                                                                af3ee6 Test User      24-10-15 12:03
-            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+             ╭╊   Merge branch 'main' into dev                                         (dev) 60e4d8 Test User      2024-10-15 12:07
+            ┣╯┃ ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮┃   Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣│┃   Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┃╰╊   More dev work                                                              af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺   Work on dev                                                                d997ad Test User      2024-10-15 12:02
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitUntilGone("uncommitted changes"),
             repo.Path
@@ -621,9 +621,9 @@ public class BranchTest
         // Only the shown branches are offered, so the menu lists dev and nothing else
         Assert.AreEqual(
             """
-            ┣│ ╭ Merge main into ─╮                                                            4a15fb Test User      24-10-15 12:04
-            ┃╰╊│ o  dev           │                                                      (dev) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺╰──────────────────╯                                                            d997ad Test User      24-10-15 12:02
+            ┣│ ╭ Merge main into ─╮                                                          4a15fb Test User      2024-10-15 12:04
+            ┃╰╊│ o  dev           │                                                    (dev) af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺╰──────────────────╯                                                          d997ad Test User      2024-10-15 12:02
             """,
             ScreenText.Rows(gmd.WaitFor("Merge main into"), repo.Path, 4, 3)
         );

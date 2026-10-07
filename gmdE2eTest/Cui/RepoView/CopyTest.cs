@@ -55,7 +55,7 @@ public class CopyTest
         gmd.Send("C-c");
 
         Assert.AreEqual(
-            "┣  | Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06",
+            "┣  | Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06",
             gmd.WaitForClipboard()
         );
     }
