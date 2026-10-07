@@ -668,9 +668,9 @@ public class LogViewTest
             ┣╯   Add beta       ╭ Help ────────────────────────────────────────────────────────────────────────╮     24-10-15 12:01
             ┗    Initial        │# Gmd Help Guide                                                             ┃│     24-10-15 12:00
                                 │                                                                             ┃│
-                                │## Keyboard Shortcuts                                                        ┃│
-                                │                                                                              │
-                                │The most used keys of the log view. The menus show the key of every command   │
+                                │What is on the screen comes first, then the everyday tasks, then the         ┃│
+                                │reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel, and       │
+                                │close with Esc.                                                               │
             """,
             ScreenText.Rows(screen, repo.Path, 5, 6)
         );

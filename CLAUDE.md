@@ -724,4 +724,5 @@ message.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
   once `./test` passes, so that the git log and its diffs are the review. Push only when asked.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (embedded into the
-  binary as a resource) needs updating too.
+  binary as a resource) needs updating too, and the known limits under *Is Gmd for You?* in the
+  README when one of them is lifted. The development half of the old README is `CONTRIBUTING.md`.

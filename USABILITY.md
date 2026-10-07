@@ -1,12 +1,17 @@
 # Usability review
 
-A review of gmd's user experience made on 2026-09-24, with ranked proposals. gmd grew one feature at
-a time for its author's own use, so this looks at it as someone new would. It covers every key
-binding, menu, dialog and message; the screens as the end-to-end snapshots draw them; and the
-everyday workflows, compared with lazygit, tig and gitui.
+Two reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
+its author's own use, so both look at it as someone new would.
 
-The findings are sorted under five usability principles. Each is a question to ask of any new
-feature:
+- **The product review (2026-10-07)**, first below, steps back from the keys: whether choosing which
+  branches are shown is a sound idea, who besides its author can use gmd, which features are missing
+  or not needed, and whether the README and the help explain it.
+- **The usability review (2026-09-24)**, from *What already works well* on, covers every key binding,
+  menu, dialog and message; the screens as the end-to-end snapshots draw them; and the everyday
+  workflows, compared with lazygit, tig and gitui.
+
+The usability review's findings are sorted under five usability principles. Each is a question to
+ask of any new feature:
 
 - **Safety**: can a slip of the finger cost work, or change the remote? Mistakes will happen, so the
   costly ones need a guard and the cheap ones a way back.
@@ -15,9 +20,232 @@ feature:
 - **Feedback**: after every key, does the user know what happened, or why nothing did?
 - **Workflow fit**: are the everyday tasks short, compared with the tools people already know?
 
-File references are as of the review. Close items here, or move them to `MODERNIZATION.md`, as
-they land. The safety findings (section 1, and Tier 1 of the proposals) are fixed; the rest is
-open.
+File references are as of each review. Close items here, or move them to `MODERNIZATION.md`, as
+they land. The usability review's safety findings (section 1, and Tier 1 of its proposals) are
+fixed, and most of Tiers 2 to 4; the product review's proposals are open.
+
+---
+
+## Product review (2026-10-07)
+
+Most of the usability review's proposals are done, so this one asks the questions above them. It was
+made from the code, the end-to-end snapshots, the README and the help, and one experiment (the
+prompts, in part 2). It has three audiences in mind, the ones gmd is pitched to: people who use git
+in the terminal (lazygit, tig, gitui), teams whose branches are merged with merge commits, and
+developers who run AI coding agents in branches and worktrees of their own.
+
+### 1. The idea: choosing which branches are shown
+
+- **It is sound, and less odd than it first looks.** Git records no branch per commit, so most
+  clients draw the history by its shape: a line per chain of commits, columns reused as lines end,
+  and colors that say nothing of the branch. gmd answers the question people actually ask of a
+  commit, which branch it was made on, the way Mercurial's named branches, Plastic SCM and TFS have
+  it. Each branch keeps one column and one color, main runs down the left, and a branch that was
+  merged and deleted keeps its column, recovered from the merge message.
+- **Others have parts of it, none all of it.** GitKraken and GitLens can hide or solo a branch, and
+  Sourcetree and Fork can show the current branch only. None keeps a branch to its column and color,
+  brings back the deleted ones, or starts from showing less.
+- **"A squash merge that you can take back"** (the README) is the pitch: the log is as clean as a
+  squashed history, and nothing was rewritten to get it.
+- **Where it is strongest:** merge-commit workflows (git-flow, pull requests merged with a merge
+  commit, long-lived release branches), and many branches at once, the branches AI agents make among
+  them, where ✦ says which hidden ones have news without showing them all. gmd's own merges are
+  `--no-ff` (`BranchService.cs:132`), which is what keeps a branch's identity in the history.
+- **Where it has little to do:** a repository whose pull requests are squash merged or rebase
+  merged, as many on GitHub are. Main is a straight line, the branches leave no trace once deleted,
+  and there is nothing to hide; gmd is then a terminal client like the others. The README should
+  say so, rather than let someone find out.
+- **The risk is the first five minutes, not the idea:**
+  - The first screen of a repository shows main and the current branch
+    (`ViewRepoCreater.cs:415-423`). Every other branch is a dark `╮` or `╯` beside a commit of main,
+    and nothing says how many are hidden. Someone new may take their branches for missing.
+  - The branch gmd works out for a commit is drawn as a fact. Only an ambiguous one says otherwise,
+    with `(~ambiguous)` at its tip, and a wrong guess drawn as a fact costs more trust than a gap.
+  - One menu has three names: *Open Branch (type to find)* when `Shift-→` opens it
+    (`BranchMenu.cs:52`), *Show Branch* as a submenu and in the help (`:698`), and *Show/Hide
+    Branch* when Enter opens the branches at a commit (`:62`). Its key is written three ways: `⇧→`
+    in the hint line, `Shift →` in the menus, `Shift-→` in the help.
+  - The merge items change words with the menu they are in. In the menu of `dev`, `e` is *Merge to
+    main* and `Shift-E` *Merge from main*; in the menu of the current branch the same keys are
+    *Merge from* and *Merge to*, each a list. The keys always do the same (`e` merges into the
+    current branch), but the words make the reader work it out each time.
+
+### 2. Features a new user expects that are missing
+
+Ranked by how soon someone new meets the gap.
+
+1. **Choosing what to commit.** A commit is always `git add .` and then `git commit -a`
+   (`CommitService.cs:41-47`), new files included. Every other client lets you pick the files, and
+   lazygit users expect hunks. The file checklist in the commit dialog (Tier 4, item 1 of the
+   usability review) is the right size for gmd, and it is also the guard against committing a stray
+   `.env` or a debug log.
+2. **Passwords, passphrases and host keys.** gmd runs git on its own terminal, with no
+   `GIT_TERMINAL_PROMPT`, no askpass and no timeout (`Cmd.cs:209-243`), and fetches in the background
+   every five minutes. Tried with a stand-in for ssh that asks on `/dev/tty` as ssh does (a
+   `core.sshCommand` script, so no network):
+   - The fetch right after opening wrote its prompt over the bottom row, and the screen scrolled up
+     a row, so the top bar was gone, and stayed gone.
+   - The keys typed for gmd went to the prompt: `?` and `q` arrived as the passphrase `?q`, and gmd
+     did nothing, not even quit.
+   - Enter did not end the prompt: the terminal is raw, so Enter sends `\r`, and a prompt that reads
+     a line waits for `\n`. Only Ctrl-J did, and then the status line said *Fetch failed: Could not
+     read from remote repository*.
+   - `p` showed *Pushing 'main'...* and the prompt again, and waited until that Ctrl-J.
+
+   OpenSSH's own passphrase and host-key prompts stop at `\r` too, so with the real ssh Enter would
+   end them, but they still take the keys meant for gmd and draw over it. Git's username and
+   password prompt for https reads a line, as the stand-in did. A machine already set up with an ssh
+   agent or a credential helper never meets any of this; a new user's first push may.
+3. **Light terminals.** Every color is on a forced black background (`Color.cs:47`), so a light
+   terminal theme, the default of macOS Terminal in light mode, shows gmd as a black box. `NO_COLOR`
+   is not read, and red and green are both branch colors. All three wait for the Terminal.Gui 2.x
+   port (`MODERNIZATION.md`).
+4. **Copying a commit id or message from the log.** `CopyCommitId` and `CopyCommitMessage` exist,
+   and nothing calls them (`RepoCommands.cs:447-458`). It is one of the commonest things done in a
+   log.
+5. **Reword, fix up or drop a commit not yet pushed.** Squash is the only rewrite there is. Kept to
+   commits not yet pushed, these stay true to leaving the shared history alone.
+6. **A second remote.** `origin` is written into the fetch, the push and the name matching
+   (`RemoteService.cs:33`), so a fork cannot follow its `upstream`.
+7. **Smaller gaps:** a stash apply that keeps the stash; a list of the tags, and pushing them; the
+   history of a range of lines (`git log -L`) and a search of the changes themselves (`-S`); a diff
+   of any two commits; a merge tool that runs in the terminal, such as vimdiff, whose screen is
+   captured rather than shown.
+
+Not needed by the audiences above: submodule and LFS commands, bisect, patches, and pull requests
+through the services' APIs.
+
+One surprise to decide on: **Add Tag pushes the tag** whenever the commit's branch has a remote
+(`AugmentedService.cs:825-851`), where every other push is asked for.
+
+### 3. Features that could go, or move
+
+Little is unused. What costs is the length and depth of the menus, which every new user reads:
+
+- The branch menu has 21 items, up to 25, and the commit menu 17, six of them submenus
+  (`BranchMenu.cs:165-343`, `CommitMenu.cs:38-117`).
+- *Pull All Branches* and *Push All Branches* are in four places: the repo menu, the branch menu,
+  *Branches* in the commit menu, and the ▲ and ▼ menus.
+- The whole repo menu is nested at the bottom of both the branch menu and the commit menu.
+- *Branches* in the commit menu repeats the menu of every shown branch, so *Diff Branch to* is four
+  levels down.
+- *Rebase* is a submenu holding one item, *Squash ...*.
+
+Candidates to take out or move:
+
+- The duplicates above: Pull All and Push All out of the branch menu, *Squash ...* straight into the
+  commit menu, and *Branches* cut down to showing and hiding.
+- `g` for the branch color and `<=` / `=>` for the branch order, to the menu only. Orders that
+  contradict each other can hang `Sorter.Sort` (`MODERNIZATION.md`).
+- *Clean Working Folder* (`RepoMenu.cs:89`), which is `git clean -fxd` and so deletes the ignored
+  files as well, `.env` and `node_modules` among them, at the top level of the repo menu beside the
+  everyday items. It asks first, but it is rarely what anyone wants; *Discard All Changes* is.
+- The `5` key, *Set Commit Branch Manually* (`RepoViewInput.cs:121`): undocumented, and as easy to
+  hit as `0`, which was taken out of release builds for that.
+- The `*` and `$` search words, for the ambiguous and the manually set branches. *Ambiguous* in Show
+  Branch covers the first.
+
+Worth keeping, although few will use them: the shared branch structure (the team's version of the
+idea), the items that only appear when they apply (*Restore origin/...*, *Discard Changes in Binary
+Files*), spell checking, and the worktrees dialog.
+
+### 4. The README and the help
+
+**`README.md`** is accurate, but:
+
+- It lists the features before it shows how to read the graph, which is the one thing that is new.
+- It says nothing of the limits: one remote, a commit takes every change, a dark terminal is
+  needed, and at most 30,000 commits are read (`AugmentedService.cs:15`).
+- Half of it is for developers.
+- It does not say what gmd stores and sends, or how to report a problem.
+- The animation runs 46 seconds, with nothing saying which key is pressed.
+
+**`gmd/doc/help.md`**:
+
+- It is 494 lines in a fixed 80×30 box (`HelpDlg.cs`) with no contents, search or jump: about 18
+  screens, always read from the top.
+- It starts with the keys before it explains what is on the screen, and the top bar is explained
+  nowhere in one place.
+- Errors: `╂┸` for a synced local and remote branch, which is drawn `┣─┺`; the menu names above;
+  *Merge to* for `Shift-E`, which the menu of another branch calls *Merge from*; a "(see below)"
+  that points above; and "Undo" for `u` in the diff, which is *Discard Changes*.
+- Keys left out: Ctrl-D in the log; Space, PgUp, PgDn, Home and End; and right-click in the diff,
+  blame and resolver.
+- A force push on origin takes more of the branch section than anything else, for the rarest case.
+
+Both are reworked, see proposal D.1.
+
+### 5. Other questions worth asking
+
+- **How often is the inference wrong?** `InferenceDumpTest` dumps what it decided for every commit,
+  and how often the reflog agrees. Run over a few public repositories of each workflow, the numbers
+  would say how far to trust the colors, and the README could give them.
+- **Does gmd work in the terminals people have?** Light themes (above), Windows Terminal, fonts
+  with no `✦`, `Ϙ` or `ß`, and 80 columns (the worktrees dialog needs about that).
+- **Can people install it the way they install everything else?** There is the install script and
+  the Windows installer, but no Homebrew, Scoop, winget or AUR package, and no build for Intel Macs.
+- **What happens when gmd crashes?** It logs the exception and exits without a word
+  (`ExceptionHandling.cs:60-110`, where the dialog for it is commented out). The About box has no
+  link to the project, and nothing says how to report a problem or where the log is.
+- **What does gmd write, and what does it send?** `.gmdconfig` in each repository's git folder;
+  `refs/gmd-metadata-key-value/data` in every repository with a reflog, pushed only when the shared
+  branch structure is on; `~/.gmdconfig` and `~/gmd.log`; a request to GitHub's releases API every
+  hour unless that is turned off; and the tags of Add Tag, above. There is no telemetry. People ask
+  this before they run a tool on their work, and the README should answer it.
+- **Can others contribute?** Building needs a preview .NET 11 SDK, for the C# 15 unions, until .NET
+  11 is released (`UPGRADING.md`).
+- **Can it be found?** "gmd" is hard to search for. A tagline, the repository's GitHub topics and the
+  lists of terminal tools are how people come across a tool like this.
+
+### Proposals, ranked
+
+**A. First impression**, which decides whether someone new stays:
+
+1. **No git prompt on gmd's screen.** At the least, run git with `GIT_TERMINAL_PROMPT=0` and with no
+   terminal for ssh to open, and when a fetch or a push fails for want of a password or a
+   passphrase, say what to do: `ssh-add`, or a credential helper. Better, ask for it: gmd as
+   `GIT_ASKPASS` and `SSH_ASKPASS` (with `SSH_ASKPASS_REQUIRE=force`), answering with a dialog.
+2. **Say what is hidden.** On the first open of a repository, once, on the status line: "Showing
+   main and dev. 29 more branches are hidden: ⇧→ shows one, or Enter on ┣╮." Perhaps the count in
+   the top bar for good.
+3. **Say something when gmd crashes:** once the screen is given back, a line with the path of the
+   log and where to report it; and the project's link in About.
+4. **One name for one menu** (Show Branch), one way of writing its key, and merge items that name
+   both branches: *Merge dev into main*, *Merge main into dev*.
+
+**B. Expected features:**
+
+1. The file checklist in the commit dialog (Tier 4, item 1, below).
+2. Copy Commit Id and Copy Commit Message in the commit menu, with a key.
+3. Reword, fix up and drop, for the commits not yet pushed.
+4. Light themes, `NO_COLOR`, and branch colors that do not lean on red against green, with the
+   Terminal.Gui 2.x port.
+5. A second remote, read only at first: fetch `upstream` and show its branches.
+
+**C. Polish:**
+
+1. The year in the dates. `26-03-10` (`RepoWriter.cs:355`) reads as 26 March in much of the world;
+   `2026-03-10`, or a relative time for the recent ones, does not.
+2. A help that is easier to get around: wider on a wide terminal, a contents to jump from, and
+   opening at the part about the view it was opened from.
+3. A key-hint line in the diff and blame views too.
+4. The resolver's status line naming the sides: "press 1 (HEAD), 2 (dev), 3, 4 or 0".
+5. The menu trims of part 3.
+
+**D. Reach:**
+
+1. The README and the help reworked: what is on the screen first, then the everyday tasks, then
+   the reference; who gmd is for and its limits; what it stores and sends. *Done (2026-10-07):*
+   the help starts with its contents and a tour of the screen (the graph with and without a hidden
+   branch, the highlighted branch, the top bar item by item), then Everyday Tasks, then the
+   reference, with the errors of part 4 fixed. The README sets `git log --graph` of the demo
+   repository beside gmd's first screen of it, and adds Reading the Graph, Is Gmd for You? with
+   the known limits, Gmd and AI Coding Agents, the first five minutes, and What Gmd Stores and
+   Sends; its development half is `CONTRIBUTING.md` now.
+2. Homebrew, Scoop or winget, and AUR packages, and a build for Intel Macs.
+3. Issue templates, linked from About and the README.
+4. Captions in the animation, saying which key is pressed.
+5. The inference's agreement with the reflog, measured on public repositories and published.
 
 ---
 

@@ -275,7 +275,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Product**
 
 - `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
-  small bugs found along the way.
+  small bugs found along the way; and the product review's (2026-10-07), A to D.
+- A git command that asks for a password, a passphrase or a host key asks on gmd's own terminal.
+  `Cmd` starts git with no `GIT_TERMINAL_PROMPT`, no askpass and no timeout, and git and ssh open
+  `/dev/tty` themselves. Tried with a `core.sshCommand` stand-in that asks as ssh does: the fetch
+  after opening wrote its prompt over the bottom row and scrolled the screen a row, the keys typed
+  for gmd went to the prompt (`?` and `q` became the passphrase), and Enter, a `\r` in the raw
+  terminal, did not end a prompt that reads a line; a push waited behind it for as long as that
+  took. See the product review in `USABILITY.md` (part 2, item 2, and proposal A.1).
+- An unhandled exception is logged and gmd exits without a word on the screen
+  (`ExceptionHandling.Shutdown`, whose call to `ShowExceptionDialog` is commented out). A line on
+  stderr once the terminal is given back, naming `~/gmd.log` and where to report it, is the least.
 - F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
 - *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
