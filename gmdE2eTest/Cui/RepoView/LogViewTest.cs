@@ -623,7 +623,7 @@ public class LogViewTest
                      │Branches                              >││●   main                    >│
                      │Repo Menu                     Shift-M >││    dev                     >│
                      ╰───────────────────────────────────────╯│─────────────────────────────│
-                                                              │Show Branch         Shift → >│
+                                                              │Show Branch         Shift-→ >│
                                                               │Hide All Branches            │
                                                               │Undo Show 'dev'   Backspace  │
                                                               │Pull All Branches   Shift-U  │
@@ -649,7 +649,7 @@ public class LogViewTest
                     │Merge from main                Shift-E  ││●   main                    >│
                     │Rebase and Push onto                   >││    dev                     >│
                     │Hide Branch                          h  ││─────────────────────────────│
-                    │Pull                                 u  ││Show Branch         Shift → >│
+                    │Pull                                 u  ││Show Branch         Shift-→ >│
                     │Push                                 p  ││Hide All Branches            │
                     │Create Branch ...                    b  ││Undo Show 'dev'   Backspace  │
                     │Create Worktree ...                     ││Pull All Branches   Shift-U  │

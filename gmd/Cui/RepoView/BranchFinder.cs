@@ -10,7 +10,7 @@ namespace gmd.Cui.RepoView;
 // merge messages; and then the most recent first. With nothing typed, that is every branch, most
 // recent first.
 //
-// The same branches as the Open Branch menu's 'Active and Deleted', i.e. one per local and remote
+// The same branches as the Show Branch menu's 'Active and Deleted', i.e. one per local and remote
 // pair. Plain and with no view, so it is tested without a terminal.
 static class BranchFinder
 {

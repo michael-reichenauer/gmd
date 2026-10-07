@@ -38,7 +38,7 @@ public class MenuItemsTest
             Open in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
@@ -72,7 +72,7 @@ public class MenuItemsTest
             Open in Browser
             Create Pull Request in Browser  (disabled)
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
@@ -107,7 +107,7 @@ public class MenuItemsTest
             Open in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
@@ -176,7 +176,7 @@ public class MenuItemsTest
             ●   main >
                 dev >
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
             Pull All Branches  [Shift-U]
@@ -244,7 +244,7 @@ public class MenuItemsTest
                 alpha >
                 feature >
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
             Pull All Branches  [Shift-U]

@@ -33,7 +33,7 @@ public class MenuShortcutsTest
     public void TestWhatIsNotAKeyOfTheMenuGivesNone()
     {
         CollectionAssert.AreEqual(new[] { Key.q }, Keys("Q, Esc"), "Esc closes the menu");
-        foreach (var shortcut in new[] { "", "Enter", "Esc", "Esc ", "←", "→", "Shift →", "'M R'", "(no suggestions)" })
+        foreach (var shortcut in new[] { "", "Enter", "Esc", "Esc ", "←", "→", "Shift-→", "'M R'", "(no suggestions)" })
             Assert.AreEqual(0, Keys(shortcut).Length, $"'{shortcut}' should give no key");
     }
 

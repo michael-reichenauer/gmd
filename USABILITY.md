@@ -224,7 +224,12 @@ Both are reworked, see proposal D.1.
    terminal is given back (`Program.CrashMessage`), with exit code 1; About lists the project, the
    issues and the log.
 4. **One name for one menu** (Show Branch), one way of writing its key, and merge items that name
-   both branches: *Merge dev into main*, *Merge main into dev*.
+   both branches: *Merge dev into main*, *Merge main into dev*. *The menu is done (2026-10-07):*
+   `Shift-→` opens *Show Branch (type to find)*, the submenu of the branch menus is *Show Branch*,
+   and menus, reasons and help write the key `Shift-→`. The key-hint line keeps `⇧→`, as it writes
+   every shifted key (`⇧p`, `⇧e`). *Show/Hide Branch*, what Enter or a click on a ╮ or ╯ opens when
+   several branches meet there, keeps its name: it is a list of its own, of the branches at that
+   commit to show and those to hide.
 
 **B. Expected features:**
 
@@ -274,7 +279,7 @@ First impression:
   back, and the project's link in About. S
 - [x] 3. **Say what is hidden** (A.2): once per repository, on the status line, how many branches
   are hidden and how to show one. S
-- [ ] 4. **One name for the Show Branch menu** (A.4): the same title everywhere, and `Shift-→`
+- [x] 4. **One name for the Show Branch menu** (A.4): the same title everywhere, and `Shift-→`
   written one way. S
 - [ ] 5. **Merge items that name both branches** (A.4): *Merge dev into main*. S
 

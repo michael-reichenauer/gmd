@@ -49,7 +49,7 @@ class BranchMenu : IBranchMenu
     // a long list of branches is otherwise walked one key at a time
     public void ShowOpenBranchMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Open Branch (type to find)", x, y + 2, GetShowBranchItems(), onTypeText: FindBranch);
+        Menu.Show("Show Branch (type to find)", x, y + 2, GetShowBranchItems(), onTypeText: FindBranch);
     }
 
     public void ShowDiffBranchToMenu(int x, int y, string branchName)
@@ -292,7 +292,7 @@ class BranchMenu : IBranchMenu
                 "Diff Branch to",
                 "d",
                 GetBranchDiffItems(branchName),
-                whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see Shift →"
+                whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see Shift-→"
             )
             .Item(
                 "Change Branch Color",
@@ -376,7 +376,7 @@ class BranchMenu : IBranchMenu
 
     // Why the merge sub menus of the current branch are empty: they list the shown branches, and
     // only while there are no changes
-    string WhyNoMerge() => !repo.Repo.Status.IsOk ? Why.Changes : "No other branch is shown to merge with, see Shift →";
+    string WhyNoMerge() => !repo.Repo.Status.IsOk ? Why.Changes : "No other branch is shown to merge with, see Shift-→";
 
     IEnumerable<MenuItem> GetMergeFromItems() =>
         GetMergeBranches().Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
@@ -695,7 +695,7 @@ class BranchMenu : IBranchMenu
     void FindBranch(string text) => cmds.FindBranch(text);
 
     // The same menu as ShowOpenBranchMenu, as a sub menu, where typing finds a branch as well
-    SubMenu ShowBranchSubMenu() => new("Show Branch", "Shift →", GetShowBranchItems()) { OnTypeText = FindBranch };
+    SubMenu ShowBranchSubMenu() => new("Show Branch", "Shift-→", GetShowBranchItems()) { OnTypeText = FindBranch };
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(
         IEnumerable<Branch> branches,

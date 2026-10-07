@@ -116,11 +116,10 @@ it becomes current: switched to in gmd, checked out in a terminal or by
 another tool, or the one gmd or a worktree opens on. Hidden again, it stays
 hidden until it next becomes current.
 
-- `Shift-→` opens the menu of branches to show, titled **Open Branch (type
-  to find)**: first the hidden branches that merge in or branch out at the
-  cursor's commit, then New (see ✦ below), Recent, Active, My Active (where
-  the last commit is yours), Active and Deleted, and Ambiguous. In the
-  branch menus the same list is the **Show Branch** submenu.
+- `Shift-→` opens **Show Branch**: first the hidden branches that merge in
+  or branch out at the cursor's commit, then New (see ✦ below), Recent,
+  Active, My Active (where the last commit is yours), Active and Deleted,
+  and Ambiguous. The branch menus have the same list, as a submenu.
 - Typing in that menu, or in its sub menus, opens **Find Branch** with what
   was typed. The list narrows as more of the name is typed, every word has
   to be in it, and the names it starts a part of come first. `Enter` or a
@@ -137,7 +136,7 @@ hidden until it next becomes current.
 - ✦ in the top bar counts the hidden branches with something new since you
   last saw them: commits pushed to them, or the branch itself, pushed by
   someone else or made here by another tool, e.g. in a worktree of its own.
-  A click lists those branches, and **New** at the top of the Open Branch
+  A click lists those branches, and **New** at the top of the Show Branch
   menu does too. Listed is seen: the ✦ goes, and the branches stay hidden
   unless you pick one to show it.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
@@ -183,7 +182,7 @@ written as they are typed: `c` is the c key, and `Shift-P` is P.
 | m          | Menu of the highlighted branch, or of the commit           |
 | Shift-M    | The repo menu, e.g. to continue or abort a rebase          |
 | ← →        | Highlight the branch to the left or right, or the commit   |
-| Shift-→    | Open Branch menu, to show a branch: type to find one       |
+| Shift-→    | Show Branch menu: type part of a name to find a branch     |
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
 | c          | Commit the uncommitted changes                             |
@@ -616,7 +615,7 @@ keep a column of its own:
 When it cannot decide, the branch is drawn white and its tip is labeled
 `(~ambiguous)`. **Set Commit Branch Manually ...** in the branch menu sets
 the right branch for a commit, which is then marked `Φ`. **Ambiguous** in
-the Open Branch menu lists the ambiguous branches, and a search for `*`
+the Show Branch menu lists the ambiguous branches, and a search for `*`
 finds their tips, and for `$` the commits whose branch was set manually.
 
 The branches set by hand can be shared: **Config ...** in the repo menu
