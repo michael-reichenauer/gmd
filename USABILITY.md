@@ -284,6 +284,11 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    one exception is the current branch, shown once it becomes current (`CurrentBranchShown`). And
    listed is seen, so *Mark All as Seen* is gone: a count that stayed until each branch was shown
    or marked would never go in a busy repository, and what the user wanted was to know.
+   ╯ was considered instead of ✦ (2026-10-07) and turned down: in the graph and the branch menus
+   it means a hidden branch branching out at a commit, a fact of the history that a log shows many
+   of, so `╯3` would read as three hidden branches rather than as something new to look at, and in
+   Show Branch it would mean both, a few lines apart. Alone in the top bar a box-drawing glyph also
+   looks like a broken frame corner, where ✦ is as solid as the markers beside it.
 6. **Merge or rebase on pull,** asked once and remembered. *Done (2026-09-25):* with git's default
    config, pulling a diverged branch failed outright ("Need to specify how to reconcile divergent
    branches", under a dozen lines of hints). gmd now asks, Merge or Rebase, when git has no
