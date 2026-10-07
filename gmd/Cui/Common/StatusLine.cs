@@ -8,7 +8,8 @@ enum StatusKind
     Progress, // What a command is doing while it runs, e.g. "Pushing 'main'..."
 }
 
-record StatusMessage(string Text, StatusKind Kind, DateTime ShownAt);
+// Shown for its Duration, or for StatusLine.Duration when it has none, which is most of them
+record StatusMessage(string Text, StatusKind Kind, DateTime ShownAt, TimeSpan? Duration = null);
 
 // The one line message at the bottom of the log view, shown for a few seconds in place of the key
 // hints: what a command did, or why a key did nothing. It replaces both the silence of a key that
@@ -30,6 +31,10 @@ interface IStatusLine
     void Notice(string text);
     void Failure(string text);
 
+    // Something worth knowing for someone new, e.g. that branches are hidden, shown for longer than
+    // the rest, since it is read rather than glanced at
+    void Tip(string text);
+
     // Shown until disposed rather than for a few seconds, with "..." added, and gone then unless
     // another message has taken its place, which is what the command did, shown for its seconds
     Disposable Progress(string text);
@@ -39,6 +44,7 @@ interface IStatusLine
 class StatusLine : IStatusLine
 {
     internal static readonly TimeSpan Duration = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan TipDuration = TimeSpan.FromSeconds(15);
 
     StatusMessage? message;
 
@@ -52,7 +58,7 @@ class StatusLine : IStatusLine
         {
             null => null,
             { Kind: StatusKind.Progress } => message,
-            _ => Now() - message.ShownAt < Duration ? message : null,
+            _ => Now() - message.ShownAt < (message.Duration ?? Duration) ? message : null,
         };
 
     public void Info(string text) => Show(text, StatusKind.Info);
@@ -60,6 +66,8 @@ class StatusLine : IStatusLine
     public void Notice(string text) => Show(text, StatusKind.Notice);
 
     public void Failure(string text) => Show(text, StatusKind.Failure);
+
+    public void Tip(string text) => Show(text, StatusKind.Info, TipDuration);
 
     public Disposable Progress(string text)
     {
@@ -73,9 +81,9 @@ class StatusLine : IStatusLine
         });
     }
 
-    StatusMessage Show(string text, StatusKind kind)
+    StatusMessage Show(string text, StatusKind kind, TimeSpan? duration = null)
     {
-        message = new StatusMessage(text, kind, Now());
+        message = new StatusMessage(text, kind, Now(), duration);
         Changed?.Invoke();
         return message;
     }

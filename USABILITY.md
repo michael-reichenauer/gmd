@@ -212,7 +212,12 @@ Both are reworked, see proposal D.1.
    helper to set up. The fetch says it on the status line, a push or a pull in its error box.
 2. **Say what is hidden.** On the first open of a repository, once, on the status line: "Showing
    main and dev. 29 more branches are hidden: ⇧→ shows one, or Enter on ┣╮." Perhaps the count in
-   the top bar for good.
+   the top bar for good. *Done (2026-10-07), once per user rather than per repository:* the first
+   repository with hidden branches says "Showing main and dev; 29 other branches are hidden: ⇧→
+   shows one, as does a click on a dark ╮ or ╯" for fifteen seconds, a tip being read rather than
+   glanced at (`HiddenBranchesTip`, `IStatusLine.Tip`, `Config.IsHiddenBranchesTold`). The idea is
+   learned once, and a tip on every first open would cover the key hints each time. The count in
+   the top bar is left out.
 3. **Say something when gmd crashes:** once the screen is given back, a line with the path of the
    log and where to report it; and the project's link in About. *Done (2026-10-07):* what failed,
    the log's path and that the next start begins it anew, and the issues link, on stderr once the
@@ -267,7 +272,7 @@ First impression:
   says what to do (`ssh-add`, a credential helper). A test with the ssh stand-in. M
 - [x] 2. **A word on a crash** (A.3): the log's path and the issues link once the terminal is given
   back, and the project's link in About. S
-- [ ] 3. **Say what is hidden** (A.2): once per repository, on the status line, how many branches
+- [x] 3. **Say what is hidden** (A.2): once per repository, on the status line, how many branches
   are hidden and how to show one. S
 - [ ] 4. **One name for the Show Branch menu** (A.4): the same title everywhere, and `Shift-→`
   written one way. S

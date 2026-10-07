@@ -229,11 +229,22 @@ class RepoView : IRepoView, IRepoViewInputHost
         searchMatches.Clear();
         hoover.Clear(); // A branch of the same name in another repo is another branch
         isFetchFailing = false; // Said once per repo, see FetchBestEffortAsync
+        TellOfHiddenBranches();
         FetchFromRemote();
 
         RememberRepoPaths(rootDir);
 
         return Result.Ok;
+    }
+
+    // The first repository with hidden branches says so, once, see HiddenBranchesTip
+    void TellOfHiddenBranches()
+    {
+        if (config.IsHiddenBranchesTold || HiddenBranchesTip.Of(repo.Repo) is not string tip)
+            return;
+
+        status.Tip(tip);
+        config.Set(c => c.IsHiddenBranchesTold = true);
     }
 
     public void UpdateRepoTo(Repo serverRepo, string branchName = "")
@@ -375,7 +386,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         {
             UpdateStatusLine();
             UI.AddTimeout(
-                StatusLine.Duration + TimeSpan.FromMilliseconds(100),
+                (status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100),
                 _ =>
                 {
                     UpdateStatusLine();

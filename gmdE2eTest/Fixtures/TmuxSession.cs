@@ -58,14 +58,16 @@ sealed class TmuxSession : IDisposable
     // The throwaway HOME the app ran under, so a test can assert what gmd wrote there
     public string Home => home.Path;
 
-    // The key-hint line is off unless isKeyHints, see TempHome
+    // The key-hint line is off unless isKeyHints, and the tip about hidden branches told already
+    // unless isHiddenBranchesTip, see TempHome
     public static TmuxSession StartGmd(
         TempRepo repo,
         int width = DefaultWidth,
         int height = DefaultHeight,
         DateTimeOffset? commitTime = null,
-        bool isKeyHints = false
-    ) => StartGmd(repo.Path, width, height, commitTime, isKeyHints);
+        bool isKeyHints = false,
+        bool isHiddenBranchesTip = false
+    ) => StartGmd(repo.Path, width, height, commitTime, isKeyHints, isHiddenBranchesTip);
 
     public static TmuxSession StartGmd(
         string repoPath,
@@ -73,6 +75,7 @@ sealed class TmuxSession : IDisposable
         int height = DefaultHeight,
         DateTimeOffset? commitTime = null,
         bool isKeyHints = false,
+        bool isHiddenBranchesTip = false,
         params string[] extraArgs
     )
     {
@@ -80,7 +83,7 @@ sealed class TmuxSession : IDisposable
 
         var session = new TmuxSession(
             $"gmd-e2e-{Guid.NewGuid():N}",
-            TempHome.Create(isKeyHints),
+            TempHome.Create(isKeyHints, isHiddenBranchesTip),
             repoPath,
             width,
             height,

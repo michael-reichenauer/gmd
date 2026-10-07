@@ -23,6 +23,23 @@ public class StatusLineTest
         Assert.AreEqual(2, changes, "Every message is announced, so the line is redrawn for it");
     }
 
+    // A tip is for reading rather than a glance, e.g. that branches are hidden, so it stays three
+    // times as long as the rest
+    [TestMethod]
+    public void TestATipIsShownLongerThanAMessage()
+    {
+        var now = DateTime.UtcNow;
+        var status = new StatusLine { Now = () => now };
+
+        status.Tip("Showing main; 1 other branch is hidden");
+        now += TimeSpan.FromSeconds(10);
+        Assert.AreEqual("Showing main; 1 other branch is hidden", status.Current?.Text, "Still shown at 10 s");
+        Assert.AreEqual(StatusKind.Info, status.Current?.Kind);
+
+        now += TimeSpan.FromSeconds(6);
+        Assert.IsNull(status.Current, "Gone at 16 s");
+    }
+
     // Shown for a few seconds, and then not, with nothing else to do: the key hints come back
     [TestMethod]
     public void TestAMessageIsGoneAfterItsSeconds()

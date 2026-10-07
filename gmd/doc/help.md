@@ -26,7 +26,8 @@ down the left. Git does not record which branch a commit was made on, so
 gmd works it out (see How Gmd Picks a Commit's Branch, near the end).
 
 A repository opens showing main and the branch you are on. The other
-branches are hidden, and marked where they meet a shown one:
+branches are hidden, and marked where they meet a shown one; the first
+time, the line at the bottom says how many are hidden:
 
     ┣  ● Add delta                    (● main)[v1.0]
     ┣╮   Merge branch 'dev' into main
