@@ -157,16 +157,19 @@ static class KeyHints
         if (isOnRow)
             hints.Add(Menu);
 
+        // Worded as the merge items are, naming the current branch, so 'merge into main' says the
+        // same in either case: e merges a branch into the current one
+        var current = repo.Repo.CurrentBranch().ShortNiceUniqueName();
         if (branch.IsCurrent)
         {
             if (status.IsOk)
-                hints.AddRange([new("e", "merge from"), new("⇧e", "merge to")]);
+                hints.AddRange([new("e", $"merge into {current}"), new("⇧e", $"merge {current} into")]);
         }
         else
         {
             hints.Add(new("s", "switch"));
             if (status.IsOk)
-                hints.Add(new("e", "merge"));
+                hints.Add(new("e", $"merge into {current}"));
         }
 
         // Enter shows or hides the branches meeting at the commit, the branch itself too at its tip

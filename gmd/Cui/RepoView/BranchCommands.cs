@@ -206,7 +206,7 @@ class BranchCommands : IBranchCommands
         SetRepoAttCommit(newRepo, showCommitId);
     }
 
-    // Finds a branch by name, starting from what was typed in the Open Branch menu, and shows it, as
+    // Finds a branch by name, starting from what was typed in the Show Branch menu, and shows it, as
     // picking it in that menu does. A branch already shown is scrolled to.
     public void FindBranch(string text)
     {

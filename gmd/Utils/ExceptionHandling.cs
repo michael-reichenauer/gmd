@@ -13,6 +13,10 @@ internal static class ExceptionHandling
     private static DateTime StartTime = DateTime.UtcNow;
     private static Action shutdown = () => { };
 
+    // What ended gmd, if an error did, for Program to say once the terminal is given back: a crash
+    // used to end gmd without a word, as if it had simply quit
+    public static string? Failure { get; private set; }
+
     public static void HandleUnhandledExceptions(Action shutdownCallback)
     {
         shutdown = shutdownCallback;
@@ -39,6 +43,27 @@ internal static class ExceptionHandling
         HandleException("RunInBackground error", exception);
     }
 
+    // An error the UI main loop's own handler caught (Program.HandleUIMainLoopError). The loop ends
+    // with it, so there is nothing to shut down, only the failure to note.
+    public static void OnMainLoopException(Exception exception)
+    {
+        if (hasFailed)
+            return;
+
+        hasFailed = true;
+        Failure = Describe(exception);
+        Log.Exception(exception, "Unhandled UI main loop exception");
+    }
+
+    // The innermost exception, since RunInBackground and the task machinery wrap the one that
+    // actually failed in one that only says a task did
+    static string Describe(Exception exception)
+    {
+        while (exception.InnerException != null)
+            exception = exception.InnerException;
+        return $"{exception.GetType().Name}: {exception.Message}";
+    }
+
     // public static void HandleDispatcherUnhandledException()
     // {
     // 	// Add the event handler for handling UI thread exceptions to the event
@@ -61,6 +86,7 @@ internal static class ExceptionHandling
         }
 
         hasFailed = true;
+        Failure = Describe(exception);
 
         string errorMessage = $"Unhandled {errorType}";
         Log.Exception(exception, errorMessage);

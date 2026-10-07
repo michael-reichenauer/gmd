@@ -26,7 +26,8 @@ down the left. Git does not record which branch a commit was made on, so
 gmd works it out (see How Gmd Picks a Commit's Branch, near the end).
 
 A repository opens showing main and the branch you are on. The other
-branches are hidden, and marked where they meet a shown one:
+branches are hidden, and marked where they meet a shown one; the first
+time, the line at the bottom says how many are hidden:
 
     ┣  ● Add delta                    (● main)[v1.0]
     ┣╮   Merge branch 'dev' into main
@@ -115,11 +116,10 @@ it becomes current: switched to in gmd, checked out in a terminal or by
 another tool, or the one gmd or a worktree opens on. Hidden again, it stays
 hidden until it next becomes current.
 
-- `Shift-→` opens the menu of branches to show, titled **Open Branch (type
-  to find)**: first the hidden branches that merge in or branch out at the
-  cursor's commit, then New (see ✦ below), Recent, Active, My Active (where
-  the last commit is yours), Active and Deleted, and Ambiguous. In the
-  branch menus the same list is the **Show Branch** submenu.
+- `Shift-→` opens **Show Branch**: first the hidden branches that merge in
+  or branch out at the cursor's commit, then New (see ✦ below), Recent,
+  Active, My Active (where the last commit is yours), Active and Deleted,
+  and Ambiguous. The branch menus have the same list, as a submenu.
 - Typing in that menu, or in its sub menus, opens **Find Branch** with what
   was typed. The list narrows as more of the name is typed, every word has
   to be in it, and the names it starts a part of come first. `Enter` or a
@@ -136,7 +136,7 @@ hidden until it next becomes current.
 - ✦ in the top bar counts the hidden branches with something new since you
   last saw them: commits pushed to them, or the branch itself, pushed by
   someone else or made here by another tool, e.g. in a worktree of its own.
-  A click lists those branches, and **New** at the top of the Open Branch
+  A click lists those branches, and **New** at the top of the Show Branch
   menu does too. Listed is seen: the ✦ goes, and the branches stay hidden
   unless you pick one to show it.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
@@ -182,7 +182,7 @@ written as they are typed: `c` is the c key, and `Shift-P` is P.
 | m          | Menu of the highlighted branch, or of the commit           |
 | Shift-M    | The repo menu, e.g. to continue or abort a rebase          |
 | ← →        | Highlight the branch to the left or right, or the commit   |
-| Shift-→    | Open Branch menu, to show a branch: type to find one       |
+| Shift-→    | Show Branch menu: type part of a name to find a branch     |
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
 | c          | Commit the uncommitted changes                             |
@@ -378,12 +378,13 @@ throw changes away for good ask first.
   match in the log.
 - **Merging** (`e` and `Shift-E`):
   `e` merges the highlighted branch into the current branch, and `Shift-E`
-  the current branch into the highlighted one. The menus name them from
-  the branch the menu is for: in the menu of dev, while main is current,
-  `e` is **Merge to main** and `Shift-E` **Merge from main**; in the menu
-  of the current branch they are **Merge from** and **Merge to**, each a
-  list of the shown branches. A merge opens the commit dialog, and **Abort
-  Merge** at the top of the repo menu backs out of it.
+  the current branch into the highlighted one. The menus name both
+  branches: in the menu of dev, while main is current, `e` is **Merge dev
+  into main** and `Shift-E` **Merge main into dev**. On the current branch
+  itself they are **Merge into main** and **Merge main into**, each a list
+  of the shown branches to pick the other one from. A merge opens the
+  commit dialog, and **Abort Merge** at the top of the repo menu backs out
+  of it.
   Git can only merge into the branch that is checked out, so `Shift-E`
   switches to the target branch, merges, opens the commit dialog there,
   and switches back once the merge is committed. Cancelling the commit, or
@@ -615,7 +616,7 @@ keep a column of its own:
 When it cannot decide, the branch is drawn white and its tip is labeled
 `(~ambiguous)`. **Set Commit Branch Manually ...** in the branch menu sets
 the right branch for a commit, which is then marked `Φ`. **Ambiguous** in
-the Open Branch menu lists the ambiguous branches, and a search for `*`
+the Show Branch menu lists the ambiguous branches, and a search for `*`
 finds their tips, and for `$` the commits whose branch was set manually.
 
 The branches set by hand can be shared: **Config ...** in the repo menu
@@ -630,9 +631,12 @@ suggest something, at
 
     https://github.com/michael-reichenauer/gmd/issues
 
-with the version, from **About** in the repo menu or `gmd --version`.
+with the version, from **About** in the repo menu or `gmd --version`. About
+shows where the log is, too. The log is begun anew on every start of gmd,
+so copy it before starting gmd again.
 
-Gmd cannot yet answer git when it asks for a password, a passphrase or
-whether to trust a host: the question is drawn over the screen, and the
-command waits. Set up an ssh agent (`ssh-add`) or a git credential helper,
-so that git never needs to ask.
+Gmd cannot yet ask for a password, a passphrase or whether to trust a
+host, when git wants one: the push, pull or fetch fails instead, and says
+what to do. An ssh key added to the ssh agent (`ssh-add`), or a git
+credential helper, e.g. Git Credential Manager, lets git log in without
+asking.

@@ -690,6 +690,12 @@ message.
   call, because a `rebase --continue` opening the user's editor would hang gmd behind the terminal
   it owns. It is done there and not per command line because `GIT_EDITOR` beats
   `-c core.editor=…`, so a flag is silently ineffective for any user who has that set.
+- **No git process gmd starts can ask on the terminal either.** `Cmd.NeverAskOnTheTerminal` sets
+  `GIT_TERMINAL_PROMPT=0` and `SSH_ASKPASS_REQUIRE=force` with gmd itself as `SSH_ASKPASS`, and
+  stdin is a pipe closed at once: a passphrase prompt drawn over the UI took the keys typed for gmd.
+  gmd started as the askpass (`GMD_ASKPASS=1`, checked first thing in `Main`) answers nothing and
+  says what was asked on stderr, where `LoginError` finds it; wrap every remote command's result in
+  `LoginError.ToLogin`, and show remote errors with `LoginError.Text`.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
   `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,

@@ -29,5 +29,11 @@ public class AboutDlgTest
         StringAssert.Contains(screen, "Updates: ");
         StringAssert.Contains(screen, "Git:     ");
         Assert.IsFalse(screen.Contains("System."), "No type name in place of a version");
+
+        // And where to find out more and report a problem, with the log a report needs, which is in
+        // the test's own home
+        StringAssert.Contains(screen, "Project: https://github.com/michael-reichenauer/gmd");
+        StringAssert.Contains(screen, "Issues:  https://github.com/michael-reichenauer/gmd/issues");
+        StringAssert.Contains(screen, $"Log:     {Path.Join(gmd.Home, "gmd.log")}");
     }
 }

@@ -229,11 +229,22 @@ class RepoView : IRepoView, IRepoViewInputHost
         searchMatches.Clear();
         hoover.Clear(); // A branch of the same name in another repo is another branch
         isFetchFailing = false; // Said once per repo, see FetchBestEffortAsync
+        TellOfHiddenBranches();
         FetchFromRemote();
 
         RememberRepoPaths(rootDir);
 
         return Result.Ok;
+    }
+
+    // The first repository with hidden branches says so, once, see HiddenBranchesTip
+    void TellOfHiddenBranches()
+    {
+        if (config.IsHiddenBranchesTold || HiddenBranchesTip.Of(repo.Repo) is not string tip)
+            return;
+
+        status.Tip(tip);
+        config.Set(c => c.IsHiddenBranchesTold = true);
     }
 
     public void UpdateRepoTo(Repo serverRepo, string branchName = "")
@@ -375,7 +386,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         {
             UpdateStatusLine();
             UI.AddTimeout(
-                StatusLine.Duration + TimeSpan.FromMilliseconds(100),
+                (status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100),
                 _ =>
                 {
                     UpdateStatusLine();
@@ -764,9 +775,14 @@ class RepoView : IRepoView, IRepoViewInputHost
     }
 
     // What git said, e.g. "Could not resolve host", rather than the whole of the error, which ends
-    // with the command line: the first line git prefixed with 'fatal:' or 'error:', or the first
+    // with the command line: the first line git prefixed with 'fatal:' or 'error:', or the first. For
+    // a failed login, what to do about it instead, which is what the fetch on opening a repo with no
+    // ssh agent or credential helper set up says first.
     static string Reason(Error e)
     {
+        if (Git.LoginError.Find(e) is Git.LoginError login)
+            return login.Message;
+
         var lines = e.AllMessages().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var line =
             lines.FirstOrDefault(l => l.StartsWith("fatal:") || l.StartsWith("error:")) ?? lines.FirstOrDefault();

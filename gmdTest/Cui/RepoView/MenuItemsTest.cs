@@ -22,8 +22,8 @@ public class MenuItemsTest
         Assert.AreEqual(
             """
             Switch to Branch  [s]
-            Merge to main  [e]
-            Merge from main  [Shift-E]
+            Merge dev into main  [e]
+            Merge main into dev  [Shift-E]
             Rebase and Push onto >  (disabled)
             Hide Branch  [h]
             Pull  [u]  (disabled)
@@ -38,7 +38,7 @@ public class MenuItemsTest
             Open in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
@@ -56,8 +56,8 @@ public class MenuItemsTest
         Assert.AreEqual(
             """
             Switch to Branch  [s]  (disabled)
-            Merge from >  [e]  (disabled)
-            Merge to >  [Shift-E]  (disabled)
+            Merge into main >  [e]  (disabled)
+            Merge main into >  [Shift-E]  (disabled)
             Rebase and Push onto >  (disabled)
             Hide Branch  [h]
             Pull  [u]  (disabled)
@@ -72,7 +72,7 @@ public class MenuItemsTest
             Open in Browser
             Create Pull Request in Browser  (disabled)
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
@@ -91,8 +91,8 @@ public class MenuItemsTest
         Assert.AreEqual(
             """
             Open Worktree /home/me/repo-dev  [s]
-            Merge to main  [e]
-            Merge from main  [Shift-E]  (disabled)
+            Merge dev into main  [e]
+            Merge main into dev  [Shift-E]  (disabled)
             Rebase and Push onto >  (disabled)
             Hide Branch  [h]
             Pull  [u]  (disabled)
@@ -107,7 +107,7 @@ public class MenuItemsTest
             Open in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Pull All Branches  [Shift-U]
             Push All Branches  [Shift-P]
             Set Commit Branch Manually ...
@@ -127,17 +127,17 @@ public class MenuItemsTest
         StringAssert.StartsWith(items, "Open Worktree ┅pository/.claude/worktrees/dev  [s]\n");
     }
 
-    // From the current branch's side: it can merge from the held branch, but not to it, since
-    // that would check it out
+    // From the current branch's side: it can merge the held branch into itself, but not itself
+    // into it, since that would check it out
     [TestMethod]
-    public async Task TestTheCurrentBranchCanMergeFromButNotToABranchInAnotherWorktree()
+    public async Task TestTheCurrentBranchCanMergeInButNotIntoABranchInAnotherWorktree()
     {
         var view = await ViewOf(Fixture().Worktree("/home/me/repo-dev", "dev"), "dev");
 
         var items = Items(BranchMenuOf(view).GetBranchMenuItems("main"));
 
-        StringAssert.Contains(items, "Merge from >  [e]\n");
-        StringAssert.Contains(items, "Merge to >  [Shift-E]  (disabled)");
+        StringAssert.Contains(items, "Merge into main >  [e]\n");
+        StringAssert.Contains(items, "Merge main into >  [Shift-E]  (disabled)");
     }
 
     // The same menu shown from the Branches sub menu, which already offers these at its root, next
@@ -176,7 +176,7 @@ public class MenuItemsTest
             ●   main >
                 dev >
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
             Pull All Branches  [Shift-U]
@@ -244,7 +244,7 @@ public class MenuItemsTest
                 alpha >
                 feature >
             ---
-            Show Branch >  [Shift →]
+            Show Branch >  [Shift-→]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
             Pull All Branches  [Shift-U]
@@ -496,8 +496,8 @@ public class MenuItemsTest
             """
             s Switch to Branch
             S Switch to Branch
-            e Merge to main
-            E Merge from main
+            e Merge dev into main
+            E Merge main into dev
             h Hide Branch
             H Hide Branch
             u Pull  (says why)
@@ -534,7 +534,7 @@ public class MenuItemsTest
     {
         var items = BranchMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetBranchMenuItems("dev").ToList();
 
-        Assert.AreEqual("Commit or stash the changes first", WhyNot(items, "Merge to main"));
+        Assert.AreEqual("Commit or stash the changes first", WhyNot(items, "Merge dev into main"));
         Assert.AreEqual("Commit or stash the changes first", WhyNot(items, "Diff Branch to"));
     }
 

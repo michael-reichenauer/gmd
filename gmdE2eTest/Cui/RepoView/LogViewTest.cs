@@ -51,6 +51,27 @@ public class LogViewTest
         Assert.IsTrue(File.Exists(Path.Join(gmd.Home, "gmd.log")), "gmd should log into the temp home");
     }
 
+    // A repository opens showing main and the current branch, and the other branches are dark ╮ and
+    // ╯ marks, which someone new can take for branches gone missing. The first repository with
+    // hidden branches says so on the status line, over the bottom row with the key hints off, and
+    // the config remembers that it was told, so it is said once. (Every other test opens with it
+    // told already, see TempHome.)
+    [TestMethod]
+    public async Task TestTheFirstRepoSaysWhatIsHidden()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, isHiddenBranchesTip: true);
+
+        var screen = gmd.WaitFor("other branch is hidden");
+        Assert.AreEqual(
+            "Showing main; 1 other branch is hidden: ⇧→ shows one, as does a click on a dark ╮ or ╯",
+            ScreenText.LastLine(screen)
+        );
+
+        var config = File.ReadAllText(Path.Join(gmd.Home, ".gmdconfig"));
+        StringAssert.Matches(config, new System.Text.RegularExpressions.Regex("\"IsHiddenBranchesTold\":\\s*true"));
+    }
+
     [TestMethod]
     public async Task TestQuitWithQ()
     {
@@ -602,7 +623,7 @@ public class LogViewTest
                      │Branches                              >││●   main                    >│
                      │Repo Menu                     Shift-M >││    dev                     >│
                      ╰───────────────────────────────────────╯│─────────────────────────────│
-                                                              │Show Branch         Shift → >│
+                                                              │Show Branch         Shift-→ >│
                                                               │Hide All Branches            │
                                                               │Undo Show 'dev'   Backspace  │
                                                               │Pull All Branches   Shift-U  │
@@ -624,11 +645,11 @@ public class LogViewTest
             """
                     ╭ dev ───────────────────────────────────╮
                     │Switch to Branch                     s  │
-                    │Merge to main                        e  │╭ Branches ───────────────────╮
-                    │Merge from main                Shift-E  ││●   main                    >│
+                    │Merge dev into main                  e  │╭ Branches ───────────────────╮
+                    │Merge main into dev            Shift-E  ││●   main                    >│
                     │Rebase and Push onto                   >││    dev                     >│
                     │Hide Branch                          h  ││─────────────────────────────│
-                    │Pull                                 u  ││Show Branch         Shift → >│
+                    │Pull                                 u  ││Show Branch         Shift-→ >│
                     │Push                                 p  ││Hide All Branches            │
                     │Create Branch ...                    b  ││Undo Show 'dev'   Backspace  │
                     │Create Worktree ...                     ││Pull All Branches   Shift-U  │

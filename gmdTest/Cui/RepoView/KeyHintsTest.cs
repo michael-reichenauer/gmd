@@ -89,7 +89,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "dev", "d1");
 
         Assert.AreEqual(
-            "dev:  m menu  s switch  e merge  Enter show/hide  h hide  d diff  p push  b new branch",
+            "dev:  m menu  s switch  e merge into main  Enter show/hide  h hide  d diff  p push  b new branch",
             Hints(view, hoover)
         );
     }
@@ -102,7 +102,10 @@ public class KeyHintsTest
         var view = await ViewOf(Ahead());
         var hoover = HooverOn(view, "main", "l1");
 
-        Assert.AreEqual("main:  m menu  e merge from  ⇧e merge to  d diff  p push  b new branch", Hints(view, hoover));
+        Assert.AreEqual(
+            "main:  m menu  e merge into main  ⇧e merge main into  d diff  p push  b new branch",
+            Hints(view, hoover)
+        );
     }
 
     // Merging and diffing a branch need a clean working tree, so with changes they give way to

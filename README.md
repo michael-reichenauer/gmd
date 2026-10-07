@@ -122,8 +122,9 @@ Known limits:
 - Only the remote named `origin` is supported.
 - The colors assume a dark terminal: on a light theme gmd is drawn on black.
 - The log reads the latest 30,000 commits.
-- Gmd cannot yet answer git when it asks for a password, a passphrase or whether to trust a host.
-  Use an ssh agent (`ssh-add`) or a git credential helper, so that git never needs to ask.
+- Gmd cannot yet ask for a password, a passphrase or whether to trust a host when git wants one:
+  the command fails and says what to do. An ssh key in the ssh agent (`ssh-add`), or a git
+  credential helper such as Git Credential Manager, lets git log in without asking.
 
 ## Gmd and AI Coding Agents
 
@@ -309,7 +310,8 @@ turns off. Nothing else is sent: there is no telemetry.
 Report a problem, or suggest something, in the
 [issues](https://github.com/michael-reichenauer/gmd/issues), with the version from **About** in the
 repo menu or from `gmd --version`. `~/gmd.log` is the first place to look when something goes
-wrong.
+wrong; **About** shows where it is, and if gmd itself fails, it says so when it ends, with the same
+links. The log is begun anew on every start, so copy it before starting gmd again.
 
 ## Contributing
 

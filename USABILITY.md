@@ -205,13 +205,34 @@ Both are reworked, see proposal D.1.
    terminal for ssh to open, and when a fetch or a push fails for want of a password or a
    passphrase, say what to do: `ssh-add`, or a credential helper. Better, ask for it: gmd as
    `GIT_ASKPASS` and `SSH_ASKPASS` (with `SSH_ASKPASS_REQUIRE=force`), answering with a dialog.
+   *The first half is done (2026-10-07):* git gets `GIT_TERMINAL_PROMPT=0` and a closed stdin, and
+   ssh `SSH_ASKPASS_REQUIRE=force` with gmd itself as `SSH_ASKPASS` (`Cmd.NeverAskOnTheTerminal`,
+   `Askpass`), unless the user has an askpass of their own. gmd answers nothing yet, so the command
+   fails, and `LoginError` says what to do: the key to `ssh-add`, the host to trust, a credential
+   helper to set up. The fetch says it on the status line, a push or a pull in its error box.
 2. **Say what is hidden.** On the first open of a repository, once, on the status line: "Showing
    main and dev. 29 more branches are hidden: ⇧→ shows one, or Enter on ┣╮." Perhaps the count in
-   the top bar for good.
+   the top bar for good. *Done (2026-10-07), once per user rather than per repository:* the first
+   repository with hidden branches says "Showing main and dev; 29 other branches are hidden: ⇧→
+   shows one, as does a click on a dark ╮ or ╯" for fifteen seconds, a tip being read rather than
+   glanced at (`HiddenBranchesTip`, `IStatusLine.Tip`, `Config.IsHiddenBranchesTold`). The idea is
+   learned once, and a tip on every first open would cover the key hints each time. The count in
+   the top bar is left out.
 3. **Say something when gmd crashes:** once the screen is given back, a line with the path of the
-   log and where to report it; and the project's link in About.
+   log and where to report it; and the project's link in About. *Done (2026-10-07):* what failed,
+   the log's path and that the next start begins it anew, and the issues link, on stderr once the
+   terminal is given back (`Program.CrashMessage`), with exit code 1; About lists the project, the
+   issues and the log.
 4. **One name for one menu** (Show Branch), one way of writing its key, and merge items that name
-   both branches: *Merge dev into main*, *Merge main into dev*.
+   both branches: *Merge dev into main*, *Merge main into dev*. *The menu is done (2026-10-07):*
+   `Shift-→` opens *Show Branch (type to find)*, the submenu of the branch menus is *Show Branch*,
+   and menus, reasons and help write the key `Shift-→`. The key-hint line keeps `⇧→`, as it writes
+   every shifted key (`⇧p`, `⇧e`). *Show/Hide Branch*, what Enter or a click on a ╮ or ╯ opens when
+   several branches meet there, keeps its name: it is a list of its own, of the branches at that
+   commit to show and those to hide. *The merge items are done too (2026-10-07):* in the menu of
+   dev, while main is current, `e` is *Merge dev into main* and `Shift-E` *Merge main into dev*; on
+   the current branch they are *Merge into main* and *Merge main into*, lists whose pick completes
+   the title; and the key-hint line says `e merge into main` (`⇧e merge main into`) to match.
 
 **B. Expected features:**
 
@@ -255,15 +276,15 @@ started. The details are in the proposals and parts above; effort is S, M or L.
 
 First impression:
 
-- [ ] 1. **No git prompt on the screen** (A.1): git runs with nothing to ask on, and a failed login
+- [x] 1. **No git prompt on the screen** (A.1): git runs with nothing to ask on, and a failed login
   says what to do (`ssh-add`, a credential helper). A test with the ssh stand-in. M
-- [ ] 2. **A word on a crash** (A.3): the log's path and the issues link once the terminal is given
+- [x] 2. **A word on a crash** (A.3): the log's path and the issues link once the terminal is given
   back, and the project's link in About. S
-- [ ] 3. **Say what is hidden** (A.2): once per repository, on the status line, how many branches
+- [x] 3. **Say what is hidden** (A.2): once per repository, on the status line, how many branches
   are hidden and how to show one. S
-- [ ] 4. **One name for the Show Branch menu** (A.4): the same title everywhere, and `Shift-→`
+- [x] 4. **One name for the Show Branch menu** (A.4): the same title everywhere, and `Shift-→`
   written one way. S
-- [ ] 5. **Merge items that name both branches** (A.4): *Merge dev into main*. S
+- [x] 5. **Merge items that name both branches** (A.4): *Merge dev into main*. S
 
 Quick wins:
 
@@ -293,7 +314,8 @@ Bigger features:
   L
 - [ ] 16. **Reword, fix up and drop** commits not yet pushed (B.3). L
 - [ ] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `GIT_ASKPASS` and
-  `SSH_ASKPASS`. M
+  `SSH_ASKPASS`, asking in a dialog of the gmd that started git. The design, Git Credential
+  Manager included, is in `MODERNIZATION.md` (open issues, Product). M
 - [ ] 18. **The smaller gaps** (part 2, item 7), each to pick or skip: stash apply, a tag list and
   push, a diff of any two commits, search of the changes (`-S`), line history (`log -L`), a merge
   tool in the terminal. S to M each

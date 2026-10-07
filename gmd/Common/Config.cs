@@ -20,6 +20,7 @@ class Config
     public string WorktreeLocation { get; set; } = ""; // The last picked place for a new worktree
     public Releases Releases { get; set; } = new Releases();
     public string GitVersion { get; set; } = "";
+    public bool IsHiddenBranchesTold { get; set; } = false; // Once, see HiddenBranchesTip
 
     // Constructor used when deserializing Config, the values are copied to the single instance
     // by the IConfigService

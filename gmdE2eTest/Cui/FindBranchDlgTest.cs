@@ -2,7 +2,7 @@ using gmdE2eTest.Fixtures;
 
 namespace gmdE2eTest.Cui;
 
-// Finding a branch by typing its name: typing in the Open Branch menu opens the Find Branch
+// Finding a branch by typing its name: typing in the Show Branch menu opens the Find Branch
 // dialog with what was typed, the list narrows as the name is typed, and Enter shows the branch.
 // What matches, and in what order, is BranchFinderTest's.
 //

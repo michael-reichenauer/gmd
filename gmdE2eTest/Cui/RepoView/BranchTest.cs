@@ -437,7 +437,8 @@ public class BranchTest
     }
 
     // The other arm of the same key: with the *current* branch hoovered there is nothing to merge
-    // into, so it offers the branches to merge from instead
+    // into it but another branch, so it offers the branches to merge into it, under a title the pick
+    // completes, 'Merge into main' and then dev
     [TestMethod]
     public async Task TestMergeFromMenu()
     {
@@ -454,15 +455,14 @@ public class BranchTest
 
         gmd.Send("e");
 
-        // Only the shown branches are offered, so the menu lists dev and nothing else. The stray
-        // 'k' is the tail of 'More dev work' behind the menu, which is drawn over the log view.
+        // Only the shown branches are offered, so the menu lists dev and nothing else
         Assert.AreEqual(
             """
-            ┣│ ╭ Merge from ─╮                                                                 4a15fb Test User      24-10-15 12:04
-            ┃╰╊│ o  dev      │k                                                          (dev) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺╰─────────────╯                                                                 d997ad Test User      24-10-15 12:02
+            ┣│ ╭ Merge into main ─╮                                                            4a15fb Test User      24-10-15 12:04
+            ┃╰╊│ o  dev           │                                                      (dev) af3ee6 Test User      24-10-15 12:03
+            ┃╭┺╰──────────────────╯                                                            d997ad Test User      24-10-15 12:02
             """,
-            ScreenText.Rows(gmd.WaitFor("Merge from"), repo.Path, 4, 3)
+            ScreenText.Rows(gmd.WaitFor("Merge into main"), repo.Path, 4, 3)
         );
     }
 
@@ -562,8 +562,8 @@ public class BranchTest
         Assert.AreEqual("17d85ba", await repo.GitAsync("rev-parse --short=7 main"));
     }
 
-    // The other arm of 'E', mirroring TestMergeFromMenu: with the current branch hoovered there is
-    // nothing to merge it out of, so it offers the branches to merge it into instead
+    // The other arm of 'E', mirroring TestMergeFromMenu: with the current branch hoovered it offers
+    // the branches to merge it into, 'Merge main into' and then dev
     [TestMethod]
     public async Task TestMergeToMenu()
     {
@@ -580,15 +580,14 @@ public class BranchTest
 
         gmd.Send("E");
 
-        // Only the shown branches are offered, so the menu lists dev and nothing else. The stray
-        // 'k' is the tail of 'More dev work' behind the menu, which is drawn over the log view.
+        // Only the shown branches are offered, so the menu lists dev and nothing else
         Assert.AreEqual(
             """
-            ┣│ ╭ Merge to ─╮                                                                   4a15fb Test User      24-10-15 12:04
-            ┃╰╊│ o  dev    │ork                                                          (dev) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺╰───────────╯v                                                                  d997ad Test User      24-10-15 12:02
+            ┣│ ╭ Merge main into ─╮                                                            4a15fb Test User      24-10-15 12:04
+            ┃╰╊│ o  dev           │                                                      (dev) af3ee6 Test User      24-10-15 12:03
+            ┃╭┺╰──────────────────╯                                                            d997ad Test User      24-10-15 12:02
             """,
-            ScreenText.Rows(gmd.WaitFor("Merge to"), repo.Path, 4, 3)
+            ScreenText.Rows(gmd.WaitFor("Merge main into"), repo.Path, 4, 3)
         );
     }
 

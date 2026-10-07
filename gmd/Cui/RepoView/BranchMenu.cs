@@ -49,7 +49,7 @@ class BranchMenu : IBranchMenu
     // a long list of branches is otherwise walked one key at a time
     public void ShowOpenBranchMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Open Branch (type to find)", x, y + 2, GetShowBranchItems(), onTypeText: FindBranch);
+        Menu.Show("Show Branch (type to find)", x, y + 2, GetShowBranchItems(), onTypeText: FindBranch);
     }
 
     public void ShowDiffBranchToMenu(int x, int y, string branchName)
@@ -62,15 +62,21 @@ class BranchMenu : IBranchMenu
         Menu.Show("Show/Hide Branch", x, y + 2, GetCommitBranchItems());
     }
 
+    // e and Shift-E on the current branch: the branch to merge into it, or to merge it into, picked
+    // from a list whose title the pick completes, e.g. 'Merge into main' and then dev
     public void ShowMergeFromMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Merge from", x, y, GetMergeFromItems());
+        Menu.Show(MergeIntoCurrentTitle(), x, y, GetMergeFromItems());
     }
 
     public void ShowMergeToMenu(int x = Menu.Center, int y = 0)
     {
-        Menu.Show("Merge to", x, y, GetMergeToItems());
+        Menu.Show(MergeCurrentIntoTitle(), x, y, GetMergeToItems());
     }
+
+    string MergeIntoCurrentTitle() => $"Merge into {repo.Repo.CurrentBranch().ShortNiceUniqueName()}";
+
+    string MergeCurrentIntoTitle() => $"Merge {repo.Repo.CurrentBranch().ShortNiceUniqueName()} into";
 
     public void ShowPushMenu(int x, int y)
     {
@@ -176,13 +182,14 @@ class BranchMenu : IBranchMenu
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
             .Item(GetSwitchToBranchItem(branchName))
-            // Both directions, worded from the branch this menu is for: 'to' merges it into the
-            // named branch, 'from' merges the named branch into it. Merging into a branch that is
-            // not current means checking it out on the way, so it is only offered for a git branch,
-            // and not for one checked out in another worktree, which git refuses to check out.
+            // Both directions, each naming both branches, since words worded from the branch the menu
+            // is for ('to main', 'from main') flipped meaning with the menu they were in. Merging
+            // into a branch that is not current means checking it out on the way, so it is only
+            // offered for a git branch, and not for one checked out in another worktree, which git
+            // refuses to check out.
             .Item(
                 !isCurrent,
-                $"Merge to {currentName}",
+                $"Merge {b.ShortNiceUniqueName()} into {currentName}",
                 "e",
                 () => cmds.MergeBranch(b.Name),
                 () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK,
@@ -190,7 +197,7 @@ class BranchMenu : IBranchMenu
             )
             .Item(
                 !isCurrent,
-                $"Merge from {currentName}",
+                $"Merge {currentName} into {b.ShortNiceUniqueName()}",
                 "Shift-E",
                 () => cmds.MergeToBranch(LocalName(b)),
                 () => !b.IsCurrent && !b.IsLocalCurrent && isStatusOK && b.IsGitBranch && !IsInWorktree(b),
@@ -199,8 +206,8 @@ class BranchMenu : IBranchMenu
                     : !b.IsGitBranch ? Why.Deleted(b)
                     : Why.InWorktree(b)
             )
-            .SubMenu(isCurrent, "Merge from", "e", GetMergeFromItems(), whyNot: WhyNoMerge)
-            .SubMenu(isCurrent, "Merge to", "Shift-E", GetMergeToItems(), whyNot: WhyNoMerge)
+            .SubMenu(isCurrent, MergeIntoCurrentTitle(), "e", GetMergeFromItems(), whyNot: WhyNoMerge)
+            .SubMenu(isCurrent, MergeCurrentIntoTitle(), "Shift-E", GetMergeToItems(), whyNot: WhyNoMerge)
             .SubMenu(
                 "Rebase and Push onto",
                 "",
@@ -280,7 +287,8 @@ class BranchMenu : IBranchMenu
                     : Why.InWorktree(b)
             )
             // The branch's last change, which its reflog says, whether it is checked out or not:
-            // Merge from, and the pull of a branch that is not checked out, change another branch
+            // Merging the current branch into it, and the pull of a branch that is not checked out,
+            // change another branch
             .Item(
                 BranchUndo.Label(step),
                 "",
@@ -292,7 +300,7 @@ class BranchMenu : IBranchMenu
                 "Diff Branch to",
                 "d",
                 GetBranchDiffItems(branchName),
-                whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see Shift →"
+                whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see Shift-→"
             )
             .Item(
                 "Change Branch Color",
@@ -376,7 +384,7 @@ class BranchMenu : IBranchMenu
 
     // Why the merge sub menus of the current branch are empty: they list the shown branches, and
     // only while there are no changes
-    string WhyNoMerge() => !repo.Repo.Status.IsOk ? Why.Changes : "No other branch is shown to merge with, see Shift →";
+    string WhyNoMerge() => !repo.Repo.Status.IsOk ? Why.Changes : "No other branch is shown to merge with, see Shift-→";
 
     IEnumerable<MenuItem> GetMergeFromItems() =>
         GetMergeBranches().Select(b => Menu.Item(ToBranchMenuName(b), "", () => cmds.MergeBranch(b.Name)));
@@ -695,7 +703,7 @@ class BranchMenu : IBranchMenu
     void FindBranch(string text) => cmds.FindBranch(text);
 
     // The same menu as ShowOpenBranchMenu, as a sub menu, where typing finds a branch as well
-    SubMenu ShowBranchSubMenu() => new("Show Branch", "Shift →", GetShowBranchItems()) { OnTypeText = FindBranch };
+    SubMenu ShowBranchSubMenu() => new("Show Branch", "Shift-→", GetShowBranchItems()) { OnTypeText = FindBranch };
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(
         IEnumerable<Branch> branches,

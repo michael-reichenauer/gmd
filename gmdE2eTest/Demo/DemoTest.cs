@@ -39,9 +39,9 @@ public class DemoTest
         gmd.WaitFor("Initial project setup");
         demo.Frame(3.5, "log");
 
-        // Shift → opens the branch menu, and 'Active' lists the branches still in use
+        // Shift-→ opens the Show Branch menu, and 'Active' lists the branches still in use
         gmd.Send("S-Right");
-        gmd.WaitFor("Open Branch");
+        gmd.WaitFor("Show Branch (type to find)");
         demo.Frame(1.2, "menu");
         Press(gmd, demo, "Down", 0.6);
         gmd.Send("Right");

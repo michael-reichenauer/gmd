@@ -35,6 +35,37 @@ public class CmdTest
         Assert.AreEqual("en", AssertOk(new Cmd().Command("sh", "-c \"echo $LANGUAGE\"", "")));
     }
 
+    // Git is given nothing to ask the user on, since gmd owns the terminal: no git prompt, ssh's
+    // questions sent to an askpass rather than /dev/tty, gmd itself unless the user has one of their
+    // own, and a stdin closed at once, which is what lets 'cat' end here rather than wait for input.
+    [TestMethod]
+    public void TestGitIsGivenNoTerminalToAskOn()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("Uses sh");
+
+        var output = AssertOk(
+            new Cmd().Command(
+                "sh",
+                "-c \"echo $GIT_TERMINAL_PROMPT $SSH_ASKPASS_REQUIRE; echo $SSH_ASKPASS; echo $GMD_ASKPASS; cat\"",
+                ""
+            )
+        );
+
+        var lines = output.Split('\n');
+        Assert.AreEqual("0 force", lines[0]);
+        var own = Environment.GetEnvironmentVariable("SSH_ASKPASS");
+        if (string.IsNullOrEmpty(own))
+        {
+            Assert.AreEqual(Environment.ProcessPath, lines[1], "gmd itself, i.e. the process running the command");
+            Assert.AreEqual("1", lines[2], "So that gmd started by ssh knows it is the askpass");
+        }
+        else
+        {
+            Assert.AreEqual(own, lines[1], "The user's own askpass is kept");
+        }
+    }
+
     // What a command printed, as the line reader of Process gives it: every line break, '\r\n', '\r'
     // or '\n', is a '\n', and the end is trimmed. A byte order mark is kept, and an incomplete
     // character at the very end is dropped. Pinned since a read of the bytes in bulk, which was
