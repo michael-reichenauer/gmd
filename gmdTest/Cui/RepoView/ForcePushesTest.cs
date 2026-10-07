@@ -54,6 +54,21 @@ public class ForcePushesTest
         Assert.IsNull(notes.Untold(RepoWith(Rewrite(isByYou: true, tip: "b4"))));
     }
 
+    // One fetch can bring force pushes on several branches, and each is told, since each is marked so
+    [TestMethod]
+    public void TestRewritesFoundTogetherAreToldTogether()
+    {
+        var notes = new ForcePushNotes();
+        var feature = Rewrite() with { BranchName = "feature", RemoteName = "origin/feature" };
+        var repo = Repo.Empty with { RemoteRewrites = new[] { Rewrite(), feature }.ToDictionary(r => r.BranchName) };
+
+        Assert.AreEqual(
+            "'origin/dev', 'origin/feature' were rewritten by force pushes: pull each to take the new version",
+            notes.Untold(repo)
+        );
+        Assert.IsNull(notes.Untold(repo));
+    }
+
     // dev had a1 <- a2 <- a3 on origin and Own work on top here; a force push copied a2 onto b1 and
     // dropped a3
     static Task<Repo> RewrittenAsync() =>

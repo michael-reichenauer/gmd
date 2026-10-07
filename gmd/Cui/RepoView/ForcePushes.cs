@@ -23,6 +23,13 @@ static class ForcePushes
         return $"'{r.RemoteName}' was rewritten by a force push{dropped}: {pull}";
     }
 
+    // The same for several found at once, which do not fit the status line one by one
+    public static string Found(IReadOnlyList<RemoteRewrite> rewrites) =>
+        rewrites.Count == 1
+            ? Found(rewrites[0])
+            : $"{BranchPushPullCommands.Names(rewrites.Select(r => r.RemoteName))} were rewritten by force pushes: "
+                + "pull each to take the new version";
+
     // Asked before a pull, which then does not do what pull.rebase says: it moves the branch's own
     // commits onto the new version, as 'git pull --rebase' would, and leaves the old version out
     public static string PullQuestion(Repo repo, RemoteRewrite r)
@@ -102,15 +109,16 @@ class ForcePushNotes
 {
     readonly HashSet<(string Branch, string Tip)> told = [];
 
-    // What to say of the rewrites of a shown repo not told yet, or null
+    // What to say of the rewrites of a shown repo not told yet, or null. All of them at once, since
+    // each is marked as told: one fetch can bring force pushes on several branches.
     public string? Untold(Repo repo)
     {
-        string? note = null;
+        List<RemoteRewrite> untold = [];
         foreach (var r in repo.RemoteRewrites.Values.OrderBy(r => r.BranchName))
         {
             if (told.Add((r.BranchName, r.NewTipId)) && !r.IsByYou)
-                note ??= ForcePushes.Found(r);
+                untold.Add(r);
         }
-        return note;
+        return untold.Count > 0 ? ForcePushes.Found(untold) : null;
     }
 }

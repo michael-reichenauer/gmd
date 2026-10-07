@@ -436,7 +436,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         repo.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
 
     // Up to three names, which is what fits a status line, and otherwise how many
-    static string Names(IEnumerable<string> names)
+    internal static string Names(IEnumerable<string> names)
     {
         var list = names.ToList();
         return list.Count <= 3 ? string.Join(", ", list.Select(n => $"'{n}'")) : $"{list.Count} branches";
