@@ -171,7 +171,7 @@ proposals for improving it.
 
 The easiest way is the devcontainer, locally in VS Code with Docker or in GitHub Codespaces. It
 installs both .NET SDKs, and `./installtools` then adds the tools that the scripts and the
-end-to-end tests use (tmux, lnav, the git hooks).
+end-to-end tests use (tmux, lnav, agg).
 
 To set up a machine yourself you need:
 
@@ -191,7 +191,7 @@ To set up a machine yourself you need:
 | `./build -l`       | The same, but publish only for Linux (x64 and arm64), which is much faster |
 | `./log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
 | `./updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
-| `./installtools`   | Set up the devcontainer: tools, dotnet local tools and git hooks          |
+| `./installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
 | `./demo`           | Re-record the animation above, by running a scripted session in tmux     |
 
 On Windows, `run.bat`, `build.bat` (`-w` builds Windows only) and `log.bat` do the same.
@@ -207,8 +207,8 @@ The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runt
 
 ### Conventions
 
-- **Formatting** belongs to [CSharpier](https://csharpier.com). A Debug build formats the code,
-  and the pre-commit hook and CI check it. Don't format by hand.
+- **Formatting** belongs to [CSharpier](https://csharpier.com). VS Code formats on save, a Debug
+  build formats the code, and CI checks it. Don't format by hand.
 - **Branches**: `main` holds the releases and `dev` the pre-releases, and CI publishes a GitHub
   release on every push to either one. A release from `main` gets the next minor version, in a
   release commit CI adds to `main`, so pull `main` before merging into it and merge it back into

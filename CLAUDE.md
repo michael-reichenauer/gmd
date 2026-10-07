@@ -24,7 +24,7 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 ./log            # tail the runtime log with lnav (~/gmd.log)
 ./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
-./installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools, git hooks
+./installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
 ./demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
 ```
 
@@ -337,10 +337,13 @@ literal keeps the line endings of its source file: with a CRLF checkout every mu
 value in the tests becomes `\r\n`, and some 80 of them fail on Windows. A Debug build repairs such
 a tree, since the format pass rewrites the endings before compiling.
 
-It runs in four places: on save in VS Code (`editor.formatOnSave` + the `csharpier-vscode`
-extension), on build (the `CSharpier.MsBuild` package in both `.csproj` files), on commit
-(`.git/hooks/pre-commit`, from `gmd/tools/pre-commit-sample`), and in CI. The MSBuild integration
-behaves differently per configuration, which matters:
+It runs in three places: on save in VS Code (`editor.formatOnSave` + the `csharpier-vscode`
+extension), on build (the `CSharpier.MsBuild` package in every `.csproj`, which formats the whole
+project folder, and every `.cs` file is in one), and in CI. There is deliberately no pre-commit
+hook: the one there was started CSharpier once per staged file, so a merge commit, which stages
+every file the branch changed, took half a minute or more, and the three above already cover it —
+`./test` before every commit is a Debug build. The MSBuild integration behaves differently per
+configuration, which matters:
 
 - **Debug** — *formats* the sources in place before compiling. A `dotnet build` can therefore
   modify files in the working tree. This is intended.

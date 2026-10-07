@@ -1,7 +1,7 @@
 {
   "dotnet.defaultSolution": "gmd.sln",
   // CSharpier owns all C# formatting. It runs on save here, on build via the
-  // CSharpier.MsBuild package, and on commit via the pre-commit hook.
+  // CSharpier.MsBuild package, and as a check in CI.
   "editor.formatOnSave": true,
   "[csharp]": {
     "editor.defaultFormatter": "csharpier.csharpier-vscode"
