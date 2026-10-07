@@ -174,7 +174,8 @@ repository.
 
 The most used keys of the log view. The menus show the key of every command
 that has one, and pressing it in an open menu picks that item. Keys are
-written as they are typed: `c` is the c key, and `Shift-P` is P.
+written as they are typed: `c` is the c key, and `Shift-P` is P, which the
+menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 
 ---------------------------------------------------------------------------
 | Key        | Description                                                |

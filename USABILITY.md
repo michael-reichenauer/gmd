@@ -593,6 +593,9 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    ask for a clean tree.
 6. **Write keys in the help and the README the way they are pressed.** *Done (2026-09-25):* menus,
    help and README write `c` for the c key and `Shift-P` for P; the key-hint line writes `⇧p`.
+   *Since (2026-10-07):* the menus write `⇧p` as well, and so do the status messages and the
+   reasons a greyed out item gives, so what is drawn writes a key one way; the help and the
+   README keep `Shift-P` in their text, the help saying once that ⇧ is Shift.
 
 ### Tier 4: bigger bets, to decide later
 

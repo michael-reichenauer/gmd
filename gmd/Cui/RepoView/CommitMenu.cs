@@ -107,7 +107,7 @@ class CommitMenu : ICommitMenu
             )
             .Item(
                 "Copy Commit Message",
-                "Shift-I",
+                "⇧i",
                 () => repo.Cmds.CopyCommitMessage(),
                 () => !c.IsUncommitted,
                 () => RepoCommands.WhyNoCopy
@@ -129,7 +129,7 @@ class CommitMenu : ICommitMenu
             .Separator()
             // Everything about branches, including showing and hiding them, is under here
             .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
-            .SubMenu("Repo Menu", "Shift-M", repoMenu.GetRepoMenuItems());
+            .SubMenu("Repo Menu", "⇧m", repoMenu.GetRepoMenuItems());
     }
 
     IEnumerable<MenuItem> GetCommitUndoItems()
@@ -224,7 +224,7 @@ class CommitMenu : ICommitMenu
             "",
             () => cmds.SquashCommits(c1!.Id, c2!.Id),
             () => !selection.IsEmpty && selected != "" && repo.Status.IsOk,
-            () => selected == "" ? "Select the commits to squash with Shift-↑↓ first" : Why.Changes
+            () => selected == "" ? "Select the commits to squash with ⇧↑↓ first" : Why.Changes
         );
     }
 

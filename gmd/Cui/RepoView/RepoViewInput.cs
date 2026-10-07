@@ -504,7 +504,7 @@ class RepoViewInput
         var selection = commitsView.Selection;
         if (selection.IsEmpty)
         {
-            status.Notice("Select rows with Shift-↑↓ first, and Ctrl-C copies them");
+            status.Notice("Select rows with ⇧↑↓ first, and Ctrl-C copies them");
             return;
         }
 

@@ -547,28 +547,28 @@ public class LogViewTest
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add│Commit ...                          c  │                                4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add│Amend ...                           a  │                                dd7891 Test User      2024-10-15 12:01
-            ┗    Ini│Squash ...                             │                                9dc406 Test User      2024-10-15 12:00
-                    │Commit Diff                         d  │
-                    │Undo                                  >│
-                    │Stash                                 >│
-                    │Tag                                   >│
-                    │Create Branch from Commit ...       b  │
-                    │Merge Commit into main                 │
-                    │Cherry Pick into main                  │
-                    │Switch to Commit                       │
-                    │Commit Details                  Enter  │
-                    │Copy Commit Id                      i  │
-                    │Copy Commit Message           Shift-I  │
-                    │Open Commit in Browser                 │
-                    │Full File History ...                  │
-                    │Blame File ...                         │
-                    │───────────────────────────────────────│
-                    │Branches                              >│
-                    │Repo Menu                     Shift-M >│
-                    ╰───────────────────────────────────────╯
+            ┣╮   Mer╭ Commit: 17d85b ─────────────────────╮                                  4e73d2 Test User      2024-10-15 12:05
+            ┣    Add│Commit ...                        c  │                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add│Amend ...                         a  │                                  dd7891 Test User      2024-10-15 12:01
+            ┗    Ini│Squash ...                           │                                  9dc406 Test User      2024-10-15 12:00
+                    │Commit Diff                       d  │
+                    │Undo                                >│
+                    │Stash                               >│
+                    │Tag                                 >│
+                    │Create Branch from Commit ...     b  │
+                    │Merge Commit into main               │
+                    │Cherry Pick into main                │
+                    │Switch to Commit                     │
+                    │Commit Details                Enter  │
+                    │Copy Commit Id                    i  │
+                    │Copy Commit Message              ⇧i  │
+                    │Open Commit in Browser               │
+                    │Full File History ...                │
+                    │Blame File ...                       │
+                    │─────────────────────────────────────│
+                    │Branches                            >│
+                    │Repo Menu                        ⇧m >│
+                    ╰─────────────────────────────────────╯
             """,
             gmd.WaitFor("Commit ..."),
             repo.Path
@@ -619,16 +619,16 @@ public class LogViewTest
         var branches = gmd.WaitForStable();
         Assert.AreEqual(
             """
-                     │Full File History ...                  │
-                     │Blame File ...                         │
-                     │───────────────────────────────────────│╭ Branches ───────────────────╮
-                     │Branches                              >││●   main                    >│
-                     │Repo Menu                     Shift-M >││    dev                     >│
-                     ╰───────────────────────────────────────╯│─────────────────────────────│
-                                                              │Show Branch         Shift-→ >│
-                                                              │Hide All Branches            │
-                                                              │Undo Show 'dev'   Backspace  │
-                                                              ╰─────────────────────────────╯
+                     │Full File History ...                │
+                     │Blame File ...                       │
+                     │─────────────────────────────────────│╭ Branches ───────────────────╮
+                     │Branches                            >││●   main                    >│
+                     │Repo Menu                        ⇧m >││    dev                     >│
+                     ╰─────────────────────────────────────╯│─────────────────────────────│
+                                                            │Show Branch              ⇧→ >│
+                                                            │Hide All Branches            │
+                                                            │Undo Show 'dev'   Backspace  │
+                                                            ╰─────────────────────────────╯
             """,
             ScreenText.Rows(branches, repo.Path, 22, 12)
         );
@@ -643,26 +643,26 @@ public class LogViewTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                    ╭ dev ───────────────────────────────────╮
-                    │Switch to Branch                     s  │
-                    │Merge dev into main                  e  │
-                    │Merge main into dev            Shift-E  │
-                    │Rebase and Push onto                   >│╭ Branches ───────────────────╮
-                    │Hide Branch                          h  ││●   main                    >│
-                    │Pull                                 u  ││    dev                     >│
-                    │Push                                 p  ││─────────────────────────────│
-                    │Create Branch ...                    b  ││Show Branch         Shift-→ >│
-                    │Create Worktree ...                     ││Hide All Branches            │
-                    │Rename Branch ...                       ││Undo Show 'dev'   Backspace  │
-                    │Delete Branch ...                       │╰─────────────────────────────╯
-                    │Undo Commit 'More dev work'             │
-                    │Diff Branch to                       d >│
-                    │Change Branch Color                  g  │
-                    │Open in Browser                         │
-                    │Create Pull Request in Browser          │
-                    │────────────────────────────────────────│
-                    │Set Commit Branch Manually ...          │
-                    ╰────────────────────────────────────────╯
+                     │Copy Commit Message              ⇧i  │                               ╭ dev ──────────────────────────────╮
+                     │Open Commit in Browser               │                               │Switch to Branch                s  │
+                     │Full File History ...                │                               │Merge dev into main             e  │
+                     │Blame File ...                       │                               │Merge main into dev            ⇧e  │
+                     │─────────────────────────────────────│╭ Branches ───────────────────╮│Rebase and Push onto              >│
+                     │Branches                            >││●   main                    >││Hide Branch                     h  │
+                     │Repo Menu                        ⇧m >││    dev                     >││Pull                            u  │
+                     ╰─────────────────────────────────────╯│─────────────────────────────││Push                            p  │
+                                                            │Show Branch              ⇧→ >││Create Branch ...               b  │
+                                                            │Hide All Branches            ││Create Worktree ...                │
+                                                            │Undo Show 'dev'   Backspace  ││Rename Branch ...                  │
+                                                            ╰─────────────────────────────╯│Delete Branch ...                  │
+                                                                                           │Undo Commit 'More dev work'        │
+                                                                                           │Diff Branch to                  d >│
+                                                                                           │Change Branch Color             g  │
+                                                                                           │Open in Browser                    │
+                                                                                           │Create Pull Request in Browser     │
+                                                                                           │───────────────────────────────────│
+                                                                                           │Set Commit Branch Manually ...     │
+                                                                                           ╰───────────────────────────────────╯
             """,
             ScreenText.Rows(gmd.WaitFor("Switch to Branch"), repo.Path, 20, 20)
         );

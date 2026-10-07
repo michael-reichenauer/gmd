@@ -312,7 +312,7 @@ class RepoCommands : IRepoCommands
             + $"{FileList(s.ConflictsFiles)}\n\n"
             + "Resolve them in the diff of the uncommitted changes, where Enter\n"
             + $"on a file opens it, then {finish}.\n"
-            + "Shift-M opens the repo menu, to abort it later.";
+            + "⇧m opens the repo menu, to abort it later.";
 
         var choice = UI.InfoMessage(
             $"{name} Stopped on Conflicts",

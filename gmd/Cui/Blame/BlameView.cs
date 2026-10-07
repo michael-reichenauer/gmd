@@ -460,12 +460,7 @@ class BlameView : IBlameView
                 .Separator()
                 .Item("Copy Selected Lines", "Ctrl-C", () => OnCopy(), () => IsSelected)
                 .Item("Copy Commit Id of Line", "i", () => CopyLineId(), () => c != null && !c.IsUncommitted)
-                .Item(
-                    "Copy Commit Message of Line",
-                    "Shift-I",
-                    () => CopyLineMessage(),
-                    () => c != null && !c.IsUncommitted
-                )
+                .Item("Copy Commit Message of Line", "⇧i", () => CopyLineMessage(), () => c != null && !c.IsUncommitted)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }

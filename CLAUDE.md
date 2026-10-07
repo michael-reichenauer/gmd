@@ -155,8 +155,9 @@ Key types and flow:
   run through `CommandRunner`), menus into `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
-  its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"Shift-P"` for P,
-  the help does the same, and the key-hint line writes a shifted letter as `⇧p`. Item names are
+  its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"⇧p"` for P, as the
+  key-hint line writes it, and so are the keys named in status messages and in the reasons a greyed
+  out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
