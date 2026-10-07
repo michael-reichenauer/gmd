@@ -25,8 +25,14 @@ static class Sorter
 
         for (var i = 0; i < list.Count; i++)
         {
-            while (true)
+            for (var passes = 0; ; passes++)
             {
+                if (passes > list.Count)
+                {
+                    Log.Warn(CycleWarning);
+                    break;
+                }
+
                 // What a pass of CustomSort at i does: the item is compared with each item behind it,
                 // and each it is greater than is swapped into place i in turn, in position order. A
                 // swap moves only place i and a place already passed, so which of them the item is
@@ -54,8 +60,16 @@ static class Sorter
         }
     }
 
+    // Each pass at a place leaves an item there that the item before it had to go after, so with a
+    // comparer that has no cycle a place is passed at most once per item. A cycle, e.g. branch orders
+    // that contradict each other (each after the other, or a after b after c after a), has no order
+    // to reach and swapped forever, which hung gmd on every refresh. So a place passed more often than
+    // that is left as it is, the sort goes on, and the order reached is kept.
+    const string CycleWarning = "The order to sort by has a cycle, so a place was left as it was";
+
     static void CustomSort<T>(IList<T> list, Func<T, T, int> comparer)
     {
+        var passes = 0;
         for (int i = 0; i < list.Count; i++)
         {
             bool swapped = false;
@@ -72,10 +86,15 @@ static class Sorter
                 }
             }
 
-            if (swapped)
+            if (swapped && ++passes <= list.Count)
             {
                 i = i - 1;
+                continue;
             }
+
+            if (swapped)
+                Log.Warn(CycleWarning);
+            passes = 0;
         }
     }
 }

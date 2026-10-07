@@ -88,4 +88,39 @@ public class RepoConfigTest
         CollectionAssert.AreEqual(new[] { "dev" }, config.Get(worktree).Branches);
         Assert.AreEqual(3, config.Get(main).BranchColors["dev"]);
     }
+
+    // A rename maps the names in the orders, which can leave two orders of one pair, here each
+    // branch after the other, or a branch ordered against itself; the first of a pair is kept
+    [TestMethod]
+    public void TestOnePerPairKeepsTheFirstOrderOfAPair()
+    {
+        var orders = BranchOrder.OnePerPair([
+            new BranchOrder
+            {
+                Branch = "a",
+                Other = "b",
+                Order = 1,
+            },
+            new BranchOrder
+            {
+                Branch = "c",
+                Other = "c",
+                Order = -1,
+            },
+            new BranchOrder
+            {
+                Branch = "b",
+                Other = "a",
+                Order = 1,
+            },
+            new BranchOrder
+            {
+                Branch = "a",
+                Other = "d",
+                Order = -1,
+            },
+        ]);
+
+        Assert.AreEqual("a b 1, a d -1", string.Join(", ", orders.Select(o => $"{o.Branch} {o.Other} {o.Order}")));
+    }
 }

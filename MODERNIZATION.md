@@ -278,6 +278,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   terminal back, `Main` now says what failed, where the log is, that the next start begins it
   anew, and where to report it (`Program.CrashMessage`), and exits with 1; About has the project's
   links and the log's path. Tried with a throw on the main loop and in a background task.
+- User branch orders that contradicted each other, each branch after the other as a rename could
+  leave them, or a after b after c after a, made `Sorter.Sort` swap forever, and so gmd hang on
+  every refresh of the repo. Both sorts now leave a place they cannot settle as it is after it has
+  been passed once per item, which a comparer with no cycle never needs, and a rename keeps one
+  order per pair of branches (`BranchOrder.OnePerPair`). (2026-10-07)
 
 ---
 
@@ -437,8 +442,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (each branch tested for overlap against every placed one), the sort by column 0.4 s (Sorter, whose
   order of equal columns is the drawing), `SetGraph` 0.3 s. Only after the user asks for all branches
   (asked to confirm above 20), but then every refresh pays it.
-- User branch orders that contradict each other (each after the other, which a rename can leave)
-  make `Sorter.Sort` loop forever, and the overload too, since it makes the same swaps.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
   the shown names with a list `Contains`, thousands times thousands once all are shown.
 - `CommitBranchService.DetermineCommitBranch` builds a `branchNames` string no one reads, for every
