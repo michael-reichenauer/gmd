@@ -170,6 +170,8 @@ class BranchMenu : IBranchMenu
         var isStatusOK = repo.Repo.Status.IsOk;
         var isCurrent = b.IsCurrent || b.IsLocalCurrent;
         var currentName = cb.ShortNiceUniqueName();
+        var step = BranchUndo.StepOf(repo.Repo, b);
+        var rewrite = ForcePushes.RewriteOf(repo.Repo, b);
 
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
@@ -231,6 +233,15 @@ class BranchMenu : IBranchMenu
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
             )
+            // Only for a branch whose remote branch a force push rewrote, see ForcePushes
+            .Item(
+                rewrite != null,
+                rewrite != null ? ForcePushes.RestoreLabel(rewrite) : "",
+                "",
+                () => cmds.RestoreOrigin(branchName),
+                () => rewrite?.IsRestorable == true,
+                () => rewrite != null ? ForcePushes.WhyNoRestore(rewrite) : ""
+            )
             .Item("Create Branch ...", "b", () => cmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it
             // is checked out already (here or in another worktree)
@@ -267,6 +278,15 @@ class BranchMenu : IBranchMenu
                     : b.IsCurrent || b.IsLocalCurrent
                         ? "Switch to another branch first, the current one cannot be deleted"
                     : Why.InWorktree(b)
+            )
+            // The branch's last change, which its reflog says, whether it is checked out or not:
+            // Merge from, and the pull of a branch that is not checked out, change another branch
+            .Item(
+                BranchUndo.Label(step),
+                "",
+                () => cmds.UndoLastChange(b.Name),
+                () => BranchUndo.WhyNot(repo.Repo, b, step) == "",
+                () => BranchUndo.WhyNot(repo.Repo, b, step)
             )
             .SubMenu(
                 "Diff Branch to",

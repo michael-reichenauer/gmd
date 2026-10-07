@@ -3,6 +3,7 @@ namespace gmd.Git.Private;
 interface IReflogService
 {
     Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd);
+    Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd);
 }
 
 // The reflogs of the repository: every local branch's, HEAD's and every other worktree's HEAD's.
@@ -29,6 +30,25 @@ class ReflogService : IReflogService
         var result = await cmd.RunAsync(
             "git",
             "reflog show --exclude=refs/* --all --glob=refs/heads/* --format=%H%x00%gD%x00%gs",
+            wd,
+            true
+        );
+        if (result is not string output)
+            return result.Error;
+
+        return Parse(output).ToList();
+    }
+
+    // The reflogs of the given refs only, e.g. 'refs/remotes/origin/dev', for the few remote branches
+    // whose reflog is asked about. A ref with no reflog is left out rather than failing the rest.
+    public async Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd)
+    {
+        if (refs.Count == 0)
+            return new List<ReflogEntry>();
+
+        var result = await cmd.RunAsync(
+            "git",
+            $"reflog show --format=%H%x00%gD%x00%gs {string.Join(' ', refs)}",
             wd,
             true
         );

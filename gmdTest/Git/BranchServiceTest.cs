@@ -359,6 +359,20 @@ public class BranchServiceTest
         Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
     }
 
+    // A branch that is not checked out is moved with update-ref, which takes the commit the branch
+    // has to be at for it to be moved, and the message its reflog gets
+    [TestMethod]
+    public async Task TestMoveBranch()
+    {
+        var cmd = new FakeCmd("");
+        var service = new BranchService(cmd);
+
+        await service.MoveBranchAsync("dev", "a1", "a2", "undo: moving to a1", "/wd");
+
+        Assert.AreEqual("update-ref -m \"undo: moving to a1\" refs/heads/dev a1 a2", cmd.Calls[0].Args);
+        Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
+    }
+
     // Merge, rebase, rebase onto and cherry pick all turn a conflict into the same error, since
     // git reports conflicts as a failed command with 'CONFLICT' in the output
     [TestMethod]

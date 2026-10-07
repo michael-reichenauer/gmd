@@ -10,9 +10,11 @@ interface IBranchService
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+    Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd);
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
+    Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
 }
 
@@ -98,6 +100,14 @@ class BranchService : IBranchService
         return await cmd.RunAsync("git", args, wd);
     }
 
+    // Moves a branch that is not checked out, with the message its reflog gets, and only if it is
+    // still at fromId: git compares and moves in one step, so a branch something else moved in the
+    // meantime is left where it is rather than losing what moved it
+    public async Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd)
+    {
+        return await cmd.RunAsync("git", $"update-ref -m \"{message}\" refs/heads/{name} {toId} {fromId}", wd);
+    }
+
     public async Task<Result> MergeBranchAsync(string name, string wd)
     {
         //  name = RemoteService.TrimRemotePrefix(name);
@@ -110,6 +120,19 @@ class BranchService : IBranchService
         //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
         return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
+    }
+
+    // Moves the current branch's own commits, the ones after where it was built on its remote branch,
+    // onto the remote branch, which a force push rewrote: what 'git pull --rebase' does with the fork
+    // point it finds, done whatever pull.rebase says. A merge among them is kept as a merge.
+    public async Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd)
+    {
+        var rsp = await cmd.RunAsync(
+            "git",
+            $"rebase --rebase-merges --onto refs/remotes/{remoteName} {forkPointId}",
+            wd
+        );
+        return ConflictError.ToConflict(rsp, "The pull stopped on conflicts");
     }
 
     public async Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd)

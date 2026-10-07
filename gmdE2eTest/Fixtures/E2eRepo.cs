@@ -118,6 +118,45 @@ static class E2eRepo
         return repo;
     }
 
+    // The same with origin's 'main' rewritten by someone's force push: 'Add delta' reworded, as an
+    // amend does, and fetched here, where 'main' still has the old 'Add delta' with 'Add zeta' on top.
+    // The force push is made inside the bare origin, by moving its 'main' to the reworded commit,
+    // which is pushed there under a name of its own first, so no second clone is needed. The reworded
+    // commit keeps the author and time of the one it replaces, as an amend does, which is what tells
+    // a copy, and its committer time too, so that its id is the same on every run.
+    public static async Task<TempRepo> CreateWithRewrittenOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+        var origin = repo.Path + "-origin";
+
+        await repo.GitAsync("checkout -q -b rewrite HEAD~1");
+        repo.GitAt(["commit", "-q", "--amend", "-m", "Add delta, reworded"], TempRepo.BaseTime.AddMinutes(6));
+        await repo.GitAsync("push -q origin rewrite:refs/heads/tmp");
+        await repo.GitAsync($"-C \"{origin}\" update-ref refs/heads/main refs/heads/tmp");
+        await repo.GitAsync($"-C \"{origin}\" update-ref -d refs/heads/tmp");
+        await repo.GitAsync("checkout -q main");
+        await repo.GitAsync("branch -q -D rewrite");
+        await repo.GitAsync("fetch -q --prune origin");
+
+        return repo;
+    }
+
+    // The same with origin's 'main' taken back a commit by someone's force push, dropping 'Add delta',
+    // and fetched here, where 'main' still has it with 'Add zeta' on top. Made inside the bare origin,
+    // so no second clone is needed. That leaves 'main' just ahead, with nothing to pull, so a plain
+    // push would put 'Add delta' back.
+    public static async Task<TempRepo> CreateWithDroppedOnOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+        var origin = repo.Path + "-origin";
+
+        var mergeOfDev = (await repo.GitAsync("rev-parse main~2")).Trim();
+        await repo.GitAsync($"-C \"{origin}\" update-ref refs/heads/main {mergeOfDev}");
+        await repo.GitAsync("fetch -q origin");
+
+        return repo;
+    }
+
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
     // and gives 'Pull' something to do.

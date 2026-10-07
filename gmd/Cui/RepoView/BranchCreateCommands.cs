@@ -11,6 +11,7 @@ interface IBranchCreateCommands
     void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
+    void CreateBranchFromLostCommit(string commitId, string madeOnName);
     void RenameBranch(string name);
     void DeleteBranch(string name);
 }
@@ -112,35 +113,52 @@ class BranchCreateCommands : IBranchCreateCommands
     public void CreateBranchFromCommit() =>
         Do(async () =>
         {
-            var branchName = "";
-            try
-            {
-                var commit = repo.RowCommit;
-                var commitBranchName = commit.BranchName;
-
-                if (createBranchDlg.Show(commitBranchName, commit.Sid) is not CreateBranchResult rsp)
-                    return Result.Ok;
-
-                var created = await server.CreateBranchFromCommitAsync(
-                    repo.Repo,
-                    rsp.Name,
-                    commit.Id,
-                    rsp.IsCheckout,
-                    repo.Path
-                );
-                if (created is Error e)
-                {
-                    return new Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
-            }
-            finally
-            {
-                Refresh(branchName);
-            }
+            var commit = repo.RowCommit;
+            return await CreateBranchAtAsync(commit.BranchName, commit.Id, "", true);
         });
+
+    // A branch at a commit no branch has any more, brought back from Recover Lost Commits: named as
+    // the branch it was made on when that name is free, since that is most often what is being
+    // brought back, and not published by default, since what was lost was never more than local
+    public void CreateBranchFromLostCommit(string commitId, string madeOnName) =>
+        Do(async () =>
+        {
+            var isNameFree =
+                madeOnName != ""
+                && !repo.Repo.BranchByName.ContainsKey(madeOnName)
+                && !repo.Repo.BranchByName.ContainsKey($"origin/{madeOnName}");
+            var from = madeOnName != "" ? madeOnName : "lost commit";
+            return await CreateBranchAtAsync(from, commitId, isNameFree ? madeOnName : "", false);
+        });
+
+    async Task<Result> CreateBranchAtAsync(string fromName, string commitId, string name, bool isPublish)
+    {
+        var branchName = "";
+        try
+        {
+            if (createBranchDlg.Show(fromName, commitId.Sid(), name, isPublish) is not CreateBranchResult rsp)
+                return Result.Ok;
+
+            var created = await server.CreateBranchFromCommitAsync(
+                repo.Repo,
+                rsp.Name,
+                commitId,
+                rsp.IsCheckout,
+                repo.Path
+            );
+            if (created is Error e)
+            {
+                return new Error($"Failed to create branch {rsp.Name}", e);
+            }
+            branchName = rsp.Name;
+
+            return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
+        }
+        finally
+        {
+            Refresh(branchName);
+        }
+    }
 
     // Renames both the local and the remote branch, since renaming only the local branch would
     // hardly be visible: the local branch would still track the old remote branch, and gmd shows

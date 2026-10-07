@@ -106,6 +106,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `.claude/worktrees/` or in `.worktrees/`, the two inside the repo added to `.gitignore`),
   removes (with the branch, force for uncommitted changes) and prunes them. One `.gmdconfig` per
   repository, in the common git dir, shared by every worktree.
+- A way back, from the reflog (2026-10-06):
+  - *Undo* of the last change of a branch, named after what the branch's own reflog says it was
+    (`ReflogSteps`, `Repo.UndoSteps`): the current branch's at the top of the commit menu's Undo,
+    any branch's in its branch menu. The current branch is reset so that nothing uncommitted is lost
+    (`UndoStep.Mode`), any other moved with `update-ref` from where it was read. Undo again redoes
+    it, and a squash is undone whole, both from a record gmd keeps (`RepoConfig.UndoSteps`).
+  - *Recover Lost Commits*: the lines of work no ref reaches, which the reflogs still mention
+    (`LostWorkFinder`), with the branch each was made on, what took it out of the history, a diff and
+    a branch to bring it back.
+  - A force push on origin told from new commits on both sides, by the remote branch's reflog and the
+    fork point (`RemoteRewrites`); pulled by moving the branch's own commits onto the new version
+    rather than merging the two; and origin put back from before it, with a lease. One that only
+    dropped commits leaves the branch just ahead, which `merge-base --fork-point` cannot tell (the
+    commit origin went back to is in the local branch too), so it is found by origin's old tip being
+    in the local branch, and a plain push of it asks first.
 
 **Bugs fixed** (the ones a user could hit; all have regression tests)
 
@@ -137,6 +152,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   menu's `Pull/Update` on the current branch ran a fetch git refuses outright.
 - Squash refused unpushed commits and allowed pushed ones; Uncommit was offered with a dirty tree
   on an unpushed branch; push all tried to push diverged branches.
+- Squashing pushed commits with commits not pushed yet on top squashed those in too: the commits to
+  pick back were walked from the tip of the branch the squashed ones are on, which for pushed
+  commits is the remote branch, below the local one. They are walked from the local branch's tip,
+  and commits not on its line, e.g. ones only origin has when the two have diverged, are refused
+  before anything changes, where the branch used to be reset onto them (2026-10-07).
 - Inference: with no `main` / `master` / `trunk` the root branch was whichever git listed first; a
   commit below a branch point went to the wrong child when the other child had a merge-subject
   name; four merge-subject forms lost their `into` name; a stopped rebase lost the current branch;
@@ -263,6 +283,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   clipped. `BlameView` works around it with `Width = Dim.Fill()`; the setter is the fix.
 - Pull all only considers shown branches; a hidden branch that is behind is neither pulled nor
   counted in `▼`. `help.md` says "all displayed branches", so arguably right.
+- Undo, Recover and the force push handling, as left (2026-10-06):
+  - No key for Undo, nor a key hint; it is in the commit menu and the branch menus.
+  - "Undo the last change in any branch" would need the times of the reflog entries, which are not
+    read (`%gd` with a date would give them, and would change the selector the inference reads).
+  - Merge to is undone from the target's branch menu, not from where it was run; a range cherry
+    pick is one commit per entry, so one undo each; Pull All is an undo per branch.
+  - `RepoConfig.UndoSteps` is pruned of the branches that are gone only when a record is written.
+  - A lost line of work's time is its tip's commit time, since the reflog entries carry none.
+  - With no remote reflog (expired after 90 days, `core.logAllRefUpdates` off, a fresh clone), a
+    force push is not told from new commits on both sides, and a pull merges as before.
+  - A branch that merged the rewritten version into the old one (a `git pull` that merges) is not
+    told, though its push puts the old version back; and the commits of the old version the local
+    branch never had, fetched but not pulled, are not in the log, so they are not counted dropped.
+  - Restoring discarded changes and dropped stashes is not done: the reflog records neither, but
+    git prints a dropped stash's id, and `git stash create` before a discard would keep one.
 - A repo with no commits still offers Uncommit (git refuses the reset). Ctrl+O is documented as
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
   lists only shown branches, so with only `main` shown it is an empty box.
@@ -482,6 +517,26 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Git**
 
+- The reflog, as Undo, Recover and the force push detection read it (2026-10-06):
+  - git writes no entry to a branch's reflog for an update that leaves it where it was, so the
+    `reset --hard` of Discard All Changes, `reset: moving to HEAD`, is in HEAD's reflog only (this
+    repository's had 59 and its branches' none). Only `Branch: renamed`/`copied` repeat an id.
+  - A rebase or a pull is one entry in the branch's reflog (`rebase (finish): …`), and one per
+    commit in HEAD's, which is why Undo reads the branch's. Options given to a command are part of
+    its message (`pull --rebase (finish): …`), so only the leading word is matched.
+  - `GIT_REFLOG_ACTION` replaces the `commit` of a commit's entry, which would blind
+    `ReflogWitness.IsCommitMade`; Squash records its moves instead. `update-ref -m` writes the
+    message given, which is how an undo of a branch not checked out says `undo: moving to …`.
+  - Deleting a branch deletes its reflog; HEAD's still says what was made on it.
+  - `log --ignore-missing <ids> --not --all` lists exactly the commits nothing reaches and skips ids
+    gc has removed, given on the command line too, not only with `--stdin`. `ICmd.CommandWithStdin`
+    cannot run git (no working folder, stdout never read), so the ids go in chunks of 400, about
+    16K characters, under the 32K a Windows command line holds.
+  - A remote branch's reflog says `fetch …: fast-forward` or `forced-update`, and `update by push`
+    for a push from here, forced or not. It is read only for the branches with commits not pushed.
+    `git reflog show a b` reads several refs at once, and a ref with no reflog is left out silently.
+  - `merge-base --fork-point`, which `pull --rebase` uses, is the newest entry of the remote
+    branch's reflog that the local branch has; `RemoteRewrites` finds it from the log in memory.
 - `git fetch origin <b>:<b>`, which is how a branch that is not checked out is pulled, only
   fast-forwards, and is refused outright for the checked-out branch. Git has no porcelain that
   merges into a branch without a working folder — hence `Merge to` checks out, merges, commits and

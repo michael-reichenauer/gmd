@@ -91,6 +91,9 @@ static class Confirm
                 : $"Remove the tag '{name}'?"
         );
 
+    // Putting a remote branch back as it was before a force push, which is one in turn, for everyone
+    internal static bool RestoreOrigin(string remoteName, string question) => Ask($"Restore {remoteName}", question);
+
     static string Files(int count) => count == 1 ? "1 file" : $"{count} files";
 
     static bool Ask(string title, string message) => UI.InfoMessage(title, message, 1, ["Yes", "No"]) == 0;

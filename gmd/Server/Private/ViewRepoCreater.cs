@@ -213,6 +213,8 @@ class ViewRepoCreater : IViewRepoCreater
         )
         {
             Worktrees = repo.Worktrees,
+            UndoSteps = repo.UndoSteps,
+            RemoteRewrites = repo.RemoteRewrites,
         };
 
         // Convert to a view repo

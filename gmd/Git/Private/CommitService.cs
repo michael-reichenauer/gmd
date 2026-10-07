@@ -10,6 +10,7 @@ interface ICommitService
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
     Task<Result> ResetHardUntilCommitAsync(string id, string wd);
+    Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd);
 }
 
 // cSpell:ignore pathspec
@@ -121,6 +122,30 @@ class CommitService : ICommitService
     public async Task<Result> ResetHardUntilCommitAsync(string id, string wd)
     {
         return await cmd.RunAsync("git", $"reset --hard {id}", wd);
+    }
+
+    // Moves the current branch back to where it was, as Undo does: '--keep' moves the files too,
+    // and refuses rather than overwrite a file with uncommitted changes, while '--mixed' leaves the
+    // files as they are, so what the branch no longer has shows up as uncommitted changes
+    // A reset has no old value to check, as update-ref has, so HEAD is read first, the branch it is
+    // on and where that is: with a repo read before a switch, or before a commit made outside gmd,
+    // the reset would move another branch, or take what was added since back with it
+    public async Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd)
+    {
+        var head = await cmd.RunAsync("git", "rev-parse HEAD --symbolic-full-name HEAD", wd);
+        if (head is not string output)
+            return head.Error;
+        if (
+            output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            is not [var id, var refName]
+        )
+            return new Error($"Failed to read HEAD: '{output}'");
+        if (refName != $"refs/heads/{name}")
+            return new Error($"'{name}' is no longer checked out, so it was left where it is");
+        if (id != fromId)
+            return new Error($"'{name}' has moved since it was read, so it was left where it is");
+
+        return await cmd.RunAsync("git", $"reset {(isKeep ? "--keep" : "--mixed")} {toId}", wd);
     }
 
     static bool IsFileUnknown(Error error, string path)

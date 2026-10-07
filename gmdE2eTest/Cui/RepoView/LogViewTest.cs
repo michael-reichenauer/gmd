@@ -622,19 +622,19 @@ public class LogViewTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │Full File History ...                  │
                     ╭ dev ───────────────────────────────────╮
-                    │Switch to Branch                     s  │╭ Branches ───────────────────╮
-                    │Merge to main                        e  ││●   main                    >│
-                    │Merge from main                Shift-E  ││    dev                     >│
-                    │Rebase and Push onto                   >││─────────────────────────────│
-                    │Hide Branch                          h  ││Show Branch         Shift → >│
-                    │Pull                                 u  ││Hide All Branches            │
-                    │Push                                 p  ││Undo Show 'dev'   Backspace  │
-                    │Create Branch ...                    b  ││Pull All Branches   Shift-U  │
-                    │Create Worktree ...                     ││Push All Branches   Shift-P  │
-                    │Rename Branch ...                       │╰─────────────────────────────╯
-                    │Delete Branch ...                       │
+                    │Switch to Branch                     s  │
+                    │Merge to main                        e  │╭ Branches ───────────────────╮
+                    │Merge from main                Shift-E  ││●   main                    >│
+                    │Rebase and Push onto                   >││    dev                     >│
+                    │Hide Branch                          h  ││─────────────────────────────│
+                    │Pull                                 u  ││Show Branch         Shift → >│
+                    │Push                                 p  ││Hide All Branches            │
+                    │Create Branch ...                    b  ││Undo Show 'dev'   Backspace  │
+                    │Create Worktree ...                     ││Pull All Branches   Shift-U  │
+                    │Rename Branch ...                       ││Push All Branches   Shift-P  │
+                    │Delete Branch ...                       │╰─────────────────────────────╯
+                    │Undo Commit 'More dev work'             │
                     │Diff Branch to                       d >│
                     │Change Branch Color                  g  │
                     │Open in Browser                         │

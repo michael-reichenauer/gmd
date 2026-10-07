@@ -71,4 +71,30 @@ public class ReflogServiceTest
         Assert.AreEqual(0, ReflogService.Parse($"{A}\0refs/heads/main\0commit: no index").Count());
         Assert.AreEqual(0, ReflogService.Parse("not a reflog line").Count());
     }
+
+    // The reflogs of given refs only, e.g. of the remote branches that have diverged
+    [TestMethod]
+    public async Task TestReflogsOfGivenRefs()
+    {
+        var cmd = new FakeCmd($"{A}\0refs/remotes/origin/dev@{{0}}\0fetch: forced-update\n");
+
+        var entries = AssertOk(
+            await new ReflogService(cmd).GetRefReflogsAsync(["refs/remotes/origin/dev", "refs/remotes/origin/x"], "/wd")
+        );
+
+        Assert.AreEqual(
+            "reflog show --format=%H%x00%gD%x00%gs refs/remotes/origin/dev refs/remotes/origin/x",
+            cmd.Calls[0].Args
+        );
+        Assert.AreEqual(new ReflogEntry(A, "refs/remotes/origin/dev", 0, "fetch: forced-update"), entries[0]);
+    }
+
+    [TestMethod]
+    public async Task TestNoReflogsOfNoRefs()
+    {
+        var cmd = new FakeCmd("");
+
+        Assert.AreEqual(0, AssertOk(await new ReflogService(cmd).GetRefReflogsAsync([], "/wd")).Count);
+        Assert.AreEqual(0, cmd.Calls.Count);
+    }
 }

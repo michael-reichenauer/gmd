@@ -155,6 +155,88 @@ public class BranchPushPullCommandsTest
         );
     }
 
+    // A branch that is not checked out and whose remote branch a force push rewrote is pulled by
+    // taking the new version, which it can when it has no commits of its own to move onto it
+    [TestMethod]
+    public async Task TestARewrittenBranchNotCheckedOutIsPulledWhenItHasNoCommitsOfItsOwn()
+    {
+        var repo = await Rewritten(hasOwnCommit: false).ViewRepoAsync("div");
+
+        Assert.IsTrue(BranchPushPullCommands.CanPullBranch(repo, repo.BranchByName["origin/div"]));
+    }
+
+    [TestMethod]
+    public async Task TestARewrittenBranchNotCheckedOutWithCommitsOfItsOwnIsNot()
+    {
+        var repo = await Rewritten(hasOwnCommit: true).ViewRepoAsync("div");
+        var branch = repo.BranchByName["origin/div"];
+
+        Assert.IsFalse(BranchPushPullCommands.CanPullBranch(repo, branch));
+        Assert.AreEqual(
+            "'origin/div' was rewritten by a force push: switch to 'div', and pull moves your 1 commit onto it",
+            BranchPushPullCommands.WhyNoPullBranch(repo, branch)
+        );
+    }
+
+    // A force push that only dropped commits leaves the branch just ahead, with nothing new on origin,
+    // and it is pulled all the same: by taking the new version, which leaves the dropped commits out.
+    // Its push is a plain one, which git would take, and which put them back.
+    [TestMethod]
+    public async Task TestABranchAForcePushDroppedCommitsFromIsPulled()
+    {
+        var repo = await Dropped(isCurrent: true).ViewRepoAsync("div");
+
+        Assert.IsTrue(BranchPushPullCommands.CanPullCurrentBranch(repo));
+        Assert.IsTrue(BranchPushPullCommands.CanPull(repo));
+        Assert.IsTrue(BranchPushPullCommands.CanPullBranch(repo, repo.BranchByName["origin/div"]));
+        Assert.IsTrue(BranchPushPullCommands.CanPushCurrentBranch(repo));
+        Assert.IsTrue(ForcePushes.IsPushedBack(repo.RemoteRewrites["div"]));
+    }
+
+    // One that is not checked out, with no commits of its own, is pulled by Pull All with the rest
+    [TestMethod]
+    public async Task TestPullAllPullsABranchAForcePushDroppedCommitsFrom()
+    {
+        var repo = await Dropped(isCurrent: false).ViewRepoAsync("div");
+
+        Assert.IsTrue(BranchPushPullCommands.CanPullBranch(repo, repo.BranchByName["origin/div"]));
+        CollectionAssert.AreEqual(
+            new[] { "div" },
+            BranchPushPullCommands.RewritesToPull(repo, "").Select(r => r.BranchName).ToArray()
+        );
+        Assert.AreEqual(0, BranchPushPullCommands.DivergedBranchesToPull(repo, "").Count());
+    }
+
+    // 'div' had v0 and v1 on origin; a force push took it back to c2, dropping both
+    static RepoBuilder Dropped(bool isCurrent) =>
+        new RepoBuilder()
+            .Commit("v1", "Div two", "v0")
+            .Commit("v0", "Div work", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: !isCurrent)
+            .BranchWithRemote("div", "v1", isCurrent: isCurrent, remoteTipCommit: "c2", ahead: 2)
+            .RemoteReflog("origin/div", "c2", "fetch: forced-update")
+            .RemoteReflog("origin/div", "v1", "update by push");
+
+    // 'div' had v0 on origin, which a force push replaced with its copy v1, on b1
+    static RepoBuilder Rewritten(bool hasOwnCommit)
+    {
+        var builder = new RepoBuilder();
+        if (hasOwnCommit)
+            builder.Commit("w1", "Own work", "v0");
+        return builder
+            .CopyOf("v1", "v0", "b1")
+            .Commit("b1", "Moved on", "c2")
+            .Commit("v0", "Div work", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("div", hasOwnCommit ? "w1" : "v0", remoteTipCommit: "v1", ahead: 1, behind: 2)
+            .RemoteReflog("origin/div", "v1", "fetch: forced-update")
+            .RemoteReflog("origin/div", "v0", "update by push");
+    }
+
     // The status is the callers' check, not the branch lists'
     [TestMethod]
     public async Task TestPushAllBranchListIgnoresUncommittedChanges()

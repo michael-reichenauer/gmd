@@ -69,6 +69,12 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         logService.GetMergeLogAsync(reference, wd);
 
+    public Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    ) => logService.GetUnreachableCommitsAsync(ids, alsoReached, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
         logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
 
@@ -127,6 +133,9 @@ internal class Git : IGit
 
     public Task<Result> PushRefForceAsync(string name, string wd) => remoteService.PushRefForceAsync(name, wd);
 
+    public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
+        remoteService.PushRestoreAsync(name, oldId, expectedId, wd);
+
     public Task<Result> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
 
     public Task<Result> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
@@ -150,6 +159,9 @@ internal class Git : IGit
 
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
         branchService.RebaseOntoAsync(newBase, oldBase, wd);
+
+    public Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd) =>
+        branchService.RebaseOntoRemoteAsync(remoteName, forkPointId, wd);
 
     public Task<Result> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
 
@@ -198,6 +210,9 @@ internal class Git : IGit
 
     public Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         branchService.DeleteLocalBranchAsync(name, isForced, wd);
+
+    public Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd) =>
+        branchService.MoveBranchAsync(name, toId, fromId, message, wd);
 
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) =>
         remoteService.DeleteRemoteBranchAsync(name, wd);
@@ -250,6 +265,9 @@ internal class Git : IGit
     public Task<Result> ResetHardUntilCommitAsync(string id, string wd) =>
         commitService.ResetHardUntilCommitAsync(id, wd);
 
+    public Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd) =>
+        commitService.ResetBranchAsync(name, toId, fromId, isKeep, wd);
+
     public Task<Result> PushTagAsync(string name, string wd) => remoteService.PushTagAsync(name, wd);
 
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => remoteService.DeleteRemoteTagAsync(name, wd);
@@ -257,6 +275,9 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) => worktreeService.ListAsync(wd);
 
     public Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd) => reflogService.GetReflogAsync(wd);
+
+    public Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd) =>
+        reflogService.GetRefReflogsAsync(refs, wd);
 
     public Task<Result> AddWorktreeAsync(
         string path,

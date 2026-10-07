@@ -112,6 +112,19 @@ interface IServer
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
+
+    // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see AugmentedService
+    Task<Result> UndoStepAsync(Repo repo, UndoStep step);
+
+    // The lines of work no branch, tag or stash has any more, which the reflogs still mention
+    Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo);
+
+    // Pulls a branch whose remote branch a force push rewrote (Repo.RemoteRewrites): its own commits
+    // are moved onto the new version, rather than the two versions merged
+    Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite);
+
+    // Force pushes a rewritten remote branch back as it was before the rewrite, if no one pushed since
+    Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);

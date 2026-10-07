@@ -378,4 +378,104 @@ public class PushPullTest
 
         Assert.IsFalse(gmd.WaitFor("Pulled 'main'").Contains("Pull Diverged Branch"));
     }
+
+    // A branch whose remote branch someone rewrote by a force push: said once it is found, and pulled
+    // by moving the commit of its own onto the new version, after a question with Cancel as the
+    // default, rather than merged with the old version
+    [TestMethod]
+    public async Task TestPullARewrittenBranch()
+    {
+        using var repo = await E2eRepo.CreateWithRewrittenOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            "'origin/main' was rewritten by a force push: Pull moves your 1 commit onto it",
+            ScreenText.LastLine(gmd.WaitFor("was rewritten by a force push"))
+        );
+
+        gmd.Send("u");
+        var dialog = gmd.WaitFor("Pull Rewritten Branch");
+        StringAssert.Contains(dialog, "Pull moves your 1 commit onto the new version");
+        gmd.Send("Left"); // From Cancel, the default, to Pull
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved your 1 commit onto the rewritten 'origin/main'",
+            ScreenText.LastLine(gmd.WaitFor("Moved your 1 commit"))
+        );
+        Assert.AreEqual(
+            "Add zeta\nAdd delta, reworded\nMerge branch 'dev' into main",
+            await repo.GitAsync("log --format=%s -3 main")
+        );
+    }
+
+    // A force push that only dropped a commit leaves 'main' just ahead, and a plain push of it would
+    // put the commit back on origin: said once it is found, and the push asks first, with Cancel as
+    // the default. Pull, with nothing new on origin, moves the commit of its own onto the new version.
+    [TestMethod]
+    public async Task TestPushAfterAForcePushThatDroppedACommit()
+    {
+        using var repo = await E2eRepo.CreateWithDroppedOnOriginAsync();
+        var newTip = await repo.GitAsync("rev-parse origin/main");
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            "'origin/main' was rewritten by a force push, dropping 1 commit: Pull moves your 1 commit onto it",
+            ScreenText.LastLine(gmd.WaitFor("was rewritten by a force push"))
+        );
+
+        gmd.Send("p");
+        StringAssert.Contains(gmd.WaitFor("Push Warning"), "Push puts it back on origin");
+        gmd.Send("Enter"); // Cancel, the default
+        gmd.WaitUntilGone("Push Warning");
+        Assert.AreEqual(newTip, await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main"));
+
+        gmd.Send("u");
+        gmd.WaitFor("Pull Rewritten Branch");
+        gmd.Send("Left"); // From Cancel, the default, to Pull
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved your 1 commit onto the rewritten 'origin/main'",
+            ScreenText.LastLine(gmd.WaitFor("Moved your 1 commit"))
+        );
+        Assert.AreEqual("Add zeta\nMerge branch 'dev' into main", await repo.GitAsync("log --format=%s -2 main"));
+    }
+
+    // A force push on origin taken back from the branch menu: origin gets the old version again,
+    // after a question with No as the default. For 'main', the current branch, the menu starts on
+    // 'Hide Branch', the first item it can act on, and the item is three moves down, past 'Pull'
+    // and 'Push'.
+    [TestMethod]
+    public async Task TestRestoreOriginFromBeforeTheForcePush()
+    {
+        using var repo = await E2eRepo.CreateWithRewrittenOriginAsync();
+        var oldTip = await repo.GitAsync("rev-parse main~1");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("was rewritten by a force push");
+
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Restore origin/main from before the Force Push");
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Put 'origin/main' back"), "This is a force push too");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            $"Put 'origin/main' back at {oldTip[..6]}, as it was before the force push",
+            ScreenText.LastLine(gmd.WaitFor("Put 'origin/main' back at"))
+        );
+        Assert.AreEqual(oldTip, await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main"));
+    }
 }

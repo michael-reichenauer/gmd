@@ -9,10 +9,20 @@ internal interface ILogService
     Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
     Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
+    Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    );
 }
 
 internal class LogService : ILogService
 {
+    // The ids given on one command line: a Windows command line holds about 32K characters, and an
+    // id is 41 of them with its space
+    internal const int IdsPerCall = 400;
+    const int MaxUnreachableCount = 2000;
+
     private readonly ICmd cmd;
 
     internal LogService(ICmd cmd)
@@ -48,6 +58,37 @@ internal class LogService : ILogService
             return result.Error;
 
         return output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
+    }
+
+    // The commits reachable from the given ones that no ref reaches, i.e. that git still has only
+    // because a reflog mentions them: '--not --all' takes away everything a branch, a tag, a stash,
+    // a remote branch or a worktree's HEAD reaches, and 'alsoReached' what else counts as kept, the
+    // stashes older than the latest, which only the stash's own reflog holds. An id gc has removed
+    // is skipped rather than failing the command. The ids are given in chunks, and a commit two
+    // chunks both reach is listed once.
+    public async Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    )
+    {
+        List<Commit> commits = [];
+        HashSet<string> listed = [];
+        foreach (var chunk in ids.Chunk(IdsPerCall))
+        {
+            var args =
+                $"log --ignore-missing -z --date-order --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={MaxUnreachableCount} "
+                + $"{string.Join(' ', chunk)} --not --all {string.Join(' ', alsoReached)}";
+            var result = await cmd.RunAsync("git", args.TrimEnd(), wd);
+            if (result is not string output)
+                return result.Error;
+            var parsedResult = ParseLines(output);
+            if (parsedResult is not IReadOnlyList<Commit> parsed)
+                return parsedResult.Error;
+
+            commits.AddRange(parsed.Where(c => listed.Add(c.Id)));
+        }
+        return commits;
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)

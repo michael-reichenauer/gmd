@@ -45,6 +45,9 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<ReflogEntry>>> GetReflogAsync(string wd) =>
         Task.FromResult<Result<IReadOnlyList<ReflogEntry>>>(Reflog.ToList());
 
+    public Task<Result<IReadOnlyList<ReflogEntry>>> GetRefReflogsAsync(IReadOnlyList<string> refs, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd)
     {
         WorktreeCalls.Add($"add {path} {branchName} {(isNewBranch ? "new" : "existing")} {startPoint}".TrimEnd());
@@ -135,6 +138,12 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
+        IReadOnlyList<string> ids,
+        IReadOnlyList<string> alsoReached,
+        string wd
+    ) => throw new NotSupportedException();
+
     public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
@@ -206,6 +215,9 @@ class FakeGit : IGit
 
     public Task<Result> PushRefForceAsync(string name, string wd) => throw new NotSupportedException();
 
+    public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> PullRefAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> CloneAsync(string uri, string path, string wd) => throw new NotSupportedException();
@@ -219,6 +231,9 @@ class FakeGit : IGit
     public Task<Result> RebaseBranchAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) => throw new NotSupportedException();
+
+    public Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd) =>
+        throw new NotSupportedException();
 
     public Task<Result> CherryPickAsync(string sha, string wd) => throw new NotSupportedException();
 
@@ -276,6 +291,9 @@ class FakeGit : IGit
     public Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd) => throw new NotSupportedException();
@@ -315,4 +333,7 @@ class FakeGit : IGit
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> ResetHardUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
+
+    public Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd) =>
+        throw new NotSupportedException();
 }

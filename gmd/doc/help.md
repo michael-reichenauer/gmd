@@ -166,6 +166,28 @@ it (`u`) to join the two sides. The first time, gmd asks whether to merge
 them or to rebase your commits on top, unless git's `pull.rebase` already
 says, and saves the answer there, for git on the command line as well.
 
+Unless the remote branch was rewritten by a force push, e.g. someone
+rebased or amended it and pushed: then the branch has the old version and
+origin the new one, and a merge would put every commit in twice. gmd tells
+the two apart by the remote branch's reflog, says so on the status line
+when it first sees it, and a pull asks first, then moves your own commits
+onto the new version and leaves the old one out, whatever `pull.rebase`
+says (as `git pull --rebase` would). A branch that is not checked out is
+pulled that way, and by `Shift-U`, when it has no commits of its own. The
+question names any commit the force push dropped.
+
+A force push that only dropped commits leaves nothing to pull, but the
+branch still has them, so a plain push would put them back on origin: `p`
+asks first, and `Shift-P` leaves the branch out. Pull (`u`) takes the new
+version, as above.
+
+If the force push was a mistake, **Restore origin/... from before the Force
+Push ...** in the branch menu puts the old version back on origin. That is
+a force push too, for everyone, so it asks first, and it is refused if
+anything was pushed since the last fetch (`--force-with-lease`) or on top
+of the rewrite. It also takes gmd's own **Rebase**, which force pushes,
+back on origin after **Undo Rebase** took it back here.
+
 **Open in Browser** in a branch menu opens the branch on the site hosting
 the remote (GitHub, GitLab, Bitbucket, Azure DevOps or Gitea), and **Create
 Pull Request in Browser** the page for a pull request into the branch it
@@ -266,6 +288,23 @@ shown, their colors and their order.
   squash them into one commit with a new message.
 - **Undo** (in the commit menu, and `u` in the diff of the uncommitted
   changes). The items that throw changes away for good ask first:
+  - **Undo** the last change of the current branch, named after it, e.g.
+    **Undo Rebase** or **Undo Commit 'Fix'**: the branch goes back to where
+    it was before, as git's reflog of the branch has it, whether the change
+    was made in gmd or not. Nothing uncommitted is lost: a commit or amend
+    undone leaves its changes uncommitted (`git reset --mixed`), and any
+    other change takes the files back with it (`git reset --keep`), which
+    needs a clean tree. It asks nothing, since undoing again redoes it
+    (**Redo ...**). A commit already pushed is not undone, and an undo never
+    pushes: what origin has stays there.
+  - **Recover Lost Commits ...**: the commits no branch, tag or stash has
+    any more, which git's reflogs still know of: what a `reset --hard`, a
+    rebase or an amend left behind, the work of a deleted branch, commits
+    made on a detached HEAD. One row per line of work, with the branch it
+    was made on and what took it out of the history; older versions of
+    commits that are still there, which an amend or a rebase leaves, are
+    listed last, dark. `Enter` or `d` shows the diff, and `b` creates a
+    branch at it, which brings it back. Git keeps them for about 30 days.
   - **Discard Changes in a File**: `git checkout --force HEAD -- <file>`,
     staged changes too, or a new file is unstaged and deleted
   - **Revert Commit**: `git revert --no-commit <commit-sha>`
@@ -305,7 +344,12 @@ shown, their colors and their order.
   switches to the target branch, merges, opens the commit dialog there,
   and switches back once the merge is committed. Cancelling the commit, or
   a merge that conflicts, leaves you on the target branch, which is where
-  the merge has to be finished.
+  the merge has to be finished. **Undo Merge** in the target's branch menu
+  takes it back.
+- **Undo** in a branch menu: the last change of that branch, as **Undo** in
+  the commit menu is for the current one (see below). A branch that is not
+  checked out is just moved back (`git update-ref`), and only if nothing
+  has moved it since; one checked out in another worktree is undone there.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on

@@ -483,6 +483,16 @@ class Server : IServer
 
     public Task<Result> UncommitUntilCommitAsync(string id, string wd) => git.UncommitUntilCommitAsync(id, wd);
 
+    public Task<Result> UndoStepAsync(Repo repo, UndoStep step) => augmentedService.UndoStepAsync(repo, step);
+
+    public Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo) => augmentedService.GetLostWorkAsync(repo);
+
+    public Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite) =>
+        augmentedService.PullRewrittenAsync(repo, rewrite);
+
+    public Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd) =>
+        git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, wd);
+
     public Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
         augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
 

@@ -144,12 +144,32 @@ class DiffService : IDiffService
         string wd
     )
     {
-        var args = $"diff --find-renames --unified={contextLines} --full-index {sha1}~..{sha2}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var options = $"--find-renames --unified={contextLines} --full-index";
+        var result = await cmd.RunAsync("git", $"diff {options} {sha1}~..{sha2}", wd);
+        if (
+            result is Error e
+            && e.Message.Contains($"ambiguous argument '{sha1}~..{sha2}': unknown revision")
+            && await EmptyTreeIfRootAsync(sha1, wd) is string emptyTree
+        )
+        { // A root commit has no 'sha1~', so its changes are from nothing, as 'git show' has them
+            result = await cmd.RunAsync("git", $"diff {options} {emptyTree} {sha2}", wd);
+        }
         if (result is not string output)
             return result.Error;
 
         return ParseDiff(output, message);
+    }
+
+    // The id of the empty tree when the commit has no parents, else null. git has the empty tree
+    // without it being stored, under an id of the repository's hash, which the commit's own id tells.
+    async Task<string?> EmptyTreeIfRootAsync(string sha, string wd)
+    {
+        if (await cmd.RunAsync("git", $"rev-list --parents -n 1 {sha}", wd) is not string output)
+            return null;
+        var ids = output.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return ids.Length != 1 ? null
+            : ids[0].Length == 64 ? "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321"
+            : "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
     }
 
     public async Task<Result<CommitDiff>> GetRefsDiffAsync(
