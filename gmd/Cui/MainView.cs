@@ -28,6 +28,8 @@ partial class MainView : IMainView
     readonly IAboutDlg aboutDlg;
     readonly IUpdater updater;
     readonly ISpellChecker spellChecker;
+    readonly IAskpassServer askpassServer;
+    readonly ILoginDlg loginDlg;
     readonly Lazy<View> toplevel;
 
     public MainView(
@@ -42,7 +44,9 @@ partial class MainView : IMainView
         IAboutDlg aboutDlg,
         IUpdater updater,
         ISpellChecker spellChecker,
-        IStatusLine statusLine
+        IStatusLine statusLine,
+        IAskpassServer askpassServer,
+        ILoginDlg loginDlg
     )
         : base()
     {
@@ -58,6 +62,8 @@ partial class MainView : IMainView
         this.aboutDlg = aboutDlg;
         this.updater = updater;
         this.spellChecker = spellChecker;
+        this.askpassServer = askpassServer;
+        this.loginDlg = loginDlg;
         toplevel = new Lazy<View>(CreateView);
     }
 
@@ -97,6 +103,9 @@ partial class MainView : IMainView
         Threading.SetUp();
         config.Init();
         spellChecker.WarmUp(); // Loads the dictionary, with the user's words from the config just read
+
+        // From now on what git asks is asked in a dialog, before the first fetch of a repo is started
+        askpassServer.Start(loginDlg.AskAsync);
 
         string path = GetWorkingFolder();
         // Environment.CurrentDirectory = "/workspaces";

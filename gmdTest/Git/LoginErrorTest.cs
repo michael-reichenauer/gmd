@@ -2,13 +2,16 @@ using gmd.Git;
 
 namespace gmdTest.Git;
 
-// What gmd says when a remote command fails to log in. Git gets no terminal to ask on, so it fails
-// instead, and its error output is all there is to go by: the question gmd was asked as the askpass
-// program (Askpass), or what git and ssh say when a question could not be asked, or was refused.
-// The outputs below are git's and OpenSSH's own.
+// What gmd says when a remote command fails to log in. Git gets no terminal to ask on, so it asks
+// gmd's dialog through the askpass (Askpass), and when that fails its error output is all there is
+// to go by: what the askpass wrote, a cancel, a command that was not asked, or one that could not
+// be, or what git and ssh say when a question could not be asked, or was refused. The outputs below
+// are git's and OpenSSH's own.
 [TestClass]
 public class LoginErrorTest
 {
+    static string? AdviceOf(string gitError) => LoginError.Advice(gitError)?.Advice;
+
     const string ReadFromRemote = """
         fatal: Could not read from remote repository.
 
@@ -19,7 +22,7 @@ public class LoginErrorTest
     [TestMethod]
     public void TestAPassphraseNamesTheKeyToAdd()
     {
-        var advice = LoginError.Advice(
+        var advice = AdviceOf(
             $"""
             gmd cannot ask: Enter passphrase for key '/home/anna/.ssh/id_ed25519':
             git@github.com: Permission denied (publickey).
@@ -39,7 +42,7 @@ public class LoginErrorTest
     [TestMethod]
     public void TestAnUntrustedHostIsNamed()
     {
-        var advice = LoginError.Advice(
+        var advice = AdviceOf(
             $"""
             gmd cannot ask: The authenticity of host 'github.com (140.82.121.4)' can't be established.
             ED25519 key fingerprint is SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU.
@@ -73,16 +76,14 @@ public class LoginErrorTest
         Assert.AreEqual(
             "The remote needs a user name and password, which gmd cannot ask for: "
                 + "set up a git credential helper, e.g. Git Credential Manager",
-            LoginError.Advice(gitError)
+            AdviceOf(gitError)
         );
     }
 
     [TestMethod]
     public void TestAnSshPasswordNeedsAKeyInstead()
     {
-        var advice = LoginError.Advice(
-            "gmd cannot ask: git@example.com's password: \nPermission denied, please try again."
-        );
+        var advice = AdviceOf("gmd cannot ask: git@example.com's password: \nPermission denied, please try again.");
 
         Assert.AreEqual(
             "The remote asks for an ssh password, which gmd cannot ask for: use an ssh key in the ssh agent instead",
@@ -94,7 +95,7 @@ public class LoginErrorTest
     [TestMethod]
     public void TestAnyOtherQuestionIsQuoted()
     {
-        var advice = LoginError.Advice("gmd cannot ask: Verification code: \nPermission denied.");
+        var advice = AdviceOf("gmd cannot ask: Verification code: \nPermission denied.");
 
         Assert.AreEqual(
             "Git asked 'Verification code:', which gmd cannot ask: run the command once in a terminal",
@@ -107,24 +108,59 @@ public class LoginErrorTest
     public void TestARefusedLoginSaysWhatToCheck()
     {
         Assert.AreEqual(
-            "The remote refused the ssh key: check that the key is in the ssh agent (ssh-add -l) and known to the server",
-            LoginError.Advice($"git@github.com: Permission denied (publickey).\n{ReadFromRemote}")
+            "The remote refused the ssh key: check that the server knows the key, and that the ssh agent has it "
+                + "(ssh-add -l) or its passphrase was typed right",
+            AdviceOf($"git@github.com: Permission denied (publickey).\n{ReadFromRemote}")
         );
         Assert.AreEqual(
-            "The remote refused the stored login: update the password or token in the git credential helper",
-            LoginError.Advice(
+            "The remote refused the user name and password: most hosts, GitHub among them, want a token as the "
+                + "password, and a git credential helper may have stored an old one",
+            AdviceOf(
                 "remote: Invalid username or password.\nfatal: Authentication failed for 'https://github.com/a/b.git/'"
             )
         );
     }
 
+    // Cancel in the dialog is said as such, and the passphrase or host key error ssh adds after it is
+    // no reason to give advice
+    [TestMethod]
+    public void TestACancelledLoginIsSaid()
+    {
+        var advice = LoginError.Advice(
+            $"""
+            gmd login cancelled: Enter passphrase for key '/home/anna/.ssh/id_ed25519':
+            git@github.com: Permission denied (publickey).
+            {ReadFromRemote}
+            """
+        );
+
+        Assert.AreEqual(("The login was cancelled", LoginFailure.Cancelled), advice);
+    }
+
+    // A command run in the background is never asked, so the login it wanted is asked for by fetching
+    [TestMethod]
+    [DataRow(
+        "gmd did not ask: Enter passphrase for key '/home/anna/.ssh/id_ed25519':",
+        "The remote wants a login: r fetches and asks for it"
+    )]
+    [DataRow(
+        "gmd did not ask: Username for 'https://github.com':",
+        "The remote wants a login: r fetches and asks for it"
+    )]
+    [DataRow(
+        "gmd did not ask: The authenticity of host 'github.com (140.82.121.4)' can't be established.",
+        "The host github.com is not trusted yet: r fetches and asks whether to trust it"
+    )]
+    public void TestABackgroundCommandWasNotAsked(string gitError, string expected)
+    {
+        Assert.AreEqual((expected, LoginFailure.NotAsked), LoginError.Advice(gitError));
+    }
+
     [TestMethod]
     public void TestOtherFailuresAreNoLogin()
     {
-        Assert.IsNull(
-            LoginError.Advice("fatal: unable to access 'https://x.invalid/': Could not resolve host: x.invalid")
-        );
-        Assert.IsNull(LoginError.Advice(" ! [rejected]        main -> main (non-fast-forward)"));
+        Assert.IsNull(AdviceOf("fatal: unable to access 'https://x.invalid/': Could not resolve host: x.invalid"));
+        Assert.IsNull(AdviceOf(" ! [rejected]        main -> main (non-fast-forward)"));
     }
 
     // A command wraps what failed under it ("Failed to push ..."), and what is shown is its message
@@ -143,7 +179,7 @@ public class LoginErrorTest
             """
             Failed to push branch:
             main,
-            The remote refused the ssh key: check that the key is in the ssh agent (ssh-add -l) and known to the server
+            The remote refused the ssh key: check that the server knows the key, and that the ssh agent has it (ssh-add -l) or its passphrase was typed right
             """,
             LoginError.Text(pushError)
         );

@@ -666,8 +666,8 @@ with the version, from **About** in the repo menu or `gmd --version`. About
 shows where the log is, too. The log is begun anew on every start of gmd,
 so copy it before starting gmd again.
 
-Gmd cannot yet ask for a password, a passphrase or whether to trust a
-host, when git wants one: the push, pull or fetch fails instead, and says
-what to do. An ssh key added to the ssh agent (`ssh-add`), or a git
-credential helper, e.g. Git Credential Manager, lets git log in without
-asking.
+When git needs a password, a passphrase or whether to trust a host, gmd
+asks in a dialog, for a push, a pull or a fetch (`r`) you asked for. The
+fetch gmd runs in the background asks nothing, and says that `r` would.
+An ssh key added to the ssh agent (`ssh-add`), or a git credential helper,
+e.g. Git Credential Manager, lets git log in without asking at all.

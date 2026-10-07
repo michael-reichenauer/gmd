@@ -122,9 +122,9 @@ Known limits:
 - Only the remote named `origin` is supported.
 - The colors assume a dark terminal: on a light theme gmd is drawn on black.
 - The log reads the latest 30,000 commits.
-- Gmd cannot yet ask for a password, a passphrase or whether to trust a host when git wants one:
-  the command fails and says what to do. An ssh key in the ssh agent (`ssh-add`), or a git
-  credential helper such as Git Credential Manager, lets git log in without asking.
+- Git's questions, a password, a passphrase or whether to trust a host, are asked in a dialog, but
+  only for what you asked for: the fetch gmd runs in the background asks nothing, and says that `r`
+  fetches and asks. An ssh older than OpenSSH 8.4 (2020) still asks on the terminal.
 
 ## Gmd and AI Coding Agents
 

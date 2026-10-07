@@ -695,9 +695,13 @@ message.
 - **No git process gmd starts can ask on the terminal either.** `Cmd.NeverAskOnTheTerminal` sets
   `GIT_TERMINAL_PROMPT=0` and `SSH_ASKPASS_REQUIRE=force` with gmd itself as `SSH_ASKPASS`, and
   stdin is a pipe closed at once: a passphrase prompt drawn over the UI took the keys typed for gmd.
-  gmd started as the askpass (`GMD_ASKPASS=1`, checked first thing in `Main`) answers nothing and
-  says what was asked on stderr, where `LoginError` finds it; wrap every remote command's result in
-  `LoginError.ToLogin`, and show remote errors with `LoginError.Text`.
+  gmd started as the askpass (`GMD_ASKPASS=1`, checked first thing in `Main`) asks the gmd that ran
+  the git, over a named pipe with a token (`Askpass`, `AskpassServer`), which shows `LoginDlg` and
+  sends the answer back. A command run in the background must not raise a dialog by itself: start
+  it inside `using (Askpass.NeverAsk())` (an AsyncLocal, so it reaches `Cmd` through the awaits),
+  as the background fetch and the metadata sync are. What failed is said on stderr, where
+  `LoginError` finds it; wrap every remote command's result in `LoginError.ToLogin`, and show
+  remote errors with `LoginError.Text`. CONTRIBUTING.md has how to try the dialog by hand.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
   `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,

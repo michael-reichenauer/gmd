@@ -758,9 +758,17 @@ class RepoView : IRepoView, IRepoViewInputHost
     // stale: always when the fetch was asked for (r, F5), and otherwise once, when fetching starts
     // to fail, rather than after every refresh and every five minutes. A repo with no remote
     // branches has nothing to fetch, and is not told so.
+    //
+    // Only a fetch that was asked for asks for a login, in a dialog. One in the background never
+    // raises a dialog by itself: it fails, and says that r asks (LoginError).
     async Task FetchBestEffortAsync(bool isAsked = false)
     {
-        if (await server.FetchAsync(repo.Repo.Path) is not Error e)
+        Result fetched;
+        using (isAsked ? new Disposable(() => { }) : Askpass.NeverAsk())
+        {
+            fetched = await server.FetchAsync(repo.Repo.Path);
+        }
+        if (fetched is not Error e)
         {
             isFetchFailing = false;
             return;

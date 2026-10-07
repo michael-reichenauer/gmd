@@ -57,12 +57,50 @@ public class CmdTest
         var own = Environment.GetEnvironmentVariable("SSH_ASKPASS");
         if (string.IsNullOrEmpty(own))
         {
-            Assert.AreEqual(Environment.ProcessPath, lines[1], "gmd itself, i.e. the process running the command");
+            // gmd itself, i.e. the process running the command, or under the dotnet host, as the
+            // tests and the debugger run it, the gmd beside the dll, since ssh runs a program alone
+            var process = Environment.ProcessPath!;
+            var gmd =
+                Path.GetFileNameWithoutExtension(process) == "dotnet"
+                    ? Path.Combine(AppContext.BaseDirectory, "gmd")
+                    : process;
+            Assert.AreEqual(gmd, lines[1]);
             Assert.AreEqual("1", lines[2], "So that gmd started by ssh knows it is the askpass");
         }
         else
         {
             Assert.AreEqual(own, lines[1], "The user's own askpass is kept");
+        }
+    }
+
+    // The channel to the login dialog is given to a command that may ask, and not to one run in the
+    // background (Askpass.NeverAsk), whose askpass then asks no one. Nor to any while gmd listens on
+    // none, e.g. while the command line is handled.
+    [TestMethod]
+    public async Task TestOnlyACommandThatMayAskIsGivenTheChannel()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("Uses sh");
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SSH_ASKPASS")))
+            Assert.Inconclusive("The user's own askpass is kept, and asks itself");
+        ICmd cmd = new Cmd();
+        const string Echo = "-c \"echo $GMD_ASKPASS_CHANNEL $GMD_ASKPASS_TOKEN\"";
+
+        Assert.AreEqual("", AssertOk(await cmd.RunAsync("sh", Echo, "")), "No channel yet");
+
+        Askpass.Channel = ("gmd-test", "token");
+        try
+        {
+            Assert.AreEqual("gmd-test token", AssertOk(await cmd.RunAsync("sh", Echo, "")));
+            using (Askpass.NeverAsk())
+            {
+                Assert.AreEqual("", AssertOk(await cmd.RunAsync("sh", Echo, "")));
+            }
+            Assert.AreEqual("gmd-test token", AssertOk(await cmd.RunAsync("sh", Echo, "")), "Asks again after it");
+        }
+        finally
+        {
+            Askpass.Channel = null;
         }
     }
 
