@@ -256,7 +256,9 @@ Both are reworked, see proposal D.1.
 2. A help that is easier to get around: wider on a wide terminal, a contents to jump from, and
    opening at the part about the view it was opened from.
 3. A key-hint line in the diff and blame views too.
-4. The resolver's status line naming the sides: "press 1 (HEAD), 2 (dev), 3, 4 or 0".
+4. The resolver's status line naming the sides: "press 1 (HEAD), 2 (dev), 3, 4 or 0". *Done
+   (2026-10-07):* "Conflict 1 is not resolved yet — press 1 for HEAD, 2 for dev, 3 or 4 for both,
+   0 for neither", the sides in the colors of their column titles.
 5. The menu trims of part 3.
 
 **D. Reach:**
@@ -298,7 +300,7 @@ Quick wins:
 - [x] 7. **Add Tag asks before it pushes** (part 2), as every other push does. S
 - [x] 8. **The year in the dates** (C.1): `2026-03-10`, in the log, blame and the lists. M (every
   snapshot with a date changes)
-- [ ] 9. **The resolver names the sides** (C.4): "press 1 (HEAD), 2 (dev), 3, 4 or 0". S
+- [x] 9. **The resolver names the sides** (C.4): "press 1 (HEAD), 2 (dev), 3, 4 or 0". S
 
 Shorter menus (C.5, part 3):
 

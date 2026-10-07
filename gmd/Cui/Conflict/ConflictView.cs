@@ -220,7 +220,7 @@ class ConflictView : IConflictView
             return ([Text.Dark("No conflict here")], 1);
 
         if (resolution.ChoiceOf(hunk.Index) == HunkChoice.None)
-            return ([Text.Dark($"Conflict {hunk.Index + 1} is not resolved yet — press 1, 2, 3, 4 or 0")], 1);
+            return ([NotResolvedYet(hunk)], 1);
 
         var lines = resolution.ResultOf(hunk);
         if (lines.Count == 0)
@@ -229,6 +229,15 @@ class ConflictView : IConflictView
         var texts = lines.Skip(firstRow).Take(rowCount).Select(l => (Text)Text.White(l.Text));
         return (texts, lines.Count);
     }
+
+    // What the keys do, naming the sides as the column titles do and in their colors, since '1' and
+    // '2' meant nothing until it was clear which side each takes (USABILITY.md, the product review)
+    static Text NotResolvedYet(ConflictHunk hunk) =>
+        Text.Dark($"Conflict {hunk.Index + 1} is not resolved yet — press 1 for ")
+            .Yellow(hunk.OursLabel.Max(20))
+            .Dark(", 2 for ")
+            .Cyan(hunk.TheirsLabel.Max(20))
+            .Dark(", 3 or 4 for both, 0 for neither");
 
     // The first conflict is what the file was opened for, and it can be a long way down a file that
     // is mostly text both sides agree on, so the view opens on it rather than at the top.
