@@ -75,6 +75,9 @@ internal class Git : IGit
         string wd
     ) => logService.GetUnreachableCommitsAsync(ids, alsoReached, wd);
 
+    public Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd) =>
+        logService.GetExistingCommitIdsAsync(ids, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
         logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
 
@@ -213,6 +216,9 @@ internal class Git : IGit
 
     public Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd) =>
         branchService.MoveBranchAsync(name, toId, fromId, message, wd);
+
+    public Task<Result> SetUpstreamAsync(string name, string remoteName, string wd) =>
+        branchService.SetUpstreamAsync(name, remoteName, wd);
 
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) =>
         remoteService.DeleteRemoteBranchAsync(name, wd);

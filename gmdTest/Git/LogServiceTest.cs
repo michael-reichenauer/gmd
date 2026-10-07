@@ -281,4 +281,25 @@ public class LogServiceTest
         Assert.AreEqual(0, AssertOk(await new LogService(cmd).GetUnreachableCommitsAsync([], [], "/wd")).Count);
         Assert.AreEqual(0, cmd.Calls.Count);
     }
+
+    // The ids git lists are the commits it still has; the others it passed over
+    [TestMethod]
+    public async Task TestExistingCommitIds()
+    {
+        var cmd = new FakeCmd($"{Id1}\n{Id2}\n");
+
+        var existing = AssertOk(await new LogService(cmd).GetExistingCommitIdsAsync([Id1, Id2, "3333"], "/wd"));
+
+        Assert.AreEqual($"rev-list --no-walk --ignore-missing {Id1} {Id2} 3333", cmd.Calls[0].Args);
+        CollectionAssert.AreEquivalent(new[] { Id1, Id2 }, existing.ToList());
+    }
+
+    [TestMethod]
+    public async Task TestNoExistingCommitIdsWithoutIds()
+    {
+        var cmd = new FakeCmd("");
+
+        Assert.AreEqual(0, AssertOk(await new LogService(cmd).GetExistingCommitIdsAsync([], "/wd")).Count);
+        Assert.AreEqual(0, cmd.Calls.Count);
+    }
 }

@@ -10,6 +10,7 @@ interface IBranchService
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd);
+    Task<Result> SetUpstreamAsync(string name, string remoteName, string wd);
     Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd);
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);
@@ -98,6 +99,13 @@ class BranchService : IBranchService
         string args = $"branch --delete {name}";
         args = isForced ? args + " -D" : args;
         return await cmd.RunAsync("git", args, wd);
+    }
+
+    // Makes a local branch track a remote branch, e.g. 'origin/feature', which git forgets when the
+    // branch is deleted: the '[branch "<name>"]' config section goes with it
+    public async Task<Result> SetUpstreamAsync(string name, string remoteName, string wd)
+    {
+        return await cmd.RunAsync("git", $"branch --set-upstream-to={remoteName} {name}", wd);
     }
 
     // Moves a branch that is not checked out, with the message its reflog gets, and only if it is

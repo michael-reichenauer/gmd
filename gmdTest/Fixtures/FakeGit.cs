@@ -144,6 +144,9 @@ class FakeGit : IGit
         string wd
     ) => throw new NotSupportedException();
 
+    public Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
@@ -292,6 +295,9 @@ class FakeGit : IGit
         throw new NotSupportedException();
 
     public Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> SetUpstreamAsync(string name, string remoteName, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) => throw new NotSupportedException();

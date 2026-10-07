@@ -373,6 +373,18 @@ public class BranchServiceTest
         Assert.AreEqual("/wd", cmd.Calls[0].WorkingDirectory);
     }
 
+    // What a restored branch tracks again, which git forgot when it was deleted
+    [TestMethod]
+    public async Task TestSetUpstream()
+    {
+        var cmd = new FakeCmd("");
+        var service = new BranchService(cmd);
+
+        await service.SetUpstreamAsync("dev", "origin/dev", "/wd");
+
+        Assert.AreEqual("branch --set-upstream-to=origin/dev dev", cmd.Calls[0].Args);
+    }
+
     // Merge, rebase, rebase onto and cherry pick all turn a conflict into the same error, since
     // git reports conflicts as a failed command with 'CONFLICT' in the output
     [TestMethod]
