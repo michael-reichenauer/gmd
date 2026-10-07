@@ -621,8 +621,7 @@ keep a column of its own:
 When it cannot decide, the branch is drawn white and its tip is labeled
 `(~ambiguous)`. **Set Commit Branch Manually ...** in the branch menu sets
 the right branch for a commit, which is then marked `Φ`. **Ambiguous** in
-the Show Branch menu lists the ambiguous branches, and a search for `*`
-finds their tips, and for `$` the commits whose branch was set manually.
+the Show Branch menu lists the ambiguous branches.
 
 The branches set by hand can be shared: **Config ...** in the repo menu
 can push them with the repository, so that everyone sees the same graph.

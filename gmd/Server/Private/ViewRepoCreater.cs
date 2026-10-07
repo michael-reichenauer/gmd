@@ -50,25 +50,7 @@ class ViewRepoCreater : IViewRepoCreater
     {
         using (Timing.Start($"Filtered repo on '{filter}'"))
         {
-            IReadOnlyList<Commit> filteredCommits;
-
-            if (filter == "$")
-            { // Get all commits, where branch was set manually by user
-                filteredCommits = repo.CommitById.Values.Where(c => c.IsBranchSetByUser).Take(maxCount).ToList();
-            }
-            else if (filter == "*")
-            { // Get all commits, with ambiguous tip
-                filteredCommits = repo
-                    .AllBranches.Where(b => b.AmbiguousTipId != "")
-                    .Select(b => repo.CommitById[b.AmbiguousTipId])
-                    .Where(c => c.IsAmbiguousTip)
-                    .Take(maxCount)
-                    .ToList();
-            }
-            else
-            { // Get all commits matching filter
-                filteredCommits = GetFilteredCommits(repo, filter, maxCount, onlyIds);
-            }
+            var filteredCommits = GetFilteredCommits(repo, filter, maxCount, onlyIds);
 
             if (!filteredCommits.Any())
                 return EmptyFilteredRepo(repo, filter);
