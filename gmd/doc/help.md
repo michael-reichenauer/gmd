@@ -632,7 +632,8 @@ suggest something, at
 
 with the version, from **About** in the repo menu or `gmd --version`.
 
-Gmd cannot yet answer git when it asks for a password, a passphrase or
-whether to trust a host: the question is drawn over the screen, and the
-command waits. Set up an ssh agent (`ssh-add`) or a git credential helper,
-so that git never needs to ask.
+Gmd cannot yet ask for a password, a passphrase or whether to trust a
+host, when git wants one: the push, pull or fetch fails instead, and says
+what to do. An ssh key added to the ssh agent (`ssh-add`), or a git
+credential helper, e.g. Git Credential Manager, lets git log in without
+asking.

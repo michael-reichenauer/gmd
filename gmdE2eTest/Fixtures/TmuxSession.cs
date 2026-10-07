@@ -411,6 +411,10 @@ sealed class TmuxSession : IDisposable
             "BROWSER=",
             // Nothing may ever block on a credential prompt in a pane nobody is watching
             "GIT_TERMINAL_PROMPT=0",
+            // Nor be answered by the developer's own askpass, e.g. VS Code's in its terminals, rather
+            // than by gmd itself (Cmd.NeverAskOnTheTerminal). Empty reads as unset to both.
+            "SSH_ASKPASS=",
+            "GIT_ASKPASS=",
         ];
 
         // A commit gmd makes itself would otherwise be dated 'now', so its sid and its row in the

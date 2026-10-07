@@ -21,6 +21,11 @@ class Program
 
     static async Task<int> Main(string[] args)
     {
+        // Started by ssh or git to ask the user something, see Askpass. First of all, since what
+        // follows writes the log and the config, which belong to the gmd that started the git
+        if (Askpass.IsAsked)
+            return Askpass.Answer(args);
+
         var t = Timing.Start();
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 

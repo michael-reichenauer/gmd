@@ -205,6 +205,11 @@ Both are reworked, see proposal D.1.
    terminal for ssh to open, and when a fetch or a push fails for want of a password or a
    passphrase, say what to do: `ssh-add`, or a credential helper. Better, ask for it: gmd as
    `GIT_ASKPASS` and `SSH_ASKPASS` (with `SSH_ASKPASS_REQUIRE=force`), answering with a dialog.
+   *The first half is done (2026-10-07):* git gets `GIT_TERMINAL_PROMPT=0` and a closed stdin, and
+   ssh `SSH_ASKPASS_REQUIRE=force` with gmd itself as `SSH_ASKPASS` (`Cmd.NeverAskOnTheTerminal`,
+   `Askpass`), unless the user has an askpass of their own. gmd answers nothing yet, so the command
+   fails, and `LoginError` says what to do: the key to `ssh-add`, the host to trust, a credential
+   helper to set up. The fetch says it on the status line, a push or a pull in its error box.
 2. **Say what is hidden.** On the first open of a repository, once, on the status line: "Showing
    main and dev. 29 more branches are hidden: ⇧→ shows one, or Enter on ┣╮." Perhaps the count in
    the top bar for good.
@@ -255,7 +260,7 @@ started. The details are in the proposals and parts above; effort is S, M or L.
 
 First impression:
 
-- [ ] 1. **No git prompt on the screen** (A.1): git runs with nothing to ask on, and a failed login
+- [x] 1. **No git prompt on the screen** (A.1): git runs with nothing to ask on, and a failed login
   says what to do (`ssh-add`, a credential helper). A test with the ssh stand-in. M
 - [ ] 2. **A word on a crash** (A.3): the log's path and the issues link once the terminal is given
   back, and the project's link in About. S
@@ -293,7 +298,8 @@ Bigger features:
   L
 - [ ] 16. **Reword, fix up and drop** commits not yet pushed (B.3). L
 - [ ] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `GIT_ASKPASS` and
-  `SSH_ASKPASS`. M
+  `SSH_ASKPASS`, asking in a dialog of the gmd that started git. The design, Git Credential
+  Manager included, is in `MODERNIZATION.md` (open issues, Product). M
 - [ ] 18. **The smaller gaps** (part 2, item 7), each to pick or skip: stash apply, a tag list and
   push, a diff of any two commits, search of the changes (`-S`), line history (`log -L`), a merge
   tool in the terminal. S to M each

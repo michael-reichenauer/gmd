@@ -764,9 +764,14 @@ class RepoView : IRepoView, IRepoViewInputHost
     }
 
     // What git said, e.g. "Could not resolve host", rather than the whole of the error, which ends
-    // with the command line: the first line git prefixed with 'fatal:' or 'error:', or the first
+    // with the command line: the first line git prefixed with 'fatal:' or 'error:', or the first. For
+    // a failed login, what to do about it instead, which is what the fetch on opening a repo with no
+    // ssh agent or credential helper set up says first.
     static string Reason(Error e)
     {
+        if (Git.LoginError.Find(e) is Git.LoginError login)
+            return login.Message;
+
         var lines = e.AllMessages().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var line =
             lines.FirstOrDefault(l => l.StartsWith("fatal:") || l.StartsWith("error:")) ?? lines.FirstOrDefault();

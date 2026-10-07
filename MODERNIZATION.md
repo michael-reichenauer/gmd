@@ -267,6 +267,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
     question.
   - A failed clone or init from the start menu left a blank screen, and a click beside the start
     menu quit gmd.
+- A git command that wanted a passphrase, a password or whether to trust a host asked on gmd's own
+  terminal: the fetch on opening drew the question over the bottom row and scrolled the screen a
+  row, the keys typed for gmd went to it as the answer, and a push waited behind it for an Enter
+  the raw terminal never sends (product review, `USABILITY.md`, 2026-10-07). Git now has nothing to
+  ask on (`Cmd.NeverAskOnTheTerminal`), ssh asks gmd itself as its askpass (`Askpass`), which
+  answers nothing, and the failure says what to do instead (`LoginError`).
 
 ---
 
@@ -276,13 +282,39 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
   small bugs found along the way; and the product review's (2026-10-07), A to D.
-- A git command that asks for a password, a passphrase or a host key asks on gmd's own terminal.
-  `Cmd` starts git with no `GIT_TERMINAL_PROMPT`, no askpass and no timeout, and git and ssh open
-  `/dev/tty` themselves. Tried with a `core.sshCommand` stand-in that asks as ssh does: the fetch
-  after opening wrote its prompt over the bottom row and scrolled the screen a row, the keys typed
-  for gmd went to the prompt (`?` and `q` became the passphrase), and Enter, a `\r` in the raw
-  terminal, did not end a prompt that reads a line; a push waited behind it for as long as that
-  took. See the product review in `USABILITY.md` (part 2, item 2, and proposal A.1).
+- Git cannot ask the user for a login, it can only fail and say what to do (`LoginError`), since it
+  is given no terminal to ask on (`Cmd.NeverAskOnTheTerminal`). What is left of it, and how gmd
+  could ask itself (product review step 17, `USABILITY.md`):
+  - What already works without asking: any credential helper, since a helper is not a prompt
+    (osxkeychain, libsecret, wincred, store, cache, and Git Credential Manager, which on Windows and
+    macOS opens a window of its own or the browser); an ssh key in the ssh agent; and the user's
+    own `GIT_ASKPASS` or `SSH_ASKPASS`, which are kept, e.g. VS Code's, which asks in a window of
+    VS Code when gmd runs in its terminal.
+  - Still asked on the terminal: an OpenSSH older than 8.4, which ignores `SSH_ASKPASS_REQUIRE`.
+    Starting git in a session of its own, with no controlling terminal (`setsid`), would cover it
+    on Linux and macOS, but .NET's `Process` has no option for that. On Windows, Git for Windows'
+    ssh would run gmd by its Windows path as the askpass; not tried.
+  - To ask in gmd: the askpass (`Askpass.Answer`) connects to the gmd that started the git, which
+    puts the address of a channel of its own in the environment of every git process, as it puts
+    `GMD_ASKPASS` there now: a Unix domain socket in a folder only the user can read, or a named
+    pipe on Windows, with a random token in the environment that the askpass must send back, so
+    no other process can ask. The askpass sends the question and prints the answer on stdout, or
+    exits with 1 for Cancel. The running gmd shows the dialog on the UI thread (`IMainThread.Post`,
+    since the git command runs in the background): a password field for a passphrase or a password,
+    Yes and No with the fingerprint for a host, and never logs an answer. The git command is waited
+    for meanwhile, so `Progress` has to let the dialog take keys while it otherwise drops them.
+  - Then `GIT_ASKPASS` is set to gmd too, unless the user has one, so that a user name and password
+    over https reach the dialog, and whatever credential helper is configured stores what was
+    typed, as it does for a terminal prompt.
+  - Only for what the user asked for: the background fetch, every five minutes and on opening,
+    must keep failing quietly rather than raise a dialog by itself; it says on the status line that
+    a login is needed, and `r`, a push or a pull asks.
+  - Git Credential Manager needs no dialog where it has a window of its own. Without one (Linux
+    over ssh, or `credential.guiPrompt` false) it asks on the terminal, e.g. its device code flow,
+    and reads `GIT_TERMINAL_PROMPT` like git does, so it fails instead; the advice then is to log
+    in once with git in a terminal, after which GCM has the token stored and gmd's fetches use it.
+    Showing GCM's own terminal prompts in gmd would need GCM to ask an askpass, which as far as its
+    documentation says it does not; to check before promising it.
 - An unhandled exception is logged and gmd exits without a word on the screen
   (`ExceptionHandling.Shutdown`, whose call to `ShowExceptionDialog` is commented out). A line on
   stderr once the terminal is given back, naming `~/gmd.log` and where to report it, is the least.

@@ -301,7 +301,7 @@ partial class MainView : IMainView
         // load. The progress is over by then, since the menu is modal and would keep it running.
         if (cloned is Error e)
         {
-            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{e.AllMessages()}");
+            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{Git.LoginError.Text(e)}");
             ShowMainMenu();
             return;
         }
