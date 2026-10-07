@@ -551,17 +551,17 @@ class CommitCommands : ICommitCommands
             if (commit.IsUncommitted)
                 return new Notice("A tag is put on a commit: move to one first");
 
-            if (addTagDlg.Show() is not TagInfo tag)
+            if (addTagDlg.Show(isPushable) is not TagInfo tag)
                 return Result.Ok;
 
             if (tag.message == "")
             {
-                if (await server.AddTagAsync(tag.name, commit.Id, isPushable, repo.Path) is Error e)
+                if (await server.AddTagAsync(tag.name, commit.Id, tag.isPush, repo.Path) is Error e)
                     return new Error($"Failed to add tag {tag.name}", e);
             }
             else
             {
-                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, isPushable, repo.Path);
+                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, tag.isPush, repo.Path);
                 if (added is Error e)
                     return new Error($"Failed to add tag {tag.name} '{tag.message}'", e);
             }

@@ -116,7 +116,9 @@ Not needed by the audiences above: submodule and LFS commands, bisect, patches, 
 through the services' APIs.
 
 One surprise to decide on: **Add Tag pushes the tag** whenever the commit's branch has a remote
-(`AugmentedService.cs:825-851`), where every other push is asked for.
+(`AugmentedService.cs:825-851`), where every other push is asked for. *Decided (2026-10-07):* the
+dialog shows it, as a *Push to origin* box that can be unticked, ticked as it starts, as Create
+Branch's *Publish* is, since nothing else in gmd pushes a tag later.
 
 ### 3. Features that could go, or move
 
@@ -291,7 +293,7 @@ First impression:
 Quick wins:
 
 - [x] 6. **Copy the commit id and message** (B.2): in the commit menu, with a key. S
-- [ ] 7. **Add Tag asks before it pushes** (part 2), as every other push does. S
+- [x] 7. **Add Tag asks before it pushes** (part 2), as every other push does. S
 - [ ] 8. **The year in the dates** (C.1): `2026-03-10`, in the log, blame and the lists. M (every
   snapshot with a date changes)
 - [ ] 9. **The resolver names the sides** (C.4): "press 1 (HEAD), 2 (dev), 3, 4 or 0". S

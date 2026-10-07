@@ -300,6 +300,44 @@ public class BranchTest
         Assert.AreEqual("v1.0\nv2.0", await repo.GitAsync("tag --points-at HEAD"));
     }
 
+    // A tag on a commit of a branch with a remote is pushed with it, which the dialog shows as a box
+    // that can be unticked: adding one used to push it unasked, where every other push is a choice
+    // made in view. Ticked, as it starts, the tag goes to origin; unticked, it stays here.
+    [TestMethod]
+    public async Task TestAddATagShowsThatItPushesIt()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        var origin = $"-C \"{repo.Path}-origin\"";
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+
+        gmd.Send("t");
+        StringAssert.Contains(gmd.WaitFor("Push to origin"), "◙ Push to origin", "Ticked as it starts");
+        gmd.SendText("v2.0");
+        gmd.WaitFor("v2.0");
+        gmd.Send("Enter");
+        gmd.WaitFor("[v2.0]");
+        Assert.AreEqual("v2.0", await repo.GitAsync($"{origin} tag"), "Pushed, as the box said");
+
+        // From the name to the message, then to the box, and Space unticks it
+        gmd.Send("t");
+        gmd.WaitFor("Push to origin");
+        gmd.SendText("v3.0");
+        gmd.WaitFor("v3.0");
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Space");
+        var screen = gmd.WaitForStable();
+        StringAssert.Contains(screen, "□ Push to origin");
+        gmd.Send("M-o");
+        gmd.WaitFor("[v3.0]");
+
+        Assert.AreEqual("v2.0", await repo.GitAsync($"{origin} tag"), "Not pushed, as unticked");
+        StringAssert.Contains(await repo.GitAsync("tag"), "v3.0");
+    }
+
     // 's' switches to the hoovered branch, with no confirmation of any kind — one keystroke from
     // changing the working tree, which is why it is worth an end-to-end test.
     [TestMethod]

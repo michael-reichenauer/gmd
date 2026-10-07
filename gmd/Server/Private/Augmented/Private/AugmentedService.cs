@@ -822,31 +822,25 @@ class AugmentedService : IAugmentedService
 
     public Task<Result> PushMetaDataAsync(string wd) => metaDataService.PushMetaDataAsync(wd);
 
-    public async Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd)
+    public async Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd)
     {
         using (fileMonitor.Pause())
         {
             if (await git.AddTagAsync(name, commitId, wd) is Error e)
                 return e;
-            if (!hasRemoteBranch)
+            if (!isPush)
                 return Result.Ok;
             return await git.PushTagAsync(name, wd);
         }
     }
 
-    public async Task<Result> AddAnnotatedTagAsync(
-        string name,
-        string message,
-        string commitId,
-        bool hasRemoteBranch,
-        string wd
-    )
+    public async Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd)
     {
         using (fileMonitor.Pause())
         {
             if (await git.AddAnnotatedTagAsync(name, message, commitId, wd) is Error e)
                 return e;
-            if (!hasRemoteBranch)
+            if (!isPush)
                 return Result.Ok;
             return await git.PushTagAsync(name, wd);
         }
