@@ -168,7 +168,9 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    as their menus write them.
 2. Esc in the log view asks "Quit gmd?" with **Yes as the default**, and so does the top bar's `X`.
    Esc then Enter quits quickly, and an accidental double Esc cancels. `q` still quits at once.
-3. Safe defaults: *Cancel* in *Binary Files Detected*, and Esc means *Stay* in *Unsaved Decisions*.
+3. Safe defaults: *Cancel* in *Binary Files Detected* and in *Delete Branch* (whose box for origin
+   is checked when there is one, so Enter, Enter deleted there too, a push; 2026-10-07), and Esc
+   means *Stay* in *Unsaved Decisions*.
 4. Discard all, discard a file, drop a stash and remove a tag ask first. The default is No, and the
    question says what will be lost.
 5. `p` is a plain push. It force-pushes only when *Force Push* is chosen.
