@@ -318,6 +318,19 @@ public class GitIntegrationTest
         Assert.AreEqual("Third", log[0].Subject);
     }
 
+    // A range from the root commit is every change of the commits in it, git's error for the root's
+    // missing parent being what tells that it is one
+    [TestMethod]
+    public async Task TestDiffRangeFromTheRootCommit()
+    {
+        var c1 = await repo.CommitFileAsync("a.txt", "one\n", "First");
+        var c2 = await repo.CommitFileAsync("b.txt", "two\n", "Second");
+
+        var diff = Value(await repo.Git.GetDiffRangeAsync(c1, c2, "Range", 3, repo.Path));
+
+        CollectionAssert.AreEquivalent(new[] { "a.txt", "b.txt" }, diff.FileDiffs.Select(f => f.PathAfter).ToArray());
+    }
+
     [TestMethod]
     public async Task TestBranchesRoundTrip()
     {
