@@ -228,11 +228,13 @@ class WorktreeCommands : IWorktreeCommands
         if (await server.RemoveWorktreeAsync(worktree.Path, rsp.IsForce, current.Path) is Error e)
             return new Error($"Failed to remove worktree {worktree.Path}", e);
 
-        // A deliberately checked box on a branch named as unmerged is the consent to lose it
+        // A deliberately checked box on a branch named as unmerged is the consent to lose it. It can
+        // be restored, as one deleted from its branch menu can, which is said in the same way.
         if (rsp.IsDeleteBranch && branch != null)
         {
             if (await server.DeleteBranchAsync(current, branch.Name, "", isUnmerged) is Error deleteError)
                 return new Error($"Worktree removed, but failed to delete branch {branch.Name}", deleteError);
+            status.Info(DeletedBranchRows.Deleted(branch.Name, false));
         }
 
         await repoView.RefreshAsync();
