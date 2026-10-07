@@ -238,6 +238,13 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) =>
         commitService.GetFilesToCleanAsync(wd);
 
+    public Task<Result> AutosquashAsync(string baseId, string wd) => commitService.AutosquashAsync(baseId, wd);
+
+    public Task<Result> DropCommitAsync(string id, string wd) => commitService.DropCommitAsync(id, wd);
+
+    public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
+        commitService.GetRefsContainingAsync(id, wd);
+
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) =>
         commitService.UndoCommitAsync(id, parentIndex, wd);
 

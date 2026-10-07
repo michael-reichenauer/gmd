@@ -105,6 +105,16 @@ interface IGit
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
     Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
+
+    // Folds the 'amend!' and 'fixup!' commits into the commits they name, rebasing the commits after
+    // the base, or all of them for ""
+    Task<Result> AutosquashAsync(string baseId, string wd);
+
+    // Takes a commit out of the current branch, replaying the newer ones onto its parent
+    Task<Result> DropCommitAsync(string id, string wd);
+
+    // The branches, remote branches and tags on the commit or after it, as full ref names
+    Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);

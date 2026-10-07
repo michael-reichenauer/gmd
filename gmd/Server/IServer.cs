@@ -144,6 +144,11 @@ interface IServer
     Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<Result> SwitchToCommitAsync(string commitId, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
+
+    // An older commit not pushed yet, given a new message and the changes in the paths, none for a
+    // new message alone, or taken out of the branch
+    Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);
+    Task<Result> DropCommitAsync(Repo repo, string id);
 }
 
 // A change the file monitor saw, with when it was told of the last of the changes it reports,

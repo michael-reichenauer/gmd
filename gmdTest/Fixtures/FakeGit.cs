@@ -315,6 +315,13 @@ class FakeGit : IGit
 
     public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => throw new NotSupportedException();
 
+    public Task<Result> AutosquashAsync(string baseId, string wd) => throw new NotSupportedException();
+
+    public Task<Result> DropCommitAsync(string id, string wd) => throw new NotSupportedException();
+
+    public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) => throw new NotSupportedException();
 
     public Task<Result> UncommitLastCommitAsync(string wd) => throw new NotSupportedException();
