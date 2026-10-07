@@ -8,7 +8,14 @@ namespace gmd.Cui;
 
 interface ICommitDlg
 {
-    bool Show(IViewRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string message);
+    // The message, and the paths to commit, or null for all the changes, see CommitFiles
+    bool Show(
+        IViewRepo repo,
+        bool isAmend,
+        IReadOnlyList<Server.Commit>? commits,
+        out string message,
+        out IReadOnlyList<string>? paths
+    );
 }
 
 class CommitDlg : ICommitDlg
@@ -17,14 +24,24 @@ class CommitDlg : ICommitDlg
     IReadOnlyList<Server.Commit>? commits;
     UITextView message = null!;
 
+    // The checklist shows this many files at most, and scrolls for more
+    const int MaxFileRows = 8;
+
     internal CommitDlg(ISpellChecker spellChecker)
     {
         this.spellChecker = spellChecker;
     }
 
-    public bool Show(IViewRepo repo, bool isAmend, IReadOnlyList<Server.Commit>? commits, out string commitMessage)
+    public bool Show(
+        IViewRepo repo,
+        bool isAmend,
+        IReadOnlyList<Server.Commit>? commits,
+        out string commitMessage,
+        out IReadOnlyList<string>? paths
+    )
     {
         this.commits = commits;
+        paths = null;
         if (!isAmend && repo.Repo.Status.IsOk)
         {
             commitMessage = "";
@@ -38,18 +55,97 @@ class CommitDlg : ICommitDlg
         string branchName = commit.BranchName;
         var title = isAmend ? "Amend" : "Commit";
 
-        var dlg = new UIDialog(title, 74, 18, (key) => OnKey(repo, key));
+        // The files, to untick what is not to be committed. Not while an operation is in progress,
+        // whose result git commits whole, refusing a commit of some files of a merge, nor for an
+        // amend with no changes, which rewords the last commit.
+        var files = repo.Repo.Status.IsMerging ? null : new CommitFiles(repo.Repo.Status);
+        if (files?.Files.Count == 0)
+            files = null;
+        var fileRows = files == null ? 0 : Math.Min(files.Files.Count, MaxFileRows);
+        var listHeight = files == null ? 0 : fileRows + 2;
 
-        dlg.AddLabel(1, 0, $"{title} {Changes(filesCount, isAmend)} on '{branchName}':");
+        var dlg = new UIDialog(title, 74, 18 + listHeight, (key) => OnKey(repo, key));
+
+        var heading = dlg.AddLabel(1, 0, Heading(title, filesCount, isAmend, files, branchName));
+        heading.Width = Dim.Fill(); // It grows as files are ticked again, see UILabel.Text
         var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both, spellChecker);
 
         message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart, spellChecker);
         dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
 
+        if (files != null)
+        {
+            dlg.AddLabel(1, 16, Text.Dark("Files, Space unticks one or ticks it again, and a all:"));
+            var list = dlg.AddContentView(
+                1,
+                17,
+                70,
+                fileRows,
+                (first, count, _, width) =>
+                    (
+                        files.Files.Skip(first).Take(count).Select((_, i) => FileRow(files, first + i, width)),
+                        files.Files.Count
+                    )
+            );
+            list.IsShowCursor = false;
+            list.IsHighlightCurrentIndex = true;
+
+            void Toggle(Action toggle)
+            {
+                toggle();
+                heading.Text = Heading(title, filesCount, isAmend, files, branchName);
+                list.SetNeedsDisplay();
+            }
+            list.RegisterKeyHandler(Key.Space, () => Toggle(() => files.Toggle(list.CurrentIndex)));
+            list.RegisterKeyHandler(Key.a, () => Toggle(files.ToggleAll));
+            list.RegisterKeyHandler(Key.A, () => Toggle(files.ToggleAll));
+            list.RegisterMouseHandler(
+                MouseFlags.Button1Clicked,
+                (_, y) =>
+                {
+                    list.SetCurrentIndex(list.FirstIndex + y);
+                    Toggle(() => files.Toggle(list.FirstIndex + y));
+                }
+            );
+            dlg.Validate(() => files.TickedCount > 0, "No file is ticked to commit: Space ticks one");
+        }
+
         dlg.ShowOkCancel(subject);
 
         commitMessage = GetMessage(subject, message);
+        paths = files?.PathsToCommit;
         return dlg.IsOK;
+    }
+
+    // "Commit 3 changes on 'main':", and once some are unticked "Commit 2 of 3 changes on 'main':"
+    static Text Heading(string title, int count, bool isAmend, CommitFiles? files, string branchName)
+    {
+        var changes =
+            files == null || files.TickedCount == files.Files.Count
+                ? Changes(count, isAmend)
+                : $"{files.TickedCount} of {Changes(files.Files.Count, isAmend)}";
+        return Text.White($"{title} {changes} on '{branchName}':");
+    }
+
+    // A file of the checklist: ticked or not, as a check box is drawn, what changed, and the path;
+    // an unticked one dark, being left out
+    static Text FileRow(CommitFiles files, int index, int width)
+    {
+        var file = files.Files[index];
+        var isTicked = files.IsTicked(index);
+        var path = file.Path.Length + 4 <= width ? file.Path : $"┅{file.Path[^Math.Max(0, width - 5)..]}";
+        if (!isTicked)
+            return Text.Dark($"□ {file.Kind} {path}");
+
+        var kind = $"{file.Kind}";
+        var text = Text.White("◙ ");
+        text = file.Kind switch
+        {
+            'A' => text.Green(kind),
+            'D' => text.Red(kind),
+            _ => text.Yellow(kind),
+        };
+        return text.White($" {path}");
     }
 
     private bool OnKey(IViewRepo repo, Key key)

@@ -444,7 +444,11 @@ class UIDialog
             this.onMouse = onMouse;
         }
 
-        public override bool ProcessHotKey(KeyEvent keyEvent) => onKey?.Invoke(keyEvent.Key) ?? false;
+        // The dialog's own keys first, then its views': a view that takes its keys as hot keys, as
+        // ContentView does, got none of them in a dialog with keys of its own, which is what kept
+        // the commit dialog's file list from ticking (only the focused view acts on a key there)
+        public override bool ProcessHotKey(KeyEvent keyEvent) =>
+            (onKey?.Invoke(keyEvent.Key) ?? false) || base.ProcessHotKey(keyEvent);
 
         public override bool MouseEvent(MouseEvent ev) => onMouse?.Invoke(ev) ?? false;
     }

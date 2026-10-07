@@ -3,6 +3,7 @@ namespace gmd.Git.Private;
 interface ICommitService
 {
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
+    Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
@@ -58,6 +59,41 @@ class CommitService : ICommitService
             );
 
         return result;
+    }
+
+    // Commits these files only, as they are in the working tree, and leaves every other change as it
+    // is, staged or not: what the commit dialog's checklist leaves ticked. They are staged first
+    // ('add -A'), since a commit of paths takes only what git already tracks, so a new file would
+    // be refused and a deleted one left. The paths go in a file rather than on the command line,
+    // which a long list would overflow, and are literal, so a path with a '*' is not a pattern.
+    // Not for an operation in progress: git refuses a commit of some paths during a merge, which is
+    // committed whole.
+    public async Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd)
+    {
+        message = message.Replace("\"", "\\\"");
+        var pathsFile = Path.GetTempFileName();
+        try
+        {
+            if (Result.Catch(() => File.WriteAllText(pathsFile, string.Join('\0', paths))) is Error writeError)
+                return writeError;
+
+            var pathspec = $"--pathspec-from-file=\"{pathsFile}\" --pathspec-file-nul";
+            var literal = new Dictionary<string, string> { ["GIT_LITERAL_PATHSPECS"] = "1" };
+            if (await cmd.RunAsync("git", $"add -A {pathspec}", wd, environment: literal) is Error addError)
+                return addError;
+
+            var amendText = isAmend ? " --amend" : "";
+            return await cmd.RunAsync(
+                "git",
+                $"commit{amendText} -m \"{message}\" {pathspec}",
+                wd,
+                environment: literal
+            );
+        }
+        finally
+        {
+            Result.Catch(() => File.Delete(pathsFile));
+        }
     }
 
     static bool IsUnmergedFiles(CmdError error) =>

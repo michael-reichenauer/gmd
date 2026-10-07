@@ -1856,6 +1856,34 @@ public class GitIntegrationTest
         CollectionAssert.AreEquivalent(new[] { ".env", "bin/", "notes.txt" }, files.ToArray());
     }
 
+    // A commit of some files only, as the commit dialog's checklist makes it: the ticked files are
+    // committed, a new one and a deleted one as well, and every other change is left uncommitted.
+    // A path is literal: 'file*.txt' would match 'file1.txt' too as a pattern.
+    [TestMethod]
+    public async Task TestCommitFilesCommitsThoseFilesOnly()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("A file name with '*' in it");
+
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAsync("file1.txt", "one\n", "Add file1");
+        await repo.CommitFileAsync("file*.txt", "star\n", "Add file*");
+        await repo.CommitFileAsync("gone.txt", "gone\n", "Add gone");
+        File.WriteAllText(Path.Join(repo.Path, "file1.txt"), "one changed\n");
+        File.WriteAllText(Path.Join(repo.Path, "file*.txt"), "star changed\n");
+        File.WriteAllText(Path.Join(repo.Path, "new.txt"), "new\n");
+        File.Delete(Path.Join(repo.Path, "gone.txt"));
+
+        Ok(await repo.Git.CommitFilesAsync("Some of it", false, ["file*.txt", "new.txt", "gone.txt"], repo.Path));
+
+        Assert.AreEqual("Some of it", await repo.GitAsync("log -1 --format=%s"));
+        Assert.AreEqual(
+            "M\tfile*.txt\nD\tgone.txt\nA\tnew.txt",
+            (await repo.GitAsync("show --name-status --format= HEAD")).Trim()
+        );
+        Assert.AreEqual(" M file1.txt", (await repo.GitAsync("status --porcelain")).TrimEnd(), "Left as it was");
+    }
+
     static T Value<T>(Result<T> result)
         where T : notnull => AssertOk(result, "Git failed");
 

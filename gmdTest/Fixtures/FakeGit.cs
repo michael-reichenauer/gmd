@@ -155,6 +155,9 @@ class FakeGit : IGit
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         throw new NotSupportedException();
 

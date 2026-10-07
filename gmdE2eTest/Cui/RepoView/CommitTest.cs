@@ -78,7 +78,7 @@ public class CommitTest
                                    │┌──────────────────────────────────────────────────────────────────────┐│
                                    ││                                                                      ││
             """,
-            ScreenText.Rows(dialog, repo.Path, 11, 6)
+            ScreenText.Rows(dialog, repo.Path, 9, 6)
         );
 
         // The subject field has the focus, so the message is simply typed, and Enter presses the
@@ -135,7 +135,8 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.SendText("Some body text");
         gmd.WaitFor("Some body text");
-        gmd.Send("Tab"); // And on to the OK button, since Enter in the body is a newline
+        gmd.Send("Tab"); // And on to the file list, since Enter in the body is a newline; the list
+        // leaves Enter to the dialog, i.e. OK
         gmd.WaitForStable();
         gmd.Send("Enter");
 
@@ -143,6 +144,35 @@ public class CommitTest
         Assert.AreEqual("Add epsilon\n\nSome body text", await repo.GitAsync("log --format=%B -1"));
         // The log view has no caret, so the dialog's must not outlive it
         Assert.IsFalse(gmd.IsCursorVisible, "The caret should be hidden again once the dialog has closed");
+    }
+
+    // The commit dialog lists the files, all ticked, and a file unticked with Space is left out of
+    // the commit, as it is, uncommitted. The heading counts what is still ticked.
+    [TestMethod]
+    public async Task TestAnUntickedFileIsLeftUncommitted()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        var dialog = gmd.WaitFor("Files, Space");
+        StringAssert.Contains(dialog, "◙ M alpha.txt");
+        StringAssert.Contains(dialog, "◙ A epsilon.txt");
+
+        gmd.SendText("Add epsilon only");
+        gmd.WaitFor("Add epsilon only");
+        gmd.Send("Tab"); // Into the message body
+        gmd.WaitForStable();
+        gmd.Send("Tab"); // And the file list, on its first file
+        gmd.WaitForStable();
+        gmd.Send("Space");
+        dialog = gmd.WaitFor("Commit 1 of 2 changes on 'main'");
+        StringAssert.Contains(dialog, "□ M alpha.txt");
+        gmd.Send("M-o");
+
+        gmd.WaitFor("Committed to 'main'");
+        Assert.AreEqual("epsilon.txt", (await repo.GitAsync("show --name-only --format= HEAD")).Trim());
+        Assert.AreEqual(" M alpha.txt", (await repo.GitAsync("status --porcelain")).TrimEnd(), "Left as it was");
     }
 
     // Escape cancels the dialog, and cancelling has to leave the repository alone. Note that the

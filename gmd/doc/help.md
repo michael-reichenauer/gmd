@@ -153,9 +153,10 @@ repository.
 
 - **Start a branch:** `b` on the branch or the commit to start from.
   *Checkout* switches to the new branch, and *Publish* pushes it to origin.
-- **Commit:** `c`, type the message, then `Alt-O` or OK. A commit takes
-  every change in the working folder, new files too. `Ctrl-D` in the
-  dialog shows what it will commit.
+- **Commit:** `c`, type the message, then `Alt-O` or OK. The dialog lists
+  the changed files, new ones too, all ticked: `Tab` into the list and
+  `Space` unticks the file under the cursor, which is then left as it is,
+  uncommitted, and `a` unticks or ticks all. `Ctrl-D` shows the diff.
 - **Push and pull:** `p` and `u` for the branch you are on, or for the
   highlighted one; `Shift-P` and `Shift-U` for every shown branch.
 - **Open a pull request:** `m` on the branch, then **Create Pull Request in
@@ -230,6 +231,7 @@ In dialogs and text fields:
 | Alt-O      | OK, e.g. to commit while typing in the message box         |
 | Ctrl-D     | Show the diff of what is committed, in the commit dialog   |
 | Ctrl-A     | After a merge, add the merged commits' subjects            |
+| Space, a   | Untick or tick a file, or all, in the commit file list     |
 | F7         | Spelling suggestions (also Ctrl-G)                         |
 | Shift-F10  | Text menu: spelling, copy, paste (also right-click)        |
 | Esc        | Cancel                                                     |
@@ -374,7 +376,9 @@ throw changes away for good ask first.
 ## More Commands
 
 - **Commit ...** (`c`):
-  Commit all uncommitted changes, with warnings for large or binary files.
+  Commit the uncommitted changes, every file ticked in the dialog's list,
+  with warnings for large or binary files. While a merge, a revert or the
+  like is in progress there is no list: git commits its result whole.
   After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
   the merged commits, one per line, and for a merged merge the list in its
   message.

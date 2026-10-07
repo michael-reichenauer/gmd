@@ -78,7 +78,7 @@ Ranked by how soon someone new meets the gap.
    (`CommitService.cs:41-47`), new files included. Every other client lets you pick the files, and
    lazygit users expect hunks. The file checklist in the commit dialog (Tier 4, item 1 of the
    usability review) is the right size for gmd, and it is also the guard against committing a stray
-   `.env` or a debug log.
+   `.env` or a debug log. *Done (2026-10-07), see proposal B.1.*
 2. **Passwords, passphrases and host keys.** gmd runs git on its own terminal, with no
    `GIT_TERMINAL_PROMPT`, no askpass and no timeout (`Cmd.cs:209-243`), and fetches in the background
    every five minutes. Tried with a stand-in for ssh that asks on `/dev/tty` as ssh does (a
@@ -238,7 +238,12 @@ Both are reworked, see proposal D.1.
 
 **B. Expected features:**
 
-1. The file checklist in the commit dialog (Tier 4, item 1, below).
+1. The file checklist in the commit dialog (Tier 4, item 1, below). *Done (2026-10-07):* the
+   dialog lists the changed files under the message, all ticked, `Space` unticking one and `a` all,
+   and the heading counts what is ticked ("Commit 2 of 3 changes"). With every file ticked the
+   commit is as it always was; with some unticked only the ticked paths are staged and committed
+   (`CommitFilesAsync`, the paths given to git in a file and literal), and the others are left as
+   they are. No list while a merge or the like is in progress, which git commits whole.
 2. Copy Commit Id and Copy Commit Message in the commit menu, with a key. *Done (2026-10-07):*
    `i` and `Shift-I`, and the commit menu's items, each saying on the status line what it copied;
    the uncommitted row says it is no commit yet. Blame copies its line's commit with the same two
@@ -345,7 +350,7 @@ Getting around:
 
 Bigger features:
 
-- [ ] 15. **Choose what to commit** (B.1): a file checklist in the commit dialog, every file ticked.
+- [x] 15. **Choose what to commit** (B.1): a file checklist in the commit dialog, every file ticked.
   L
 - [ ] 16. **Reword, fix up and drop** commits not yet pushed (B.3). L
 - [ ] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `GIT_ASKPASS` and
@@ -612,7 +617,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 1. **A file checklist in the commit dialog,** every file ticked by default. This fits gmd's model
    (no staging area to manage) better than lazygit-style staging does. Also, stop the uncommitted
    diff from resetting the index. *The index half is done (2026-09-25):* the diff stages into a copy
-   of the index, which also lets it show new files during a merge. The checklist is put off.
+   of the index, which also lets it show new files during a merge. *The checklist too (2026-10-07),*
+   see the product review's proposal B.1.
 2. **Undo for showing and hiding branches,** e.g. Backspace brings back the previous set. It is
    cheap, and it makes the README's "can be undone at any time" literally true. *Done
    (2026-09-25):* `Backspace` steps back through the shows and hides the user asked for

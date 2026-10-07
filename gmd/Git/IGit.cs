@@ -28,6 +28,7 @@ interface IGit
     // The status of a worktree someone else is working in, read without taking its index lock
     Task<Result<Status>> GetStatusWithoutLocksAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
+    Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);

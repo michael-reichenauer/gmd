@@ -49,6 +49,7 @@ interface IAugmentedService
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd);
     Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
+    Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
     Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo);
