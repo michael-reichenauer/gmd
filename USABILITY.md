@@ -247,6 +247,73 @@ Both are reworked, see proposal D.1.
 4. Captions in the animation, saying which key is pressed.
 5. The inference's agreement with the reflog, measured on public repositories and published.
 
+### Implementation steps
+
+The proposals above in the order they are to be done: one step at a time, each on a branch of its
+own merged into dev, and ticked here when it lands. A step may be adjusted or skipped before it is
+started. The details are in the proposals and parts above; effort is S, M or L.
+
+First impression:
+
+- [ ] 1. **No git prompt on the screen** (A.1): git runs with nothing to ask on, and a failed login
+  says what to do (`ssh-add`, a credential helper). A test with the ssh stand-in. M
+- [ ] 2. **A word on a crash** (A.3): the log's path and the issues link once the terminal is given
+  back, and the project's link in About. S
+- [ ] 3. **Say what is hidden** (A.2): once per repository, on the status line, how many branches
+  are hidden and how to show one. S
+- [ ] 4. **One name for the Show Branch menu** (A.4): the same title everywhere, and `Shift-→`
+  written one way. S
+- [ ] 5. **Merge items that name both branches** (A.4): *Merge dev into main*. S
+
+Quick wins:
+
+- [ ] 6. **Copy the commit id and message** (B.2): in the commit menu, with a key. S
+- [ ] 7. **Add Tag asks before it pushes** (part 2), as every other push does. S
+- [ ] 8. **The year in the dates** (C.1): `2026-03-10`, in the log, blame and the lists. M (every
+  snapshot with a date changes)
+- [ ] 9. **The resolver names the sides** (C.4): "press 1 (HEAD), 2 (dev), 3, 4 or 0". S
+
+Shorter menus (C.5, part 3):
+
+- [ ] 10. **No duplicates:** Pull All and Push All out of the branch menu, *Squash ...* straight
+  into the commit menu, *Branches* cut to showing and hiding. S
+- [ ] 11. **Rare and risky items moved:** *Clean Working Folder* under Undo, the `5` key gone, `g`
+  and `<=` / `=>` to the menu only, and the `Sorter.Sort` hang fixed. S
+- [ ] 12. **The `*` and `$` search words** kept or dropped, to decide. S
+
+Getting around:
+
+- [ ] 13. **Key hints in the diff and blame views** (C.3). M
+- [ ] 14. **A help that is easier to get around** (C.2): wider on a wide terminal, a contents to
+  jump from, opening at the view's own section. M
+
+Bigger features:
+
+- [ ] 15. **Choose what to commit** (B.1): a file checklist in the commit dialog, every file ticked.
+  L
+- [ ] 16. **Reword, fix up and drop** commits not yet pushed (B.3). L
+- [ ] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `GIT_ASKPASS` and
+  `SSH_ASKPASS`. M
+- [ ] 18. **The smaller gaps** (part 2, item 7), each to pick or skip: stash apply, a tag list and
+  push, a diff of any two commits, search of the changes (`-S`), line history (`log -L`), a merge
+  tool in the terminal. S to M each
+- [ ] 19. **A second remote, read only** (B.5): fetch `upstream` and show its branches. L
+
+Reach:
+
+- [ ] 20. **Issue templates** (D.3), linked from the README. S
+- [ ] 21. **Captions in the animation** (D.4). S
+- [ ] 22. **The inference measured** (D.5) on public repositories of each workflow, and the numbers
+  in the README. M
+- [ ] 23. **The terminals people have** (part 5): 80 columns, Windows Terminal, fonts with no `✦`,
+  `Ϙ` or `ß`. M
+- [ ] 24. **Packages** (D.2): Homebrew, Scoop or winget, AUR, and an Intel Mac build. Needs the
+  author's accounts. M
+
+Waiting for the Terminal.Gui 2.x port:
+
+- [ ] 25. **Light themes, `NO_COLOR` and colors that do not lean on red against green** (B.4). L
+
 ---
 
 ## What already works well
