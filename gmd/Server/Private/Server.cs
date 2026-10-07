@@ -560,4 +560,9 @@ class Server : IServer
 
     public Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg) =>
         augmentedService.SquashCommits(repo, id1, id2, msg);
+
+    public Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths) =>
+        augmentedService.AmendOlderCommitAsync(repo, id, message, paths);
+
+    public Task<Result> DropCommitAsync(Repo repo, string id) => augmentedService.DropCommitAsync(repo, id);
 }

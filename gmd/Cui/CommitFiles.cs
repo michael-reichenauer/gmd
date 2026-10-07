@@ -3,7 +3,9 @@ namespace gmd.Cui;
 // The files a commit takes, each ticked or not: the checklist of the commit dialog. Every file is
 // ticked at first, which is what a commit has always taken, and unticking one leaves it as it is,
 // uncommitted. It replaces a staging area gmd never had, and is the guard against committing a
-// stray .env or a debug log along with the rest (USABILITY.md, the product review).
+// stray .env or a debug log along with the rest (USABILITY.md, the product review). For the amend
+// of an older commit none is ticked at first, since that is most often a new message, and work in
+// progress should not end up in an old commit unasked.
 //
 // The decision and the paths, with no view, so it is tested without a terminal; CommitDlg draws it.
 class CommitFiles
@@ -15,7 +17,7 @@ class CommitFiles
 
     readonly bool[] ticked;
 
-    public CommitFiles(Server.Status status)
+    public CommitFiles(Server.Status status, bool isTicked = true)
     {
         List<File> files =
         [
@@ -28,7 +30,7 @@ class CommitFiles
             ),
         ];
         Files = files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
-        ticked = Enumerable.Repeat(true, Files.Count).ToArray();
+        ticked = Enumerable.Repeat(isTicked, Files.Count).ToArray();
     }
 
     public IReadOnlyList<File> Files { get; }
@@ -52,6 +54,8 @@ class CommitFiles
 
     // The paths to commit, or null when every file is ticked, i.e. everything, which is committed
     // as a commit always was, with what git counts as a change and gmd may not list included
-    public IReadOnlyList<string>? PathsToCommit =>
-        TickedCount == ticked.Length ? null : Files.Where((_, i) => ticked[i]).SelectMany(f => f.GitPaths).ToList();
+    public IReadOnlyList<string>? PathsToCommit => TickedCount == ticked.Length ? null : TickedPaths;
+
+    // The paths of the ticked files, none when none is
+    public IReadOnlyList<string> TickedPaths => Files.Where((_, i) => ticked[i]).SelectMany(f => f.GitPaths).ToList();
 }

@@ -56,6 +56,20 @@ public class CommitFilesTest
         Assert.IsNull(files.PathsToCommit);
     }
 
+    // The amend of an older commit starts with none ticked, since that is most often a new message,
+    // and its paths are the ticked ones, none for a new message alone
+    [TestMethod]
+    public void TestForAnOlderCommitNoneIsTickedAtFirst()
+    {
+        var files = new CommitFiles(Status(modified: ["a.txt", "b.txt"]), isTicked: false);
+
+        Assert.AreEqual(0, files.TickedCount);
+        CollectionAssert.AreEqual(Array.Empty<string>(), files.TickedPaths.ToArray());
+
+        files.Toggle(1);
+        CollectionAssert.AreEqual(new[] { "b.txt" }, files.TickedPaths.ToArray());
+    }
+
     static Status Status(
         string[]? modified = null,
         string[]? added = null,

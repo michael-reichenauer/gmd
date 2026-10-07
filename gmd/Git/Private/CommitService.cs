@@ -8,6 +8,9 @@ interface ICommitService
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
     Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
+    Task<Result> AutosquashAsync(string baseId, string wd);
+    Task<Result> DropCommitAsync(string id, string wd);
+    Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
@@ -68,9 +71,19 @@ class CommitService : ICommitService
     // which a long list would overflow, and are literal, so a path with a '*' is not a pattern.
     // Not for an operation in progress: git refuses a commit of some paths during a merge, which is
     // committed whole.
+    //
+    // With no paths it commits none, i.e. a commit with no changes, which is what the amend of an
+    // older commit with no file ticked makes to carry the new message (AmendOlderCommitAsync). An
+    // empty pathspec file is no pathspec at all to git, which would stage and commit everything.
     public async Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd)
     {
         message = message.Replace("\"", "\\\"");
+        if (paths.Count == 0)
+        {
+            var amend = isAmend ? " --amend" : "";
+            return await cmd.RunAsync("git", $"commit{amend} --only --allow-empty -m \"{message}\"", wd);
+        }
+
         var pathsFile = Path.GetTempFileName();
         try
         {
@@ -151,6 +164,40 @@ class CommitService : ICommitService
             .Where(l => l.StartsWith(Prefix))
             .Select(l => l[Prefix.Length..])
             .ToList();
+    }
+
+    // Folds the 'amend!' and 'fixup!' commits on the current branch into the commits they name: a
+    // rebase of the commits after the base, or of all of them with no base, in the order git's own
+    // --autosquash puts them. Interactive only in name, since gmd never opens an editor
+    // (Cmd.NeverOpenAnEditor), so git's plan is taken as it writes it. The changes not committed are
+    // put aside and back (--autostash), and a later commit the fold leaves with nothing to change is
+    // dropped. A conflict stops it part way, as any rebase, to be continued or aborted.
+    public async Task<Result> AutosquashAsync(string baseId, string wd)
+    {
+        var onto = baseId == "" ? "--root" : baseId;
+        return ConflictError.ToConflict(
+            await cmd.RunAsync("git", $"rebase -i --autosquash --autostash --empty=drop {onto}", wd),
+            "The amend stopped on conflicts"
+        );
+    }
+
+    // Takes a commit out of the current branch: the commits after it are replayed onto its parent
+    public async Task<Result> DropCommitAsync(string id, string wd) =>
+        ConflictError.ToConflict(
+            await cmd.RunAsync("git", $"rebase --empty=drop --onto {id}^ {id}", wd),
+            "The drop stopped on conflicts"
+        );
+
+    // The branches, remote branches and tags that have the commit, i.e. are on it or after it, as
+    // full ref names, e.g. 'refs/heads/main', 'refs/remotes/origin/main' and 'refs/tags/v1'
+    public async Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd)
+    {
+        var args = $"for-each-ref --contains {id} --format=%(refname) refs/heads refs/remotes refs/tags";
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
     }
 
     public async Task<Result> UndoCommitAsync(string id, int parentIndex, string wd)

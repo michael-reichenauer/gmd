@@ -387,6 +387,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
   hardware. Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
+- Squash still resets the branch and cherry-picks the newer commits back one by one
+  (`AugmentedService.SquashCommits`), so a conflict stops it half done: the branch already reset, a
+  cherry-pick stopped, and its `squash-backup-…` branch left behind. Amend and Drop of an older
+  commit are git's own rebase instead (`AutosquashAsync`, `DropCommitAsync`), which a conflict stops
+  cleanly for the resolver and Continue or Abort; Squash could be the same, as `fixup!` commits and
+  `--autosquash`, with the message given to the first. The rewrites that are rebases recorded for
+  Undo only when they finish in one go: one stopped on a conflict and continued is named by the
+  reflog, i.e. Undo Rebase, which leaves an Amend's `amend!` commit, a second Undo.
 
 **Inference pipeline**
 

@@ -51,6 +51,10 @@ interface IAugmentedService
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
+
+    // An older commit not pushed yet, given a new message and the changes in the paths, or taken out
+    Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);
+    Task<Result> DropCommitAsync(Repo repo, string id);
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
     Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo);
     Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce);

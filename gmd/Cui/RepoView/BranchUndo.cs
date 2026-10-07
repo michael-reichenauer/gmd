@@ -73,6 +73,7 @@ static class BranchUndo
             StepKind.Uncommit => "Uncommit",
             StepKind.Reset => "Reset",
             StepKind.Squash => "Squash",
+            StepKind.Drop => Named("Drop", step.Name),
             _ => "Last Change",
         };
 
@@ -89,6 +90,7 @@ static class BranchUndo
             StepKind.Uncommit => "the uncommit",
             StepKind.Reset => "the reset",
             StepKind.Squash => "the squash",
+            StepKind.Drop => Of("the drop", step.Name, "of "),
             _ => "the last change",
         };
 
