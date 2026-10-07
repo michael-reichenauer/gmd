@@ -87,6 +87,14 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    public async Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            return await git.CommitFilesAsync(message, isAmend, paths, wd);
+        }
+    }
+
     // The worktrees read on their own: the list, and the status of each of the others, which a
     // freshly read repo does not have (its counts are unknown until this is called), so that a
     // status run in another worktree never delays showing this one. Only the worktrees change; the

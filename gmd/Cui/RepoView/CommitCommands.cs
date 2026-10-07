@@ -163,13 +163,19 @@ class CommitCommands : ICommitCommands
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
 
-        if (!commitDlg.Show(repo, isAmend, commits, out var message))
+        if (!commitDlg.Show(repo, isAmend, commits, out var message, out var paths))
             return CommitResult.Cancelled;
 
-        // A pre-commit hook can make a commit take a while, e.g. one that formats the code
+        // A pre-commit hook can make a commit take a while, e.g. one that formats the code. The
+        // files left unticked in the dialog are left as they are, so with some unticked only the
+        // ticked ones are committed.
         using (status.Progress(isAmend ? "Amending the last commit" : $"Committing to '{CurrentBranchName()}'"))
         {
-            if (await server.CommitAllChangesAsync(message, isAmend, repo.Path) is Error e)
+            var committed =
+                paths == null
+                    ? await server.CommitAllChangesAsync(message, isAmend, repo.Path)
+                    : await server.CommitFilesAsync(message, isAmend, paths, repo.Path);
+            if (committed is Error e)
                 return new Error($"Failed to commit", e);
         }
 

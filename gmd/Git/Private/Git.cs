@@ -93,6 +93,9 @@ internal class Git : IGit
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         commitService.CommitAllChangesAsync(message, isAmend, wd);
 
+    public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
+        commitService.CommitFilesAsync(message, isAmend, paths, wd);
+
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         diffService.GetCommitDiffAsync(commitId, contextLines, wd);
 

@@ -117,8 +117,8 @@ still a complete terminal client there, just not a different one.
 
 Known limits:
 
-- A commit takes every change in the working folder, new files included. There is no staging of
-  single files or lines.
+- A commit takes whole files: the commit dialog lists them, all ticked, to untick what is to be
+  left out. There is no staging of single lines or hunks.
 - Only the remote named `origin` is supported.
 - The colors assume a dark terminal: on a light theme gmd is drawn on black.
 - The log reads the latest 30,000 commits.
@@ -156,7 +156,7 @@ once. Gmd keeps that readable rather than letting it flood the log:
 
 **Do it without the syntax**
 
-- **Everyday Git**: commit (with spell check), amend, push and pull (every shown branch at once
+- **Everyday Git**: commit all the changes or the files you tick (with spell check), amend, push and pull (every shown branch at once
   if you like), merge in either direction, create, rename and delete branches, tags, stash,
   squash, cherry pick, and file history.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to

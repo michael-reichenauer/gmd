@@ -646,7 +646,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `BlameColumns`, `CommitFiles` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
