@@ -229,7 +229,10 @@ Both are reworked, see proposal D.1.
    and menus, reasons and help write the key `Shift-→`. The key-hint line keeps `⇧→`, as it writes
    every shifted key (`⇧p`, `⇧e`). *Show/Hide Branch*, what Enter or a click on a ╮ or ╯ opens when
    several branches meet there, keeps its name: it is a list of its own, of the branches at that
-   commit to show and those to hide.
+   commit to show and those to hide. *The merge items are done too (2026-10-07):* in the menu of
+   dev, while main is current, `e` is *Merge dev into main* and `Shift-E` *Merge main into dev*; on
+   the current branch they are *Merge into main* and *Merge main into*, lists whose pick completes
+   the title; and the key-hint line says `e merge into main` (`⇧e merge main into`) to match.
 
 **B. Expected features:**
 
@@ -281,7 +284,7 @@ First impression:
   are hidden and how to show one. S
 - [x] 4. **One name for the Show Branch menu** (A.4): the same title everywhere, and `Shift-→`
   written one way. S
-- [ ] 5. **Merge items that name both branches** (A.4): *Merge dev into main*. S
+- [x] 5. **Merge items that name both branches** (A.4): *Merge dev into main*. S
 
 Quick wins:
 

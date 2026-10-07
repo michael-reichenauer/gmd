@@ -153,8 +153,9 @@ public class UndoIntegrationTest
         Assert.AreEqual("?? b.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
     }
 
-    // Merge from (Shift-E) merges into a branch and switches back, so the merge is the last change
-    // of a branch that is not checked out: that branch is moved back, and nothing else is touched
+    // Merging the current branch into another (Shift-E) merges into that one and switches back, so
+    // the merge is the last change of a branch that is not checked out: that branch is moved back,
+    // and nothing else is touched
     [TestMethod]
     public async Task TestUndoAMergeIntoABranchNotCheckedOut()
     {

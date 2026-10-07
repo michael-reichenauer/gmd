@@ -645,8 +645,8 @@ public class LogViewTest
             """
                     ╭ dev ───────────────────────────────────╮
                     │Switch to Branch                     s  │
-                    │Merge to main                        e  │╭ Branches ───────────────────╮
-                    │Merge from main                Shift-E  ││●   main                    >│
+                    │Merge dev into main                  e  │╭ Branches ───────────────────╮
+                    │Merge main into dev            Shift-E  ││●   main                    >│
                     │Rebase and Push onto                   >││    dev                     >│
                     │Hide Branch                          h  ││─────────────────────────────│
                     │Pull                                 u  ││Show Branch         Shift-→ >│

@@ -378,12 +378,13 @@ throw changes away for good ask first.
   match in the log.
 - **Merging** (`e` and `Shift-E`):
   `e` merges the highlighted branch into the current branch, and `Shift-E`
-  the current branch into the highlighted one. The menus name them from
-  the branch the menu is for: in the menu of dev, while main is current,
-  `e` is **Merge to main** and `Shift-E` **Merge from main**; in the menu
-  of the current branch they are **Merge from** and **Merge to**, each a
-  list of the shown branches. A merge opens the commit dialog, and **Abort
-  Merge** at the top of the repo menu backs out of it.
+  the current branch into the highlighted one. The menus name both
+  branches: in the menu of dev, while main is current, `e` is **Merge dev
+  into main** and `Shift-E` **Merge main into dev**. On the current branch
+  itself they are **Merge into main** and **Merge main into**, each a list
+  of the shown branches to pick the other one from. A merge opens the
+  commit dialog, and **Abort Merge** at the top of the repo menu backs out
+  of it.
   Git can only merge into the branch that is checked out, so `Shift-E`
   switches to the target branch, merges, opens the commit dialog there,
   and switches back once the merge is committed. Cancelling the commit, or
