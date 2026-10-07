@@ -292,39 +292,28 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
   small bugs found along the way; and the product review's (2026-10-07), A to D.
-- Git cannot ask the user for a login, it can only fail and say what to do (`LoginError`), since it
-  is given no terminal to ask on (`Cmd.NeverAskOnTheTerminal`). What is left of it, and how gmd
-  could ask itself (product review step 17, `USABILITY.md`):
-  - What already works without asking: any credential helper, since a helper is not a prompt
-    (osxkeychain, libsecret, wincred, store, cache, and Git Credential Manager, which on Windows and
-    macOS opens a window of its own or the browser); an ssh key in the ssh agent; and the user's
-    own `GIT_ASKPASS` or `SSH_ASKPASS`, which are kept, e.g. VS Code's, which asks in a window of
-    VS Code when gmd runs in its terminal.
+- Git's questions are asked in gmd's login dialog (product review step 17): ssh, and git, which asks
+  `SSH_ASKPASS` when it has no `GIT_ASKPASS`, run gmd as the askpass, which asks the gmd that ran the
+  git over a named pipe (`Askpass`, `AskpassServer`, `LoginDlg`). What is left:
+  - What already works without asking is untouched: any credential helper, since a helper is not a
+    prompt (Git Credential Manager included, which on Windows and macOS opens a window of its own or
+    the browser); an ssh key in the ssh agent; and the user's own `GIT_ASKPASS`, `core.askPass` or
+    `SSH_ASKPASS`, e.g. VS Code's, which asks in a window of VS Code when gmd runs in its terminal.
   - Still asked on the terminal: an OpenSSH older than 8.4, which ignores `SSH_ASKPASS_REQUIRE`.
     Starting git in a session of its own, with no controlling terminal (`setsid`), would cover it
-    on Linux and macOS, but .NET's `Process` has no option for that. On Windows, Git for Windows'
-    ssh would run gmd by its Windows path as the askpass; not tried.
-  - To ask in gmd: the askpass (`Askpass.Answer`) connects to the gmd that started the git, which
-    puts the address of a channel of its own in the environment of every git process, as it puts
-    `GMD_ASKPASS` there now: a Unix domain socket in a folder only the user can read, or a named
-    pipe on Windows, with a random token in the environment that the askpass must send back, so
-    no other process can ask. The askpass sends the question and prints the answer on stdout, or
-    exits with 1 for Cancel. The running gmd shows the dialog on the UI thread (`IMainThread.Post`,
-    since the git command runs in the background): a password field for a passphrase or a password,
-    Yes and No with the fingerprint for a host, and never logs an answer. The git command is waited
-    for meanwhile, so `Progress` has to let the dialog take keys while it otherwise drops them.
-  - Then `GIT_ASKPASS` is set to gmd too, unless the user has one, so that a user name and password
-    over https reach the dialog, and whatever credential helper is configured stores what was
-    typed, as it does for a terminal prompt.
-  - Only for what the user asked for: the background fetch, every five minutes and on opening,
-    must keep failing quietly rather than raise a dialog by itself; it says on the status line that
-    a login is needed, and `r`, a push or a pull asks.
-  - Git Credential Manager needs no dialog where it has a window of its own. Without one (Linux
-    over ssh, or `credential.guiPrompt` false) it asks on the terminal, e.g. its device code flow,
-    and reads `GIT_TERMINAL_PROMPT` like git does, so it fails instead; the advice then is to log
-    in once with git in a terminal, after which GCM has the token stored and gmd's fetches use it.
-    Showing GCM's own terminal prompts in gmd would need GCM to ask an askpass, which as far as its
-    documentation says it does not; to check before promising it.
+    on Linux and macOS, but .NET's `Process` has no option for that.
+  - Not tried on Windows: Git for Windows' ssh running `gmd.exe` as the askpass, and the named pipe,
+    which .NET makes a Windows pipe there rather than a socket.
+  - The metadata sync never asks (`MetaDataService`, `Askpass.NeverAsk`), so that a fetch or a push
+    asks once rather than twice; with neither an agent nor a credential helper, the shared branch
+    structure is then not synced at all.
+  - Push All runs one push per branch, each a command of its own, so each asks, and a Cancel stops
+    only the one.
+  - Git Credential Manager without a window (Linux over ssh, or `credential.guiPrompt` false) asks on
+    the terminal, e.g. its device code flow, and reads `GIT_TERMINAL_PROMPT` like git does, so it
+    fails instead; the advice then is to log in once with git in a terminal, after which GCM has the
+    token stored. Showing GCM's own prompts in gmd would need GCM to ask an askpass, which as far as
+    its documentation says it does not.
 - An exception on a thread of its own, rather than on the UI main loop or in a task, ends the
   process in `AppDomain.UnhandledException` before `Main` gets to say so (see the crash fix under
   Bugs fixed). Nothing in gmd starts such a thread today.

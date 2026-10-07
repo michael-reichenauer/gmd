@@ -215,6 +215,14 @@ Both are reworked, see proposal D.1.
    `Askpass`), unless the user has an askpass of their own. gmd answers nothing yet, so the command
    fails, and `LoginError` says what to do: the key to `ssh-add`, the host to trust, a credential
    helper to set up. The fetch says it on the status line, a push or a pull in its error box.
+   *The second half is done (2026-10-07):* the askpass asks the gmd that ran the git, over a named
+   pipe opened for the user only and a token in git's environment (`AskpassServer`), which shows a
+   dialog (`LoginDlg`): the passphrase or password typed hidden, the user name shown, a host to trust
+   by Yes or No, No the default. Not `GIT_ASKPASS`: git asks `SSH_ASKPASS` when it has none, and
+   setting it would override a user's `core.askPass`. Only what the user asked for asks: the fetch in
+   the background (`Askpass.NeverAsk`) says on the status line that `r` fetches and asks, and the
+   metadata sync beside a fetch or a push never asks, so a command asks once. Cancel is said on the
+   status line, and the command's later questions are not asked.
 2. **Say what is hidden.** On the first open of a repository, once, on the status line: "Showing
    main and dev. 29 more branches are hidden: ⇧→ shows one, or Enter on ┣╮." Perhaps the count in
    the top bar for good. *Done (2026-10-07), once per user rather than per repository:* the first
@@ -367,8 +375,8 @@ Bigger features:
   L
 - [x] 16. **Reword, fix up and drop** commits not yet pushed (B.3): Amend and Drop of any commit
   not pushed yet. L
-- [ ] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `GIT_ASKPASS` and
-  `SSH_ASKPASS`, asking in a dialog of the gmd that started git. The design, Git Credential
+- [x] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `SSH_ASKPASS`, which
+  git asks too, asking in a dialog of the gmd that started git. What is left, Git Credential
   Manager included, is in `MODERNIZATION.md` (open issues, Product). M
 - [ ] 18. **The smaller gaps** (part 2, item 7), each to pick or skip: stash apply, a tag list and
   push, a diff of any two commits, search of the changes (`-S`), line history (`log -L`), a merge
