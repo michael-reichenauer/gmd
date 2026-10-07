@@ -542,16 +542,11 @@ class Server : IServer
         return ChangeLog.Create(repo, newRelease, DateTime.UtcNow);
     }
 
-    public Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd) =>
-        augmentedService.AddTagAsync(name, commitId, hasRemoteBranch, wd);
+    public Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd) =>
+        augmentedService.AddTagAsync(name, commitId, isPush, wd);
 
-    public Task<Result> AddAnnotatedTagAsync(
-        string name,
-        string message,
-        string commitId,
-        bool hasRemoteBranch,
-        string wd
-    ) => augmentedService.AddAnnotatedTagAsync(name, message, commitId, hasRemoteBranch, wd);
+    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd) =>
+        augmentedService.AddAnnotatedTagAsync(name, message, commitId, isPush, wd);
 
     public Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
         augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);

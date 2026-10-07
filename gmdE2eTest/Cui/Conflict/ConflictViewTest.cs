@@ -55,7 +55,7 @@ public class ConflictViewTest
             line 60
             line 61
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            Conflict 1 is not resolved yet — press 1, 2, 3, 4 or 0
+            Conflict 1 is not resolved yet — press 1 for HEAD, 2 for dev, 3 or 4 for both, 0 for neither
             """,
             gmd.WaitFor("─── Conflict 1"),
             repo.Path

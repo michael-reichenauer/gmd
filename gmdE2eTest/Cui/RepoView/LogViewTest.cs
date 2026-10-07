@@ -23,11 +23,11 @@ public class LogViewTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("Initial"),
             repo.Path
@@ -223,11 +223,11 @@ public class LogViewTest
             """
              Gmd {repo}, ●main                              (main) [Ϙ Search] ? X
             ───────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                               (● main)[v1.0] Test User 24-10-15
-            ┣╮   Merge branch 'dev' into main                                           Test User 24-10-15
-            ┣    Add gamma                                                              Test User 24-10-15
-            ┣╯   Add beta                                                               Test User 24-10-15
-            ┗    Initial                                                                Test User 24-10-15
+            ┣  ● Add delta                                             (● main)[v1.0] Test User 2024-10-15
+            ┣╮   Merge branch 'dev' into main                                         Test User 2024-10-15
+            ┣    Add gamma                                                            Test User 2024-10-15
+            ┣╯   Add beta                                                             Test User 2024-10-15
+            ┗    Initial                                                              Test User 2024-10-15
             """,
             gmd.WaitFor("Initial"),
             repo.Path
@@ -246,11 +246,11 @@ public class LogViewTest
             """
              Gmd {repo}, ●main                                               (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                         (● main)[v1.0] 17d85b Test User 24-10-15
-            ┣╮   Merge branch 'dev' into main                                                     4e73d2 Test User 24-10-15
-            ┣    Add gamma                                                                        4a15fb Test User 24-10-15
-            ┣╯   Add beta                                                                         dd7891 Test User 24-10-15
-            ┗    Initial                                                                          9dc406 Test User 24-10-15
+            ┣  ● Add delta                                                       (● main)[v1.0] 17d85b Test User 2024-10-15
+            ┣╮   Merge branch 'dev' into main                                                   4e73d2 Test User 2024-10-15
+            ┣    Add gamma                                                                      4a15fb Test User 2024-10-15
+            ┣╯   Add beta                                                                       dd7891 Test User 2024-10-15
+            ┗    Initial                                                                        9dc406 Test User 2024-10-15
             """,
             gmd.WaitFor("Initial"),
             repo.Path
@@ -282,11 +282,11 @@ public class LogViewTest
             """
              mmm DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD WMMMM                                                       MMMMMM DD DDDDDDD c W
             mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
-            M  W WWW WWWWW                                                      MW MMMMMGGGGGG CCCCCC WWWW WWWW      WWWWWWWW WWWWW
-            MD   WWWWW WWWWWW WWWWW WWWW WWWW                                                  CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            M    WWW WWWWW                                                                     CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            MD   WWW WWWW                                                                      CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            M    WWWWWWW                                                                       CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            M  W WWW WWWWW                                                    MW MMMMMGGGGGG CCCCCC WWWW WWWW      WWWWWWWWWW WWWWW
+            MD   WWWWW WWWWWW WWWWW WWWW WWWW                                                CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            M    WWW WWWWW                                                                   CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            MD   WWW WWWW                                                                    CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            M    WWWWWWW                                                                     CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
             """,
             ScreenText.ColorRows(gmd.CaptureColors(), 0, 8)
         );
@@ -307,13 +307,13 @@ public class LogViewTest
         // the row the cursor is on and dark otherwise, so landing on dev turns main's rows dark.
         Assert.AreEqual(
             """
-            M   W DDD DDDDD                                                     MW MMMMMGGGGGG CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            MG    DDDDD DDDDDD DDDDD DDDD DDDD                                                 CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            MG    DDD DDDDD                                                                    CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            MGG   WWWW WWW WWWW                                                          GGGGG CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            MGG   WWWW WW WWW                                                                  CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            MG    DDD DDDD                                                                     CCCCCC DDDD DDDD      DDDDDDDD DDDDD
-            M     DDDDDDD                                                                      CCCCCC DDDD DDDD      DDDDDDDD DDDDD
+            M   W DDD DDDDD                                                   MW MMMMMGGGGGG CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            MG    DDDDD DDDDDD DDDDD DDDD DDDD                                               CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            MG    DDD DDDDD                                                                  CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            MGG   WWWW WWW WWWW                                                        GGGGG CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            MGG   WWWW WW WWW                                                                CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            MG    DDD DDDD                                                                   CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
+            M     DDDDDDD                                                                    CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
             """,
             ScreenText.ColorRows(gmd.CaptureColors(), 2, 7)
         );
@@ -334,10 +334,10 @@ public class LogViewTest
         // The rows below it are plain.
         Assert.AreEqual(
             """
-            D  D DDD DDDDD                                                      DD DDDDDDDDDDD DDDDDD DDDD DDDD      DDDDDDDD DDDDD
-            --   ..... ...... ..... .... ....                                                  ...... .... ....      ........ .....
-            -    ... .....                                                                     ...... .... ....      ........ .....
-            --   ... ....                                                                      ...... .... ....      ........ .....
+            D  D DDD DDDDD                                                    DD DDDDDDDDDDD DDDDDD DDDD DDDD      DDDDDDDDDD DDDDD
+            --   ..... ...... ..... .... ....                                                ...... .... ....      .......... .....
+            -    ... .....                                                                   ...... .... ....      .......... .....
+            --   ... ....                                                                    ...... .... ....      .......... .....
             """,
             ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4)
         );
@@ -354,16 +354,16 @@ public class LogViewTest
         var first = """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣ ● Commit number 29                                                      (● main) a579ec Test User      24-10-15 12:29┃
-            ┣   Commit number 28                                                               a20764 Test User      24-10-15 12:28┃
-            ┣   Commit number 27                                                               9c99a7 Test User      24-10-15 12:27┃
-            ┣   Commit number 26                                                               f1183f Test User      24-10-15 12:26┃
-            ┣   Commit number 25                                                               d5e69c Test User      24-10-15 12:25┃
-            ┣   Commit number 24                                                               ff0009 Test User      24-10-15 12:24
-            ┣   Commit number 23                                                               78ab6f Test User      24-10-15 12:23
-            ┣   Commit number 22                                                               9c943a Test User      24-10-15 12:22
-            ┣   Commit number 21                                                               ad2ca1 Test User      24-10-15 12:21
-            ┣   Commit number 20                                                               bc3421 Test User      24-10-15 12:20
+            ┣ ● Commit number 29                                                    (● main) a579ec Test User      2024-10-15 12:29┃
+            ┣   Commit number 28                                                             a20764 Test User      2024-10-15 12:28┃
+            ┣   Commit number 27                                                             9c99a7 Test User      2024-10-15 12:27┃
+            ┣   Commit number 26                                                             f1183f Test User      2024-10-15 12:26┃
+            ┣   Commit number 25                                                             d5e69c Test User      2024-10-15 12:25┃
+            ┣   Commit number 24                                                             ff0009 Test User      2024-10-15 12:24
+            ┣   Commit number 23                                                             78ab6f Test User      2024-10-15 12:23
+            ┣   Commit number 22                                                             9c943a Test User      2024-10-15 12:22
+            ┣   Commit number 21                                                             ad2ca1 Test User      2024-10-15 12:21
+            ┣   Commit number 20                                                             bc3421 Test User      2024-10-15 12:20
             """;
         ScreenText.AssertEqual(first, gmd.WaitFor("Commit number 29"), repo.Path);
 
@@ -378,16 +378,16 @@ public class LogViewTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   Commit number 20                                                               bc3421 Test User      24-10-15 12:20
-            ┣   Commit number 19                                                               7f6574 Test User      24-10-15 12:19
-            ┣   Commit number 18                                                               ba1e69 Test User      24-10-15 12:18
-            ┣   Commit number 17                                                               02f871 Test User      24-10-15 12:17┃
-            ┣   Commit number 16                                                               6e07b5 Test User      24-10-15 12:16┃
-            ┣   Commit number 15                                                               8d0818 Test User      24-10-15 12:15┃
-            ┣   Commit number 14                                                               b020d9 Test User      24-10-15 12:14┃
-            ┣   Commit number 13                                                               a91a58 Test User      24-10-15 12:13┃
-            ┣   Commit number 12                                                               3b1172 Test User      24-10-15 12:12
-            ┣   Commit number 11                                                               0399cf Test User      24-10-15 12:11
+            ┣   Commit number 20                                                             bc3421 Test User      2024-10-15 12:20
+            ┣   Commit number 19                                                             7f6574 Test User      2024-10-15 12:19
+            ┣   Commit number 18                                                             ba1e69 Test User      2024-10-15 12:18
+            ┣   Commit number 17                                                             02f871 Test User      2024-10-15 12:17┃
+            ┣   Commit number 16                                                             6e07b5 Test User      2024-10-15 12:16┃
+            ┣   Commit number 15                                                             8d0818 Test User      2024-10-15 12:15┃
+            ┣   Commit number 14                                                             b020d9 Test User      2024-10-15 12:14┃
+            ┣   Commit number 13                                                             a91a58 Test User      2024-10-15 12:13┃
+            ┣   Commit number 12                                                             3b1172 Test User      2024-10-15 12:12
+            ┣   Commit number 11                                                             0399cf Test User      2024-10-15 12:11
             """,
             gmd.WaitUntilGone("Commit number 29"),
             repo.Path
@@ -399,16 +399,16 @@ public class LogViewTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   Commit number 09                                                               36b6fd Test User      24-10-15 12:09
-            ┣   Commit number 08                                                               f2a4f4 Test User      24-10-15 12:08
-            ┣   Commit number 07                                                               c78293 Test User      24-10-15 12:07
-            ┣   Commit number 06                                                               5bad1c Test User      24-10-15 12:06
-            ┣   Commit number 05                                                               f15dfc Test User      24-10-15 12:05
-            ┣   Commit number 04                                                               7e31dc Test User      24-10-15 12:04┃
-            ┣   Commit number 03                                                               c02add Test User      24-10-15 12:03┃
-            ┣   Commit number 02                                                               8332dd Test User      24-10-15 12:02┃
-            ┣   Commit number 01                                                               5692a8 Test User      24-10-15 12:01┃
-            ┗   Commit number 00                                                               a823b7 Test User      24-10-15 12:00┃
+            ┣   Commit number 09                                                             36b6fd Test User      2024-10-15 12:09
+            ┣   Commit number 08                                                             f2a4f4 Test User      2024-10-15 12:08
+            ┣   Commit number 07                                                             c78293 Test User      2024-10-15 12:07
+            ┣   Commit number 06                                                             5bad1c Test User      2024-10-15 12:06
+            ┣   Commit number 05                                                             f15dfc Test User      2024-10-15 12:05
+            ┣   Commit number 04                                                             7e31dc Test User      2024-10-15 12:04┃
+            ┣   Commit number 03                                                             c02add Test User      2024-10-15 12:03┃
+            ┣   Commit number 02                                                             8332dd Test User      2024-10-15 12:02┃
+            ┣   Commit number 01                                                             5692a8 Test User      2024-10-15 12:01┃
+            ┗   Commit number 00                                                             a823b7 Test User      2024-10-15 12:00┃
             """,
             gmd.WaitFor("Commit number 00"),
             repo.Path
@@ -546,11 +546,11 @@ public class LogViewTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add│Commit ...                          c  │                                  4a15fb Test User      24-10-15 12:04
-            ┣╯   Add│Amend ...                           a  │                                  dd7891 Test User      24-10-15 12:01
-            ┗    Ini│Commit Diff                         d  │                                  9dc406 Test User      24-10-15 12:00
+            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Mer╭ Commit: 17d85b ───────────────────────╮                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add│Commit ...                          c  │                                4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add│Amend ...                           a  │                                dd7891 Test User      2024-10-15 12:01
+            ┗    Ini│Commit Diff                         d  │                                9dc406 Test User      2024-10-15 12:00
                     │Undo                                  >│
                     │Rebase                                >│
                     │Stash                                 >│
@@ -560,6 +560,8 @@ public class LogViewTest
                     │Cherry Pick into main                  │
                     │Switch to Commit                       │
                     │Commit Details                  Enter  │
+                    │Copy Commit Id                      i  │
+                    │Copy Commit Message           Shift-I  │
                     │Open Commit in Browser                 │
                     │Full File History ...                  │
                     │Blame File ...                         │
@@ -630,7 +632,7 @@ public class LogViewTest
                                                               │Push All Branches   Shift-P  │
                                                               ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 20, 12)
+            ScreenText.Rows(branches, repo.Path, 22, 12)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -645,18 +647,18 @@ public class LogViewTest
             """
                     ╭ dev ───────────────────────────────────╮
                     │Switch to Branch                     s  │
-                    │Merge dev into main                  e  │╭ Branches ───────────────────╮
-                    │Merge main into dev            Shift-E  ││●   main                    >│
-                    │Rebase and Push onto                   >││    dev                     >│
-                    │Hide Branch                          h  ││─────────────────────────────│
-                    │Pull                                 u  ││Show Branch         Shift-→ >│
-                    │Push                                 p  ││Hide All Branches            │
-                    │Create Branch ...                    b  ││Undo Show 'dev'   Backspace  │
-                    │Create Worktree ...                     ││Pull All Branches   Shift-U  │
-                    │Rename Branch ...                       ││Push All Branches   Shift-P  │
-                    │Delete Branch ...                       │╰─────────────────────────────╯
-                    │Undo Commit 'More dev work'             │
-                    │Diff Branch to                       d >│
+                    │Merge dev into main                  e  │
+                    │Merge main into dev            Shift-E  │
+                    │Rebase and Push onto                   >│╭ Branches ───────────────────╮
+                    │Hide Branch                          h  ││●   main                    >│
+                    │Pull                                 u  ││    dev                     >│
+                    │Push                                 p  ││─────────────────────────────│
+                    │Create Branch ...                    b  ││Show Branch         Shift-→ >│
+                    │Create Worktree ...                     ││Hide All Branches            │
+                    │Rename Branch ...                       ││Undo Show 'dev'   Backspace  │
+                    │Delete Branch ...                       ││Pull All Branches   Shift-U  │
+                    │Undo Commit 'More dev work'             ││Push All Branches   Shift-P  │
+                    │Diff Branch to                       d >│╰─────────────────────────────╯
                     │Change Branch Color                  g  │
                     │Open in Browser                         │
                     │Create Pull Request in Browser          │
@@ -686,8 +688,8 @@ public class LogViewTest
         // even though nothing near the top of it changed.
         Assert.AreEqual(
             """
-            ┣╯   Add beta       ╭ Help ────────────────────────────────────────────────────────────────────────╮     24-10-15 12:01
-            ┗    Initial        │# Gmd Help Guide                                                             ┃│     24-10-15 12:00
+            ┣╯   Add beta       ╭ Help ────────────────────────────────────────────────────────────────────────╮   2024-10-15 12:01
+            ┗    Initial        │# Gmd Help Guide                                                             ┃│   2024-10-15 12:00
                                 │                                                                             ┃│
                                 │What is on the screen comes first, then the everyday tasks, then the         ┃│
                                 │reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel, and       │
@@ -729,13 +731,13 @@ public class LogViewTest
             """
              Gmd {repo}, ●main                                                        (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   ● Add delta                                                     (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣│    Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┃╰╊   More dev work                                                          (dev) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            ┣   ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣│    Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┃╰╊   More dev work                                                        (dev) af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺   Work on dev                                                                d997ad Test User      2024-10-15 12:02
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("More dev work"),
             repo.Path

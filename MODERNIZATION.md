@@ -332,11 +332,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `DeleteTag` deletes a tag on origin whenever the branch of the row's commit has a remote, not
   when origin actually has the tag, so the question may say 'on origin as well' for a tag that was
   never pushed.
-- `CopyCommitId` / `CopyCommitMessage` are implemented on `IRepoCommands` but no key or menu item
-  calls them. A commit-menu entry would also give macOS users a copy without Ctrl+C. Cmd+C cannot
-  reach a terminal program at all: the terminal keeps it, the classic key protocol cannot express
-  it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile binding of Cmd+C to hex
-  `0x03` is the workaround.
+- Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
+  protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
+  binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
+  no Ctrl+C: `i` and `Shift-I` copy them, as the commit menu's *Copy Commit Id* and *Copy Commit
+  Message* do (2026-10-07).
 - `BlameView.ScrollToCommit` calls `SetCurrentIndex` before `ScrollToShowIndex`, which puts the
   cursor on the last visible row rather than the target. Scroll first, then set the cursor.
 - `UILabel.Text`'s setter sizes the label from the text it is *replacing*, so a header that grows is

@@ -31,10 +31,10 @@ public class BlameViewTest
             """
             Blame  alpha.txt  @7e09a8   4 lines, 2 commits
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┌ 65480e Test User   24-10-15 │   1┃one
-            └                             │   2┃two
-            ┌ 7e09a8 Test User   24-10-15 │   3┃CHANGED
-            └                             │   4┃FOUR
+            ┌ 65480e Test User   2024-10-15 │   1┃one
+            └                               │   2┃two
+            ┌ 7e09a8 Test User   2024-10-15 │   3┃CHANGED
+            └                               │   4┃FOUR
             """,
             ScreenText.Rows(gmd.WaitFor("CHANGED"), repo.Path, 0, 6)
         );

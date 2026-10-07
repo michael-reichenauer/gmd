@@ -131,8 +131,8 @@ public class DemoTest
     static string Rewrite(string screen, string repoPath)
     {
         var today = DateTime.UtcNow;
-        var dates = string.Join("|", new[] { today.AddDays(-1), today }.Select(d => d.ToString("yy-MM-dd")));
-        var now = DemoRepo.Now.ToString("yy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        var dates = string.Join("|", new[] { today.AddDays(-1), today }.Select(d => d.ToString("yyyy-MM-dd")));
+        var now = DemoRepo.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
         screen = screen.Replace(repoPath, $"/{DemoRepo.RelativePath}");
         return Regex.Replace(screen, $@"\b({dates}) \d\d:\d\d\b", now);

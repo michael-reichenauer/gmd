@@ -45,8 +45,8 @@ interface IAugmentedService
     Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
     Task<Result> RebaseBranchAsync(Repo repo, string name);
     Task<Result> SwitchToAsync(Repo repo, string branchName);
-    Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
-    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
+    Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd);
     Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);

@@ -211,6 +211,8 @@ written as they are typed: `c` is the c key, and `Shift-P` is P.
 | Home, End  | The first or the last row                                  |
 | Shift-↑↓   | Select rows in the log, diff and blame views               |
 | Ctrl-C     | Copy the selected rows to the clipboard                    |
+| i          | Copy the commit id to the clipboard                        |
+| Shift-I    | Copy the commit message to the clipboard                   |
 | ?, F1      | Open this help page                                        |
 | Esc        | Close a menu, dialog or view                               |
 | Esc, q     | Quit, in the log view (Esc asks first)                     |

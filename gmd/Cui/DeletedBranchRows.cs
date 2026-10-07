@@ -13,7 +13,7 @@ namespace gmd.Cui;
 //     24-10-15 12:01  fix                 local          Fix the login
 static class DeletedBranchRows
 {
-    const int TimeWidth = 16;
+    const int TimeWidth = 18; // 'yyyy-MM-dd HH:mm' and two spaces
     const int BranchWidth = 20;
     const int SidesWidth = 15;
     const int FixedWidth = TimeWidth + BranchWidth + SidesWidth;
@@ -30,7 +30,7 @@ static class DeletedBranchRows
 
     public static Text Row(DeletedBranch deleted, int width)
     {
-        var time = deleted.Time.ToString("yy-MM-dd HH:mm", CultureInfo.InvariantCulture).Max(TimeWidth, true);
+        var time = deleted.Time.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture).Max(TimeWidth, true);
         var branch = deleted.Name.Max(BranchWidth - 1, true) + " ";
         var sides = Sides(deleted).Max(SidesWidth, true);
         var subject = deleted.Subject.Max(Math.Max(0, width - FixedWidth), true);

@@ -13,7 +13,7 @@ namespace gmd.Cui;
 //     24-10-15 12:01  main                      1  amend     Second
 static class LostWorkRows
 {
-    const int TimeWidth = 16;
+    const int TimeWidth = 18; // 'yyyy-MM-dd HH:mm' and two spaces
     const int BranchWidth = 20;
     const int CommitsWidth = 9;
     const int LostByWidth = 10;
@@ -32,7 +32,7 @@ static class LostWorkRows
 
     public static Text Row(LostWork work, int width)
     {
-        var time = work.Time.ToString("yy-MM-dd HH:mm", CultureInfo.InvariantCulture).Max(TimeWidth, true);
+        var time = work.Time.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture).Max(TimeWidth, true);
         var branch = (work.BranchName != "" ? work.BranchName : "-").Max(BranchWidth - 1, true) + " ";
         var commits = $"{work.CommitIds.Count}".PadLeft(CommitsWidth - 2) + "  ";
         var lostBy = LostByName(work.LostBy).Max(LostByWidth, true);
