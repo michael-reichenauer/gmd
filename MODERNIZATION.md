@@ -149,6 +149,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   menu's `Pull/Update` on the current branch ran a fetch git refuses outright.
 - Squash refused unpushed commits and allowed pushed ones; Uncommit was offered with a dirty tree
   on an unpushed branch; push all tried to push diverged branches.
+- Squashing pushed commits with commits not pushed yet on top squashed those in too: the commits to
+  pick back were walked from the tip of the branch the squashed ones are on, which for pushed
+  commits is the remote branch, below the local one. They are walked from the local branch's tip,
+  and commits not on its line, e.g. ones only origin has when the two have diverged, are refused
+  before anything changes, where the branch used to be reset onto them (2026-10-07).
 - Inference: with no `main` / `master` / `trunk` the root branch was whichever git listed first; a
   commit below a branch point went to the wrong child when the other child had a merge-subject
   name; four merge-subject forms lost their `into` name; a stopped rebase lost the current branch;
@@ -275,12 +280,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   clipped. `BlameView` works around it with `Width = Dim.Fill()`; the setter is the fix.
 - Pull all only considers shown branches; a hidden branch that is behind is neither pulled nor
   counted in `▼`. `help.md` says "all displayed branches", so arguably right.
-- Squashing pushed commits while the branch has commits of its own on top squashes those in too:
-  `AugmentedService.SquashCommits` walks the commits to pick back from
-  `BranchByName[c1.BranchName].TipId`, which for pushed commits is the remote branch, so the local
-  commits above it are not picked back and end up in the squash. Undo Squash takes it back. Walk
-  from the current local branch's tip instead; `UndoIntegrationTest`'s ignored
-  `TestSquashPushedCommitsKeepsTheLocalCommitOnTop` is the regression test.
 - Undo, Recover and the force push handling, as left (2026-10-06):
   - No key for Undo, nor a key hint; it is in the commit menu and the branch menus.
   - "Undo the last change in any branch" would need the times of the reflog entries, which are not

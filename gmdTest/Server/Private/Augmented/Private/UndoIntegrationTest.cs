@@ -255,11 +255,9 @@ public class UndoIntegrationTest
     }
 
     // Squashing pushed commits while the branch has a commit of its own on top: the commit on top
-    // has to stay a commit of its own, on top of the squash. It is not: the commits to pick back are
-    // walked from the remote branch's tip, so the local one is squashed in with the others (Undo
-    // Squash does bring it back). Kept for when it is fixed, see MODERNIZATION.md.
+    // stays a commit of its own, on top of the squash. The commits to pick back used to be walked from
+    // the remote branch's tip, so the local one was squashed in with the others.
     [TestMethod]
-    [Ignore("Squash walks the newer commits from the remote branch's tip, see MODERNIZATION.md")]
     public async Task TestSquashPushedCommitsKeepsTheLocalCommitOnTop()
     {
         await repo.CommitFileAsync("a.txt", "a\n", "Initial");
@@ -273,5 +271,26 @@ public class UndoIntegrationTest
         AssertOk(await service.SquashCommits(augmented, newer, older, "Squashed"));
 
         Assert.AreEqual("Local on top\nSquashed\nInitial", (await repo.GitAsync("log --format=%s")).Trim());
+    }
+
+    // A squash of commits only origin has, the local branch having diverged from it, is refused
+    // before anything is changed: it used to reset the local branch onto them
+    [TestMethod]
+    public async Task TestSquashOfCommitsNotOnTheLocalBranchIsRefused()
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        var older = await repo.CommitFileAsync("b.txt", "b\n", "Older");
+        var newer = await repo.CommitFileAsync("c.txt", "c\n", "Newer");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -u origin main");
+        await repo.GitAsync("reset -q --hard HEAD~2");
+        var local = await repo.CommitFileAsync("d.txt", "d\n", "Local");
+        var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var error = AssertError(await service.SquashCommits(augmented, newer, older, "Squashed"));
+
+        StringAssert.Contains(error.Message, "Only commits on the current branch can be squashed");
+        Assert.AreEqual(local, await repo.HeadIdAsync());
+        Assert.AreEqual("", await repo.GitAsync("branch --list squash-backup-*"), "No backup branch is left");
     }
 }

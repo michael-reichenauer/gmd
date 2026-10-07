@@ -379,25 +379,34 @@ class AugmentedService : IAugmentedService
             if (!branch.IsCurrent && !branch.IsLocalCurrent)
                 return new Error("Commits not on current branch");
 
-            // Where the branch was before, for Undo, which the squash is recorded for below. A squash
-            // waits for a clean tree, so the local branch's tip is git's own, not the uncommitted row.
+            // The local branch, which the squash moves, and where it was before, for Undo, which the
+            // squash is recorded for below. A squash waits for a clean tree, so the local branch's tip
+            // is git's own, not the uncommitted row.
             var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote);
+
+            // The commits on top of the squashed ones, to be picked back onto the squash, walked from
+            // the local branch's tip. Not from the tip of the branch the commits are on: commits
+            // already pushed are on the remote branch, whose tip is below the local one's when there
+            // are commits on top not pushed yet, and those were squashed in with the others. A commit
+            // that is not on the local branch's line, e.g. one only origin has when the two have
+            // diverged, is refused before anything is changed, rather than the branch reset onto it.
+            var preCommits = new List<Commit>();
+            var c = repo.CommitById[local?.TipId ?? branch.TipId];
+            while (c.Id != c1.Id)
+            {
+                preCommits.Add(c);
+                if (c.ParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.ParentIds[0], out var parent))
+                    return new Error(
+                        $"Only commits on the current branch can be squashed, and {c1.Sid} is not on "
+                            + $"'{local?.NiceNameUnique ?? branch.NiceNameUnique}'"
+                    );
+                c = parent;
+            }
 
             // Create a backup branch (in case of errors)
             var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
             if (await git.CreateBranchAsync(tmpName, false, repo.Path) is Error backupError)
                 return new Error("Failed to create backup branch", backupError);
-
-            // Remember commits before squash to be cherry picked back
-            var preCommits = new List<Commit>();
-            var c = repo.CommitById[branch.TipId];
-            while (c.Id != c1.Id)
-            {
-                preCommits.Add(c);
-                if (!c.ParentIds.Any())
-                    break;
-                c = repo.CommitById[c.ParentIds[0]];
-            }
 
             // Remove all prefix commits on current branch until the first commit to squash
             if (preCommits.Any())
