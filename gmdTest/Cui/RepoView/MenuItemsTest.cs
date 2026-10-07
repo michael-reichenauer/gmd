@@ -349,7 +349,6 @@ public class MenuItemsTest
             Next Match  [n]  (disabled)
             Previous Match  [Shift-N]  (disabled)
             Refresh  [r]
-            Clean Working Folder
             Worktrees ...  [w]
             Open Repository in Browser
             Open, Clone or Init Repo >  [o]

@@ -288,6 +288,42 @@ public class ViewRepoCreaterTest
         );
     }
 
+    // Orders that contradict each other, each branch after the other, as a rename could leave them,
+    // have no order to reach, and the sort swapped the two forever, which hung gmd on every refresh.
+    // Now the sort leaves the place it cannot settle as it is and goes on. Characterization: the
+    // order below is where that stop leaves them, and the timeout is what fails if it does not end.
+    [TestMethod]
+    [Timeout(5000)]
+    public async Task TestOrdersThatContradictEachOtherStillEnd()
+    {
+        var builder = SiblingBranches();
+        builder.Config.Set(
+            "/test/repo",
+            c =>
+                c.BranchOrders = [
+                    new BranchOrder
+                    {
+                        Branch = "feat1",
+                        Other = "feat2",
+                        Order = 1,
+                    },
+                    new BranchOrder
+                    {
+                        Branch = "feat2",
+                        Other = "feat1",
+                        Order = 1,
+                    },
+                ]
+        );
+
+        var ordered = await builder.ViewRepoAsync(ShowBranches.AllActive);
+
+        CollectionAssert.AreEqual(
+            new[] { "origin/main", "main", "feat2", "feat1", "feat3", "dev", "extra" },
+            BranchNames(ordered)
+        );
+    }
+
     // The branches are sorted by comparing each with only the few it can go after, which must come to
     // the very same order as comparing every pair, over random hierarchies and random user orders.
     // The user orders follow a random order the ancestry allows, some twice, some both ways, and some

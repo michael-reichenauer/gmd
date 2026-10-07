@@ -111,6 +111,36 @@ public class SorterTest
         }
     }
 
+    // A comparer with a cycle has no order to reach: here a goes after b, b after c and c after a,
+    // as branch orders that contradict each other do, which a rename can leave. Both sorts swapped
+    // such items forever, which hung gmd on every refresh of the repo; now they stop, each item still
+    // there once, in whatever order they had come to. The timeout is what fails if they do not.
+    [TestMethod]
+    [Timeout(5000)]
+    public void TestAComparerWithACycleStillEnds()
+    {
+        var (a, b, c, d) = (new Item("a"), new Item("b"), new Item("c"), new Item("d"));
+        var after = new Dictionary<Item, Item?>
+        {
+            [a] = b,
+            [b] = c,
+            [c] = a,
+            [d] = null,
+        };
+        int Compare(Item x, Item y) =>
+            after[x] == y ? 1
+            : after[y] == x ? -1
+            : 0;
+
+        var sorted = new List<Item> { a, b, c, d };
+        Sorter.Sort(sorted, Compare);
+        CollectionAssert.AreEquivalent(new[] { a, b, c, d }, sorted);
+
+        var sortedByAfter = new List<Item> { a, b, c, d };
+        Sorter.Sort(sortedByAfter, Compare, x => after[x] is Item y ? [y] : []);
+        CollectionAssert.AreEquivalent(new[] { a, b, c, d }, sortedByAfter);
+    }
+
     class Item
     {
         public Item(string name)

@@ -120,7 +120,6 @@ class RepoViewInput
         // build run from the source
         if (Build.IsDevInstance())
             commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
-        commitsView.RegisterKeyHandler(Key.D5, () => BranchCmds.SetBranchManuallyAsync());
 
         commitsView.RegisterKeyHandler(Key.y, () => BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, OnKeyS);

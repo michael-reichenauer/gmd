@@ -266,7 +266,14 @@ Both are reworked, see proposal D.1.
    or *Branches*; in an open branch menu `Shift-P` and `Shift-U` now pick that branch's own Push and
    Pull, as a menu picks the item showing a letter in either case. *Squash ...* is in the commit
    menu itself, where the *Rebase* sub menu held it alone. *Branches* keeps the menu of each shown
-   branch, since `←` `→` reach only the branches on the cursor's row.
+   branch, since `←` `→` reach only the branches on the cursor's row. *The rare items too
+   (2026-10-07):* *Clean Working Folder* is *Discard All Changes and Ignored Files* under Undo,
+   beside *Discard All Changes*, which differs from it by the ignored files only. It is kept for
+   making the folder as a fresh clone has it, to check that no leftover ignored file makes a build
+   or a test pass, and its question lists what git's dry run says it deletes, so a `.env` meant to
+   be kept is seen before Yes. The `5` key is gone, *Set Commit Branch Manually* stays in the
+   branch menu. `g` stays, since automatic branch colors often collide and changing one is how two
+   branches are told apart; `<=` / `=>` never had keys.
 
 **D. Reach:**
 
@@ -314,8 +321,9 @@ Shorter menus (C.5, part 3):
 - [x] 10. **No duplicates:** Pull All and Push All out of the branch menu and out of *Branches*,
   and *Squash ...* straight into the commit menu. *Branches* keeps the menu of each shown branch,
   the one way by keyboard to a branch that does not cross the cursor's row. S
-- [ ] 11. **Rare and risky items moved:** *Clean Working Folder* under Undo, the `5` key gone, `g`
-  and `<=` / `=>` to the menu only, and the `Sorter.Sort` hang fixed. S
+- [x] 11. **Rare and risky items moved:** *Clean Working Folder* under Undo as *Discard All Changes
+  and Ignored Files*, its question listing what it deletes; the `5` key gone; `g` kept, since the
+  branch colors often collide; `<=` / `=>` had no keys already; and the `Sorter.Sort` hang fixed. S
 - [ ] 12. **The `*` and `$` search words** kept or dropped, to decide. S
 
 Getting around:

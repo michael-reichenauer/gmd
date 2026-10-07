@@ -360,6 +360,11 @@ throw changes away for good ask first.
 - **Uncommit <commit-sha> and Newer**: `git reset --soft <commit-sha>~`, so
   that commit and the ones after it are uncommitted
 - **Discard All Changes**: `git reset --hard` and `git clean -fd`
+- **Discard All Changes and Ignored Files**: `git reset --hard` and
+  `git clean -fxd`, i.e. the folder as a fresh clone of the last commit
+  has it, to check that nothing left over makes a build or a test pass.
+  The files git ignores go too, also those kept on purpose, such as a
+  .env file of secrets, so the question lists everything it deletes.
 
 
 ## More Commands
@@ -409,9 +414,6 @@ throw changes away for good ask first.
   menu has **Open Commit in Browser**, and the repo menu **Open Repository
   in Browser**. `$BROWSER` is used when it is set, and with no browser to
   open, e.g. over ssh, the link is copied instead.
-- **Clean Working Folder** (in the repo menu, asks first):
-  `git reset --hard` and `git clean -fxd`, which also deletes the files git
-  ignores.
 - **Set Commit Branch Manually ...** (branch menu):
   Sets the branch of a commit where gmd guessed wrong or could not decide
   (see How Gmd Picks a Commit's Branch).
