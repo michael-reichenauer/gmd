@@ -18,12 +18,13 @@ class RestoreBranchDlg : IRestoreBranchDlg
     {
         var dlg = new UIDialog("Restore Branch", 44, 10);
 
-        dlg.AddLabel(1, 0, $"Restore: {deleted.Name}");
-
-        var isLocalCheck = dlg.AddCheckBox(1, 2, "Restore Local", deleted.IsLocal);
-        isLocalCheck.Enabled = deleted.IsLocal;
-        var isRemoteCheck = dlg.AddCheckBox(1, 3, "Restore Remote", deleted.IsRemote);
-        isRemoteCheck.Enabled = deleted.IsRemote;
+        var (isLocalCheck, isRemoteCheck) = BranchSides.Add(
+            dlg,
+            "Restore",
+            deleted.Name,
+            deleted.IsLocal,
+            deleted.IsRemote
+        );
 
         if (!dlg.ShowOkCancel())
             return new Error();
