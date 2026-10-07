@@ -1,9 +1,40 @@
 # Change Log for Gmd
 --------------------
 
-134 releases:
+136 releases:
 
-## [Current] - 2026-09-30
+## [v0.95.1438.449] - 2026-10-07
+- Make Ctrl-A in the commit dialog add only the subjects of the merged commits
+- Show the current branch when it becomes current
+- Count the hidden branches with something new, local and new ones too, as ✦
+- See the new branches once they are listed
+- Mark a hidden branch with no commits of its own where it branches out
+- Classify what a branch reflog records, for Undo
+- Undo the last change of the current branch
+- Undo the last change of a branch that is not checked out
+- Undo a squash as one step
+- Find the lines of work no branch has any more
+- Recover lost commits from the Undo menu
+- Tell when origin was rewritten by a force push
+- Pull a branch whose origin was rewritten without merging the two
+- Restore origin from before a force push
+- Record Undo, Recover and the force push handling in the docs
+- Keep the commits not pushed yet out of a squash of pushed ones
+- Copy the saved undo steps when the repo is read
+- Diff a range from a root commit from the empty tree
+- Undo the current branch only from where it was read
+- Tell every force push a refresh finds, not only the first
+- Count only the commits a pull of a rewritten branch moves
+- Tell a force push that only dropped commits from origin
+- Added the git commands a restore of a deleted branch needs
+- Restore a branch gmd deleted
+- Tell deleted branch records apart by their pair, not their name
+- Say a branch deleted with its worktree can be restored
+- Share one list dialog between worktrees, lost commits and deleted branches
+- Share the side boxes of the delete and restore branch dialogs
+- Make Cancel the default of the Delete Branch dialog
+
+## [v0.94.1431.496] - 2026-09-30
 - Say what a commit, push or pull is doing while git works
 
 ## [v0.94.1429.782] - 2026-09-28
@@ -41,7 +72,7 @@
 ## [v0.91.1394.267] - 2026-08-24
 - Fixed spell warnings
 
-## [v0.91.1388.1436] - 2026-08-19
+## [v0.91.1388.1436] - 2026-08-18
 - Modernized codebase
 - Fixed 100% CPU usage on linux/max by updating Terminal.Gui to 1.19.0
 - Added support for e2e terminnal testing
@@ -61,7 +92,8 @@
 - Fixed some bugs
 
 ## [v0.91.1364.357] - 2026-07-25
-- New version- Adjust installtools to include some more tools
+- New version
+- Adjust installtools to include some more tools
 
 ## [v0.91.1119.391] - 2025-11-22
 - Fixed path
@@ -163,7 +195,8 @@
 - Improve menues
 
 ## [v0.90.307.299] - 2023-09-02
-- Updated change log- Combined State and Config files
+- Updated change log
+- Combined State and Config files
 - Adjusted margin between sibling branches in graph
 - Moved stash submenu from repo menu to commit menu
 - Fixed issue with hiding wrong branch when using 'h'
@@ -348,7 +381,8 @@
 - Moved progress to upper left corner
 
 ## [v0.50.211.218] - 2023-05-29
-- Adjust change log- Adjusted the progress indicator
+- Adjust change log
+- Adjusted the progress indicator
 
 ## [v0.50.207.216] - 2023-05-25
 - Skip leading empty lines in commit messages
@@ -561,7 +595,8 @@ Merge branch 'dev' into main
 - Adjust container post create commands
 
 ## [v0.30.32.894] - 2022-12-01
-Fix some issues after update to .net 7Update to .NET 7
+Fix some issues after update to .net 7
+Update to .NET 7
 
 ## [v0.30.32.367] - 2022-12-01
 - Improve branch structure
